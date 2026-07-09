@@ -32,6 +32,8 @@ type AuditEntry = {
   date?: string | null;
 };
 
+const isPaymentEvent = (value?: string | null) => String(value || "").includes("payment");
+
 interface CompensationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -85,14 +87,16 @@ export default function CompensationModal({
       ...(details?.audit_logs || []).map((log) => ({
         id: `audit-${log.action}-${log.created_at || ""}`,
         label: log.label || log.action || "Finance activity",
-        subLabel: log.notes,
+        subLabel: isPaymentEvent(log.action) ? `Paid to ${log.creators?.[0]?.creator_name || "Unknown Creator"}${log.notes ? ` - ${log.notes}` : ""}` : log.notes,
         date: log.created_at,
       })),
       ...(details?.creators || []).flatMap((creator) =>
         (creator.timeline || []).map((event) => ({
           id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
           label: event.label || event.event_type || "Payment activity",
-          subLabel: event.sub_label || creator.creator_name || null,
+          subLabel: isPaymentEvent(event.event_type)
+            ? `Paid to ${creator.creator_name || "Unknown Creator"}${event.sub_label ? ` - ${event.sub_label}` : ""}`
+            : event.sub_label || creator.creator_name || null,
           date: event.event_date,
         }))
       ),
@@ -441,3 +445,4 @@ export default function CompensationModal({
     </div>
   );
 }
+
