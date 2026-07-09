@@ -8,6 +8,8 @@ interface DeleteConfirmationModalProps {
   onConfirm: () => void;
   title?: string;
   description?: string;
+  confirmLabel?: string;
+  loadingLabel?: string;
   isLoading?: boolean;
   isDark?: boolean; // Added theme control prop
 }
@@ -18,6 +20,8 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
   onConfirm,
   title = "Delete Record",
   description = "Are you sure you want to delete this record? This action cannot be undone.",
+  confirmLabel = "Delete",
+  loadingLabel = "Deleting...",
   isLoading = false,
   isDark = true, // Defaulting to your workspace preference
 }) => {
@@ -82,7 +86,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                   : "bg-red-200 hover:bg-red-300 shadow-red-500/20 text-red"
                 }`}
             >
-              {isLoading ? "Deleting..." : "Delete"}
+              {isLoading ? loadingLabel : confirmLabel}
             </Button>
           </div>
         </div>

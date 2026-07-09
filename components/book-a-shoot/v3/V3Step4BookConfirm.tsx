@@ -128,6 +128,42 @@ interface ShootTypeProps {
   stats?: { label: string; value: string }[];
 }
 
+type CreatorQuotePayload = {
+  creator_ids: number[];
+  role_counts?: {
+    videographer?: number;
+    photographer?: number;
+    cinematographer?: number;
+    editor?: number;
+  };
+  event_type: string;
+  video_edit_types: Array<{ slug: string; quantity: number }>;
+  photo_edit_types: Array<{ slug: string; quantity: number }>;
+  skip_discount: boolean;
+  skip_margin: boolean;
+  studio_total: number;
+  studio_items?: Array<{
+    studio_id: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+    pricing_mode: "hourly" | "weekend";
+  }>;
+  content_type?: string;
+  shoot_hours?: number;
+  shoot_start_date?: string | null;
+};
+
+type QuoteLineItem = {
+  item_name?: string;
+  quantity?: string | number;
+  line_total?: string | number;
+  category_slug?: string;
+  is_mandatory?: boolean;
+  hidden?: boolean;
+};
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -254,8 +290,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
+  const hasSelectedCreatorPricing =
+    !isEditingOnly &&
+    (
+      (data.selectedCrewIds?.length || 0) > 0 ||
+      Number(data.roleCounts?.videographer || 0) > 0 ||
+      Number(data.roleCounts?.photographer || 0) > 0 ||
+      Number(data.roleCounts?.cinematographer || 0) > 0
+    );
+  const hasEditPricing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
   const useContentHouseInclusivePricing =
-    isStudioBooking && selectedStudios.length > 0;
+    isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
+  const useStudioOnlyLocalPricing =
+    isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing && !hasEditPricing;
   const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
   const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
   const photoEditSummary = getPhotoEditSummary({
@@ -390,8 +437,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.videographyCount,
-      photographyCount: data?.photographyCount,
+      videographyCount: data?.videographyCount || 0,
+      photographyCount: data?.photographyCount || 0,
       cp_ids: data?.selectedCrewIds,
     };
 
@@ -400,13 +447,27 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      form_content_type: data.contentType.join(","),
+      form_shoot_type: data.shootType,
+      form_shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      form_edits_needed: data.editsNeeded,
+      form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+      form_booking_type: data.bookingType,
+      form_additional_creative: data.addTeamMembers ? (formFields.videographyCount + formFields.photographyCount) : data.addTeamMembers,
+      form_shoot_location: data.location,
+      form_additional_details: data.specialInstructions,
+      form_supporting_url: data.referenceLinks,
+      form_cp_id: data?.selectedCrewIds,
+      form_selected_studio: data?.selectedStudioIds?.toString(),
+      form_studio_pricing_category: data?.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
     });
   }, [])
 
@@ -420,6 +481,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   // Calculate quote when component mounts or data changes
   useEffect(() => {
     const fetchQuote = async () => {
+      if (useStudioOnlyLocalPricing) {
+        setQuoteTotal(selectedStudiosTotal);
+        setCrewBreakdown([]);
+        setPricingGroups({
+          shootCost: 0,
+          editingFees: 0,
+          additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+          mandatoryAddons: [],
+          studioCost: selectedStudiosTotal,
+        });
+        return;
+      }
+
       // Check if we have duration
       if (!isEditingOnly && !useContentHouseInclusivePricing && durationHours === 0) {
         setQuoteTotal(null);
@@ -458,11 +532,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           ? data.bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date))[0]?.date
           : null;
 
-        const quotePayload: any = {
-          creator_ids: useContentHouseInclusivePricing ? [] : data.selectedCrewIds,
+        const quotePayload: CreatorQuotePayload = {
+          // Saved quotes are catalog/role based, so preview must use the same
+          // role counts instead of re-deriving roles from creator profiles.
+          creator_ids: [],
           role_counts: isEditingOnly
             ? { editor: 1 }
-            : useContentHouseInclusivePricing
+            : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
               ? {}
               : data.roleCounts,
           event_type: data.shootType || "general",
@@ -471,12 +547,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           skip_discount: true,
           skip_margin: true,
           studio_total: selectedStudiosTotal || 0,
+          studio_items: selectedStudios.map((studio) => ({
+            studio_id: studio.studioId,
+            name: studio.name,
+            quantity: studio.quantity,
+            unit_price: studio.unitPrice,
+            total: studio.totalPrice,
+            pricing_mode: studio.pricingMode,
+          })),
         };
 
         if (isEditingOnly) {
           quotePayload.content_type = "ai editing";
         } else {
-          if (useContentHouseInclusivePricing) {
+          if (useContentHouseInclusivePricing && !hasSelectedCreatorPricing) {
             // Backend validation requires shoot_hours > 0 for non-AI-editing flows.
             // Keep it at minimum valid value while excluding creator/role items.
             quotePayload.shoot_hours = 1;
@@ -508,7 +592,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
 
         if (result.lineItems && result.lineItems.length > 0) {
-          result.lineItems.forEach((item: any) => {
+          result.lineItems.forEach((item: QuoteLineItem) => {
             const name = item.item_name;
             const quantity = parseInt(item.quantity || 1);
             const lineTotal = parseFloat(item.line_total || 0);
@@ -519,7 +603,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               lowerName.includes("resort") ||
               lowerName.includes("location platform");
 
-            if (useContentHouseInclusivePricing) {
+            if (useContentHouseInclusivePricing && !hasSelectedCreatorPricing) {
               if (item.category_slug === "editing") {
                 editFeesTotal += lineTotal;
                 return;
@@ -589,7 +673,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         if (result.lineItems && result.lineItems.length > 0) {
           const breakdown: Array<{ role: string; cost: number }> = [];
 
-          result.lineItems.forEach((item: any) => {
+          result.lineItems.forEach((item: QuoteLineItem) => {
             if (item.is_mandatory || item.hidden) return;
 
             const itemTotal = parseFloat(item.line_total || 0);
@@ -626,6 +710,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     durationHours,
     isEditingOnly,
     useContentHouseInclusivePricing,
+    useStudioOnlyLocalPricing,
+    hasSelectedCreatorPricing,
     calculateQuoteFromCreators,
     selectedStudiosTotal,
   ]);
@@ -685,16 +771,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
       email: isAuthenticated ? user?.email : data.email,
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       phone: isAuthenticated ? user?.phone_number : data.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: {
-        full_name: data.fullName,
-        phone: data.phone,
-      }
+      full_name: data.fullName,
     })
 
     setShowSalesPopup(true)

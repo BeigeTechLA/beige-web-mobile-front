@@ -1,426 +1,552 @@
 "use client";
 
-import React, { useState, Suspense, useMemo } from "react";
+import React, { Suspense, useMemo, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-
-import { ArrowLeft, Loader2, ChevronRight, ExternalLink, Heart, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Heart,
+  Home,
+  Images,
+  Loader2,
+  MapPin,
+  Shield,
+  Share2,
+  Star,
+  X,
+} from "lucide-react";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
-
-import StudioImages from "../components/StudioImages";
-import StudioBookingSidebar from "../components/StudioBookingCard";
-import Image from "next/image";
 import { ReviewsComponent } from "@/components/admin/studios/StudioReviews";
 import HostRulesAccordion from "../components/HostRulesAccordion";
-import { getStudioBySlug } from "@/components/book-a-shoot/v3/studioData";
+import {
+  HOURLY_STUDIO_LIST,
+  type StudioCatalogItem,
+} from "@/components/book-a-shoot/v3/studioData";
 
-const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
+const STUDIO_IMAGE_FALLBACK =
+  "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
+const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
-function StudioDetailContent() {
+const getStudioBySlug = (slug: string) => {
+  const direct = HOURLY_STUDIO_LIST.find((studio) => studio.id === slug);
+  if (direct) return direct;
+
+  const numericIndex = Number(slug);
+  if (Number.isInteger(numericIndex) && numericIndex > 0) {
+    return HOURLY_STUDIO_LIST[numericIndex - 1];
+  }
+
+  return undefined;
+};
+
+const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
   const router = useRouter();
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [selectedPricingKey, setSelectedPricingKey] = useState<string>(
+    studio.pricingOptions?.[0]?.key || "",
+  );
 
-  // Updated state to handle dynamic project categories
-  const [isLoading] = useState<boolean>(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const selectedPricing = useMemo(
+    () =>
+      studio.pricingOptions?.find(
+        (option) => option.key === selectedPricingKey,
+      ) || studio.pricingOptions?.[0] || null,
+    [selectedPricingKey, studio.pricingOptions],
+  );
 
-  const [isAmenitiesExpanded, setIsAmenitiesExpanded] = useState(false);
-  const [isAddressExpanded, setIsAddressExpanded] = useState(false);
-
-
-  const params = useParams();
-  const studioSlug = Array.isArray(params.id) ? params.id[0] : params.id;
-  const studio = useMemo(() => getStudioBySlug(String(studioSlug || "")), [studioSlug]);
-  const studioImages = useMemo(() => {
+  const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
-    [studio?.image, ...(studio?.images || [])].forEach((image) => {
+    [studio.image, ...(studio.images || [])].forEach((image) => {
       if (image) imageSet.add(image);
     });
+    if (imageSet.size === 0) imageSet.add(STUDIO_IMAGE_FALLBACK);
     return Array.from(imageSet);
   }, [studio]);
-  const description = studio?.description || "";
-  const address = PUBLIC_STUDIO_LOCATION;
-  const amenityLabels = studio?.amenities?.length
+
+  const studioMeta = [
+    studio.beds ? `${studio.beds} bedroom${studio.beds > 1 ? "s" : ""}` : null,
+    studio.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
+    studio.size,
+    studio.poolType,
+  ].filter(Boolean);
+
+  const ratingText = studio.rating
+    ? `${studio.rating} Stars${
+        studio.reviews
+          ? ` (${studio.reviews} ${studio.reviews === 1 ? "Rating" : "Ratings"})`
+          : ""
+      }`
+    : null;
+
+  const amenities = studio.amenities?.length
     ? studio.amenities
-    : ["Natural light", "High-speed WiFi", "Production-friendly layout", "Furniture and decor included"];
-  const visibleAmenities = isAmenitiesExpanded ? amenityLabels : amenityLabels.slice(0, 10);
-  const pricingOptions = studio?.pricingOptions || [];
-  const studioHighlights = studio?.highlights?.length
+    : [
+        "Natural light",
+        "High-speed WiFi",
+        "Production-friendly layout",
+        "Furniture and decor included",
+      ];
+  const rules = studio.rules?.length
+    ? studio.rules
+    : [
+        "Minimum booking is 2 hours",
+        "Setup and breakdown must be included",
+        "Guests must respect the property",
+      ];
+  const highlights = studio.highlights?.length
     ? studio.highlights
     : [
         "Private production space reserved for your approved booking window.",
         "Designed for shoots, content creation, campaigns, and meetings.",
-        `${studio?.minimumBookingHours || 2}-hour minimum booking.`,
+        `${studio.minimumBookingHours || 2}-hour minimum booking.`,
       ];
-  const studioMeta = [
-    studio?.beds ? `${studio.beds} bedroom${studio.beds > 1 ? "s" : ""}` : null,
-    studio?.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
-    studio?.size,
-    studio?.poolType,
-  ].filter(Boolean);
-
-  const isLongComment = description.length > 250;
-  const isLongAddress = address.length > 200;
-
-  // --- DYNAMIC DATA PROCESSING ---
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" />
-          <p className="text-white/60 text-lg">Loading creator profile...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!studio) {
-    return (
-      <div className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
-        <div className="container relative z-10 mx-auto">
-          <Button
-            onClick={handleBack}
-            className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <div className="rounded-2xl border border-white/10 bg-[#171717] p-8">
-            <h1 className="text-2xl font-semibold text-white">Studio not found</h1>
-            <p className="mt-2 text-white/60">This studio link does not match an available Beige studio.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="relative pt-24 lg:pt-44 pb-8 lg:pb-16 min-h-screen flex flex-col items-center">
-      <div className="container relative z-10 mx-auto flex flex-col items-center">
-        <div className="w-full">
-          <Button
-            onClick={handleBack}
-            className="inline-flex items-center text-white/60 hover:text-white mb-8 transition-colors"
+    <div className="relative pt-24 lg:pt-36 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center mb-8">
+          <button
+            onClick={() => router.back()}
+            className="group flex items-center text-zinc-400 hover:text-white transition-colors text-sm"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back
-          </Button>
-        </div>
-
-        {/* Header */}
-        <div className="flex justify-between items-end w-full ">
-          <div>
-            <p className="text-white text-2xl font-medium lg:text-[32px]">
-              {studio.name}
-            </p>
-            <p className="text-[#FFFFFFAD] text-xs lg:text-sm underline underline-offset-2">
-              {PUBLIC_STUDIO_LOCATION}
-            </p>
-          </div>
-          <div className="flex gap-4 ">
-            <button className="flex gap-1 items-center text-white text-sm font-medium">
-              <ExternalLink size={16} /> Share
+          </button>
+          <div className="flex gap-2">
+            <button className="p-2.5 rounded-full border border-zinc-800 hover:bg-zinc-900 text-white transition-colors">
+              <Share2 size={18} />
             </button>
-            <button className="flex gap-1 items-center text-white text-sm font-medium">
-              <Heart size={16} /> Save
+            <button className="p-2.5 rounded-full border border-zinc-800 hover:bg-zinc-900 text-white transition-colors">
+              <Heart size={18} />
             </button>
           </div>
         </div>
 
-        {/* Image Component */}
-        <StudioImages images={studioImages} />
-
-        {/*  */}
-        <div className="grid grid-cols-12 gap-4 w-full">
-          {/* Left column */}
-          <div className="col-span-8 p-4 w-full">
-            {/* First few sections with extra right padding */}
-            <div className="max-w-4/5 ">
-              {/* General Overview */}
-              <div className="flex justify-between items-center">
-                <div className="space-y-1 lg:space-y-2">
-                  <p className="text-lg lg:text-2xl font-medium ">
-                    {studio.poolType} hosted by Beige Studios
-                  </p>
-                  <div className="flex gap-3">
-                    {
-                      (studioMeta.length ? studioMeta : ["Private production space", `${studio.minimumBookingHours || 2} hour minimum`]).map((item, idx) => (
-                        <div key={idx} className="flex gap-3">
-                          <p key={idx} className={`text-xs lg:text-sm text-[#FFF]`}>
-                            {item}
-                          </p>
-                          {
-                            idx !== (studioMeta.length ? studioMeta.length - 1 : 1) && <span className={`text-xs lg:text-sm text-[#FFF]`}>
-                              &#183;
-                            </span>
-                          }
-                        </div>
-                      ))
-                    }
-                  </div>
-                </div>
-                <div className="relative inline-block">
-                  {/* The Main Host Image */}
-                  <Image
-                    src={"/images/crew/CREW(4).png"}
-                    alt={"Host Image"}
-                    width={56}
-                    height={56}
-                    className="rounded-full w-14 h-14 object-cover"
-                  />
-
-                  {/* The Overlay Badge */}
-                  <div className="absolute bottom-1 -right-2 w-6 h-6 z-10 -translate-x-0.5 translate-y-0.5">
-                    <Image
-                      src={"/images/misc/AirbnbSuperhostBadge.svg"}
-                      alt={"Airbnb Superhost Badge"}
-                      width={16}
-                      height={28}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-
-              {/* Pricing */}
-              <div className="space-y-4 lg:space-y-6">
-                <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                  Booking Options
-                </h2>
-                {pricingOptions.length > 0 ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {pricingOptions.map((option) => (
-                      <div key={option.key} className="rounded-2xl border border-white/10 bg-[#171717] p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="text-base lg:text-lg font-semibold text-white">{option.label}</h3>
-                            <p className="mt-2 text-2xl font-semibold text-[#E8D1AB]">
-                              ${option.hourlyRate.toLocaleString()}/hour
-                            </p>
-                          </div>
-                          {option.startingAt && (
-                            <span className="rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-white/70">
-                              From ${option.startingAt.toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-3 text-sm text-white/55">
-                          {option.minimumHours}-hour minimum{option.cleaningFee ? ` • $${option.cleaningFee.toLocaleString()} cleaning fee` : ""}
-                        </p>
-                        {option.includes && option.includes.length > 0 && (
-                          <div className="mt-5 border-t border-white/10 pt-4">
-                            <p className="text-xs font-semibold uppercase text-white/40">Includes</p>
-                            <div className="mt-3 grid grid-cols-1 gap-2">
-                              {option.includes.map((item) => (
-                                <div key={item} className="flex items-start gap-2 text-sm text-white/70">
-                                  <Check size={16} className="mt-0.5 shrink-0 text-[#E8D1AB]" />
-                                  <span>{item}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div className="mt-5 border-t border-white/10 pt-4">
-                          <p className="text-xs font-semibold uppercase text-white/40">Ideal for</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {option.idealFor.map((item) => (
-                              <span key={item} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/65">
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-[#171717] p-5">
-                    <p className="text-2xl font-semibold text-[#E8D1AB]">{studio.priceLabel}</p>
-                    <p className="mt-2 text-sm text-white/55">{studio.minimumBookingHours || 2}-hour minimum booking</p>
-                  </div>
-                )}
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-
-              {/* Highlights */}
-              <div className={`space-y-4 text-white`}>
-                <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                  Studio Highlights
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {studioHighlights.map((highlight) => (
-                    <div key={highlight} className="flex items-start gap-3 text-sm lg:text-base text-white/75">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E8D1AB]" />
-                      <span>{highlight}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-
-              {/* Description */}
-              <div className={`max-w-4xl space-y-4 lg:space-y-7`}>
-                <p className={`text-sm lg:text-base leading-relaxed ${!isDescriptionExpanded && isLongComment ? 'line-clamp-4' : ''}`}>
-                  {description}
-                </p>
-                {isLongComment && (
-                  <button
-                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                    className="flex items-center gap-1 text-sm font-medium underline decoration-2 underline-offset-4"
-                  >
-                    {isDescriptionExpanded ? "Show less" : "Show more"}
-                    <ChevronRight size={14} strokeWidth={3} className={isDescriptionExpanded ? "-rotate-90 transition-transform" : "rotate-0 transition-transform"} />
-                  </button>
-                )}
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-
-              {studio.bestFor && studio.bestFor.length > 0 && (
-                <>
-                  <div className="space-y-4 lg:space-y-6">
-                    <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                      Best Suited For
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                      {studio.bestFor.map((item) => (
-                        <span key={item} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-                </>
-              )}
-
-
-              {/* What this place offers */}
-              <div className={`space-y-4 lg:space-y-8`}>
-                <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                  What this place offers
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 mb-10">
-                  {visibleAmenities.map((item, index) => (
-                    <div key={index} className="flex items-center gap-4 group">
-                      <Check
-                        size={24}
-                        strokeWidth={1.5}
-                        className={`text-[#C7C7C7]`}
-                      />
-                      <span className="text-base font-normal">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setIsAmenitiesExpanded(!isAmenitiesExpanded)}
-                  className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all active:scale-95 bg-[#f3e3ce] text-black hover:bg-[#e2d1b1]`}>
-                  {isAmenitiesExpanded ? "Show less" : `Show all ${amenityLabels.length} amenities`}
-                </button>
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-
-              {/* Operating Hours */}
-              <div className={`space-y-4 lg:space-y-8`}>
-                <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                  Operating Hours
-                </h2>
-                <div className={`p-8 rounded-2xl w-full max-w-md bg-[#171717] text-white`}>
-                  <div className="space-y-5">
-                    {[
-                      ["Operating Hours", studio.operatingHours || "Available by booking"],
-                      ["Weekly Schedule", studio.weeklySchedule || "Available by booking"],
-                      ["Minimum Booking", `${studio.minimumBookingHours || 2} hours`],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-3 h-3 rounded-full bg-[#14C573] shadow-[0_0_8px_rgba(34,197,94,0.4)]" />
-                          <span className="lg:text-lg font-medium tracking-tight">{label}</span>
-                        </div>
-                        <div className={`lg:text-lg text-[#FFFFFF99] text-right`}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33]`} />
-            </div>
-
-            {/* Full Width components */}
-            {/* Where you'll be */}
-            <div className={`space-y-4 lg:space-y-6`}>
-              <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                Where you&apos;ll be
-              </h2>
-              <p className="lg:text-lg font-medium">
-                {PUBLIC_STUDIO_LOCATION}
-              </p>
-
-              <p className={`text-sm lg:text-base leading-relaxed text-[#FFFFFFAD] ${!isAddressExpanded && isLongAddress ? 'line-clamp-2' : ''}`}>
-                Exact arrival details are confirmed with the booking.
-              </p>
-              {isLongAddress && (
-                <button
-                  onClick={() => setIsAddressExpanded(!isAddressExpanded)}
-                  className="flex items-center gap-1 text-sm text-[#E8D1AB] font-medium underline decoration-2 underline-offset-4"
-                >
-                  {isAddressExpanded ? "Show less" : "Show more"}
-                  <ChevronRight size={14} strokeWidth={3} className={isAddressExpanded ? "-rotate-90 transition-transform" : "rotate-0 transition-transform"} />
-                </button>
-              )}
-            </div>
-            <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33] max-w-4/5`} />
-
-            <ReviewsComponent />
-            <hr className={`border-t my-4 lg:my-9 border-[#FFFFFF33] max-w-4/5`} />
-
-            {/* Rules */}
-            <div className={`space-y-4 lg:space-y-6`}>
-              <h2 className="text-lg lg:text-2xl font-semibold tracking-tight">
-                Rules & Health Safety Measures
-              </h2>
-              <HostRulesAccordion rules={studio.rules} defaultOpenAll />
-            </div>
-
+        <div className="mb-10">
+          <h1 className="text-3xl lg:text-[44px] font-bold leading-tight text-white mb-4">
+            <span className="text-[#E8D1AB]">{studio.name}</span>
+            {studioMeta.length > 0 && (
+              <span className="text-white/40 font-normal">
+                {" "}
+                ({studioMeta.join(" / ")})
+              </span>
+            )}
+          </h1>
+          <div className="flex items-center gap-2 text-zinc-400 text-sm">
+            <MapPin size={16} className="text-[#E8D1AB]" />
+            <span className="underline underline-offset-4 decoration-white/20">
+              {DEFAULT_DISPLAY_ADDRESS}
+            </span>
           </div>
+        </div>
 
-          {/* Right Column */}
-          <div className="col-span-4 w-full">
-            {/* Basic infor: Add card */}
-            <StudioBookingSidebar
-              price={studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate}
-              rating={studio.rating}
-              reviews={studio.reviews}
-              propertyType={studio.poolType}
-              minimumHours={studio.minimumBookingHours}
-              operatingHours={studio.operatingHours || studio.weeklySchedule}
+        <div className="mb-12 grid h-[320px] grid-cols-1 overflow-hidden rounded-[24px] md:h-[480px] md:grid-cols-2 gap-2">
+          <div
+            className="relative h-full w-full cursor-pointer bg-zinc-900"
+            onClick={() => setActiveImageIndex(0)}
+          >
+            <Image
+              src={galleryImages[0]}
+              alt="Main"
+              fill
+              className="object-cover hover:opacity-90 transition-opacity"
+              priority
             />
           </div>
+          <div className="hidden h-full grid-cols-2 grid-rows-2 gap-2 md:grid">
+            {[1, 2, 3, 4].map((idx) => (
+              <div
+                key={idx}
+                className="relative cursor-pointer bg-zinc-900"
+                onClick={() =>
+                  setActiveImageIndex(Math.min(idx, galleryImages.length - 1))
+                }
+              >
+                <Image
+                  src={galleryImages[idx] || galleryImages[0]}
+                  alt={`Gallery ${idx}`}
+                  fill
+                  className="object-cover hover:opacity-90 transition-opacity"
+                />
+                {idx === 4 && (
+                  <div className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-2xl">
+                    <Images size={14} /> {galleryImages.length} Photos
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-8 space-y-12">
+            <section className="flex flex-col gap-8 border-b border-white/10 pb-10">
+              <div className="flex items-start gap-5">
+                <Home
+                  size={26}
+                  strokeWidth={1.5}
+                  className="text-[#E8D1AB] shrink-0 mt-1"
+                />
+                <div>
+                  <h3 className="font-bold text-white text-lg">
+                    Private production space
+                  </h3>
+                  <p className="text-zinc-400 text-sm">
+                    Reserved for your approved booking window.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-5">
+                <Star
+                  size={26}
+                  strokeWidth={1.5}
+                  className="text-[#E8D1AB] shrink-0 mt-1"
+                />
+                <div>
+                  <h3 className="font-bold text-white text-lg">
+                    {ratingText || "Production-ready"}
+                  </h3>
+                  <p className="text-zinc-400 text-sm">
+                    {ratingText
+                      ? "Highly rated by creators"
+                      : "Designed for shoots, content creation, and campaigns."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-5">
+                <CalendarDays
+                  size={26}
+                  strokeWidth={1.5}
+                  className="text-[#E8D1AB] shrink-0 mt-1"
+                />
+                <div>
+                  <h3 className="font-bold text-white text-lg">
+                    Hourly booking
+                  </h3>
+                  <p className="text-zinc-400 text-sm">
+                    {studio.minimumBookingHours || 2}-hour minimum booking •{" "}
+                    {studio.operatingHours || "Inquire for hours"}
+                  </p>
+                </div>
+              </div>
+            </section>
 
+            <section className="space-y-6">
+              <p className="text-zinc-300 leading-relaxed text-lg">
+                {studio.description}
+              </p>
+              {studio.highlights && studio.highlights.length > 0 && (
+                <div className="mt-8">
+                  <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs">
+                    What makes it unique
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {highlights.map((highlight) => (
+                      <div
+                        key={highlight}
+                        className="flex items-center gap-3 text-zinc-400 text-sm"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
+                        {highlight}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {studio.pricingOptions && studio.pricingOptions.length > 0 && (
+              <section className="pt-6">
+                <h3 className="text-xl font-bold text-white mb-6">
+                  Pricing & Tiers
+                </h3>
+                <div className="flex p-1.5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-6">
+                  {studio.pricingOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => setSelectedPricingKey(option.key)}
+                      className={`relative flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
+                        selectedPricingKey === option.key
+                          ? "text-black"
+                          : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <span className="relative z-10">{option.label}</span>
+                      {selectedPricingKey === option.key && (
+                        <motion.div
+                          layoutId="pricing-pill"
+                          className="absolute inset-0 bg-[#E8D1AB] rounded-xl"
+                          transition={{
+                            type: "spring",
+                            bounce: 0.2,
+                            duration: 0.6,
+                          }}
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedPricingKey}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800/50"
+                  >
+                    <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+                      <div>
+                        <h4 className="text-4xl font-bold text-[#E8D1AB]">
+                          ${selectedPricing?.hourlyRate}
+                          <span className="text-lg text-zinc-500">/hr</span>
+                        </h4>
+                        <p className="text-zinc-500 text-sm mt-1">
+                          {selectedPricing?.minimumHours}-hour minimum booking
+                        </p>
+                      </div>
+                      {selectedPricing?.cleaningFee && (
+                        <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                          <p className="text-[10px] text-zinc-500 uppercase font-bold">
+                            Cleaning Fee
+                          </p>
+                          <p className="text-white font-bold">
+                            ${selectedPricing.cleaningFee}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[2px] mb-4">
+                        Ideal For
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedPricing?.idealFor.map((item) => (
+                          <span
+                            key={item}
+                            className="px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-xs"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </section>
+            )}
+
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8">
+                What this place offers
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6">
+                {amenities.map((item) => (
+                  <div key={item} className="flex items-center gap-4 text-zinc-300">
+                    <Check size={18} className="text-[#E8D1AB]" />
+                    <span className="text-base">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
+                <Shield size={22} className="text-[#E8D1AB]" /> House Rules
+              </h3>
+              <div className="grid gap-4 max-w-2xl">
+                {rules.map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/5"
+                  >
+                    <span className="text-[#E8D1AB] font-mono text-xs mt-1">
+                      0{idx + 1}
+                    </span>
+                    <p className="text-zinc-400 text-sm leading-relaxed">
+                      {rule}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8">Reviews</h3>
+              <ReviewsComponent />
+            </section>
+
+            <section className="border-t border-white/10 pt-10">
+              <h3 className="text-xl font-bold text-white mb-8">
+                Rules & Health Safety Measures
+              </h3>
+              <HostRulesAccordion rules={studio.rules} defaultOpenAll />
+            </section>
+          </div>
+
+          <div className="lg:col-span-4">
+            <aside className="sticky top-32 bg-[#171717] border border-[#E8D1AB]/30 rounded-[32px] p-8 shadow-2xl shadow-black">
+              <div className="flex justify-between items-baseline mb-6">
+                <div>
+                  <span className="text-4xl font-bold text-white">
+                    ${(
+                      selectedPricing?.hourlyRate || studio.priceValue || 0
+                    ).toLocaleString()}
+                  </span>
+                  <span className="text-zinc-500 ml-1">/ hour</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm font-medium text-white">
+                  <Star size={16} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+                  {studio.rating || "5.0"}
+                </div>
+              </div>
+
+              <div className="space-y-5 py-6 border-y border-white/10 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-zinc-500">Minimum booking</span>
+                  <span className="text-white font-medium">
+                    {selectedPricing?.minimumHours || studio.minimumBookingHours || 2}{" "}
+                    hours
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-zinc-500">Property type</span>
+                  <span className="text-white font-medium">
+                    {studio.poolType || "Studio"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-zinc-500">Availability</span>
+                  <span className="text-white font-medium text-right max-w-[150px]">
+                    {studio.operatingHours || studio.weeklySchedule || "Flexible"}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                href={`/book-a-studio?studioId=${studio.id}${
+                  selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""
+                }`}
+                className="mt-8 flex h-14 w-full items-center justify-center rounded-2xl bg-[#E8D1AB] font-bold text-black hover:bg-[#dcb98a] active:scale-95 transition-all shadow-lg shadow-[#E8D1AB]/10"
+              >
+                Book this Studio
+              </Link>
+              <p className="text-center text-zinc-500 text-[11px] mt-4 uppercase tracking-widest font-bold">
+                Secure checkout via Beige
+              </p>
+            </aside>
+          </div>
+        </div>
       </div>
+
+      {activeImageIndex !== null && (
+        <div className="fixed inset-0 z-[999999] bg-black flex flex-col">
+          <div className="flex justify-between items-center p-6 bg-black/50 z-10">
+            <span className="text-white/50 font-mono text-xs tracking-widest">
+              {activeImageIndex + 1} / {galleryImages.length}
+            </span>
+            <button
+              onClick={() => setActiveImageIndex(null)}
+              className="p-2 text-white/70 hover:text-white transition-colors"
+            >
+              <X size={28} />
+            </button>
+          </div>
+
+          <div className="flex-1 relative flex items-center justify-center px-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveImageIndex((prev) =>
+                  prev !== null
+                    ? (prev - 1 + galleryImages.length) % galleryImages.length
+                    : null,
+                );
+              }}
+              className="absolute left-4 z-20 p-4 text-white/40 hover:text-white transition-all active:scale-90"
+            >
+              <ChevronLeft size={48} strokeWidth={1} />
+            </button>
+
+            <div className="relative w-full h-full max-h-[75vh]">
+              <Image
+                src={galleryImages[activeImageIndex]}
+                alt="Full view"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveImageIndex((prev) =>
+                  prev !== null ? (prev + 1) % galleryImages.length : null,
+                );
+              }}
+              className="absolute right-4 z-20 p-4 text-white/40 hover:text-white transition-all active:scale-90"
+            >
+              <ChevronRight size={48} strokeWidth={1} />
+            </button>
+          </div>
+
+          <div className="w-full bg-black py-8">
+            <div className="flex justify-start md:justify-center gap-2 overflow-x-auto px-6 no-scrollbar">
+              {galleryImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImageIndex(idx)}
+                  className={`relative flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border transition-all duration-200 ${
+                    activeImageIndex === idx
+                      ? "border-white opacity-100 scale-110 z-10"
+                      : "border-transparent opacity-30 hover:opacity-60"
+                  }`}
+                >
+                  <Image src={img} alt="" fill sizes="56px" className="object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-export default function StudioDetailPage() {
+export default function StudioDetailsPage() {
+  const params = useParams();
+  const studioSlug = Array.isArray(params.id) ? params.id[0] : params.id;
+  const studio = getStudioBySlug(String(studioSlug || ""));
+
   return (
-    <main className="bg-[#101010] min-h-screen text-white">
+    <main className="min-h-screen bg-[#101010] text-white selection:bg-[#E8D1AB] selection:text-black">
       <Navbar />
-      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
-        <StudioDetailContent />
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
+          </div>
+        }
+      >
+        {studio ? (
+          <StudioDetailContent studio={studio} />
+        ) : (
+          <div className="container mx-auto pt-44 px-4 h-screen text-center">
+            <h1 className="text-2xl font-bold mb-4">Studio not found</h1>
+            <Link href="/book-a-studio" className="text-[#E8D1AB] underline">
+              Return to listings
+            </Link>
+          </div>
+        )}
       </Suspense>
       <Footer />
     </main>

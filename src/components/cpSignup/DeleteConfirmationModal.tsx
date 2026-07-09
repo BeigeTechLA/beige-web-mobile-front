@@ -8,6 +8,7 @@ interface DeleteModalProps {
   title: string;
   description: string;
   isLoading?: boolean;
+  isDark: boolean;
 }
 
 const DeleteConfirmationModal = ({
@@ -16,37 +17,44 @@ const DeleteConfirmationModal = ({
   onConfirm,
   title,
   description,
-  isLoading
+  isLoading,
+  isDark
 }: DeleteModalProps) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/80 backdrop-blur-md"
         onClick={onClose}
       />
 
       {/* Modal Card */}
-      <div className="relative bg-[#111] w-full max-w-md rounded-lg lg:rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className={`relative w-full max-w-md rounded-lg lg:rounded-[2.5rem] border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 transition-colors ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-black/5"
+        }`}>
         <div className="p-4 lg:p-10">
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-8 right-8 text-white/20 hover:text-white transition-colors"
+            className={`absolute top-8 right-8 transition-colors ${isDark ? "text-white/20 hover:text-white" : "text-black/20 hover:text-black"
+              }`}
           >
             <X size={20} />
           </button>
 
           {/* Danger Icon */}
-          <div className="w-14 h-14 rounded-xl lg:rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3 lg:mb-6">
+          <div className={`w-14 h-14 rounded-xl lg:rounded-2xl border flex items-center justify-center mb-3 lg:mb-6 ${isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-500/5 border-red-500/10"
+            }`}>
             <AlertTriangle className="text-red-500" size={24} />
           </div>
 
           {/* Text Content */}
-          <h3 className="text-lg lg:text-2xl font-bold text-white mb-1 lg:mb-2">{title}</h3>
-          <p className="text-white/40 text-sm leading-relaxed mb-5 lg:mb-10 font-medium">
+          <h3 className={`text-lg lg:text-2xl font-bold mb-1 lg:mb-2 ${isDark ? "text-white" : "text-black"}`}>
+            {title}
+          </h3>
+          <p className={`text-sm leading-relaxed mb-5 lg:mb-10 font-medium ${isDark ? "text-white/40" : "text-black/40"
+            }`}>
             {description}
           </p>
 
@@ -55,7 +63,10 @@ const DeleteConfirmationModal = ({
             <button
               onClick={onClose}
               disabled={isLoading}
-              className="flex-1 p-3 lg:px-6 lg:py-4 bg-white/5 text-white text-sm lg:text-base font-bold rounded-lg lg:rounded-2xl hover:bg-white/10 transition-colors disabled:opacity-50"
+              className={`flex-1 p-3 lg:px-6 lg:py-4 text-sm lg:text-base font-bold rounded-lg lg:rounded-2xl transition-colors disabled:opacity-50 ${isDark
+                  ? "bg-white/5 text-white hover:bg-white/10"
+                  : "bg-black/5 text-black hover:bg-black/10"
+                }`}
             >
               Cancel
             </button>

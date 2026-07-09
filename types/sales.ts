@@ -48,6 +48,11 @@ export interface SalesLead {
   intent_updated_at?: string;
   booking_status?: string;
   payment_status?: string;
+  payment_summary?: {
+    payment_status?: string | null;
+    paid_amount?: number | string | null;
+    due_amount?: number | string | null;
+  } | null;
   booking_step?: number;
   can_edit_booking?: boolean;
   selected_crew_ids?: number[];
@@ -264,6 +269,7 @@ export interface PaymentLink {
   booking_id: number;
   discount_code_id?: number;
   discount_code?: DiscountCode;
+  requested_amount?: number | string | null;
   created_by_user_id: number;
   expires_at: string;
   is_used: boolean;
@@ -291,6 +297,7 @@ export interface PaymentLinkDetails {
     discount_value: number;
     expires_at?: string;
   };
+  requested_amount?: number | string | null;
   expires_at: string;
 }
 
@@ -364,6 +371,7 @@ export interface CreatePaymentLinkRequest {
   booking_id: number;
   discount_code_id?: number;
   expiry_hours?: number;
+  requested_amount?: number;
 }
 
 export interface CreateClientPaymentLinkRequest {
@@ -371,6 +379,7 @@ export interface CreateClientPaymentLinkRequest {
   booking_id: number;
   discount_code_id?: number;
   expiry_hours?: number;
+  requested_amount?: number;
 }
 
 export interface AssignLeadRequest {

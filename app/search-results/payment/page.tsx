@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -330,6 +330,12 @@ const normalizeDiscountCodeValue = (value?: string | null) => {
   return normalized || null;
 };
 
+const isStripeClientSecret = (value: unknown): value is string =>
+  typeof value === "string" && /^pi_[^\s]+_secret_[^\s]+$/.test(value);
+
+const isFreeCheckoutToken = (value: unknown): value is string =>
+  typeof value === "string" && value.startsWith("free_checkout_intent_");
+
 const resolveBasePayableAmount = (details: any) => {
   const quoteTotal = parseFloat(details?.quote?.total || 0);
   const additionalPayment = details?.quote?.additional_payment || details?.quote?.partial_payment || null;
@@ -354,10 +360,10 @@ const getPaymentCompletionState = (details: any) => {
   const additionalPayment = quote?.additional_payment || quote?.partial_payment || null;
   const status = String(
     details?.payment_status ||
-      booking?.payment_status ||
-      quote?.payment_status ||
-      additionalPayment?.payment_status ||
-      ""
+    booking?.payment_status ||
+    quote?.payment_status ||
+    additionalPayment?.payment_status ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -366,6 +372,9 @@ const getPaymentCompletionState = (details: any) => {
     0,
     parseFloat(
       additionalPayment?.outstanding_amount ??
+        details?.pricing?.payment_summary?.due_amount ??
+        details?.payment_summary?.due_amount ??
+        details?.due_amount ??
         details?.pending_amount ??
         details?.outstanding_amount ??
         details?.remaining_amount ??
@@ -385,6 +394,15 @@ const getPaymentCompletionState = (details: any) => {
       details?.amount_paid
     )
   );
+  const summaryDueAmount = pickPaymentNumber(
+    details?.pricing?.payment_summary?.due_amount,
+    details?.payment_summary?.due_amount,
+    details?.due_amount,
+  );
+  const hasAuthoritativeDueAmount =
+    details?.pricing?.payment_summary?.due_amount !== undefined ||
+    details?.payment_summary?.due_amount !== undefined ||
+    details?.due_amount !== undefined;
 
   const totalAmount = Math.max(
     0,
@@ -401,6 +419,7 @@ const getPaymentCompletionState = (details: any) => {
     Boolean(booking?.payment_completed_at || booking?.payment_id || details?.has_full_payment);
 
   const isSettled =
+    (!hasAuthoritativeDueAmount || summaryDueAmount <= 0.009) &&
     hasCompletionSignal &&
     outstandingAmount <= 0.009 &&
     (paidAmount > 0 || totalAmount <= 0.009);
@@ -569,16 +588,20 @@ function StripePaymentFormMulti({
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
 
+  // State and Ref for GA4 event: add_payment_info
+  const [isStripeComplete, setIsStripeComplete] = useState(false);   //To check for card details fill up
+  const paymentTrackedRef = useRef(false);   //To check for card details fill up
+
   const isFree = amount === 0;
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
   const bookingEmail = String(
     booking?.guest_email ||
-      booking?.guestEmail ||
-      booking?.client_email ||
-      booking?.user?.email ||
-      ""
+    booking?.guestEmail ||
+    booking?.client_email ||
+    booking?.user?.email ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -622,7 +645,7 @@ function StripePaymentFormMulti({
   }, [discountValid, urlDiscount, activeDiscountCode, isValidatingDiscount, discountCode]);
 
   // Debounced referral code validation
-  const validateReferralCode = React.useCallback(
+  const validateReferralCode = useCallback(
     debounce(async (code: string) => {
       if (!code || code.length < 4) {
         setReferralCodeValid(null);
@@ -717,7 +740,7 @@ function StripePaymentFormMulti({
   };
 
   // Debounced discount code validation
-  const validateDiscountCode = React.useCallback(
+  const validateDiscountCode = useCallback(
     debounce(async (code: string) => {
       if (!code || code.length < 4) {
         setDiscountValid(null);
@@ -1000,6 +1023,56 @@ function StripePaymentFormMulti({
     }
   };
 
+  const checkAndTrackPaymentInfo = (isCardComplete: boolean, paymentType: "credit_card" | "account_credit" = "credit_card") => {
+    // If we already tracked payment info during this page session, skip to prevent duplicates
+    if (paymentTrackedRef.current) return;
+
+    const isNameFilled = cardholderName.trim().length > 2;
+
+    // Scenario A: It's an Account Credit toggle (immediate track on check)
+    if (paymentType === "account_credit") {
+      pushToDataLayer("add_payment_info", {
+        currency: "USD",
+        value: booking?.totalAmount || amount,
+        payment_type: "account_credit",
+        coupon: discountCode || undefined,
+        page_name: "Payment Page",
+        location_in_website: "book_a_shoot_payment_page",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        booking_id: booking?.bookingId,
+        items: [{
+          item_name: booking?.shoot_name || "Shoot Booking",
+          price: booking?.totalAmount || amount,
+          quantity: 1
+        }]
+      });
+
+      paymentTrackedRef.current = true; // Lock it down
+      return;
+    }
+
+    // Scenario B: Standard Credit Card checking rules
+    if (isCardComplete && isNameFilled) {
+      pushToDataLayer("add_payment_info", {
+        currency: "USD",
+        value: booking?.totalAmount || amount,
+        payment_type: "credit_card",
+        coupon: discountCode || undefined,
+        page_name: "Payment Page",
+        location_in_website: "book_a_shoot_payment_page",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        booking_id: booking?.bookingId,
+        items: [{
+          item_name: booking?.shoot_name || "Shoot Booking",
+          price: booking?.totalAmount || amount,
+          quantity: 1
+        }]
+      });
+
+      paymentTrackedRef.current = true; // Lock it down
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1031,23 +1104,21 @@ function StripePaymentFormMulti({
       }
     }
 
-
     // add GA event when payment is initiated
     pushToDataLayer("booking_payment_initiated ", {
       type: "Action Tracking",
       page_name: "Payment Page",
       location_in_website: "book_a_shoot_payment_page",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : booking.email,
       phone: isAuthenticated ? user?.phone_number : booking.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: booking?.bookingId,
-      booking_form_fields: {
-        full_name: booking.fullName,
-        phone: booking.phone,
-      }
+      full_name: booking.fullName,
     });
+
+    console.log("after GA booking_payment_initiated call");
 
     // 100% DISCOUNT CASE: Bypass Stripe
     if (isFree) {
@@ -1058,18 +1129,26 @@ function StripePaymentFormMulti({
           clientSecret,
           referralCodeValid ? referralCode : undefined,
         );
-        pushToDataLayer("payment_success", {
+
+        pushToDataLayer("purchase", {
+          transaction_id: clientSecret || booking?.bookingId, // Mock ID from backend
+          value: 0,
+          currency: "USD",
+          coupon: discountCode || undefined,
           type: "Action Tracking",
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-          email: isAuthenticated ? user?.email : booking.email,
-          phone: isAuthenticated ? user?.phone_number : booking.phone,
-          duration_on_page: performance.now() / 1000,
-          booking_id: booking?.bookingId,
-          payment_status: "Success (100% Discount)"
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+          booking_id: booking?.booking_id,
+          items: [{
+            item_name: booking?.shoot_name || "Shoot Booking",
+            price: 0,
+            quantity: 1
+          }]
         });
+        console.log("after GA purchase after 100% DISCOUNT CASE: Bypass Stripe");
+
       } catch (err) {
         onError("Failed to process free booking");
       } finally {
@@ -1085,6 +1164,11 @@ function StripePaymentFormMulti({
 
     if (!clientSecret) {
       onError("Payment not initialized. Please refresh the page.");
+      return;
+    }
+
+    if (!isStripeClientSecret(clientSecret)) {
+      onError("Invalid payment session. Please refresh the page before trying again.");
       return;
     }
 
@@ -1110,34 +1194,42 @@ function StripePaymentFormMulti({
       if (paymentError) {
         console.error("Payment error:", paymentError);
         // add GA event when payment fails
-        pushToDataLayer("payment_success", {
+        pushToDataLayer("payment_failed", {
           type: "Action Tracking",
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
-          user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          booking_id: booking?.bookingId,
+          payment_status: `Fail: ${paymentError.message || "Payment failed"}`,
+          value: booking?.totalAmount,
+          currency: "USD",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
           email: isAuthenticated ? user?.email : booking.email,
           phone: isAuthenticated ? user?.phone_number : booking.phone,
-          duration_on_page: performance.now() / 1000,
-          booking_id: booking?.bookingId,
-          payment_status: `Fail: ${paymentError.message || "Payment failed"}`
         });
+        console.log("after GA payment_failed in paymentError section");
 
         onError(paymentError.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         // add GA event when payment succeeds
-        pushToDataLayer("payment_success", {
+        pushToDataLayer("purchase", {
+          transaction_id: paymentIntent.id, // Official Stripe reference key
+          value: paymentIntent.amount / 100, // Stripe values are in cents, convert to standard decimals
+          currency: paymentIntent.currency.toUpperCase(),
+          coupon: discountCode || undefined,
           type: "Action Tracking",
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
           user_id: isAuthenticated ? user?.id : "Unknown",
           user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
-          email: isAuthenticated ? user?.email : booking.email,
-          phone: isAuthenticated ? user?.phone_number : booking.phone,
-          duration_on_page: performance.now() / 1000,
-          booking_id: booking?.bookingId,
-          payment_status: "Success"
+          booking_id: booking?.booking_id,
+          items: [{
+            item_name: booking?.shoot_name || "Shoot Booking",
+            price: paymentIntent.amount / 100,
+            quantity: 1
+          }]
         });
+        console.log("after GA purchase when payment succeeded");
 
         await onSuccess(
           paymentIntent.id,
@@ -1147,18 +1239,20 @@ function StripePaymentFormMulti({
     } catch (err) {
       console.error("Unexpected payment error:", err);
       // add GA event when payment fails
-      pushToDataLayer("payment_success", {
+      pushToDataLayer("payment_failed", {
         type: "Action Tracking",
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
+        booking_id: booking?.bookingId,
+        payment_status: `Fail: ${paymentError.message || "An unexpected error occurred"}`,
+        value: booking?.totalAmount,
+        currency: "USD",
         user_id: isAuthenticated ? user?.id : "Unknown",
         user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
         email: isAuthenticated ? user?.email : booking.email,
         phone: isAuthenticated ? user?.phone_number : booking.phone,
-        duration_on_page: performance.now() / 1000,
-        booking_id: booking?.bookingId,
-        payment_status: `Fail: ${err instanceof Error ? err.message : "An unexpected error occurred"}`
       });
+      console.log("after GA payment_failed after Unexpected payment error");
 
       onError(
         err instanceof Error ? err.message : "An unexpected error occurred",
@@ -1201,7 +1295,16 @@ function StripePaymentFormMulti({
                 Card Details
               </label>
               <div className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 flex items-center outline-none focus-within:border-white/50 bg-[#272626]">
-                <CardElement options={CARD_ELEMENT_OPTIONS} className="w-full" />
+                <CardElement
+                  options={CARD_ELEMENT_OPTIONS}
+                  className="w-full"
+                  onChange={(event) => {
+                    setIsStripeComplete(event.complete);
+                    if (event.complete) {
+                      checkAndTrackPaymentInfo(true);
+                    }
+                  }}
+                />
               </div>
             </div>
 
@@ -1214,6 +1317,9 @@ function StripePaymentFormMulti({
                 type="text"
                 value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)}
+                onBlur={() => {
+                  checkAndTrackPaymentInfo(isStripeComplete);
+                }}
                 className="h-14 lg:h-[82px] w-full rounded-[12px] border border-white/30 px-4 text-white outline-none focus:border-white/50 bg-[#272626]"
                 placeholder="Ex. John Doe"
                 required={!isFree}
@@ -1352,9 +1458,8 @@ function StripePaymentFormMulti({
         {/* Account Credit */}
         <div className="w-full rounded-2xl border border-[#E8D1AB]/30 bg-gradient-to-br from-[#232323] to-[#1B1B1B] p-4 lg:p-5 shadow-[0_10px_30px_-18px_rgba(232,209,171,0.45)]">
           <label
-            className={`flex items-start justify-between gap-4 rounded-xl transition ${
-              canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-            }`}
+            className={`flex items-start justify-between gap-4 rounded-xl transition ${canApplyAccountCredit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+              }`}
           >
             <div className="flex items-start gap-3">
               <input
@@ -1362,14 +1467,20 @@ function StripePaymentFormMulti({
                 className="sr-only"
                 checked={Boolean(useAccountCredit && canApplyAccountCredit)}
                 disabled={!canApplyAccountCredit}
-                onChange={(e) => onToggleAccountCredit(e.target.checked)}
+                onChange={(e) => {
+                  onToggleAccountCredit(e.target.checked);
+                  if (e.target.checked) {
+                    checkAndTrackPaymentInfo(false, "account_credit");
+                  } else {
+                    paymentTrackedRef.current = false;
+                  }
+                }}
               />
               <div
-                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                  useAccountCredit && canApplyAccountCredit
-                    ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
-                    : "border-white/40 bg-[#272626] text-transparent"
-                }`}
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${useAccountCredit && canApplyAccountCredit
+                  ? "border-[#E8D1AB] bg-[#E8D1AB] text-black shadow-[0_0_0_3px_rgba(232,209,171,0.2)]"
+                  : "border-white/40 bg-[#272626] text-transparent"
+                  }`}
               >
                 <Check className="h-3.5 w-3.5" />
               </div>
@@ -1390,7 +1501,7 @@ function StripePaymentFormMulti({
           </label>
           {!isAuthenticated && canUseAccountCredit && (
             <p className="text-[#E8D1AB] text-sm mt-3">
-            Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
+              Hey you have {formatCurrency(availableCreditAmount)} worth of credit points in your account. To avail the credit points please login.
             </p>
           )}
           {canApplyAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
@@ -1479,6 +1590,12 @@ function StripePaymentFormMulti({
 function MultiCreatorPaymentContent() {
   const searchParams = useSearchParams();
   const shootId = searchParams.get("shootId");
+  const paymentLinkToken = searchParams.get("paymentLink");
+  const paymentLinkAmountParam = searchParams.get("amount");
+  const paymentLinkAmount = React.useMemo(() => {
+    const numericValue = Number(paymentLinkAmountParam);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
+  }, [paymentLinkAmountParam]);
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
@@ -1495,7 +1612,8 @@ function MultiCreatorPaymentContent() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
-  const bookingEmail = React.useMemo(() => {
+  const paymentIntentRequestId = useRef(0);
+  const bookingEmail = useMemo(() => {
     const value =
       paymentDetails?.booking?.guest_email ||
       paymentDetails?.booking?.guestEmail ||
@@ -1504,7 +1622,7 @@ function MultiCreatorPaymentContent() {
       "";
     return String(value).trim().toLowerCase();
   }, [paymentDetails, summaryData]);
-  const loginRedirectTo = React.useMemo(() => {
+  const loginRedirectTo = useMemo(() => {
     const currentSearch = searchParams.toString();
     const currentPath = currentSearch ? `/search-results/payment?${currentSearch}` : "/search-results/payment";
     const baseLogin = `/login?returnTo=${encodeURIComponent(currentPath)}`;
@@ -1524,10 +1642,11 @@ function MultiCreatorPaymentContent() {
       sessionStorage.removeItem("beige_payment_booking_email");
     };
   }, [bookingEmail, step]);
+
   const isBookingOwner = Boolean(
     isAuthenticated &&
-      bookingEmail &&
-      String(user?.email || "").trim().toLowerCase() === bookingEmail,
+    bookingEmail &&
+    String(user?.email || "").trim().toLowerCase() === bookingEmail,
   );
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
@@ -1700,13 +1819,17 @@ function MultiCreatorPaymentContent() {
 
   const fetchIntent = async (details: any, useCreditOverride: boolean = useAccountCredit) => {
     if (!details || !shootId) return;
+    const requestId = ++paymentIntentRequestId.current;
     const completionState = getPaymentCompletionState(details);
     if (completionState.isSettled) {
       setClientSecret("");
       return;
     }
-    const { booking, quote } = details;
-    const basePayableAmount = resolveBasePayableAmount(details);
+    const { booking } = details;
+    const fullPayableAmount = resolveBasePayableAmount(details);
+    const basePayableAmount = paymentLinkAmount
+      ? Math.min(paymentLinkAmount, fullPayableAmount)
+      : fullPayableAmount;
     const availableCredit = parseFloat(details?.account_credit?.available_credit_amount || 0);
     const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
     const creditToApply =
@@ -1724,16 +1847,36 @@ function MultiCreatorPaymentContent() {
           payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
           use_credit: useCreditOverride && canUseCredit,
           credit_amount_used: creditToApply,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
         }
       );
 
+      // Pricing/credit changes can create overlapping intent requests. Only
+      // the newest response may update the active payment session.
+      if (requestId !== paymentIntentRequestId.current) return;
+
       if (response.data.success && response.data.data.clientSecret) {
-        setClientSecret(response.data.data.clientSecret);
+        const intentData = response.data.data;
+        const returnedAmount = Number(intentData.amount || 0);
+        const returnedFreeCheckout = Boolean(intentData.isFree) || isFreeCheckoutToken(intentData.clientSecret);
+
+        if (payableAmount > 0 && (returnedFreeCheckout || returnedAmount <= 0)) {
+          setClientSecret("");
+          throw new Error("The server returned a free checkout for a booking with an outstanding balance.");
+        }
+
+        if (!returnedFreeCheckout && !isStripeClientSecret(intentData.clientSecret)) {
+          setClientSecret("");
+          throw new Error("The server returned an invalid Stripe payment session.");
+        }
+
+        setClientSecret(intentData.clientSecret);
       }
     } catch (err) {
+      if (requestId !== paymentIntentRequestId.current) return;
       console.error("Error creating payment intent:", err);
       toast.error("Failed to initialize payment");
     }
@@ -1840,6 +1983,7 @@ function MultiCreatorPaymentContent() {
           referral_code: referralCode || null,
           use_credit: useAccountCredit && canUseAccountCredit,
           credit_amount_used: creditAppliedAmount,
+          payment_link_token: paymentLinkToken || undefined,
         },
         {
           headers: getAuthHeaders(),
@@ -1903,7 +2047,13 @@ function MultiCreatorPaymentContent() {
   const { booking, creators, quote } = paymentDetails;
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
-  const basePayableAmount = resolveBasePayableAmount(paymentDetails);
+  const fullPayableAmount = resolveBasePayableAmount(paymentDetails);
+  const basePayableAmount = paymentLinkAmount
+    ? Math.min(paymentLinkAmount, fullPayableAmount)
+    : fullPayableAmount;
+  const isPartialPaymentLink =
+    Boolean(paymentLinkAmount) && paymentLinkAmount! < fullPayableAmount - 0.009;
+  const shouldHidePricingBreakdown = Boolean(paymentLinkToken) && isPartialPaymentLink;
   const accountCredit = paymentDetails?.account_credit || {};
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
@@ -1981,7 +2131,9 @@ function MultiCreatorPaymentContent() {
                 />
               </div>
             </div>
-            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">Booking Confirmed</h2>
+            <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
+              {isPartialPaymentLink ? "Payment Received" : "Booking Confirmed"}
+            </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
             <div className="w-full max-w-2xl mb-6">
               <button
@@ -2152,31 +2304,31 @@ function MultiCreatorPaymentContent() {
                 </div>
                 <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
                   <div className="grid grid-cols-2 lg:grid-cols-3 mb-4 gap-2">
-                  {summaryData?.shoot_type && summaryData.shoot_type.trim() !== "" && (
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Shoot Category:</span>
-                      <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
-                    </div>
-                  )}
-                  {dateTimeInfo.summaryDateText && !dateTimeInfo.summaryDateText.toLowerCase().includes("not set") && (
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Shoot Date:</span>
-                      {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
-                      <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
-                    </div>
-                  )}
+                    {summaryData?.shoot_type && summaryData.shoot_type.trim() !== "" && (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Shoot Category:</span>
+                        <span className="font-medium">{toTitleCase((summaryData.shoot_type || "").trim())}</span>
+                      </div>
+                    )}
+                    {dateTimeInfo.summaryDateText && !dateTimeInfo.summaryDateText.toLowerCase().includes("not set") && (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Shoot Date:</span>
+                        {/* <span className="font-medium">{formatShortDate(booking.event_date)} </span> */}
+                        <span className="font-medium whitespace-pre-line">{dateTimeInfo.summaryDateText} </span>
+                      </div>
+                    )}
                     {parseFloat(booking.duration_hours) > 0 && !dateTimeInfo.displayTimeText?.toLowerCase().includes("not set") && (
 
-                    <div className="flex flex-col justify-between">
-                      <span className="text-[#626467]">Duration:</span>
-                      <span className="font-medium">
-                        <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
-                        {/* {getTimeRange(booking) ? (
+                      <div className="flex flex-col justify-between">
+                        <span className="text-[#626467]">Duration:</span>
+                        <span className="font-medium">
+                          <span className="block">{formatDurationHours(booking.duration_hours)} Hours</span>
+                          {/* {getTimeRange(booking) ? (
                           <span className="block">{getTimeRange(booking)}</span>
                         ) : null} */}
-                        <span className="block">{dateTimeInfo.displayTimeText}</span>
-                      </span>
-                    </div>
+                          <span className="block">{dateTimeInfo.displayTimeText}</span>
+                        </span>
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-col justify-between mb-4">
@@ -2314,122 +2466,126 @@ function MultiCreatorPaymentContent() {
 
                 {quote && (
                   <>
-                    <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
-                      {/* NEW AGGREGATED PRICING DISPLAY */}
+                    {!shouldHidePricingBreakdown && (
+                      <>
+                        <div className="p-6 lg:p-10 lg:text-lg text-white border-b border-b-[#FFFFFF5C]">
+                          {/* NEW AGGREGATED PRICING DISPLAY */}
 
-                      {/* 1. SHOOT COST */}
-                      <div className="flex justify-between mb-3">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-bold text-[#CCC6C6]">Shoot Cost</span>
-                        </div>
-                        <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
-                      </div>
-
-                      {pricingGroups.additionalCP.totalCost > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">Additional Creative Partner Fees</span>
-                            {/* <div className="text-[11px] text-[#626467] space-y-0.5">
-                            {pricingGroups.additionalCP.videoCount > 0 && (
-                              <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
-                            )}
-                            {pricingGroups.additionalCP.photoCount > 0 && (
-                              <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
-                            )}
-                          </div> */}
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.editingFees > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">Editing Cost</span>
-                            <span className=" text-[#787979]">Includes professional editing</span>
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.studioCost > 0 && (
-                        <div className="flex justify-between mb-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium text-[#CCC6C6]">{pricingGroups.studioName || "Studio / Resort"}</span>
-                            <span className=" text-[#787979]">Studio selection</span>
-                          </div>
-                          <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
-                        </div>
-                      )}
-
-                      {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
-                        <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
-                          <span className="text-[#626467] font-medium">{item.role}</span>
-                          <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="p-6 lg:p-10 lg:text-[22px] text-white border-b border-b-[#FFFFFF5C]">
-                      <div className="">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-[#CCC6C6]">Subtotal</span>
-                          <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
-                        </div>
-
-                        {parseFloat(quote.discount_total || quote.discount_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <div className="flex flex-col">
-                              <span className="text-green-600 font-bold flex items-center gap-1">
-                                <Tag className="w-3 h-3" /> Discount
-                              </span>
-                              {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
-                              {quote.discount_percent && <span className="text-[10px] text-green-600/80">({quote.discount_percent}% off)</span>}
+                          {/* 1. SHOOT COST */}
+                          <div className="flex justify-between mb-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-bold text-[#CCC6C6]">Shoot Cost</span>
                             </div>
-                            <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total || quote.discount_amount)}</span>
+                            <span className="font-bold">{formatCurrency(pricingGroups.shootCost || 0)}</span>
                           </div>
-                        )}
 
-                        {parseFloat(quote.referral_discount_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2">
-                            <span className="text-green-700 font-medium">
-                              10% Referral Discount
-                            </span>
-                            <span className="text-green-700 font-bold">
-                              -{formatCurrency(quote.referral_discount_amount)}
-                            </span>
-                          </div>
-                        )}
+                          {pricingGroups.additionalCP.totalCost > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">Additional Creative Partner Fees</span>
+                                {/* <div className="text-[11px] text-[#626467] space-y-0.5">
+                                {pricingGroups.additionalCP.videoCount > 0 && (
+                                  <div>videographer x {pricingGroups.additionalCP.videoCount}</div>
+                                )}
+                                {pricingGroups.additionalCP.photoCount > 0 && (
+                                  <div>photographer x {pricingGroups.additionalCP.photoCount}</div>
+                                )}
+                              </div> */}
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.additionalCP.totalCost || 0)}</span>
+                            </div>
+                          )}
 
-                        {parseFloat(quote.tax_amount || 0) > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <div className="flex flex-col">
-                              <span className="text-[#CCC6C6] font-medium">
-                                Tax
-                                {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
-                              </span>
-                              {quote.tax_type && (
-                                <span className="text-[10px] text-[#787979] capitalize">
-                                  {quote.tax_type} tax
+                          {pricingGroups.editingFees > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">Editing Cost</span>
+                                <span className=" text-[#787979]">Includes professional editing</span>
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.editingFees)}</span>
+                            </div>
+                          )}
+
+                          {pricingGroups.studioCost > 0 && (
+                            <div className="flex justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-[#CCC6C6]">{pricingGroups.studioName || "Studio / Resort"}</span>
+                                <span className=" text-[#787979]">Studio selection</span>
+                              </div>
+                              <span className="font-medium">{formatCurrency(pricingGroups.studioCost)}</span>
+                            </div>
+                          )}
+
+                          {pricingGroups.mandatoryAddons.length > 0 && pricingGroups.mandatoryAddons.map((item, idx) => (
+                            <div key={`addon-${idx}`} className="flex justify-between text-sm p-3 lg:p-5 border-b border-black/20 bg-[#E8D1AB]/5">
+                              <span className="text-[#626467] font-medium">{item.role}</span>
+                              <span className="font-bold">{formatCurrency(item.cost || 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="p-6 lg:p-10 lg:text-[22px] text-white border-b border-b-[#FFFFFF5C]">
+                          <div className="">
+                            <div className="flex justify-between mb-1">
+                              <span className="text-[#CCC6C6]">Subtotal</span>
+                              <span className="font-medium text-[#389903]">{formatCurrency(quote.subtotal || 0)}</span>
+                            </div>
+
+                            {parseFloat(quote.discount_total || quote.discount_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <div className="flex flex-col">
+                                  <span className="text-green-600 font-bold flex items-center gap-1">
+                                    <Tag className="w-3 h-3" /> Discount
+                                  </span>
+                                  {quote.discount_percentage && <span className="text-[10px] text-green-600/80">({quote.discount_percentage}% off)</span>}
+                                  {quote.discount_percent && <span className="text-[10px] text-green-600/80">({quote.discount_percent}% off)</span>}
+                                </div>
+                                <span className="text-green-600 font-bold">-{formatCurrency(quote.discount_total || quote.discount_amount)}</span>
+                              </div>
+                            )}
+
+                            {parseFloat(quote.referral_discount_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2">
+                                <span className="text-green-700 font-medium">
+                                  10% Referral Discount
                                 </span>
-                              )}
-                            </div>
-                            <span className="font-medium text-white">
-                              {formatCurrency(quote.tax_amount)}
-                            </span>
-                          </div>
-                        )}
+                                <span className="text-green-700 font-bold">
+                                  -{formatCurrency(quote.referral_discount_amount)}
+                                </span>
+                              </div>
+                            )}
 
-                        {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
-                          <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
-                            <span className="text-green-700 font-medium">Account Credit Applied</span>
-                            <span className="text-green-700 font-bold">
-                              -{formatCurrency(creditAppliedAmount)}
-                            </span>
+                            {parseFloat(quote.tax_amount || 0) > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <div className="flex flex-col">
+                                  <span className="text-[#CCC6C6] font-medium">
+                                    Tax
+                                    {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
+                                  </span>
+                                  {quote.tax_type && (
+                                    <span className="text-[10px] text-[#787979] capitalize">
+                                      {quote.tax_type} tax
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-medium text-white">
+                                  {formatCurrency(quote.tax_amount)}
+                                </span>
+                              </div>
+                            )}
+
+                            {canUseAccountCredit && useAccountCredit && creditAppliedAmount > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <span className="text-green-700 font-medium">Account Credit Applied</span>
+                                <span className="text-green-700 font-bold">
+                                  -{formatCurrency(creditAppliedAmount)}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
+                      </>
+                    )}
                     <div className="p-6 lg:p-10 text-lg lg:text-2xl flex justify-between items-start bg-[#E8D1AB] rounded-b-[20px]">
                       <div className="flex flex-col">
                         <span className="font-bold">Total</span>

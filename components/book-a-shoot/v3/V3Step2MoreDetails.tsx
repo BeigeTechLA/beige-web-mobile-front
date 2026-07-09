@@ -206,17 +206,29 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       video_edit_types: data.videoEditTypes.join(", "),
     };
 
+    const combinedEditTypes = [...data.photoEditTypes, ...data.videoEditTypes].join(", ");
+
     pushToDataLayer("customize_details_viewed_step2", {
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_step2",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : data.email,
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.user_type_id !== undefined
+        ? USER_TYPE[user.user_type_id]
+        : "Guest",
       email: isAuthenticated ? user?.email : "Unknown",
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      // Flat fields passed individually for seamless GA4 tracking:
+      form_content_type: formFields.content_type,
+      form_shoot_type: formFields.shoot_type,
+      form_shoot_date_time: formFields.shoot_date_time,
+      form_edits_needed: formFields.edits_needed ? "true" : "false", // Convert boolean to a clear string
+      form_edit_types: combinedEditTypes,
+      form_booking_type: data.bookingType,
     });
   }, [])
 
@@ -400,12 +412,19 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         page_name: "Book-a-shoot Page",
         location_in_website: "book_a_shoot_step2",
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.user_type_id !== undefined
+          ? USER_TYPE[user.user_type_id]
+          : "Guest",
         email: isAuthenticated ? user?.email : data.email,
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: data.bookingId,
-        booking_form_fields: formFields,
+
+        // booking_form_fields: formFields,
+        form_additional_creative: data.addTeamMembers ? (vCount + pCount) : data.addTeamMembers,
+        form_shoot_location: formFields.shoot_location,
+        form_additional_details: formFields.additional_details,
+        form_supporting_url: formFields.supporting_url,
       });
 
       onNext();
@@ -571,15 +590,13 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
             hasError={errors.includes("locationError")}
             disabled={false}
           />
-          {
-            data.contentType.includes("studio") && (
-              <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
-                <p className="text-xs lg:text-sm">
-                  Note : Studios are available for LA only
-                </p>
-              </div>
-            )
-          }
+          {data.contentType.includes("studio") && (
+            <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
+              <p className="text-xs lg:text-sm">
+                Note : Studios are available for LA only
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -746,7 +763,6 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           </div>
         </div>
       </div>
-
       {/* Need a Studio: conditionally shown when Studios is not selected in step 1 */}
       {(!data.contentType.includes("studio")) && (
         <div ref={studioRef} className="bg-[#101010] border border-[#FFFFFF4D] rounded-xl p-3 lg:p-5 flex justify-between items-center">

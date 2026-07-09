@@ -597,6 +597,15 @@ export const V3Step5Studios: React.FC<Props> = ({
         video_edit_types: data.videoEditTypes || [],
         photo_edit_types: data.photoEditTypes || [],
         estimated_delivery_date: data.expectedDeliveryDate || null,
+        studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
+        studio_items: selectedStudios.map((studio) => ({
+          studio_id: studio.studioId,
+          name: studio.name,
+          quantity: studio.quantity,
+          unit_price: studio.unitPrice,
+          total: studio.totalPrice,
+          pricing_mode: studio.pricingMode,
+        })),
       };
 
       const response = await trackEarlyInterest(apiPayload).unwrap();

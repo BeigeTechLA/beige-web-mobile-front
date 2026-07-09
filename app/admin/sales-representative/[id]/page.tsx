@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -75,6 +76,7 @@ import {
   getQuoteAdditionalPaymentDetails,
   getQuotePaymentProgressDetails,
 } from "@/lib/quoteDetail";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -130,6 +132,7 @@ const getRoleLabel = (roleData: any): string => {
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (status: string): string => {
   if (status === "booked") return "Booked";
+  if (status === "partially_paid" || status === "partial_paid") return "Partially Paid";
   if (status === "payment_pending") return "Payment Pending";
   if (status === "abandoned") return "Cancelled";
   return "In-Progress";
@@ -218,6 +221,9 @@ type LeadActivityLike = {
 };
 
 type ManualPaymentActivityMeta = {
+  booking_id?: number | string | null;
+  booking_manual_payment_id?: number | string | null;
+  manual_payment_id?: number | string | null;
   payment_method?: string;
   payment_type?: string;
   payment_mode?: string;
@@ -408,6 +414,26 @@ export default function LeadDetailPage() {
   const booking = lead?.booking;
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
+  const leadRecord = lead as unknown as Record<string, unknown> | null;
+  const customQuoteRecord = lead?.custom_quote as unknown as Record<string, unknown> | null;
+  const leadPaymentSummary = leadRecord?.payment_summary;
+  const customQuotePaymentSummary = customQuoteRecord?.payment_summary;
+  const paymentSummary =
+    (leadPaymentSummary && typeof leadPaymentSummary === "object"
+      ? leadPaymentSummary as Record<string, unknown>
+      : null) ||
+    (customQuotePaymentSummary && typeof customQuotePaymentSummary === "object"
+      ? customQuotePaymentSummary as Record<string, unknown>
+      : null);
+  const paymentSummaryStatus = String(paymentSummary?.payment_status || "").trim().toLowerCase();
+  const paymentSummaryPaidAmount = Number(paymentSummary?.paid_amount ?? NaN);
+  const paymentSummaryDueAmount = Number(paymentSummary?.due_amount ?? NaN);
+  const paymentSummaryCreditUsedAmount = Number(paymentSummary?.credit_used_amount ?? NaN);
+  const hasAuthoritativePaymentSummary = Boolean(paymentSummary);
+  const isPaymentSummaryPaid =
+    hasAuthoritativePaymentSummary &&
+    (["paid", "no_payment_due", "completed", "success"].includes(paymentSummaryStatus) ||
+      (Number.isFinite(paymentSummaryDueAmount) && paymentSummaryDueAmount <= 0.009));
   const rawAdditionalPayment = lead?.custom_quote?.additional_payment;
   const normalizedLeadPaymentStatus = String(lead?.payment_status || "").trim().toLowerCase();
   const normalizedAdditionalPaymentStatus = String(rawAdditionalPayment?.payment_status || "").trim().toLowerCase();
@@ -462,9 +488,10 @@ export default function LeadDetailPage() {
       return null;
     }
 
-    const leadSignalsPaid =
-      ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
-      Boolean(booking?.payment_id || booking?.payment_completed_at);
+    const leadSignalsPaid = hasAuthoritativePaymentSummary
+      ? isPaymentSummaryPaid
+      : ["paid", "success", "completed"].includes(normalizedLeadPaymentStatus) ||
+        Boolean(booking?.payment_id || booking?.payment_completed_at);
     const isSettledAdditionalPayment =
       leadSignalsPaid &&
       additionalPaymentOutstandingAmount <= 0.009 &&
@@ -500,6 +527,8 @@ export default function LeadDetailPage() {
     additionalPaymentOutstandingAmount,
     booking?.payment_completed_at,
     booking?.payment_id,
+    hasAuthoritativePaymentSummary,
+    isPaymentSummaryPaid,
   ]);
 
   const isQuoteConvertedLead = useMemo(() => {
@@ -620,6 +649,9 @@ export default function LeadDetailPage() {
     primaryQuote?.quote_id ??
     booking?.quote_id ??
     null;
+  const quoteDetailHref = quotePricingDetails?.quoteId
+    ? `/admin/quotes/${encodeURIComponent(String(quotePricingDetails.quoteId))}`
+    : null;
   const canEditQuote = Boolean(editableQuoteId);
   const hasQuoteLevelDiscount = Number(quotePricingDetails?.discountAmount ?? 0) > 0;
   const isDiscountLockedByQuote = isQuoteConvertedLead && hasQuoteLevelDiscount;
@@ -809,10 +841,12 @@ export default function LeadDetailPage() {
     normalizedRevisionPaymentStatus === "partially_paid";
   const isAmountPaid =
     !isRevisionPaymentPending &&
-    (["paid", "success", "completed"].includes(
-      String(lead?.payment_status || "").trim().toLowerCase()
-    ) ||
-      Boolean(booking?.payment_id || booking?.payment_completed_at));
+    (hasAuthoritativePaymentSummary
+      ? isPaymentSummaryPaid
+      : (["paid", "success", "completed"].includes(
+        String(lead?.payment_status || "").trim().toLowerCase()
+      ) ||
+        Boolean(booking?.payment_id || booking?.payment_completed_at)));
   const showCompletedPaymentMessage =
     isAmountPaid && !hasPendingAdditionalPayment;
   const isClosedLostLead = isClosedLostStatus(lead?.booking_status || status);
@@ -841,10 +875,13 @@ export default function LeadDetailPage() {
     : (lead?.pricing_breakdown?.shoot_cost || 0);
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
+  const studioCost = lead?.pricing_breakdown?.studio_cost || 0;
   const discountAmount = isQuoteConvertedLead
     ? Number(quotePricingDetails?.discountAmount ?? lead?.pricing_breakdown?.discount ?? 0)
     : Number(lead?.pricing_breakdown?.discount ?? 0);
-  const creditApplied = Number(lead?.pricing_breakdown?.credit_applied || 0);
+  const creditApplied = Number.isFinite(paymentSummaryCreditUsedAmount)
+    ? paymentSummaryCreditUsedAmount
+    : Number(lead?.pricing_breakdown?.credit_applied || 0);
   const hasAdditionalRevisionAmount =
     Boolean(additionalPaymentDetails) &&
     Math.abs(Number(additionalPaymentDetails?.additionalAmount || 0)) > 0;
@@ -944,11 +981,15 @@ export default function LeadDetailPage() {
       (lead?.custom_quote ?? null) as any,
       {
         totalAmountOverride: resolvedTotal,
-        previouslyPaidOverride: Number(lead?.pricing_breakdown?.total_paid ?? 0) || undefined,
+        previouslyPaidOverride:
+          (Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : Number(lead?.pricing_breakdown?.total_paid ?? 0)) ||
+          undefined,
         previousTotalOverride:
           Number(lead?.pricing_breakdown?.total_amount ?? lead?.pricing_breakdown?.total ?? 0) ||
           undefined,
-        collectedAmountOverride: Number(lead?.collected_amount ?? 0) || undefined,
+        collectedAmountOverride:
+          (Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : Number(lead?.collected_amount ?? 0)) ||
+          undefined,
         manualPaidOverride: hasFullPayment ? resolvedTotal : partialPaid,
       }
     );
@@ -968,9 +1009,11 @@ export default function LeadDetailPage() {
     lead?.pricing_breakdown?.total_amount,
     lead?.pricing_breakdown?.total_paid,
     latestManualPaymentEntry?.data?.total_amount,
+    paymentSummaryPaidAmount,
     total,
   ]);
   const shouldForceFullyPaid =
+    !hasAuthoritativePaymentSummary &&
     isAmountPaid &&
     !hasPendingAdditionalPayment &&
     (Number(lead?.outstanding_amount ?? 0) <= 0.009 || Number(additionalPaymentDetails?.outstandingAmount ?? 0) <= 0.009);
@@ -983,12 +1026,31 @@ export default function LeadDetailPage() {
       isPartiallyPaid: false,
       canTakePayment: false,
     }
+    : hasAuthoritativePaymentSummary
+      ? {
+        ...manualPaymentSummary,
+        paidAmount: Number.isFinite(paymentSummaryPaidAmount) ? paymentSummaryPaidAmount : manualPaymentSummary.paidAmount,
+        pendingAmount: Number.isFinite(paymentSummaryDueAmount) ? paymentSummaryDueAmount : manualPaymentSummary.pendingAmount,
+        hasFullPayment: isPaymentSummaryPaid,
+        isPartiallyPaid: paymentSummaryStatus === "partially_paid" || (
+          Number.isFinite(paymentSummaryPaidAmount) &&
+          paymentSummaryPaidAmount > 0 &&
+          Number.isFinite(paymentSummaryDueAmount) &&
+          paymentSummaryDueAmount > 0
+        ),
+        canTakePayment: Number.isFinite(paymentSummaryDueAmount)
+          ? paymentSummaryDueAmount > 0
+          : manualPaymentSummary.canTakePayment,
+      }
     : manualPaymentSummary;
   const displayPaidAmount = Math.max(
     Number(lead?.collected_amount ?? 0),
     Number(lead?.pricing_breakdown?.total_paid ?? 0),
     Number(effectiveManualPaymentSummary.paidAmount ?? 0)
   );
+  const paymentActionOutstandingAmount = hasPendingAdditionalPayment
+    ? additionalPaymentDetails?.outstandingAmount ?? additionalPaymentOutstandingAmount
+    : effectiveManualPaymentSummary.pendingAmount;
 
   const manualPaymentEntries = useMemo(() => {
     return (lead?.activities || [])
@@ -1535,6 +1597,24 @@ export default function LeadDetailPage() {
                   <p>
                     Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
+                  {quotePricingDetails && (
+                    <>
+                      <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                      <p>
+                        Converted Quote :{" "}
+                        {quoteDetailHref ? (
+                          <Link
+                            href={quoteDetailHref}
+                            className={`${isDark ? "text-[#E8D1AB]" : "text-[#8A6A00]"} font-medium underline decoration-current underline-offset-4 transition-colors hover:opacity-80`}
+                          >
+                            {quotePricingDetails.quoteDisplayNumber}
+                          </Link>
+                        ) : (
+                          <span className={isDark ? "text-white" : "text-black"}>{quotePricingDetails.quoteDisplayNumber}</span>
+                        )}
+                      </p>
+                    </>
+                  )}
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
                     <p className="whitespace-nowrap">
@@ -1999,7 +2079,7 @@ export default function LeadDetailPage() {
                   <span className="text-[#71717B] text-xs">Additional Creatives</span>
                   <span className="text-sm lg:text-base text-white">${additionalCreatives.toLocaleString()}</span>
                 </div> */}
-                {[["Base Price", basePrice], ["Editing Fee", editingCost], ["Additional Creatives", additionalCreatives]].map(([label, val]) => (
+                {[["Shoot Cost", basePrice], ["Editing Fee", editingCost], ["Studio", studioCost], ["Additional Creatives", additionalCreatives]].filter(([, val]) => Number(val) > 0).map(([label, val]) => (
                   <div key={label as string} className="flex justify-between font-medium">
                     <span className="text-[#71717B] text-xs">{label}</span>
                     <span className={`text-sm lg:text-base font-mono ${isDark ? "text-white" : "text-black"}`}>${(val as number).toLocaleString()}</span>
@@ -2297,6 +2377,8 @@ export default function LeadDetailPage() {
               activeLink={lead?.active_payment_link}
               additionalPaymentStatus={rawAdditionalPayment?.payment_status}
               additionalPaymentOutstandingAmount={rawAdditionalPayment?.outstanding_amount}
+              paidAmount={effectiveManualPaymentSummary.paidAmount}
+              outstandingPaymentAmount={paymentActionOutstandingAmount}
               isReadOnly={isClosedLostLead}
               readOnlyMessage="Payment actions are disabled for Closed - Lost leads."
             />
@@ -2488,6 +2570,18 @@ export default function LeadDetailPage() {
                       <div className="space-y-2">
                         {manualPaymentEntries.map((entry, index) => {
                           const proofUrl = resolveS3ProofUrl(entry.data.proof_url);
+                          const receiptBookingId = Number(entry.data.booking_id || lead?.booking_id || 0);
+                          const manualPaymentId = Number(entry.data.booking_manual_payment_id || entry.data.manual_payment_id || 0);
+                          const receiptUrl =
+                            Number.isFinite(receiptBookingId) &&
+                            receiptBookingId > 0 &&
+                            Number.isFinite(manualPaymentId) &&
+                            manualPaymentId > 0
+                              ? buildBeigeInvoiceUrl(receiptBookingId, {
+                                  receipt: true,
+                                  cacheBust: true,
+                                }) + `&manual_payment_id=${encodeURIComponent(String(manualPaymentId))}`
+                              : "";
                           const paidMode = entry.data.payment_mode
                             ? String(entry.data.payment_mode).toLowerCase() === "other" && entry.data.other_payment_mode
                               ? String(entry.data.other_payment_mode)
@@ -2517,6 +2611,16 @@ export default function LeadDetailPage() {
                                   className="mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
                                 >
                                   Download Proof
+                                </a>
+                              )}
+                              {receiptUrl && (
+                                <a
+                                  href={receiptUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-3 mt-1 inline-block text-[#E8D1AB] underline underline-offset-2"
+                                >
+                                  View Receipt
                                 </a>
                               )}
                             </div>
@@ -2593,7 +2697,17 @@ export default function LeadDetailPage() {
                         Quote Pricing Details
                       </h2>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                        Converted from quote {quotePricingDetails.quoteDisplayNumber}
+                        Converted from quote{" "}
+                        {quoteDetailHref ? (
+                          <Link
+                            href={quoteDetailHref}
+                            className="font-medium text-inherit underline decoration-current underline-offset-4 transition-colors hover:opacity-80"
+                          >
+                            {quotePricingDetails.quoteDisplayNumber}
+                          </Link>
+                        ) : (
+                          <span>{quotePricingDetails.quoteDisplayNumber}</span>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

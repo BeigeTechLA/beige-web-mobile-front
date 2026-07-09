@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Info,
   Loader2,
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePicker, datePickerColours } from "@/components/ui/Datepicker";
+import { DatePicker } from "@/components/ui/Datepicker";
 import { TimePicker } from "@/components/ui/Timepicker";
 import {
   Select,
@@ -24,12 +24,20 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
+import { getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
+type GeneratedMeetEvent = {
+  eventId: string;
+  calendarId?: string;
+  meetLink: string;
+  startDateTime: string;
+  endDateTime: string;
+};
 
 interface CreateMeetingModalProps {
   isOpen: boolean;
@@ -93,11 +101,13 @@ interface ProjectSource {
 
 interface CrewSource {
   id?: string | number;
+  user_id?: string | number;
   crew_member_id?: string | number;
   email?: string;
   first_name?: string;
   last_name?: string;
   crew_member?: {
+    user_id?: string | number;
     crew_member_id?: string | number;
     first_name?: string;
     last_name?: string;
@@ -168,7 +178,7 @@ const formatRoleLabel = (value?: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getCrewId = (member: CrewSource | null | undefined) =>
-  String(member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
+  String(member?.user_id || member?.crew_member?.user_id || member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
 
 const getCrewName = (member: CrewSource | null | undefined) =>
   `${member?.crew_member?.first_name || member?.first_name || ""} ${member?.crew_member?.last_name || member?.last_name || ""}`.trim() ||
@@ -232,12 +242,10 @@ export default function CreateMeetingModal({
   const currentUserName = getCurrentUserName(user);
 
   const getNextValidTime = () => {
-    const now = new Date();
-    const next = new Date(now);
-    next.setSeconds(0, 0);
-    next.setHours(now.getHours() + 1, 0, 0, 0);
-    return next;
+    return getMinimumSelectableMeetingTime(1);
   };
+
+  const getMinimumStartTime = () => getMinimumSelectableMeetingTime(1);
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState(orderId ? String(orderId) : "");
@@ -253,6 +261,7 @@ export default function CreateMeetingModal({
   );
   const [description, setDescription] = useState("");
   const [meetLink, setMeetLink] = useState("");
+  const [generatedMeetEvent, setGeneratedMeetEvent] = useState<GeneratedMeetEvent | null>(null);
   const [sendNotification, setSendNotification] = useState(true);
   const [projectParticipants, setProjectParticipants] = useState<ParticipantOption[]>([]);
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
@@ -269,6 +278,7 @@ export default function CreateMeetingModal({
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
+  const projectsRequestIdRef = useRef(0);
 
   const fixedOrder = !!orderId;
 
@@ -351,19 +361,21 @@ export default function CreateMeetingModal({
   }, [isOpen, orderId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      projectsRequestIdRef.current += 1;
+      setIsLoadingProjects(false);
+      return;
+    }
 
-    let cancelled = false;
+    const requestId = projectsRequestIdRef.current + 1;
+    projectsRequestIdRef.current = requestId;
 
     const loadProjects = async () => {
       setIsLoadingProjects(true);
       try {
-        const [projectsResponse, directory] = await Promise.all([
-          adminApi.getProjects({}),
-          externalChatApi.getDirectory(),
-        ]);
+        const projectsResponse = await adminApi.getProjects({ summary_only: true });
 
-        if (cancelled) return;
+        if (projectsRequestIdRef.current !== requestId) return;
         const rawProjectResults =
           projectsResponse?.data?.projects ||
           projectsResponse?.data?.results ||
@@ -379,28 +391,28 @@ export default function CreateMeetingModal({
             return ownerUserId && String(currentUserId || "") === ownerUserId;
           });
 
-        const normalizedProjects = normalizedProjectSources
-          .filter((item) => getProjectId(item))
-          .map((item) => ({
+        const normalizedProjects = Array.from(
+          new Map(normalizedProjectSources
+            .filter((item) => getProjectId(item))
+            .map((item) => [getProjectId(item), {
             id: getProjectId(item),
             label: getProjectOptionLabel(item),
             description:
               resolveClientName(item) ||
               resolveClientEmail(item) ||
               (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
-          }));
+            }] as const)
+          ).values()
+        );
 
         setProjects(normalizedProjects);
-        setDirectory({
-          staff: directory.staff || [],
-          creativePartners: directory.creativePartners || [],
-        });
       } catch (error) {
-        if (!cancelled) {
+        if (projectsRequestIdRef.current === requestId) {
+          setProjects([]);
           toast.error(error instanceof Error ? error.message : "Failed to load meeting data");
         }
       } finally {
-        if (!cancelled) {
+        if (projectsRequestIdRef.current === requestId) {
           setIsLoadingProjects(false);
         }
       }
@@ -408,9 +420,34 @@ export default function CreateMeetingModal({
 
     loadProjects();
     return () => {
-      cancelled = true;
+      if (projectsRequestIdRef.current === requestId) {
+        projectsRequestIdRef.current += 1;
+      }
     };
   }, [currentUserId, isOpen, role]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    externalChatApi.getDirectory()
+      .then((directory) => {
+        if (cancelled) return;
+        setDirectory({
+          staff: directory.staff || [],
+          creativePartners: directory.creativePartners || [],
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load meeting participant directory", error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !selectedOrderId) return;
@@ -524,8 +561,15 @@ export default function CreateMeetingModal({
 
       if (response?.meetLink) {
         setMeetLink(response.meetLink);
+        setGeneratedMeetEvent(response.eventId ? {
+          eventId: response.eventId,
+          calendarId: response.calendarId || "primary",
+          meetLink: response.meetLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        } : null);
         toast.success("Google Meet link generated.");
-        return response.meetLink;
+        return response;
       }
 
       if (response?.authUrl) {
@@ -566,7 +610,7 @@ export default function CreateMeetingModal({
       setIsGeneratingLink(false);
     }
 
-    return "";
+    return null;
   };
 
   const handleSubmit = async () => {
@@ -588,8 +632,8 @@ export default function CreateMeetingModal({
       return;
     }
 
-    if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      toast.error("Meeting end time must be after the start time.");
+    if (new Date(endIso).getTime() < new Date(startIso).getTime() + 60 * 60 * 1000) {
+      toast.error("Meeting end time must be at least 1 hour after the start time.");
       return;
     }
 
@@ -604,9 +648,18 @@ export default function CreateMeetingModal({
     setIsSubmitting(true);
     try {
       let resolvedLink = meetLink.trim();
+      let resolvedGoogleEvent = generatedMeetEvent;
 
       if (!resolvedLink) {
-        resolvedLink = await generateMeetLink();
+        const generated = await generateMeetLink();
+        resolvedLink = generated?.meetLink?.trim() || "";
+        resolvedGoogleEvent = generated?.eventId ? {
+          eventId: generated.eventId,
+          calendarId: generated.calendarId || "primary",
+          meetLink: resolvedLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        } : null;
       }
 
       if (!resolvedLink) {
@@ -614,7 +667,37 @@ export default function CreateMeetingModal({
         return;
       }
 
-      const createdMeeting = await meetingsApi.createMeeting({
+      if (resolvedGoogleEvent?.eventId) {
+        const updatedEvent = await meetingsApi.updateEvent({
+          eventId: resolvedGoogleEvent.eventId,
+          calendarId: resolvedGoogleEvent.calendarId || "primary",
+          summary: meetingTitle.trim() || `Meeting for ${getProjectName(selectedOrder)}`,
+          location: "Online",
+          description: description.trim(),
+          startDateTime: startIso,
+          endDateTime: endIso,
+          timeZone: getBrowserTimeZone(),
+        });
+
+        if (updatedEvent?.authUrl) {
+          window.open(updatedEvent.authUrl, "_blank", "noopener,noreferrer");
+          toast.info("Google authorization opened. Complete it, then try creating the meeting again.");
+          return;
+        }
+
+        resolvedLink = updatedEvent?.meetLink || resolvedLink;
+        resolvedGoogleEvent = {
+          eventId: updatedEvent?.eventId || resolvedGoogleEvent.eventId,
+          calendarId: updatedEvent?.calendarId || resolvedGoogleEvent.calendarId || "primary",
+          meetLink: resolvedLink,
+          startDateTime: startIso,
+          endDateTime: endIso,
+        };
+        setMeetLink(resolvedLink);
+        setGeneratedMeetEvent(resolvedGoogleEvent);
+      }
+
+      await meetingsApi.createMeeting({
         order_id: activeOrderId,
         meeting_date_time: startIso,
         meeting_end_time: endIso,
@@ -623,29 +706,14 @@ export default function CreateMeetingModal({
         meeting_title: meetingTitle.trim() || `${getProjectName(selectedOrder)} Meeting`,
         description: description.trim() || undefined,
         meetLink: resolvedLink || undefined,
+        googleCalendarEventId: resolvedGoogleEvent?.eventId,
+        googleCalendarId: resolvedGoogleEvent?.calendarId || "primary",
         cp_ids: cpParticipantIds,
         admin_id: currentUserId,
         created_by_id: currentUserId,
         participants: managerParticipantIds,
         send_notification: sendNotification,
       });
-
-      const createdMeetingId = createdMeeting?.id;
-      if (createdMeetingId) {
-        if (cpParticipantIds.length > 0) {
-          await meetingsApi.addParticipants(createdMeetingId, {
-            role: "cp",
-            user_ids: cpParticipantIds,
-          });
-        }
-
-        if (managerParticipantIds.length > 0) {
-          await meetingsApi.addParticipants(createdMeetingId, {
-            role: "manager",
-            user_ids: managerParticipantIds,
-          });
-        }
-      }
 
       toast.success("Meeting created successfully");
       onCreated?.();
@@ -667,7 +735,7 @@ export default function CreateMeetingModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
-      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} onClick={onClose} />
+      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} />
 
       <div className={`relative mx-auto flex max-h-[calc(100vh-4rem)] w-full max-w-[860px] flex-col rounded-2xl lg:rounded-4xl border shadow-2xl ${isDark ? "shadow-black/40 border-[#262626] bg-[#090909]" : "shadow-[#64646f33] bg-[#FFFFFF] border-[#FFFFFF66]"}`}>
         <div className={`flex items-start justify-between border-b p-4 lg:px-6 lg:py-5 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
@@ -761,7 +829,7 @@ export default function CreateMeetingModal({
                       label="Start Time"
                       value={meetingStartTime}
                       onChange={setMeetingStartTime}
-                      minTime={isToday ? getNextValidTime() : null}
+                      minTime={isToday ? getMinimumStartTime() : null}
                       isDark={isDark}
                     />
                   </div>
@@ -771,7 +839,7 @@ export default function CreateMeetingModal({
                       label="End Time"
                       value={meetingEndTime}
                       onChange={setMeetingEndTime}
-                      minTime={meetingStartTime || (isToday ? getNextValidTime() : null)}
+                      minTime={getMinimumMeetingEndTime(meetingStartTime) || (isToday ? getNextValidTime() : null)}
                       isDark={isDark}
                     />
                   </div>
@@ -1116,7 +1184,10 @@ export default function CreateMeetingModal({
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Input
                     value={meetLink}
-                    onChange={(event) => setMeetLink(event.target.value)}
+                    onChange={(event) => {
+                      setMeetLink(event.target.value);
+                      setGeneratedMeetEvent(null);
+                    }}
                     placeholder="Auto-generated Google Meet link"
                     className={`h-12 rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
                   />

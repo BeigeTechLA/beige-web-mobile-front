@@ -71,6 +71,15 @@ export const salesApi = createApi({
         video_edit_types?: string[];
         photo_edit_types?: string[];
         estimated_delivery_date?: string | null;
+        studio_total?: number;
+        studio_items?: Array<{
+          studio_id: string;
+          name: string;
+          quantity: number;
+          unit_price: number;
+          total: number;
+          pricing_mode: "hourly" | "weekend";
+        }>;
       }
     >({
       query: (data) => ({
@@ -306,6 +315,7 @@ export const salesApi = createApi({
       reason_code?: string;
       booking_id?: number;
       discount_code?: string;
+      requested_amount?: number | string | null;
     }, string>({
       query: (token) => `sales/payment-links/${token}/validate`,
       transformResponse: (response: any) => {

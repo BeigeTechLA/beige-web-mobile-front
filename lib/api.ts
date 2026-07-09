@@ -1435,6 +1435,26 @@ export const EditPortfolioLink = async (crewFilesId: string | number, payload: {
   }
 };
 
+export const EditFeaturedWorkProject = async (payload: {
+  crew_member_id: number;
+  file_ids: Array<string | number>;
+  title: string;
+  tag?: string;
+}) => {
+  try {
+    const response = await api.post("creator/profile/edit-featured-work", payload);
+    return response;
+  } catch (error) {
+    console.error("Edit Featured Work Error:", error);
+    return {
+      data: {
+        error: true,
+        message: "Failed to edit featured work",
+      },
+    };
+  }
+};
+
 export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
@@ -1475,6 +1495,13 @@ export const adminApi = {
     start_date?: string;
     end_date?: string;
     date_on?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    history_status?: string;
+    date_from?: string;
+    date_to?: string;
   } = {}) => {
     try {
       const response = await api.get('finance/admin/credit-points/dashboard', {
@@ -1848,7 +1875,7 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string } = {}) => {
+  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
@@ -1940,11 +1967,13 @@ export const adminApi = {
   },
   getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.post('admin/get-crew-members', {
-        page: params.page || 1,
-        limit: params.limit || 50,
-        search: params.search,
-        status: params.status,
+      const response = await api.get('admin/get-crew-members', {
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          search: params.search,
+          status: params.status,
+        },
       });
       return response.data;
     } catch (error: any) {
@@ -2135,7 +2164,7 @@ export const adminApi = {
       };
     }
   },
-  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string } = {}) => {
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-clients', { params });
       return response.data;
@@ -2205,6 +2234,37 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client details',
+      };
+    }
+  },
+
+  deleteClient: async (clientId: string | number) => {
+    try {
+      const response = await api.delete(`admin/delete-client/${clientId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete client',
+      };
+    }
+  },
+
+  restoreClient: async (clientId: string | number, reason = "Archived by mistake.", mode = "normal") => {
+    try {
+      const response = await api.post(`admin/restore-client/${clientId}`, {
+        reason,
+        mode,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Restore Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to restore client',
       };
     }
   },

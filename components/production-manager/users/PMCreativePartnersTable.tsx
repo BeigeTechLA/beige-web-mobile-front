@@ -200,8 +200,8 @@ export const PMCreativePartnersTable = () => {
           <Check size={16} strokeWidth={3} />
         </div>
         <div>
-          <h3 className="text-green-500 font-medium text-base">Shoot request accepted</h3>
-          <p className="text-[#888] text-sm">You've successfully accepted the CP</p>
+          <h3 className="text-green-500 font-medium text-base">Creative Partner approved</h3>
+          <p className="text-[#888] text-sm">The creative partner has been approved successfully.</p>
         </div>
         <button onClick={() => toast.dismiss(t)} className="absolute top-4 right-4 text-[#666] hover:text-white transition-colors">
           <X size={20} />
@@ -217,8 +217,8 @@ export const PMCreativePartnersTable = () => {
           <AlertCircle size={24} strokeWidth={2} />
         </div>
         <div>
-          <h3 className="text-[#ff6b6b] font-medium text-base">Request Declined</h3>
-          <p className="text-[#888] text-sm">The CP request has been declined.</p>
+          <h3 className="text-[#ff6b6b] font-medium text-base">Creative Partner rejected</h3>
+          <p className="text-[#888] text-sm">The creative partner has been rejected.</p>
         </div>
         <button onClick={() => toast.dismiss(t)} className="absolute top-4 right-4 text-[#666] hover:text-white transition-colors">
           <X size={20} />

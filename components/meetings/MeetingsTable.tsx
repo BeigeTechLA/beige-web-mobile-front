@@ -13,6 +13,7 @@ import {
 import { Button } from "../ui/button";
 import { ParticipantAvatarStack } from "./AvatarStack";
 import { type MeetingItem } from "@/lib/meetingsApi";
+import { canRespondToMeeting } from "@/lib/meetingStatus";
 
 import {
   Tooltip,
@@ -157,12 +158,14 @@ export default function MeetingsStructure({
                   !!currentUserId &&
                   !!createdById &&
                   String(currentUserId) === createdById;
+                const isWithinResponseWindow = canRespondToMeeting(meeting);
 
                 const canRespond =
                   !!meeting.id &&
                   !!currentUserId &&
                   !isAdminView &&
                   !isClientCreatedBySelf &&
+                  isWithinResponseWindow &&
                   !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
                 const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
@@ -178,14 +181,24 @@ export default function MeetingsStructure({
                   >
                     {/* COLUMN 1: Meeting */}
                     <td className={`p-5 text-base border-t ${borderClass}`}>
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <TruncatedMeetingTitle
-                          title={meeting.meeting_title || meeting.order?.name || "Meeting"}
-                          isDark={isDark}
-                        />
+                      <div className="flex flex-col min-w-0">
+                        {(meeting.meeting_title || meeting.order?.name || "Meeting")
+                          .split(" - ")
+                          .reverse()
+                          .map((part, i) => (
+                            <div 
+                              key={i} 
+                              className={i === 1 ? "scale-95 origin-left" : ""}
+                            >
+                              <TruncatedMeetingTitle
+                                title={part.trim()}
+                                isDark={isDark}
+                              />
+                            </div>
+                          ))}
                         {meeting.meeting_type && (
-                          <p className={`text-sm capitalize font-semibold ${isDark ? "text-white/45" : "text-gray-500"}`}>
-                            Type: {meeting.meeting_type.split("_").join(" ")}
+                          <p className={`text-sm capitalize font-semibold mt-1 ${isDark ? "text-white/45" : "text-gray-500"}`}>
+                            Stage: {meeting.meeting_type.split("_").join(" ")}
                           </p>
                         )}
                         {/* {meeting.description && (
@@ -199,11 +212,9 @@ export default function MeetingsStructure({
                     {/* COLUMN 2: Date & Time */}
                     <td className={`p-5 text-base border-t ${borderClass}`}>
                       <div className="flex flex-col gap-1 min-w-0">
-                        <span className={`inline-flex items-center gap-2 text-sm truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          {formatDateTime(meeting.meeting_date_time)}
-                        </span>
+                        <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                         {canRespond && (
-                          <span className="w-fit inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
+                          <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
                             Your response: {formatInvitationResponse(currentResponse ?? "")}
                           </span>
                         )}
@@ -350,12 +361,14 @@ function MobileMeetingRow({
     !!currentUserId &&
     !!createdById &&
     String(currentUserId) === createdById;
+  const isWithinResponseWindow = canRespondToMeeting(meeting);
 
   const canRespond =
     !!meeting.id &&
     !!currentUserId &&
     !isAdminView &&
     !isClientCreatedBySelf &&
+    isWithinResponseWindow &&
     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
   const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
@@ -377,11 +390,21 @@ function MobileMeetingRow({
             }`}>
             <ChevronDown size={16} />
           </div>
-          <div className="min-w-0">
-            <TruncatedMeetingTitle
-              title={meeting.meeting_title || meeting.order?.name || "Meeting"}
-              isDark={isDark}
-            />
+          <div className="flex flex-col min-w-0">
+            {(meeting.meeting_title || meeting.order?.name || "Meeting")
+              .split(" - ")
+              .reverse()
+              .map((part, i) => (
+                <div 
+                  key={i} 
+                  className={i === 1 ? "scale-95 origin-left" : ""}
+                >
+                  <TruncatedMeetingTitle
+                    title={part.trim()}
+                    isDark={isDark}
+                  />
+                </div>
+              ))}
           </div>
         </div>
         <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${getMeetingStatusClasses(effectiveStatus, isDark)}`}>
@@ -406,7 +429,7 @@ function MobileMeetingRow({
                 {meeting.meeting_type && (
                   <div>
                     <p className={`text-xs uppercase font-semibold tracking-wider ${isDark ? "text-white/45" : "text-gray-400"}`}>
-                      Meeting Type
+                      Meeting Stage
                     </p>
                     <p className={`text-sm mt-0.5 capitalize font-medium ${isDark ? "text-white/80" : "text-gray-700"}`}>
                       {meeting.meeting_type.split("_").join(" ")}
@@ -430,11 +453,9 @@ function MobileMeetingRow({
                     Date & Time
                   </p>
                   <div className="text-sm mt-1 flex flex-col gap-1">
-                    <span className={`inline-flex items-center gap-2 ${isDark ? "text-white/80" : "text-gray-700"}`}>
-                      {formatDateTime(meeting.meeting_date_time)}
-                    </span>
+                    <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                     {canRespond && (
-                      <span className="w-fit inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300">
+                      <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
                         Your response: {formatInvitationResponse(currentResponse ?? "")}
                       </span>
                     )}
@@ -567,6 +588,43 @@ const TruncatedMeetingTitle = ({ title, isDark = true }: { title: string; isDark
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs break-words">
           <p>{title}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
+const TruncatedDateTime = ({ value, isDark = true }: { value: string; isDark?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  const handleMouseEnter = () => {
+    const element = textRef.current;
+    if (element) {
+      const isActuallyTruncated = element.scrollWidth > element.offsetWidth;
+      setIsOpen(isActuallyTruncated);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip open={isOpen}>
+        <TooltipTrigger asChild>
+          <span
+            ref={textRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className={`block w-full min-w-0 truncate text-sm cursor-default ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}
+          >
+            {value}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs break-words">
+          <p>{value}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

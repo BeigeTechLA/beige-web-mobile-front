@@ -4,18 +4,22 @@ import React, { useState } from "react";
 import { ChevronDown, MapPin, Mail, Hash, User, ChevronRight, Check, X } from "lucide-react";
 import { Button } from "../ui/button";
 
-export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
+export function MobileRow({ item, onApprove, onDecline, onViewDetails, isDark }: any) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Status Logic Mapping (Keep identical to your original desktop logic)
+  // Status Logic Mapping
   let statusBg = "bg-[#FEF9C3]";
   let statusText = "text-[#854D0E]";
   let label = "Pending";
 
-  if (item.status === "Confirmed") {
+  if (item.status === "Confirmed" || item.status === "Approved") {
     statusBg = "bg-[#DCFCE7]";
     statusText = "text-[#166534]";
-    label = "Approved";
+    label = item.status === "Confirmed" ? "Confirmed" : "Approved";
+  } else if (item.status === "Completed") {
+    statusBg = "bg-[#D1FAE5]";
+    statusText = "text-[#065F46]";
+    label = "Completed";
   } else if (item.status === "Rejected" || item.status === "Declined") {
     statusBg = "bg-[#FEE2E2]";
     statusText = "text-[#991B1B]";
@@ -27,27 +31,33 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
       {/* Trigger Row */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
+        className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${isDark ? "active:bg-white/5" : "active:bg-black/5"
+          }`}
       >
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 flex items-center justify-center text-[#E8D1AB] font-bold text-sm shrink-0">
             {(item.project_name || "PR").split(' ').map((n: any) => n[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="flex flex-col">
-            <span className="text-white text-lg capitalize font-bold truncate max-w-[140px]">
+            <span className={`text-lg capitalize font-bold truncate max-w-[140px] ${isDark ? "text-white" : "text-black"
+              }`}>
               {item.project_name || "Untitled"}
             </span>
-            <span className="text-[10px] text-white/40 uppercase tracking-tight">Production Shoot</span>
+            <span className={`text-xs uppercase tracking-tight ${isDark ? "text-white/40" : "text-black/40"
+              }`}>
+              Production Shoot
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${statusBg} ${statusText}`}>
+          <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBg} ${statusText}`}>
             {label}
           </span>
           <ChevronDown
             size={18}
-            className={`text-white/20 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+            className={`transition-transform duration-300 ${isDark ? "text-white/20" : "text-black/30"
+              } ${isOpen ? "rotate-180" : ""}`}
           />
         </div>
       </div>
@@ -58,34 +68,46 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
           <div className="grid grid-cols-2 gap-4">
             {/* Shoot ID */}
             <div className="space-y-1">
-              <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold uppercase">
+              <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
                 <Hash size={16} /> Shoot ID
               </span>
-              <p className="text-white/80 text-sm">#{item.project_id?.toString().slice(-6) || "123456"}</p>
+              <p className={`text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                #{item.project_id?.toString().slice(-6) || "123456"}
+              </p>
             </div>
 
             {/* Category */}
             <div className="space-y-1">
-              <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold uppercase">
+              <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
                 <User size={16} /> Category
               </span>
-              <p className="text-white/80 text-sm">Videographer</p>
+              <p className={`text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                Videographer
+              </p>
             </div>
 
             {/* Location */}
             <div className="col-span-2 space-y-1">
-              <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold uppercase">
+              <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
                 <MapPin size={16} /> Location
               </span>
-              <p className="text-white/80 text-sm truncate">{item.event_location || item.location || "N/A"}</p>
+              <p className={`text-sm truncate ${isDark ? "text-white/80" : "text-black/80"}`}>
+                {item.event_location || item.location || "N/A"}
+              </p>
             </div>
 
             {/* Email */}
             <div className="col-span-2 space-y-1">
-              <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-bold uppercase">
+              <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
                 <Mail size={16} /> Client Email
               </span>
-              <p className="text-white/80 text-sm truncate">{item.guest_email || "N/A"}</p>
+              <p className={`text-sm truncate ${isDark ? "text-white/80" : "text-black/80"}`}>
+                {item.guest_email || "N/A"}
+              </p>
             </div>
           </div>
 
@@ -96,14 +118,14 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
                 <Button
                   size="icon"
                   onClick={onApprove}
-                  className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
+                  className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors"
                 >
                   <Check size={18} />
                 </Button>
                 <Button
                   size="icon"
                   onClick={onDecline}
-                  className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"
+                  className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                 >
                   <X size={18} />
                 </Button>
@@ -111,7 +133,10 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails }: any) {
             ) : (
               <button
                 onClick={onViewDetails}
-                className="w-full py-2.5 rounded-lg border border-white/10 text-white text-sm font-bold flex items-center justify-center gap-2"
+                className={`w-full py-2.5 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-colors ${isDark
+                    ? "border-white/10 text-white hover:bg-white/5"
+                    : "border-black/15 text-black hover:bg-black/5"
+                  }`}
               >
                 View Full Details <ChevronRight size={14} />
               </button>

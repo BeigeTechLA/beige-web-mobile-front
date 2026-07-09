@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Download, Lock, Mail, ShieldCheck, FileText, ArrowLeft,
   ChevronRight, Eye, X, Check, FileImage, FileVideo, FileArchive,
-  FileSpreadsheet, Presentation, Home, KeyRound, CheckCircle2, Users, EyeOff
+  FileSpreadsheet, Presentation, Home, KeyRound, CheckCircle2, EyeOff,
+  FileX2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,6 +18,7 @@ type ShareStep = "email" | "otp" | "content";
 type SharedFolder = {
   name?: string;
   path?: string;
+  fileCount?: number;
 };
 
 type SharedFile = {
@@ -24,6 +26,29 @@ type SharedFile = {
   path?: string;
   size?: number;
   contentType?: string;
+};
+
+type SharedPageError = Error & { status?: number };
+
+type SharedContent = {
+  type?: "file" | "folder" | "workspace";
+  phase?: string;
+  path?: string;
+  folders?: SharedFolder[];
+  files?: SharedFile[];
+  file?: SharedFile;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+const isSharedResourceUnavailable = (error: unknown) => {
+  const sharedError = error as SharedPageError;
+  const message = String(sharedError?.message || "").toLowerCase();
+  return sharedError?.status === 410 || (
+    sharedError?.status === 404 &&
+    (message.includes("share") || message.includes("not found"))
+  ) || message.includes("no longer available") || message.includes("deleted by the owner");
 };
 
 const formatFileSize = (bytes?: number) => {
@@ -131,7 +156,7 @@ function Thumbnail({ file, getFileThumbnail }: { file: SharedFile; getFileThumbn
     let active = true;
     void getFileThumbnail(file).then((r) => { if (active) setUrl(r || ""); });
     return () => { active = false; };
-  }, [file.path, getFileThumbnail]);
+  }, [file, getFileThumbnail]);
   if (!url) return <div className="flex h-full w-full items-center justify-center"><FileText className="h-5 w-5 text-white/40" /></div>;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt={file.name || "thumbnail"} className="h-full w-full object-cover" />;
@@ -147,7 +172,7 @@ export default function SharedFileManagerPage() {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [accessToken, setAccessToken] = useState("");
-  const [content, setContent] = useState<any>(null);
+  const [content, setContent] = useState<SharedContent | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | undefined>(undefined);
   const [currentPath, setCurrentPath] = useState<string | undefined>(undefined);
@@ -155,9 +180,20 @@ export default function SharedFileManagerPage() {
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; contentType?: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [unavailableMessage, setUnavailableMessage] = useState("");
+
+  const handleUnavailableError = (error: unknown) => {
+    if (!isSharedResourceUnavailable(error)) return false;
+    setUnavailableMessage(
+      "This shared file or folder is no longer available. It may have been deleted by the owner."
+    );
+    setContent(null);
+    return true;
+  };
 
   const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
   const files = useMemo(() => (Array.isArray(content?.files) ? (content.files as SharedFile[]) : []), [content]);
+  const selectionLockActive = selectedFilePaths.length > 0;
 
   const breadcrumbs = useMemo(() => {
     const crumbs: Array<{ label: string; phase?: string; path?: string }> = [{ label: "Shared Root" }];
@@ -205,8 +241,8 @@ export default function SharedFileManagerPage() {
       setStep("otp");
       setResendTimer(60);
       toast.success("OTP sent to your email");
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to send OTP"));
     } finally {
       setLoading(false);
     }
@@ -221,7 +257,9 @@ export default function SharedFileManagerPage() {
       setResendTimer(60);
       toast.success("New OTP sent to your email");
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to resend OTP");
+      if (!handleUnavailableError(error)) {
+        toast.error(error instanceof Error ? error.message : "Failed to resend OTP");
+      }
     } finally {
       setResendLoading(false);
     }
@@ -241,8 +279,8 @@ export default function SharedFileManagerPage() {
       await loadContent(token);
       setStep("content");
       toast.success("Verified successfully");
-    } catch (error: any) {
-      toast.error(error?.message || "Invalid OTP");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Invalid OTP"));
     } finally {
       setLoading(false);
     }
@@ -260,8 +298,8 @@ export default function SharedFileManagerPage() {
       if (result?.data?.url) {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       }
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to get download link");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to get download link"));
     }
   };
 
@@ -305,8 +343,8 @@ export default function SharedFileManagerPage() {
       }
       setSelectedFilePaths([]);
       toast.success(`Downloaded ${selectedFilePaths.length} file(s)`);
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to download selected files");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to download selected files"));
     } finally {
       setBulkDownloading(false);
     }
@@ -329,8 +367,8 @@ export default function SharedFileManagerPage() {
         url,
         contentType: file.contentType,
       });
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to open preview");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open preview"));
     } finally {
       setPreviewLoading(false);
     }
@@ -385,8 +423,8 @@ export default function SharedFileManagerPage() {
 
       const nextPath = currentPath ? `${currentPath}/${folderName}` : folderName;
       await loadContent(accessToken, { phase: currentPhase, path: nextPath });
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to open folder");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open folder"));
     }
   };
 
@@ -398,8 +436,8 @@ export default function SharedFileManagerPage() {
         return;
       }
       await loadContent(accessToken, { phase: crumb.phase, path: crumb.path });
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to open location");
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open location"));
     }
   };
 
@@ -409,6 +447,29 @@ export default function SharedFileManagerPage() {
     { key: "content", label: "Access", icon: FolderOpen },
   ];
   const stepIndex = step === "email" ? 0 : step === "otp" ? 1 : 2;
+
+  if (unavailableMessage) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#060608] px-4 text-white">
+        <div className="pointer-events-none fixed inset-0">
+          <div className="absolute left-[20%] top-[10%] h-[500px] w-[500px] rounded-full bg-[#E5D5B8]/[0.06] blur-[120px]" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 w-full max-w-xl rounded-3xl border border-white/[0.08] bg-white/[0.03] p-8 text-center backdrop-blur-xl md:p-10"
+        >
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E5D5B8]/10">
+            <FileX2 className="h-8 w-8 text-[#E5D5B8]" />
+          </div>
+          <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.25em] text-[#E5D5B8]/80">Beige</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Shared content unavailable</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/55">{unavailableMessage}</p>
+          <p className="mt-6 text-xs text-white/30">Please contact the sender if you still need access.</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-[#060608] text-white overflow-hidden">
@@ -617,8 +678,12 @@ export default function SharedFileManagerPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {(currentPhase || currentPath) && (
                   <button
-                    onClick={() => loadContent(accessToken)}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white"
+                    onClick={() => {
+                      if (selectionLockActive) return;
+                      loadContent(accessToken);
+                    }}
+                    disabled={selectionLockActive}
+                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ArrowLeft size={16} /> Root
                   </button>
@@ -632,7 +697,11 @@ export default function SharedFileManagerPage() {
                 <div key={`${crumb.label}-${index}`} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => goToCrumb(crumb, index)}
+                    onClick={() => {
+                      if (selectionLockActive) return;
+                      goToCrumb(crumb, index);
+                    }}
+                    disabled={selectionLockActive}
                     className={`rounded-lg px-2.5 py-1 transition-all ${
                       index === breadcrumbs.length - 1
                         ? "bg-white/[0.06] font-medium text-white"
@@ -658,8 +727,12 @@ export default function SharedFileManagerPage() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => downloadFile(content?.file?.path)}
-                  className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a]"
+                  onClick={() => {
+                    if (selectionLockActive) return;
+                    downloadFile(content?.file?.path);
+                  }}
+                  disabled={selectionLockActive}
+                  className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Download className="mr-2 h-4 w-4" /> Download
                 </Button>
@@ -680,8 +753,12 @@ export default function SharedFileManagerPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: fi * 0.04 }}
                           type="button"
-                          onClick={() => openFolder(folder)}
-                          className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-[#E5D5B8]/30 hover:bg-[#E5D5B8]/[0.04]"
+                          onClick={() => {
+                            if (selectionLockActive) return;
+                            openFolder(folder);
+                          }}
+                          disabled={selectionLockActive}
+                          className="group flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-[#E5D5B8]/30 hover:bg-[#E5D5B8]/[0.04] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E5D5B8]/10 transition-colors group-hover:bg-[#E5D5B8]/20">
                             <FolderOpen className="h-5 w-5 text-[#E5D5B8]" />
@@ -689,7 +766,7 @@ export default function SharedFileManagerPage() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium text-white">{folder.name || "Folder"}</p>
                             <p className="mt-0.5 text-xs text-white/35">
-                              {(folder as any)?.fileCount != null ? `${(folder as any).fileCount} files` : "Open folder"}
+                              {folder.fileCount != null ? `${folder.fileCount} files` : "Open folder"}
                             </p>
                           </div>
                           <ChevronRight size={16} className="shrink-0 text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#E5D5B8]/60" />
@@ -738,7 +815,15 @@ export default function SharedFileManagerPage() {
                             </button>
 
                             {/* Thumbnail */}
-                            <button type="button" onClick={() => openPreview(file)} className="relative aspect-[16/10] w-full overflow-hidden bg-[#0A0A0A]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectionLockActive) return;
+                                openPreview(file);
+                              }}
+                              disabled={selectionLockActive}
+                              className="relative aspect-[16/10] w-full overflow-hidden bg-[#0A0A0A] disabled:cursor-not-allowed"
+                            >
                               {(isPreviewImage(file) || isPreviewVideo(file)) ? (
                                 <Thumbnail file={file} getFileThumbnail={getFileThumbnail} />
                               ) : (
@@ -769,15 +854,23 @@ export default function SharedFileManagerPage() {
                                 <div className="flex gap-1.5">
                                   <button
                                     type="button"
-                                    onClick={() => openPreview(file)}
-                                    className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:bg-white/[0.08] hover:text-white"
+                                    onClick={() => {
+                                      if (selectionLockActive) return;
+                                      openPreview(file);
+                                    }}
+                                    disabled={selectionLockActive}
+                                    className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     View
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => downloadFile(file.path)}
-                                    className="rounded-lg bg-[#E5D5B8]/15 px-2.5 py-1 text-[11px] font-medium text-[#E5D5B8] transition-all hover:bg-[#E5D5B8]/25"
+                                    onClick={() => {
+                                      if (selectionLockActive) return;
+                                      downloadFile(file.path);
+                                    }}
+                                    disabled={selectionLockActive}
+                                    className="rounded-lg bg-[#E5D5B8]/15 px-2.5 py-1 text-[11px] font-medium text-[#E5D5B8] transition-all hover:bg-[#E5D5B8]/25 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     Download
                                   </button>
@@ -858,8 +951,12 @@ export default function SharedFileManagerPage() {
                   {previewFile && (
                     <button
                       type="button"
-                      onClick={() => downloadFile(files.find((f) => f.name === previewFile.name)?.path)}
-                      className="flex items-center gap-1.5 rounded-lg bg-[#E5D5B8]/15 px-3 py-1.5 text-xs font-medium text-[#E5D5B8] transition-colors hover:bg-[#E5D5B8]/25"
+                      onClick={() => {
+                        if (selectionLockActive) return;
+                        downloadFile(files.find((f) => f.name === previewFile.name)?.path);
+                      }}
+                      disabled={selectionLockActive}
+                      className="flex items-center gap-1.5 rounded-lg bg-[#E5D5B8]/15 px-3 py-1.5 text-xs font-medium text-[#E5D5B8] transition-colors hover:bg-[#E5D5B8]/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Download size={13} /> Download
                     </button>
@@ -894,8 +991,12 @@ export default function SharedFileManagerPage() {
                       </div>
                       <p className="text-sm text-white/50">Preview not available for this file type.</p>
                       <Button
-                        onClick={() => downloadFile(files.find((item) => item.name === previewFile.name)?.path)}
-                        className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a]"
+                        onClick={() => {
+                          if (selectionLockActive) return;
+                          downloadFile(files.find((item) => item.name === previewFile.name)?.path);
+                        }}
+                        disabled={selectionLockActive}
+                        className="h-10 rounded-xl bg-[#E5D5B8] px-5 text-sm font-semibold text-black hover:bg-[#dcb98a] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Download className="mr-2 h-4 w-4" /> Download File
                       </Button>

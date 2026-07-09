@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { ArrowUpToLine } from "lucide-react";
 
@@ -11,7 +10,8 @@ import { Button } from "@/src/components/landing/ui/button";
 import TransactionsTable, {
   type TransactionRow,
 } from "@/components/admin/finances/TransactionsTable";
-import DottedDivider from "@/components/admin/DottedDivider";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import PaymentDetailsModal, { PaymentDetailsModalProps } from "@/components/admin/finances/PaymentDetailsModal";
 
 const transactionRows: TransactionRow[] = [
   {
@@ -277,10 +277,21 @@ const transactionRows: TransactionRow[] = [
   },
 ];
 
+const dummyPayoutData: PaymentDetailsModalProps["payoutData"] = {
+  accountHolder: "Prince Carter",
+  accountNumber: "1422 2452 3251 4545",
+  payoutAmount: "$12,000.00",
+  phoneNumber: "+1 415-555-0198",
+  date: "23 April, 2026",
+  accountType: "Bank",
+  branchName: "Los Angles",
+  status: "Paid",
+  initialsLeft: "P",
+  initialsRight: "D",
+};
+
 export default function AdminTransactionsPage() {
   const pathname = usePathname();
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -288,8 +299,8 @@ export default function AdminTransactionsPage() {
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
   const [view, setView] = useState<"Transactions ID" | "Shoot ID">("Transactions ID");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     setLoading(true);
@@ -300,7 +311,7 @@ export default function AdminTransactionsPage() {
     return () => window.clearTimeout(timer);
   }, [selectedDate, searchQuery, statusFilter, monthFilter, typeFilter, view]);
 
-  const isDark = !mounted || theme === "dark";
+  const { isDark } = useResolvedTheme();
 
   const filteredRows = useMemo(() => {
     return transactionRows.filter((row) => {
@@ -314,14 +325,26 @@ export default function AdminTransactionsPage() {
     });
   }, [searchQuery, statusFilter, typeFilter]);
 
+  const handleAction = (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Safely calls stopPropagation if 'e' exists
+    setIsModalOpen(true);
+    console.log("Handle action clicked");
+  };
+
   return (
     <>
       <Topbar
         pathname={pathname}
         actions={
-          <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors">
-            <ArrowUpToLine /> Export
-          </Button>
+          <>
+            <Button variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                }`}>
+              <ArrowUpToLine /> Export
+            </Button>
+          </>
         }
       />
 
@@ -341,8 +364,6 @@ export default function AdminTransactionsPage() {
           <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
 
-        <DottedDivider/>
-
         <TransactionsTable
           rows={filteredRows}
           loading={loading}
@@ -356,6 +377,13 @@ export default function AdminTransactionsPage() {
           onTypeChange={setTypeFilter}
           viewValue={view}
           onViewChange={setView}
+          action={handleAction}
+        />
+
+        <PaymentDetailsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          payoutData={dummyPayoutData}
         />
       </div>
     </>

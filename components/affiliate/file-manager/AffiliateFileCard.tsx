@@ -49,7 +49,19 @@ const getFileMeta = (contentType?: string, title?: string) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
-export const AffiliateFileCard = ({ file, onMenuTrigger }: { file: any, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void }) => {
+interface AffiliateFileCardData {
+    title?: string;
+    contentType?: string;
+    userInitials?: string;
+    uploaderName?: string;
+    lastOpened?: string;
+    statusLabel?: string;
+    statusClassName?: string;
+    versionLabel?: string;
+    versionClassName?: string;
+}
+
+export const AffiliateFileCard = ({ file, onMenuTrigger, stage = "post-production" }: { file: AffiliateFileCardData, onMenuTrigger: (e: React.MouseEvent<HTMLButtonElement>) => void, stage?: 'pre-production' | 'post-production' }) => {
     const meta = getFileMeta(file.contentType, file.title);
     const FileIcon = meta.icon;
 
@@ -68,6 +80,23 @@ export const AffiliateFileCard = ({ file, onMenuTrigger }: { file: any, onMenuTr
                     </Button>
                 </div>
 
+                {stage === "post-production" && (file.statusLabel || file.versionLabel) ? (
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium leading-none ${
+                          file.statusClassName || "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]"
+                        }`}>
+                            {file.statusLabel || "Raw Files Uploaded"}
+                        </span>
+                        {file.versionLabel ? (
+                            <span className={`shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border ${
+                              file.versionClassName || "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                            }`}>
+                                {file.versionLabel}
+                            </span>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 <div className="aspect-23/18 bg-[#202020] rounded-md flex items-center justify-center">
                     <div className="flex flex-col items-center gap-2">
                         <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${meta.badgeClass}`}>
@@ -82,7 +111,10 @@ export const AffiliateFileCard = ({ file, onMenuTrigger }: { file: any, onMenuTr
                 <div className="h-10 w-10 rounded-full bg-[#C8E1FF] flex items-center justify-center text-black text-sm font-bold">
                     {file.userInitials}
                 </div>
-                <span className="text-[#CDC5C5] text-sm">Opened {file.lastOpened}</span>
+                <div className="min-w-0">
+                    <div className="truncate text-sm text-[#CDC5C5]">Uploaded by {file.uploaderName || "Unknown uploader"}</div>
+                    <div className="text-[10px] text-[#CDC5C5]/60">{file.lastOpened || "just now"}</div>
+                </div>
             </div>
         </div>
     );

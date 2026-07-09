@@ -117,20 +117,36 @@ type DashboardMetricStat = {
   change_percent?: number | string;
 };
 
+type BookingStatusSource = Partial<SalesLead> & {
+  payment_summary?: {
+    payment_status?: string | null;
+    paid_amount?: number | string | null;
+    due_amount?: number | string | null;
+  } | null;
+  collected_amount?: number | string | null;
+  outstanding_amount?: number | string | null;
+};
+
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 // Helper function to map lead status to UI format
 const mapLeadStatusToUI = (
   paymentStatus: string,
-): "Paid" | "In-Progress" => {
-  if (paymentStatus === "paid") return "Paid";
+): BookingStatus => {
+  const normalizedStatus = normalizeStatusValue(paymentStatus).replace(/\s+/g, "_");
+  if (normalizedStatus === "paid" || normalizedStatus === "booked") return "Paid";
+  if (["partially_paid", "partial_paid", "approval_pending"].includes(normalizedStatus)) return "Partially Paid";
   return "In-Progress";
 };
 
 const normalizeBookingStatusForList = (value: string): string => {
-  if (String(value || "").trim().toLowerCase() === "booked") {
+  const normalizedStatus = normalizeStatusValue(value).replace(/\s+/g, "_");
+  if (normalizedStatus === "booked") {
     return "Paid";
+  }
+  if (["partially_paid", "partial_paid", "approval_pending"].includes(normalizedStatus)) {
+    return "Partially Paid";
   }
   return value;
 };
@@ -147,6 +163,27 @@ const normalizeStatusValue = (value: unknown): string =>
 const isClosedLostStatus = (value: unknown): boolean => {
   const normalized = normalizeStatusValue(value);
   return normalized.includes("closed - lost") || normalized === "cancelled";
+};
+
+const resolveBookingStatusForList = (lead: BookingStatusSource): BookingStatus => {
+  const paymentSummary = lead?.payment_summary || {};
+  const paymentSummaryStatus = normalizeStatusValue(paymentSummary?.payment_status).replace(/\s+/g, "_");
+  const paidAmount = Number(paymentSummary?.paid_amount || lead?.collected_amount || 0);
+  const dueAmount = Number(paymentSummary?.due_amount || lead?.outstanding_amount || 0);
+
+  if (
+    ["partially_paid", "partial_paid", "approval_pending"].includes(paymentSummaryStatus) ||
+    (Number.isFinite(paidAmount) && paidAmount > 0 && Number.isFinite(dueAmount) && dueAmount > 0)
+  ) {
+    return "Partially Paid";
+  }
+
+  const paymentStatus = mapLeadStatusToUI(lead?.payment_status || "");
+  if (paymentStatus !== "In-Progress") {
+    return paymentStatus;
+  }
+
+  return normalizeBookingStatusForList(lead?.booking_status || "Unknown");
 };
 
 // Helper function to format relative time
@@ -494,7 +531,7 @@ export default function AdminSaleRepManagerPage() {
       leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
       bookingStatus: hasFullManualPayment
         ? "Paid"
-        : normalizeBookingStatusForList(lead.booking_status || "Unknown"),
+        : resolveBookingStatusForList(lead),
       lastActivity: formatRelativeTime(lead.last_activity_at),
       date: new Date(lead.created_at),
       intent: lead.intent || "Hot",
@@ -916,7 +953,7 @@ export default function AdminSaleRepManagerPage() {
           phoneNumber: client.phone || client.phone_number || "N/A",
           imageUrl: client.profile_image || client.image || null,
           intent: client.intent || "N/A",
-          bookingStatus: client.booking_status || mapLeadStatusToUI(client.payment_status),
+          bookingStatus: resolveBookingStatusForList(client),
           assignedSalesRepName: client.assigned_sales_rep?.name || "",
           assignedSalesRepEmail: client.assigned_sales_rep?.email || "",
           registrationType:
@@ -1108,7 +1145,7 @@ export default function AdminSaleRepManagerPage() {
               className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
                 }`}
             >
-              Create new lead
+              Create New Lead
             </Button>
           </>
         }
@@ -1186,8 +1223,7 @@ export default function AdminSaleRepManagerPage() {
                     <div className={`h-12 flex items-center justify-end gap-2 border rounded-lg lg:rounded-xl ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
                       <div className={`relative flex p-1 rounded-lg lg:rounded-xl ${isDark ? "bg-[#202020]" : "bg-black/5"}`}>
                         <div
-                          className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"
-                            }`}
+                          className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg lg:rounded-xl transition-all duration-300 ease-in-out ${isDark ? "bg-[#E5D5B8]" : "bg-[#E8D1AB]"}`}
                           style={{
                             transform: leadsViewMode === "grid" ? "translateX(100%)" : "translateX(0%)",
                           }}
@@ -1657,7 +1693,7 @@ export default function AdminSaleRepManagerPage() {
             onClick={() => router.push("/admin/sales-representative/create-new-deal")}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
-            Create new lead
+            Create New Lead
           </Button>
         </div>
       </div >

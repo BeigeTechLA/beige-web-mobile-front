@@ -20,16 +20,14 @@ export async function GET(
   const sourceUrl = new URL(
     `${API_BASE_URL.replace(/\/$/, "")}/sales/invoice-pdf/${parsedBookingId}`
   );
-  const manual = request.nextUrl.searchParams.get("manual");
-  const receipt = request.nextUrl.searchParams.get("receipt");
   const download = request.nextUrl.searchParams.get("download");
   const forceDownload =
     String(download || "").toLowerCase() === "1" ||
     String(download || "").toLowerCase() === "true";
-
-  if (manual) sourceUrl.searchParams.set("manual", manual);
-  if (receipt) sourceUrl.searchParams.set("receipt", receipt);
-  if (download) sourceUrl.searchParams.set("download", download);
+  request.nextUrl.searchParams.forEach((value, key) => {
+    if (key === "t" || key === "download") return;
+    sourceUrl.searchParams.set(key, value);
+  });
 
   try {
     const upstreamResponse = await fetch(sourceUrl.toString(), {
@@ -48,11 +46,26 @@ export async function GET(
       );
     }
 
-    const pdfBuffer = await upstreamResponse.arrayBuffer();
     const contentType =
       upstreamResponse.headers.get("content-type") || "application/pdf";
     const upstreamDisposition = upstreamResponse.headers.get("content-disposition") || "";
     const upstreamFilename = upstreamDisposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)?.[1];
+    const isPdfResponse =
+      contentType.toLowerCase().includes("application/pdf") ||
+      String(upstreamFilename || "").toLowerCase().endsWith(".pdf");
+
+    if (!isPdfResponse) {
+      const errorText = await upstreamResponse.text().catch(() => "");
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorText || "Invoice PDF endpoint did not return a PDF",
+        },
+        { status: 502 }
+      );
+    }
+
+    const pdfBuffer = await upstreamResponse.arrayBuffer();
     const safeFilename = decodeURIComponent(
       String(upstreamFilename || `beige-invoice-${parsedBookingId}.pdf`).replace(/"/g, "")
     );

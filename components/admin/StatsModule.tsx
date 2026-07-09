@@ -18,10 +18,18 @@ import { adminApi } from "@/lib/api";
 const customSwiperStyles = `
   .dashboard-stack-swiper {
     width: 100%;
-    height: 420px !important; 
-    padding-top: 30px !important; /* Space for the stacked cards at the top */
-    padding-bottom: 30px !important; /* Space for the stacked cards at the bottom */
+    height: 800px !important; /* Increased height to safely accommodate vertical layout elements on mobile */
+    padding-top: 55px !important; /* Space for the stacked cards at the top */
+    padding-bottom: 45px !important; /* Space for the stacked cards at the bottom */
     overflow: visible !important;
+  }
+
+  @media (min-width: 1024px) {
+    .dashboard-stack-swiper {
+      height: 420px !important; /* Restored original height for desktop viewports */
+      padding-top: 30px !important; /* Space for the stacked cards at the top */
+      padding-bottom: 30px !important; /* Space for the stacked cards at the bottom */
+    }
   }
 
   .dashboard-stack-swiper .swiper-slide {
@@ -314,7 +322,7 @@ export default function StackedDashboard() {
                 chartConfig={[
                   { key: "count", color: "#55BF61", stackId: "a", radius: [6, 6, 6, 6] }
                 ]}
-                hasInfoCard={true} // Changed to true to show top category
+                hasInfoCard={true}
                 isLoading={isLoading}
               />
             </CardWrapper>
