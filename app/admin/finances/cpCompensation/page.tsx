@@ -248,7 +248,7 @@ export default function AdminFinancesPage() {
     {
       id: "overmargin",
       label: "Over-Margin Shoots",
-      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.margin < 10).length),
+      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.margin < 50).length),
       helperText: "Requires review",
       icon: ShieldAlert,
     },
