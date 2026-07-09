@@ -19,6 +19,7 @@ interface SearchAutocompleteProps {
   onChange: (value: string) => void;
   emptyMessage?: string;
   isDark?: boolean;
+  triggerClassName?: string;
 }
 
 export default function SearchAutocomplete({
@@ -29,6 +30,7 @@ export default function SearchAutocomplete({
   onChange,
   emptyMessage = "No results found",
   isDark = true,
+  triggerClassName = "",
 }: SearchAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -73,7 +75,7 @@ export default function SearchAutocomplete({
         onClick={() => setOpen((current) => !current)}
         className={`flex h-12 w-full items-center justify-between rounded-lg lg:rounded-2xl border px-4 text-left text-sm outline-none transition duration-200 ${
           isDark ? "border-white/10 bg-[#101010] text-white" : "border-gray-200 bg-white text-black shadow-sm hover:bg-gray-50"
-        }`}
+        } ${triggerClassName}`}
       >
         <span className={selected ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/35" : "text-gray-400")}>
           {selected ? selected.label : placeholder}

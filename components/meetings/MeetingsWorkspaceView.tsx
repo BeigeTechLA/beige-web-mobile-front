@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
 import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
+import MeetingViewDetailsDrawer from "@/components/meetings/MeetingViewDetailsDrawer";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
@@ -90,6 +91,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [error, setError] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingItem | null>(null);
+  const [viewMeeting, setViewMeeting] = useState<MeetingItem | null>(null);
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [search, setSearch] = useState("");
@@ -278,6 +280,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             canDeleteMeeting={canDeleteMeeting}
             respondingMeetingId={respondingMeetingId}
             handleRespond={handleRespond}
+            setViewMeeting={setViewMeeting}
             setSelectedMeeting={setSelectedMeeting}
             setMeetingPendingDelete={setMeetingPendingDelete}
             formatMeetingStatusLabel={formatMeetingStatusLabel}
@@ -309,6 +312,20 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         isDark={isDark}
       />
 
+      <MeetingViewDetailsDrawer
+        open={!!viewMeeting}
+        meeting={viewMeeting}
+        onClose={() => setViewMeeting(null)}
+        onEdit={(meeting) => {
+          setViewMeeting(null);
+          setSelectedMeeting(meeting);
+        }}
+        onCancelMeeting={(meeting) => {
+          setViewMeeting(null);
+          setMeetingPendingDelete(meeting);
+        }}
+      />
+
       <DeleteMeetingConfirmModal
         open={!!meetingPendingDelete}
         onClose={() => {
@@ -326,6 +343,9 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             toast.success("Meeting deleted");
             if (selectedMeeting?.id === meetingPendingDelete.id) {
               setSelectedMeeting(null);
+            }
+            if (viewMeeting?.id === meetingPendingDelete.id) {
+              setViewMeeting(null);
             }
             setMeetingPendingDelete(null);
             await loadMeetings();

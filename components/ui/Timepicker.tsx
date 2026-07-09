@@ -77,6 +77,7 @@ interface Props {
   colors?: Partial<TimePickerColors>;
   disabled?: boolean;
   isDark?: boolean;
+  floating?: boolean;
 }
 
 export const TimePicker: React.FC<Props> = ({
@@ -87,6 +88,7 @@ export const TimePicker: React.FC<Props> = ({
   colors: customColors,
   disabled = false,
   isDark = true,
+  floating = false,
 }) => {
   const baseColors = isDark ? themeColors.dark : themeColors.light;
   const colors = { ...baseColors, ...customColors };
@@ -118,21 +120,24 @@ export const TimePicker: React.FC<Props> = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: "100%" }}>
-        <Typography
-          variant="body2"
-          sx={{
-            color: colors.labelText,
-            fontWeight: "bold",
-            mb: 1,
-            fontSize: "10px",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          {label}
-        </Typography>
+        {!floating && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: colors.labelText,
+              fontWeight: "bold",
+              mb: 1,
+              fontSize: "10px",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+            }}
+          >
+            {label}
+          </Typography>
+        )}
 
         <MuiTimePicker
+          label={floating ? label : undefined}
           value={value}
           onChange={onChange}
           open={open}
@@ -146,10 +151,29 @@ export const TimePicker: React.FC<Props> = ({
               placeholder: "HH:MM am/pm",
               onClick: () => !disabled && setOpen(true),
               sx: {
+                "& .MuiInputLabel-root": {
+                  color: colors.labelText,
+                  fontSize: "14px",
+                  ...(floating
+                    ? {
+                      transform: "translate(14px, 21px) scale(1)",
+                      lineHeight: "20px",
+                    }
+                    : {}),
+                  "&.Mui-focused": { color: colors.accent },
+                  "&.MuiInputLabel-shrink": {
+                    transform: "translate(14px, -8px) scale(1)",
+                    fontSize: "14px !important",
+                    color: `${colors.labelText} !important`,
+                    backgroundColor: colors.inputBackground,
+                    padding: "0 8px",
+                    zIndex: 1,
+                  },
+                },
                 "& .MuiOutlinedInput-root": {
-                  height: "48px",
+                  height: floating ? "82px" : "48px",
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "8px",
+                  borderRadius: floating ? "10px" : "8px",
                   display: "flex",
                   alignItems: "center",
                   paddingRight: "12px",

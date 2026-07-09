@@ -223,9 +223,15 @@ export const DatePicker: React.FC<Props> = ({
                 sx: {
                   color: colors.labelText,
                   fontSize: "14px",
+                  ...(floating
+                    ? {
+                      transform: "translate(14px, 21px) scale(1)",
+                      lineHeight: "20px",
+                    }
+                    : {}),
                   "&.Mui-focused": { color: colors.accent },
                   "&.MuiInputLabel-shrink": {
-                    transform: "translate(14px, -10px) scale(1)",
+                    transform: "translate(14px, -8px) scale(1)",
                     fontSize: "14px !important",
                     color: `${colors.labelText} !important`,
                     backgroundColor: colors.inputBackground,
@@ -236,10 +242,13 @@ export const DatePicker: React.FC<Props> = ({
               },
               sx: {
                 "& .MuiOutlinedInput-root": {
-                  height: "100%",
+                  height: floating ? "82px" : "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "8px",
+                  borderRadius: floating ? "10px" : "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  paddingRight: "12px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorderHover },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
@@ -248,7 +257,7 @@ export const DatePicker: React.FC<Props> = ({
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: floating ? "16.5px 14px" : "16px 14px",
+                  padding: floating ? "0 14px" : "16px 14px",
                   height: "100%",
                   "&.Mui-disabled": {
                     WebkitTextFillColor: colors.inputText,
