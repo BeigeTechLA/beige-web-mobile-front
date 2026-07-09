@@ -30,9 +30,30 @@ type AuditEntry = {
   label: string;
   subLabel?: string | null;
   date?: string | null;
+  dedupeKey: string;
 };
 
 const isPaymentEvent = (value?: string | null) => String(value || "").includes("payment");
+const isFinanceApprovalTimelineEvent = (value?: string | null) => String(value || "") === "awaiting_finance_approval";
+
+const getPaymentAmountFromText = (value?: string | null) => {
+  const match = String(value || "").match(/\$?\s*([\d,]+(?:\.\d{1,2})?)/);
+  if (!match) return null;
+
+  const amount = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const getAuditMinuteBucket = (value?: string | null) => {
+  if (!value) return "no-date";
+
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return String(value);
+
+  return String(Math.floor(timestamp / 60000));
+};
+
+const normalizeAuditText = (value?: string | null) => String(value || "").trim().toLowerCase();
 
 interface CompensationModalProps {
   isOpen: boolean;
@@ -84,26 +105,62 @@ export default function CompensationModal({
 
   const auditEntries: AuditEntry[] = useMemo(() => {
     const logs: AuditEntry[] = [
-      ...(details?.audit_logs || []).map((log) => ({
-        id: `audit-${log.action}-${log.created_at || ""}`,
-        label: log.label || log.action || "Finance activity",
-        subLabel: isPaymentEvent(log.action) ? `Paid to ${log.creators?.[0]?.creator_name || "Unknown Creator"}${log.notes ? ` - ${log.notes}` : ""}` : log.notes,
-        date: log.created_at,
-      })),
+      ...(details?.audit_logs || [])
+        .filter((log) => !isPaymentEvent(log.action))
+        .map((log) => {
+          const label = log.label || log.action || "Finance activity";
+          const subLabel = log.notes || null;
+
+          return {
+            id: `audit-${log.action}-${log.created_at || ""}`,
+            label,
+            subLabel,
+            date: log.created_at,
+            dedupeKey: [
+              "audit",
+              normalizeAuditText(label),
+              normalizeAuditText(subLabel),
+              getAuditMinuteBucket(log.created_at),
+            ].join("|"),
+          };
+        }),
       ...(details?.creators || []).flatMap((creator) =>
-        (creator.timeline || []).map((event) => ({
-          id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
-          label: event.label || event.event_type || "Payment activity",
-          subLabel: isPaymentEvent(event.event_type)
-            ? `Paid to ${creator.creator_name || "Unknown Creator"}${event.sub_label ? ` - ${event.sub_label}` : ""}`
-            : event.sub_label || creator.creator_name || null,
-          date: event.event_date,
-        }))
+        (creator.timeline || [])
+          .filter((event) => !isFinanceApprovalTimelineEvent(event.event_type))
+          .map((event) => {
+            const paymentAmount = Number(event.amount) || getPaymentAmountFromText(event.sub_label);
+            const isPayment = isPaymentEvent(event.event_type);
+            const label = isPayment ? "Payment Processed" : event.label || event.event_type || "Finance activity";
+            const subLabel = isPayment
+              ? `Paid to ${creator.creator_name || "Unknown Creator"}${paymentAmount ? ` - ${formatCurrency(paymentAmount)}` : ""}`
+              : event.sub_label || creator.creator_name || null;
+
+            return {
+              id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
+              label,
+              subLabel,
+              date: event.event_date,
+              dedupeKey: [
+                isPayment ? "payment" : "timeline",
+                creator.creator_earning_id,
+                normalizeAuditText(event.event_type),
+                isPayment ? Number(paymentAmount || 0).toFixed(2) : normalizeAuditText(label),
+                getAuditMinuteBucket(event.event_date),
+              ].join("|"),
+            };
+          })
       ),
     ];
 
+    const seen = new Set<string>();
+
     return logs
       .filter((entry) => entry.label)
+      .filter((entry) => {
+        if (seen.has(entry.dedupeKey)) return false;
+        seen.add(entry.dedupeKey);
+        return true;
+      })
       .sort((a, b) => {
         const left = a.date ? new Date(a.date).getTime() : 0;
         const right = b.date ? new Date(b.date).getTime() : 0;
@@ -445,4 +502,3 @@ export default function CompensationModal({
     </div>
   );
 }
-
