@@ -123,7 +123,7 @@ export default function MultiSelectDropdown({
                   onMouseEnter={() => setShowTooltip(true)}
                   onMouseLeave={() => setShowTooltip(false)}
                 >
-                  <span className={`${isDark ? "text-[#E8D1AB]":"text-[#919191]"} text-xs lg:text-sm cursor-pointer`}>
+                  <span className={`${isDark ? "text-[#E8D1AB]" : "text-[#919191]"} text-xs lg:text-sm cursor-pointer`}>
                     +{remainingCount} more
                   </span>
 
@@ -174,8 +174,8 @@ export default function MultiSelectDropdown({
                 key={option.key}
                 onClick={() => handleToggle(option.key)}
                 className={`flex items-center gap-3 px-6 py-3 cursor-pointer transition
-                  ${isSelected 
-                    ? isDark ? "bg-[#E8D1AB]/10 text-white" : "bg-[#FDEFD9] text-black" 
+                  ${isSelected
+                    ? isDark ? "bg-[#E8D1AB]/10 text-white" : "bg-[#FDEFD9] text-black"
                     : isDark ? "text-white/50 hover:bg-white/5" : "text-black/60 hover:bg-black/5"
                   }`}
               >

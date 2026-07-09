@@ -21,6 +21,9 @@ import {
   Users,
   X,
   ChevronLeft,
+  Plus,
+  SendHorizonal,
+  SendHorizontalIcon,
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { toast } from "sonner";
@@ -49,6 +52,8 @@ interface ExternalChatViewProps {
   allowActivation?: boolean;
   isDark?: boolean;
   directRoomMode?: boolean;
+  createMessage?: boolean;
+  onCreateMessageClose?: () => void;
   onRoomAvailabilityChange?: (hasRoom: boolean) => void;
 }
 
@@ -558,6 +563,8 @@ export default function ExternalChatView({
   allowActivation = false,
   isDark = true,
   directRoomMode = false,
+  createMessage = false,
+  onCreateMessageClose,
   onRoomAvailabilityChange,
 }: ExternalChatViewProps) {
   const { user } = useAuth();
@@ -587,7 +594,7 @@ export default function ExternalChatView({
   const [loadingRoomData, setLoadingRoomData] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isComposerOpen, setIsComposerOpen] = useState(createMessage);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [manageDefaultTab, setManageDefaultTab] = useState<"add" | "current">("add");
   const [replyTarget, setReplyTarget] = useState<ExternalChatMessage | null>(null);
@@ -650,6 +657,11 @@ export default function ExternalChatView({
 
     return "http://localhost:5002";
   }, []);
+
+  useEffect(() => {
+    setIsComposerOpen(createMessage);
+  }, [createMessage]);
+
   const currentSender = {
     id: effectiveUser?.id != null ? String(effectiveUser.id) : undefined,
     name: effectiveUser?.name || undefined,
@@ -1599,7 +1611,7 @@ export default function ExternalChatView({
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-scroll no-scrollbar lg:overflow-y-auto">
         <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <div>
-            <h2 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            <h2 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-black"}`}>
               {heading}
             </h2>
             <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/55" : "text-black/60"}`}>
@@ -1607,23 +1619,24 @@ export default function ExternalChatView({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+
             {/* Sort Order Action Toggle Button */}
             {!shouldUseDirectRoom ? (
-              <button
+              <Button
                 type="button"
                 onClick={() => setRoomSortOrder((current) => (current === "latest" ? "oldest" : "latest"))}
-                className={`inline-flex items-center gap-2 rounded-full border py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm transition-colors ${isDark
-                  ? "border-white/10 bg-[#111111] text-white/70 hover:bg-white/5"
+                className={`inline-flex items-center gap-2 rounded-full border-[0.5px] py-2 px-3 lg:px-4 lg:py-3 text-xs lg:text-sm transition-colors ${isDark
+                  ? "border-[#807E7E] bg-[#171717] text-[#C7C7C7] hover:bg-white/5"
                   : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-50 shadow-sm"
                   }`}
               >
                 <CalendarDays className="h-4 w-4" />
                 {roomSortOrder === "latest" ? "Latest First" : "Oldest First"}
-              </button>
+              </Button>
             ) : null}
 
             {/* Admin Specific Action Trigger Button */}
-            {isAdminView && !bookingId ? (
+            {/* {isAdminView && !bookingId ? (
               <button
                 type="button"
                 onClick={() => setIsComposerOpen(true)}
@@ -1634,12 +1647,12 @@ export default function ExternalChatView({
               >
                 Create Messages
               </button>
-            ) : null}
+            ) : null} */}
           </div>
         </div>
 
-        <div className={`flex min-h-100 lg:min-h-0 flex-1 overflow-hidden rounded-2xl lg:rounded-4xl border transition-colors ${isDark
-          ? "border-white/10 bg-[radial-gradient(circle_at_top,#181818,transparent_35%),#0b0b0b] shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
+        <div className={`flex min-h-100 lg:min-h-0 flex-1 overflow-hidden rounded-xl lg:rounded-2xl border transition-colors ${isDark
+          ? "border-white/10 bg-[#111111] shadow-[0_30px_80px_rgba(0,0,0,0.55)]"
           : "border-[#E5E5E5] bg-[radial-gradient(circle_at_top,#F9F9F9,transparent_35%),#FFFFFF] shadow-[0_20px_50px_rgba(0,0,0,0.06)]"
           }`}>
           <div className={`grid w-full min-w-0 min-h-0 flex-1 ${shouldUseDirectRoom ? "grid-cols-1" : "lg:grid-cols-[420px_minmax(0,1fr)]"}`}>
@@ -1648,40 +1661,41 @@ export default function ExternalChatView({
             {!shouldUseDirectRoom ? (
               <div className={`w-full max-w-full min-w-0 min-h-0 flex-col border-b lg:border-b-0 lg:border-r transition-colors ${selectedRoom ? "hidden lg:flex" : "flex"} ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
 
-              {/* Sidebar Header & Search View */}
-              <div className={`border-b p-4 lg:p-6 transition-colors ${isDark ? "border-white/5" : "border-[#E3E3E3]"}`}>
-                <div className="mb-4 flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h3 className={`text-lg lg:text-2xl font-semibold transition-colors truncate ${isDark ? "text-white" : "text-black"}`}>
-                      Messages
-                    </h3>
-                    <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/35" : "text-black/50"}`}>
-                      Browse all conversations in one place.
-                    </p>
+                {/* Sidebar Header & Search View */}
+                <div className={`border-b border-[0.5px] p-4 lg:px-8 transition-colors ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E3E3E3]"}`}>
+                  <div className="mb-1 flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h3 className={`text-xl lg:text-2xl font-semibold transition-colors truncate ${isDark ? "text-white" : "text-black"}`}>
+                        Messages
+                      </h3>
+                      {/* <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/35" : "text-black/50"}`}>
+                        Browse all conversations in one place.
+                      </p> */}
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={loadRooms}
+                      variant="outline"
+                      className={`h-10 w-10 lg:h-11 lg:w-11 shrink-0 rounded-full p-0 transition-colors ${isDark
+                        ? "border-white/10 bg-[#202020] text-white/70 hover:bg-[#262626]"
+                        : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-100"
+                        }`}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={loadRooms}
-                    variant="outline"
-                    className={`h-10 w-10 lg:h-11 lg:w-11 shrink-0 rounded-full p-0 transition-colors ${isDark
-                      ? "border-white/10 bg-[#202020] text-white/70 hover:bg-[#262626]"
-                      : "border-[#E5E5E5] bg-white text-black/70 hover:bg-zinc-100"
-                      }`}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
                 </div>
 
-                <div className="flex items-center gap-2 lg:gap-3">
+                <div className="flex items-center p-4 pb-0 gap-2 lg:gap-3">
                   <div className="relative flex-1 min-w-0">
-                    <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white/35" : "text-black/40"}`} />
+                    <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white" : "text-black/40"}`} />
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search Conversation"
-                      className={`h-10 lg:h-14 w-full rounded-full border-0 pl-12 pr-4 text-sm lg:text-base transition-colors ${isDark
-                        ? "bg-[#202020] text-white placeholder:text-white/40"
-                        : "bg-[#F0F0F0] text-black placeholder:text-black/40"
+                      className={`h-8 lg:h-12 w-full rounded-full border-0 pl-12 pr-4 text-sm lg:text-base transition-colors ${isDark
+                        ? "bg-[#202020] text-white placeholder:text-white/50"
+                        : "bg-[#F0F0F0] text-black placeholder:text-black/50"
                         }`}
                     />
                   </div>
@@ -1689,124 +1703,123 @@ export default function ExternalChatView({
                     <button
                       type="button"
                       onClick={() => setIsComposerOpen(true)}
-                      className={`flex h-10 w-10 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
+                      className={`flex h-8 lg:h-12 w-8 lg:w-12 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
                     >
-                      <span className="text-xl lg:text-4xl font-light leading-none -mt-0.5 lg:-mt-1">+</span>
+                      <Plus size={24} />
                     </button>
                   ) : null}
                 </div>
-              </div>
 
-              {/* Dynamic Conversational Rooms List view */}
-              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4 lg:px-4 lg:py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                {loading ? (
-                  <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
-                    <Loader2 className="animate-spin text-[#BFA780]" size={40} />
-                  </div>
-                ) : filteredRooms.length === 0 ? (
-                  <div className={`rounded-3xl border border-dashed p-3 lg:p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
-                    <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No active conversation yet</p>
-                    <p className={`mt-2 text-sm ${isDark ? "text-white/45" : "text-black/50"}`}>
-                      {bookingId ? "This shoot does not have a chat room yet." : "No chat rooms were returned for this view."}
-                    </p>
-                    {allowActivation && bookingId ? (
-                      <Button
-                        type="button"
-                        onClick={activateChat}
-                        disabled={activating}
-                        className={`mt-4 transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-black text-white hover:bg-zinc-800"}`}
-                      >
-                        {activating ? "Activating..." : "Activate Chat Room"}
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : (
-                  filteredRooms.map((room) => {
-                    const roomId = getRoomId(room);
-                    const roomDisplayName = getRoomDisplayName(room);
-                    const isSelected = roomId === getRoomId(selectedRoom);
-                    const previewText = getRoomPreviewText(room);
-                    const previewSender = getRoomPreviewSender(room, userId);
-                    const metaDate = room.updatedAt || room.createdAt || room.last_message?.createdAt;
-                    const roomParticipantCount = getRoomParticipantCount(room);
-                    const roomUnreadCount = Math.max(getRoomUnreadCount(room, userId), localUnreadCounts[roomId] || 0);
-                    return (
-                      <button
-                        type="button"
-                        key={roomId || `${room.chat_id}-${room.name}`}
-                        onClick={() => loadRoomDetails(room)}
-                        className={`w-full rounded-2xl lg:rounded-[28px] px-3 py-4 text-left transition-all ${isSelected
-                          ? isDark ? "bg-[#202020]" : "bg-zinc-200/70 shadow-sm"
-                          : roomUnreadCount > 0
-                            ? isDark ? "bg-[#171717] ring-1 ring-[#E5D5B8]/18 hover:bg-white/[0.03]" : "bg-white ring-1 ring-black/5 shadow-sm hover:bg-zinc-50"
-                            : isDark ? "bg-transparent hover:bg-white/[0.03]" : "bg-transparent hover:bg-zinc-100/50"
-                          }`}
-                      >
-                        <div className="flex items-start gap-2 lg:gap-4">
-                          <div className="relative flex h-11 w-11 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-sm lg:text-lg font-semibold text-[#222]">
-                            {getInitials(roomDisplayName)}
-                            {roomUnreadCount > 0 ? (
-                              <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"}`}>
-                                {Math.min(roomUnreadCount, 99)}
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className={`break-words pr-2 text-sm lg:text-base font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                                  {roomDisplayName}
-                                </p>
-                                <p className={`mt-2 truncate text-sm lg:text-base transition-colors ${roomUnreadCount > 0
-                                  ? isDark ? "font-medium text-white/82" : "font-semibold text-black"
-                                  : isDark ? "text-white/42" : "text-black/55"
-                                  }`}>
-                                  {previewSender ? `${previewSender}: ` : ""}
-                                  {previewText}
-                                </p>
-                                {/* <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
+
+                {/* Dynamic Conversational Rooms List view */}
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4 lg:px-4 lg:py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  {loading ? (
+                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+                      <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+                    </div>
+                  ) : filteredRooms.length === 0 ? (
+                    <div className={`rounded-3xl border border-dashed p-3 lg:p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
+                      <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No active conversation yet</p>
+                      <p className={`mt-2 text-sm ${isDark ? "text-white/45" : "text-black/50"}`}>
+                        {bookingId ? "This shoot does not have a chat room yet." : "No chat rooms were returned for this view."}
+                      </p>
+                      {allowActivation && bookingId ? (
+                        <Button
+                          type="button"
+                          onClick={activateChat}
+                          disabled={activating}
+                          className={`mt-4 transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-black text-white hover:bg-zinc-800"}`}
+                        >
+                          {activating ? "Activating..." : "Activate Chat Room"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    filteredRooms.map((room) => {
+                      const roomId = getRoomId(room);
+                      const roomDisplayName = getRoomDisplayName(room);
+                      const isSelected = roomId === getRoomId(selectedRoom);
+                      const previewText = getRoomPreviewText(room);
+                      const previewSender = getRoomPreviewSender(room, userId);
+                      const metaDate = room.updatedAt || room.createdAt || room.last_message?.createdAt;
+                      const roomParticipantCount = getRoomParticipantCount(room);
+                      const roomUnreadCount = Math.max(getRoomUnreadCount(room, userId), localUnreadCounts[roomId] || 0);
+                      return (
+                        <button
+                          type="button"
+                          key={roomId || `${room.chat_id}-${room.name}`}
+                          onClick={() => loadRoomDetails(room)}
+                          className={`w-full rounded-xl lg:rounded-2xl px-3 py-4 text-left transition-all ${isSelected
+                            ? isDark ? "bg-[#202020]" : "bg-zinc-200/70 shadow-sm"
+                            : roomUnreadCount > 0
+                              ? isDark ? "bg-[#171717] ring-1 ring-[#E5D5B8]/18 hover:bg-white/[0.03]" : "bg-white ring-1 ring-black/5 shadow-sm hover:bg-zinc-50"
+                              : isDark ? "bg-transparent hover:bg-white/[0.03]" : "bg-transparent hover:bg-zinc-100/50"
+                            }`}
+                        >
+                          <div className="flex items-start gap-2 lg:gap-4">
+                            <div className="relative flex h-11 w-11 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-sm lg:text-lg font-semibold text-[#222]">
+                              {getInitials(roomDisplayName)}
+                              {roomUnreadCount > 0 ? (
+                                <span className={`absolute bottom-0 right-0 flex h-7 min-w-7 items-center justify-center rounded-full border-2 px-1 text-xs font-semibold ${isDark ? "border-[#171717] bg-[#E5D5B8] text-black" : "border-white bg-black text-white"}`}>
+                                  {Math.min(roomUnreadCount, 99)}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className={`break-words pr-2 text-sm lg:text-base font-semibold leading-5 transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                                    {roomDisplayName}
+                                  </p>
+                                  <p className={`mt-2 truncate text-sm lg:text-base transition-colors ${roomUnreadCount > 0
+                                    ? isDark ? "font-medium text-white/82" : "font-semibold text-black"
+                                    : isDark ? "text-white/42" : "text-black/55"
+                                    }`}>
+                                    {previewSender ? `${previewSender}: ` : ""}
+                                    {previewText}
+                                  </p>
+                                  {/* <p className={`mt-2 truncate text-xs transition-colors ${isDark ? "text-white/28" : "text-black/40"}`}>
                                   {`${roomParticipantCount || 1} ${(roomParticipantCount || 1) === 1 ? "participant" : "participants"}`}
                                 </p> */}
-                              </div>
-                              <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-xs transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
-                                <div className="flex items-center gap-1.5">
-                                  <Users className="h-3.5 w-3.5" />
-                                  <span>{roomParticipantCount || 1}</span>
-                                  <span>/</span>
-                                  <span className={roomUnreadCount > 0 ? isDark ? "font-medium text-[#E5D5B8]" : "font-semibold text-black" : ""}>
-                                    {formatConversationMeta(metaDate)} {formatDayLabel(metaDate)}
-                                  </span>
                                 </div>
-                                {roomUnreadCount > 0 ? (
-                                  <span className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}>
-                                    {roomUnreadCount > 9 ? "9+" : roomUnreadCount}
-                                  </span>
-                                ) : null}
+                                <div className={`flex shrink-0 flex-col items-end gap-2 pt-0.5 text-xs transition-colors ${isDark ? "text-white/32" : "text-black/40"}`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <Users className="h-3.5 w-3.5" />
+                                    <span>{roomParticipantCount || 1}</span>
+                                    <span>/</span>
+                                    <span className={roomUnreadCount > 0 ? isDark ? "font-medium text-[#E5D5B8]" : "font-semibold text-black" : ""}>
+                                      {formatConversationMeta(metaDate)} {formatDayLabel(metaDate)}
+                                    </span>
+                                  </div>
+                                  {roomUnreadCount > 0 ? (
+                                    <span className={`inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}>
+                                      {roomUnreadCount > 9 ? "9+" : roomUnreadCount}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
-                            </div>
-                            {/* <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
+                              {/* <div className={`mt-3 flex items-center justify-between text-xs transition-colors ${isDark ? "text-white/24" : "text-black/35"}`}>
                               <span>#{room.chat_id || "room"}</span>
                               <span className="inline-flex items-center gap-1">
                                 {getStatusIcon(room.status)}
                                 {room.status || "active"}
                               </span>
                             </div> */}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             ) : null}
 
             {/* THREAD CONTAINER SIDE (Responsive: hidden on mobile if no conversation is open) */}
             <div className={`w-full min-w-0 overflow-visible min-h-0 flex-1 flex-col ${selectedRoom || shouldUseDirectRoom ? "flex" : "hidden lg:flex"}`}>
               {/* Top Conversation Header Panel */}
-              <div className={`w-full min-w-0 overflow-visible border-b p-4 lg:px-8 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
+              <div className={`w-full min-w-0 overflow-visible border-b border-[0.5px] p-4 lg:px-8 ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                 <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:items-center sm:justify-between lg:gap-4">
-
                   {/* Left Section: Back Button, Room Icon, Info Text */}
                   <div className="flex items-center gap-2 min-w-0 flex-1 lg:gap-3">
                     {/* Mobile Back Chevron Navigation Trigger Button */}
@@ -1843,7 +1856,7 @@ export default function ExternalChatView({
                             setManageDefaultTab("current");
                             setIsManageOpen(true);
                           }}
-                          className={`mt-0.5 inline-flex items-center gap-1 lg:gap-2 text-xs transition-colors max-w-full ${isDark ? "text-white/45 hover:text-white/75" : "text-black/55 hover:text-black"}`}
+                          className={`inline-flex items-center gap-1 lg:gap-2 text-xs transition-colors max-w-full ${isDark ? "text-white/45 hover:text-white/75" : "text-black/55 hover:text-black"}`}
                         >
                           <Users className="h-3.5 w-3.5 shrink-0" />
                           <span className="truncate">{`${participantCount} ${participantCount === 1 ? "Participant" : "Participants"}`}</span>
@@ -1855,111 +1868,111 @@ export default function ExternalChatView({
                   {/* Right Section: Action Buttons */}
                   {selectedRoom ? (
                     <div className="flex items-center justify-start gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsThreadSearchOpen((current) => !current);
-                        setIsHeaderMenuOpen(false);
-                        if (isThreadSearchOpen) {
-                          setThreadSearch("");
-                        }
-                      }}
-                      className={`rounded-full border p-3 shrink-0 transition-colors ${isThreadSearchOpen
-                        ? isDark ? "bg-[#E5D5B8] text-black border-transparent" : "bg-black text-white border-transparent"
-                        : isDark ? "border-white/10 bg-[#161616] text-white/60 hover:bg-[#1d1d1d]" : "border-[#E5E5E5] bg-white text-black/60 hover:bg-zinc-50"
-                        }`}
-                    >
-                      <Search className="h-4 w-4" />
-                    </button>
-
-                    <div className="relative" ref={headerMenuRef}>
                       <button
                         type="button"
                         onClick={() => {
-                          setIsHeaderMenuOpen((current) => !current);
-                          setShowReactionPickerId(null);
-                          setOpenMessageMenuId(null);
+                          setIsThreadSearchOpen((current) => !current);
+                          setIsHeaderMenuOpen(false);
+                          if (isThreadSearchOpen) {
+                            setThreadSearch("");
+                          }
                         }}
-                        className={`rounded-full border p-3 shrink-0 transition-colors ${isHeaderMenuOpen
+                        className={`rounded-full border p-3 shrink-0 transition-colors ${isThreadSearchOpen
                           ? isDark ? "bg-[#E5D5B8] text-black border-transparent" : "bg-black text-white border-transparent"
                           : isDark ? "border-white/10 bg-[#161616] text-white/60 hover:bg-[#1d1d1d]" : "border-[#E5E5E5] bg-white text-black/60 hover:bg-zinc-50"
                           }`}
                       >
-                        <MoreVertical className="h-4 w-4" />
+                        <Search className="h-4 w-4" />
                       </button>
 
-                      {isHeaderMenuOpen ? (
-                        <div className={`absolute left-0 top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setIsHeaderMenuOpen(false);
-                              if (selectedRoom) {
-                                await loadRoomDetails(selectedRoom);
-                              }
-                              await refreshRoomListSnapshot();
-                            }}
-                            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
-                          >
-                            <RefreshCw className="h-4 w-4 shrink-0" />
-                            <span className="truncate">Refresh conversation</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsHeaderMenuOpen(false);
-                              setManageDefaultTab("current");
-                              setIsManageOpen(true);
-                            }}
-                            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
-                          >
-                            <Users className="h-4 w-4 shrink-0" />
-                            <span className="truncate">View participants</span>
-                          </button>
-                          {isAdminView ? (
+                      <div className="relative" ref={headerMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsHeaderMenuOpen((current) => !current);
+                            setShowReactionPickerId(null);
+                            setOpenMessageMenuId(null);
+                          }}
+                          className={`rounded-full border p-3 shrink-0 transition-colors ${isHeaderMenuOpen
+                            ? isDark ? "bg-[#E5D5B8] text-black border-transparent" : "bg-black text-white border-transparent"
+                            : isDark ? "border-white/10 bg-[#161616] text-white/60 hover:bg-[#1d1d1d]" : "border-[#E5E5E5] bg-white text-black/60 hover:bg-zinc-50"
+                            }`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+
+                        {isHeaderMenuOpen ? (
+                          <div className={`absolute left-0 top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 setIsHeaderMenuOpen(false);
-                                setManageDefaultTab("add");
-                                setIsManageOpen(true);
-                              }}
-                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors shrink-0 text-nowrap ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}>
-                              <UserPlus className="h-4 w-4 shrink-0" />
-                              <span className="truncate">Add participant</span>
-                            </button>
-                          ) : null}
-                          {isThreadSearchOpen || threadSearch ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsHeaderMenuOpen(false);
-                                setIsThreadSearchOpen(false);
-                                setThreadSearch("");
+                                if (selectedRoom) {
+                                  await loadRoomDetails(selectedRoom);
+                                }
+                                await refreshRoomListSnapshot();
                               }}
                               className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
                             >
-                              <X className="h-4 w-4 shrink-0" />
-                              <span className="truncate">Clear search</span>
+                              <RefreshCw className="h-4 w-4 shrink-0" />
+                              <span className="truncate">Refresh conversation</span>
                             </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsHeaderMenuOpen(false);
+                                setManageDefaultTab("current");
+                                setIsManageOpen(true);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
+                            >
+                              <Users className="h-4 w-4 shrink-0" />
+                              <span className="truncate">View participants</span>
+                            </button>
+                            {isAdminView ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsHeaderMenuOpen(false);
+                                  setManageDefaultTab("add");
+                                  setIsManageOpen(true);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors shrink-0 text-nowrap ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}>
+                                <UserPlus className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Add participant</span>
+                              </button>
+                            ) : null}
+                            {isThreadSearchOpen || threadSearch ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsHeaderMenuOpen(false);
+                                  setIsThreadSearchOpen(false);
+                                  setThreadSearch("");
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-white/5" : "text-black/80 hover:bg-zinc-50"}`}
+                              >
+                                <X className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Clear search</span>
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
 
-                    {isAdminView ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setManageDefaultTab("add");
-                          setIsManageOpen(true);
-                        }}
-                        className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-xs lg:text-sm font-semibold transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
-                      >
-                        <UserPlus className="h-4 w-4 shrink-0" />
-                        <span>Add Participant</span>
-                      </button>
-                    ) : null}
+                      {isAdminView ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManageDefaultTab("add");
+                            setIsManageOpen(true);
+                          }}
+                          className={`inline-flex items-center gap-2 rounded-lg px-4 py-3 text-xs lg:text-sm font-semibold transition-colors ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
+                        >
+                          <UserPlus className="h-4 w-4 shrink-0" />
+                          <span>Add Participant</span>
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -2232,9 +2245,9 @@ export default function ExternalChatView({
                                   </div>
 
                                   {/* Message Bubble Body */}
-                                  <div className={`rounded-3xl px-3.5 py-2.5 lg:px-4 lg:py-3 w-full max-w-full min-w-0 ${isOwn
-                                    ? `rounded-br-md ${isDark ? "bg-[#1D1D1D] text-white" : "bg-zinc-100 text-zinc-900"}`
-                                    : `rounded-bl-md ${isDark ? "bg-[#191919] text-white" : "bg-white border border-zinc-200 text-zinc-900"}`
+                                  <div className={`rounded-xl px-3.5 py-2.5 lg:px-4 lg:py-3 w-full max-w-full min-w-0 ${isOwn
+                                    ? `rounded-br-none ${isDark ? "bg-[#202020] text-white" : "bg-zinc-100 text-zinc-900"}`
+                                    : `rounded-bl-none ${isDark ? "bg-[#202020] text-white" : "bg-white border border-zinc-200 text-zinc-900"}`
                                     }`}>
                                     <div className="mb-1 flex flex-wrap items-center gap-1.5 lg:gap-2">
                                       <p className={`text-[10px] uppercase tracking-[0.12em] font-medium truncate max-w-[120px] lg:max-w-none ${isDark ? "text-white/35" : "text-zinc-400"}`}>
@@ -2249,7 +2262,7 @@ export default function ExternalChatView({
                                     </div>
 
                                     {typeof message.reply_to === "object" && message.reply_to ? (
-                                      <div className={`mb-3 rounded-2xl border px-3 py-2 text-xs ${isDark ? "border-white/10 bg-black/15 text-white/55" : "border-zinc-200 bg-zinc-50 text-zinc-600"}`}>
+                                      <div className={`mb-3 rounded-xl border px-3 py-2 text-xs ${isDark ? "border-white/10 bg-black/15 text-white/55" : "border-zinc-200 bg-zinc-50 text-zinc-600"}`}>
                                         <p className={`mb-1 truncate font-medium ${isDark ? "text-white/75" : "text-zinc-900"}`}>
                                           {normalizeUser(message.reply_to.sent_by)?.name || "Reply"}
                                         </p>
@@ -2385,106 +2398,105 @@ export default function ExternalChatView({
               </div>
 
               {selectedRoom ? (
-                <div className={`relative border-t p-4 lg:px-8 ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
-                {replyTarget ? (
-                  <div className={`mb-1 lg:mb-3 flex items-center justify-between rounded-xl lg:rounded-2xl border p-3 lg:px-4 lg:py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
-                    <div className="min-w-0">
-                      <p className={`text-[10px] lg:text-xs uppercase tracking-[0.14em] font-semibold ${isDark ? "text-[#E5D5B8]" : "text-zinc-600"}`}>
-                        Replying To
-                      </p>
-                      <p className={`mt-0.5 lg:mt-1 truncate text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
-                        {getMessageText(replyTarget)}
-                      </p>
+                <div className={`relative p-4 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                  {replyTarget ? (
+                    <div className={`mb-1 lg:mb-3 flex items-center justify-between rounded-lg lg:rounded-xl border p-3 lg:px-4 lg:py-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
+                      <div className="min-w-0">
+                        <p className={`text-[10px] lg:text-xs uppercase tracking-[0.14em] font-semibold ${isDark ? "text-[#E5D5B8]" : "text-zinc-600"}`}>
+                          Replying To
+                        </p>
+                        <p className={`mt-0.5 lg:mt-1 truncate text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                          {getMessageText(replyTarget)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setReplyTarget(null)}
+                        className={`text-sm transition-colors ${isDark ? "text-white/45 hover:text-white" : "text-black/55 hover:text-black"}`}
+                      >
+                        Clear
+                      </button>
                     </div>
+                  ) : null}
+
+                  {showComposerEmojis ? (
+                    <div
+                      ref={composerEmojiRef}
+                      className={`absolute bottom-[calc(100%+12px)] z-30 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border shadow-2xl transition-colors left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-8 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
+                    >
+                      <EmojiPicker
+                        onEmojiClick={handleComposerEmojiClick}
+                        theme={isDark ? Theme.DARK : Theme.LIGHT}
+                        width="100%"
+                        height={pickerHeight} // Dynamic responsive state injection
+                        searchPlaceholder="Search emojis..."
+                        previewConfig={{ showPreview: false }}
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className={`flex items-center gap-2 lg:gap-3 rounded-lg lg:rounded-xl border border-transparent p-3 transition-colors ${isDark ? "bg-[#202020]" : "border-[#E5E5E5] bg-zinc-50"}`}>
+                    {/* Attachment support is not ready yet, so hide the button for now */}
+                    {/* File input hidden */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.zip,.rar"
+                      multiple
+                    />
+
+                    {/* Paperclip button */}
                     <button
                       type="button"
-                      onClick={() => setReplyTarget(null)}
-                      className={`text-sm transition-colors ${isDark ? "text-white/45 hover:text-white" : "text-black/55 hover:text-black"}`}
+                      onClick={() => {
+                        if (!selectedRoom) {
+                          toast.error("Please select a room first");
+                          return;
+                        }
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={uploadingFile || !selectedRoom}
+                      className={`transition ${isDark
+                        ? "text-white disabled:opacity-30"
+                        : "text-black disabled:opacity-30"
+                        }`}
                     >
-                      Clear
+                      {uploadingFile
+                        ? <Loader2 className="h-5 w-5 animate-spin" />
+                        : <Paperclip className="h-5 w-5" />
+                      }
+                    </button>
+                    <textarea
+                      value={draftMessage}
+                      onChange={(e) => setDraftMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      disabled={!selectedRoom || sending}
+                      placeholder={selectedRoom ? "Message" : "Select a room to start messaging"}
+                      rows={1}
+                      className={`max-h-32 min-h-6 flex-1 resize-none border-0 bg-transparent py-1 outline-none transition-colors text-sm lg:text-base ${isDark ? "text-white placeholder:text-white" : "text-black placeholder:text-black"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowComposerEmojis((current) => !current)}
+                      className={`transition-colors ${isDark ? "text-white hover:text-white" : "text-black hover:text-black"}`}
+                    >
+                      <Smile className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={sendMessage}
+                      disabled={!selectedRoom || !draftMessage.trim() || sending}
+                      className={`flex h-9 w-9 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
+                    >
+                      <SendHorizontalIcon size={18} className="bg-transparent" />
                     </button>
                   </div>
-                ) : null}
-
-                {showComposerEmojis ? (
-                  <div
-                    ref={composerEmojiRef}
-                    className={`absolute bottom-[calc(100%+12px)] z-30 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border shadow-2xl transition-colors left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-8 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
-                  >
-                    <EmojiPicker
-                      onEmojiClick={handleComposerEmojiClick}
-                      theme={isDark ? Theme.DARK : Theme.LIGHT}
-                      width="100%"
-                      height={pickerHeight} // Dynamic responsive state injection
-                      searchPlaceholder="Search emojis..."
-                      previewConfig={{ showPreview: false }}
-                    />
-                  </div>
-                ) : null}
-
-                <div className={`flex items-center gap-2 lg:gap-3 rounded-2xl lg:rounded-[24px] border p-3 transition-colors ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E5E5E5] bg-zinc-50"}`}>
-                  {/* Attachment support is not ready yet, so hide the button for now */}
-                  {/* File input hidden */}
-<input
-  ref={fileInputRef}
-  type="file"
-  className="hidden"
-  onChange={handleFileUpload}
-  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.zip,.rar"
-  multiple
-/>
-
-{/* Paperclip button */}
-<button
-  type="button"
-  onClick={() => {
-    if (!selectedRoom) {
-      toast.error("Please select a room first");
-      return;
-    }
-    fileInputRef.current?.click();
-  }}
-  disabled={uploadingFile || !selectedRoom}
-  className={`transition ${
-    isDark
-      ? "text-white/45 hover:text-white disabled:opacity-30"
-      : "text-black/45 hover:text-black disabled:opacity-30"
-  }`}
->
-  {uploadingFile
-    ? <Loader2 className="h-5 w-5 animate-spin" />
-    : <Paperclip className="h-5 w-5" />
-  }
-</button>
-                  <textarea
-                    value={draftMessage}
-                    onChange={(e) => setDraftMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    disabled={!selectedRoom || sending}
-                    placeholder={selectedRoom ? "Message" : "Select a room to start messaging"}
-                    rows={1}
-                    className={`max-h-32 min-h-6 flex-1 resize-none border-0 bg-transparent py-1 outline-none transition-colors text-sm lg:text-base ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/40"}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowComposerEmojis((current) => !current)}
-                    className={`transition-colors ${isDark ? "text-white/45 hover:text-white" : "text-black/45 hover:text-black"}`}
-                  >
-                    <Smile className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={sendMessage}
-                    disabled={!selectedRoom || !draftMessage.trim() || sending}
-                    className={`flex h-9 w-9 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
                 </div>
               ) : null}
             </div>
@@ -2495,9 +2507,13 @@ export default function ExternalChatView({
       {isAdminView && !bookingId ? (
         <ConversationComposerModal
           isOpen={isComposerOpen}
-          onClose={() => setIsComposerOpen(false)}
+          onClose={() => {
+            setIsComposerOpen(false);
+            onCreateMessageClose?.();
+          }}
           onCreated={async (room) => {
             setIsComposerOpen(false);
+            onCreateMessageClose?.();
             await loadRooms();
             if (room) {
               await loadRoomDetails(room);

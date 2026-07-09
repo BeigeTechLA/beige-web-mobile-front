@@ -71,9 +71,8 @@ export default function SearchAutocomplete({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className={`flex h-12 w-full items-center justify-between rounded-lg lg:rounded-2xl border px-4 text-left text-sm outline-none transition duration-200 ${
-          isDark ? "border-white/10 bg-[#101010] text-white" : "border-gray-200 bg-white text-black shadow-sm hover:bg-gray-50"
-        }`}
+        className={`flex h-12 w-full items-center justify-between rounded-lg lg:rounded-xl border-[0.5px] px-4 text-left text-sm outline-none transition duration-200 ${isDark ? "border-white/50 bg-transparent text-white" : "border-gray-200 bg-white text-black shadow-sm hover:bg-gray-50"
+          }`}
       >
         <span className={selected ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/35" : "text-gray-400")}>
           {selected ? selected.label : placeholder}
@@ -82,9 +81,8 @@ export default function SearchAutocomplete({
       </button>
 
       {open ? (
-        <div className={`absolute z-50 mt-2 w-full rounded-2xl border p-3 ${
-          isDark ? "border-white/10 bg-[#0d0d0d] shadow-2xl" : "border-gray-200 bg-white shadow-xl"
-        }`}>
+        <div className={`absolute z-50 mt-2 w-full rounded-2xl border p-3 ${isDark ? "border-white/10 bg-[#0d0d0d] shadow-2xl" : "border-gray-200 bg-white shadow-xl"
+          }`}>
           <div className="relative mb-3">
             <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-white/35" : "text-gray-400"}`} />
             <input
@@ -92,9 +90,8 @@ export default function SearchAutocomplete({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={placeholder}
-              className={`h-11 w-full rounded-xl border pl-10 pr-3 text-sm outline-none transition ${
-                isDark ? "border-white/10 bg-[#141414] text-white placeholder:text-white/30" : "border-gray-200 bg-gray-50 text-black placeholder:text-gray-400"
-              }`}
+              className={`h-11 w-full rounded-xl border pl-10 pr-3 text-sm outline-none transition ${isDark ? "border-white/10 bg-[#141414] text-white placeholder:text-white/30" : "border-gray-200 bg-gray-50 text-black placeholder:text-gray-400"
+                }`}
             />
           </div>
 
@@ -111,13 +108,12 @@ export default function SearchAutocomplete({
                       onChange(option.id);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition duration-200 ${
-                      option.disabled
-                        ? (isDark ? "cursor-not-allowed border-white/10 bg-[#101010] opacity-60" : "cursor-not-allowed border-gray-100 bg-gray-50 opacity-60")
-                        : isSelected
-                          ? (isDark ? "border-[#E5D5B8] bg-[#1A1711]" : "border-[#C5A880] bg-[#FAF6F0]")
-                          : (isDark ? "border-white/10 bg-[#121212] hover:bg-[#171717]" : "border-gray-100 bg-white hover:bg-gray-50")
-                    }`}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition duration-200 ${option.disabled
+                      ? (isDark ? "cursor-not-allowed border-white/10 bg-[#101010] opacity-60" : "cursor-not-allowed border-gray-100 bg-gray-50 opacity-60")
+                      : isSelected
+                        ? (isDark ? "border-[#E5D5B8] bg-[#1A1711]" : "border-[#C5A880] bg-[#FAF6F0]")
+                        : (isDark ? "border-white/10 bg-[#121212] hover:bg-[#171717]" : "border-gray-100 bg-white hover:bg-gray-50")
+                      }`}
                     disabled={option.disabled}
                   >
                     <div>
@@ -129,9 +125,8 @@ export default function SearchAutocomplete({
                       ) : null}
                     </div>
                     {option.disabled ? (
-                      <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${
-                        isDark ? "border-white/10 bg-white/5 text-white/55" : "border-gray-200 bg-gray-100 text-gray-600"
-                      }`}>
+                      <span className={`rounded-full border px-2 py-1 text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white/55" : "border-gray-200 bg-gray-100 text-gray-600"
+                        }`}>
                         Exists
                       </span>
                     ) : isSelected ? (
