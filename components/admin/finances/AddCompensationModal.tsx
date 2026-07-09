@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, TrendingUp, X } from "lucide-react";
+import { Check, ChevronDown, TrendingUp, Minus, Plus, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -76,27 +76,58 @@ const getCreatorTargetAmount = (form?: Partial<CreatorFormState>, rateType?: "fl
   return parseAmount(form?.baseTarget || "0");
 };
 
-const getAutoBaseAmount = (form?: Partial<CreatorFormState>, rateType?: "flat" | "hourly") => {
-  const target = getCreatorTargetAmount(form, rateType);
-  const otherPayouts = parseAmount(form?.editing || "0") + parseAmount(form?.travel || "0") + parseAmount(form?.bonus || "0");
-  return Math.max(target - otherPayouts, 0);
-};
-
-const getBasePayoutAmount = (
-  form?: Partial<CreatorFormState>,
-  rateType?: "flat" | "hourly",
-  compensationMethod?: TabType
+const getCompensationBreakdown = (
+  form: Partial<CreatorFormState>,
+  rateType: "flat" | "hourly",
+  compensationMethod: TabType,
+  shootAmount: number
 ) => {
+  const budgetLimit = Math.max(compensationMethod === "manual" ? shootAmount : getCreatorTargetAmount(form, rateType), 0);
+  const editingRaw = parseAmount(form.editing || "0");
+  const travelRaw = parseAmount(form.travel || "0");
+  const bonusRaw = parseAmount(form.bonus || "0");
+  const baseRaw = compensationMethod === "manual"
+    ? parseAmount(form.baseTarget || form.base || "0")
+    : budgetLimit;
+
+  let remainingBudget = budgetLimit;
+  let base = 0;
+  let editing = 0;
+  let travel = 0;
+  let bonus = 0;
+
   if (compensationMethod === "manual") {
-    return parseAmount(form?.baseTarget || "0");
+    base = Math.min(Math.max(baseRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - base, 0);
+    editing = Math.min(Math.max(editingRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - editing, 0);
+    travel = Math.min(Math.max(travelRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - travel, 0);
+    bonus = Math.min(Math.max(bonusRaw, 0), remainingBudget);
+  } else {
+    editing = Math.min(Math.max(editingRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - editing, 0);
+    travel = Math.min(Math.max(travelRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - travel, 0);
+    bonus = Math.min(Math.max(bonusRaw, 0), remainingBudget);
+    remainingBudget = Math.max(remainingBudget - bonus, 0);
+    base = remainingBudget;
   }
 
-  return getAutoBaseAmount(form, rateType);
+  return {
+    base,
+    editing,
+    travel,
+    bonus,
+    total: base + editing + travel + bonus,
+    budgetLimit,
+  };
 };
 
 const getHourlyRateForAmount = (amount: string, hours: string) => {
   const hourCount = Math.max(parseAmount(hours || "1"), 1);
-  return String(parseAmount(amount || "0") / hourCount);
+  const rate = parseAmount(amount || "0") / hourCount;
+  return rate.toFixed(2);
 };
 
 const getMethodBaseTarget = (
@@ -198,7 +229,7 @@ export default function AddCompensationModal({
       const hourlyCommittedTotal = creatorRateType === "hourly"
         ? preservedBaseTarget
         : current.hourlyCommittedTotal || "";
-      const baseAmount = getBasePayoutAmount({
+      const baseAmount = getCompensationBreakdown({
         baseTarget: preservedBaseTarget,
         hourlyRate,
         hours,
@@ -207,7 +238,7 @@ export default function AddCompensationModal({
         travel: current.travel || "0",
         bonus: current.bonus || "0",
         rateType: creatorRateType,
-      }, creatorRateType, compensationMethod);
+      }, creatorRateType, compensationMethod, Number(currentShoot.shoot_amount || 0)).base;
 
       const nextForm: CreatorFormState = {
         baseTarget: preservedBaseTarget,
@@ -283,16 +314,16 @@ export default function AddCompensationModal({
     return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
   }, [isDropdownOpen]);
 
+  const shootAmount = Number(currentShoot?.shoot_amount || 0);
+  const getCreatorBreakdownForForm = (form: Partial<CreatorFormState>, rateType: "flat" | "hourly") =>
+    getCompensationBreakdown(form, rateType, compensationMethod, shootAmount);
+
   const getCreatorTotal = (creatorId: string) => {
     const form = creatorForms[creatorId];
     if (!form) return 0;
-    return getBasePayoutAmount(form, form.rateType, compensationMethod)
-      + parseAmount(form.editing)
-      + parseAmount(form.travel)
-      + parseAmount(form.bonus);
+    return getCreatorBreakdownForForm(form, form.rateType).total;
   };
 
-  const shootAmount = Number(currentShoot?.shoot_amount || 0);
   const totalCompensation = selectedCreators.reduce((sum, creatorId) => sum + getCreatorTotal(creatorId), 0);
   const compensationPercentage = shootAmount > 0 ? (totalCompensation / shootAmount) * 100 : 0;
   const marginAmount = shootAmount - totalCompensation;
@@ -321,10 +352,45 @@ export default function AddCompensationModal({
             ...(field === "base" ? {} : { [field]: value }),
             rateType: nextRateType,
           };
-          const nextBase = compensationMethod === "manual"
-            ? String(parseAmount(field === "baseTarget" ? value : existing.baseTarget || existing.base || "0"))
-            : String(getBasePayoutAmount(draft, nextRateType, compensationMethod));
           const nextHours = draft.hours || "1";
+          const shouldAutoCalculateHourlyRate =
+            nextRateType === "hourly" &&
+            (compensationMethod !== "manual" || field === "hours" || field === "baseTarget" || field === "rateType");
+          const budgetLimit = compensationMethod === "manual"
+            ? Number(currentShoot?.shoot_amount || 0)
+            : getCreatorTargetAmount(draft, nextRateType);
+          const baseCandidate = compensationMethod === "manual"
+            ? parseAmount(field === "baseTarget" ? value : existing.baseTarget || existing.base || "0")
+            : budgetLimit;
+          const editingCandidate = parseAmount(draft.editing || "0");
+          const travelCandidate = parseAmount(draft.travel || "0");
+          const bonusCandidate = parseAmount(draft.bonus || "0");
+
+          let remainingBudget = Math.max(budgetLimit, 0);
+          let nextBaseAmount = 0;
+          let nextEditingAmount = editingCandidate;
+          let nextTravelAmount = travelCandidate;
+          let nextBonusAmount = bonusCandidate;
+
+          if (compensationMethod === "manual") {
+            nextBaseAmount = Math.min(Math.max(baseCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextBaseAmount, 0);
+            nextEditingAmount = Math.min(Math.max(editingCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextEditingAmount, 0);
+            nextTravelAmount = Math.min(Math.max(travelCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextTravelAmount, 0);
+            nextBonusAmount = Math.min(Math.max(bonusCandidate, 0), remainingBudget);
+          } else {
+            nextEditingAmount = Math.min(Math.max(editingCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextEditingAmount, 0);
+            nextTravelAmount = Math.min(Math.max(travelCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextTravelAmount, 0);
+            nextBonusAmount = Math.min(Math.max(bonusCandidate, 0), remainingBudget);
+            remainingBudget = Math.max(remainingBudget - nextBonusAmount, 0);
+            nextBaseAmount = remainingBudget;
+          }
+
+          const nextBase = String(nextBaseAmount);
 
           return {
             ...draft,
@@ -339,13 +405,20 @@ export default function AddCompensationModal({
               isManualHourly
                 ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
                 : compensationMethod === "manual"
-                ? nextBase
+                ? (field === "baseTarget" ? value : (existing.baseTarget || "0"))
                 : nextRateType === "hourly"
                 ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
                 : (existing.baseTarget || "0"),
+            editing: String(nextEditingAmount),
+            travel: String(nextTravelAmount),
+            bonus: String(nextBonusAmount),
             hourlyRate:
               isManualHourly
-                ? (field === "hourlyRate" ? value : (existing.hourlyRate || ""))
+                ? (field === "hourlyRate"
+                    ? value
+                    : shouldAutoCalculateHourlyRate
+                      ? getHourlyRateForAmount(nextBase, nextHours)
+                      : (existing.hourlyRate || ""))
                 : nextRateType === "hourly"
                 ? getHourlyRateForAmount(nextBase, nextHours)
                 : (existing.hourlyRate || ""),
@@ -365,7 +438,12 @@ export default function AddCompensationModal({
     setCreatorForms((prev) => {
       const current = prev[creatorId] || getCreatorFormDefaults();
       const committedTotal = String(parseAmount(current.hourlyRate || current.baseTarget || "0") * Math.max(parseAmount(current.hours || "0"), 1));
-      const baseAmount = getBasePayoutAmount({ ...current, hourlyCommittedTotal: committedTotal, baseTarget: committedTotal }, current.rateType, compensationMethod);
+      const baseAmount = getCompensationBreakdown(
+        { ...current, hourlyCommittedTotal: committedTotal, baseTarget: committedTotal },
+        current.rateType,
+        compensationMethod,
+        shootAmount
+      ).base;
       return {
         ...prev,
         [creatorId]: {
@@ -396,14 +474,15 @@ export default function AddCompensationModal({
         bonus: "0",
         notes: "",
       };
+      const breakdown = getCreatorBreakdownForForm(form, form.rateType);
       return {
         creator_id: Number(creatorId),
         rate_type: form.rateType,
         items: [
-          { label: "Base Payout", amount: getBasePayoutAmount(form, form.rateType, compensationMethod) },
-          { label: "Editing Payout", amount: parseAmount(form.editing) },
-          { label: "Travel Adjustment", amount: parseAmount(form.travel) },
-          { label: "Bonus/Other Adjustment", amount: parseAmount(form.bonus) },
+          { label: "Base Payout", amount: breakdown.base },
+          { label: "Editing Payout", amount: breakdown.editing },
+          { label: "Travel Adjustment", amount: breakdown.travel },
+          { label: "Bonus/Other Adjustment", amount: breakdown.bonus },
         ],
         notes: form.notes || null,
       };
@@ -658,24 +737,34 @@ export default function AddCompensationModal({
                               </div>
 
                               <div className="flex items-center gap-2 lg:justify-center">
+                                {/* Decrease Button */}
                                 <button
                                   type="button"
                                   onClick={() => updateCreatorForm(creatorId, "hours", String(Math.max(parseAmount(form.hours) - 1, 1)))}
-                                  className={`h-9 w-9 lg:h-10 lg:w-10 rounded-lg border text-xl leading-none transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5" : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"}`}
+                                  className={`flex items-center justify-center h-9 w-9 lg:h-10 lg:w-10 rounded-lg border transition-colors ${
+                                    isDark
+                                      ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5"
+                                      : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"
+                                  }`}
                                   aria-label="Decrease hours"
                                 >
-                                  -
+                                  <Minus size={14} />
                                 </button>
+
                                 <div className={`min-w-[100px] lg:min-w-[124px] rounded-lg border px-3 py-2 text-center ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#D7D7D7] bg-[#F4F5F7] text-black"}`}>
                                   <span className="text-xs lg:text-sm font-medium whitespace-nowrap">{parseAmount(form.hours)} Hours</span>
                                 </div>
+
+                                {/* Increase Button */}
                                 <button
                                   type="button"
-                                  onClick={() => updateCreatorForm(creatorId, "hours", String(parseAmount(form.hours) + 1))}
-                                  className={`h-9 w-9 lg:h-10 lg:w-10 rounded-lg border text-xl leading-none transition-colors ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5" : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"}`}
+                                  onClick={() => updateCreatorForm(creatorId, "hours", String(Math.min(parseAmount(form.hours) + 1, 24)))}
+                                  disabled={parseAmount(form.hours) >= 24}
+                                  className={`flex items-center justify-center h-9 w-9 lg:h-10 lg:w-10 rounded-lg border transition-colors
+                                  ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-white/5" : "border-[#D7D7D7] bg-[#F4F5F7] text-black hover:bg-white"} disabled:opacity-30 disabled:cursor-not-allowed`}
                                   aria-label="Increase hours"
                                 >
-                                  +
+                                  <Plus size={14} />
                                 </button>
                               </div>
 
@@ -689,8 +778,19 @@ export default function AddCompensationModal({
                                       updateCreatorForm(creatorId, "hourlyRate", event.target.value);
                                     }
                                   }}
+                                  onBlur={() => {
+                                    if (compensationMethod === "manual" && form.hourlyRate !== "") {
+                                      const parsedHourlyRate = Number(form.hourlyRate);
+                                      updateCreatorForm(
+                                        creatorId,
+                                        "hourlyRate",
+                                        Number.isFinite(parsedHourlyRate) ? parsedHourlyRate.toFixed(2) : ""
+                                      );
+                                    }
+                                  }}
                                   readOnly={compensationMethod !== "manual"}
                                   aria-readonly={compensationMethod !== "manual"}
+                                  inputMode="decimal"
                                   className={`w-full border-0 bg-transparent text-xs lg:text-sm outline-none ${compensationMethod === "manual" ? "" : "cursor-not-allowed"} ${isDark ? "text-white/90" : "text-black/90"}`}
                                 />
                               </div>
@@ -729,7 +829,7 @@ export default function AddCompensationModal({
                               </div>
                               <input
                                 type="text"
-                                value={compensationMethod === "manual" ? form.baseTarget : form.base}
+                                value={form.base}
                                 onChange={(event) => {
                                   if (compensationMethod === "manual") {
                                     updateCreatorForm(creatorId, "baseTarget", event.target.value);

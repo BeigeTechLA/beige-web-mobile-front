@@ -42,6 +42,7 @@ export type ShootCPRow = {
   category: "photography" | "videography";
   avatarImage: string;
   date: string;
+  sortDate?: string;
   dueDate?: string | null;
   creatorName?: string;
   creatorRoles?: string[];
@@ -119,6 +120,13 @@ const parseRowDate = (dateString: string) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const parseSortDate = (dateString?: string | null) => {
+  if (!dateString) return null;
+  const normalized = dateString.includes("T") ? dateString : `${dateString}T00:00:00`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 const addDays = (date: Date, days: number) => {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
@@ -174,7 +182,6 @@ export default function CPPayoutTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState("Month");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [sortFilter, setSortFilter] = useState("Ascending");
 
   useEffect(() => {
     setMounted(true);
@@ -222,16 +229,16 @@ export default function CPPayoutTable({
     });
 
     return filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sortFilter === "Ascending" ? dateA - dateB : dateB - dateA;
+      const dateA = parseSortDate(a.sortDate || a.date)?.getTime() || 0;
+      const dateB = parseSortDate(b.sortDate || b.date)?.getTime() || 0;
+      return dateB - dateA;
     });
-  }, [rows, monthFilter, statusFilter, sortFilter, searchQuery]);
+  }, [rows, monthFilter, statusFilter, searchQuery]);
 
   // Reset to first page on any query adjustment
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, monthFilter, statusFilter, sortFilter]);
+  }, [searchQuery, monthFilter, statusFilter]);
 
   useEffect(() => {
     if (!openActionMenuId) return;

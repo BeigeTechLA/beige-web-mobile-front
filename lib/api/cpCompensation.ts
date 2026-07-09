@@ -221,6 +221,7 @@ export const mapShootRow = (row: RawCpRow): ShootCPRow => ({
   category: getCategory(asString(row.shoot_type || row.content_type)),
   avatarImage: row.customer?.image || "",
   date: asString(row.event_date || row.latest_activity_at, new Date().toISOString()),
+  sortDate: asString(row.created_at || row.latest_activity_at || row.event_date, ""),
   dueDate: asString(row.due_date, ""),
 });
 
@@ -242,6 +243,7 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
   category: getCategory(asString(row.shoot_type || row.content_type)),
   avatarImage: "",
   date: asString(row.event_date || row.latest_activity_at, new Date().toISOString()),
+  sortDate: asString(row.created_at || row.latest_activity_at || row.event_date, ""),
   dueDate: asString(row.due_date, ""),
 });
 
