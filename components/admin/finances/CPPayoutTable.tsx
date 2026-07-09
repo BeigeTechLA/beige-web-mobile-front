@@ -176,7 +176,7 @@ export default function CPPayoutTable({
   const [isSavingDueDate, setIsSavingDueDate] = useState(false);
   const [actionMenuPosition, setActionMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Fully localized state variables
   const [searchQuery, setSearchQuery] = useState("");

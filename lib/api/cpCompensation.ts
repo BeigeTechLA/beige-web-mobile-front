@@ -104,6 +104,12 @@ export type CpCompensationDetails = {
     label?: string;
     notes?: string | null;
     created_at?: string | null;
+    creator_count?: number;
+    creators?: Array<{
+      creator_earning_id?: number;
+      creator_id?: number;
+      creator_name?: string | null;
+    }>;
   }>;
 };
 
