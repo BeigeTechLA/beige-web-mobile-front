@@ -81,7 +81,8 @@ export default function PaymentMethodSelectionModal({
 
             <Button
               onClick={onStripeClick}
-              className="mt-5 lg:mt-9 h-10 lg:h-12 w-full bg-[#155DFC] text-white"
+              disabled
+              className="mt-5 lg:mt-9 h-10 lg:h-12 w-full bg-[#155DFC] text-white opacity-50 cursor-not-allowed"
             >
               Continue with Stripe
             </Button>
