@@ -40,7 +40,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   sales_rep_quotes: ["quotes", "admin_quotes"],
   sales_rep_shoots: ["shoots", "admin_shoots"],
   availability: ["admin_availability", "sales_rep_availability", "production_manager_availability", "crew_availability"],
-  dashboard: ["admin_dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
+  dashboard: ["admin_dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "sales_rep_sales", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
   file_manager: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "client_file_manager", "crew_file_manager", "production_manager_file_manager", "file-manager"],
   file_manager_view: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "file-manager"],
   finances: ["admin_finances", "payouts", "client_finances", "crew_payouts"],
