@@ -19,6 +19,9 @@ type FulfillmentStats = {
     videographer?: string;
     photographer?: string;
   };
+  cp_compensation_locked?: boolean;
+  cp_compensation_has_pending?: boolean;
+  cp_compensation_status?: string | null;
   location?: string;
   needs_attention?: {
     missing_fields?: string[];
@@ -80,6 +83,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
   const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
+  const cpCompensationLocked = Boolean(stats?.cp_compensation_locked);
+  const cpCompensationHasPending = Boolean(stats?.cp_compensation_has_pending);
 
   useEffect(() => {
     setMounted(true);
@@ -196,14 +201,34 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const handleAssign = async () => {
+    if (cpCompensationLocked) {
+      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
+      return;
+    }
+    if (cpCompensationHasPending) {
+      toast.error("This shoot has pending CP compensation. Use Continue to Compensation so the payout stays updated.");
+      return;
+    }
     if (!validateSelectedCounts("assign")) return;
     executeAssignment();
   };
 
   const handleContinueToCompensation = () => {
+    if (cpCompensationLocked) {
+      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
+      return;
+    }
     if (!validateSelectedCounts("compensation")) return;
     openCompensationDrawer();
   };
+
+  const handleCreativeSelectionChange = useCallback((ids: number[]) => {
+    if (cpCompensationLocked) {
+      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
+      return;
+    }
+    setSelectedCreativeIds(ids);
+  }, [cpCompensationLocked]);
 
   const openCompensationDrawer = () => {
     if (!selectedCompensationShoot?.creators.length) {
@@ -253,6 +278,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       const assignResponse = await assignCrew({
         project_id: Number(projectId),
         crew_member_ids: selectedCreativeIds,
+        allow_pending_compensation_assignment: true,
       }).unwrap();
 
       if (!assignResponse.success) {
@@ -305,7 +331,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
             <Button
               onClick={handleAssign}
-              disabled={isLoading || selectedCreativeIds.length === 0}
+              disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
               className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
             >
               {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
@@ -322,7 +348,17 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />
 
-      {selectedCreativeIds.length > 0 && (
+      {(cpCompensationLocked || cpCompensationHasPending) && (
+        <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
+          <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
+            {cpCompensationLocked
+              ? "CP compensation is approved for this shoot. Adding more CPs is locked."
+              : "This shoot has pending CP compensation. Add CPs through compensation so payout records stay updated."}
+          </p>
+        </div>
+      )}
+
+      {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
         <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
           <div className="w-full flex flex-row justify-between items-center mb-3">
             {/* Left Side: Count */}
@@ -347,6 +383,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
               {/* Continue to Compensation Button */}
               <button
                 onClick={() => { handleContinueToCompensation(); }}
+                disabled={cpCompensationLocked}
                 className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
               >
                 <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
@@ -373,7 +410,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         <CreativeProfileSelectorAdd
           projectId={projectId}
           selectedIds={selectedCreativeIds}
-          onChange={setSelectedCreativeIds}
+          onChange={handleCreativeSelectionChange}
           onSelectionUpdate={setSelectionCounts}
           onSelectedCreativesChange={handleSelectedCreativesChange}
           currentLocation={projectLocation}

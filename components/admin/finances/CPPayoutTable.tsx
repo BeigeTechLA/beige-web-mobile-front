@@ -370,8 +370,8 @@ export default function CPPayoutTable({
                 </SelectTrigger>
                 <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
                   <SelectItem value="All">All Status</SelectItem>
-                  {/* <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem> */}
+                  {/* <SelectItem value="Pending">Pending</SelectItem> */}
+                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
                   <SelectItem value="Finance approval">Finance Approval</SelectItem>
                   <SelectItem value="Fully Paid">Fully Paid</SelectItem>

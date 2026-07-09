@@ -156,6 +156,8 @@ export const mapCpStatusToUi = (status?: string): ShootCPRow["status"] => {
       return "Finance Approval";
     case "approved":
       return "Approved";
+    case "partially_paid":
+      return "Partially Paid";
     case "paid":
       return "Fully Paid";
     case "rejected":
