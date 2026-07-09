@@ -367,7 +367,7 @@ function DesktopMeetingActionMenu({
 
       {isOpen && (
         <div
-          className={`absolute right-0 top-10 z-40 w-[260px] overflow-hidden rounded-[18px] border py-2 text-left ${menuClass}`}
+          className={`absolute right-0 top-10 z-40 w-[240px] overflow-hidden rounded-[10px] border py-1.5 text-left ${menuClass}`}
           onClick={(event) => event.stopPropagation()}
         >
           <button
@@ -376,9 +376,9 @@ function DesktopMeetingActionMenu({
               setViewMeeting(meeting);
               setIsOpen(false);
             }}
-            className={`flex w-full items-center gap-4 px-5 py-3 text-xl font-medium ${itemClass}`}
+            className={`flex w-full items-center gap-3 px-5 py-2.5 text-base font-semibold ${itemClass}`}
           >
-            <ClipboardList className="h-5 w-5 shrink-0" />
+            <ClipboardList className="h-[18px] w-[18px] shrink-0" />
             <span>View Details</span>
           </button>
 
@@ -389,9 +389,9 @@ function DesktopMeetingActionMenu({
               setIsOpen(false);
             }}
             disabled={!meeting.meetLink}
-            className={`flex w-full items-center gap-4 px-5 py-3 text-xl font-medium ${itemClass} disabled:cursor-not-allowed disabled:opacity-45`}
+            className={`flex w-full items-center gap-3 px-5 py-2.5 text-base font-semibold ${itemClass} disabled:cursor-not-allowed disabled:opacity-45`}
           >
-            <Copy className="h-5 w-5 shrink-0" />
+            <Copy className="h-[18px] w-[18px] shrink-0" />
             <span>Copy Link</span>
           </button>
 
@@ -401,9 +401,9 @@ function DesktopMeetingActionMenu({
               setSelectedMeeting(meeting);
               setIsOpen(false);
             }}
-            className={`flex w-full items-center gap-4 px-5 py-3 text-xl font-medium ${itemClass}`}
+            className={`flex w-full items-center gap-3 px-5 py-2.5 text-base font-semibold ${itemClass}`}
           >
-            <SquarePen className="h-5 w-5 shrink-0" />
+            <SquarePen className="h-[18px] w-[18px] shrink-0" />
             <span>Edit & Reschedule</span>
           </button>
 
@@ -416,9 +416,9 @@ function DesktopMeetingActionMenu({
                 setMeetingPendingDelete(meeting);
                 setIsOpen(false);
               }}
-              className="flex w-full items-center gap-4 px-5 py-3 text-xl font-medium text-[#FF2B2B] hover:bg-[#FF2B2B]/10"
+              className="flex w-full items-center gap-3 px-5 py-2.5 text-base font-semibold text-[#FF2B2B] hover:bg-[#FF2B2B]/10"
             >
-              <Trash2 className="h-5 w-5 shrink-0" />
+              <Trash2 className="h-[18px] w-[18px] shrink-0" />
               <span>Cancel Meeting</span>
             </button>
           )}

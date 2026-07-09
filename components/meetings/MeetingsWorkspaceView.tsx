@@ -28,6 +28,26 @@ import { SortDateButton } from "../admin/SortDateButton";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 
+const getMeetingParticipantId = (participant: NonNullable<MeetingItem["participants"]>[number]) => {
+  const source = participant as typeof participant & {
+    _id?: string | number;
+    user_id?: string | number | { _id?: string | number; id?: string | number };
+  };
+  const rawUserId = source.user_id;
+  const userId =
+    typeof rawUserId === "object"
+      ? rawUserId?._id || rawUserId?.id
+      : rawUserId;
+
+  return String(participant.id || source._id || userId || "").trim();
+};
+
+const getMeetingParticipantKey = (participant: NonNullable<MeetingItem["participants"]>[number]) => {
+  const id = getMeetingParticipantId(participant);
+  const email = String(participant.email || "").trim().toLowerCase();
+  return id || email || String(participant.name || "").trim().toLowerCase();
+};
+
 interface MeetingsWorkspaceViewProps {
   role: RoleVariant;
 }
@@ -92,6 +112,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingItem | null>(null);
   const [viewMeeting, setViewMeeting] = useState<MeetingItem | null>(null);
+  const [removedParticipantsByMeeting, setRemovedParticipantsByMeeting] = useState<Record<string, string[]>>({});
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [search, setSearch] = useState("");
@@ -144,7 +165,17 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   }, [loadMeetings]);
 
   const filteredMeetings = useMemo(() => {
-      let result = meetings;
+      let result = meetings.map((meeting) => {
+        const removedKeys = removedParticipantsByMeeting[String(meeting.id || "")] || [];
+        if (removedKeys.length === 0) return meeting;
+
+        return {
+          ...meeting,
+          participants: (meeting.participants || []).filter(
+            (participant) => !removedKeys.includes(getMeetingParticipantKey(participant))
+          ),
+        };
+      });
 
       if (selectedDate) {
         const targetDate = selectedDate.toDateString();
@@ -165,7 +196,17 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedSearch))
     );
-  }, [meetings, search, selectedDate]);
+  }, [meetings, removedParticipantsByMeeting, search, selectedDate]);
+
+  const selectedMeetingForEdit = useMemo(() => {
+    if (!selectedMeeting) return null;
+    return filteredMeetings.find((meeting) => String(meeting.id || "") === String(selectedMeeting.id || "")) || selectedMeeting;
+  }, [filteredMeetings, selectedMeeting]);
+
+  const viewMeetingForDetails = useMemo(() => {
+    if (!viewMeeting) return null;
+    return filteredMeetings.find((meeting) => String(meeting.id || "") === String(viewMeeting.id || "")) || viewMeeting;
+  }, [filteredMeetings, viewMeeting]);
 
   const handleRespond = useCallback(
     async (meetingId: string | number, response: "accepted" | "declined") => {
@@ -302,9 +343,9 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       />
 
       <MeetingDetailsModal
-        open={!!selectedMeeting}
+        open={!!selectedMeetingForEdit}
         onClose={() => setSelectedMeeting(null)}
-        meeting={selectedMeeting}
+        meeting={selectedMeetingForEdit}
         role={effectiveRoleForActions}
         currentUserId={currentUserId}
         currentUserEmail={currentUserEmail}
@@ -313,8 +354,8 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       />
 
       <MeetingViewDetailsDrawer
-        open={!!viewMeeting}
-        meeting={viewMeeting}
+        open={!!viewMeetingForDetails}
+        meeting={viewMeetingForDetails}
         onClose={() => setViewMeeting(null)}
         onEdit={(meeting) => {
           setViewMeeting(null);
@@ -323,6 +364,14 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         onCancelMeeting={(meeting) => {
           setViewMeeting(null);
           setMeetingPendingDelete(meeting);
+        }}
+        onUpdated={loadMeetings}
+        onParticipantRemoved={(meetingId, participantKey) => {
+          setRemovedParticipantsByMeeting((current) => {
+            const existing = current[meetingId] || [];
+            if (existing.includes(participantKey)) return current;
+            return { ...current, [meetingId]: [...existing, participantKey] };
+          });
         }}
       />
 
