@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
-import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
+import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails, GetProfileCompletion } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
+import EditUserDetailsModal from "./EditUserDetailsModal";
 
 interface ProfileProps {
   id: string;
@@ -119,6 +120,23 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isOpen, setIsOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [profileProgress, setProfileProgress] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfileProgress = async () => {
+      const res = await GetProfileCompletion(id);
+
+      if (!res.error) {
+        setProfileProgress(res.data);
+      }
+    };
+
+    if (id) {
+      fetchProfileProgress();
+    }
+  }, [id]);
+
 
   const toggleRow = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -482,6 +500,17 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
 
+  const progress = profileProgress?.overall_progress_percent ?? 0;
+  const currentStep = profileProgress?.required_fields?.complete ?? 0;
+  const totalSteps = profileProgress?.required_fields?.total ?? 0;
+  const requiredCompleted = profileProgress?.required_fields?.complete ?? 0;
+  const requiredTotal = profileProgress?.required_fields?.total ?? 0;
+  const totalCompleted = profileProgress?.total_fields?.complete ?? 0;
+  const totalFields = profileProgress?.total_fields?.total ?? 0;
+  const completionNeeds = profileProgress?.completion_needs?.complete ?? 0;
+  const completTotal = profileProgress?.completion_needs?.total ?? 0;
+  const fieldsComplete = profileProgress?.fields_complete ?? "0/0";
+
   return (
     <div className="space-y-3 lg:space-y-6">
       {/* Top Navigation */}
@@ -493,6 +522,59 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           </button>
         </div>
       )}
+
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className={`text-lg lg:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Complete Your Profile</h1>
+          <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Increase your visibility and booking potential.</p>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => router.push(`/admin/users/creative-partners/${id}/Edit-Details`)}
+            className={`px-6.5 py-3.5 rounded-lg text-sm font-medium transition-all bg-[#E8D1AB] text-black shadow-[0_8.838px_35.353px_0_rgba(232,209,171,0.20)] 
+                      ${isDark ? "text-[#101010]" : "text-[#666]"}`}
+          >
+            Edit Details
+          </button>
+        </div>
+      </div>
+
+      {/* Profile complete percentage */}
+      <div className="w-full rounded-xl bg-[#171717] border border-[#E8D1AB]/30 p-4">
+        {/* Top */}
+        <div className="pb-3 flex items-center justify-between">
+          <h2 className="text-sm font-normal tracking-[-0.3px] text-[#E8D1AB]">
+            Profile Setup - {progress}% Complete
+          </h2>
+          <span className="text-sm font-normal text-[#E9D3AE]">
+            {fieldsComplete}
+          </span>
+        </div>
+        {/* Progress */}
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[#2B2B2B]">
+          <div
+            className="h-full rounded-full bg-[#E8D1AB] transition-all duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        {/* Bottom */}
+        <div className="pt-3 flex flex-wrap gap-2 text-xs text-[#818181]">
+          <span>
+            {requiredCompleted}/{requiredTotal} Required Fields
+          </span>
+          <span>|</span>
+          <span>
+            {totalCompleted}/{totalFields} Total Fields
+          </span>
+          <span>|</span>
+          <span>
+            {completionNeeds}/{completTotal} Completion Needs
+          </span>
+        </div>
+      </div>
+
 
       {/* Profile Header Card */}
       <div className={`rounded-2xl border transition-colors duration-200 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFFCF6] border-[#E5E5E5] shadow-sm"
@@ -1034,11 +1116,11 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                         {(hasShoot || isAvailable || isUnavailable || hasTimeRange) && (
                           <div className="space-y-1">
                             {hasShoot && (
-                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
-                              }`}>
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
-                              <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
-                            </div>
+                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
+                                }`}>
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
+                                <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
+                              </div>
                             )}
                             {!hasShoot && isAvailable && (
                               <div className="flex items-center gap-1.5 text-green-500/75">
@@ -1150,132 +1232,132 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
         <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
           }`}>
           {shootsLoading ? (
-                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
+            <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
                     }`}>
-                    <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-                  </div> 
+              <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
+            </div>
           ) : assignedProjects.length === 0 ? (
             <div className={`py-12 px-6 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
               No shoots assigned to this creative partner.
             </div>
           ) : (
             <>
-          {/* MOBILE ONLY VIEW */}
-          <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-            <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
-              }`}>
-              {shootColumns.slice(0, 2).map((column) => (
-                <span key={column}>{formatShootColumnLabel(column)}</span>
-              ))}
-            </div>
+              {/* MOBILE ONLY VIEW */}
+              <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
+                  }`}>
+                  {shootColumns.slice(0, 2).map((column) => (
+                    <span key={column}>{formatShootColumnLabel(column)}</span>
+                  ))}
+                </div>
 
-            <div className="flex flex-col gap-2">
-              {assignedProjects.map((shoot, index) => {
-                const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
-                const isExpanded = expandedId === rowId;
+                <div className="flex flex-col gap-2">
+                  {assignedProjects.map((shoot, index) => {
+                    const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                    const isExpanded = expandedId === rowId;
 
-                return (
-                  <div
-                    key={rowId}
-                    className={`rounded-xl border transition-all ${isDark
-                      ? "bg-[#171717] border-white/5"
-                      : "bg-[#F4F5F7] border-[#F4F5F7]"
-                      }`}
-                  >
-                    {/* Header Row */}
-                    <div
-                      className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
-                      onClick={() => toggleRow(rowId)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
-                          ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-white rotate-180 border-[#777674] text-[#777674]')
-                          : (isDark ? 'border-white/10 text-white/60' : 'bg-white border-[#D9D9D9] text-[#777674]')
-                          }`}>
-                          <ChevronDown size={14} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>
-                            {formatShootCellValue(shoot[shootColumns[0]])}
-                          </span>
-                          <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
-                            }`}>
-                            {shootColumns[1] ? formatShootCellValue(shoot[shootColumns[1]]) : `#${rowId}`}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(String(shoot.status || shoot.project_status || 'Unknown'))}`}>
-                        {formatShootCellValue(shoot.status || shoot.project_status || "N/A")}
-                      </span>
-                    </div>
-
-                    {/* Collapsible Content */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className={`border-t ${isDark ? "border-white/5 bg-black/20" : "border-[#D9D9D9] bg-[#F4F5F7]"}`}
+                    return (
+                      <div
+                        key={rowId}
+                        className={`rounded-xl border transition-all ${isDark
+                          ? "bg-[#171717] border-white/5"
+                          : "bg-[#F4F5F7] border-[#F4F5F7]"
+                          }`}
+                      >
+                        {/* Header Row */}
+                        <div
+                          className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
+                          onClick={() => toggleRow(rowId)}
                         >
-                          <div className="p-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              {shootColumns.map((column) => (
-                                <div key={column}>
-                                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/40" : "text-gray-400"
-                                    }`}>
-                                    {formatShootColumnLabel(column)}
-                                  </p>
-                                  <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black/80"}`}>
-                                    {formatShootCellValue(shoot[column])}
-                                  </p>
-                                </div>
-                              ))}
+                          <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
+                              ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-white rotate-180 border-[#777674] text-[#777674]')
+                              : (isDark ? 'border-white/10 text-white/60' : 'bg-white border-[#D9D9D9] text-[#777674]')
+                              }`}>
+                              <ChevronDown size={14} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>
+                                {formatShootCellValue(shoot[shootColumns[0]])}
+                              </span>
+                              <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                }`}>
+                                {shootColumns[1] ? formatShootCellValue(shoot[shootColumns[1]]) : `#${rowId}`}
+                              </span>
                             </div>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* DESKTOP TABLE VIEW */}
-          <div className="hidden lg:block w-full overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
-                  }`}>
-                  {shootColumns.map((column) => (
-                    <th
-                      key={column}
-                      className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm`}
-                    >
-                      {formatShootColumnLabel(column)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
-                {assignedProjects.map((shoot, index) => {
-                  const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
-                  return (
-                    <tr key={rowId} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
+                          <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(String(shoot.status || shoot.project_status || 'Unknown'))}`}>
+                            {formatShootCellValue(shoot.status || shoot.project_status || "N/A")}
+                          </span>
+                        </div>
+
+                        {/* Collapsible Content */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              className={`border-t ${isDark ? "border-white/5 bg-black/20" : "border-[#D9D9D9] bg-[#F4F5F7]"}`}
+                            >
+                              <div className="p-4 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  {shootColumns.map((column) => (
+                                    <div key={column}>
+                                      <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/40" : "text-gray-400"
+                                        }`}>
+                                        {formatShootColumnLabel(column)}
+                                      </p>
+                                      <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black/80"}`}>
+                                        {formatShootCellValue(shoot[column])}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* DESKTOP TABLE VIEW */}
+              <div className="hidden lg:block w-full overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
+                      }`}>
                       {shootColumns.map((column) => (
-                        <td key={column} className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>
-                          {formatShootCellValue(shoot[column])}
-                        </td>
+                        <th
+                          key={column}
+                          className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm`}
+                        >
+                          {formatShootColumnLabel(column)}
+                        </th>
                       ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
+                    {assignedProjects.map((shoot, index) => {
+                      const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
+                      return (
+                        <tr key={rowId} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
+                          {shootColumns.map((column) => (
+                            <td key={column} className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>
+                              {formatShootCellValue(shoot[column])}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>
@@ -1504,8 +1586,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
             <button
               onClick={() => setPlayingVideo(null)}
               className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
-                  ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
-                  : "bg-black/5 border-black/10 text-black hover:bg-black/20"
+                ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                : "bg-black/5 border-black/10 text-black hover:bg-black/20"
                 }`}
             >
               <X size={20} className="lg:w-6 lg:h-6" />
@@ -1528,6 +1610,17 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
         </div>
       )}
+
+      <EditUserDetailsModal
+        userId={id}
+        isOpen={isEditOpen}
+        isDark={isDark}
+        onSuccess={() => {
+          setIsEditOpen(false);
+          // Refresh data if needed
+        }}
+        onCancel={() => setIsEditOpen(false)}
+      />
     </div>
   );
 };

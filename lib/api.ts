@@ -1652,11 +1652,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes`,
@@ -1678,11 +1678,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes/${noteId}/replies`,
@@ -2413,6 +2413,29 @@ export const getAvailabilityDetails = async (payload: { year: string, month: str
     };
   }
 };
+
+export const GetProfileCompletion = async (
+  crew_member_id: string | number
+) => {
+  try {
+    const response = await api.get(
+      `admin/crew-members/${crew_member_id}/profile-completion`
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Get Profile Completion Error:", error);
+
+    return {
+      success: false,
+      data: null,
+      error:
+        error.response?.data?.message ||
+        "Failed to fetch profile completion",
+    };
+  }
+};
+
 
 export const CheckVerificationStatus = async (payload: { crew_member_id: any }) => {
   try {
