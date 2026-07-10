@@ -34,12 +34,13 @@ type SharedContent = {
   type?: "file" | "folder" | "workspace";
   phase?: string;
   path?: string;
+  basePath?: string;
   folders?: SharedFolder[];
   files?: SharedFile[];
   file?: SharedFile;
 };
 
-const FILES_PAGE_SIZE = 20;
+const FILES_PAGE_SIZE = 9;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -68,6 +69,19 @@ const getFileExt = (name?: string) => {
   const parts = (name || "").toLowerCase().split(".");
   return parts.length > 1 ? parts.pop() || "" : "";
 };
+
+const isVideoLikeFile = (file?: { name?: string; contentType?: string }) => {
+  const name = String(file?.name || "").toLowerCase();
+  const ct = String(file?.contentType || "").toLowerCase();
+  return ct.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
+};
+
+const normalizeSharedPath = (value?: string) =>
+  String(value || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\/+/g, "/")
+    .trim();
 
 const getFileMeta = (contentType?: string, name?: string) => {
   const ext = getFileExt(name);
@@ -160,6 +174,17 @@ function Thumbnail({ file, getFileThumbnail }: { file: SharedFile; getFileThumbn
     return () => { active = false; };
   }, [file, getFileThumbnail]);
   if (!url) return <div className="flex h-full w-full items-center justify-center"><FileText className="h-5 w-5 text-white/40" /></div>;
+  if (isVideoLikeFile(file)) {
+    return (
+      <video
+        src={url}
+        muted
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover"
+      />
+    );
+  }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt={file.name || "thumbnail"} className="h-full w-full object-cover" />;
 }
@@ -194,6 +219,14 @@ export default function SharedFileManagerPage() {
     );
     setContent(null);
     return true;
+  };
+
+  const showFileAccessError = (error: unknown, fallback: string) => {
+    if (isSharedResourceUnavailable(error)) {
+      toast.error("This file is not available in the shared folder anymore.");
+      return;
+    }
+    toast.error(getErrorMessage(error, fallback));
   };
 
   const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
@@ -240,6 +273,21 @@ export default function SharedFileManagerPage() {
     setSelectedFilePaths([]);
     setVisibleFileCount(FILES_PAGE_SIZE);
   };
+
+  const resolveFilePath = useCallback((fileOrPath?: SharedFile | string) => {
+    const rawPath = typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path;
+    const normalizedPath = normalizeSharedPath(rawPath);
+    if (!normalizedPath) return "";
+    if (normalizedPath.includes("/")) return normalizedPath;
+
+    const basePath = normalizeSharedPath(content?.basePath);
+    if (basePath) return `${basePath}/${normalizedPath}`;
+
+    const currentBase = normalizeSharedPath(currentPath);
+    if (currentBase) return `${currentBase}/${normalizedPath}`;
+
+    return normalizedPath;
+  }, [content?.basePath, currentPath]);
 
   const requestOtp = async () => {
     try {
@@ -295,27 +343,30 @@ export default function SharedFileManagerPage() {
   };
 
   const downloadFile = async (filepath?: string) => {
-    if (!accessToken || !filepath) return;
+    const resolvedFilepath = resolveFilePath(filepath);
+    if (!accessToken || !resolvedFilepath) return;
     try {
       const result = await fileManagerApi.getSharedFileDownloadUrl(
         shareToken,
         accessToken,
-        filepath,
+        resolvedFilepath,
         { phase: currentPhase, path: currentPath }
       );
       if (result?.data?.url) {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       }
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to get download link"));
+      showFileAccessError(error, "Failed to get download link");
     }
   };
 
   const downloadBlobInPage = async (filepath: string, fileName: string) => {
+    const resolvedFilepath = resolveFilePath(filepath);
+    if (!resolvedFilepath) throw new Error("Download path missing");
     const result = await fileManagerApi.getSharedFileDownloadUrl(
       shareToken,
       accessToken,
-      filepath,
+      resolvedFilepath,
       { phase: currentPhase, path: currentPath }
     );
     const url = result?.data?.url;
@@ -352,20 +403,21 @@ export default function SharedFileManagerPage() {
       setSelectedFilePaths([]);
       toast.success(`Downloaded ${selectedFilePaths.length} file(s)`);
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to download selected files"));
+      showFileAccessError(error, "Failed to download selected files");
     } finally {
       setBulkDownloading(false);
     }
   };
 
   const openPreview = async (file: SharedFile) => {
-    if (!file?.path) return;
+    const resolvedFilepath = resolveFilePath(file);
+    if (!resolvedFilepath) return;
     try {
       setPreviewLoading(true);
       const result = await fileManagerApi.getSharedFileViewUrl(
         shareToken,
         accessToken,
-        file.path,
+        resolvedFilepath,
         { phase: currentPhase, path: currentPath }
       );
       const url = result?.data?.url;
@@ -376,7 +428,7 @@ export default function SharedFileManagerPage() {
         contentType: file.contentType,
       });
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open preview"));
+      showFileAccessError(error, "Failed to open preview");
     } finally {
       setPreviewLoading(false);
     }
@@ -389,9 +441,7 @@ export default function SharedFileManagerPage() {
   };
 
   const isPreviewVideo = (file?: { name?: string; contentType?: string }) => {
-    const name = String(file?.name || "").toLowerCase();
-    const ct = String(file?.contentType || "").toLowerCase();
-    return ct.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
+    return isVideoLikeFile(file);
   };
 
   const isPreviewPdf = (file?: { name?: string; contentType?: string }) => {
@@ -401,8 +451,9 @@ export default function SharedFileManagerPage() {
   };
 
   const getFileThumbnail = useCallback(async (file: SharedFile) => {
-    if (!file?.path) return "";
-    const cacheKey = [shareToken, accessToken, currentPhase || "", currentPath || "", file.path].join("::");
+    const resolvedFilepath = resolveFilePath(file);
+    if (!resolvedFilepath) return "";
+    const cacheKey = [shareToken, accessToken, currentPhase || "", currentPath || "", resolvedFilepath].join("::");
     if (thumbnailUrlCacheRef.current[cacheKey]) return thumbnailUrlCacheRef.current[cacheKey];
     if (thumbnailRequestCacheRef.current[cacheKey]) return thumbnailRequestCacheRef.current[cacheKey];
 
@@ -411,7 +462,7 @@ export default function SharedFileManagerPage() {
         const response = await fileManagerApi.getSharedFileViewUrl(
           shareToken,
           accessToken,
-          file.path,
+          resolvedFilepath,
           { phase: currentPhase, path: currentPath }
         );
         const url = response?.data?.url || "";
@@ -425,7 +476,7 @@ export default function SharedFileManagerPage() {
     })();
 
     return thumbnailRequestCacheRef.current[cacheKey];
-  }, [accessToken, currentPath, currentPhase, shareToken]);
+  }, [accessToken, currentPath, currentPhase, resolveFilePath, shareToken]);
 
   useEffect(() => {
     thumbnailUrlCacheRef.current = {};
@@ -460,6 +511,27 @@ export default function SharedFileManagerPage() {
       await loadContent(accessToken, { phase: currentPhase, path: nextPath });
     } catch (error: unknown) {
       if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open folder"));
+    }
+  };
+
+  const goBackOneLevel = async () => {
+    if (!accessToken || selectionLockActive) return;
+    try {
+      if (currentPath) {
+        const parentPath = currentPath
+          .split("/")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .slice(0, -1)
+          .join("/");
+        await loadContent(accessToken, { phase: currentPhase, path: parentPath || undefined });
+        return;
+      }
+      if (currentPhase) {
+        await loadContent(accessToken);
+      }
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to go back"));
     }
   };
 
@@ -711,6 +783,16 @@ export default function SharedFileManagerPage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {(currentPhase || currentPath) && (
+                  <button
+                    type="button"
+                    onClick={goBackOneLevel}
+                    disabled={selectionLockActive}
+                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                )}
                 {(currentPhase || currentPath) && (
                   <button
                     onClick={() => {
