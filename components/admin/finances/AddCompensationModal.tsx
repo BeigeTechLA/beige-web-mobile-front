@@ -40,6 +40,29 @@ const methodToApi = (method: TabType): AddCpCompensationPayload["compensation_me
 
 const parseAmount = (value: string) => Number(String(value || "0").replace(/[$,]/g, "")) || 0;
 const toMoney = (value: number) => Number(value.toFixed(2));
+const decimalInputFields = new Set<keyof CreatorFormState>([
+  "baseTarget",
+  "hourlyRate",
+  "hours",
+  "editing",
+  "travel",
+  "bonus",
+]);
+
+const sanitizeDecimalInput = (value: string) => {
+  const cleaned = String(value || "").replace(/[^0-9.]/g, "");
+  const [wholePart, ...decimalParts] = cleaned.split(".");
+  const decimalPart = decimalParts.join("");
+
+  if (!decimalParts.length) return wholePart;
+  return `${wholePart}.${decimalPart.slice(0, 2)}`;
+};
+
+const getAmountDisplayValue = (rawValue: string, calculatedValue: number) => {
+  const parsedRawValue = parseAmount(rawValue);
+  if (toMoney(parsedRawValue) === toMoney(calculatedValue)) return rawValue;
+  return String(calculatedValue);
+};
 
 const formatShootOptionLabel = (shoot: PendingCompensationShoot) =>
   `#${shoot.booking_id} - ${shoot.shoot_name}`;
@@ -340,16 +363,18 @@ export default function AddCompensationModal({
   };
 
   const updateCreatorForm = (creatorId: string, field: keyof CreatorFormState, value: string) => {
+    const nextValue = decimalInputFields.has(field) ? sanitizeDecimalInput(value) : value;
+
     setCreatorForms((prev) => ({
       ...prev,
       [creatorId]: {
         ...(() => {
           const existing = prev[creatorId] || getCreatorFormDefaults();
-          const nextRateType = (field === "rateType" ? value : existing.rateType || "flat") as "flat" | "hourly";
+          const nextRateType = (field === "rateType" ? nextValue : existing.rateType || "flat") as "flat" | "hourly";
           const isManualHourly = compensationMethod === "manual" && nextRateType === "hourly";
           const draft = {
             ...existing,
-            ...(field === "base" ? {} : { [field]: value }),
+            ...(field === "base" ? {} : { [field]: nextValue }),
             rateType: nextRateType,
           };
           const nextHours = draft.hours || "1";
@@ -360,7 +385,7 @@ export default function AddCompensationModal({
             ? Number(currentShoot?.shoot_amount || 0)
             : getCreatorTargetAmount(draft, nextRateType);
           const baseCandidate = compensationMethod === "manual"
-            ? parseAmount(field === "baseTarget" ? value : existing.baseTarget || existing.base || "0")
+            ? parseAmount(field === "baseTarget" ? nextValue : existing.baseTarget || existing.base || "0")
             : budgetLimit;
           const editingCandidate = parseAmount(draft.editing || "0");
           const travelCandidate = parseAmount(draft.travel || "0");
@@ -390,7 +415,16 @@ export default function AddCompensationModal({
             nextBaseAmount = remainingBudget;
           }
 
-          const nextBase = String(nextBaseAmount);
+          const nextBase = compensationMethod === "manual" && field === "baseTarget"
+            ? getAmountDisplayValue(nextValue, nextBaseAmount)
+            : String(nextBaseAmount);
+          const nextBaseTarget = isManualHourly
+            ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
+            : compensationMethod === "manual"
+            ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
+            : nextRateType === "hourly"
+            ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
+            : (existing.baseTarget || "0");
 
           return {
             ...draft,
@@ -401,21 +435,14 @@ export default function AddCompensationModal({
                 : (existing.hourlyCommittedTotal || ""),
             base: nextBase,
             hourlyConfirmed: isManualHourly ? false : (nextRateType === "hourly" ? true : (existing.hourlyConfirmed ?? true)),
-            baseTarget:
-              isManualHourly
-                ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
-                : compensationMethod === "manual"
-                ? (field === "baseTarget" ? value : (existing.baseTarget || "0"))
-                : nextRateType === "hourly"
-                ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
-                : (existing.baseTarget || "0"),
-            editing: String(nextEditingAmount),
-            travel: String(nextTravelAmount),
-            bonus: String(nextBonusAmount),
+            baseTarget: nextBaseTarget,
+            editing: field === "editing" ? getAmountDisplayValue(nextValue, nextEditingAmount) : String(nextEditingAmount),
+            travel: field === "travel" ? getAmountDisplayValue(nextValue, nextTravelAmount) : String(nextTravelAmount),
+            bonus: field === "bonus" ? getAmountDisplayValue(nextValue, nextBonusAmount) : String(nextBonusAmount),
             hourlyRate:
               isManualHourly
                 ? (field === "hourlyRate"
-                    ? value
+                    ? nextValue
                     : shouldAutoCalculateHourlyRate
                       ? getHourlyRateForAmount(nextBase, nextHours)
                       : (existing.hourlyRate || ""))
@@ -829,6 +856,7 @@ export default function AddCompensationModal({
                               </div>
                               <input
                                 type="text"
+                                inputMode="decimal"
                                 value={form.base}
                                 onChange={(event) => {
                                   if (compensationMethod === "manual") {
@@ -854,6 +882,7 @@ export default function AddCompensationModal({
                               </div>
                               <input
                                 type="text"
+                                inputMode="decimal"
                                 value={form.editing}
                                 onChange={(event) => updateCreatorForm(creatorId, "editing", event.target.value)}
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
@@ -865,6 +894,7 @@ export default function AddCompensationModal({
                               </div>
                               <input
                                 type="text"
+                                inputMode="decimal"
                                 value={form.travel}
                                 onChange={(event) => updateCreatorForm(creatorId, "travel", event.target.value)}
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
@@ -878,6 +908,7 @@ export default function AddCompensationModal({
                             </div>
                             <input
                               type="text"
+                              inputMode="decimal"
                               value={form.bonus}
                               onChange={(event) => updateCreatorForm(creatorId, "bonus", event.target.value)}
                               className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
