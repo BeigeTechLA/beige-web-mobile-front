@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
@@ -38,6 +38,8 @@ type SharedContent = {
   files?: SharedFile[];
   file?: SharedFile;
 };
+
+const FILES_PAGE_SIZE = 20;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -181,6 +183,9 @@ export default function SharedFileManagerPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [unavailableMessage, setUnavailableMessage] = useState("");
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const thumbnailUrlCacheRef = useRef<Record<string, string>>({});
+  const thumbnailRequestCacheRef = useRef<Record<string, Promise<string>>>({});
 
   const handleUnavailableError = (error: unknown) => {
     if (!isSharedResourceUnavailable(error)) return false;
@@ -193,6 +198,8 @@ export default function SharedFileManagerPage() {
 
   const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
   const files = useMemo(() => (Array.isArray(content?.files) ? (content.files as SharedFile[]) : []), [content]);
+  const visibleFiles = useMemo(() => files.slice(0, visibleFileCount), [files, visibleFileCount]);
+  const hasMoreFiles = visibleFileCount < files.length;
   const selectionLockActive = selectedFilePaths.length > 0;
 
   const breadcrumbs = useMemo(() => {
@@ -231,6 +238,7 @@ export default function SharedFileManagerPage() {
     setCurrentPhase(payload?.phase || options?.phase);
     setCurrentPath(payload?.path || options?.path);
     setSelectedFilePaths([]);
+    setVisibleFileCount(FILES_PAGE_SIZE);
   };
 
   const requestOtp = async () => {
@@ -392,19 +400,46 @@ export default function SharedFileManagerPage() {
     return ct === "application/pdf" || /\.pdf$/i.test(name);
   };
 
-  const getFileThumbnail = async (file: SharedFile) => {
+  const getFileThumbnail = useCallback(async (file: SharedFile) => {
     if (!file?.path) return "";
-    try {
-      const response = await fileManagerApi.getSharedFileViewUrl(
-        shareToken,
-        accessToken,
-        file.path,
-        { phase: currentPhase, path: currentPath }
-      );
-      return response?.data?.url || "";
-    } catch {
-      return "";
-    }
+    const cacheKey = [shareToken, accessToken, currentPhase || "", currentPath || "", file.path].join("::");
+    if (thumbnailUrlCacheRef.current[cacheKey]) return thumbnailUrlCacheRef.current[cacheKey];
+    if (thumbnailRequestCacheRef.current[cacheKey]) return thumbnailRequestCacheRef.current[cacheKey];
+
+    thumbnailRequestCacheRef.current[cacheKey] = (async () => {
+      try {
+        const response = await fileManagerApi.getSharedFileViewUrl(
+          shareToken,
+          accessToken,
+          file.path,
+          { phase: currentPhase, path: currentPath }
+        );
+        const url = response?.data?.url || "";
+        if (url) thumbnailUrlCacheRef.current[cacheKey] = url;
+        return url;
+      } catch {
+        return "";
+      } finally {
+        delete thumbnailRequestCacheRef.current[cacheKey];
+      }
+    })();
+
+    return thumbnailRequestCacheRef.current[cacheKey];
+  }, [accessToken, currentPath, currentPhase, shareToken]);
+
+  useEffect(() => {
+    thumbnailUrlCacheRef.current = {};
+    thumbnailRequestCacheRef.current = {};
+  }, [accessToken]);
+
+  const showMoreFiles = () => {
+    setVisibleFileCount((count) => Math.min(count + FILES_PAGE_SIZE, files.length));
+  };
+
+  const getVisibleFileStatus = () => {
+    if (!files.length) return "";
+    const shown = Math.min(visibleFileCount, files.length);
+    return `Showing ${shown} of ${files.length} files`;
   };
 
   const openFolder = async (folder: SharedFolder) => {
@@ -782,12 +817,18 @@ export default function SharedFileManagerPage() {
 
                 {/* Files */}
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-white/35">
-                    <FileText size={13} /> Files
-                  </h3>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-white/35">
+                      <FileText size={13} /> Files
+                    </h3>
+                    {files.length > FILES_PAGE_SIZE && (
+                      <span className="text-xs text-white/35">{getVisibleFileStatus()}</span>
+                    )}
+                  </div>
                   {files.length ? (
+                    <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {files.map((file, fi) => {
+                      {visibleFiles.map((file, fi) => {
                         const meta = getFileMeta(file.contentType, file.name);
                         const Icon = meta.icon;
                         const selected = selectedFilePaths.includes(String(file.path || ""));
@@ -881,6 +922,21 @@ export default function SharedFileManagerPage() {
                         );
                       })}
                     </div>
+                    {hasMoreFiles && (
+                      <div className="mt-5 flex justify-center">
+                        <Button
+                          type="button"
+                          onClick={showMoreFiles}
+                          className="h-11 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-semibold text-white/70 transition-all hover:bg-white/[0.07] hover:text-white"
+                        >
+                          View more files
+                          <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/50">
+                            +{Math.min(FILES_PAGE_SIZE, files.length - visibleFileCount)}
+                          </span>
+                        </Button>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] px-4 py-8 text-center text-sm text-white/30">
                       No files found in this location.
