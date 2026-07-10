@@ -15,6 +15,7 @@ interface CompensationItem {
   earningStatus?: string;
   paidTotal?: number;
   remainingBalance?: number;
+  isRejected?: boolean;
   total: number;
   base: number;
   editing: number;
@@ -92,6 +93,7 @@ export default function CompensationModal({
       earningStatus: creator.earning_status,
       paidTotal: creator.paid_total,
       remainingBalance: creator.remaining_balance,
+      isRejected: creator.approval_status === "rejected",
       total: creator.total_compensation,
       base: itemAmount("Base Payout"),
       editing: itemAmount("Editing Payout"),
@@ -201,7 +203,7 @@ export default function CompensationModal({
   }, [details]);
 
   useEffect(() => {
-    setSelectedCreators(compensationList.map((creator) => creator.id));
+    setSelectedCreators(compensationList.filter((creator) => !creator.isRejected).map((creator) => creator.id));
   }, [compensationList]);
 
   if (!isOpen || !rowContext) return null;
@@ -302,9 +304,10 @@ export default function CompensationModal({
                   const isChecked = selectedCreators.includes(creator.id);
                   const isPendingApproval = creator.approvalStatus === "pending_approval";
                   const isApproved = creator.approvalStatus === "approved";
+                  const isRejected = creator.isRejected;
                   const remainingBalance = Number(creator.remainingBalance);
                   const isPaid = creator.earningStatus === "paid" || (isApproved && Number.isFinite(remainingBalance) && remainingBalance <= 0);
-                  const canRecordPayment = isApproved && !isPaid && (!Number.isFinite(remainingBalance) || remainingBalance > 0);
+                  const canRecordPayment = isApproved && !isRejected && !isPaid && (!Number.isFinite(remainingBalance) || remainingBalance > 0);
                   return (
                     <div
                       key={creator.id}
@@ -313,8 +316,9 @@ export default function CompensationModal({
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       />
 
                       <div className="space-y-2 lg:space-y-4 w-full">
@@ -324,8 +328,9 @@ export default function CompensationModal({
                              <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       />
                             <div>
                               <h4 className="text-sm lg:text-base font-medium text-[#E8D1AB]">
@@ -369,7 +374,7 @@ export default function CompensationModal({
 
                         {/* Context Notice Alert Safeguard */}
                         <div className="text-xs text-[#E8D1AB] bg-[#211F1C] font-medium rounded-lg p-3 w-fit">
-                          {isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
+                          {isRejected ? "Rejected compensation record" : isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
                         </div>
                         {(isPaid || Number(creator.paidTotal || 0) > 0) && (
                           <div className="flex flex-wrap gap-2 text-xs">
