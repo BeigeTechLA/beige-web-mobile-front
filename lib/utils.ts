@@ -472,3 +472,6 @@ export const getDateColorThreshold = (dateParam: string | Date): string => {
   // Condition 3: Greater than or equal to 7 days, or any past dates
   return "#91B8F9";
 };
+
+// Basic numeric formatter to convert numbers to 2 digit values
+export const  formatter = new Intl.NumberFormat('en-US', { minimumIntegerDigits: 2 });

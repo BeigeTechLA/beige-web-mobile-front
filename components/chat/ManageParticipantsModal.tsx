@@ -297,7 +297,7 @@ export default function ManageParticipantsModal({
         <div className="w-12 h-1 bg-zinc-600/40 rounded-full mx-auto my-2 shrink-0 lg:hidden" />
 
         {/* Header Section */}
-        <div className={`flex items-center justify-between border-b p-4 lg:px-6 lg:py-5 border-[#CACACA] `}>
+        <div className={`flex items-center justify-between border-b p-4 lg:px-6 lg:py-5 border-[#CACACA]`}>
           <div className="flex items-center gap-3 lg:gap-4 min-w-0">
             {/* <div className={`rounded-full p-2.5 lg:p-3 shrink-0 ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-zinc-100 text-black"}`}>
               <Users className="h-4 w-4 lg:h-5 lg:w-5" />
