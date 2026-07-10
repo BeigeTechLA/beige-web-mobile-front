@@ -4,6 +4,7 @@ type Status =
   | "Finance Approval"
   | "Approved"
   | "Fully Paid"
+  | "Rejected"
 
 export const FinanceStatusBadge = ({ status, mobile }: { status: Status; mobile?: boolean }) => {
   const styles = {
@@ -12,6 +13,7 @@ export const FinanceStatusBadge = ({ status, mobile }: { status: Status; mobile?
     "Approved": "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]",
     "Partially Paid": "bg-[#BEDAFF] text-[#1653A3] border-[#BEDAFF]",
     "Finance Approval": "bg-[#FFF4C9] text-[#BA6605] border-[#FFF4C9]",
+    "Rejected": "bg-[#FFE4E4] text-[#B91C1C] border-[#FFE4E4]",
   };
 
   const padding = mobile ? "px-4 py-1 text-xs" : "px-5 py-1.5 text-sm";

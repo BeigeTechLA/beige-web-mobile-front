@@ -104,6 +104,12 @@ export type CpCompensationDetails = {
     label?: string;
     notes?: string | null;
     created_at?: string | null;
+    creator_count?: number;
+    creators?: Array<{
+      creator_earning_id?: number;
+      creator_id?: number;
+      creator_name?: string | null;
+    }>;
   }>;
 };
 
@@ -150,10 +156,12 @@ export const mapCpStatusToUi = (status?: string): ShootCPRow["status"] => {
       return "Finance Approval";
     case "approved":
       return "Approved";
+    case "partially_paid":
+      return "Partially Paid";
     case "paid":
       return "Fully Paid";
     case "rejected":
-      return "Pending";
+      return "Rejected";
     default:
       return "Pending";
   }

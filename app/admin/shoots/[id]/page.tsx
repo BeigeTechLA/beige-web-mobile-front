@@ -613,6 +613,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       projectId={id}
                       leadId={project?.lead_id}
                       assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                      cpCompensationStatus={project?.cp_compensation_status as string | null}
                       onRequestAssignment={handleAssignmentRequest}
                     />
                   </div>

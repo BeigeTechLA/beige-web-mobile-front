@@ -220,7 +220,7 @@ export default function EarningsBreakdownModal({
                     : "bg-[#E6F4EA] border-[#10B98122]"
                   }`}>
                   <div className="flex justify-between items-center">
-                    <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-[#10B981]" : "text-[#137333]"}`}>Advance Payment Received</p>
+                    <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-[#10B981]" : "text-[#137333]"}`}>Payment Received</p>
                     <p className={`text-lg lg:text-2xl font-bold mt-2 tracking-tight ${isDark ? "text-[#10B981]" : "text-[#137333]"}`}>
                       {formatCurrency(data.advance.amount)}
                     </p>

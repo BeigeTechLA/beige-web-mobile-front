@@ -48,6 +48,7 @@ export default function AddReceiptModal({
   const [notes, setNotes] = useState<string>("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +60,7 @@ export default function AddReceiptModal({
       setNotes("");
       setProofFile(null);
       setIsDropdownOpen(false);
+      setIsDraggingFile(false);
     }
   }, [isOpen, payableAmount, rowContext?.cpPayout]);
 
@@ -70,6 +72,29 @@ export default function AddReceiptModal({
     if (e.target.files && e.target.files[0]) {
       setProofFile(e.target.files[0]);
     }
+  };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(false);
+
+    const droppedFile = event.dataTransfer.files?.[0];
+    if (droppedFile) {
+      setProofFile(droppedFile);
+    }
+  };
+
+  const handleFileDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(false);
   };
 
   const handleSave = () => {
@@ -190,7 +215,12 @@ export default function AddReceiptModal({
             />
             <div
               onClick={() => fileInputRef.current?.click()}
-              className={`mt-3 border border-dashed rounded-xl p-6 lg:p-10 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${isDark
+              onDragOver={handleFileDragOver}
+              onDragLeave={handleFileDragLeave}
+              onDrop={handleFileDrop}
+              className={`mt-3 border border-dashed rounded-xl p-6 lg:p-10 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${isDraggingFile
+                ? "border-[#E8D1AB] bg-[#E8D1AB]/10"
+                : isDark
                 ? "border-[#5A5A5F] bg-black hover:bg-zinc-900/40"
                 : "border-[#D7D7D7] bg-[#FAFAFA] hover:bg-zinc-100/70"
                 }`}

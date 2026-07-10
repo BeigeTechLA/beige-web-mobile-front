@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import { startOfDay } from "date-fns";
 import { getColorThreshold, getInitials } from "@/lib/utils";
 import { FinanceStatusBadge } from "./FinanceStatusBadge";
 import { DatePickerFloating } from "../DatePickerFloating";
@@ -38,7 +39,8 @@ export type ShootCPRow = {
   | "Partially Paid"
   | "Finance Approval"
   | "Approved"
-  | "Fully Paid";
+  | "Fully Paid"
+  | "Rejected";
   category: "photography" | "videography";
   avatarImage: string;
   date: string;
@@ -176,7 +178,8 @@ export default function CPPayoutTable({
   const [isSavingDueDate, setIsSavingDueDate] = useState(false);
   const [actionMenuPosition, setActionMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
+  const today = useMemo(() => startOfDay(new Date()), []);
 
   // Fully localized state variables
   const [searchQuery, setSearchQuery] = useState("");
@@ -370,10 +373,11 @@ export default function CPPayoutTable({
                 </SelectTrigger>
                 <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
                   <SelectItem value="All">All Status</SelectItem>
-                  {/* <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem> */}
+                  {/* <SelectItem value="Pending">Pending</SelectItem> */}
+                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
                   <SelectItem value="Finance approval">Finance Approval</SelectItem>
+                  <SelectItem value="Rejected">Rejected</SelectItem>
                   <SelectItem value="Fully Paid">Fully Paid</SelectItem>
                 </SelectContent>
               </Select>
@@ -858,6 +862,7 @@ export default function CPPayoutTable({
                     label="Due Date"
                     selectedDate={dueDateDraft}
                     onDateChange={setDueDateDraft}
+                    minDate={today}
                     width="w-full"
                     classnames="w-full"
                     labelClasses={isDark ? "bg-[#111111] text-white/60" : "bg-white text-black/60"}

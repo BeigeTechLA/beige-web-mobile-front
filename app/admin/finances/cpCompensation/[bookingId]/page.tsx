@@ -245,7 +245,7 @@ export default function CpCompensationHistoryPage() {
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} breadcrumbOverrides={{ cpCompensation: "CP Compensation" }} />
 
       <div
         className={`min-h-screen space-y-5 p-4 lg:space-y-8 lg:px-10 lg:py-9 ${isDark ? "bg-[#0B0B0B]" : "bg-[#F4F5F7]"}`}
@@ -331,10 +331,16 @@ export default function CpCompensationHistoryPage() {
                       </div>
 
                       <div className="flex items-center justify-between gap-3 sm:justify-end">
-                        <div className="grid grid-cols-3 gap-3 text-right text-base">
-                          <span className={isDark ? "text-white/50" : "text-black/50"}>Total <b className={isDark ? "text-white/90" : "text-black/90"}>{group.total}</b></span>
-                          <span className={isDark ? "text-white/50" : "text-black/50"}>Paid <b className="text-[#10B981]">{group.paid}</b></span>
-                          <span className={isDark ? "text-white/50" : "text-black/50"}>Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b></span>
+                        <div className="flex flex-wrap items-center justify-end gap-x-10 lg:gap-x-14 gap-y-2 text-right text-base">
+                          <span className={`whitespace-nowrap ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            Total <b className={isDark ? "text-white/90" : "text-black/90"}>{group.total}</b>
+                          </span>
+                          <span className={`whitespace-nowrap ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            Paid <b className="text-[#10B981]">{group.paid}</b>
+                          </span>
+                          <span className={`whitespace-nowrap ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b>
+                          </span>
                         </div>
                         {canCollapse && (
                           <ChevronDown

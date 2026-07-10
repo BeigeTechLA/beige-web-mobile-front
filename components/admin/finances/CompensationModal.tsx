@@ -15,6 +15,7 @@ interface CompensationItem {
   earningStatus?: string;
   paidTotal?: number;
   remainingBalance?: number;
+  isRejected?: boolean;
   total: number;
   base: number;
   editing: number;
@@ -30,7 +31,30 @@ type AuditEntry = {
   label: string;
   subLabel?: string | null;
   date?: string | null;
+  dedupeKey: string;
 };
+
+const isPaymentEvent = (value?: string | null) => String(value || "").includes("payment");
+const isFinanceApprovalTimelineEvent = (value?: string | null) => String(value || "") === "awaiting_finance_approval";
+
+const getPaymentAmountFromText = (value?: string | null) => {
+  const match = String(value || "").match(/\$?\s*([\d,]+(?:\.\d{1,2})?)/);
+  if (!match) return null;
+
+  const amount = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const getAuditMinuteBucket = (value?: string | null) => {
+  if (!value) return "no-date";
+
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return String(value);
+
+  return String(Math.floor(timestamp / 60000));
+};
+
+const normalizeAuditText = (value?: string | null) => String(value || "").trim().toLowerCase();
 
 interface CompensationModalProps {
   isOpen: boolean;
@@ -69,6 +93,7 @@ export default function CompensationModal({
       earningStatus: creator.earning_status,
       paidTotal: creator.paid_total,
       remainingBalance: creator.remaining_balance,
+      isRejected: creator.approval_status === "rejected",
       total: creator.total_compensation,
       base: itemAmount("Base Payout"),
       editing: itemAmount("Editing Payout"),
@@ -81,25 +106,95 @@ export default function CompensationModal({
   }), [details?.creators]);
 
   const auditEntries: AuditEntry[] = useMemo(() => {
+    const creatorPaymentEntries = (details?.creators || []).flatMap((creator) =>
+      (creator.payment_history || []).map((payment, index) => {
+        const amount = Number(payment.amount || 0);
+        const paymentId = payment.id || `${creator.creator_earning_id}-${payment.paid_at || ""}-${amount}-${index}`;
+
+        return {
+          id: `payment-${paymentId}`,
+          label: "Payment Processed",
+          subLabel: `Paid to ${payment.creator_name || creator.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+          date: payment.paid_at,
+          dedupeKey: `payment-history|${paymentId}`,
+        };
+      })
+    );
+    const fallbackPaymentEntries = creatorPaymentEntries.length
+      ? []
+      : (details?.payment_history || []).map((payment, index) => {
+          const amount = Number(payment.amount || 0);
+          const paymentId = payment.id || `${payment.creator_earning_id || payment.creator_id || ""}-${payment.paid_at || ""}-${amount}-${index}`;
+
+          return {
+            id: `payment-${paymentId}`,
+            label: "Payment Processed",
+            subLabel: `Paid to ${payment.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+            date: payment.paid_at,
+            dedupeKey: `payment-history|${paymentId}`,
+          };
+        });
     const logs: AuditEntry[] = [
-      ...(details?.audit_logs || []).map((log) => ({
-        id: `audit-${log.action}-${log.created_at || ""}`,
-        label: log.label || log.action || "Finance activity",
-        subLabel: log.notes,
-        date: log.created_at,
-      })),
+      ...(details?.audit_logs || [])
+        .filter((log) => !isPaymentEvent(log.action))
+        .map((log) => {
+          const label = log.label || log.action || "Finance activity";
+          const subLabel = log.notes || null;
+
+          return {
+            id: `audit-${log.action}-${log.created_at || ""}`,
+            label,
+            subLabel,
+            date: log.created_at,
+            dedupeKey: [
+              "audit",
+              normalizeAuditText(label),
+              normalizeAuditText(subLabel),
+              getAuditMinuteBucket(log.created_at),
+            ].join("|"),
+          };
+        }),
+      ...creatorPaymentEntries,
+      ...fallbackPaymentEntries,
       ...(details?.creators || []).flatMap((creator) =>
-        (creator.timeline || []).map((event) => ({
-          id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
-          label: event.label || event.event_type || "Payment activity",
-          subLabel: event.sub_label || creator.creator_name || null,
-          date: event.event_date,
-        }))
+        (creator.timeline || [])
+          .filter((event) => !isFinanceApprovalTimelineEvent(event.event_type))
+          .filter((event) => creatorPaymentEntries.length === 0 || !isPaymentEvent(event.event_type))
+          .map((event) => {
+            const paymentAmount = Number(event.amount) || getPaymentAmountFromText(event.sub_label);
+            const isPayment = isPaymentEvent(event.event_type);
+            const label = isPayment ? "Payment Processed" : event.label || event.event_type || "Finance activity";
+            const subLabel = isPayment
+              ? `Paid to ${creator.creator_name || "Unknown Creator"}${paymentAmount ? ` - ${formatCurrency(paymentAmount)}` : ""}`
+              : event.sub_label || creator.creator_name || null;
+
+            return {
+              id: `timeline-${creator.creator_earning_id}-${event.timeline_event_id || event.event_type || ""}-${event.sort_order || ""}-${event.event_date || ""}`,
+              label,
+              subLabel,
+              date: event.event_date,
+              dedupeKey: [
+                isPayment ? "payment" : "timeline",
+                creator.creator_earning_id,
+                event.timeline_event_id || "",
+                normalizeAuditText(event.event_type),
+                isPayment ? Number(paymentAmount || 0).toFixed(2) : normalizeAuditText(label),
+                event.timeline_event_id ? String(event.event_date || "") : getAuditMinuteBucket(event.event_date),
+              ].join("|"),
+            };
+          })
       ),
     ];
 
+    const seen = new Set<string>();
+
     return logs
       .filter((entry) => entry.label)
+      .filter((entry) => {
+        if (seen.has(entry.dedupeKey)) return false;
+        seen.add(entry.dedupeKey);
+        return true;
+      })
       .sort((a, b) => {
         const left = a.date ? new Date(a.date).getTime() : 0;
         const right = b.date ? new Date(b.date).getTime() : 0;
@@ -108,7 +203,7 @@ export default function CompensationModal({
   }, [details]);
 
   useEffect(() => {
-    setSelectedCreators(compensationList.map((creator) => creator.id));
+    setSelectedCreators(compensationList.filter((creator) => !creator.isRejected).map((creator) => creator.id));
   }, [compensationList]);
 
   if (!isOpen || !rowContext) return null;
@@ -209,9 +304,10 @@ export default function CompensationModal({
                   const isChecked = selectedCreators.includes(creator.id);
                   const isPendingApproval = creator.approvalStatus === "pending_approval";
                   const isApproved = creator.approvalStatus === "approved";
+                  const isRejected = creator.isRejected;
                   const remainingBalance = Number(creator.remainingBalance);
                   const isPaid = creator.earningStatus === "paid" || (isApproved && Number.isFinite(remainingBalance) && remainingBalance <= 0);
-                  const canRecordPayment = isApproved && !isPaid && (!Number.isFinite(remainingBalance) || remainingBalance > 0);
+                  const canRecordPayment = isApproved && !isRejected && !isPaid && (!Number.isFinite(remainingBalance) || remainingBalance > 0);
                   return (
                     <div
                       key={creator.id}
@@ -220,8 +316,9 @@ export default function CompensationModal({
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       />
 
                       <div className="space-y-2 lg:space-y-4 w-full">
@@ -231,8 +328,9 @@ export default function CompensationModal({
                              <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB]"
+                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       />
                             <div>
                               <h4 className="text-sm lg:text-base font-medium text-[#E8D1AB]">
@@ -276,7 +374,7 @@ export default function CompensationModal({
 
                         {/* Context Notice Alert Safeguard */}
                         <div className="text-xs text-[#E8D1AB] bg-[#211F1C] font-medium rounded-lg p-3 w-fit">
-                          {isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
+                          {isRejected ? "Rejected compensation record" : isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
                         </div>
                         {(isPaid || Number(creator.paidTotal || 0) > 0) && (
                           <div className="flex flex-wrap gap-2 text-xs">
@@ -394,18 +492,20 @@ export default function CompensationModal({
                 No audit activity recorded yet.
               </div>
             ) : (
-              auditEntries.map((entry, index) => (
-                <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
-                  <Clock size={20} className="text-[#99A1AF] shrink-0" />
-                  <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
-                    <div>
-                      <span className="text-white">{entry.label}</span>
-                      {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+              <div className="no-scrollbar max-h-[320px] space-y-4 overflow-y-auto pr-2">
+                {auditEntries.map((entry, index) => (
+                  <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
+                    <Clock size={20} className="text-[#99A1AF] shrink-0" />
+                    <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
+                      <div>
+                        <span className="text-white">{entry.label}</span>
+                        {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+                      </div>
+                      <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
                     </div>
-                    <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>

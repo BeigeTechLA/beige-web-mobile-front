@@ -33,6 +33,7 @@ interface AssignedCPProps {
   projectId: string;
   leadId?: string | number;
   assignedCrew?: CrewAssignment[];
+  cpCompensationStatus?: string | null;
   onRequestAssignment?: (continueAction: () => void) => void;
 }
 
@@ -56,7 +57,12 @@ interface CrewAssignment {
   crew_member?: CrewMemberProfile;
 }
 
-export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssignment }: AssignedCPProps) {
+export default function AssignedCP({
+  projectId,
+  assignedCrew = [],
+  cpCompensationStatus,
+  onRequestAssignment
+}: AssignedCPProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -82,9 +88,30 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
   const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
   const isSalesAdmin = userTypeId === 7 && normalizedRole === "sales_admin";
   const isSalesShootPage = pathname?.startsWith("/sales/shoots/");
+  const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
+  const canAssignCP = canCreate && !isCompensationApproved;
+  const canRemoveCP = canEdit && !isCompensationApproved;
+  const assignmentLockTitle = !canCreate
+    ? "Create permission not allowed"
+    : isCompensationApproved
+      ? "CP compensation is approved for this shoot. Adding more CPs is locked."
+      : undefined;
+  const removeLockTitle = !canEdit
+    ? "Edit permission not allowed"
+    : isCompensationApproved
+      ? "CP compensation is approved for this shoot. Removing CPs is locked."
+      : "Remove CP";
 
   const handleOpenAssignment = () => {
-    if (!canCreate) return;
+    if (!canCreate) {
+      return;
+    }
+
+    if (isCompensationApproved) {
+      toast.error("CP compensation is approved for this shoot. Adding more CPs is locked.");
+      return;
+    }
+
     const goToAddCreatives = () =>
       router.push(
         isSalesAdmin && isSalesShootPage
@@ -99,9 +126,8 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
     goToAddCreatives();
   };
 
-
   const handleRemoveCP = async (crewMemberId: number) => {
-    if (!canEdit) return;
+    if (!canRemoveCP) return;
 
     try {
       setRemovingCrewId(crewMemberId);
@@ -129,7 +155,6 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
     }
   };
 
-  // Use a placeholder if there is no image
   const getProfileImage = (member: CrewAssignment) => {
     const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
@@ -150,7 +175,7 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
   return (
     <div
       className={`rounded-2xl h-full flex flex-col items-center transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7] border border-[#E5E5E5]"}`}
-      style={{ fontFamily: 'var(--font-instrument-sans)' }}
+      style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
       <style>{stackStyles}</style>
       <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
@@ -177,21 +202,23 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
                 onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
               >
                 {crewMembers.map((member, index) => {
+                  const crewMemberId = Number(member.crew_member_id || member.id);
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+
                   return (
                     <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveCP(Number(member.crew_member_id || member.id));
+                          handleRemoveCP(crewMemberId);
                         }}
-                        disabled={!canEdit || removingCrewId === Number(member.crew_member_id || member.id)}
+                        disabled={!canRemoveCP || removingCrewId === crewMemberId}
                         className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label="Remove CP"
-                        title={canEdit ? "Remove CP" : "Edit permission not allowed"}
+                        title={removeLockTitle}
                       >
-                        {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                        {removingCrewId === crewMemberId ? (
                           <Loader2 size={16} className="animate-spin" />
                         ) : (
                           <X size={18} />
@@ -226,9 +253,9 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
             <div className="flex flex-col lg:flex-row gap-4">
               <Button
                 onClick={handleOpenAssignment}
-                disabled={!canCreate}
-                title={canCreate ? "Add More CPs" : "Create permission not allowed"}
-                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                disabled={!canAssignCP}
+                title={assignmentLockTitle}
+                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus /> Add More CPs
               </Button>
@@ -238,14 +265,14 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
           <div className="flex flex-col items-center justify-center h-full py-10 relative z-30">
             <button
               onClick={handleOpenAssignment}
-              disabled={!canCreate}
-              title={canCreate ? "Add CP" : "Create permission not allowed"}
+              disabled={!canAssignCP}
+              title={assignmentLockTitle}
               className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >
               <Plus size={40} className="text-black" />
             </button>
             <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-text-black"}`}>
-              {canCreate ? "Assign Creative Partner" : "Create permission not allowed"}
+              {canAssignCP ? "Assign Creative Partner" : assignmentLockTitle}
             </h4>
           </div>
         )}

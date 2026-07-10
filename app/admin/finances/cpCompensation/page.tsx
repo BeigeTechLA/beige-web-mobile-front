@@ -193,6 +193,7 @@ export default function AdminFinancesPage() {
   const { isDark } = useResolvedTheme();
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
+  const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
   const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
   const [details, setDetails] = useState<CpCompensationDetails | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -234,28 +235,28 @@ export default function AdminFinancesPage() {
     {
       id: "payout",
       label: "Total Payout",
-      value: new Intl.NumberFormat("en-US").format(tableData.reduce((sum, row) => sum + row.cpPayout, 0)),
+      value: new Intl.NumberFormat("en-US").format(overviewRows.reduce((sum, row) => sum + row.cpPayout, 0)),
       helperText: "Paid",
       icon: CircleDollarSign,
     },
     {
       id: "pending",
       label: "Pending Approval",
-      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.status === "Finance Approval").length),
+      value: new Intl.NumberFormat("en-US").format(overviewRows.filter((row) => row.status === "Finance Approval").length),
       helperText: "Awaiting approval",
       icon: Clock,
     },
     {
       id: "overmargin",
       label: "Over-Margin Shoots",
-      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.margin < 10).length),
+      value: new Intl.NumberFormat("en-US").format(overviewRows.filter((row) => row.margin < 50).length),
       helperText: "Requires review",
       icon: ShieldAlert,
     },
     {
       id: "partiallypaid",
       label: "Partially Paid",
-      value: new Intl.NumberFormat("en-US").format(tableData.filter((row) => row.status === "Partially Paid").length),
+      value: new Intl.NumberFormat("en-US").format(overviewRows.filter((row) => row.status === "Partially Paid").length),
       helperText: "Shoots paid partially",
       icon: TrendingUp,
     },
@@ -264,11 +265,15 @@ export default function AdminFinancesPage() {
   const loadHistory = useCallback(async (view: TabType) => {
     setLoading(true);
     try {
-      const rows = await cpCompensationApi.list(view);
+      const [rows, shootRows] = view === "shoots"
+        ? await cpCompensationApi.list("shoots").then((shoots) => [shoots, shoots] as const)
+        : await Promise.all([cpCompensationApi.list("creators"), cpCompensationApi.list("shoots")]);
       setTableData(rows);
+      setOverviewRows(shootRows);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load CP compensation history");
       setTableData([]);
+      setOverviewRows([]);
     } finally {
       setLoading(false);
     }
@@ -609,6 +614,7 @@ export default function AdminFinancesPage() {
     <>
       <Topbar
         pathname={pathname}
+        breadcrumbOverrides={{ cpCompensation: "CP Compensation" }}
         actions={
           <div className="flex items-center gap-3">
             <Button
