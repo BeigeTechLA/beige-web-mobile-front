@@ -116,6 +116,7 @@ interface CreatorEarningRow {
   event_end_time?: string;
   total_compensation: number;
   advance_paid: number;
+  paid_amount?: number;
   remaining_balance: number;
   compensation_items?: CompensationItem[];
   due_date?: string;
@@ -350,7 +351,7 @@ const mapRowToCard = (row: CreatorEarningRow): EarningsCardData => ({
   address: row.event_location,
   time: formatTimeRange(getRowStartTime(row), getRowEndTime(row)),
   totalCompensation: row.total_compensation,
-  advancePaid: row.advance_paid,
+  advancePaid: row.paid_amount ?? row.advance_paid,
   remainingBalance: row.remaining_balance,
 });
 
@@ -370,7 +371,7 @@ const mapRowToShootData = (row: CreatorEarningRow): SelectedShootData => {
       bonus: items.find((i) => i.label === "Bonus/Other Adjustment")?.amount || 0,
     },
     advance: {
-      amount: row.advance_paid,
+      amount: row.paid_amount ?? row.advance_paid,
       date: formatDate(row.due_date, 'long') || "N/A",
     },
     remainingBalance: row.remaining_balance,

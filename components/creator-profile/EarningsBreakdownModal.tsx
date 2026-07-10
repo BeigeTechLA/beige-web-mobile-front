@@ -214,7 +214,7 @@ export default function EarningsBreakdownModal({
                 {/* Advance Payment Module */}
                 <div className="rounded-lg bg-[#011A12] border border-[#011A12] p-3 lg:p-6 flex flex flex-col gap-2">
                   <div className="flex justify-between items-center">
-                    <p className="text-xs lg:text-sm font-medium text-[#10B981]">Advance Payment Received</p>
+                    <p className="text-xs lg:text-sm font-medium text-[#10B981]">Payment Received</p>
                     <p className="text-lg lg:text-2xl font-bold text-[#10B981] mt-2 tracking-tight">
                       {formatCurrency(data.advance.amount)}
                     </p>
