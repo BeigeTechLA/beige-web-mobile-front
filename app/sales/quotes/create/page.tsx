@@ -1204,6 +1204,7 @@ export default function CreateQuotePage() {
   const [isDetailsClientDropdownOpen, setIsDetailsClientDropdownOpen] =
     useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [isCreateNewClientFlow, setIsCreateNewClientFlow] = useState(false);
@@ -1321,6 +1322,24 @@ export default function CreateQuotePage() {
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
   const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
+
+  const catalogSearchTerm = catalogSearchQuery.trim().toLowerCase();
+  const filteredServices = React.useMemo(() => {
+    if (!catalogSearchTerm) return services;
+    return services.filter((service) =>
+      getServiceDisplayLabel(service.label).toLowerCase().includes(catalogSearchTerm),
+    );
+  }, [catalogSearchTerm, services]);
+
+  const filteredAddons = React.useMemo(() => {
+    if (!catalogSearchTerm) return addons;
+    return addons.filter((addon) => addon.label.toLowerCase().includes(catalogSearchTerm));
+  }, [addons, catalogSearchTerm]);
+
+  const filteredLogisticsItems = React.useMemo(() => {
+    if (!catalogSearchTerm) return logisticsItems;
+    return logisticsItems.filter((item) => item.label.toLowerCase().includes(catalogSearchTerm));
+  }, [catalogSearchTerm, logisticsItems]);
 
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -1454,7 +1473,7 @@ export default function CreateQuotePage() {
 
   React.useEffect(() => {
     setBookingSchedule(null);
-  }, [editQuoteId, editVersionId]);
+  }, [editQuoteId]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -5200,7 +5219,24 @@ export default function CreateQuotePage() {
                 <hr className="border-t border-[#3D3D3D]" />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {logisticsItems.map((item) => (
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className="relative rounded-[10px] border border-white/15 bg-[#101010]">
+                        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search logistics"
+                          className="h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none text-white placeholder:text-white/35 focus-visible:ring-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredLogisticsItems.length === 0 ? (
+                    <div className="col-span-3 rounded-xl border border-dashed border-white/15 px-5 py-8 text-sm text-white/55">
+                      No logistics items match your search.
+                    </div>
+                  ) : filteredLogisticsItems.map((item) => (
                     <div key={item.id} className="relative">
                       <div
                         role="button"
@@ -5535,7 +5571,24 @@ export default function CreateQuotePage() {
                 <hr className="border-t border-[#3D3D3D]" />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {(addons || []).map((addon) => {
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className="relative rounded-[10px] border border-white/15 bg-[#101010]">
+                        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search add-ons"
+                          className="h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none text-white placeholder:text-white/35 focus-visible:ring-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredAddons.length === 0 ? (
+                    <div className="col-span-3 rounded-xl border border-dashed border-white/15 px-5 py-8 text-sm text-white/55">
+                      No add-ons match your search.
+                    </div>
+                  ) : filteredAddons.map((addon) => {
                     return (
                       <div key={addon.id} className="relative">
                         <button
@@ -5957,23 +6010,42 @@ export default function CreateQuotePage() {
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                  <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
-                    Services
-                  </h2>
-                  <p className="text-[#A1A1AA] text-sm font-normal leading-none">
-                    Select services and configure pricing
-                  </p>
+                  <div>
+                    <h2 className="text-base lg:text-xl font-medium leading-none mb-2 text-white">
+                      Services
+                    </h2>
+                    <p className="text-[#A1A1AA] text-sm font-normal leading-none">
+                      Select services and configure pricing
+                    </p>
+                  </div>
                 </div>
                 <div className="my-4 lg:my-8 border-t border-[#FFFFFF80]" />
 
                 <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 ">
+                  <div className="flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className="relative rounded-[10px] border border-white/15 bg-[#101010]">
+                        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search services"
+                          className="h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none text-white placeholder:text-white/35 focus-visible:ring-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]"></div>
                       </div>
+                    ) : filteredServices.length === 0 ? (
+                      <div className="col-span-3 rounded-xl border border-dashed border-white/15 px-5 py-8 text-sm text-white/55">
+                        No services match your search.
+                      </div>
                     ) : (
-                      (services || []).map((service) => {
+                      filteredServices.map((service) => {
                         const isProtectedService = isProtectedServiceLabel(
                           service.label,
                         );
@@ -6078,7 +6150,7 @@ export default function CreateQuotePage() {
                               <div className="flex-1 relative">
                                 <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
                                   <span className="text-xs text-[#8A8A8A] font-normal">
-                                    Cost
+                                    Hourly Cost
                                   </span>
                                 </div>
                                 <Input
@@ -6207,11 +6279,15 @@ export default function CreateQuotePage() {
                                         <div key={type.id} className="relative">
                                           <button
                                             onClick={() =>
-                                              setSelectedEditingTypes((prev) =>
-                                                prev.includes(type.id)
-                                                  ? prev.filter((id) => id !== type.id)
-                                                  : [...prev, type.id]
-                                              )
+                                              setSelectedEditingTypes((prev) => {
+                                                if (prev.includes(type.id)) {
+                                                  if (prev.length === 1) {
+                                                    return prev;
+                                                  }
+                                                  return prev.filter((id) => id !== type.id);
+                                                }
+                                                return [...prev, type.id];
+                                              })
                                             }
                                             className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
                                               ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
@@ -6343,6 +6419,7 @@ export default function CreateQuotePage() {
                               const editingLabel = editingTypeId
                                 ? getSelectedShootTypeLabel(editingTypeOptions, editingTypeId)
                                 : "";
+                              const editingDisplayLabel = editingLabel || getServiceDisplayLabel(service.label) || service.label;
                               const editingConfig = editingTypeId
                                 ? editingTypeConfigs[editingTypeId]
                                 : null;
@@ -6370,13 +6447,13 @@ export default function CreateQuotePage() {
                                 >
                                 <div className="mb-4 flex items-start justify-between gap-4 lg:mb-8">
                                   <div className="min-w-0 flex-1 space-y-2">
-                                    <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
-                                      {isEditingServiceLabel(service.label) ? (
-                                        <>
-                                          Editing Type - <span className="break-words text-[#8E826A]">{editingLabel || "Not selected"}</span>
-                                        </>
-                                      ) : shootTypeLabel ? (
-                                        <>
+                                      <h3 className="flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug text-white">
+                                        {isEditingServiceLabel(service.label) ? (
+                                          <>
+                                            Editing Type - <span className="break-words text-[#8E826A]">{editingDisplayLabel}</span>
+                                          </>
+                                        ) : shootTypeLabel ? (
+                                          <>
                                           {getServiceDisplayLabel(service.label)} -{" "}
                                           <span className="break-words text-[#8E826A]">
                                             ({shootTypeLabel})
