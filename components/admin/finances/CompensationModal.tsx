@@ -104,6 +104,34 @@ export default function CompensationModal({
   }), [details?.creators]);
 
   const auditEntries: AuditEntry[] = useMemo(() => {
+    const creatorPaymentEntries = (details?.creators || []).flatMap((creator) =>
+      (creator.payment_history || []).map((payment, index) => {
+        const amount = Number(payment.amount || 0);
+        const paymentId = payment.id || `${creator.creator_earning_id}-${payment.paid_at || ""}-${amount}-${index}`;
+
+        return {
+          id: `payment-${paymentId}`,
+          label: "Payment Processed",
+          subLabel: `Paid to ${payment.creator_name || creator.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+          date: payment.paid_at,
+          dedupeKey: `payment-history|${paymentId}`,
+        };
+      })
+    );
+    const fallbackPaymentEntries = creatorPaymentEntries.length
+      ? []
+      : (details?.payment_history || []).map((payment, index) => {
+          const amount = Number(payment.amount || 0);
+          const paymentId = payment.id || `${payment.creator_earning_id || payment.creator_id || ""}-${payment.paid_at || ""}-${amount}-${index}`;
+
+          return {
+            id: `payment-${paymentId}`,
+            label: "Payment Processed",
+            subLabel: `Paid to ${payment.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+            date: payment.paid_at,
+            dedupeKey: `payment-history|${paymentId}`,
+          };
+        });
     const logs: AuditEntry[] = [
       ...(details?.audit_logs || [])
         .filter((log) => !isPaymentEvent(log.action))
@@ -124,9 +152,12 @@ export default function CompensationModal({
             ].join("|"),
           };
         }),
+      ...creatorPaymentEntries,
+      ...fallbackPaymentEntries,
       ...(details?.creators || []).flatMap((creator) =>
         (creator.timeline || [])
           .filter((event) => !isFinanceApprovalTimelineEvent(event.event_type))
+          .filter((event) => creatorPaymentEntries.length === 0 || !isPaymentEvent(event.event_type))
           .map((event) => {
             const paymentAmount = Number(event.amount) || getPaymentAmountFromText(event.sub_label);
             const isPayment = isPaymentEvent(event.event_type);
@@ -143,9 +174,10 @@ export default function CompensationModal({
               dedupeKey: [
                 isPayment ? "payment" : "timeline",
                 creator.creator_earning_id,
+                event.timeline_event_id || "",
                 normalizeAuditText(event.event_type),
                 isPayment ? Number(paymentAmount || 0).toFixed(2) : normalizeAuditText(label),
-                getAuditMinuteBucket(event.event_date),
+                event.timeline_event_id ? String(event.event_date || "") : getAuditMinuteBucket(event.event_date),
               ].join("|"),
             };
           })
@@ -455,18 +487,20 @@ export default function CompensationModal({
                 No audit activity recorded yet.
               </div>
             ) : (
-              auditEntries.map((entry, index) => (
-                <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
-                  <Clock size={20} className="text-[#99A1AF] shrink-0" />
-                  <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
-                    <div>
-                      <span className="text-white">{entry.label}</span>
-                      {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+              <div className="no-scrollbar max-h-[320px] space-y-4 overflow-y-auto pr-2">
+                {auditEntries.map((entry, index) => (
+                  <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
+                    <Clock size={20} className="text-[#99A1AF] shrink-0" />
+                    <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
+                      <div>
+                        <span className="text-white">{entry.label}</span>
+                        {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+                      </div>
+                      <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
                     </div>
-                    <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
