@@ -609,6 +609,7 @@ export default function AdminFinancesPage() {
     <>
       <Topbar
         pathname={pathname}
+        breadcrumbOverrides={{ cpCompensation: "CP Compensation" }}
         actions={
           <div className="flex items-center gap-3">
             <Button

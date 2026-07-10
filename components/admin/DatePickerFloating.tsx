@@ -13,6 +13,7 @@ import { Box } from "@mui/material";
 interface DatePickerFloatingProps {
   onDateChange: (date: Date | null) => void;
   selectedDate: Date | null;
+  minDate?: Date;
   width?: string;
   classnames?: string;
   labelClasses?: string;
@@ -22,6 +23,7 @@ interface DatePickerFloatingProps {
 export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
   onDateChange,
   selectedDate,
+  minDate,
   width,
   classnames,
   labelClasses,
@@ -104,9 +106,14 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
             onClose={() => setIsOpen(false)}
             value={selectedDate}
             onChange={(newValue) => {
+              if (minDate && newValue && newValue < minDate) {
+                setIsOpen(false);
+                return;
+              }
               onDateChange(newValue);
               setIsOpen(false);
             }}
+            minDate={minDate}
             slotProps={{
               desktopPaper: {
                 sx: {
@@ -134,6 +141,14 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
                     "&.Mui-selected, &.Mui-selected:focus, &.Mui-selected:hover": {
                       backgroundColor: "#E8D1AB",
                       color: "#000",
+                    },
+                    "&.Mui-disabled": {
+                      color: isDark ? "rgba(255,255,255,0.22)" : "rgba(50,50,50,0.24)",
+                      opacity: 0.45,
+                      textDecoration: "line-through",
+                    },
+                    "&.Mui-disabled:hover": {
+                      backgroundColor: "transparent",
                     },
                   },
                   "& .MuiPickersYear-yearButton.Mui-selected, & .MuiPickersMonth-monthButton.Mui-selected": {
