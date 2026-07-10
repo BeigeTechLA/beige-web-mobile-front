@@ -146,6 +146,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   onBack,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const autoFilledEmailRef = useRef<string | null>(null);
 
   const [errors, setErrors] = useState<string[]>([])
 
@@ -330,9 +331,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   };
 
-  // Auto-fill email if user is logged in
+  // Auto-fill once per signed-in account, then let the user freely edit or clear it.
   useEffect(() => {
-    if (isAuthenticated && user?.email && !data.email) {
+    if (!isAuthenticated || !user?.email) {
+      autoFilledEmailRef.current = null;
+      return;
+    }
+
+    if (autoFilledEmailRef.current !== user.email && !data.email) {
+      autoFilledEmailRef.current = user.email;
       updateData({ email: user.email });
     }
   }, [isAuthenticated, user?.email, data.email, updateData]);

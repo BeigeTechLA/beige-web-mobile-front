@@ -1254,6 +1254,7 @@ export default function CreateQuotePage() {
   const [isDetailsClientDropdownOpen, setIsDetailsClientDropdownOpen] =
     useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [isCreateNewClientFlow, setIsCreateNewClientFlow] = useState(false);
@@ -1373,6 +1374,24 @@ export default function CreateQuotePage() {
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
   const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
+
+  const catalogSearchTerm = catalogSearchQuery.trim().toLowerCase();
+  const filteredServices = React.useMemo(() => {
+    if (!catalogSearchTerm) return services;
+    return services.filter((service) =>
+      getServiceDisplayLabel(service.label).toLowerCase().includes(catalogSearchTerm),
+    );
+  }, [catalogSearchTerm, services]);
+
+  const filteredAddons = React.useMemo(() => {
+    if (!catalogSearchTerm) return addons;
+    return addons.filter((addon) => addon.label.toLowerCase().includes(catalogSearchTerm));
+  }, [addons, catalogSearchTerm]);
+
+  const filteredLogisticsItems = React.useMemo(() => {
+    if (!catalogSearchTerm) return logisticsItems;
+    return logisticsItems.filter((item) => item.label.toLowerCase().includes(catalogSearchTerm));
+  }, [catalogSearchTerm, logisticsItems]);
 
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -5467,7 +5486,24 @@ export default function CreateQuotePage() {
 
                 {/* Logistics Selection Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {logisticsItems.map((item) => {
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search logistics"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredLogisticsItems.length === 0 ? (
+                    <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                      No logistics items match your search.
+                    </div>
+                  ) : filteredLogisticsItems.map((item) => {
                     const isSelected = selectedLogistics.includes(item.id);
                     return (
                       <div key={item.id} className="relative">
@@ -5820,7 +5856,24 @@ export default function CreateQuotePage() {
                 <hr className={`border-t ${isDark ? 'border-[#3D3D3D]' : "border-[#000000]/15"}`} />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {(addons || []).map((addon) => {
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search add-ons"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredAddons.length === 0 ? (
+                    <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                      No add-ons match your search.
+                    </div>
+                  ) : filteredAddons.map((addon) => {
                     const isSelected = selectedAddons.includes(addon.id);
                     return (
                       <div key={addon.id} className="relative">
@@ -6289,24 +6342,43 @@ export default function CreateQuotePage() {
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                  <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
-                    Services
-                  </h2>
-                  <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
-                    Select services and configure pricing
-                  </p>
+                  <div>
+                    <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+                      Services
+                    </h2>
+                    <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
+                      Select services and configure pricing
+                    </p>
+                  </div>
                 </div>
 
                 <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
                 <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 mb-5">
+                  <div className="flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search services"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]"></div>
                       </div>
+                    ) : filteredServices.length === 0 ? (
+                      <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                        No services match your search.
+                      </div>
                     ) : (
-                      (services || []).map((service) => {
+                      filteredServices.map((service) => {
                         const isProtectedService = isProtectedServiceLabel(
                           service.label,
                         );
@@ -6432,7 +6504,7 @@ export default function CreateQuotePage() {
                                 <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
                                   <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"
                                     }`}>
-                                    Cost
+                                    Hourly Cost
                                   </span>
                                 </div>
                                 <Input
@@ -6572,16 +6644,20 @@ export default function CreateQuotePage() {
                                         const canDeleteShootType =
                                           canDeleteShootTypeItem(type);
 
-                                        return (
-                                          <div key={type.id} className="relative">
-                                            <button
-                                              onClick={() =>
-                                                setSelectedEditingTypes((prev) =>
-                                                  prev.includes(type.id)
-                                                    ? prev.filter((id) => id !== type.id)
-                                                    : [...prev, type.id]
-                                                )
-                                              }
+                                      return (
+                                        <div key={type.id} className="relative">
+                                          <button
+                                            onClick={() =>
+                                              setSelectedEditingTypes((prev) => {
+                                                if (prev.includes(type.id)) {
+                                                  if (prev.length === 1) {
+                                                    return prev;
+                                                  }
+                                                  return prev.filter((id) => id !== type.id);
+                                                }
+                                                return [...prev, type.id];
+                                              })
+                                            }
                                               className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
                                                 ? isDark ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-[#FFF7E6] border-[#E8D1AB] text-black shadow-inner"
                                                 : isDark
@@ -6727,6 +6803,7 @@ export default function CreateQuotePage() {
                               const editingLabel = editingTypeId
                                 ? getSelectedShootTypeLabel(editingTypeOptions, editingTypeId)
                                 : "";
+                              const editingDisplayLabel = editingLabel || getServiceDisplayLabel(service.label) || service.label;
                               const editingConfig = editingTypeId
                                 ? editingTypeConfigs[editingTypeId]
                                 : null;
@@ -6760,7 +6837,7 @@ export default function CreateQuotePage() {
                                       <h3 className={`flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}>
                                         {isEditingServiceLabel(service.label) ? (
                                           <>
-                                            Editing Type - <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{editingLabel || "Not selected"}</span>
+                                            Editing Type - <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{editingDisplayLabel}</span>
                                           </>
                                         ) : shootTypeLabel ? (
                                           <>
