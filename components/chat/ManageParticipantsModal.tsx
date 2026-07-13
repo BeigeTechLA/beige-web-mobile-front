@@ -291,7 +291,7 @@ export default function ManageParticipantsModal({
     <div className={`fixed inset-0 z-50 flex items-end lg:items-center justify-center p-0 lg:p-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div className={`relative w-full lg:max-w-[616px] overflow-hidden rounded-t-2xl lg:rounded-2xl border shadow-2xl transition-colors duration-200 flex flex-col max-h-[85vh] lg:max-h-[92vh] ${isDark ? "border-white/40 bg-black" : "border-white/40 bg-white"}`}>
+      <div className={`relative w-full lg:max-w-[616px] overflow-hidden rounded-t-2xl lg:rounded-2xl border shadow-2xl transition-colors duration-200 flex flex-col max-h-[90vh] lg:max-h-[92vh] ${isDark ? "border-white/40 bg-black" : "border-white/40 bg-white"}`}>
 
         {/* Mobile Swipe / Drag Indicator Bar */}
         <div className="w-12 h-1 bg-zinc-600/40 rounded-full mx-auto my-2 shrink-0 lg:hidden" />
@@ -331,7 +331,7 @@ export default function ManageParticipantsModal({
                   : "border-transparent text-zinc-400"
                   }`}
               >
-                <span className="inline-flex items-center justify-center gap-2 w-full text-xs lg:text-sm font-medium">
+                <span className="inline-flex items-center justify-center gap-2 w-full text-sm font-medium">
                   <UserRoundPlus className="h-4 w-4 lg:h-6 lg:w-6" />
                   Add New User
                 </span>
@@ -345,7 +345,7 @@ export default function ManageParticipantsModal({
                 : "border-transparent text-zinc-400"
                 }`}
             >
-              <span className="inline-flex items-center justify-center gap-2 w-full text-xs lg:text-sm font-medium">
+              <span className="inline-flex items-center justify-center gap-2 w-full text-sm font-medium">
                 <Users className="h-4 w-4 lg:h-6 lg:w-6" />
                 Current ({currentParticipants.length})
               </span>
@@ -363,7 +363,7 @@ export default function ManageParticipantsModal({
             <div className="space-y-4">
               <div className={`rounded-lg lg:rounded-xl border overflow-hidden ${isDark ? "border-white/20 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
                 {currentParticipants.length ? (
-                  <div className={`max-h-[260px] lg:max-h-[360px] divide-y overflow-y-auto ${isDark ? "divide-white/10" : "divide-zinc-200"}`}>
+                  <div className={`max-h-[320px] lg:max-h-[360px] divide-y overflow-y-auto ${isDark ? "divide-white/10" : "divide-zinc-200"}`}>
                     {currentParticipants.map((member) => {
                       const isCurrentUser = currentUserId != null && String(member.id || "") === String(currentUserId);
                       return (
@@ -470,7 +470,7 @@ export default function ManageParticipantsModal({
               </div>
 
               <div className={`rounded-lg lg:rounded-xl border overflow-hidden ${isDark ? "border-white/20 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
-                <div className="max-h-[200px] lg:max-h-[320px] overflow-y-auto divide-y divide-transparent">
+                <div className="max-h-[320px] overflow-y-auto divide-y divide-transparent">
                   {filteredCandidates.length ? (
                     filteredCandidates.map((member) => {
                       const memberId = String(member.id);
@@ -488,10 +488,10 @@ export default function ManageParticipantsModal({
                               <img
                                 src={resolveImage(member) || ""}
                                 alt={member.name || "Participant"}
-                                className="h-10 w-10 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
+                                className="h-12 w-12 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
                               />
                             ) : (
-                              <div className={`flex h-10 w-10 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
+                              <div className={`flex h-12 w-12 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
                                 {getInitials(member.name || member.email || memberId)}
                               </div>
                             )}
@@ -543,11 +543,11 @@ export default function ManageParticipantsModal({
         </div>
 
         {/* Footer Action Buttons */}
-        <div className={`p-4 lg:p-6 !pt-0 mt-auto flex gap-2.5 lg:gap-3 shrink-0`}>
+        <div className={`p-4 lg:p-6 lg:pt-0 mt-auto flex gap-2.5 lg:gap-3 shrink-0`}>
           <button
             type="button"
             onClick={onClose}
-            className={`flex-1 rounded-lg border p-3 lg:h-12 text-xs lg:text-sm font-medium transition-all ${isDark ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1F1F1F]/80" : "border-[#f0f0f0] bg-[#f0f0f0] text-zinc-700 hover:bg-zinc-100"}`}
+            className={`flex-1 rounded-lg border p-3 lg:h-12 text-sm font-medium transition-all ${isDark ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1F1F1F]/80" : "border-[#f0f0f0] bg-[#f0f0f0] text-zinc-700 hover:bg-zinc-100"}`}
           >
             Cancel
           </button>
@@ -556,7 +556,7 @@ export default function ManageParticipantsModal({
               type="button"
               onClick={submit}
               disabled={submitting || !selectedIds.length}
-              className={`flex-1 rounded-lg p-3 lg:h-12 text-xs lg:text-sm font-medium transition-all disabled:opacity-40 disabled:pointer-events-none bg-[#E8D1AB] text-black hover:bg-[#d4c2a1]`}
+              className={`flex-1 rounded-lg p-3 lg:h-12 text-sm font-medium transition-all disabled:opacity-40 disabled:pointer-events-none bg-[#E8D1AB] text-black hover:bg-[#d4c2a1]`}
             >
               {submitting ? "Adding..." : "Add to Conversation"}
             </button>

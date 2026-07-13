@@ -66,7 +66,7 @@ export default function SearchAutocomplete({
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div className="relative ">
+      <div className="relative min-w-0">
         {label ? (
           <label className={`absolute left-4 top-0 z-10 -translate-y-1/2 text-sm lg:text-base px-3 pointer-events-none ${isDark ? "text-white/60 bg-[#000]" : "bg-white text-black/60"}`}>
             {label}
@@ -80,7 +80,7 @@ export default function SearchAutocomplete({
             isDark ? "border-white/50 bg-[#000] text-white" : "border-gray-200 bg-white text-black shadow-sm hover:bg-gray-50"
           }`}
         >
-          <span className={selected ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/35" : "text-gray-400")}>
+          <span className={`truncate ${selected ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/35" : "text-gray-400")}`}>
             {selected ? selected.label : placeholder}
           </span>
           <ChevronDown className={`h-4 w-4 transition duration-200 ${isDark ? "text-white/45" : "text-gray-400"} ${open ? "rotate-180" : ""}`} />

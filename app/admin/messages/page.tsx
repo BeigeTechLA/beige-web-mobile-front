@@ -36,7 +36,7 @@ export default function MessagesPage() {
               </Button>
             </div>
           } />
-        <div className="flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden p-4 lg:px-10 lg:py-9">
+        <div className="flex h-[calc(100vh-120px)] min-h-0 flex-col overflow-hidden p-4 pb-30 lg:px-10 lg:py-9">
           <ExternalChatView
             role="admin"
             heading="Messages"

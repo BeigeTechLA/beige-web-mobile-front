@@ -1618,8 +1618,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-scroll no-scrollbar lg:overflow-y-auto">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-          <div>
+        <div className="flex items-start lg:items-center justify-between gap-3 px-1">
+          <div className="max-w-3/5">
             <h2 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>
               {heading}
             </h2>
@@ -1690,7 +1690,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                       type="button"
                       onClick={loadRooms}
                       variant="outline"
-                      className={`rounded-full p-0 shrink-0 w-9 h-9 transition-colors border-none ${isDark ? "text-white" : "text-black"}`}
+                      className={`rounded-full p-0 shrink-0 w-9 h-8 lg:h-9 transition-colors border-none ${isDark ? "text-white" : "text-black"}`}
                     >
                       <RefreshCw className="h-8 w-8" />
                     </Button>
@@ -1727,7 +1727,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                 </div>
 
                 {/* Dynamic Conversational Rooms List view */}
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4 lg:px-4 lg:py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   {loading ? (
                     <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
                       <Loader2 className="animate-spin text-[#BFA780]" size={40} />
@@ -1866,8 +1866,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
             <div className={`w-full min-w-0 overflow-visible min-h-0 flex-1 flex-col ${selectedRoom || shouldUseDirectRoom ? "flex" : "hidden lg:flex"}`}>
               {/* Top Conversation Header Panel */}
               <div className={`w-full min-w-0 lg:min-h-21 overflow-visible border-b p-4 lg:px-8 transition-colors ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E5E5E5] bg-[#FFFCF6]"}`}>
-                <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:items-center sm:justify-between lg:gap-4">
-
+                <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2 md:gap-4">
                   {/* Left Section: Back Button, Room Icon, Info Text */}
                   <div className="flex items-center gap-2 min-w-0 flex-1 lg:gap-3">
                     {/* Mobile Back Chevron Navigation Trigger Button */}
@@ -1915,7 +1914,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
                   {/* Right Section: Action Buttons */}
                   {selectedRoom ? (
-                    <div className="flex items-center justify-start gap-2 shrink-0 w-full sm:w-auto sm:justify-end">
+                    <div className="flex items-center justify-end gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -1944,7 +1943,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         </button>
 
                         {isHeaderMenuOpen ? (
-                          <div className={`absolute left-0 top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
+                          <div className={`absolute right-0 lg:left-0 top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                             <button
                               type="button"
                               onClick={async () => {
@@ -2009,10 +2008,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                             setManageDefaultTab("add");
                             setIsManageOpen(true);
                           }}
-                          className={`inline-flex items-center gap-2 rounded-lg h-10 px-4 py-3 text-xs lg:text-sm font-semibold transition-colors bg-[#E8D1AB] text-black hover:bg-[#d8c49e]`}
+                          className={`inline-flex items-center justify-center rounded-full lg:rounded-lg h-10 w-10 lg:w-auto lg:px-4 text-xs lg:text-sm font-semibold transition-colors bg-[#E8D1AB] text-black hover:bg-[#d8c49e] shrink-0`}
                         >
-                          <UserPlus className="h-4 w-4 shrink-0" />
-                          <span>Add Participant</span>
+                          <Plus className="h-6 w-6 lg:hidden shrink-0" />
+                          <UserPlus className="hidden lg:block h-4 w-4 shrink-0" />
+                          <span className="hidden lg:block ml-2">Add Participant</span>
                         </button>
                       ) : null}
                     </div>
@@ -2621,6 +2621,22 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           </div>
         </div>
       ) : null}
+
+
+      {/* --- FLOATING MOBILE BUTTON --- */}
+      <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+        <Button
+          onClick={() => {
+            if (!canCreateMessageRoom) return;
+            setIsComposerOpen(true);
+          }}
+          disabled={!canCreateMessageRoom}
+          title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
+          className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+        >
+          Create Messages
+        </Button>
+      </div>
     </>
   );
 });
