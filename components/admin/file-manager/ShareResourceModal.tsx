@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/src/components/landing/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { Trash2, X, Globe2, ChevronDown, History, User, Copy, CheckCircle2, Link, Eye, Download, ChevronUp } from "lucide-react";
+import { Trash2, X, Globe2, History, User, Copy, CheckCircle2, Link } from "lucide-react";
 
 interface ShareResourceModalProps {
   isOpen: boolean;
@@ -55,7 +54,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const [logsLoading, setLogsLoading] = useState(false);
   const [revokingShareId, setRevokingShareId] = useState<number | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [expandedEmails, setExpandedEmails] = useState<string[]>([]);
+  const [activityPopupOpen, setActivityPopupOpen] = useState(false);
   const { isDark } = useResolvedTheme();
 
   const reset = () => {
@@ -66,7 +65,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     setLoading(false);
     setSharingAnyone(false);
     setCopiedToken(null);
-    setExpandedEmails([]);
+    setActivityPopupOpen(false);
   };
 
   const handleClose = () => {
@@ -292,51 +291,41 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     return value.replace(/_/g, " ") || "View";
   };
 
-  const getActionIcon = (action?: string) => {
+  const getActivitySentence = (action?: string) => {
     const value = String(action || "").trim().toLowerCase();
-    if (value === "view_download" || value === "download") {
-      return (
-        <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#3b82f615] text-[#3b82f6]">
-          <Download size={14} />
-          <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.5)] border border-white/20" />
-        </div>
-      );
-    }
-    return (
-      <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#10b98115] text-[#10b981]">
-        <Eye size={14} />
-        <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_rgba(16,185,129,0.5)] border border-white/20" />
-      </div>
-    );
+    if (value === "download") return "downloaded files from the shared folder";
+    if (value === "view_download") return "viewed and downloaded files from the shared folder";
+    if (value === "content_view") return "viewed the shared files";
+    if (value.includes("link")) return "enabled public link access";
+    return `${normalizeActionLabel(action).toLowerCase()} from the shared folder`;
   };
 
-  const toggleExpand = (email: string) => {
-    setExpandedEmails(prev =>
-      prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
-    );
-  };
+  const formatActivityTime = (createdAt?: string) => {
+    if (!createdAt) return "";
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const isToday = date.toDateString() === now.toDateString();
 
-  const groupedAccessLogs = useMemo(() => {
-    const grouped = new Map<string, AccessLogItem[]>();
-    for (const log of accessLogs) {
-      const key = String(log.email || "").trim().toLowerCase();
-      if (!key) continue;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(log);
+    if (isToday) {
+      if (diffHours >= 1) return `${diffHours} hrs Ago`;
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
 
-    return Array.from(grouped.entries())
-      .map(([email, logs]) => {
-        const sortedLogs = [...logs].sort(
-          (a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
-        );
-        return {
-          email,
-          logs: sortedLogs,
-          latestAt: sortedLogs[0]?.createdAt,
-        };
-      })
-      .sort((a, b) => new Date(b.latestAt || "").getTime() - new Date(a.latestAt || "").getTime());
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
+
+  const activityDotColors = ["bg-[#8B5CF6]", "bg-[#06B6D4]", "bg-[#22C55E]", "bg-[#FBBF24]", "bg-[#F472B6]", "bg-[#F8FAFC]"];
+
+  const sortedAccessLogs = useMemo(() => {
+    return [...accessLogs].sort(
+      (a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
+    );
   }, [accessLogs]);
 
   return (
@@ -463,8 +452,8 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("activity")}
-            className={`text-sm font-bold transition-all underline decoration-1 underline-offset-4 ${activeTab === "activity"
+            onClick={() => setActivityPopupOpen(true)}
+            className={`text-sm font-bold transition-all underline decoration-1 underline-offset-4 ${activityPopupOpen
               ? isDark ? "text-[#E2C799]" : "text-[#B38F43]"
               : isDark ? "text-[#E2C799]/70 hover:text-[#E2C799]" : "text-[#B38F43]/70 hover:text-[#B38F43]"
               }`}
@@ -473,7 +462,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           </button>
         </div>
 
-        {activeTab === "people" ? (
+        {activeTab === "people" && (
           <div className="space-y-3">
             {listLoading ? (
               <div className="flex justify-center py-6">
@@ -583,97 +572,64 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
               </div>
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {logsLoading ? (
-              <div className="flex justify-center py-8">
-                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB]/20 border-t-[#E8D1AB]" />
-              </div>
-            ) : groupedAccessLogs.length === 0 ? (
-              <div className="py-8 text-center">
-                <History size={32} className={`mx-auto mb-2 ${isDark ? "text-white/10" : "text-black/10"}`} />
-                <p className={`text-xs ${isDark ? "text-white/30" : "text-black/30"}`}>No activity logged yet.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {groupedAccessLogs.map((group) => {
-                  const isExpanded = expandedEmails.includes(group.email);
-                  const initials = group.email.substring(0, 2).toUpperCase();
-
-                  return (
-                    <div key={group.email} className={`overflow-hidden rounded-xl border transition-colors ${isDark ? "border-white/5 bg-white/[0.01]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(group.email)}
-                        className={`w-full text-left px-4 py-3 focus:outline-none transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors ${isDark ? "bg-white/5 border-white/10 text-white/70" : "bg-black/5 border-[#D7D7D7] text-black/70"
-                              }`}>
-                              {initials}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className={`truncate text-sm font-bold ${isDark ? "text-white/90" : "text-black/90"}`}>{group.email}</span>
-                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${isDark ? "bg-white/5 text-white/30" : "bg-black/5 text-black/40"}`}>
-                                  {group.logs.length} {group.logs.length === 1 ? 'event' : 'events'}
-                                </span>
-                              </div>
-                              <div className={`mt-0.5 flex items-center gap-1.5 text-[10px] ${isDark ? "text-[#AAA7A7]" : "text-[#727272]"}`}>
-                                <span className={`h-1 w-1 rounded-full ${isDark ? "bg-white/20" : "bg-black/20"}`} />
-                                <span className="font-medium truncate">{normalizeActionLabel(group.logs[0]?.action)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
-                            <span className={`text-[10px] font-medium ${isDark ? "text-white/30" : "text-[#727272]"}`}>
-                              {new Date(group.latestAt || "").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                            {isExpanded ? <ChevronUp size={14} className={isDark ? "text-white/30" : "text-black/30"} /> : <ChevronDown size={14} className={isDark ? "text-white/30" : "text-black/30"} />}
-                          </div>
-                        </div>
-                      </button>
-
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <div className={`relative mx-4 mb-4 ml-6 space-y-4 rounded-lg p-4 pt-5 border-t transition-colors ${isDark ? "bg-black/40 border-white/5" : "bg-black/[0.02] border-[#D7D7D7]"}`}>
-                              {/* Timeline Tracer Line */}
-                              <div className={`absolute left-[11px] top-[24px] bottom-[24px] w-[1px] border-l border-dashed ${isDark ? "border-white/10" : "border-black/10"}`} />
-
-                              {group.logs.map((log, i) => (
-                                <div key={i} className="relative flex items-center justify-between z-10 pl-4 gap-2">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    {getActionIcon(log.action)}
-                                    <span className={`text-xs font-bold truncate ${isDark ? "text-white/80" : "text-black/80"}`}>
-                                      {normalizeActionLabel(log.action)}
-                                    </span>
-                                  </div>
-                                  <span className={`text-[10px] font-medium tabular-nums shrink-0 ${isDark ? "text-white/20" : "text-black/30"}`}>
-                                    {new Date(log.createdAt || "").toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         )}
       </div>
     </div>
   </div>
+
+  {activityPopupOpen && (
+    <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/55 px-4">
+      <div className="w-full max-w-[528px] overflow-hidden rounded-[8px] border border-white/10 bg-black text-white shadow-[0_22px_70px_rgba(0,0,0,0.65)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <h3 className="text-lg font-bold leading-none text-white">Activity Log</h3>
+              <button
+                type="button"
+                onClick={() => setActivityPopupOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2C2C2C] text-white/70 transition-colors hover:bg-[#3A3A3A] hover:text-white"
+                aria-label="Close activity log"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {logsLoading ? (
+              <div className="flex justify-center py-8">
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB]/20 border-t-[#E8D1AB]" />
+              </div>
+            ) : sortedAccessLogs.length === 0 ? (
+              <div className="py-8 text-center">
+                <History size={32} className="mx-auto mb-2 text-white/15" />
+                <p className="text-xs text-white/35">No activity logged yet.</p>
+              </div>
+            ) : (
+              <div className="relative max-h-[430px] overflow-y-auto px-5 py-6 pr-4 no-scrollbar">
+                <div className="absolute bottom-0 left-[32px] top-6 border-l border-dashed border-white/15" />
+                <div className="space-y-7">
+                  {sortedAccessLogs.map((log, index) => {
+                    const email = log.email || "Anyone with link";
+                    const name = email.includes("@") ? email.split("@")[0].replace(/[._-]+/g, " ") : email;
+                    const displayName = name.replace(/\b\w/g, (char) => char.toUpperCase());
+                    const activitySentence = getActivitySentence(log.action);
+                    const dotColor = activityDotColors[index % activityDotColors.length];
+
+                    return (
+                      <div key={`${log.id}-${index}`} className="relative grid grid-cols-[24px_minmax(0,1fr)_86px] items-start gap-4">
+                        <span className={`relative z-10 mt-1.5 h-3 w-3 rounded-full ${dotColor} shadow-[0_0_0_8px_rgba(255,255,255,0.05)]`} />
+                        <p className="min-w-0 text-sm font-medium leading-6 text-[#B5B5B5]">
+                          <span className="font-bold text-white">{displayName}</span>{" "}
+                          {activitySentence}
+                        </p>
+                        <span className="pt-0.5 text-right text-sm font-medium text-white/35">
+                          {formatActivityTime(log.createdAt)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+      </div>
+    </div>
+  )}
 
   {/* Action Panel Footer Row - Stays Fixed */}
   <div className={`grid grid-cols-2 gap-3 border-t p-4 lg:px-6 lg:py-5 transition-colors shrink-0 sticky bottom-0 z-50 ${isDark ? "border-white/10 bg-[#050505]" : "border-[#D7D7D7] bg-[#FAFAFA]"
