@@ -54,10 +54,10 @@ export default function PaymentMethodSelectionModal({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 p-4 lg:p-7">
-          <div className={`flex flex-col justify-between rounded-lg p-3 lg:-4 border ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "text-black border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+          <div className={`flex flex-col justify-between rounded-lg p-3 lg:p-4 border opacity-70 ${isDark ? "bg-[#222222] border-[#4A4A4A] text-white" : "text-black border-[#DADDE3] bg-[#F8F9FB]"}`}>
             <div>
               <div className="flex gap-2 items-center">
-                <div className={`flex items-center justify-center bg-[#DBEAFE] rounded-lg h-10 w-10 lg:h-12 lg:w-12`}>
+                <div className={`flex items-center justify-center bg-[#EAF2FF] rounded-lg h-10 w-10 lg:h-12 lg:w-12`}>
                   <Image
                     src="/images/misc/Stripe.svg"
                     alt="Stripe icon"
@@ -82,13 +82,13 @@ export default function PaymentMethodSelectionModal({
             <Button
               onClick={onStripeClick}
               disabled
-              className="mt-5 lg:mt-9 h-10 lg:h-12 w-full bg-[#155DFC] text-white opacity-50 cursor-not-allowed"
+              className="mt-4 lg:mt-7 h-10 lg:h-12 w-full bg-[#155DFC] text-white opacity-50 cursor-not-allowed"
             >
-              Continue with Stripe
+              Continue with Stripe <span className="text-[#E8D1AB]">(Coming Soon)</span>
             </Button>
           </div>
 
-          <div className={`flex flex-col justify-between rounded-lg p-3 lg:-4 border ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "text-black border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+          <div className={`flex flex-col justify-between rounded-lg p-3 lg:p-4 border ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "text-black border-[#D7D7D7] bg-[#F4F5F7]"}`}>
             <div>
               <div className="flex gap-2 items-center">
                 <div className={`flex items-center justify-center bg-[#F3E8FF] rounded-lg h-10 w-10 lg:h-12 lg:w-12`}>
