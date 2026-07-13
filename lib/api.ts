@@ -607,6 +607,17 @@ export interface SalesQuoteConvertToBookingData {
   missing_required_fields?: string[];
 }
 
+export interface CreatorEarningsParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  range?: string;
+  date_on?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
 export type SalesQuoteConvertSingleDayPayload = {
   booking_type: "single_day";
   time_zone: string;
@@ -1470,6 +1481,74 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
   }
 };
 
+// ==================== Creator Earnings Dashboard ====================
+export const getCreatorEarningsDashboard = async () => {
+  try {
+    const response = await api.get(
+      "creator-earnings/me/dashboard"
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earnings Dashboard Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earnings dashboard",
+    };
+  }
+};
+
+// ==================== Creator Earnings List ====================
+export const getCreatorEarningsList = async (
+  queryParams: CreatorEarningsParams = {
+    page: 1,
+    limit: 10,
+    status: "all",
+    search: "",
+  }
+) => {
+  try {
+    const response = await api.get(
+      "creator-earnings/me/earnings",
+      {
+        params: queryParams,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earnings List Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earnings list",
+    };
+  }
+};
+
+// ==================== Creator Earning Details ====================
+export const getCreatorEarningDetails = async (
+  earningId: number
+) => {
+  try {
+    const response = await api.get(
+      `creator-earnings/me/earnings/${earningId}`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earning Details Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earning details",
+    };
+  }
+};
+
+
+
 export const adminApi = {
   createInternalCredential: async (payload: {
     name: string;
@@ -1495,6 +1574,13 @@ export const adminApi = {
     start_date?: string;
     end_date?: string;
     date_on?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    history_status?: string;
+    date_from?: string;
+    date_to?: string;
   } = {}) => {
     try {
       const response = await api.get('finance/admin/credit-points/dashboard', {
@@ -1645,11 +1731,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes`,
@@ -1671,11 +1757,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes/${noteId}/replies`,
@@ -1960,11 +2046,13 @@ export const adminApi = {
   },
   getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.post('admin/get-crew-members', {
-        page: params.page || 1,
-        limit: params.limit || 50,
-        search: params.search,
-        status: params.status,
+      const response = await api.get('admin/get-crew-members', {
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          search: params.search,
+          status: params.status,
+        },
       });
       return response.data;
     } catch (error: any) {

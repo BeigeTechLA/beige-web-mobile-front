@@ -71,12 +71,28 @@ import {
   useUpdateGuestBookingMutation,
 } from "@/lib/redux/features/booking/guestBookingApi";
 import type { GuestBookingData } from "@/lib/redux/features/booking/guestBookingApi";
+import { pushToDataLayer } from "@/lib/gtm";
 
 const STUDIO_STEPS = [
   { label: "Studio Details" },
   { label: "Creator Matching" },
   { label: "Book & Confirm" },
 ];
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
+
+const toUtcIsoIfValid = (value?: string | null) => {
+  if (!value) return value;
+  const date = new Date(value);
+  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+};
 
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
@@ -261,6 +277,7 @@ type StepProps = {
   onSaveAndConfirm: () => Promise<void>;
   onBrowseCreators: () => Promise<void>;
   isSaving: boolean;
+  user?: any;
 };
 
 const StudioCard = ({
@@ -289,7 +306,7 @@ const StudioCard = ({
         initial={false}
         whileHover={{
           y: -10,
-          rotate: 8, 
+          rotate: 8,
         }}
         transition={{
           type: "tween",
@@ -297,8 +314,8 @@ const StudioCard = ({
           duration: 0.2,
         }}
         // The style object below is the fix for the "sharp corners" issue
-        style={{ 
-          backfaceVisibility: 'hidden', 
+        style={{
+          backfaceVisibility: 'hidden',
           WebkitBackfaceVisibility: 'hidden',
           transformStyle: 'preserve-3d',
           willChange: 'transform'
@@ -308,13 +325,13 @@ const StudioCard = ({
         }`}
       > */}
         <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
-          <Image 
-            src={studio.image} 
-            alt={studio.name} 
-            fill 
-            className="object-cover transition-transform duration-500 group-hover:scale-105" 
+          <Image
+            src={studio.image}
+            alt={studio.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          
+
           <div className="absolute bottom-0 left-4 rounded-t-xl bg-white px-3 py-1.5 z-10">
             <span className="text-[13px] font-extrabold text-black">
               {getStudioStartingPriceLabel(studio)}
@@ -325,7 +342,7 @@ const StudioCard = ({
             <div className="h-2 w-2 rounded-full bg-[#14C573] shadow-[0_0_8px_#14C573]" />
             <span className="text-[10px] font-bold text-white">Available</span>
           </div>
-          
+
           {studio.rating && (
             <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md">
               <Star size={13} className="fill-[#E8D1AB] text-[#E8D1AB]" />
@@ -378,7 +395,7 @@ const StudioCard = ({
                 Select Studio
               </Button>
             )}
-            
+
             <Link
               href={`/studios/${studio.id}`}
               target="_blank"
@@ -699,30 +716,30 @@ const BookStudioDetailsStep = ({
     const currentEnd = endTime || "17:00";
     const nextPricingKey = getDefaultPricingKey(studio);
     if (selectedStudio?.id === studio.id) {
-    updateData({
-      selectedStudios: [],
-      selectedStudioIds: [],
-      selectedStudioName: "",
-      selectedStudioImage: "",
-      location: "",
-      locationDetails: undefined
-    });
-    return;
-  }
+      updateData({
+        selectedStudios: [],
+        selectedStudioIds: [],
+        selectedStudioName: "",
+        selectedStudioImage: "",
+        location: "",
+        locationDetails: undefined
+      });
+      return;
+    }
     const nextBookingDays = data.bookingType === "multi_day" && selectedDates.length
       ? selectedDates.map((date) => {
-          const dateKey = getDateKey(date);
-          return {
-            date: dateKey,
-            startTime: sameTimingsMulti ? currentStart : multiDayTimes[dateKey]?.startKey,
-            endTime: sameTimingsMulti ? currentEnd : multiDayTimes[dateKey]?.endKey,
-          };
-        })
+        const dateKey = getDateKey(date);
+        return {
+          date: dateKey,
+          startTime: sameTimingsMulti ? currentStart : multiDayTimes[dateKey]?.startKey,
+          endTime: sameTimingsMulti ? currentEnd : multiDayTimes[dateKey]?.endKey,
+        };
+      })
       : [{
-          date: format(currentDate, "yyyy-MM-dd"),
-          startTime: currentStart,
-          endTime: currentEnd,
-        }];
+        date: format(currentDate, "yyyy-MM-dd"),
+        startTime: currentStart,
+        endTime: currentEnd,
+      }];
 
     applyStudioSelection(studio, nextPricingKey, nextBookingDays);
   };
@@ -731,19 +748,19 @@ const BookStudioDetailsStep = ({
     if (!selectedStudio) return;
     const schedule = data.bookingType === "multi_day" && selectedDates.length
       ? selectedDates.map((date) => {
-          const dateKey = getDateKey(date);
-          return {
-            date: dateKey,
-            startTime: sameTimingsMulti ? startTime : multiDayTimes[dateKey]?.startKey,
-            endTime: sameTimingsMulti ? endTime : multiDayTimes[dateKey]?.endKey,
-          };
-        })
-        : selectedDate
-          ? [{
-              date: format(selectedDate, "yyyy-MM-dd"),
-              startTime,
-              endTime,
-            }]
+        const dateKey = getDateKey(date);
+        return {
+          date: dateKey,
+          startTime: sameTimingsMulti ? startTime : multiDayTimes[dateKey]?.startKey,
+          endTime: sameTimingsMulti ? endTime : multiDayTimes[dateKey]?.endKey,
+        };
+      })
+      : selectedDate
+        ? [{
+          date: format(selectedDate, "yyyy-MM-dd"),
+          startTime,
+          endTime,
+        }]
         : [];
 
     if (!schedule.length) {
@@ -775,16 +792,16 @@ const BookStudioDetailsStep = ({
   const hasSelectedStudioSchedule =
     data.bookingType === "multi_day"
       ? selectedDates.length > 0 &&
-        (sameTimingsMulti
-          ? Boolean(startTime && endTime)
-          : selectedDates.every((date) => {
-              const dateKey = getDateKey(date);
-              return Boolean(multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey);
-            }))
+      (sameTimingsMulti
+        ? Boolean(startTime && endTime)
+        : selectedDates.every((date) => {
+          const dateKey = getDateKey(date);
+          return Boolean(multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey);
+        }))
       : Boolean(selectedDate && startTime && endTime);
   const estimateTotal = hasSelectedStudioSchedule
     ? selectedStudioTotal ||
-      (selectedPricing ? selectedPricing.hourlyRate * billableHours + (selectedPricing.cleaningFee || 0) : 0)
+    (selectedPricing ? selectedPricing.hourlyRate * billableHours + (selectedPricing.cleaningFee || 0) : 0)
     : 0;
 
   return (
@@ -849,9 +866,8 @@ const BookStudioDetailsStep = ({
                 key={option.key}
                 type="button"
                 onClick={() => handleBookingTypeChange(option.key as "single_day" | "multi_day")}
-                className={`flex h-14 w-fit min-w-[210px] items-center justify-between rounded-2xl border px-4 transition-colors duration-300 ease-in-out lg:h-[82px] lg:w-[300px] lg:px-6 ${
-                  active ? "border-transparent bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] text-black" : "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20"
-                }`}
+                className={`flex h-14 w-fit min-w-[210px] items-center justify-between rounded-2xl border px-4 transition-colors duration-300 ease-in-out lg:h-[82px] lg:w-[300px] lg:px-6 ${active ? "border-transparent bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] text-black" : "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20"
+                  }`}
               >
                 <span className="pr-2 text-sm font-medium lg:text-lg">{option.label}</span>
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full lg:h-8 lg:w-8 ${active ? "bg-black" : "border border-[#E5E5E5]"}`}>
@@ -970,9 +986,8 @@ const BookStudioDetailsStep = ({
                         if (Date.now() < suppressChipClickUntil.current) return;
                         toggleDateSelection(date);
                       }}
-                      className={`flex h-[60px] w-[60px] shrink-0 flex-col items-center justify-center rounded-full border transition-all lg:h-[100px] lg:w-[100px] ${
-                        isSelected ? "border-[#E8D1AB] bg-[#E8D1AB] text-black" : "border-white/10 bg-transparent text-white/40 hover:border-white/30"
-                      }`}
+                      className={`flex h-[60px] w-[60px] shrink-0 flex-col items-center justify-center rounded-full border transition-all lg:h-[100px] lg:w-[100px] ${isSelected ? "border-[#E8D1AB] bg-[#E8D1AB] text-black" : "border-white/10 bg-transparent text-white/40 hover:border-white/30"
+                        }`}
                     >
                       <span className="text-lg font-bold lg:text-3xl">{format(date, "d")}</span>
                       <span className="text-[10px] font-medium uppercase lg:text-xs">{format(date, "EEE")}</span>
@@ -1029,9 +1044,8 @@ const BookStudioDetailsStep = ({
                             type="button"
                             key={date.toISOString()}
                             onClick={() => toggleDateSelection(date)}
-                            className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors ${
-                              isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"
-                            } ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"
+                              } ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                           >
                             {format(date, "d")}
                           </button>
@@ -1059,9 +1073,8 @@ const BookStudioDetailsStep = ({
                         key={option.label}
                         type="button"
                         onClick={() => handleSameTimingsModeChange(option.value)}
-                        className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 transition-colors duration-300 ease-in-out lg:h-[82px] lg:w-[140px] lg:px-6 ${
-                          active ? "border-transparent bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] text-black" : "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20"
-                        }`}
+                        className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 transition-colors duration-300 ease-in-out lg:h-[82px] lg:w-[140px] lg:px-6 ${active ? "border-transparent bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] text-black" : "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20"
+                          }`}
                       >
                         <span className="pr-2 text-sm font-medium lg:text-lg">{option.label}</span>
                         <span className={`flex h-6 w-6 items-center justify-center rounded-full lg:h-8 lg:w-8 ${active ? "bg-black" : "border border-[#E5E5E5]"}`}>
@@ -1183,7 +1196,7 @@ const BookStudioDetailsStep = ({
         )}
       </div>
 
-       {selectedStudio && selectedStudio.pricingOptions && selectedStudio.pricingOptions.length > 0 && (
+      {selectedStudio && selectedStudio.pricingOptions && selectedStudio.pricingOptions.length > 0 && (
         <div className="border-t border-white/10 pt-8">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-white lg:text-2xl">What are you booking the studio for?</h2>
@@ -1205,9 +1218,8 @@ const BookStudioDetailsStep = ({
                   key={option.key}
                   type="button"
                   onClick={() => handlePricingOptionChange(option.key)}
-                  className={`rounded-2xl border p-5 text-left transition-colors ${
-                    active ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"
-                  }`}
+                  className={`rounded-2xl border p-5 text-left transition-colors ${active ? "border-[#E8D1AB] bg-[#E8D1AB14]" : "border-white/10 bg-[#151515] hover:border-white/25"
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1287,6 +1299,7 @@ const CreatorDetailsStep = ({
   onSaveAndConfirm,
   onBrowseCreators,
   isSaving,
+  user
 }: StepProps) => {
   const [updateBookingCrew, { isLoading: isUpdatingCrew }] = useUpdateBookingCrewMutation();
   const [videoCount, setVideoCount] = useState(data.roleCounts?.videographer || data.videographyCount || 0);
@@ -1294,17 +1307,17 @@ const CreatorDetailsStep = ({
   const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(data.editsNeeded ? "video" : null);
   const videoPanelRef = useRef<HTMLDivElement>(null);
   const photoPanelRef = useRef<HTMLDivElement>(null);
- useEffect(() => {
-  if (!openEditPanel) return;
-  const activeRef = openEditPanel === "video" ? videoPanelRef : photoPanelRef;
-  const handleClickOutside = (event: MouseEvent) => {
-    if (activeRef.current && !activeRef.current.contains(event.target as Node)) {
-      setOpenEditPanel(null);
-    }
-  };
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, [openEditPanel]);
+  useEffect(() => {
+    if (!openEditPanel) return;
+    const activeRef = openEditPanel === "video" ? videoPanelRef : photoPanelRef;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activeRef.current && !activeRef.current.contains(event.target as Node)) {
+        setOpenEditPanel(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openEditPanel]);
 
 
   const updateEditCount = (key: string, delta: number, type: "video" | "photo") => {
@@ -1371,6 +1384,23 @@ const CreatorDetailsStep = ({
         editsNeeded: data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0,
       });
 
+      pushToDataLayer("studio_booking_step2_submitted", {
+        type: "Action Tracking",
+        page_name: "Book-a-studio Page - Choose Creators",
+        location_in_website: "book_a_studio_step2_continue_btn",
+        duration_on_page: performance.now() / 1000,
+        phone: user?.phone_number,
+        user_id: user?.id || "Guest",
+        user_type: user?.user_type_id !== undefined ? USER_TYPE[user.user_type_id] : "Guest",
+        booking_id: data.bookingId,
+        email: data.email,
+
+        // Flat fields passed individually for seamless GA4 tracking:
+        form_edits_needed: data.editsNeeded ? "true" : "false", // Convert boolean to a clear string
+        form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+        form_additional_creative: (serverCrewRoles.videographer || videoCount) + (serverCrewRoles.photographer || photoCount),
+      });
+
       onBrowseCreators();
     } catch (error) {
       console.error("Failed to save studio creator details:", error);
@@ -1431,19 +1461,18 @@ const CreatorDetailsStep = ({
             return (
               <button
                 key={String(value)}
-	                type="button"
-	                onClick={() => {
-	                  if (!value) {
-	                    setOpenEditPanel(null);
-	                    updateData({ editsNeeded: false, videoEditTypes: [], photoEditTypes: [] });
-	                  } else {
-	                    setOpenEditPanel("video");
-	                    updateData({ editsNeeded: true });
-	                  }
-	                }}
-                className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-4 text-sm font-medium ${
-                  active ? "border-transparent bg-[#E8D1AB] text-black" : "border-white/10 bg-[#101010] text-white/70"
-                }`}
+                type="button"
+                onClick={() => {
+                  if (!value) {
+                    setOpenEditPanel(null);
+                    updateData({ editsNeeded: false, videoEditTypes: [], photoEditTypes: [] });
+                  } else {
+                    setOpenEditPanel("video");
+                    updateData({ editsNeeded: true });
+                  }
+                }}
+                className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-4 text-sm font-medium ${active ? "border-transparent bg-[#E8D1AB] text-black" : "border-white/10 bg-[#101010] text-white/70"
+                  }`}
               >
                 {value ? "Yes" : "No"}
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full ${active ? "bg-black" : "border border-white/70"}`}>
@@ -1465,7 +1494,7 @@ const CreatorDetailsStep = ({
             </p>
 
             <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
-              <div ref={videoPanelRef}  className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
+              <div ref={videoPanelRef} className="self-start overflow-hidden rounded-[24px] border border-white/10 bg-[#171717]">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left"
@@ -1559,7 +1588,7 @@ const CreatorDetailsStep = ({
         >
           {isUpdatingCrew ? "Saving..." : "Continue"}
         </Button>
-        <Button onClick={onSaveAndConfirm} 
+        <Button onClick={onSaveAndConfirm}
           className="h-14 lg:h-[72px] bg-[#FFFFFF] hover:bg-[#FFFFFF]/80 text-black font-medium  text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]">
           Skip Creators
         </Button>
@@ -1569,10 +1598,10 @@ const CreatorDetailsStep = ({
 };
 
 export const BookAStudio = () => {
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<BookingDataV3>({
     ...initialDataV3,
@@ -1585,8 +1614,13 @@ export const BookAStudio = () => {
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
   const [createGuestBooking, { isLoading: isCreatingBooking }] = useCreateGuestBookingMutation();
   const [updateGuestBooking, { isLoading: isUpdatingBooking }] = useUpdateGuestBookingMutation();
+  const [userTypeName, setUserTypeName] = useState("Guest");
 
   const isSubmitting = isTracking || isQuoteLoading || isCreatingBooking || isUpdatingBooking;
+
+  if (isAuthenticated && user?.email) {
+    setUserTypeName(user?.user_type_id !== undefined ? USER_TYPE[user.user_type_id] : "Guest");
+  }
 
   const updateData = useCallback((next: Partial<BookingDataV3>) => {
     setFormData((current) => ({ ...current, ...next }));
@@ -1595,7 +1629,7 @@ export const BookAStudio = () => {
   useEffect(() => {
     const preSelectedId = searchParams.get("studioId");
     const preSelectedPricingKey = searchParams.get("pricingKey") || "";
-    
+
     if (preSelectedId) {
       const studio = HOURLY_STUDIO_LIST.find((s) => s.id === preSelectedId);
       if (studio) {
@@ -1670,8 +1704,8 @@ export const BookAStudio = () => {
       start_time: primaryStudio?.startTime || getLocalTimePart(formData.startDate),
       end_time: primaryStudio?.endTime || getLocalTimePart(formData.endDate),
       time_zone: browserTimeZone,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
+      startDate: toUtcIsoIfValid(formData.startDate),
+      endDate: toUtcIsoIfValid(formData.endDate),
       booking_type: formData.bookingType || "single_day",
       booking_days: (formData.bookingDays || []).map((day) => ({
         ...day,
@@ -1707,12 +1741,108 @@ export const BookAStudio = () => {
   const goToConfirm = async () => {
     const bookingId = await saveStudioDraft();
     if (!bookingId) return;
+
+    if (activeStep === 1) {
+      pushToDataLayer("generate_lead", {
+        value: formData.selectedStudios?.map((studio) => studio.totalPrice).toString(), // Standard parameters
+        currency: "USD",
+        page_name: "Book-a-studio Page",  // Custom data schema
+        location_in_website: "book_a_studio_step1",
+        duration_on_page: performance.now() / 1000,
+        user_id: user?.id || "Guest",
+        user_type: userTypeName || "Guest",
+        booking_id: bookingId,
+        email: formData.email,
+      });
+
+      pushToDataLayer("studio_booking_submitted_step1", {
+        type: "Action Tracking",
+        page_name: "Book-a-studio Page",
+        location_in_website: "book_a_studio_step1",
+        duration_on_page: performance.now() / 1000,
+        phone: user?.phone_number,
+        user_id: user?.id || "Guest",
+        user_type: userTypeName || "Guest",
+        booking_id: bookingId,
+        email: formData.email,
+
+        // Flat fields passed individually for seamless GA4 tracking:
+        form_content_type: formData.contentType.toString(),
+        form_shoot_type: formData.shootType,
+        form_shoot_date_time: `${formData.startDate} to ${formData.endDate}`,
+        form_booking_type: formData.bookingType,
+        form_selected_studio: formData.selectedStudioIds?.toString(),
+        form_studio_pricing_category: formData.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
+        form_shoot_location: formData.location,
+      });
+
+      console.log("Generate_lead pushed to DL from Book a studio page");
+    } else if (activeStep === 2) {
+      pushToDataLayer("studio_booking_step2_skipped_creators", {
+        type: "Action Tracking",
+        page_name: "Book-a-studio Page",
+        location_in_website: "book_a_studio_step1",
+        duration_on_page: performance.now() / 1000,
+        phone: user?.phone_number,
+        user_id: user?.id || "Guest",
+        user_type: userTypeName || "Guest",
+        booking_id: bookingId,
+        email: formData.email,
+
+        // Flat fields passed individually for seamless GA4 tracking:
+        form_content_type: formData.contentType.toString(),
+        form_shoot_type: formData.shootType,
+        form_shoot_date_time: `${formData.startDate} to ${formData.endDate}`,
+        form_booking_type: formData.bookingType,
+        form_selected_studio: formData.selectedStudioIds?.toString(),
+        form_studio_pricing_category: formData.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
+        form_shoot_location: formData.location,
+      });
+
+      console.log("studio_booking_step2_skipped_creators pushed to DL from Book a studio page");
+    }
+
     setActiveStep(5);
-  };
+  }
 
   const goToCreatorDetails = async () => {
     const bookingId = await saveStudioDraft();
     if (!bookingId) return;
+
+    // generate_lead needs to be pushed to the data layer before the studio_booking_browse_creators_clicked event, as per GA4 tracking requirements.
+    pushToDataLayer("generate_lead", {
+      value: formData.selectedStudios?.map((studio) => studio.totalPrice).toString(), // Standard parameters
+      currency: "USD",
+      page_name: "Book-a-studio Page",  // Custom data schema
+      location_in_website: "book_a_studio_step1",
+      duration_on_page: performance.now() / 1000,
+      user_id: user?.id || "Guest",
+      user_type: userTypeName || "Guest",
+      booking_id: bookingId,
+      email: formData.email,
+    });
+
+    pushToDataLayer("studio_booking_browse_creators_clicked", {
+      type: "Action Tracking",
+      page_name: "Book-a-studio Page",
+      location_in_website: "book_a_studio_browse_creators_btn",
+      duration_on_page: performance.now() / 1000,
+      phone: user?.phone_number,
+      user_id: user?.id || "Guest",
+      user_type: userTypeName || "Guest",
+      booking_id: bookingId,
+      email: formData.email,
+
+      // Flat fields passed individually for seamless GA4 tracking:
+      form_content_type: formData.contentType.toString(),
+      form_shoot_type: formData.shootType,
+      form_shoot_date_time: `${formData.startDate} to ${formData.endDate}`,
+      form_booking_type: formData.bookingType,
+      form_selected_studio: formData.selectedStudioIds?.toString(),
+      form_studio_pricing_category: formData.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
+      form_shoot_location: formData.location,
+    });
+
     setActiveStep(2);
   };
 
@@ -1745,6 +1875,7 @@ export const BookAStudio = () => {
         : primaryStudio?.quantity || 0;
 
       let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
       try {
         const quotePayload = {
           items: creatorQuoteItems,
@@ -1769,6 +1900,7 @@ export const BookAStudio = () => {
         };
         const savedQuote = await saveQuote(quotePayload).unwrap();
         savedQuoteId = savedQuote.quote_id;
+        savedQuoteTotal = savedQuote.total;
       } catch (error) {
         console.error("Studio quote save failed:", error);
         toast.error("Error calculating final price, but proceeding with booking...");
@@ -1823,6 +1955,29 @@ export const BookAStudio = () => {
         ? await updateGuestBooking({ id: draftBookingId, data: finalBookingData }).unwrap()
         : await createGuestBooking(finalBookingData).unwrap();
 
+      // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
+      pushToDataLayer("begin_checkout", {
+        currency: "USD",
+        value: savedQuoteTotal || 0,
+
+        page_name: "Book-a-studio Page",
+        location_in_website: "book_a_studio_review_confirm_btn",
+
+        email: isAuthenticated ? user?.email : formData.email,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        full_name: formData.fullName,
+        phone: formData.phone || "Unknown",
+
+        booking_id: submissionResult?.booking_id || draftBookingId,
+        items: [{
+          item_name: finalBookingData?.order_name || "Shoot Booking",
+          price: savedQuoteTotal || 0,
+          quantity: 1
+        }]
+      });
+      // ---------------------------------------------------------
+
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",
       });
@@ -1832,9 +1987,9 @@ export const BookAStudio = () => {
       console.error("Studio booking submission failed:", error);
       const message =
         typeof error === "object" &&
-        error !== null &&
-        "data" in error &&
-        typeof (error as { data?: { message?: unknown } }).data?.message === "string"
+          error !== null &&
+          "data" in error &&
+          typeof (error as { data?: { message?: unknown } }).data?.message === "string"
           ? (error as { data: { message: string } }).data.message
           : "Could not complete booking. Please check your connection.";
       toast.error("Submission Failed", {
@@ -1850,9 +2005,10 @@ export const BookAStudio = () => {
     onSaveAndConfirm: goToConfirm,
     onBrowseCreators: goToCreatorDetails,
     isSaving: isSubmitting,
+    user: user || null,
   };
 
-    const renderStep = () => {
+  const renderStep = () => {
     if (activeStep === 1) return <BookStudioDetailsStep {...stepProps} />;
     if (activeStep === 2) {
       return (
@@ -1876,11 +2032,11 @@ export const BookAStudio = () => {
       );
     }
     if (activeStep === 4) return <V3LoadingFindingCreative />;
-    
+
     // Step 5: Decision point for "Book & Confirm" stage
     if (activeStep === 5) {
       const hasCreators = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
-      
+
       // If they chose creators, show selection list
       if (hasCreators) {
         return (
@@ -1934,23 +2090,23 @@ export const BookAStudio = () => {
           <div className="container z-20 w-full px-4 md:px-6">
             <button
               type="button"
-               onClick={() => {
-                 const hasCreators = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
-    
-                  if (activeStep === 6) {
-                    setActiveStep(5);
-                  } else if (activeStep === 5) {
-                    if (hasCreators) {
-                      setActiveStep(3); 
-                    } else {
-                      setActiveStep(1);
-                    }
-                  } else if (activeStep === 4) {
+              onClick={() => {
+                const hasCreators = (formData.roleCounts?.videographer || 0) + (formData.roleCounts?.photographer || 0) > 0;
+
+                if (activeStep === 6) {
+                  setActiveStep(5);
+                } else if (activeStep === 5) {
+                  if (hasCreators) {
                     setActiveStep(3);
                   } else {
-                    setActiveStep((current) => Math.max(1, current - 1));
+                    setActiveStep(1);
                   }
-                }}
+                } else if (activeStep === 4) {
+                  setActiveStep(3);
+                } else {
+                  setActiveStep((current) => Math.max(1, current - 1));
+                }
+              }}
               className="flex items-center text-sm text-white/70 transition-colors hover:text-white lg:text-lg"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />

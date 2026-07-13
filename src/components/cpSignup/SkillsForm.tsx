@@ -6,14 +6,26 @@ import AddSkills from "./addSkills";
 import { videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
 import { normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 
+type SkillOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+type SelectedSkill = {
+  id?: string | number;
+  value?: string | number;
+  name?: string;
+};
+
 interface SkillsFormProps {
-  value?: any[]; // Array of objects like {id: 19, name: 'Weddings'}
+  value?: Array<SelectedSkill | string | number>; // Array of objects like {id: 19, name: 'Weddings'}
   primaryRole?: unknown;
-  onChange?: (skills: any[]) => void;
+  onChange?: (skills: SelectedSkill[]) => void;
+  isDark?: boolean;
 }
 
-const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
-  
+const SkillsForm = ({ value = [], primaryRole, onChange, isDark = true }: SkillsFormProps) => {
   const roleIds = normalizeCreatorRoleIds(primaryRole);
 
   // 2. SELECT THE CORRECT LIST BASED ON ROLE
@@ -26,8 +38,8 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
 
     if (options.length) {
       return options.filter(
-        (option: any, index: number, arr: any[]) =>
-          arr.findIndex((item: any) => String(item.value) === String(option.value)) === index
+        (option: SkillOption, index: number, arr: SkillOption[]) =>
+          arr.findIndex((item: SkillOption) => String(item.value) === String(option.value)) === index
       );
     }
     
@@ -38,7 +50,6 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
   const currentOptions = getOptionsByRole();
 
   // 3. MAP PROFILE SKILLS TO IDs (for the selection UI)
-  // Profile has {id, name}, Static Data has {value, label}
   const selectedIds = value?.map(skill => {
     if (typeof skill === 'object' && skill !== null) {
       return (skill.id || skill.value)?.toString();
@@ -51,13 +62,12 @@ const SkillsForm = ({ value = [], primaryRole, onChange }: SkillsFormProps) => {
       <AddSkills
         value={selectedIds}
         options={currentOptions} // Uses value/label directly from your static data
+        isDark={isDark}
         onChange={(newIds) => {
           // 4. MAP BACK TO PROFILE FORMAT {id, name}
-          // When user selects a skill, find it in the static list 
-          // and format it for the API/State
           const updatedSkills = currentOptions
-            .filter((opt: any) => newIds.includes(opt.value.toString()))
-            .map((opt: any) => ({
+            .filter((opt: SkillOption) => newIds.includes(opt.value.toString()))
+            .map((opt: SkillOption) => ({
               id: parseInt(opt.value),
               name: opt.label
             }));

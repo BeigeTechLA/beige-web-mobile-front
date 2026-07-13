@@ -498,6 +498,41 @@ const prettifyExternalFolderName = (name?: string) => {
   return normalized.replace(/-/g, " ");
 };
 
+const toTitleCaseWord = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+};
+
+const getFirstName = (value?: string | null) =>
+  String(value || "")
+    .replace(/#/g, " ")
+    .split(/[\s_]+/)
+    .map((part) => part.trim())
+    .find(Boolean) || "";
+
+export const formatFileManagerWorkspaceName = (name?: string | null) => {
+  const rawName = String(name || "").trim();
+  if (!rawName) return "Folder";
+
+  const isDirectWorkspace = /^direct[\s_]+/i.test(rawName);
+  const directName = rawName.replace(/^direct[\s_]+/i, "").trim();
+  if (isDirectWorkspace && directName) return directName;
+
+  const idFromName = String(rawName.match(/#\s*([A-Za-z0-9-]+)/)?.[1] || "").trim();
+  if (!idFromName) return rawName;
+
+  const nameWithoutId = rawName.replace(/#\s*[A-Za-z0-9-]+/g, " ");
+  const nameSegments = nameWithoutId
+    .split("_")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const clientNameSegment = nameSegments[nameSegments.length - 1] || nameWithoutId;
+  const firstName = toTitleCaseWord(getFirstName(clientNameSegment));
+
+  return firstName ? `${firstName}_#${idFromName.replace(/^#/, "")}` : rawName;
+};
+
 const formatRelativeTime = (value?: string) => {
   if (!value) return "recently";
 
@@ -1157,14 +1192,15 @@ export const mapProjectToFolderCard = (
   basePath: string = DEFAULT_FILE_MANAGER_BASE_PATH
 ): UiFolderItem => ({
   id: String(project.project_id),
-  title: project.project_name || project.project_code,
+  title: formatFileManagerWorkspaceName(project.project_name || project.project_code),
   fileCount: project.total_files_count || 0,
   category: project.state_display_name || project.current_state,
   isLinked: true,
   lastOpened: formatRelativeTime(project.updated_at || project.created_at),
-  userInitials: getInitials(project.assigned_creator?.name || project.client?.name),
+  userInitials: getDisplayInitials(formatFileManagerWorkspaceName(project.project_name || project.project_code)),
   href: `${basePath}/${project.project_id}`,
   updatedAtRaw: project.updated_at || project.created_at,
+  rawName: project.project_name || project.project_code,
 });
 
 export const buildProjectRootFolders = (
@@ -1310,16 +1346,17 @@ export const mapExternalWorkspaceToFolderCard = (
   basePath: string
 ): UiFolderItem => ({
   id: workspace.externalId,
-  title: workspace.folderName,
+  title: workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName),
   fileCount: workspace.fileCount || 0,
   category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
   isLinked: true,
   lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
-  userInitials: getDisplayInitials(workspace.folderName),
+  userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
   href: `${basePath}/${workspace.externalId}`,
   resourcePath: workspace.rootPath,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
   visibleUntil: workspace.visibleUntil || null,
+  rawName: workspace.folderName,
 });
 
 export const mapExternalFoldersToUi = (

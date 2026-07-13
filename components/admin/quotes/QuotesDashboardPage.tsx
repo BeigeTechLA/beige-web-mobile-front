@@ -102,7 +102,7 @@ type ChartPoint = {
 
 type DisplayQuoteRow = {
   id: string;
-  leadId: string;
+  leadId: string; 
   bookingStatus: string;
   quoteNumber: string;
   client: string;
@@ -1604,7 +1604,7 @@ export default function QuotesDashboardPage({
     !hasActiveFilters;
 
   return (
-    <>
+    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent
         pathname={pathname}
         actions={
@@ -1629,7 +1629,7 @@ export default function QuotesDashboardPage({
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+      <div className="p-4 lg:p-10">
         <div className="mb-8 flex items-start justify-between">
           <div className="max-w-1/2">
             <h1 className="mb-2 font-semibold lg:text-2xl">Quotes Module</h1>
@@ -1908,7 +1908,7 @@ export default function QuotesDashboardPage({
             </div>
 
             {/* Table Section */}
-            <div className={`mb-5 lg:mb-20 overflow-x-auto overflow-y-hidden rounded-2xl md:mb-0 [-webkit-overflow-scrolling:touch] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
+             <div className={`mb-5 lg:mb-20 overflow-x-auto overflow-y-hidden rounded-2xl md:mb-0 [-webkit-overflow-scrolling:touch] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
               <table className="min-w-full text-left border-collapse">
                 <thead>
                   {/* Desktop Headers */}
@@ -1943,22 +1943,21 @@ export default function QuotesDashboardPage({
                         <React.Fragment key={quote.id}>
                           {/* Main Row */}
                           <tr
-                            onClick={(e) => {
-                              const target = e.target as HTMLElement;
-                              if (target.closest('button') || target.closest('a') || target.closest('[role="combobox"]')) {
-                                return;
-                              }
-
+                             onClick={() => {
                               if (window.innerWidth < 768) {
                                 setExpandedRowId(isExpanded ? null : quote.id);
-                              } else {
-                                router.push(`${detailBaseHref}/${quote.id}`);
                               }
                             }}
                             className={`relative group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
                           >
-                            <td className="px-4 py-4 md:px-6">
-                              <div className="relative z-10 flex items-center gap-3">
+                              <td className="px-4 py-4 md:px-6">
+                             <Link
+                                href={`${detailBaseHref}/${quote.id}`}
+                                className="absolute inset-0 z-0 hidden md:block"
+                                aria-label={`Open quote ${quote.quoteNumber}`}
+                                prefetch={false}
+                              />
+                              <div className="relative z-10 flex items-center gap-3 pointer-events-none">
                                 {/* Mobile Chevron */}
                                 <div
                                   className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors  pointer-events-auto ${isExpanded
@@ -1984,7 +1983,7 @@ export default function QuotesDashboardPage({
                             {/* Desktop Specific Cells */}
                             <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
                             <td className="hidden px-6 py-4 md:table-cell align-middle">
-                              {renderBookingStatus(quote.bookingStatus, quote.leadId)}
+                                {renderBookingStatus(quote.bookingStatus, quote.leadId)}
                             </td>
                             <td className="hidden px-6 py-4 font-medium md:table-cell">{formatCurrency(quote.amountValue)}</td>
 
@@ -1997,7 +1996,7 @@ export default function QuotesDashboardPage({
 
                             <td className="hidden px-6 py-4 md:table-cell">{quote.validUntil}</td>
                             <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
-                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">
+                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">                              
                               <QuoteActionMenu
                                 disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
                                 open={openActionMenuId === `desktop-${quote.id}`}
@@ -2032,9 +2031,9 @@ export default function QuotesDashboardPage({
                                     </div>
                                     <div>
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Booking Status</p>
-                                      {renderBookingStatus(quote.bookingStatus, quote.leadId)}
+                                        {renderBookingStatus(quote.bookingStatus, quote.leadId)}
                                     </div>
-                                    <div>
+                                    <div className="text-right">
                                       <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
                                       <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
                                     </div>
@@ -2174,6 +2173,7 @@ export default function QuotesDashboardPage({
         shootDateValue={editAccessState?.shootDateValue}
         isSubmitting={isEditAccessSubmitting}
       />
-    </>
+
+    </div>
   );
 }

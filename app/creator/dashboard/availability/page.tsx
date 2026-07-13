@@ -16,6 +16,8 @@ import {
   Plus,
   CheckCircle,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 // Assuming standard Next.js path aliases (@/)
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import TimePicker from "@/components/ui/Timepicker";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { StatCard } from "@/components/admin/StatCard";
+import Topbar from "@/components/admin/Topbar";
 
 // --- HELPERS ---
 const formatLocation = (locationInput) => {
@@ -127,6 +130,8 @@ export default function AvailabilityPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [projectDetails, setProjectDetails] = useState(null);
   const [projectLoading, setProjectLoading] = useState(false);
+  const pathname = usePathname();
+  const { isDark } = useResolvedTheme();
 
   const [formData, setFormData] = useState(getDefaultFormData);
 
@@ -433,7 +438,10 @@ export default function AvailabilityPage() {
     const calendarDays = [];
 
     for (let i = 0; i < firstDay; i++) {
-      calendarDays.push(<div key={`empty-${i}`} className="h-28 bg-[#0D0D0D]/50 border border-white/5" />);
+      calendarDays.push(<div key={`empty-${i}`} className={`h-28 border transition-colors ${isDark
+        ? "bg-[#0D0D0D]/50 border-white/5"
+        : "bg-[#F4F4F4] border-[#E5E5E5]"
+        }`} />);
     }
 
     const today = new Date();
@@ -454,13 +462,14 @@ export default function AvailabilityPage() {
       const isToday = dateString === todayDateString;
 
       // Background logic matching the high-end dashboard
-      const cardBackground = isPastDate
-        ? "bg-[#0D0D0D] opacity-40"
-        : isAvailable
-          ? "bg-[#111]"
-          : "bg-[#161616]";
+      const cardBackground = isDark
+        ? (isPastDate ? "bg-[#161616] opacity-90" : isAvailable ? "bg-[#111]" : "bg-[#161616]")
+        : (isPastDate ? "bg-[#F4F4F4] opacity-80" : isAvailable ? "bg-[#F8F4EE]" : "bg-white");
 
-      const textColor = isAvailable ? "text-white" : "text-white/30";
+      const textColor = isDark
+        ? (isAvailable ? "text-white" : "text-white/30")
+        : (isAvailable ? "text-black" : "text-black/30");
+      const borderColor = isDark ? "border-white/5" : "border-[#E5E5E5]";
 
       const handleDateClick = () => {
         if (!isPastDate) {
@@ -489,9 +498,10 @@ export default function AvailabilityPage() {
           onClick={handleDateClick}
           onMouseEnter={handleDateHover}
           onMouseLeave={handleDateLeave}
-          className={`h-28 p-3 border border-white/5 text-xs transition-all duration-200
-    ${cardBackground} ${textColor}
-    ${!isPastDate ? "cursor-pointer" : ""} hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A] group`}
+          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} ${isAssigned ? "cursor-pointer" : "cursor-default"} ${isDark
+            ? "hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A]"
+            : "hover:border-black/20 hover:bg-black/[0.02]"
+            } group`}
         >
           <div
             className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-1 transition-colors ${isToday ? "bg-[#E8D1AB] text-black" : "group-hover:text-[#E8D1AB]"
@@ -506,19 +516,17 @@ export default function AvailabilityPage() {
                 <div className="space-y-1">
                   {availabilityStatus.projectDetails?.project_name && (
                     <>
-                      <EventDot color="bg-blue-500" label="Shoot" />
-                      <EventDot color="bg-[#E8D1AB]" label="Booked" />
+                      <EventDot color="bg-blue-500" label="Shoot" isDark={isDark} />
+                      <EventDot color="bg-[#E8D1AB]" label="Booked" isDark={isDark} />
                     </>
                   )}
                 </div>
               )}
               {isAvailable && !isAssigned && (
-                <>
-                  <div className="flex items-center gap-1 text-green-500/70">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <span className="hidden lg:block">Available</span>
-                  </div>
-                </>
+                <div className="flex items-center gap-1 text-green-500/70">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span className="hidden lg:block">Available</span>
+                </div>
               )}
               {!isAvailable && !isAssigned && (
                 <div className="flex items-center gap-1 text-red-400/75">
@@ -527,7 +535,7 @@ export default function AvailabilityPage() {
                 </div>
               )}
               {hasTimeRange && (
-                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? "text-white/45" : "text-red-200/60"}`}>
+                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
                   <Clock size={11} />
                   <span>{startTimeDisplay} - {endTimeDisplay}</span>
                 </div>
@@ -541,91 +549,100 @@ export default function AvailabilityPage() {
     return calendarDays;
   };
 
-
   return (
-    <div className="mx-auto space-y-4 lg:space-y-8 pb-6 lg:pb-12 px-0 bg-transparent text-white">
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white">Manage Availability</h1>
-          <p className="text-white/60 text-sm lg:text-base">Set your available dates and times for upcoming projects</p>
+    <>
+      <Topbar pathname={pathname} />
+      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
+          <div>
+            <h1 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>Manage Availability</h1>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/55" : "text-black/60"}`}>Set your available dates and times for upcoming projects</p>
+          </div>
+
+          <Button
+            onClick={handleModalOpen}
+            className="bg-[#E8D1AB] text-black rounded-lg lg:rounded-xl h-10 lg:h-12 px-4 lg:px-8 hover:bg-[#d4be9a] transition-colors lg:font-bold flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Add Availability
+          </Button>
         </div>
 
-        <Button
-          onClick={handleModalOpen}
-          className="bg-[#E8D1AB] text-black rounded-lg lg:rounded-xl h-10 lg:h-12 px-4 lg:px-8 hover:bg-[#d4be9a] transition-colors lg:font-bold flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Add Availability
-        </Button>
-      </div>
+        {/* Summary Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            label="Available Days"
+            value={summaryData.availableDays}
+            icon={CheckCircle}
+            iconColor="text-green-500"
+            hoverBorder="hover:border-green-500/30"
+            isDark={isDark}
+          />
+          <StatCard
+            label="Booked Shoots"
+            value={summaryData.bookedShoots}
+            icon={Video}
+            iconColor="text-[#E8D1AB]"
+            hoverBorder="hover:border-[#E8D1AB]/30"
+            isDark={isDark}
+          />
+          <StatCard
+            label="Time Off"
+            value={`${summaryData.timeOff} days`}
+            icon={Clock}
+            iconColor="text-red-400"
+            hoverBorder="hover:border-red-400/30"
+            isDark={isDark}
+          />
+        </div>
 
-      {/* Summary Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard
-          label="Available Days"
-          value={summaryData.availableDays}
-          icon={CheckCircle}
-          iconColor="text-green-500"
-          hoverBorder="hover:border-green-500/30"
-        />
-        <StatCard
-          label="Booked Shoots"
-          value={summaryData.bookedShoots}
-          icon={Video}
-          iconColor="text-[#E8D1AB]"
-          hoverBorder="hover:border-[#E8D1AB]/30"
-        />
-        <StatCard
-          label="Time Off"
-          value={`${summaryData.timeOff} days`}
-          icon={Clock}
-          iconColor="text-red-400"
-          hoverBorder="hover:border-red-400/30"
-        />
-      </div>
-
-      <div className="grid grid-cols-12 gap-4 lg:gap-6">
-        {/* Main Calendar Section */}
-        <div className="col-span-12 lg:col-span-9 space-y-4 lg:space-y-6">
-          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-2xl overflow-hidden shadow-2xl">
-            {/* Calendar Controls */}
-            <div className="p-4 lg:p-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center bg-black rounded-lg border border-white/10 p-1">
-                  <button
-                    onClick={() => handleMonthChange("prev")}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleMonthChange("next")}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-white/60 transition-colors"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+        <div className="grid grid-cols-12 gap-4 lg:gap-6">
+          {/* Main Calendar Section */}
+          <div className="col-span-12 lg:col-span-9 space-y-4 lg:space-y-6">
+            <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden shadow-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200"}`}>
+              {/* Calendar Controls */}
+              <div className={`p-4 lg:p-6 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${isDark ? "border-white/5" : "border-gray-100"}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`flex items-center rounded-lg gap-2 lg:gap-4 p-1`}>
+                    <button
+                      onClick={() => handleMonthChange("prev")}
+                      className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"}`}
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className={`lg:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                      {new Date(currentYear, currentMonth - 1).toLocaleString(
+                        "default",
+                        {
+                          month: "long",
+                          year: "numeric",
+                        }
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handleMonthChange("next")}
+                      className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"}`}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
                 </div>
 
-                <span className="lg:text-lg font-bold text-white tracking-tight">
-                  {format(new Date(currentYear, currentMonth - 1), 'MMMM yyyy')}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E8D1AB]/40"
-                  onClick={() => {
-                    setCurrentMonth(new Date().getMonth() + 1);
-                    setCurrentYear(new Date().getFullYear());
-                  }}
-                >
-                  Today
-                </Button>
-                {/* <div className="h-4 w-[1px] bg-white/10 mx-2" /> */}
-                {/* <Select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
+                    onClick={() => {
+                      setCurrentMonth(new Date().getMonth() + 1);
+                      setCurrentYear(new Date().getFullYear());
+                    }}
+                  >
+                    Today
+                  </Button>
+                  {/* <div className="h-4 w-[1px] bg-white/10 mx-2" /> */}
+                  {/* <Select>
                   <SelectTrigger className="w-[140px] bg-black border-white/10 text-white text-xs">
                     <SelectValue placeholder="All Events" />
                   </SelectTrigger>
@@ -634,362 +651,418 @@ export default function AvailabilityPage() {
                     <SelectItem value="shoots">Shoots Only</SelectItem>
                   </SelectContent>
                 </Select> */}
+                </div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 border-collapse">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (d, index) => (
+                    <div
+                      key={index}
+                      className={`py-3 text-center text-[10px] font-bold uppercase tracking-widest border-b border-r last:border-r-0 ${isDark ? "text-white/30 bg-black/40 border-[#333]" : "text-[#7C7777] bg-[#EDEBEB] border-gray-100"}`}
+                    >
+                      {d}
+                    </div>
+                  )
+                )}
+                {renderCalendarDays()}
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar Info Section */}
+          <div className="col-span-12 lg:col-span-3 space-y-4">
+            <div className={`rounded-lg lg:rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3`}>
+              <Info className="text-blue-400 shrink-0 mt-0.5" size={18} />
+              <p className={`text-xs leading-relaxed ${isDark ? "text-blue-200/70 " : "text-blue-400"}`}>
+                Your availability is automatically blocked for confirmed shoots.
+              </p>
+            </div>
+
+            <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
+              <h3 className={`font-medium mb-2 lg:mb-4 ${isDark ? "text-white" : "text-black"}`}>Color Legend</h3>
+              <div className="space-y-2 lg:space-y-4">
+                <Legend color={isDark ? "bg-[#444]" : "bg-[#ECE7E2]"} label="Disabled" desc="Past or unavailable" isDark={isDark} />
+                <Legend color="bg-[#E8D1AB]" label="Today" desc="Current date" isDark={isDark} />
+                <Legend color="bg-blue-500" label="Shoots" desc="Confirmed projects" isDark={isDark} />
+                <Legend color="bg-purple-500" label="Equipment" desc="Allocated gear" isDark={isDark} />
+                <Legend color="bg-red-500" label="Conflicts" desc="Action required" isDark={isDark} />
               </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 border-collapse">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (d, index) => (
-                  <div
-                    key={index}
-                    className="py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white/30 bg-black/40 border-b border-r border-white/5"
-                  >
-                    {d}
-                  </div>
-                )
-              )}
-              {renderCalendarDays()}
+            <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
+              <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Quick Info</h3>
+              <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+                Keep your calendar updated to receive more project invitations. Confirmed bookings will appear with a blue marker.
+              </p>
+              <Button
+                className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"}`}
+              >
+                Sync Calendar
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Sidebar Info Section */}
-        <div className="col-span-12 lg:col-span-3 space-y-4">
-          <div className="rounded-lg lg:rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3">
-            <Info className="text-blue-400 shrink-0 mt-0.5" size={18} />
-            <p className="text-xs text-blue-200/70 leading-relaxed">
-              Your availability is automatically blocked for confirmed shoots.
-            </p>
-          </div>
-
-          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6">
-            <h3 className="text-sm font-bold text-white mb-4 lg:mb-6 uppercase tracking-wider">Color Legend</h3>
-            <div className="space-y-2 lg:space-y-4">
-              <Legend color="bg-white/20" label="Disabled" desc="Past or unavailable" />
-              <Legend color="bg-[#E8D1AB]" label="Today" desc="Current date" />
-              <Legend color="bg-blue-500" label="Shoots" desc="Confirmed projects" />
-              <Legend color="bg-purple-500" label="Equipment" desc="Allocated gear" />
-              <Legend color="bg-red-500" label="Conflicts" desc="Action required" />
-            </div>
-          </div>
-
-          <div className="bg-[#111] border border-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6">
-            <h3 className="text-sm font-bold text-white mb-4 lg:mb-6 uppercase tracking-wider">Quick Info</h3>
-            <p className="text-xs text-white/40 leading-relaxed mb-4">
-              Keep your calendar updated to receive more project invitations. Confirmed bookings will appear with a blue marker.
-            </p>
-            <Button variant="outline" className="w-full border-white/10 text-white/60 hover:text-[#E8D1AB] text-xs">
-              Sync Calendar
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Availability Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
-          <div
-            className={`w-full max-w-lg bg-[#111] border border-white/10 text-white rounded-xl lg:rounded-2xl mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl
-            ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
-            max-h-[90vh] overflow-y-auto`}
-          >
-            <button
-              onClick={handleModalClose}
-              className="absolute top-3 right-3 lg:top-6 lg:right-6 text-white/40 hover:text-[#E8D1AB] transition-colors"
+        {/* Availability Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
+            <div
+              className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
+      ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
+      ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
+      max-h-[90vh] overflow-y-auto`}
             >
-              <X size={20} />
-            </button>
+              <button
+                onClick={handleModalClose}
+                className={`absolute top-3 right-3 lg:top-6 lg:right-6 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
+              >
+                <X size={20} />
+              </button>
 
-            <h2 className="text-lg lg:text-2xl font-bold mb-1 text-white">Add Availability</h2>
-            <p className="text-white/40 text-xs lg:text-sm mb-4 lg:mb-8">Schedule your working hours</p>
+              <h2 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+                Add Availability
+              </h2>
+              <p className={`text-xs lg:text-sm mb-4 lg:mb-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                Schedule your working hours
+              </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Type</label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) => handleFormChange(value, "type")}
-                >
-                  <SelectTrigger className="w-full bg-black border-white/10 text-white h-12">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${formData.type === "1" ? "bg-green-500" : "bg-red-500"}`} />
-                      <SelectValue placeholder="Select option" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                    <SelectItem value="1">Available</SelectItem>
-                    <SelectItem value="2">Not Available</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Date</label>
-                <DatePicker
-                  label=""
-                  value={parseLocalDate(selectedDate)}
-                  minDate={new Date()}
-                  onChange={(d) => {
-                    setSelectedDate(d);
-                    if (formData.recurrence === "4") {
-                      handleFormChange(d?.getDate().toString(), "monthlyDay");
-                    }
-                  }}
-                />
-              </div>
-
-              {!isAllDay && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Start Time</label>
-                    <TimePicker
-                      label=""
-                      value={formData.startTime}
-                      onChange={(time) => handleTimeChange(time, "startTime")}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">End Time</label>
-                    <TimePicker
-                      label=""
-                      value={formData.endTime}
-                      onChange={(time) => handleTimeChange(time, "endTime")}
-                      minTime={formData.startTime || undefined}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-3 py-2">
-                <input
-                  type="checkbox"
-                  id="allDay"
-                  checked={isAllDay}
-                  onChange={handleAllDayChange}
-                  className="w-4 h-4 rounded border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
-                />
-                <label htmlFor="allDay" className="text-sm font-medium text-white/80 cursor-pointer">All day availability</label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Recurrence</label>
-                <Select value={formData.recurrence} onValueChange={(value) => handleFormChange(value, "recurrence")}>
-                  <SelectTrigger className="w-full bg-black border-white/10 text-white h-12">
-                    <SelectValue placeholder="Does not repeat" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
-                    <SelectItem value="1">Does Not Repeat</SelectItem>
-                    <SelectItem value="2">Daily</SelectItem>
-                    <SelectItem value="3">Weekly</SelectItem>
-                    <SelectItem value="4">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.recurrence !== "1" && (
-                <div className="space-y-4 p-4 bg-white/5 rounded-xl border border-white/5">
-                  {formData.recurrence === "2" && (
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="incWeekends"
-                        checked={formData.includeWeekends}
-                        onChange={(e) => handleFormChange(e.target.checked, "includeWeekends")}
-                        className="rounded border-white/10 bg-black"
-                      />
-                      <label htmlFor="incWeekends" className="text-sm text-white/60">Include Weekends</label>
-                    </div>
-                  )}
-
-                  {formData.recurrence === "3" && (
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/40">Repeat on</label>
-                      <div className="flex flex-wrap gap-2">
-                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => {
-                              const current = formData.repeatOn || [];
-                              const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
-                              handleFormChange(updated, "repeatOn");
-                            }}
-                            className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${formData.repeatOn.includes(day)
-                              ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
-                              : "bg-black text-white/60 border-white/10 hover:border-white/30"
-                              }`}
-                          >
-                            {day}
-                          </button>
-                        ))}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Type
+                  </label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value) => handleFormChange(value, "type")}
+                  >
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${formData.type === "1" ? "bg-green-500" : "bg-red-500"}`} />
+                        <SelectValue placeholder="Select option" />
                       </div>
-                    </div>
-                  )}
-
-                  {/* MONTHLY */}
-                  {formData.recurrence === "4" && (
-                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <span>Repeat on Day</span>
-                      <input
-                        type="text"
-                        value={formData.monthlyDay ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, "");
-                          if (val === "" || (Number(val) >= 1 && Number(val) <= 31)) {
-                            handleFormChange(val, "monthlyDay");
-                          }
-                        }}
-                        // Added text-gray-900 and dark:text-white below
-                        className="w-14 px-2 py-1 rounded-lg bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 text-gray-900 dark:text-white text-center outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                      <span>of each month</span>
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Until Date</label>
-                    <DatePicker
-                      label=""
-                      value={formData.untilDate}
-                      minDate={parseLocalDate(selectedDate) || new Date()}
-                      onChange={(d) => handleFormChange(d, "untilDate")}
-                    />
-                  </div>
+                    </SelectTrigger>
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      <SelectItem value="1">Available</SelectItem>
+                      <SelectItem value="2">Not Available</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  onClick={handleModalClose}
-                  variant="ghost"
-                  className="text-white/40 hover:text-white"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-bold px-8 rounded-xl"
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Date
+                  </label>
+                  <DatePicker
+                    label=""
+                    value={parseLocalDate(selectedDate)}
+                    minDate={new Date()}
+                    isDark={isDark}
+                    onChange={(d) => {
+                      setSelectedDate(d);
+                      if (formData.recurrence === "4") {
+                        handleFormChange(d?.getDate().toString(), "monthlyDay");
+                      }
+                    }}
+                  />
+                </div>
+
+                {!isAllDay && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Start Time
+                      </label>
+                      <TimePicker
+                        label=""
+                        value={formData.startTime}
+                        onChange={(time) => handleTimeChange(time, "startTime")}
+                        isDark={isDark}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        End Time
+                      </label>
+                      <TimePicker
+                        label=""
+                        value={formData.endTime}
+                        onChange={(time) => handleTimeChange(time, "endTime")}
+                        minTime={formData.startTime || undefined}
+                        isDark={isDark}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    id="allDay"
+                    checked={isAllDay}
+                    onChange={handleAllDayChange}
+                    className={`w-4 h-4 rounded border transition-colors ${isDark
+                      ? "border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]"
+                      : "border-black/20 bg-neutral-50 text-[#cbb38b] focus:ring-[#cbb38b]"
+                      }`}
+                  />
+                  <label htmlFor="allDay" className={`text-sm font-medium cursor-pointer ${isDark ? "text-white/80" : "text-black/80"}`}>
+                    All day availability
+                  </label>
+                </div>
+
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Recurrence
+                  </label>
+                  <Select value={formData.recurrence} onValueChange={(value) => handleFormChange(value, "recurrence")}>
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                      <SelectValue placeholder="Does not repeat" />
+                    </SelectTrigger>
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      <SelectItem value="1">Does Not Repeat</SelectItem>
+                      <SelectItem value="2">Daily</SelectItem>
+                      <SelectItem value="3">Weekly</SelectItem>
+                      <SelectItem value="4">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.recurrence !== "1" && (
+                  <div className={`space-y-4 p-4 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                    {formData.recurrence === "2" && (
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="incWeekends"
+                          checked={formData.includeWeekends}
+                          onChange={(e) => handleFormChange(e.target.checked, "includeWeekends")}
+                          className={`rounded border ${isDark ? "border-white/10 bg-black" : "border-black/20 bg-neutral-50"}`}
+                        />
+                        <label htmlFor="incWeekends" className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          Include Weekends
+                        </label>
+                      </div>
+                    )}
+
+                    {formData.recurrence === "3" && (
+                      <div className="space-y-3">
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>
+                          Repeat on
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
+                            const isSelected = formData.repeatOn.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const current = formData.repeatOn || [];
+                                  const updated = current.includes(day) ? current.filter((d) => d !== day) : [...current, day];
+                                  handleFormChange(updated, "repeatOn");
+                                }}
+                                className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${isSelected
+                                  ? isDark
+                                    ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                    : "bg-[#cbb38b] text-white border-[#cbb38b]"
+                                  : isDark
+                                    ? "bg-black text-white/60 border-white/10 hover:border-white/30"
+                                    : "bg-neutral-50 text-black/60 border-black/10 hover:border-black/30"
+                                  }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MONTHLY */}
+                    {formData.recurrence === "4" && (
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
+                        <span>Repeat on Day</span>
+                        <input
+                          type="text"
+                          value={formData.monthlyDay ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
+                            if (val === "" || (Number(val) >= 1 && Number(val) <= 31)) {
+                              handleFormChange(val, "monthlyDay");
+                            }
+                          }}
+                          className={`w-14 px-2 py-1 rounded-lg border text-center outline-none focus:ring-2 transition-colors ${isDark
+                            ? "bg-neutral-800 border-neutral-700 text-white focus:ring-[#E8D1AB]"
+                            : "bg-white border-neutral-200 text-neutral-900 focus:ring-[#cbb38b]"
+                            }`}
+                        />
+                        <span>of each month</span>
+                      </div>
+                    )}
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Until Date
+                      </label>
+                      <DatePicker
+                        label=""
+                        value={formData.untilDate}
+                        minDate={parseLocalDate(selectedDate) || new Date()}
+                        isDark={isDark}
+                        onChange={(d) => handleFormChange(d, "untilDate")}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={handleModalClose}
+                    variant="ghost"
+                    className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className={`font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Hover Card for Project Details */}
-      {hoveredProject && (
-        <div
-          className="fixed z-50 w-[420px] bg-[#111] border border-[#E8D1AB]/30 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150"
-          style={{
-            top: hoverPosition.y,
-            left: hoverPosition.x,
-          }}
-          onMouseLeave={handleDateLeave}
-        >
-          {/* Header */}
-          <div className="p-6 border-b border-white/10">
-            <span className="inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full bg-[#E8D1AB]/10 text-[#E8D1AB] border border-[#E8D1AB]/20">
-              Active Project
-            </span>
-
-            <h3 className="text-xl font-bold text-white mb-4">
-              {hoveredProject.project_name}
-            </h3>
-
-            <div className="flex flex-wrap gap-4 text-xs text-white/60">
-              <span className="flex items-center gap-2">
-                <Calendar size={14} className="text-[#E8D1AB]" />
-                {hoveredProject.date}
+        {/* Hover Card for Project Details */}
+        {hoveredProject && (
+          <div
+            className={`fixed z-50 w-[420px] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 border transition-colors ${isDark
+                ? "bg-[#111111] border-[#E8D1AB]/30 text-white"
+                : "bg-white border-[#cbb38b]/40 text-black"
+              }`}
+            style={{
+              top: hoverPosition.y,
+              left: hoverPosition.x,
+            }}
+            onMouseLeave={handleDateLeave}
+          >
+            {/* Header */}
+            <div className={`p-6 border-b ${isDark ? "border-white/10" : "border-black/5"}`}>
+              <span className={`inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${isDark
+                  ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border-[#E8D1AB]/20"
+                  : "bg-[#cbb38b]/15 text-[#cbb38b] border-[#cbb38b]/30"
+                }`}>
+                Active Project
               </span>
 
-              <span className="flex items-center gap-2">
-                <MapPin size={14} className="text-[#E8D1AB]" />
-                {formatLocation(hoveredProject.event_location)}
-              </span>
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? "text-white" : "text-black"}`}>
+                {hoveredProject.project_name}
+              </h3>
 
-              <span className="flex items-center gap-2">
-                <Clock size={14} className="text-[#E8D1AB]" />
-                12:00 PM – 4:00 PM
+              <div className={`flex flex-wrap gap-4 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
+                <span className="flex items-center gap-2">
+                  <Calendar size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+                  {hoveredProject.date}
+                </span>
+
+                <span className="flex items-center gap-2">
+                  <MapPin size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+                  {formatLocation(hoveredProject.event_location)}
+                </span>
+
+                <span className="flex items-center gap-2">
+                  <Clock size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
+                  12:00 PM – 4:00 PM
+                </span>
+              </div>
+            </div>
+
+            {/* Middle Section */}
+            <div className={`grid grid-cols-2 divide-x border-b ${isDark
+                ? "divide-white/10 border-white/10 bg-white/[0.01]"
+                : "divide-black/5 border-black/5 bg-black/[0.01]"
+              }`}>
+              {/* Streaming */}
+              <div className="p-5">
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Streaming Platforms
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    <Video size={12} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} /> YouTube
+                  </span>
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    <Mic size={12} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} /> Twitch
+                  </span>
+                  <span className={`px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/40" : "border-black/5 bg-neutral-50 text-black/40"
+                    }`}>
+                    +4
+                  </span>
+                </div>
+              </div>
+
+              {/* Equipment */}
+              <div className="p-5">
+                <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${isDark ? "text-white/40" : "text-black/40"
+                  }`}>
+                  Equipment Assigned
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    📷 Camera
+                  </span>
+                  <span className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/80" : "border-black/5 bg-neutral-50 text-black/80"
+                    }`}>
+                    🎥 Video
+                  </span>
+                  <span className={`px-2 py-1 text-[10px] font-medium border rounded-lg ${isDark ? "border-white/5 bg-black text-white/40" : "border-black/5 bg-neutral-50 text-black/40"
+                    }`}>
+                    +3
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`p-4 px-6 flex items-center justify-between ${isDark ? "bg-black/20" : "bg-neutral-50"
+              }`}>
+              <span className={`text-[10px] font-medium uppercase tracking-tight ${isDark ? "text-white/30" : "text-black/40"
+                }`}>
+                Last Updated 4h ago
               </span>
             </div>
           </div>
-
-          {/* Middle Section */}
-          <div className="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10 bg-white/[0.01]">
-            {/* Streaming */}
-            <div className="p-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
-                Streaming Platforms
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                  <Video size={12} className="text-[#E8D1AB]" /> YouTube
-                </span>
-                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                  <Mic size={12} className="text-[#E8D1AB]" /> Twitch
-                </span>
-                <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
-                  +4
-                </span>
-              </div>
-            </div>
-
-            {/* Equipment */}
-            <div className="p-5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">
-                Equipment Assigned
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                  📷 Camera
-                </span>
-                <span className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/80">
-                  🎥 Video
-                </span>
-                <span className="px-2 py-1 text-[10px] font-medium border border-white/5 bg-black rounded-lg text-white/40">
-                  +3
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="p-4 px-6 flex items-center justify-between bg-black/20">
-            <span className="text-[10px] font-medium text-white/30 uppercase tracking-tight">
-              Last Updated 4h ago
-            </span>
-
-            {/* <button className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] hover:text-white transition-colors">
-        View Details →
-      </button> */}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
 
 /* Helper Components */
-function Legend({ color, label, desc }) {
+function Legend({ color, label, desc, isDark = true }: { color: string; label: string; desc: string; isDark?: boolean }) {
   return (
     <div className="flex items-start gap-3">
       <span className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${color}`} />
       <div>
-        <p className="text-xs font-bold text-white leading-none mb-1">{label}</p>
-        <p className="text-[10px] text-white/30">{desc}</p>
+        <p className={`text-sm font-medium mb-1 ${isDark ? "text-[#E0E0E0]" : "text-[#3A3A3A]"}`}>{label}</p>
+        <p className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>{desc}</p>
       </div>
     </div>
   );
 }
 
-function EventDot({ color, label }) {
+function EventDot({ color, label, isDark = true }: { color: string; label: string; isDark?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
-      <span className="truncate text-[10px] font-medium text-white/60">{label}</span>
+      <span className={`truncate text-[10px] font-medium ${isDark ? "text-white/60":"text-black/60"}`}>{label}</span>
     </div>
   );
 }

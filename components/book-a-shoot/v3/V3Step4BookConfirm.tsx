@@ -218,20 +218,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       : "Multiple times"
     : isStudioBooking && primaryStudio?.startTime && primaryStudio?.endTime
       ? `${formatDisplayTime(primaryStudio.startTime)} - ${formatDisplayTime(primaryStudio.endTime)}`
-    : isEditingOnly
-      ? "Not required for editing-only projects"
-      : data.startDate && data.endDate
-        ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
-        : "Time not set";
+      : isEditingOnly
+        ? "Not required for editing-only projects"
+        : data.startDate && data.endDate
+          ? `${formatDisplayTime(data.startDate)} - ${formatDisplayTime(data.endDate)}`
+          : "Time not set";
   const summaryDateText = isMultiDay
     ? `${sortedBookingDays.length} Days • ${formatSummaryDate(firstDay.date)} - ${formatSummaryDate(lastDay.date)}`
     : isStudioBooking && primaryStudio?.selectedDate
       ? formatSummaryDate(primaryStudio.selectedDate)
-    : isEditingOnly && data.expectedDeliveryDate
-      ? formatSummaryDate(data.expectedDeliveryDate)
-      : data.startDate
-        ? formatSummaryDate(data.startDate)
-        : "Date not set";
+      : isEditingOnly && data.expectedDeliveryDate
+        ? formatSummaryDate(data.expectedDeliveryDate)
+        : data.startDate
+          ? formatSummaryDate(data.startDate)
+          : "Date not set";
 
   const [durationHours, setDurationHours] = useState<number>(0);
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
@@ -385,8 +385,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.videographyCount,
-      photographyCount: data?.photographyCount,
+      videographyCount: data?.videographyCount || 0,
+      photographyCount: data?.photographyCount || 0,
       cp_ids: data?.selectedCrewIds,
     };
 
@@ -395,13 +395,27 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      form_content_type: data.contentType.join(","),
+      form_shoot_type: data.shootType,
+      form_shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      form_edits_needed: data.editsNeeded,
+      form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+      form_booking_type: data.bookingType,
+      form_additional_creative: data.addTeamMembers ? (formFields.videographyCount + formFields.photographyCount) : data.addTeamMembers,
+      form_shoot_location: data.location,
+      form_additional_details: data.specialInstructions,
+      form_supporting_url: data.referenceLinks,
+      form_cp_id: data?.selectedCrewIds,
+      form_selected_studio: data?.selectedStudioIds?.toString(),
+      form_studio_pricing_category: data?.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
     });
   }, [])
 
@@ -705,16 +719,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
       email: isAuthenticated ? user?.email : data.email,
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       phone: isAuthenticated ? user?.phone_number : data.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: {
-        full_name: data.fullName,
-        phone: data.phone,
-      }
+      full_name: data.fullName,
     })
 
     setShowSalesPopup(true)
@@ -805,9 +816,9 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             {sortedBookingDays.length} Days
                           </span>
                           {sortedBookingDays.map((day, idx) => (
-                            
+
                             <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                            <span className="text-[#A9A9A9]">• </span>
+                              <span className="text-[#A9A9A9]">• </span>
                               {formatSummaryDate(day.date)}
                             </span>
                           ))}
@@ -817,55 +828,55 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           {summaryDateText}
                         </span>
                       )}
-                      
+
                     </div>
                   </div>
                 </div>
                 {!isEditingOnly && (
-                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
-                  <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
-                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
-                      <Clock size={32} className="text-[#9D9595]" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {isMultiDay && !allSameTime ? (
-                        <>
-                          <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
-                          {sortedBookingDays.map((day, idx) => (
-                            <span key={idx} className="text-white text-sm lg:text-base font-medium">
-                              <span className="text-[#A9A9A9]">• </span>
-                              {day.startTime && day.endTime
-                                ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
-                                : "Time not set"}
-                            </span>
-                          ))}
-                        </>
-                      ) : (
-                        <span className="text-white text-base lg:text-lg font-medium capitalize">
-                          {displayTimeText}
-                        </span>
-                      )}
+                  <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 h-fit">
+                    <div className={`flex gap-3 ${isMultiDay && !allSameTime ? "items-start" : "items-center"}`}>
+                      <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center shrink-0">
+                        <Clock size={32} className="text-[#9D9595]" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {isMultiDay && !allSameTime ? (
+                          <>
+                            <span className="text-[#A9A9A9] text-sm mb-1">Per Day</span>
+                            {sortedBookingDays.map((day, idx) => (
+                              <span key={idx} className="text-white text-sm lg:text-base font-medium">
+                                <span className="text-[#A9A9A9]">• </span>
+                                {day.startTime && day.endTime
+                                  ? `${formatDisplayTime(day.startTime)} – ${formatDisplayTime(day.endTime)}`
+                                  : "Time not set"}
+                              </span>
+                            ))}
+                          </>
+                        ) : (
+                          <span className="text-white text-base lg:text-lg font-medium capitalize">
+                            {displayTimeText}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
                 )}
               </div>
-                             
+
               {!isEditingOnly && (
-              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                    <Map size={32} className="text-[#9D9595]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {locationDisplayText}
-                    </span>
-                    <span className="text-sm text-[#A9A9A9]">Location</span>
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                      <Map size={32} className="text-[#9D9595]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                        {locationDisplayText}
+                      </span>
+                      <span className="text-sm text-[#A9A9A9]">Location</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
 
               {/* Editing Services */}
@@ -902,8 +913,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <span className="text-white">Photo Edit</span>
                       <div className="flex flex-wrap gap-2">
                         <span className="bg-[#E8D5B533] w-fit text-[#E8D5B5] text-xs px-2 py-1 rounded-sm">
-                          {isEditingOnly && photoEditSummary.includedCount === 0 
-                            ? `${photoEditSummary.extraCount} Photos Added` 
+                          {isEditingOnly && photoEditSummary.includedCount === 0
+                            ? `${photoEditSummary.extraCount} Photos Added`
                             : `Edited Photos ${photoEditSummary.includedCount} Included ${photoEditSummary.extraCount > 0 ? ` + ${photoEditSummary.extraCount} Added` : ""}`
                           }
                         </span>
@@ -1157,14 +1168,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                     {/* Duration & Crew Info */}
                     <div className="bg-[#101010] rounded-lg p-4 border border-white/5 space-y-3">
                       {!isEditingOnly && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/60">Project Duration</span>
-                        <span className="font-medium text-white">
-                          {durationHours}{" "}
-                          {durationHours === 1 ? "hour" : "hours"}
-                        </span>
-                      </div>
-                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/60">Project Duration</span>
+                          <span className="font-medium text-white">
+                            {durationHours}{" "}
+                            {durationHours === 1 ? "hour" : "hours"}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/60">
@@ -1221,14 +1232,14 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                       {/* 1. SHOOT COST */}
                       {!isEditingOnly && !useContentHouseInclusivePricing && (
-                      <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="text-white font-medium">Shoot Cost</div>
-                          <div className="font-bold text-white">
-                            {formatCurrency(pricingGroups.shootCost)}
+                        <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="text-white font-medium">Shoot Cost</div>
+                            <div className="font-bold text-white">
+                              {formatCurrency(pricingGroups.shootCost)}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       )}
 
                       {/* NEW: 2. EDITING SERVICES */}

@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils"; // Ensure this import matches your project structure
+import { cn } from "@/lib/utils";
 import { Check, ChevronDown } from "lucide-react";
 import { CREATOR_ROLE_OPTIONS, normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 
@@ -16,11 +16,12 @@ interface ProfessionalInfoFormProps {
     bio?: string | null;
   };
   onChange?: (updatedFields: Record<string, unknown>) => void;
+  isDark?: boolean;
 }
 
-const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormProps) => {
+const ProfessionalInfoForm = ({ profile = {}, onChange, isDark = true }: ProfessionalInfoFormProps) => {
   const [isRoleOpen, setIsRoleOpen] = React.useState(false);
-  
+
   const normalizedRoleValues = useMemo(
     () => normalizeCreatorRoleIds(profile.primary_role),
     [profile.primary_role]
@@ -32,7 +33,11 @@ const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormPr
     });
   };
 
-  const labelClasses = "text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 block";
+  const labelClasses = cn(
+    "text-[10px] font-bold uppercase tracking-widest mb-2 block transition-colors",
+    isDark ? "text-white/40" : "text-black/40"
+  );
+
   const selectedRoleLabels = CREATOR_ROLE_OPTIONS
     .filter((role) => normalizedRoleValues.includes(role.value))
     .map((role) => role.label);
@@ -44,29 +49,19 @@ const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormPr
 
     handleFieldChange("primary_role", nextRoles);
   };
-  
-  /**
-   * inputClasses:
-   * 1. !shadow-none: Forcefully removes the golden shadow from your UI component.
-   * 2. !bg-black: Forcefully overrides the dark-brown background.
-   * 3. !border-white/10: Forcefully overrides the golden border.
-   */
+
   const inputClasses = cn(
-    "bg-black !bg-black",
-    "border border-white/10 !border-white/10",
-    "text-white",
-    "rounded-xl",
-    "focus:border-[#E8D1AB]/50 focus:!border-[#E8D1AB]/50",
-    "focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0",
-    "transition-all placeholder:text-white/20 outline-none",
-    "!shadow-none focus:!shadow-none hover:!shadow-none", // KILL GOLDEN SHADOW
-    "dark:!bg-black dark:!border-white/10" // OVERRIDE DARK MODE HEX COLS
+    "border rounded-xl transition-all outline-none text-sm md:text-base",
+    "!shadow-none focus:!shadow-none hover:!shadow-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+    isDark
+      ? "bg-black !bg-black border-white/10 !border-white/10 text-white focus:border-[#E8D1AB]/50 focus:!border-[#E8D1AB]/50 placeholder:text-white/20"
+      : "bg-neutral-50 !bg-neutral-50 border-black/10 !border-black/10 text-black focus:border-[#cbb38b]/50 focus:!border-[#cbb38b]/50 placeholder:text-black/30"
   );
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-        
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
+
         {/* PRIMARY ROLE */}
         <div className="flex flex-col">
           <Label className={labelClasses}>Primary Role</Label>
@@ -76,35 +71,51 @@ const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormPr
               onClick={() => setIsRoleOpen((open) => !open)}
               className={cn(inputClasses, "h-12 w-full px-4 text-left flex items-center justify-between")}
             >
-              <span className={selectedRoleLabels.length ? "text-white" : "text-white/20"}>
+              <span className={
+                selectedRoleLabels.length
+                  ? isDark ? "text-white" : "text-black"
+                  : isDark ? "text-white/20" : "text-black/30"
+              }>
                 {selectedRoleLabels.length ? selectedRoleLabels.join(", ") : "Select profile type"}
               </span>
               <ChevronDown
                 size={16}
-                className={cn("text-white/40 transition-transform", isRoleOpen && "rotate-180")}
+                className={cn(
+                  "transition-transform",
+                  isDark ? "text-white/40" : "text-black/40",
+                  isRoleOpen && "rotate-180"
+                )}
               />
             </button>
 
             {isRoleOpen && (
-              <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border border-white/10 bg-black p-1 shadow-2xl">
-              {CREATOR_ROLE_OPTIONS.map((role) => (
-                <button
-                  key={role.value}
-                  type="button"
-                  onClick={() => toggleRole(role.value)}
-                  className={cn(
-                    "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors",
-                    normalizedRoleValues.includes(role.value)
-                      ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                      : "text-white/75 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  <span className="flex h-4 w-4 items-center justify-center">
-                    {normalizedRoleValues.includes(role.value) && <Check size={15} />}
-                  </span>
-                  {role.label}
-                </button>
-              ))}
+              <div className={cn(
+                "absolute left-0 right-0 top-[calc(100%+6px)] z-30 rounded-xl border p-1 shadow-2xl",
+                isDark ? "bg-black border-white/10" : "bg-white border-black/10"
+              )}>
+                {CREATOR_ROLE_OPTIONS.map((role) => {
+                  const selected = normalizedRoleValues.includes(role.value);
+                  return (
+                    <button
+                      key={role.value}
+                      type="button"
+                      onClick={() => toggleRole(role.value)}
+                      className={cn(
+                        "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors",
+                        selected
+                          ? "bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                          : isDark
+                            ? "text-white/75 hover:bg-white/5 hover:text-white"
+                            : "text-black/70 hover:bg-black/5 hover:text-black"
+                      )}
+                    >
+                      <span className="flex h-4 w-4 items-center justify-center">
+                        {selected && <Check size={15} />}
+                      </span>
+                      {role.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -126,31 +137,37 @@ const ProfessionalInfoForm = ({ profile = {}, onChange }: ProfessionalInfoFormPr
         <div className="flex flex-col">
           <Label className={labelClasses}>Hourly Rate ($)</Label>
           <div className="relative">
-             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
-             <Input
-                placeholder="0.00"
-                className={cn(inputClasses, "h-12 pl-8")}
-                value={profile.hourly_rate ?? ""}
-                onChange={(e) => handleFieldChange("hourly_rate", e.target.value)}
+            <span className={cn(
+              "absolute left-4 top-1/2 -translate-y-1/2 text-sm transition-colors",
+              isDark ? "text-white/40" : "text-black/40"
+            )}>$</span>
+            <Input
+              placeholder="0.00"
+              className={cn(inputClasses, "h-12 pl-8")}
+              value={profile.hourly_rate ?? ""}
+              onChange={(e) => handleFieldChange("hourly_rate", e.target.value)}
             />
           </div>
         </div>
       </div>
 
       {/* BIO */}
-      <div className="mt-8 flex flex-col">
+      <div className="mt-4 lg:mt-8 flex flex-col">
         <Label className={labelClasses}>Bio / About</Label>
         <Textarea
           placeholder="Describe your expertise, equipment, and background..."
           className={cn(
             inputClasses,
             "min-h-[150px] py-4 resize-none",
-            "focus:!border-[#E8D1AB]/50"
+            isDark ? "focus:!border-[#E8D1AB]/50" : "focus:!border-[#cbb38b]/50"
           )}
           value={profile.bio || ""}
           onChange={(e) => handleFieldChange("bio", e.target.value)}
         />
-        <p className="mt-2 text-[11px] text-white/20 italic">
+        <p className={cn(
+          "mt-2 text-[11px] italic transition-colors",
+          isDark ? "text-white/20" : "text-black/30"
+        )}>
           This bio will be visible to potential clients on your public profile.
         </p>
       </div>
