@@ -16,6 +16,8 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
+import Link from "next/link";
+
 
 /**
  * Custom CSS to force the "Top-Stacking" behavior.
@@ -72,6 +74,8 @@ export default function AssignedCP({
   const [activeIndex, setActiveIndex] = useState(0);
   const [crewMembers, setCrewMembers] = useState<CrewAssignment[]>(assignedCrew);
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
+  const [selectedCrewId, setSelectedCrewId] = useState<number | null>(null);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -206,12 +210,18 @@ export default function AssignedCP({
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
 
                   return (
-                    <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                  <SwiperSlide
+                      key={member.id || index}
+                      className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}
+                    >
                       <button
                         type="button"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          handleRemoveCP(crewMemberId);
+
+                          setSelectedCrewId(crewMemberId);
+                          setIsRemoveModalOpen(true);
                         }}
                         disabled={!canRemoveCP || removingCrewId === crewMemberId}
                         className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
@@ -224,12 +234,20 @@ export default function AssignedCP({
                           <X size={18} />
                         )}
                       </button>
-                      <Image
-                        src={getProfileImage(member)}
-                        alt={`${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`}
-                        fill
-                        className="object-cover object-top"
-                      />
+
+                      <Link
+                        href={`/admin/users/creative-partners/${crewMemberId}`}
+                        className="relative block w-full h-full cursor-pointer"
+                      >
+                        <Image
+                          src={getProfileImage(member)}
+                          alt={`${member.crew_member?.first_name || ""} ${
+                            member.crew_member?.last_name || ""
+                          }`}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </Link>
                     </SwiperSlide>
                   );
                 })}
@@ -277,6 +295,81 @@ export default function AssignedCP({
           </div>
         )}
       </div>
+          {isRemoveModalOpen && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+        onClick={() => {
+          if (removingCrewId === null) {
+            setIsRemoveModalOpen(false);
+            setSelectedCrewId(null);
+          }
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl ${
+            isDark
+              ? "border-[#333333] bg-[#161616] text-white"
+              : "border-[#E5E5E5] bg-white text-black"
+          }`}
+        >
+          <h3 className="text-lg font-semibold">
+            Remove Creative Partner?
+          </h3>
+
+          <p
+            className={`mt-2 text-sm ${
+              isDark ? "text-[#A3A3A3]" : "text-[#666666]"
+            }`}
+          >
+            Are you sure you want to remove this creative partner from the shoot?
+            This action cannot be undone.
+          </p>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={removingCrewId !== null}
+              onClick={() => {
+                setIsRemoveModalOpen(false);
+                setSelectedCrewId(null);
+              }}
+              className={
+                isDark
+                  ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]"
+                  : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"
+              }
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={!selectedCrewId || removingCrewId !== null}
+              onClick={async () => {
+                if (!selectedCrewId) return;
+
+                await handleRemoveCP(selectedCrewId);
+
+                setIsRemoveModalOpen(false);
+                setSelectedCrewId(null);
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {removingCrewId !== null ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
