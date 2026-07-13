@@ -108,6 +108,7 @@ interface ExternalShareCreateResponse {
     shareToken: string;
     shareUrl: string;
     message?: string | null;
+    permission?: "view_download" | "upload_download";
   };
 }
 interface ExternalShareListItem {
@@ -115,6 +116,7 @@ interface ExternalShareListItem {
   shareToken: string;
   email: string;
   accessMode?: "email_only" | "anyone_with_link";
+  permission?: "view_download" | "upload_download";
   message?: string | null;
   resourceType: "workspace" | "folder" | "file";
   phase?: string;
@@ -1034,6 +1036,7 @@ export const fileManagerApi = {
     externalId: string;
     email?: string;
     accessMode?: "email_only" | "anyone_with_link";
+    permission?: "view_download" | "upload_download";
     message?: string;
     phase?: string;
     path?: string;
@@ -1055,7 +1058,14 @@ export const fileManagerApi = {
   },
 
   async verifyExternalShareOtp(shareToken: string, email: string, otp: string) {
-    const response = await apiClient.post<{ success: boolean; data?: { accessToken: string } }>(
+    const response = await apiClient.post<{
+      success: boolean;
+      data?: {
+        accessToken: string;
+        permission?: "view_download" | "upload_download";
+        accessMode?: "email_only" | "anyone_with_link";
+      };
+    }>(
       "external-file-manager/share/verify-otp",
       { shareToken, email, otp }
     );
@@ -1144,6 +1154,92 @@ export const fileManagerApi = {
     const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiClient.getInstance().get(
       `external-file-manager/share/${shareToken}/view-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedUploadPolicy(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      fileName: string;
+      fileContentType: string;
+      fileSize: number;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/upload-policy`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedUploadPoliciesBatch(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      items: Array<{
+        fileName: string;
+        fileContentType: string;
+        fileSize: number;
+        phase?: string;
+        path?: string;
+      }>;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/upload-policies/batch`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async notifySharedFileUploaded(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      filepath: string;
+      fileContentType: string;
+      fileSize: number;
+      fileName: string;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/file-uploaded`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async notifySharedFilesUploadedBatch(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      items: Array<{
+        filepath: string;
+        fileContentType: string;
+        fileSize: number;
+        fileName: string;
+        phase?: string;
+        path?: string;
+      }>;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/files-uploaded/batch`,
+      payload,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;
