@@ -1,11 +1,36 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronRight, Search, ChevronDown, Check, X, AlertCircle, Mail, Briefcase, Calendar, Hash, Trash2, Loader2 } from "lucide-react";
+import {
+  ChevronRight,
+  Search,
+  ChevronDown,
+  Check,
+  X,
+  AlertCircle,
+  Trash2,
+  Loader2,
+  Download,
+  ArrowUpToLine,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import {
+  format,
+  startOfDay,
+  subDays,
+} from "date-fns";
+
+import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/ui/Datepicker";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import {
   Select,
@@ -184,6 +209,14 @@ export const CreativePartnersTable = () => {
   const [deleteActionType, setDeleteActionType] = useState<"hard_delete" | "soft_delete" | "blocked" | null>(null);
   const [deleteMessage, setDeleteMessage] = useState<string>("");
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [exportStartDate, setExportStartDate] =
+    useState<Date | null>(subDays(new Date(), 30));
+
+  const [exportEndDate, setExportEndDate] =
+    useState<Date | null>(new Date());
 
   const router = useRouter();
 
@@ -466,6 +499,104 @@ export const CreativePartnersTable = () => {
       setIsDeleting(false);
     }
   };
+  const handleExportCreativePartners = async () => {
+  if (isExporting) return;
+
+  if (!exportStartDate || !exportEndDate) {
+    toast.error("Please select start and end dates.");
+    return;
+  }
+
+  const normalizedStartDate =
+    startOfDay(exportStartDate);
+
+  const normalizedEndDate =
+    startOfDay(exportEndDate);
+
+  const today = startOfDay(new Date());
+
+  if (
+    normalizedStartDate > today ||
+    normalizedEndDate > today
+  ) {
+    toast.error("Future dates are not allowed.");
+    return;
+  }
+
+  if (normalizedStartDate > normalizedEndDate) {
+    toast.error(
+      "Start date cannot be after end date."
+    );
+    return;
+  }
+
+  const formattedStartDate = format(
+    normalizedStartDate,
+    "yyyy-MM-dd"
+  );
+
+  const formattedEndDate = format(
+    normalizedEndDate,
+    "yyyy-MM-dd"
+  );
+
+  setIsExporting(true);
+
+  try {
+    const blob =
+      await adminApi.exportCrewMembersCsv({
+        start_date: formattedStartDate,
+        end_date: formattedEndDate,
+        status:
+          statusFilter !== "all"
+            ? statusFilter
+            : undefined,
+        search:
+          normalizedSearch || undefined,
+      });
+
+    if (!(blob instanceof Blob) || blob.size === 0) {
+      throw new Error(
+        "Invalid or empty export response."
+      );
+    }
+
+    const downloadUrl =
+      window.URL.createObjectURL(blob);
+
+    const downloadLink =
+      document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download =
+      `creative-partners-${formattedStartDate}-to-${formattedEndDate}.csv`;
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+
+    window.URL.revokeObjectURL(downloadUrl);
+
+    setIsExportOpen(false);
+
+    toast.success(
+      "Creative partners exported successfully."
+    );
+  } catch (error) {
+    console.error(
+      "Export Creative Partners Error:",
+      error
+    );
+
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "Failed to export creative partners."
+    );
+  } finally {
+    setIsExporting(false);
+  }
+};
 
 
   return (
@@ -506,6 +637,208 @@ export const CreativePartnersTable = () => {
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
+          <Popover
+  open={isExportOpen}
+  onOpenChange={(open) => {
+    if (!isExporting) {
+      setIsExportOpen(open);
+    }
+  }}
+>
+  <PopoverTrigger asChild>
+    <Button
+      type="button"
+      disabled={isExporting}
+      aria-label="Export creative partners"
+      title="Export creative partners"
+      className={`h-[46px] px-4 rounded-lg flex items-center justify-center gap-2 ${
+        isDark
+          ? "bg-[#111] border border-[#333] text-white hover:bg-[#1A1A1A]"
+          : "bg-white border border-[#E3E3E3] text-[#323232] hover:bg-[#F7F7F7]"
+      }`}
+    >
+      {isExporting ? (
+        <Loader2
+          size={18}
+          className="animate-spin"
+        />
+      ) : (
+        <ArrowUpToLine size={18} />
+      )}
+
+      <span className="hidden lg:inline">
+        {isExporting
+          ? "Exporting..."
+          : "Export"}
+      </span>
+    </Button>
+  </PopoverTrigger>
+
+  <PopoverContent
+    align="end"
+    sideOffset={10}
+    className={`w-[340px] rounded-2xl border p-5 ${
+      isDark
+        ? "border-[#333] bg-[#111] text-white"
+        : "border-[#E3E3E3] bg-white text-[#323232]"
+    }`}
+  >
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold">
+          Export Creative Partners
+        </h3>
+
+        <p
+          className={`mt-1 text-xs ${
+            isDark
+              ? "text-white/55"
+              : "text-black/55"
+          }`}
+        >
+          Select a date range to download creative partner data.
+        </p>
+      </div>
+
+      <DatePicker
+        label="Start Date"
+        value={exportStartDate}
+        onChange={(date) => {
+          if (!date) {
+            setExportStartDate(null);
+            return;
+          }
+
+          const normalizedDate =
+            startOfDay(date);
+
+          const today =
+            startOfDay(new Date());
+
+          if (normalizedDate > today) {
+            return;
+          }
+
+          setExportStartDate(
+            normalizedDate
+          );
+
+          if (
+            exportEndDate &&
+            normalizedDate >
+              startOfDay(exportEndDate)
+          ) {
+            setExportEndDate(
+              normalizedDate
+            );
+          }
+        }}
+        maxDate={
+          exportEndDate
+            ? startOfDay(exportEndDate)
+            : startOfDay(new Date())
+        }
+        disabled={isExporting}
+        isDark={isDark}
+        disablePortal
+        format="MM/dd/yyyy"
+        sx={{ height: "42px" }}
+      />
+
+      <DatePicker
+        label="End Date"
+        value={exportEndDate}
+        onChange={(date) => {
+          if (!date) {
+            setExportEndDate(null);
+            return;
+          }
+
+          const normalizedDate =
+            startOfDay(date);
+
+          const today =
+            startOfDay(new Date());
+
+          if (normalizedDate > today) {
+            return;
+          }
+
+          if (
+            exportStartDate &&
+            normalizedDate <
+              startOfDay(exportStartDate)
+          ) {
+            return;
+          }
+
+          setExportEndDate(
+            normalizedDate
+          );
+        }}
+        minDate={
+          exportStartDate
+            ? startOfDay(exportStartDate)
+            : undefined
+        }
+        maxDate={startOfDay(new Date())}
+        disabled={isExporting}
+        isDark={isDark}
+        disablePortal
+        format="MM/dd/yyyy"
+        sx={{ height: "42px" }}
+      />
+
+      <div className="flex justify-end gap-2 pt-1">
+        <Button
+          type="button"
+          disabled={isExporting}
+          onClick={() =>
+            setIsExportOpen(false)
+          }
+          className={
+            isDark
+              ? "border border-[#333] bg-transparent text-white hover:bg-white/5"
+              : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+          }
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="button"
+          disabled={
+            isExporting ||
+            !exportStartDate ||
+            !exportEndDate
+          }
+          onClick={() => {
+            void handleExportCreativePartners();
+          }}
+          className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+        >
+          {isExporting ? (
+            <>
+              <Loader2
+                size={16}
+                className="mr-2 animate-spin"
+              />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download
+                size={16}
+                className="mr-2"
+              />
+              Download CSV
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  </PopoverContent>
+</Popover>
         </div>
 
         <div className="flex items-center gap-3">
