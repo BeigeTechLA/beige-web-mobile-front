@@ -79,6 +79,17 @@ export const salesApi = createApi({
           unit_price: number;
           total: number;
           pricing_mode: "hourly" | "weekend";
+          selected_date?: string;
+          start_time?: string;
+          end_time?: string;
+          time_zone?: string;
+          studio_booking_type?: string;
+          booking_days?: Array<Record<string, any>>;
+          cast_and_crew_count?: number;
+          update_studio_datetime?: boolean;
+          lat?: number;
+          lng?: number;
+          location?: string;
         }>;
       }
     >({

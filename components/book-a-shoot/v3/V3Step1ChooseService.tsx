@@ -53,7 +53,7 @@ import { getFormattedDateString } from "@/lib/utils";
 import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE, scrollToRef } from "./utils";
 import { Input } from "@/components/ui/input";
 import StudioCard from "./components/StudioCard";
-import { HOURLY_STUDIO_LIST } from "./studioData";
+import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 
 interface Props {
   data: BookingDataV3;
@@ -127,17 +127,17 @@ const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
 
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
-const studioData = HOURLY_STUDIO_LIST.map((studio) => ({
-  slug: studio.id,
-  image: studio.image,
+const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
+  slug: studio.slug || studio.id,
+  image: studio.image || "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
   name: studio.name,
-  description: `(${studio.poolType})`,
-  location: PUBLIC_STUDIO_LOCATION,
-  price: studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0,
+  description: studio.propertyType ? `(${studio.propertyType})` : "",
+  location: studio.location || PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || 0,
   rating: Number(studio.rating || 5),
   reviews: studio.reviews || 0,
-  tags: (studio.bestFor?.length ? studio.bestFor : studio.amenities || []).slice(0, 2),
-}));
+  tags: studio.tags?.length ? studio.tags : ["Studio", "Available"],
+});
 
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
@@ -197,8 +197,50 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
+  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadStudios = async () => {
+      setStudioLoading(true);
+      try {
+        const bookingForParam =
+          bookingFor === "production"
+            ? "productions"
+            : bookingFor === "audio"
+              ? "audio"
+              : bookingFor === "event"
+                ? "event"
+                : undefined;
+
+        const response = await studioCatalogApi.list({
+          page: 1,
+          limit: visibleCount,
+          search: searchQuery.trim() || undefined,
+          booking_for: bookingForParam,
+        });
+
+        if (!isActive) return;
+        setStudioData((response.data || []).map(mapCatalogStudio));
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load studio catalog:", error);
+        setStudioData([]);
+      } finally {
+        if (isActive) setStudioLoading(false);
+      }
+    };
+
+    loadStudios();
+
+    return () => {
+      isActive = false;
+    };
+  }, [bookingFor, searchQuery, visibleCount]);
 
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
@@ -1565,7 +1607,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
               {/* Studio Listings */}
               <div ref={studiosRef} className="pt-6 lg:pt-15 border-t border-white/10">
-                <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">5 Studio Available Based on Categories</p>
+                <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">
+                  {studioLoading ? "Loading studios..." : `${studioData.length} Studio Available Based on Categories`}
+                </p>
                 <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
                   {/* Search field */}
                   <div className="relative flex-1 min-w-[240px]">

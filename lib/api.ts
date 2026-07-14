@@ -21,6 +21,47 @@ const publicApi = axios.create({
   withCredentials: false,
 });
 
+export interface StudioCatalogListItem {
+  studio_id: number;
+  id: string;
+  slug: string | null;
+  name: string;
+  status: string;
+  location: string | null;
+  image: string | null;
+  priceLabel: string | null;
+  priceValue: number | null;
+  rating: number | null;
+  reviews: number | null;
+  propertyType: string | null;
+  description?: string | null;
+  size?: string | null;
+  beds?: number | null;
+  baths?: number | null;
+  poolType?: string | null;
+  minimumBookingHours?: number | null;
+  operatingHours?: string | null;
+  weeklySchedule?: string | null;
+  amenities?: string[];
+  rules?: string[];
+  highlights?: string[];
+  images?: string[];
+  tags: string[];
+  pricingMode: string | null;
+}
+
+export interface StudioCatalogResponse {
+  success: boolean;
+  data: StudioCatalogListItem[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
@@ -70,6 +111,23 @@ export const creatorApi = {
       reviews_count: reviewsCount,
       bio: rawCreator.bio,
     };
+  },
+};
+
+export const studioCatalogApi = {
+  list: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    booking_for?: string;
+  } = {}): Promise<StudioCatalogResponse> => {
+    const response = await publicApi.get('/studios/catalog', { params });
+    return response.data;
+  },
+  getBySlug: async (slug: string): Promise<StudioCatalogListItem> => {
+    const response = await publicApi.get(`/studios/catalog/${slug}`);
+    const payload = response.data;
+    return payload.data || payload;
   },
 };
 

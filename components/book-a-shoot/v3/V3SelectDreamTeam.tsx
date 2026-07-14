@@ -84,11 +84,13 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     data.locationDetails?.coordinates?.lat ??
     data.locationDetails?.lat ??
     data.locationDetails?.center?.[1] ??
+    data.selectedStudios?.[0]?.lat ??
     undefined;
   const locationLongitude =
     data.locationDetails?.coordinates?.lng ??
     data.locationDetails?.lng ??
     data.locationDetails?.center?.[0] ??
+    data.selectedStudios?.[0]?.lng ??
     undefined;
 
   const searchableContentTypes = data.contentType.filter((t) => t !== "editing" && t !== "studio");

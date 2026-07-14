@@ -1,10 +1,9 @@
 "use client";
 
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   CalendarDays,
@@ -26,41 +25,15 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import { ReviewsComponent } from "@/components/admin/studios/StudioReviews";
 import HostRulesAccordion from "../components/HostRulesAccordion";
-import {
-  HOURLY_STUDIO_LIST,
-  type StudioCatalogItem,
-} from "@/components/book-a-shoot/v3/studioData";
+import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 
 const STUDIO_IMAGE_FALLBACK =
   "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 
-const getStudioBySlug = (slug: string) => {
-  const direct = HOURLY_STUDIO_LIST.find((studio) => studio.id === slug);
-  if (direct) return direct;
-
-  const numericIndex = Number(slug);
-  if (Number.isInteger(numericIndex) && numericIndex > 0) {
-    return HOURLY_STUDIO_LIST[numericIndex - 1];
-  }
-
-  return undefined;
-};
-
-const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
+const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
   const router = useRouter();
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
-  const [selectedPricingKey, setSelectedPricingKey] = useState<string>(
-    studio.pricingOptions?.[0]?.key || "",
-  );
-
-  const selectedPricing = useMemo(
-    () =>
-      studio.pricingOptions?.find(
-        (option) => option.key === selectedPricingKey,
-      ) || studio.pricingOptions?.[0] || null,
-    [selectedPricingKey, studio.pricingOptions],
-  );
 
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
@@ -72,10 +45,11 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
   }, [studio]);
 
   const studioMeta = [
-    studio.beds ? `${studio.beds} bedroom${studio.beds > 1 ? "s" : ""}` : null,
-    studio.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
     studio.size,
-    studio.poolType,
+    studio.beds ? `${studio.beds} bed${studio.beds > 1 ? "s" : ""}` : null,
+    studio.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
+    studio.propertyType,
+    studio.pricingMode,
   ].filter(Boolean);
 
   const ratingText = studio.rating
@@ -94,20 +68,17 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
         "Production-friendly layout",
         "Furniture and decor included",
       ];
-  const rules = studio.rules?.length
-    ? studio.rules
-    : [
-        "Minimum booking is 2 hours",
-        "Setup and breakdown must be included",
-        "Guests must respect the property",
-      ];
-  const highlights = studio.highlights?.length
-    ? studio.highlights
-    : [
-        "Private production space reserved for your approved booking window.",
-        "Designed for shoots, content creation, campaigns, and meetings.",
-        `${studio.minimumBookingHours || 2}-hour minimum booking.`,
-      ];
+  const rules = [
+    "Minimum booking and usage details follow the catalog listing.",
+    "Setup and breakdown must be included in the reservation.",
+    "Guests must respect the property and studio guidelines.",
+  ];
+  const highlights = [
+    "Live catalog studio details are loaded by slug.",
+    "Designed for shoots, content creation, campaigns, and meetings.",
+    "Booking information stays in sync with the catalog entry.",
+  ];
+  const minimumBookingHours = studio.minimumBookingHours || 2;
 
   return (
     <div className="relative pt-24 lg:pt-36 pb-16">
@@ -232,8 +203,8 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
                     Hourly booking
                   </h3>
                   <p className="text-zinc-400 text-sm">
-                    {studio.minimumBookingHours || 2}-hour minimum booking •{" "}
-                    {studio.operatingHours || "Inquire for hours"}
+                    {minimumBookingHours}-hour minimum booking •{" "}
+                    {studio.operatingHours || studio.weeklySchedule || "Inquire for hours"}
                   </p>
                 </div>
               </div>
@@ -241,9 +212,9 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
 
             <section className="space-y-6">
               <p className="text-zinc-300 leading-relaxed text-lg">
-                {studio.description}
+                {studio.description || "Explore this studio's live catalog listing for booking details, images, and usage guidance."}
               </p>
-              {studio.highlights && studio.highlights.length > 0 && (
+              {highlights.length > 0 && (
                 <div className="mt-8">
                   <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs">
                     What makes it unique
@@ -263,86 +234,39 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
               )}
             </section>
 
-            {studio.pricingOptions && studio.pricingOptions.length > 0 && (
-              <section className="pt-6">
-                <h3 className="text-xl font-bold text-white mb-6">
-                  Pricing & Tiers
-                </h3>
-                <div className="flex p-1.5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-6">
-                  {studio.pricingOptions.map((option) => (
-                    <button
-                      key={option.key}
-                      onClick={() => setSelectedPricingKey(option.key)}
-                      className={`relative flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
-                        selectedPricingKey === option.key
-                          ? "text-black"
-                          : "text-zinc-400 hover:text-white"
-                      }`}
-                    >
-                      <span className="relative z-10">{option.label}</span>
-                      {selectedPricingKey === option.key && (
-                        <motion.div
-                          layoutId="pricing-pill"
-                          className="absolute inset-0 bg-[#E8D1AB] rounded-xl"
-                          transition={{
-                            type: "spring",
-                            bounce: 0.2,
-                            duration: 0.6,
-                          }}
-                        />
-                      )}
-                    </button>
-                  ))}
+            <section className="pt-6">
+              <h3 className="text-xl font-bold text-white mb-6">
+                Pricing & Tags
+              </h3>
+              <div className="bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800/50">
+                <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+                  <div>
+                    <h4 className="text-4xl font-bold text-[#E8D1AB]">
+                      ${Number(studio.priceValue || 0).toLocaleString()}
+                      <span className="text-lg text-zinc-500">/hr</span>
+                    </h4>
+                    <p className="text-zinc-500 text-sm mt-1">
+                      {minimumBookingHours}-hour minimum booking
+                    </p>
+                  </div>
                 </div>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={selectedPricingKey}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800/50"
-                  >
-                    <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
-                      <div>
-                        <h4 className="text-4xl font-bold text-[#E8D1AB]">
-                          ${selectedPricing?.hourlyRate}
-                          <span className="text-lg text-zinc-500">/hr</span>
-                        </h4>
-                        <p className="text-zinc-500 text-sm mt-1">
-                          {selectedPricing?.minimumHours}-hour minimum booking
-                        </p>
-                      </div>
-                      {selectedPricing?.cleaningFee && (
-                        <div className="px-4 py-2 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                          <p className="text-[10px] text-zinc-500 uppercase font-bold">
-                            Cleaning Fee
-                          </p>
-                          <p className="text-white font-bold">
-                            ${selectedPricing.cleaningFee}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[2px] mb-4">
-                        Ideal For
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPricing?.idealFor.map((item) => (
-                          <span
-                            key={item}
-                            className="px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-xs"
-                          >
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </section>
-            )}
+                <div>
+                  <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[2px] mb-4">
+                    Tags
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(studio.tags || []).map((item) => (
+                      <span
+                        key={item}
+                        className="px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-xs"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <section className="border-t border-white/10 pt-10">
               <h3 className="text-xl font-bold text-white mb-8">
@@ -388,7 +312,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
               <h3 className="text-xl font-bold text-white mb-8">
                 Rules & Health Safety Measures
               </h3>
-              <HostRulesAccordion rules={studio.rules} defaultOpenAll />
+              <HostRulesAccordion rules={studio.rules || rules} defaultOpenAll />
             </section>
           </div>
 
@@ -397,9 +321,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
               <div className="flex justify-between items-baseline mb-6">
                 <div>
                   <span className="text-4xl font-bold text-white">
-                    ${(
-                      selectedPricing?.hourlyRate || studio.priceValue || 0
-                    ).toLocaleString()}
+                    ${(studio.priceValue || 0).toLocaleString()}
                   </span>
                   <span className="text-zinc-500 ml-1">/ hour</span>
                 </div>
@@ -413,14 +335,13 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
                 <div className="flex justify-between gap-4">
                   <span className="text-zinc-500">Minimum booking</span>
                   <span className="text-white font-medium">
-                    {selectedPricing?.minimumHours || studio.minimumBookingHours || 2}{" "}
-                    hours
+                    2 hours
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-zinc-500">Property type</span>
                   <span className="text-white font-medium">
-                    {studio.poolType || "Studio"}
+                    {studio.propertyType || "Studio"}
                   </span>
                 </div>
                 <div className="flex justify-between gap-4">
@@ -432,9 +353,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
               </div>
 
               <Link
-                href={`/book-a-studio?studioId=${studio.id}${
-                  selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""
-                }`}
+                href={`/book-a-studio?studioId=${studio.slug || studio.id}`}
                 className="mt-8 flex h-14 w-full items-center justify-center rounded-2xl bg-[#E8D1AB] font-bold text-black hover:bg-[#dcb98a] active:scale-95 transition-all shadow-lg shadow-[#E8D1AB]/10"
               >
                 Book this Studio
@@ -525,7 +444,42 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogItem }) => {
 export default function StudioDetailsPage() {
   const params = useParams();
   const studioSlug = Array.isArray(params.id) ? params.id[0] : params.id;
-  const studio = getStudioBySlug(String(studioSlug || ""));
+  const [studio, setStudio] = useState<StudioCatalogListItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    const slug = String(studioSlug || "");
+
+    const loadStudio = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const result = await studioCatalogApi.getBySlug(slug);
+        if (!mounted) return;
+        setStudio(result);
+      } catch (err) {
+        if (!mounted) return;
+        console.error("Failed to load studio details:", err);
+        setStudio(null);
+        setError("Studio not found");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    if (slug) {
+      loadStudio();
+    } else {
+      setLoading(false);
+      setError("Studio not found");
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [studioSlug]);
 
   return (
     <main className="min-h-screen bg-[#101010] text-white selection:bg-[#E8D1AB] selection:text-black">
@@ -537,11 +491,15 @@ export default function StudioDetailsPage() {
           </div>
         }
       >
-        {studio ? (
+        {loading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
+          </div>
+        ) : studio ? (
           <StudioDetailContent studio={studio} />
         ) : (
           <div className="container mx-auto pt-44 px-4 h-screen text-center">
-            <h1 className="text-2xl font-bold mb-4">Studio not found</h1>
+            <h1 className="text-2xl font-bold mb-4">{error || "Studio not found"}</h1>
             <Link href="/book-a-studio" className="text-[#E8D1AB] underline">
               Return to listings
             </Link>

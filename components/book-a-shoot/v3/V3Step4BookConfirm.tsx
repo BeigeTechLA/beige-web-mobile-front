@@ -840,7 +840,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <div className="flex gap-2 w-full items-center justify-start">
                             {["Natural Light", "Product friendly"].map((feature) => {
                               return (
-                                <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
                                   {feature}
                                 </div>
                               )
@@ -905,7 +905,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                   <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
                                     {["Natural Light", "Product friendly"].map((feature) => {
                                       return (
-                                        <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                        <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
                                           {feature}
                                         </div>
                                       )
@@ -1243,7 +1243,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
                             {["Natural Light", "Product friendly"].map((feature) => {
                               return (
-                                <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
                                   {feature}
                                 </div>
                               )

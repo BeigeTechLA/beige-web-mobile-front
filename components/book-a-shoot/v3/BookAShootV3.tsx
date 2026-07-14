@@ -52,12 +52,6 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
-const toUtcIsoIfValid = (value?: string | null) => {
-  if (!value) return value;
-  const date = parseDate(value);
-  return date && !isNaN(date.getTime()) ? date.toISOString() : value;
-};
-
 interface FormFields {
   email: string;
   user_id: number | undefined;
@@ -137,6 +131,40 @@ export const BookAShootV3 = () => {
   const updateData = useCallback((newData: Partial<BookingDataV3>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
+
+  const toUtcIsoIfValid = (value?: string | null) => {
+    if (!value) return value;
+    const date = parseDate(value);
+    return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+  };
+
+  const serializeStudioItemsForLead = (
+    selectedStudios: BookingDataV3["selectedStudios"] = [],
+    crewCount = 0,
+  ) =>
+    (selectedStudios || []).map((studio) => ({
+      studio_id: studio.studioId,
+      name: studio.name,
+      location: studio.location,
+      image: studio.image,
+      pricing_mode: studio.pricingMode,
+      pricing_category: studio.pricingCategory,
+      pricing_label: studio.pricingLabel,
+      unit_price: studio.unitPrice,
+      quantity: studio.quantity,
+      total: studio.totalPrice,
+      price_label: studio.priceLabel,
+      selected_date: studio.selectedDate,
+      start_time: studio.startTime,
+      end_time: studio.endTime,
+      time_zone: getBrowserTimeZone(),
+      studio_booking_type: "single_day",
+      booking_days: [],
+      cast_and_crew_count: crewCount,
+      update_studio_datetime: true,
+      lat: studio.lat,
+      lng: studio.lng,
+    }));
 
   // Track early interest when logged-in user lands on the page
   useEffect(() => {
@@ -298,6 +326,13 @@ export const BookAShootV3 = () => {
             ...d,
             time_zone: d.time_zone || d.timeZone || browserTimeZone
           }));
+          if (formData.selectedStudios?.length) {
+            earlyInterestPayload.studio_total = getSelectedStudiosTotal(normalizeSelectedStudios(formData));
+            earlyInterestPayload.studio_items = serializeStudioItemsForLead(
+              formData.selectedStudios,
+              formData.crewCount || 0,
+            );
+          }
         }
 
         const result = await trackEarlyInterest(earlyInterestPayload).unwrap();
