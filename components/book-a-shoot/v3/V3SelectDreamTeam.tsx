@@ -64,6 +64,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
   const [showSalesModal, setShowSalesModal] = useState(false);
   const [activeRoleFilter, setActiveRoleFilter] = useState<"video" | "photo" | null>(null);
+  const [profileModalUrl, setProfileModalUrl] = useState<string | null>(null);
 
   // Use local state for selection if not in data yet
   const [selectedIds, setSelectedIds] = useState<number[]>(data.selectedCrewIds || []);
@@ -790,6 +791,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             selectedRoles={selectedRoles}
             activeRoleFilter={activeRoleFilter}
             toggleSelection={toggleSelection}
+            onViewProfile={setProfileModalUrl}
           />
         ) : (
           <div className="text-center text-white/60 py-16">
@@ -980,6 +982,26 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </p>
         </motion.div>
       )} */}
+      <Dialog
+        open={Boolean(profileModalUrl)}
+        onOpenChange={(open) => {
+          if (!open) setProfileModalUrl(null);
+        }}
+      >
+        <DialogContent className="h-[92vh] w-[calc(100vw-24px)] max-w-[1200px] overflow-hidden border-white/10 bg-black p-0 sm:w-[calc(100vw-48px)] [&>button]:z-10 [&>button]:bg-black/70 [&>button]:text-white">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Creative profile</DialogTitle>
+            <DialogDescription>Creative profile opened from booking flow</DialogDescription>
+          </DialogHeader>
+          {profileModalUrl && (
+            <iframe
+              src={profileModalUrl}
+              title="Creative profile"
+              className="h-full w-full border-0"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
