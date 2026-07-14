@@ -465,7 +465,7 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'],
     }),
-    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[] }>({
+    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[]; allow_pending_compensation_assignment?: boolean }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-shoot',
         method: 'POST',

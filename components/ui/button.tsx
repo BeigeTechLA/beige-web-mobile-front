@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "bg-landing-secondary text-landing-secondary-foreground hover:bg-landing-secondary/80",
         ghost: "hover:bg-landing-accent hover:text-landing-accent-foreground",
         link: "text-landing-primary underline-offset-4 hover:underline",
-        beige: "bg-[#ECE1CE] text-black hover:bg-[#ECE1CE]/90",
+        beige: "bg-[#E8D1AB] text-black hover:bg-[#ECE1CE]",
       },
       size: {
         default: "h-10 px-4 py-2",
