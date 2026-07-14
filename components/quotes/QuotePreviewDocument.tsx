@@ -107,11 +107,13 @@ const PreviewAmountList = ({
   items,
   isDark,
   showQuantity = false,
+  showBullet = false,
 }: {
   title: string;
   items: NormalizedQuoteLineItem[];
   isDark: boolean;
   showQuantity?: boolean;
+  showBullet?: boolean;
 }) => {
   if (items.length === 0) {
     return null;
@@ -160,7 +162,15 @@ const PreviewAmountList = ({
                   isDark ? "text-white/90" : "text-black/85"
                 }`}
               >
-                <p className="min-w-0 truncate font-medium">{item.name}</p>
+              <div className="flex min-w-0 flex-1 items-start gap-2">
+                {showBullet && (
+                  <span className="shrink-0 font-medium">•</span>
+                )}
+
+                <p className="min-w-0 whitespace-normal break-words font-medium">
+                  {item.name}
+                </p>
+              </div>
                 <p className={`shrink-0 text-right ${isDark ? "text-white/65" : "text-black/60"}`}>
                   {formatQuoteCurrency(item.amount)}
                 </p>
@@ -408,7 +418,7 @@ export default function QuotePreviewDocument({
           <div className={`space-y-4 lg:space-y-8 border-t pt-4 lg:pt-8 ${isDark ? "border-white/10" : "border-[#00000014]"}`}>
             <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} showQuantity={true} />
             <PreviewAmountList title="Logistics" items={logisticsItems} isDark={isDark} />
-            <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark}  />
+            <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark} showBullet />
           </div>
         ) : null}
 

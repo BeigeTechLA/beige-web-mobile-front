@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from '@/components/admin/ShootsTable';
 
-import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import Topbar from "@/components/admin/Topbar";
@@ -17,6 +17,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  format as formatDateFns,
+  startOfDay,
+  subDays,
+} from "date-fns";
+
+import { toast } from "sonner";
+import { adminApi } from "@/lib/api";
+import DatePicker from "@/components/ui/Datepicker";
 
 const SHOOTS_FILTERS_STORAGE_KEY = "admin-shoots-filters-v1";
 
@@ -64,6 +78,15 @@ export default function ShootsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [exportStartDate, setExportStartDate] =
+    useState<Date | null>(subDays(new Date(), 30));
+
+  const [exportEndDate, setExportEndDate] =
+    useState<Date | null>(new Date());
 
   useEffect(() => {
     try {
@@ -151,6 +174,86 @@ export default function ShootsPage() {
       console.log("unfiltered");
     }
   };
+
+      const handleExportShoots = async () => {
+      if (isExporting) {
+        return;
+      }
+
+      if (!exportStartDate || !exportEndDate) {
+        toast.error("Please select start and end dates.");
+        return;
+      }
+
+      const normalizedStartDate = startOfDay(exportStartDate);
+      const normalizedEndDate = startOfDay(exportEndDate);
+      const today = startOfDay(new Date());
+
+      if (
+        normalizedStartDate > today ||
+        normalizedEndDate > today
+      ) {
+        toast.error("Future dates are not allowed.");
+        return;
+      }
+
+      if (normalizedStartDate > normalizedEndDate) {
+        toast.error("Start date cannot be after end date.");
+        return;
+      }
+
+      const formattedStartDate = formatDateFns(
+        normalizedStartDate,
+        "yyyy-MM-dd"
+      );
+
+      const formattedEndDate = formatDateFns(
+        normalizedEndDate,
+        "yyyy-MM-dd"
+      );
+
+      setIsExporting(true);
+
+      try {
+        const blob = await adminApi.exportShootsCsv({
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+        });
+
+        if (!(blob instanceof Blob) || blob.size === 0) {
+          throw new Error("Invalid or empty export response.");
+        }
+
+        const downloadUrl =
+          window.URL.createObjectURL(blob);
+
+        const downloadLink =
+          document.createElement("a");
+
+        downloadLink.href = downloadUrl;
+        downloadLink.download =
+          `shoots-${formattedStartDate}-to-${formattedEndDate}.csv`;
+
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+
+        window.URL.revokeObjectURL(downloadUrl);
+
+        setIsExportOpen(false);
+        toast.success("Shoots exported successfully.");
+      } catch (error) {
+        console.error("Export Shoots Error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to export shoots."
+        );
+      } finally {
+        setIsExporting(false);
+      }
+    };
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
@@ -327,6 +430,190 @@ export default function ShootsPage() {
                 >
                   <RotateCcw size={18} />
                 </Button>
+                <Popover
+                  open={isExportOpen}
+                  onOpenChange={(open) => {
+                    if (!isExporting) {
+                      setIsExportOpen(open);
+                    }
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={isExporting}
+                      aria-label="Export shoots"
+                      title="Export shoots"
+                      className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${
+                        isDark
+                          ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
+                          : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
+                      }`}
+                    >
+                      {isExporting ? (
+                        <Loader2
+                          size={18}
+                          className="animate-spin"
+                        />
+                      ) : (
+                        <ArrowUpToLine size={18} />
+                      )}
+
+                      <span className="hidden lg:inline">
+                        {isExporting ? "Exporting..." : "Export"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent
+                    align="end"
+                    sideOffset={10}
+                    className={`w-[340px] rounded-2xl border p-5 ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#171717] text-white"
+                        : "border-[#E5E5E5] bg-white text-black"
+                    }`}
+                  >
+                    <div className="space-y-5">
+                      <div>
+                        <h3 className="text-sm font-semibold">
+                          Export Shoots
+                        </h3>
+
+                        <p
+                          className={`mt-1 text-xs ${
+                            isDark
+                              ? "text-white/55"
+                              : "text-black/55"
+                          }`}
+                        >
+                          Select a date range to download matching shoots.
+                        </p>
+                      </div>
+
+                      <DatePicker
+                        label="Start Date"
+                        value={exportStartDate}
+                        onChange={(date) => {
+                          if (!date) {
+                            setExportStartDate(null);
+                            return;
+                          }
+
+                          const normalizedDate = startOfDay(date);
+                          const today = startOfDay(new Date());
+
+                          if (normalizedDate > today) {
+                            return;
+                          }
+
+                          setExportStartDate(normalizedDate);
+
+                          if (
+                            exportEndDate &&
+                            normalizedDate > startOfDay(exportEndDate)
+                          ) {
+                            setExportEndDate(normalizedDate);
+                          }
+                        }}
+                        maxDate={
+                          exportEndDate
+                            ? startOfDay(exportEndDate)
+                            : startOfDay(new Date())
+                        }
+                        disabled={isExporting}
+                        isDark={isDark}
+                        disablePortal
+                        format="MM/dd/yyyy"
+                        sx={{ height: "42px" }}
+                      />
+
+                      <DatePicker
+                        label="End Date"
+                        value={exportEndDate}
+                        onChange={(date) => {
+                          if (!date) {
+                            setExportEndDate(null);
+                            return;
+                          }
+
+                          const normalizedDate = startOfDay(date);
+                          const today = startOfDay(new Date());
+
+                          if (normalizedDate > today) {
+                            return;
+                          }
+
+                          if (
+                            exportStartDate &&
+                            normalizedDate < startOfDay(exportStartDate)
+                          ) {
+                            return;
+                          }
+
+                          setExportEndDate(normalizedDate);
+                        }}
+                        minDate={
+                          exportStartDate
+                            ? startOfDay(exportStartDate)
+                            : undefined
+                        }
+                        maxDate={startOfDay(new Date())}
+                        disabled={isExporting}
+                        isDark={isDark}
+                        disablePortal
+                        format="MM/dd/yyyy"
+                        sx={{ height: "42px" }}
+                      />
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                          type="button"
+                          disabled={isExporting}
+                          onClick={() => setIsExportOpen(false)}
+                          className={
+                            isDark
+                              ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                              : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                          }
+                        >
+                          Cancel
+                        </Button>
+
+                        <Button
+                          type="button"
+                          disabled={
+                            isExporting ||
+                            !exportStartDate ||
+                            !exportEndDate
+                          }
+                          onClick={() => {
+                            void handleExportShoots();
+                          }}
+                          className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+                        >
+                          {isExporting ? (
+                            <>
+                              <Loader2
+                                size={16}
+                                className="mr-2 animate-spin"
+                              />
+                              Exporting...
+                            </>
+                          ) : (
+                            <>
+                              <Download
+                                size={16}
+                                className="mr-2"
+                              />
+                              Download CSV
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             )
           }

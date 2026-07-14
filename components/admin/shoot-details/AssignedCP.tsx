@@ -72,6 +72,8 @@ export default function AssignedCP({
   const [activeIndex, setActiveIndex] = useState(0);
   const [crewMembers, setCrewMembers] = useState<CrewAssignment[]>(assignedCrew);
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
+  const [selectedCrewId, setSelectedCrewId] = useState<number | null>(null);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -185,56 +187,83 @@ export default function AssignedCP({
       </div>
 
       <div className="p-6 h-full">
-        {hasCPs ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative z-10 py-10">
-              <Swiper
-                effect={"cards"}
-                direction={"vertical"}
-                grabCursor={true}
-                modules={[EffectCards]}
-                className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
-                cardsEffect={{
-                  perSlideOffset: 12,
-                  perSlideRotate: 0,
-                  slideShadows: false,
-                }}
-                onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-              >
-                {crewMembers.map((member, index) => {
-                  const crewMemberId = Number(member.crew_member_id || member.id);
-                  const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+        {
+          hasCPs ? (
+            <div className=" flex flex-col items-center gap-4">
+              {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
+              <div className=" relative z-10 py-10">
+                <Swiper
+                  effect={"cards"}
+                  direction={"vertical"} // Vertical swipe to "pull down" or "push up"
+                  grabCursor={true}
+                  modules={[EffectCards]}
+                  className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                  cardsEffect={{
+                    perSlideOffset: 12, // Reduced offset to keep in box
+                    perSlideRotate: 0, // No rotation
+                    slideShadows: false,
+                  }}
+                  onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+                >
+                  {crewMembers.map((member, index) => {
+                    const crewMemberId = Number(member.crew_member_id || member.id);
+                    const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+                    return (
+                      <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedCrewId(crewMemberId);
+                            setIsRemoveModalOpen(true);
+                          }}
+                          disabled={removingCrewId === Number(member.crew_member_id || member.id)}
+                          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                          aria-label="Remove CP"
+                        >
+                          {removingCrewId === Number(member.crew_member_id || member.id) ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <X size={18} />
+                          )}
+                        </button>
+                       <a
+                          href={`/admin/users/creative-partners/${crewMemberId}`}
+                          onClick={(event) => {
+                            const isModifiedClick =
+                              event.ctrlKey ||
+                              event.metaKey ||
+                              event.shiftKey ||
+                              event.altKey ||
+                              event.button === 1;
 
-                  return (
-                    <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveCP(crewMemberId);
-                        }}
-                        disabled={!canRemoveCP || removingCrewId === crewMemberId}
-                        className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
-                        aria-label="Remove CP"
-                        title={removeLockTitle}
-                      >
-                        {removingCrewId === crewMemberId ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <X size={18} />
-                        )}
-                      </button>
-                      <Image
-                        src={getProfileImage(member)}
-                        alt={`${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`}
-                        fill
-                        className="object-cover object-top"
-                      />
-                    </SwiperSlide>
-                  );
-                })}
-              </Swiper>
-            </div>
+                            if (isModifiedClick) {
+                              return;
+                            }
+
+                            event.preventDefault();
+
+                            if (crewMemberId) {
+                              router.push(
+                                `/admin/users/creative-partners/${crewMemberId}`
+                              );
+                            }
+                          }}
+                          className="relative block h-full w-full cursor-pointer"
+                        >
+                        <Image
+                          src={getProfileImage(member)}
+                          alt={`${member.crew_member?.first_name|| ""} ${member.crew_member?.last_name || ""}`}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </a>
+                      </SwiperSlide>
+                    );
+                  })}
+                </Swiper>
+              </div>
 
             <div className="mt-auto lg:mb-2 text-center z-10 relative">
               <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
@@ -277,6 +306,81 @@ export default function AssignedCP({
           </div>
         )}
       </div>
-    </div>
+     {isRemoveModalOpen && (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+        onClick={() => {
+          if (removingCrewId === null) {
+            setIsRemoveModalOpen(false);
+            setSelectedCrewId(null);
+          }
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl ${
+            isDark
+              ? "border-[#333333] bg-[#161616] text-white"
+              : "border-[#E5E5E5] bg-white text-black"
+          }`}
+        >
+          <h3 className="text-lg font-semibold">
+            Remove Creative Partner?
+          </h3>
+
+          <p
+            className={`mt-2 text-sm ${
+              isDark ? "text-[#A3A3A3]" : "text-[#666666]"
+            }`}
+          >
+            Are you sure you want to remove this creative partner from the shoot?
+            This action cannot be undone.
+          </p>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={removingCrewId !== null}
+              onClick={() => {
+                setIsRemoveModalOpen(false);
+                setSelectedCrewId(null);
+              }}
+              className={
+                isDark
+                  ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]"
+                  : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"
+              }
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={!selectedCrewId || removingCrewId !== null}
+              onClick={async () => {
+                if (!selectedCrewId) return;
+
+                await handleRemoveCP(selectedCrewId);
+
+                setIsRemoveModalOpen(false);
+                setSelectedCrewId(null);
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {removingCrewId !== null ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                "Remove"
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   );
 }

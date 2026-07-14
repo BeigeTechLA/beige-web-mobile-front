@@ -82,7 +82,7 @@ const sampleProjects: string[] = [
 ];
 */
 
-function CreatorProfileContent() {
+function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean }) {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
 
@@ -210,7 +210,7 @@ function CreatorProfileContent() {
   })) || [];
 
   return (
-    <div className="pt-20 lg:pt-32 pb-20">
+    <div className={isModalView ? "pt-6 pb-20" : "pt-20 lg:pt-32 pb-20"}>
       <div className="px-4 md:px-0">
         <section className="mx-auto my-12 container">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -483,14 +483,23 @@ function CreatorProfileContent() {
   );
 }
 
-export default function CreatorProfilePage() {
+function CreatorProfilePageShell() {
+  const searchParams = useSearchParams();
+  const isModalView = searchParams.get("modal") === "1";
+
   return (
     <main className="bg-[#101010] min-h-screen text-white">
-      <Navbar />
-      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
-        <CreatorProfileContent />
-      </Suspense>
-      <Footer />
+      {!isModalView && <Navbar />}
+      <CreatorProfileContent isModalView={isModalView} />
+      {!isModalView && <Footer />}
     </main>
+  );
+}
+
+export default function CreatorProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
+      <CreatorProfilePageShell />
+    </Suspense>
   );
 }
