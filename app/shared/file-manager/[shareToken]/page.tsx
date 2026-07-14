@@ -65,6 +65,36 @@ const formatFileSize = (bytes?: number) => {
 const isPreProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "pre-production";
 const isPostProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "post-production";
 
+const normalizeFolderSegment = (value?: string) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const isSharedUploadLocationAllowed = (phase?: string, path?: string) => {
+  const normalizedPhase = String(phase || "").trim().toLowerCase();
+  const pathSegments = String(path || "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (normalizedPhase === "pre") {
+    return true;
+  }
+
+  if (normalizedPhase === "post") {
+    return pathSegments.length > 0;
+  }
+
+  if (!normalizedPhase || normalizedPhase === "root") {
+    const rootSegment = normalizeFolderSegment(pathSegments[0]);
+    if (rootSegment === "preproduction") return pathSegments.length > 0;
+    if (rootSegment === "postproduction") return pathSegments.length > 1;
+  }
+
+  return false;
+};
+
 const getFileExt = (name?: string) => {
   const parts = (name || "").toLowerCase().split(".");
   return parts.length > 1 ? parts.pop() || "" : "";
@@ -448,7 +478,11 @@ export default function SharedFileManagerPage() {
     }
   };
 
-  const canUpload = step === "content" && accessPermission === "upload_download" && content?.type !== "file";
+  const canUpload =
+    step === "content" &&
+    accessPermission === "upload_download" &&
+    content?.type !== "file" &&
+    isSharedUploadLocationAllowed(currentPhase, currentPath);
 
   const stepConfig = [
     { key: "email", label: "Email", icon: Mail },
