@@ -34,7 +34,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
 
     let filesToProcess = files;
     const totalAfterUpload = value.length + files.length;
-    
+
     if (totalAfterUpload > MAX_CERTS) {
       const allowedCount = MAX_CERTS - value.length;
       toast.warning(`Only adding the first ${allowedCount} files (Max ${MAX_CERTS}).`);
@@ -90,7 +90,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
   };
 
   return (
-    <div className={`w-full border border-white/30 rounded-xl p-4 sm:p-5 ${bg}`}>
+    <div className={`w-full border border-white/30 rounded-xl sm:p-5 p-4 ${bg}`}>
       <div className="flex justify-between items-center mb-4 gap-2">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-white">Certifications</h2>
@@ -127,17 +127,17 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       <div className="flex flex-col gap-3">
         {/* Updated Placeholder message */}
         {value.length === 0 && !isProcessing && (
-           <div className="border border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center gap-2 text-center bg-white/[0.02]">
-              <div className="p-3 rounded-full bg-white/5">
-                <FileWarning size={20} className="text-white/30" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-white/60 font-medium">No certifications yet</p>
-                <p className="text-white/40 text-xs">Upload images or PDFs (Max 5MB each)</p>
-              </div>
-           </div>
+          <div className="border border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center gap-2 text-center bg-white/[0.02]">
+            <div className="p-3 rounded-full bg-white/5">
+              <FileWarning size={20} className="text-white/30" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-white/60 font-medium">No certifications yet</p>
+              <p className="text-white/40 text-xs">Upload images or PDFs (Max 5MB each)</p>
+            </div>
+          </div>
         )}
-        
+
         {value.map((cert) => (
           <div
             key={cert.id}

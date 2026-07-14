@@ -19,13 +19,15 @@ type AddSkillsProps = {
   onChange: (val: string[]) => void;
   options: SkillOption[];
   isDark?: boolean;
+  bg?: string;
 };
 
 const AddSkills = ({
   value = [],
   onChange,
   options,
-  isDark = true
+  isDark = true,
+  bg = "bg-black",
 }: AddSkillsProps) => {
   const [tempSelected, setTempSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
@@ -72,11 +74,11 @@ const AddSkills = ({
               variant="outline"
               className={cn(
                 "flex-1 h-12 justify-between font-normal shadow-none transition-colors border",
-                isDark 
-                  ? "bg-black border-white/10 text-white hover:bg-black hover:text-white focus:ring-1 focus:ring-[#E8D1AB]/50" 
+                isDark
+                  ? `${bg} border-white/10 text-white hover:bg-black hover:text-white focus:ring-1 focus:ring-[#E8D1AB]/50`
                   : "bg-neutral-50 border-black/10 text-black hover:bg-neutral-50 hover:text-black focus:ring-1 focus:ring-[#cbb38b]/50",
                 "focus:ring-offset-0 transition-none",
-                !tempSelected.length && (isDark ? "text-white/20" : "text-black/30")
+                !tempSelected.length && (isDark ? "text-white/50" : "text-black/50")
               )}
             >
               {tempSelected.length
@@ -109,8 +111,8 @@ const AddSkills = ({
                     onClick={() => !isAlreadyAdded && toggleTempSkill(opt.value)}
                     className={cn(
                       "relative flex items-start justify-between gap-3 px-3 py-2.5 rounded-sm cursor-pointer transition-colors",
-                      isDark 
-                        ? "hover:bg-neutral-800 text-white" 
+                      isDark
+                        ? "hover:bg-neutral-800 text-white"
                         : "hover:bg-neutral-100 text-black",
                       isSelected && (isDark ? "bg-neutral-800" : "bg-neutral-100"),
                       isAlreadyAdded && "opacity-40 cursor-not-allowed grayscale"
@@ -150,8 +152,8 @@ const AddSkills = ({
           disabled={!tempSelected.length}
           className={cn(
             "h-12 px-6 font-semibold shadow-none border-0 disabled:opacity-50 transition-colors",
-            isDark 
-              ? "bg-[#E8D1AB] hover:bg-[#dcb98a] text-black" 
+            isDark
+              ? "bg-[#E8D1AB] hover:bg-[#dcb98a] text-black"
               : "bg-[#cbb38b] hover:bg-[#bfa57c] text-white"
           )}
         >
@@ -166,8 +168,8 @@ const AddSkills = ({
             key={id}
             className={cn(
               "px-3 py-1.5 border text-sm font-medium rounded-md flex items-center gap-2 transition-colors",
-              isDark 
-                ? "border-white/10 bg-[#111111] text-white" 
+              isDark
+                ? "border-white/10 bg-[#111111] text-white"
                 : "border-black/10 bg-neutral-100 text-black"
             )}
           >

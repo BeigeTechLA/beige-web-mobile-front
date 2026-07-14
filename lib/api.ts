@@ -2436,6 +2436,125 @@ export const GetProfileCompletion = async (
   }
 };
 
+export const completeCrewMemberProfile = async (
+  crewMemberId: number,
+  data: {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    location: string;
+    latitude: string;
+    longitude: string;
+    working_distance: string;
+    primary_role: string[];
+    years_of_experience: number;
+    hourly_rate: number;
+    bio: string;
+    skills: string[];
+    equipment_ownership: string[];
+    social_media_links: { platform: string; url: string }[];
+    portfolio_links: { platform: string; url: string }[];
+    certifications: string[];
+    availability: string[];
+    profile_photo?: File;
+    portfolio?: File[];
+    certification_files?: File[];
+    recent_work?: File[];
+  }
+) => {
+  try {
+    const formData = new FormData();
+
+    formData.append("first_name", data.first_name);
+    formData.append("last_name", data.last_name);
+    formData.append("phone_number", data.phone_number);
+    formData.append("location", data.location);
+    formData.append("latitude", data.latitude);
+    formData.append("longitude", data.longitude);
+    formData.append("working_distance", data.working_distance);
+
+    formData.append("primary_role", JSON.stringify(data.primary_role));
+    formData.append("years_of_experience", String(data.years_of_experience));
+    formData.append("hourly_rate", String(data.hourly_rate));
+
+    formData.append("bio", data.bio);
+
+    formData.append("skills", JSON.stringify(data.skills));
+    formData.append("equipment_ownership", JSON.stringify(data.equipment_ownership));
+
+    formData.append(
+      "social_media_links",
+      JSON.stringify(data.social_media_links)
+    );
+
+    formData.append(
+      "portfolio_links",
+      JSON.stringify(data.portfolio_links)
+    );
+
+    formData.append(
+      "certifications",
+      JSON.stringify(data.certifications)
+    );
+
+    formData.append(
+      "availability",
+      JSON.stringify(data.availability)
+    );
+
+    // Single profile photo
+    if (data.profile_photo) {
+      formData.append("profile_photo", data.profile_photo);
+    }
+
+    // Multiple portfolio images
+    if (data.portfolio?.length) {
+      data.portfolio.forEach((file) => {
+        formData.append("portfolio", file);
+      });
+    }
+
+    // Multiple certification files
+    if (data.certification_files?.length) {
+      data.certification_files.forEach((file) => {
+        formData.append("certifications", file);
+      });
+    }
+
+    // Multiple recent work files
+    if (data.recent_work?.length) {
+      data.recent_work.forEach((file) => {
+        formData.append("recent_work", file);
+      });
+    }
+
+    const response = await api.post(
+      `/admin/crew-members/${crewMemberId}/profile-completion`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Complete Crew Member Profile Error:",
+      error.response?.data || error.message
+    );
+
+    return {
+      success: false,
+      data: null,
+      error:
+        error.response?.data?.message ||
+        "Failed to complete crew member profile",
+    };
+  }
+};
+
 
 export const CheckVerificationStatus = async (payload: { crew_member_id: any }) => {
   try {

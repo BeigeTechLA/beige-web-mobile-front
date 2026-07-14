@@ -46,11 +46,14 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
   const [isCompressing, setIsCompressing] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const MAX_PROJECT_IMAGES = 5;
+  const MIN_PROJECT_IMAGES = 1;
+
 
   // Dynamic conditional class rules based on themes
   const inputClasses = `h-14 w-full rounded-[12px] border px-4 outline-none focus:ring-0 transition-all ${isDark
-      ? "border-white/20 bg-[#1A1A1A] text-white placeholder:text-white/40 focus:border-[#E8D1AB]"
-      : "border-black/10 bg-neutral-50 text-black placeholder:text-black/40 focus:border-[#cbb38b]"
+    ? "border-white/20 bg-[#1A1A1A] text-white placeholder:text-white/40 focus:border-[#E8D1AB]"
+    : "border-black/10 bg-neutral-50 text-black placeholder:text-black/40 focus:border-[#cbb38b]"
     }`;
 
   const modalBg = `shadow-2xl rounded-[20px] border ${isDark ? "bg-[#101010] border-white/10" : "bg-white border-black/5"}`;
@@ -238,10 +241,10 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
               {imagePreviews.length === 0 ? (
                 <div
                   className={`border-2 border-dashed rounded-xl h-56 flex flex-col items-center justify-center transition-all group ${isCompressing
-                      ? "opacity-50 cursor-wait"
-                      : isDark
-                        ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
-                        : "border-black/10 bg-black/5 hover:bg-black/10 hover:border-[#E8D1AB]/60 cursor-pointer"
+                    ? "opacity-50 cursor-wait"
+                    : isDark
+                      ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
+                      : "border-black/10 bg-black/5 hover:bg-black/10 hover:border-[#E8D1AB]/60 cursor-pointer"
                     }`}
                   onClick={() => !isCompressing && fileRef.current?.click()}
                 >
@@ -303,8 +306,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
                 <span
                   key={t}
                   className={`px-4 py-1.5 border rounded-full flex items-center gap-2 text-sm ${isDark
-                      ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/30 text-[#E8D1AB]"
-                      : "bg-[#E8D1AB]/15 border-[#cbb38b]/40 text-[#cbb38b]"
+                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/30 text-[#E8D1AB]"
+                    : "bg-[#E8D1AB]/15 border-[#cbb38b]/40 text-[#cbb38b]"
                     }`}
                 >
                   #{t}
@@ -316,8 +319,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
               <button
                 onClick={() => setAddTagsOpen(true)}
                 className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-sm ${isDark
-                    ? "border-white/10 text-white/60 hover:text-white hover:bg-white/5"
-                    : "border-black/10 text-black/60 hover:text-black hover:bg-black/5"
+                  ? "border-white/10 text-white/60 hover:text-white hover:bg-white/5"
+                  : "border-black/10 text-black/60 hover:text-black hover:bg-black/5"
                   }`}
               >
                 <Tag className="w-4 h-4" /> Add Tags

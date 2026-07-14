@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import {
     ArrowLeft,
@@ -12,6 +12,9 @@ import {
     FileText,
     Award,
     Briefcase,
+    PlusCircle,
+    Globe,
+    Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
@@ -25,11 +28,45 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+
+// Added adminApi to the import
+import { GetProfileCompletion, adminApi, completeCrewMemberProfile } from "@/lib/api";
+import Image from "next/image";
+import { formatCreatorRoles } from "@/lib/creatorRoles";
+//import { CREATOR_ROLE_OPTIONS } from "@/lib/creatorRoles";
+import { distanceOptions, PORTFOLIO_ICONS, SOCIAL_ICONS } from "@/app/data/staticData";
+import { roleOptions, videographerSkills, photographerSkills, editorSkills } from "@/app/data/staticData";
+import {
+    LocationPicker,
+    darkThemeColors,
+    lightThemeColors
+} from "@/src/components/booking/v2/component/LocationPicker";
+import AddSkills from "@/src/components/cpSignup/addSkills";
+import AddEquipments from "@/src/components/cpSignup/addEquipment";
+import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
+import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
+import FeaturedWork from "@/src/components/cpSignup/FeaturedWork";
+import AddCertification from "@/src/components/cpSignup/AddCertification";
+import UploadResumePortfolio from "@/src/components/cpSignup/UploadResumePortfolio";
+import CropProfileModal from "@/src/components/cpSignup/cropProfileModal";
+import { compressImage } from "@/lib/utils";
 
 interface Skill {
     id: string;
     name: string;
 }
+
+interface SelectedImageState {
+    file: File;
+    preview: string;
+}
+
 
 export default function EditUserDetailsPage() {
     const router = useRouter();
@@ -37,35 +74,53 @@ export default function EditUserDetailsPage() {
     const pathname = usePathname();
     const userId = params?.id as string;
 
-    // Personal Details State
-    const [firstName, setFirstName] = useState("Ethan");
-    const [lastName, setLastName] = useState("Carter");
-    const [email, setEmail] = useState("ethanc4519@yahoo.com");
-    const [workingDistance, setWorkingDistance] = useState("Up to 10 Miles");
-    const [address, setAddress] = useState("218 East 5th Street, Los Angeles, California 90013, United States");
-    const [profilePicture, setProfilePicture] = useState<string | null>(null);
+    const isDark = true;
 
-    // Professional Details State
-    const [primaryRole, setPrimaryRole] = useState("Videographer");
-    const [yearsOfExperience, setYearsOfExperience] = useState("05");
-    const [hourlyRate, setHourlyRate] = useState("$150 / hr");
-    const [bio, setBio] = useState("A creative photographer with experience in events, lifestyle, and commercial shoots. Passionate about storytelling through visuals and committed to delivering.");
+    // Personal Details State (Initialized as blank)
+
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [workingDistance, setWorkingDistance] = useState("");
+    const [address, setAddress] = useState("");
+    const [locationLatitude, setLocationLatitude] = useState<string | null>(null);
+    const [locationLongitude, setLocationLongitude] = useState<string | null>(null);
+    const [profilePicture, setProfilePicture] = useState<string | null>(null);
+    const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
+    const [cropModalOpen, setCropModalOpen] = useState(false);
+    const [isCompressing, setIsCompressing] = useState(false);
+    const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [longitude, setLongitude] = useState("");
+    const [latitude, setLatitude] = useState("");
+
+    const fullName = `${firstName || ''} ${lastName || ''}`.trim() || "Unknown Partner";
+    // Professional Details State (Initialized as blank)
+    const [primaryRoles, setPrimaryRoles] = useState<string[]>([]);
+    const [yearsOfExperience, setYearsOfExperience] = useState("");
+    const [hourlyRate, setHourlyRate] = useState("");
+    const [bio, setBio] = useState("");
 
     // Skills State
-    const [skills, setSkills] = useState<Skill[]>([
-        { id: "1", name: "Photo Product" },
-        { id: "2", name: "Photo Event" }
-    ]);
-    const [newSkill, setNewSkill] = useState("");
+    const [skills, setSkills] = useState<Skill[]>([]);
+    const [newSkill, setNewSkill] = useState<string[]>([]);
+    const [allSkills, setAllSkills] = useState<Skill[]>([]); // To store skills from API
 
     // Equipment State
-    const [equipmentSearch, setEquipmentSearch] = useState("");
+    const [equipmentIds, setEquipmentIds] = useState<string[]>([]);
+    const [equipmentNames, setEquipmentNames] = useState<string[]>([]);
 
     // Files State
     const [workImages, setWorkImages] = useState<File[]>([]);
-    const [certifications, setCertifications] = useState<File[]>([]);
-    const [resume, setResume] = useState<File | null>(null);
-    const [portfolioDoc, setPortfolioDoc] = useState<File | null>(null);
+    const [certifications, setCertifications] = useState([]);
+    const [resume, setResume] = useState<any>(null);
+    const [portfolio, setPortfolio] = useState<any[]>([]);
+    const [profileProgress, setProfileProgress] = useState<any>(null);
+    const [socialModalOpen, setSocialModalOpen] = useState(false);
+    const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
+    const [links, setLinks] = useState([]);
+    const [portfolioLinks, setPortfolioLinks] = useState([]);
+    const [featuredWork, setFeaturedWork] = useState([]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workImageInputRef = useRef<HTMLInputElement>(null);
@@ -73,66 +128,454 @@ export default function EditUserDetailsPage() {
     const resumeInputRef = useRef<HTMLInputElement>(null);
     const portfolioInputRef = useRef<HTMLInputElement>(null);
 
-    // Progress calculation
-    const progress = 43;
-    const completedFields = 3;
-    const requiredFields = 4;
-    const totalFields = 7;
+    useEffect(() => {
+        const handleDocumentMouseDown = (event: MouseEvent) => {
+            const activeElement = document.activeElement as HTMLElement | null;
+            if (!activeElement) return;
 
-    const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const activeTag = activeElement.tagName;
+            if (!["INPUT", "TEXTAREA", "SELECT"].includes(activeTag)) return;
+
+            const target = event.target as HTMLElement | null;
+            if (!target) return;
+
+            if (activeElement.contains(target) || target.closest("input, textarea, select")) {
+                return;
+            }
+
+            activeElement.blur();
+        };
+
+        document.addEventListener("mousedown", handleDocumentMouseDown);
+        return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
+    }, []);
+
+    const progress = profileProgress?.overall_progress_percent ?? 0;
+    const currentStep = profileProgress?.required_fields?.complete ?? 0;
+    const totalSteps = profileProgress?.required_fields?.total ?? 0;
+    const requiredCompleted = profileProgress?.required_fields?.complete ?? 0;
+    const requiredTotal = profileProgress?.required_fields?.total ?? 0;
+    const totalCompleted = profileProgress?.total_fields?.complete ?? 0;
+    const totalFields = profileProgress?.total_fields?.total ?? 0;
+    const completionNeeds = profileProgress?.completion_needs?.complete ?? 0;
+    const completTotal = profileProgress?.completion_needs?.total ?? 0;
+    const fieldsComplete = profileProgress?.fields_complete ?? "0/0";
+
+
+
+    const parseSocialLinks = (value: string) => {
+        if (!value) return [];
+
+        try {
+            let parsed = JSON.parse(value);
+
+            if (typeof parsed === "string") {
+                parsed = JSON.parse(parsed);
+            }
+
+            return Object.entries(parsed).map(([platform, url], index) => ({
+                id: index + 1,
+                platform,
+                name:
+                    SOCIAL_ICONS.find(s => s.id === platform)?.label ??
+                    platform,
+                url,
+            }));
+        } catch {
+            return [];
+        }
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // 1. Fetch Profile Progress
+                const progressRes = await GetProfileCompletion(userId);
+                if (!progressRes.error) {
+                    setProfileProgress(progressRes.data);
+                }
+
+                // 2. Fetch Crew Member Detail
+                // Note: Assuming 'cleanId' in your prompt refers to the crew member's ID passed as 'userId' in route params
+                const detailRes = await adminApi.getCrewMemberDetail(userId);
+                if (!detailRes.error && detailRes.data) {
+                    const data = detailRes.data;
+
+                    const baseUrl =
+                        process.env.NEXT_PUBLIC_S3_PREFIX ||
+                        "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
+                    const groupedWorks = Object.values(
+                        (data.crew_member_files || [])
+                            .filter((f: any) => f.file_type === "recent_work")
+                            .reduce((acc: any, file: any) => {
+                                const key = file.title || "Untitled";
+
+                                if (!acc[key]) {
+                                    acc[key] = {
+                                        id: crypto.randomUUID(),
+                                        title: key,
+                                        tags: file.tag ? [file.tag] : [],
+                                        previews: [],
+                                    };
+                                }
+
+                                acc[key].previews.push(baseUrl + file.file_path);
+
+                                return acc;
+                            }, {})
+                    );
+
+                    setFeaturedWork(groupedWorks);
+
+                    // Map basic fields
+                    setFirstName(data.first_name || "");
+                    setLastName(data.last_name || "");
+                    setPhoneNumber(data.phone_number || "");
+                    setEmail(data.email || "");
+                    setBio(data.bio || "");
+
+                    let location = data.location || "";
+                    try {
+                        while (
+                            typeof location === "string" &&
+                            (location.startsWith('"') || location.startsWith("'"))
+                        ) {
+                            location = JSON.parse(location);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+
+                    setAddress(location);
+
+                    // Map Working Distance to match Select options
+                    if (data.working_distance) {
+                        const lower = data.working_distance.toLowerCase();
+                        if (lower.includes("Upto 25 miles")) setWorkingDistance("Upto 25 Miles");
+                        else if (lower.includes("Upto 50 miles")) setWorkingDistance("Upto 50 Miles");
+                        else if (lower.includes("Upto 100 miles")) setWorkingDistance("Upto 100 Miles");
+                        else if (lower.includes("any")) setWorkingDistance("Any Distance");
+                        else setWorkingDistance(data.working_distance);
+                    }
+
+                    // Map Profile Picture
+                    if (data.crew_member_files && data.crew_member_files.length > 0) {
+                        const profileFile = data.crew_member_files.find((f: any) => f.file_type === "profile_photo");
+                        if (profileFile) {
+                            // TODO: Adjust the base URL according to your environment variable
+                            const baseUrl = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+                            setProfilePicture(baseUrl + profileFile.file_path);
+                        }
+                    }
+
+                    // Map Years of Experience to match Select options ("01", "02" ... "10+")
+                    if (data.years_of_experience !== null && data.years_of_experience !== undefined) {
+                        const years = parseInt(data.years_of_experience.toString());
+                        if (years >= 10) {
+                            setYearsOfExperience("10+");
+                        } else {
+                            setYearsOfExperience(years.toString().padStart(2, '0'));
+                        }
+                    }
+
+                    // Map Hourly Rate to match Select options ("$50 / hr", "$200 / hr", etc.)
+                    if (data.hourly_rate) {
+                        setHourlyRate(String(parseFloat(data.hourly_rate)));
+                    }
+
+                    if (data.primary_role) {
+                        setPrimaryRoles(JSON.parse(data.primary_role));
+                    }
+
+                    // Map Skills
+                    if (data.skills?.length) {
+                        const selectedSkillIds = data.skills.map((s: any) => s.id.toString());
+                        setNewSkill(selectedSkillIds);
+                        setSkills(
+                            data.skills.map((s: any) => ({
+                                id: s.id.toString(),
+                                name: s.name,
+                            }))
+                        );
+                    }
+
+                    if (Array.isArray(data.equipment_ownership)) {
+                        setEquipmentIds(
+                            data.equipment_ownership.map((item: any) =>
+                                item.equipment_id.toString()
+                            )
+                        );
+
+                        setEquipmentNames(
+                            data.equipment_ownership.map((item: any) =>
+                                item.equipment_name
+                            )
+                        );
+                    }
+
+                    if (data.social_media_links) {
+                        setLinks(parseSocialLinks(data.social_media_links));
+                    }
+
+                    const portfolioLinks = (data.crew_member_files || [])
+                        .filter((file: any) => file.file_type === "portfolio_link")
+                        .map((file: any, index: number) => ({
+                            id: index + 1,
+                            platform: file.tag || "custom",
+                            name:
+                                file.title ||
+                                PORTFOLIO_ICONS.find(
+                                    p => p.id === file.tag
+                                )?.label ||
+                                "Untitled",
+                            url: file.file_path,
+                        }));
+
+                    setPortfolioLinks(portfolioLinks);
+
+                    const certs = (data.crew_member_files || [])
+                        .filter((f: any) => f.file_type === "certifications")
+                        .map((f: any, index: number) => ({
+                            id: `cert-${index}`,
+                            name: f.file_path.split("/").pop(),
+                            size: "",
+                            url: baseUrl + f.file_path,
+                            file: null,
+                        }));
+
+                    setCertifications(certs);
+
+                    const resumeFile = data.crew_member_files.find(
+                        (f: any) => f.file_type === "resume"
+                    );
+
+                    if (resumeFile) {
+                        setResume({
+                            id: "resume",
+                            name: resumeFile.file_path.split("/").pop(),
+                            size: "",
+                            url: baseUrl + resumeFile.file_path,
+                            file: null,
+                        });
+                    }
+
+
+                    const portfolioFiles = (data.crew_member_files || [])
+                        .filter((f: any) => f.file_type === "portfolio")
+                        .map((f: any, index: number) => ({
+                            id: `portfolio-${index}`,
+                            name: f.file_path.split("/").pop(),
+                            size: "",
+                            url: baseUrl + f.file_path,
+                            file: null,
+                        }));
+
+                    setPortfolio(portfolioFiles);
+
+                }
+
+                // 3. Fetch Skills for the dropdown
+                const skillsRes = await adminApi.getSkills();
+                if (!skillsRes.error && skillsRes.data) {
+                    setAllSkills(skillsRes.data.map((s: any) => ({ id: s.id.toString(), name: s.name })));
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                toast.error("Failed to load crew member details");
+            }
+        };
+
+        if (userId) {
+            fetchData();
+        }
+    }, [userId]);
+
+    useEffect(() => {
+        return () => {
+            if (
+                profilePicture &&
+                profilePicture.startsWith("blob:")
+            ) {
+                URL.revokeObjectURL(profilePicture);
+            }
+        };
+    }, [profilePicture]);
+
+    const mergeUniqueSkills = (...lists) => {
+        const map = new Map();
+        lists.flat().forEach((skill) => {
+            if (skill && !map.has(skill.value)) {
+                map.set(skill.value, skill);
+            }
+        });
+        return Array.from(map.values());
+    };
+
+    const getSkillOptionsByRole = () => {
+        const listsToMerge = [];
+
+        if (primaryRoles.includes("1")) {
+            listsToMerge.push(videographerSkills);
+        }
+
+        if (primaryRoles.includes("2")) {
+            listsToMerge.push(photographerSkills);
+        }
+
+        if (primaryRoles.includes("3")) {
+            listsToMerge.push(editorSkills);
+        }
+
+        if (listsToMerge.length === 0) {
+            return [];
+        }
+
+        return mergeUniqueSkills(...listsToMerge);
+    };
+
+    const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfilePicture(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            // --- FILE SIZE VALIDATION (5MB) ---
+            const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error("File is too large. Maximum size allowed is 5MB.");
+                // Reset the input so the user can try again
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                }
+                return;
+            }
+            // ----------------------------------
+
+            try {
+                setIsCompressing(true);
+                const compressedFile = await compressImage(file);
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setSelectedImage({
+                        file: compressedFile,
+                        preview: reader.result as string
+                    });
+                    setCropModalOpen(true);
+                    setIsCompressing(false);
+                };
+
+                reader.readAsDataURL(compressedFile);
+            } catch (error) {
+                console.error("Compression failed:", error);
+                setIsCompressing(false);
+                toast.error("Failed to process image.");
+            }
         }
     };
 
-    const handleAddSkill = () => {
-        if (newSkill.trim()) {
-            setSkills([...skills, { id: Date.now().toString(), name: newSkill.trim() }]);
-            setNewSkill("");
+    const handleCropSave = (blob: Blob, previewUrl: string) => {
+        const file = new File(
+            [blob],
+            selectedImage?.file?.name || "profile.jpg",
+            {
+                type: blob.type || "image/jpeg",
+            }
+        );
+
+        setProfilePhotoFile(file);
+        setProfilePicture(previewUrl);
+
+        setCropModalOpen(false);
+        setSelectedImage(null);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
         }
     };
 
-    const handleRemoveSkill = (id: string) => {
-        setSkills(skills.filter(skill => skill.id !== id));
-    };
-
-    const handleWorkImagesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (workImages.length + files.length > 5) {
-            toast.error("You can only upload maximum 5 images");
-            return;
-        }
-        setWorkImages([...workImages, ...files]);
-    };
-
-    const handleRemoveWorkImage = (index: number) => {
-        setWorkImages(workImages.filter((_, i) => i !== index));
-    };
-
-    const handleCertificationsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (certifications.length + files.length > 10) {
-            toast.error("You can only upload maximum 10 files");
-            return;
-        }
-        setCertifications([...certifications, ...files]);
-    };
-
-    const handleRemoveCertification = (index: number) => {
-        setCertifications(certifications.filter((_, i) => i !== index));
-    };
 
     const handleSave = async () => {
         try {
-            toast.success("Profile updated successfully");
-            router.back();
-        } catch (error) {
-            toast.error("Failed to update profile");
+            const socialMediaLinks = Object.fromEntries(
+                links.map(link => [link.platform, link.url])
+            );
+
+            const response = await completeCrewMemberProfile(Number(userId), {
+                first_name: firstName,
+                last_name: lastName,
+                phone_number: phoneNumber,
+                location: address,
+                latitude: locationLatitude,
+                longitude: locationLongitude,
+                working_distance: workingDistance,
+
+                primary_role: primaryRoles,
+
+                years_of_experience:
+                    yearsOfExperience === "10+"
+                        ? 10
+                        : Number(yearsOfExperience),
+
+                hourly_rate: Number(hourlyRate),
+
+                bio,
+
+                skills: newSkill,
+
+                equipment_ownership: equipmentIds,
+
+                // DON'T JSON.stringify here if your API helper already does it.
+                social_media_links: socialMediaLinks,
+
+                portfolio_links: portfolioLinks.map(link => ({
+                    platform: link.platform,
+                    url: link.url,
+                })),
+
+                certifications: [],
+
+                availability: [],
+
+                profile_photo: profilePhotoFile || undefined,
+
+                portfolio: portfolio
+                    .filter(item => item.file instanceof File)
+                    .map(item => item.file),
+
+                certification_files: certifications
+                    .filter(item => item.file instanceof File)
+                    .map(item => item.file),
+
+                recent_work: featuredWork.flatMap(item => item.files || []),
+            });
+
+            console.log("Profile Update Response:", response);
+
+            if (!response) {
+                toast.error("No response received from server.");
+                return;
+            }
+
+            if (response.error === false || response.success === true) {
+                toast.success(response.message || "Profile updated successfully");
+                router.back();
+                return;
+            }
+
+            toast.error(
+                response.message ||
+                response.error ||
+                "Failed to update profile."
+            );
+
+        } catch (error: any) {
+            console.error("Profile Update Error:", error);
+
+            toast.error(
+                error?.response?.data?.message ||
+                error?.message ||
+                "Something went wrong while updating the profile."
+            );
         }
     };
 
@@ -140,8 +583,32 @@ export default function EditUserDetailsPage() {
         router.back();
     };
 
-    const inputClass = "h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] text-white focus-visible:ring-0 placeholder:text-white/35";
-    const selectTriggerClass = "h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180";
+    const toggleRole = (value: string) => {
+        setPrimaryRoles(prev =>
+            prev.includes(value)
+                ? prev.filter(v => v !== value)
+                : [...prev, value]
+        );
+    };
+
+    const selectedRoleLabels = primaryRoles.length > 0
+        ? roleOptions
+            .filter(role => primaryRoles.includes(role.value))
+            .map(role => role.label)
+            .join(", ")
+        : "";
+
+    const deleteLink = (id) => {
+        setLinks((prev) => prev.filter((l) => l.id !== id));
+    };
+
+    const deletePortfolioLink = (id) => {
+        setPortfolioLinks((prev) => prev.filter((l) => l.id !== id));
+    };
+
+
+    const inputClass = "h-9 w-full rounded-none border-0 bg-[#101010] px-0 py-0 text-base text-white placeholder:text-white/35 shadow-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none";
+    const selectTriggerClass = "h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-base text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180";
     const selectContentClass = "border-white/10 bg-[#111111] text-white";
 
     return (
@@ -170,65 +637,81 @@ export default function EditUserDetailsPage() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="rounded-xl border border-white/10 bg-[#101010] p-4 mb-6">
+                    <div className="rounded-2xl border border-[#E8D1AB]/30 bg-[#171717] p-4 mb-6">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] text-white/55">
+                            <span className="text-sm text-[#E8D1AB]">
                                 Overall Progress: {progress}%
                             </span>
-                            <span className="text-[11px] text-white/55">
-                                {completedFields}/{totalFields}
+                            <span className="text-sm text-[#E8D1AB]">
+                                {fieldsComplete}
                             </span>
                         </div>
-                        <div className="h-1 rounded-full bg-white/10">
+                        <div className="h-2 rounded-full bg-[#2B2B2B]">
                             <div
                                 className="h-full rounded-full bg-[#E8D1AB] transition-all duration-500"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
-                        <p className="mt-2 text-[10px] text-white/40">
-                            {completedFields}/{requiredFields} Required Fields | {completedFields}/{totalFields} Total Fields | 0/3 Completion Needs
+                        <p className="mt-2 text-xs text-[#818181]">
+                            {requiredCompleted}/{requiredTotal} Required Fields | {totalCompleted}/{totalFields} Total Fields | {completionNeeds}/{completTotal} Completion Needs
                         </p>
                     </div>
 
                     {/* Personal Details Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-4">Personal Details</h2>
+                        <h2 className="text-xl font-medium text-white mb-4">Personal Details</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <fieldset className="rounded-xl border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-2xl border border-white/30 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/60">
                                     First Name
                                 </legend>
                                 <Input
                                     value={firstName}
                                     onChange={(e) => setFirstName(e.target.value)}
+                                    placeholder="Enter first name"
                                     className={inputClass}
                                 />
                             </fieldset>
 
-                            <fieldset className="rounded-xl border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-2xl border border-white/30 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/60">
                                     Last Name
                                 </legend>
                                 <Input
                                     value={lastName}
                                     onChange={(e) => setLastName(e.target.value)}
+                                    placeholder="Enter last name"
                                     className={inputClass}
                                 />
                             </fieldset>
 
-                            <fieldset className="rounded-xl border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-2xl border border-white/30 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/60">
                                     Email Address
                                 </legend>
                                 <Input
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     type="email"
+                                    disabled
+                                    placeholder="Enter email address"
+                                    className={inputClass}
+                                />
+                            </fieldset>
+                            <fieldset className="rounded-2xl border border-white/30 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/60">
+                                    Phone Number
+                                </legend>
+                                <Input
+                                    type="tel"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    placeholder="Enter phone number"
                                     className={inputClass}
                                 />
                             </fieldset>
 
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
+                            <fieldset className="rounded-2xl border border-white/25 px-6.5 pb-3 pt-1.5">
                                 <legend className="px-1 text-[11px] leading-none text-white/55">
                                     Working Distance
                                 </legend>
@@ -236,59 +719,87 @@ export default function EditUserDetailsPage() {
                                     value={workingDistance}
                                     onValueChange={(value) => setWorkingDistance(value)}
                                 >
-                                    <SelectTrigger className={selectTriggerClass}>
-                                        <SelectValue placeholder="Select distance" />
+                                    <SelectTrigger className={`${inputClass} text-left flex items-center border-white/20`}>
+                                        <SelectValue placeholder="Select travel radius" />
                                     </SelectTrigger>
-                                    <SelectContent className={selectContentClass}>
-                                        <SelectItem value="Up to 10 Miles">Up to 10 Miles</SelectItem>
-                                        <SelectItem value="Up to 25 Miles">Up to 25 Miles</SelectItem>
-                                        <SelectItem value="Up to 50 Miles">Up to 50 Miles</SelectItem>
-                                        <SelectItem value="Up to 100 Miles">Up to 100 Miles</SelectItem>
-                                        <SelectItem value="Any Distance">Any Distance</SelectItem>
+                                    <SelectContent className="bg-[#1A1A1A] border-white/20 text-white">
+                                        {distanceOptions.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value} className="focus:bg-[#E8D1AB] focus:text-black">
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
+
                                 </Select>
                             </fieldset>
 
-                            <fieldset className="md:col-span-2 rounded-xl border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55 flex items-center gap-2">
-                                    Address
-                                    <MapPin size={12} className="text-white/30" />
-                                </legend>
-                                <Input
+                            <fieldset className="md:col-span-2">
+                                <LocationPicker
                                     value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    className={inputClass}
+                                    onChange={(selectedAddress, details) => {
+                                        setAddress(selectedAddress);
+                                        const nextLatitude =
+                                            details?.coordinates?.lat ?? details?.lat ?? details?.center?.[1] ?? null;
+                                        const nextLongitude =
+                                            details?.coordinates?.lng ?? details?.lng ?? details?.center?.[0] ?? null;
+                                        setLocationLatitude(
+                                            typeof nextLatitude === "number" && Number.isFinite(nextLatitude)
+                                                ? nextLatitude.toString()
+                                                : ""
+                                        );
+
+                                        setLocationLongitude(
+                                            typeof nextLongitude === "number" && Number.isFinite(nextLongitude)
+                                                ? nextLongitude.toString()
+                                                : ""
+                                        );
+                                    }}
+                                    placeholder="Search for an address"
+                                    label="Address*"
+                                    colors={isDark ? darkThemeColors : lightThemeColors}
+
                                 />
                             </fieldset>
                         </div>
 
                         {/* Profile Picture */}
-                        <div className="mt-4 rounded-t-xl border-x border-t border-white/25 px-4 pt-1.5 pb-3">
-                            <legend className="p-2 text-sm font-normal leading-none text-white">
-                                Profile Picture
-                            </legend>
-
-                            <p className="mt-2 text-[11px] text-white/40">
-                                Add photo to build connection and trust
-                            </p>
+                        <div className="mt-4 rounded-t-2xl border-x border-t border-white/25 pb-4.5">
+                            <div className="px-6.5 pt-6.5">
+                                <legend className="text-base font-normal leading-none text-white">
+                                    Profile Picture
+                                </legend>
+                                <p className="text-sm text-white/60">
+                                    Add photo to build connection and trust
+                                </p>
+                            </div>
                         </div>
                         <div className="border-t border-white/25"></div>
-                        <div className="rounded-b-xl border-x border-b border-white/25 px-4 py-4">
-                            <div className="flex items-center gap-4">
-                                <div className="h-11 w-11 overflow-hidden rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0]">
+                        <div className="rounded-b-2xl border-x border-b border-white/25 pt-4.5">
+                            <div className="flex items-center gap-4 px-6.5 pb-6.5">
+                                <div className="relative h-11 w-11 overflow-hidden rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0]">
                                     {profilePicture ? (
-                                        <img
+                                        <Image
                                             src={profilePicture}
-                                            alt="Profile"
-                                            className="h-full w-full object-cover"
+                                            alt={fullName}
+                                            fill
+                                            sizes="20px"
+                                            className="object-cover"
                                         />
                                     ) : (
-                                        <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-[#222]">
-                                            {firstName?.[0]}
-                                            {lastName?.[0]}
+                                        <div
+                                            className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isDark ? "bg-[#222] text-[#444]" : "bg-gray-100 text-gray-400"
+                                                }`}
+                                        >
+                                            {fullName
+                                                .split(" ")
+                                                .map((n: string) => n[0])
+                                                .join("")
+                                                .toUpperCase()
+                                                .substring(0, 2)}
                                         </div>
                                     )}
                                 </div>
+
 
                                 <label className="cursor-pointer">
                                     <input
@@ -299,7 +810,7 @@ export default function EditUserDetailsPage() {
                                         className="hidden"
                                     />
 
-                                    <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white px-4 py-2.5 text-[13px] font-medium text-black transition-colors hover:bg-white/90">
+                                    <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white px-4 py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90">
                                         <Upload size={14} />
                                         Upload Profile Picture
                                     </span>
@@ -312,85 +823,109 @@ export default function EditUserDetailsPage() {
                     <div className="mb-8">
                         <h2 className="text-[15px] font-medium text-white mb-4">Professional Details</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-2xl border border-white/25 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/55">
                                     Primary Role
                                 </legend>
-                                <Select
-                                    value={primaryRole}
-                                    onValueChange={(value) => setPrimaryRole(value)}
-                                >
-                                    <SelectTrigger className={selectTriggerClass}>
-                                        <SelectValue placeholder="Select role" />
-                                    </SelectTrigger>
-                                    <SelectContent className={selectContentClass}>
-                                        <SelectItem value="Videographer">Videographer</SelectItem>
-                                        <SelectItem value="Photographer">Photographer</SelectItem>
-                                        <SelectItem value="Editor">Editor</SelectItem>
-                                        <SelectItem value="Director">Director</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            className={`${selectTriggerClass} flex w-full items-center justify-between`}
+                                        >
+                                            <span
+                                                className={
+                                                    selectedRoleLabels
+                                                        ? "text-white"
+                                                        : "text-white/35"
+                                                }
+                                            >
+                                                {selectedRoleLabels || "Select role"}
+                                            </span>
+
+                                            <ChevronDown className="h-4 w-4 opacity-70" />
+                                        </Button>
+                                    </PopoverTrigger>
+
+                                    <PopoverContent
+                                        align="start"
+                                        className="w-[var(--radix-popover-trigger-width)] border-white/10 bg-[#111111] p-2"
+                                    >
+                                        <div className="space-y-1">
+                                            {roleOptions.map((role) => (
+                                                <div
+                                                    key={role.value}
+                                                    onClick={() => toggleRole(role.value)}
+                                                    className="flex w-full items-center gap-3 rounded-md px-2 py-2 cursor-pointer hover:bg-white/10"
+                                                >
+                                                    <Checkbox
+                                                        checked={primaryRoles.includes(role.value)}
+                                                        onCheckedChange={() => toggleRole(role.value)}
+                                                        className="border-white/50 data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:border-[#E8D1AB] data-[state=checked]:text-black h-5 w-5"
+                                                    />
+
+                                                    <span className="text-sm text-white">
+                                                        {role.label}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </fieldset>
 
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-2xl border border-white/25 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/55">
                                     Year of Experience
                                 </legend>
                                 <Select
                                     value={yearsOfExperience}
                                     onValueChange={(value) => setYearsOfExperience(value)}
                                 >
-                                    <SelectTrigger className={selectTriggerClass}>
+                                    <SelectTrigger className={`${inputClass} text-left flex items-center border-white/20`}>
                                         <SelectValue placeholder="Select years" />
                                     </SelectTrigger>
-                                    <SelectContent className={selectContentClass}>
-                                        <SelectItem value="01">01</SelectItem>
-                                        <SelectItem value="02">02</SelectItem>
-                                        <SelectItem value="03">03</SelectItem>
-                                        <SelectItem value="04">04</SelectItem>
-                                        <SelectItem value="05">05</SelectItem>
-                                        <SelectItem value="06">06</SelectItem>
-                                        <SelectItem value="07">07</SelectItem>
-                                        <SelectItem value="08">08</SelectItem>
-                                        <SelectItem value="09">09</SelectItem>
-                                        <SelectItem value="10+">10+</SelectItem>
+                                    <SelectContent className="bg-[#1A1A1A] border-white/20 text-white">
+                                        <SelectItem value="01" className="focus:bg-[#E8D1AB] focus:text-black">01</SelectItem>
+                                        <SelectItem value="02" className="focus:bg-[#E8D1AB] focus:text-black">02</SelectItem>
+                                        <SelectItem value="03" className="focus:bg-[#E8D1AB] focus:text-black">03</SelectItem>
+                                        <SelectItem value="04" className="focus:bg-[#E8D1AB] focus:text-black">04</SelectItem>
+                                        <SelectItem value="05" className="focus:bg-[#E8D1AB] focus:text-black">05</SelectItem>
+                                        <SelectItem value="06" className="focus:bg-[#E8D1AB] focus:text-black">06</SelectItem>
+                                        <SelectItem value="07" className="focus:bg-[#E8D1AB] focus:text-black">07</SelectItem>
+                                        <SelectItem value="08" className="focus:bg-[#E8D1AB] focus:text-black">08</SelectItem>
+                                        <SelectItem value="09" className="focus:bg-[#E8D1AB] focus:text-black">09</SelectItem>
+                                        <SelectItem value="10+" className="focus:bg-[#E8D1AB] focus:text-black">10+</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </fieldset>
 
-                            <fieldset className="md:col-span-2 rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="md:col-span-2 rounded-2xl border border-white/30 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/60">
                                     Hourly Rate ($)
                                 </legend>
-                                <Select
+
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
                                     value={hourlyRate}
-                                    onValueChange={(value) => setHourlyRate(value)}
-                                >
-                                    <SelectTrigger className={selectTriggerClass}>
-                                        <SelectValue placeholder="Select rate" />
-                                    </SelectTrigger>
-                                    <SelectContent className={selectContentClass}>
-                                        <SelectItem value="$50 / hr">$50 / hr</SelectItem>
-                                        <SelectItem value="$75 / hr">$75 / hr</SelectItem>
-                                        <SelectItem value="$100 / hr">$100 / hr</SelectItem>
-                                        <SelectItem value="$125 / hr">$125 / hr</SelectItem>
-                                        <SelectItem value="$150 / hr">$150 / hr</SelectItem>
-                                        <SelectItem value="$175 / hr">$175 / hr</SelectItem>
-                                        <SelectItem value="$200 / hr">$200 / hr</SelectItem>
-                                        <SelectItem value="$250 / hr">$250 / hr</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(e) => setHourlyRate(e.target.value)}
+                                    placeholder="Enter hourly rate"
+                                    className={inputClass}
+                                />
                             </fieldset>
 
-                            <fieldset className="md:col-span-2 rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="md:col-span-2 rounded-2xl border border-white/25 px-6.5 pb-3 pt-1.5">
+                                <legend className="px-1 text-base leading-none text-white/55">
                                     Bio / About
                                 </legend>
                                 <Textarea
                                     value={bio}
                                     onChange={(e) => setBio(e.target.value)}
                                     rows={4}
-                                    className="min-h-[96px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-[13px] text-white placeholder:text-white/35 focus:ring-0"
+                                    placeholder="Tell clients about your experience and skills"
+                                    className="min-h-[96px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-sm text-white placeholder:text-white/35 focus:ring-0"
                                 />
                             </fieldset>
                         </div>
@@ -398,254 +933,119 @@ export default function EditUserDetailsPage() {
 
                     {/* Skills Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-4">Skills</h2>
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-4 pt-1.5">
-                            <legend className="px-1 text-[11px] leading-none text-white/55">
+                        <div className="rounded-2xl border border-white/25 p-6.5">
+                            <h2 className="text-base font-medium text-white">Skills</h2>
+                            <legend className="mb-2 text-sm leading-none text-white/55">
                                 Select your core competencies
                             </legend>
-                            <div className="flex gap-3 mt-3">
-                                <fieldset className="flex-1 rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                    <Select
-                                        value={newSkill}
-                                        onValueChange={(value) => setNewSkill(value)}
-                                    >
-                                        <SelectTrigger className={selectTriggerClass}>
-                                            <SelectValue placeholder="Select Skills" />
-                                        </SelectTrigger>
-                                        <SelectContent className={selectContentClass}>
-                                            <SelectItem value="Photo Product">Photo Product</SelectItem>
-                                            <SelectItem value="Photo Event">Photo Event</SelectItem>
-                                            <SelectItem value="Video Editing">Video Editing</SelectItem>
-                                            <SelectItem value="Color Grading">Color Grading</SelectItem>
-                                            <SelectItem value="Portrait Photography">Portrait Photography</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </fieldset>
-                                <button
-                                    onClick={handleAddSkill}
-                                    className="h-9 px-4 rounded-[4px] bg-[#E8D1AB] text-[12px] font-medium text-black hover:bg-[#d4c19f] transition-colors flex items-center gap-2"
-                                >
-                                    <Plus size={14} />
-                                    Add
-                                </button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 mt-3">
-                                {skills.map((skill) => (
-                                    <span
-                                        key={skill.id}
-                                        className="inline-flex items-center gap-2 rounded-[4px] border border-white/25 bg-[#1A1A1A] px-3 py-1.5 text-[12px] text-white"
-                                    >
-                                        {skill.name}
-                                        <button
-                                            onClick={() => handleRemoveSkill(skill.id)}
-                                            className="text-white/60 hover:text-white"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
+
+                            <AddSkills
+                                options={getSkillOptionsByRole()}
+                                value={newSkill}
+                                onChange={setNewSkill}
+                                bg="bg-[#101010]"
+                            />
                         </div>
                     </div>
 
                     {/* Equipment Ownership Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-4">Equipment Ownership</h2>
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                            <legend className="px-1 text-[11px] leading-none text-white/55">
+                        <div className="rounded-2xl border border-white/25 p-6.5">
+                            <h2 className="text-[15px] text-white">Equipment Ownership</h2>
+                            <legend className="text-[11px] leading-none text-white/55">
                                 List the gear you own or use
                             </legend>
-                            <Select
-                                value={equipmentSearch}
-                                onValueChange={(value) => setEquipmentSearch(value)}
-                            >
-                                <SelectTrigger className={selectTriggerClass}>
-                                    <SelectValue placeholder="Please type the equipment's name to search" />
-                                </SelectTrigger>
-                                <SelectContent className={selectContentClass}>
-                                    <SelectItem value="Camera Body - Sony A7III">Camera Body - Sony A7III</SelectItem>
-                                    <SelectItem value="Camera Body - Canon R5">Camera Body - Canon R5</SelectItem>
-                                    <SelectItem value="Lens - 24-70mm f/2.8">Lens - 24-70mm f/2.8</SelectItem>
-                                    <SelectItem value="Lens - 70-200mm f/2.8">Lens - 70-200mm f/2.8</SelectItem>
-                                    <SelectItem value="Lighting Kit">Lighting Kit</SelectItem>
-                                    <SelectItem value="Tripod">Tripod</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="flex gap-3 mt-3">
+                                <AddEquipments
+                                    value={equipmentIds}
+                                    names={equipmentNames}
+                                    onChange={(ids, names) => {
+                                        setEquipmentIds(ids);
+                                        setEquipmentNames(names);
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
 
                     {/* Social Engagement Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-4">Social Engagement</h2>
+                        <h2 className="text-xl text-white mb-4">Social Engagement</h2>
 
                         {/* Social & Professional Links */}
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-4 pt-1.5 mb-4">
-                            <legend className="px-1 text-[11px] leading-none text-white/55">
+                        <div className="rounded-2xl border border-white/25 p-6.5 mb-4">
+                            <legend className="text-base leading-none text-white">
                                 Social & Professional Links*
                             </legend>
-                            <p className="text-[11px] text-white/40 mt-1">Add links to your IMDb, LinkedIn, or Instagram</p>
-                            <button className="mt-3 inline-flex items-center gap-2 text-[12px] text-[#E8D1AB] hover:text-[#d4c19f]">
-                                <Plus size={14} />
-                                Add Social links
+                            <p className="text-sm text-white/60 mt-1 mb-2">Add links to your IMDb, LinkedIn, or Instagram</p>
+                            {links.map((link) => (
+                                <SocMedLink key={link.id} socmedItem={link} deleteLink={deleteLink} />
+                            ))}
+                            <button
+                                type="button"
+                                className="mt-3  inline-flex items-center gap-2 text-sm text-[#E8D1AB] hover:text-[#DCD1BE] transition-colors"
+                                onClick={() => setSocialModalOpen(true)}
+                            >
+                                <div className="p-1.5 rounded-full border border-[#E8D1AB]/30 group-hover:bg-[#E8D1AB]/10">
+                                    <Plus className="w-4 h-4" />
+                                </div>
+                                <span>Add Social links</span>
                             </button>
                         </div>
 
                         {/* Portfolio Links */}
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-4 pt-1.5">
-                            <legend className="px-1 text-[11px] leading-none text-white/55">
+                        <div className="rounded-2xl border border-white/25 p-6.5">
+                            <legend className="text-base leading-none text-white">
                                 Portfolio Links (Optional)
                             </legend>
-                            <p className="text-[11px] text-white/40 mt-1">Add YouTube, Vimeo, or Google Drive links to showcase your portfolio.</p>
-                            <button className="mt-3 inline-flex items-center gap-2 text-[12px] text-[#E8D1AB] hover:text-[#d4c19f]">
-                                <Plus size={14} />
-                                Add Portfolio links
+                            <p className="text-sm text-white/60 mt-1 mb-2">Add YouTube, Vimeo, or Google Drive links to showcase your portfolio.</p>
+                            {portfolioLinks.map((link) => (
+                                <PortfolioLinkItem key={link.id} item={link} deleteLink={deletePortfolioLink} />
+                            ))}
+                            <button
+                                type="button"
+                                className="mt-3  inline-flex items-center gap-2 text-sm text-[#E8D1AB] hover:text-[#DCD1BE] transition-colors"
+                                onClick={() => setPortfolioModalOpen(true)}
+                            >
+                                <div className="p-1.5 rounded-full border border-[#E8D1AB]/30 group-hover:bg-[#E8D1AB]/10">
+                                    <Plus className="w-4 h-4" />
+                                </div>
+                                <span>Add Portfolio links</span>
                             </button>
                         </div>
                     </div>
 
                     {/* Showcase Your Work Section */}
                     <div className="mb-8">
-                        <h2 className="mb-1 text-[15px] font-medium text-white">
-                            Showcase Your Work*
-                        </h2>
-
-                        <p className="mb-4 text-[11px] text-white/55">
-                            Upload images of your best work (.png, .jpg, .jpeg, .webp - Max 5).
-                        </p>
-
-                        <div className="rounded-[8px] border border-white/25 p-4">
-                            {workImages.length === 0 ? (
-                                <label className="flex min-h-[117px] w-full cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-white/20 transition-colors hover:border-[#E8D1AB]/50 hover:bg-[#E8D1AB]/5">
-                                    <input
-                                        ref={workImageInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleWorkImagesUpload}
-                                        className="hidden"
-                                    />
-
-                                    <div className="flex items-center gap-3 text-white/60">
-                                        <Plus size={24} />
-                                        <span className="text-xl">Add</span>
-                                    </div>
-                                </label>
-                            ) : (
-                                <div className="rounded-[8px] border border-dashed border-white/20 p-4">
-                                    <div className="flex gap-4 overflow-x-auto">
-                                        {workImages.map((image, index) => (
-                                            <div
-                                                key={index}
-                                                className="relative h-40 w-40 flex-shrink-0 overflow-hidden rounded-lg"
-                                            >
-                                                <img
-                                                    src={URL.createObjectURL(image)}
-                                                    alt=""
-                                                    className="h-full w-full object-cover"
-                                                />
-
-                                                <button
-                                                    onClick={() => handleRemoveWorkImage(index)}
-                                                    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70"
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-
-                                        {workImages.length < 5 && (
-                                            <label className="flex h-40 w-40 flex-shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-white/20 transition-colors hover:border-[#E8D1AB]/50 hover:bg-[#E8D1AB]/5">
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    multiple
-                                                    onChange={handleWorkImagesUpload}
-                                                    className="hidden"
-                                                />
-
-                                                <Plus size={24} className="text-white/50" />
-                                            </label>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                        <div className="rounded-2xl border border-white/25 p-6.5">
+                            <FeaturedWork
+                                value={featuredWork}
+                                onChange={setFeaturedWork}
+                                darkTheme={true}
+                            />
                         </div>
                     </div>
 
                     {/* Certifications Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-1">
-                            Certifications (Optional)
-                        </h2>
-                        <p className="text-[11px] text-white/55 mb-4">Max 10 files</p>
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-4 pt-1.5">
-                            <div className="space-y-3 mb-4">
-                                {certifications.map((cert, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 rounded-[8px] bg-[#1A1A1A]">
-                                        <div className="flex items-center gap-3">
-                                            <Award className="text-[#E8D1AB]" size={16} />
-                                            <span className="text-[13px] font-medium text-white">
-                                                {cert.name}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => handleRemoveCertification(index)}
-                                            className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                            <label className="w-full py-10 rounded-[8px] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#E8D1AB]/50 hover:bg-[#E8D1AB]/5 transition-colors">
-                                <input
-                                    ref={certInputRef}
-                                    type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    multiple
-                                    onChange={handleCertificationsUpload}
-                                    className="hidden"
-                                />
-                                <Upload size={20} className="text-white/50" />
-                                <span className="text-[12px] font-medium text-white/50">Upload</span>
-                            </label>
-                        </div>
+                        <AddCertification
+                            value={certifications}
+                            onChange={setCertifications}
+                            bg="lg:p-6.5 bg-[#101010]"
+                        />
+
                     </div>
 
                     {/* Upload Documents Section */}
                     <div className="mb-8">
-                        <h2 className="text-[15px] font-medium text-white mb-1">
-                            Upload Documents (Optional)
-                        </h2>
-                        <p className="text-[11px] text-white/55 mb-4">Share your resume and portfolio to help studios and clients understand your experience better.</p>
-                        <div className="rounded-[8px] border border-white/25 px-4 pb-4 pt-1.5 space-y-4">
-                            <label className="w-full py-8 rounded-[8px] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#E8D1AB]/50 hover:bg-[#E8D1AB]/5 transition-colors">
-                                <input
-                                    ref={resumeInputRef}
-                                    type="file"
-                                    accept=".pdf,.doc,.docx"
-                                    onChange={(e) => setResume(e.target.files?.[0] || null)}
-                                    className="hidden"
-                                />
-                                <FileText size={20} className="text-white/50" />
-                                <span className="text-[12px] font-medium text-white/50">
-                                    {resume ? resume.name : "Upload Resume"}
-                                </span>
-                            </label>
-                            <label className="w-full py-8 rounded-[8px] border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-[#E8D1AB]/50 hover:bg-[#E8D1AB]/5 transition-colors">
-                                <input
-                                    ref={portfolioInputRef}
-                                    type="file"
-                                    accept=".pdf,.doc,.docx"
-                                    onChange={(e) => setPortfolioDoc(e.target.files?.[0] || null)}
-                                    className="hidden"
-                                />
-                                <Briefcase size={20} className="text-white/50" />
-                                <span className="text-[12px] font-medium text-white/50">
-                                    {portfolioDoc ? portfolioDoc.name : "Upload Portfolio"}
-                                </span>
-                            </label>
-                        </div>
+                        <UploadResumePortfolio
+                            resume={resume}
+                            setResume={setResume}
+                            portfolio={portfolio}
+                            setPortfolio={setPortfolio}
+                            bgColour="lg:p-6.5 bg-[#101010]"
+                            buttonBgColour="bg-white/5 hover:bg-white/10"
+                        />
                     </div>
 
                     {/* Action Buttons */}
@@ -653,19 +1053,112 @@ export default function EditUserDetailsPage() {
                         <Button
                             onClick={handleBack}
                             variant="outline"
-                            className="h-[38px] px-6 rounded-[4px] border border-white/25 bg-transparent text-[12px] font-medium text-white hover:bg-white/5"
+                            className="h-[38px] px-6 rounded-lg border border-white/25 bg-transparent text-[12px] text-white hover:bg-white/5"
                         >
                             Back
                         </Button>
                         <Button
                             onClick={handleSave}
-                            className="h-[38px] px-6 rounded-[4px] bg-[#E8D1AB] text-[12px] font-medium text-black hover:bg-[#d4c19f]"
+                            className="h-[38px] px-6 rounded-lg bg-[#E8D1AB] text-[12px] text-black hover:bg-[#d4c19f]"
                         >
                             Save
                         </Button>
                     </div>
                 </div>
             </div>
+
+            {cropModalOpen && selectedImage && (
+                <CropProfileModal
+                    image={selectedImage.preview}
+                    onClose={() => setCropModalOpen(false)}
+                    onSave={handleCropSave}
+                />
+            )}
+
+            <SocialLinksModal
+                open={socialModalOpen}
+                onClose={() => setSocialModalOpen(false)}
+                links={links}
+                onChange={setLinks}
+                isDark={true}
+            />
+
+            <PortfolioLinksModal
+                open={portfolioModalOpen}
+                onClose={() => setPortfolioModalOpen(false)}
+                links={portfolioLinks}
+                onChange={setPortfolioLinks}
+                isDark={true}
+            />
+
         </div>
     );
 }
+
+const PortfolioLinkItem = ({ item, deleteLink }: { item: any, deleteLink: (id: any) => void }) => {
+    const platform = PORTFOLIO_ICONS.find((p) => p.id === item.platform);
+    return (
+        <div className="mb-1 w-full flex-shrink-0 flex items-center justify-between bg-white/5 border border-white/10 px-3 py-2 rounded-[12px] hover:border-white/30 transition-all">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-[#1A1A1A] border border-white/10">
+                    {platform?.icon ? (
+                        <platform.icon className="w-5 h-5 text-[#E8D1AB]" />
+                    ) : (
+                        <Globe className="w-5 h-5 text-[#E8D1AB]" />
+                    )}
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                    <span className="text-white text-sm font-medium">
+                        {item.name}
+                    </span>
+                    <span className="text-white/40 text-xs truncate">
+                        {item.url}
+                    </span>
+                </div>
+            </div>
+            <button
+                type="button"
+                onClick={() => deleteLink(item.id)}
+                className="flex-shrink-0 p-2 rounded-lg hover:bg-red-500/10 group transition-colors"
+            >
+                <Trash2 size={18} className="text-white/40 group-hover:text-red-500" />
+            </button>
+        </div>
+    );
+};
+
+
+const SocMedLink = ({ socmedItem, deleteLink }: { socmedItem: any, deleteLink: (id: any) => void }) => {
+    const platform = SOCIAL_ICONS.find((p) => p.id === socmedItem.platform);
+    return (
+        <div className="mb-1 w-full flex-shrink-0 flex items-center justify-between bg-white/5 border border-white/10 px-3 py-2 rounded-[12px] hover:border-white/30 transition-all">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-[#1A1A1A] border border-white/10">
+                    {platform?.src ? (
+                        <img src={platform.src} alt="" className="w-5 h-5" />
+                    ) : platform?.icon ? (
+                        <platform.icon className="w-5 h-5 text-[#E8D1AB]" />
+                    ) : (
+                        <Globe className="w-5 h-5 text-[#E8D1AB]" />
+                    )}
+                </div>
+                <div className="flex flex-col min-w-0">
+                    <span className="text-white text-sm font-medium">
+                        {socmedItem.name}
+                    </span>
+                    <span className="text-white/40 text-xs truncate">
+                        {socmedItem.url}
+                    </span>
+                </div>
+            </div>
+            <button
+                type="button"
+                onClick={() => deleteLink(socmedItem.id)}
+                className="flex-shrink-0 p-2 rounded-lg hover:bg-red-500/10 group transition-colors"
+            >
+                <Trash2 size={18} className="text-white/40 group-hover:text-red-500" />
+            </button>
+        </div>
+    );
+};

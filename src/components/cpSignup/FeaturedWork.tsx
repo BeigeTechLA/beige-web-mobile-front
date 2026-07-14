@@ -29,7 +29,7 @@ type FeaturedWorkProps = {
 
 const MAX_PROJECTS = 5;
 
-const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
+const FeaturedWork = ({ value = [], onChange, darkTheme }: FeaturedWorkProps) => {
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
   const [editingItem, setEditingItem] = useState<FeaturedWorkItem | null>(null);
@@ -225,6 +225,7 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
           setEditingItem(null);
         }}
         onAdd={handleAddOrUpdate}
+        isDark={darkTheme}
       />
     </div>
   );
