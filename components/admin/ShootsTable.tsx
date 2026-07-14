@@ -529,9 +529,19 @@ export const ShootsTable = ({
               : typeof project.location === "string"
                 ? project.location.trim()
                 : project.event_location?.address?.trim?.() || project.location?.address?.trim?.() || "";
+          const hasValidCpCompensationStatus = [
+            "pending_approval",
+            "approved",
+            "paid",
+            "partially_paid",
+            "completed",
+          ].includes(String(project.cp_compensation_status || "").trim().toLowerCase());
           const missingFields = Array.isArray(project.needs_attention?.missing_fields)
             ? project.needs_attention.missing_fields.filter((field: string) => {
               const normalizedField = String(field).toLowerCase();
+              if (normalizedField === "cp_compensation" && hasValidCpCompensationStatus) {
+                return false;
+              }
               if ((normalizedField === "location" || normalizedField === "event_location") && resolvedLocation) {
                 return false;
               }
@@ -1173,14 +1183,14 @@ export const ShootsTable = ({
                 </div>
 
                 <div className="flex flex-col">
-                  {currentShoots.map((shoot, idx) => {
+                  {currentShoots.map((shoot) => {
                     const missingFields = shoot.needsAttention?.missing_fields || [];
                     const isCurrentMenuOpen = openCardActionId === shoot.id;
 
                     return (
                       /* CHANGED: Added relative positioning and dynamic z-index to the parent wrapper row */
                       <div
-                        key={idx}
+                        key={shoot.id}
                         className={`relative block w-full !overflow-visible ${isCurrentMenuOpen ? "z-[100]" : "z-10"}`}
                       >
                         {/* Only passing the values the child component actually needs */}
@@ -1614,7 +1624,7 @@ export const ShootsTable = ({
 
                     return (
                       <tr
-                        key={idx}
+                        key={shoot.id}
                         className={`group border-b transition-colors last:border-0 relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
                         <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
@@ -1726,8 +1736,8 @@ export const ShootsTable = ({
                             <StatusBadge status={shoot.status} />
                           </div>
                         </td>
-                        <td className={`py-5 px-6 text-right border-y border-r ${borderClass}`}>
-                          <div className="relative flex justify-end" data-card-actions>
+                        <td className={`relative z-30 py-5 px-6 text-right border-y border-r ${borderClass}`}>
+                          <div className="relative z-30 flex justify-end" data-card-actions>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1742,7 +1752,7 @@ export const ShootsTable = ({
 
                             {openCardActionId === shoot.id && (
                               <div
-                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+                                className={`absolute right-0 top-9 z-[80] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button

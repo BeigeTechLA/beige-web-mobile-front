@@ -199,8 +199,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
   const convertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const hasValidCpCompensationStatus = [
+    "pending_approval",
+    "approved",
+    "paid",
+    "partially_paid",
+    "completed",
+  ].includes(String(project?.cp_compensation_status || "").trim().toLowerCase());
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
-    ? project.needs_attention.missing_fields
+    ? project.needs_attention.missing_fields.filter((field) => {
+      if (String(field).toLowerCase() === "cp_compensation" && hasValidCpCompensationStatus) {
+        return false;
+      }
+      return true;
+    })
     : [];
   const hasMissingFields = missingFields.length > 0;
   const hasFormDetails = !missingFields.includes("onboarding_form");

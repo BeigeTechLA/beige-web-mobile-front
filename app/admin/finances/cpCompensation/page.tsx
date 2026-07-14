@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CircleDollarSign, Clock, ShieldAlert, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -190,7 +190,10 @@ const formatDateForApi = (date: Date) => {
 export default function AdminFinancesPage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
+  const addFromQuery = searchParams.get("add") === "1";
+  const initialBookingId = searchParams.get("bookingId");
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
@@ -588,6 +591,12 @@ export default function AdminFinancesPage() {
   }, [dataType, loadHistory]);
 
   useEffect(() => {
+    if (addFromQuery) {
+      setIsAddCompOpen(true);
+    }
+  }, [addFromQuery]);
+
+  useEffect(() => {
     if (isAddCompOpen) {
       loadPendingShoots();
     }
@@ -596,6 +605,14 @@ export default function AdminFinancesPage() {
   const handleAddSubmit = async (payload: AddCpCompensationPayload) => {
     setIsAddSubmitting(true);
     try {
+      if (addFromQuery && initialBookingId) {
+        await cpCompensationApi.submitForApproval(payload);
+        setIsAddCompOpen(false);
+        toast.success("Compensation sent for finance approval");
+        router.push(`/admin/shoots/${initialBookingId}`);
+        return;
+      }
+
       await cpCompensationApi.add(payload);
       setIsAddCompOpen(false);
       await Promise.all([loadHistory(dataType), loadPendingShoots()]);
@@ -705,6 +722,7 @@ export default function AdminFinancesPage() {
           shoots={pendingShoots}
           loading={pendingShootsLoading}
           isSubmitting={isAddSubmitting}
+          initialBookingId={initialBookingId}
           onSubmit={handleAddSubmit}
         />
 

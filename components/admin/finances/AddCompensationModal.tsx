@@ -13,6 +13,7 @@ interface AddCompensationModalProps {
   shoots: PendingCompensationShoot[];
   loading?: boolean;
   isSubmitting?: boolean;
+  initialBookingId?: string | number | null;
   onSubmit: (payload: AddCpCompensationPayload) => Promise<void>;
 }
 
@@ -194,6 +195,7 @@ export default function AddCompensationModal({
   shoots,
   loading = false,
   isSubmitting = false,
+  initialBookingId = null,
   onSubmit
 }: AddCompensationModalProps) {
   const [selectedShootId, setSelectedShootId] = useState<string>("");
@@ -300,12 +302,21 @@ export default function AddCompensationModal({
     }
 
     resetFormState();
+    const requestedShoot = initialBookingId
+      ? shoots.find((shoot) => String(shoot.booking_id) === String(initialBookingId))
+      : null;
+    if (requestedShoot) {
+      setSelectedShootId(String(requestedShoot.booking_id));
+      setShootSearchQuery(formatShootOptionLabel(requestedShoot));
+      return;
+    }
+
     if (shoots.length === 1) {
       const shoot = shoots[0];
       setSelectedShootId(String(shoot.booking_id));
       setShootSearchQuery(formatShootOptionLabel(shoot));
     }
-  }, [isOpen, resetFormState, shoots]);
+  }, [initialBookingId, isOpen, resetFormState, shoots]);
 
   useEffect(() => {
     if (!currentShoot) {
@@ -877,7 +888,6 @@ export default function AddCompensationModal({
                                 }}
                                 readOnly
                                 aria-readonly
-                                inputMode="decimal"
                                 className={`h-11 lg:h-16 w-full cursor-not-allowed border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white/90" : "text-black/90"}`}
                               />
                               <p className={`mt-1 text-[11px] lg:text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
@@ -898,7 +908,6 @@ export default function AddCompensationModal({
                                 inputMode="decimal"
                                 value={form.editing}
                                 onChange={(event) => updateCreatorForm(creatorId, "editing", normalizeMoneyInput(event.target.value))}
-                                inputMode="decimal"
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                               />
                             </div>
@@ -911,7 +920,6 @@ export default function AddCompensationModal({
                                 inputMode="decimal"
                                 value={form.travel}
                                 onChange={(event) => updateCreatorForm(creatorId, "travel", normalizeMoneyInput(event.target.value))}
-                                inputMode="decimal"
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                               />
                             </div>
@@ -926,7 +934,6 @@ export default function AddCompensationModal({
                               inputMode="decimal"
                               value={form.bonus}
                               onChange={(event) => updateCreatorForm(creatorId, "bonus", normalizeMoneyInput(event.target.value))}
-                              inputMode="decimal"
                               className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                             />
                           </div>

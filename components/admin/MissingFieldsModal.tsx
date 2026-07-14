@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  CircleDollarSign,
   X,
   Calendar,
   Check,
@@ -99,6 +100,9 @@ type ExistingShootDetails = {
     start_time?: string | null;
     end_time?: string | null;
   }> | null;
+  assignedCrew?: unknown[] | null;
+  assigned_crews?: unknown[] | null;
+  selected_crew_ids?: unknown[] | null;
   [key: string]: unknown;
 };
 
@@ -575,6 +579,7 @@ export const MissingFieldsModal = ({
         const normalized = field.toLowerCase();
         if (normalized === "location" || normalized === "event_location") return "Location";
         if (normalized === "date" || normalized === "event_date") return "Date";
+        if (normalized === "cp_compensation") return "Add Compensation";
         return field
           .split("_")
           .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -823,7 +828,12 @@ export const MissingFieldsModal = ({
   const needsLocation = normalizedFields.includes("location");
   const needsDate = normalizedFields.includes("date");
   const needsOnboardingForm = normalizedFields.includes("onboarding_form");
+  const needsCpCompensation = normalizedFields.includes("cp_compensation");
   const showDateLocationDetails = isDateLocationModalOpen && (needsLocation || needsDate);
+  const hasAssignedCp =
+    (Array.isArray(initialShootData?.assignedCrew) && initialShootData.assignedCrew.length > 0) ||
+    (Array.isArray(initialShootData?.assigned_crews) && initialShootData.assigned_crews.length > 0) ||
+    (Array.isArray(initialShootData?.selected_crew_ids) && initialShootData.selected_crew_ids.length > 0);
 
   const handleFillManually = () => {
     const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
@@ -847,7 +857,28 @@ export const MissingFieldsModal = ({
       return;
     }
 
+    if (needsCpCompensation) {
+      handleAddCpCompensation();
+      return;
+    }
+
     onClose();
+  };
+
+  const handleAddCpCompensation = () => {
+    const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
+    if (!normalizedShootId) {
+      toast.error("Missing shoot id. Please reopen the modal from a valid shoot.");
+      return;
+    }
+
+    onClose();
+    if (!hasAssignedCp) {
+      router.push(`/admin/shoots/${normalizedShootId}/add-creatives`);
+      return;
+    }
+
+    router.push(`/admin/finances/cpCompensation?add=1&bookingId=${encodeURIComponent(normalizedShootId)}`);
   };
 
   const handleRemindOnboardingForm = async () => {
@@ -1029,6 +1060,35 @@ export const MissingFieldsModal = ({
                 <div className={`border-t px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-white/10" : "border-black/5"}`}>
                   <div className="inline-flex rounded-xl bg-[#E8D1AB] px-5 py-3 text-sm font-bold text-black">
                     Proceed
+                  </div>
+                </div>
+              </button>
+            ) : null}
+
+            {needsCpCompensation ? (
+              <button
+                type="button"
+                onClick={handleAddCpCompensation}
+                className={`mt-4 w-full overflow-hidden rounded-2xl border text-left transition-all hover:shadow-lg ${isDark ? "border-white/10 bg-[#171717] hover:bg-[#1B1B1B]" : "border-black/5 bg-white hover:bg-[#FAFAFA]"}`}
+              >
+                <div className="p-4 lg:p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#3A3533]" : "bg-[#F0EBE0]"}`}>
+                      <CircleDollarSign size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#7A5A1E]"} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm lg:text-base font-bold ${isDark ? "text-white" : "text-black"}`}>
+                        CP Compensation is Pending
+                      </p>
+                      <p className={`mt-1 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        Compensation is required for this Creative Partner. Please add it to continue.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`border-t px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-white/10" : "border-black/5"}`}>
+                  <div className="inline-flex min-w-[88px] justify-center rounded-xl bg-[#E8D1AB] px-5 py-3 text-sm font-bold text-black">
+                    Add
                   </div>
                 </div>
               </button>
