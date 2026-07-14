@@ -424,27 +424,11 @@ export default function SubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, file.title || file.name || "file");
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: any) => {
@@ -473,22 +457,23 @@ export default function SubFolderDetailsPage() {
     );
   };
 
+  const selectAllVisibleFiles = () => {
+    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+    setSelectedFilePaths(Array.from(new Set(allVisible)));
+    setIsSelectionMode(true);
+  };
+
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to download file");
-      }
-      await new Promise(r => setTimeout(r, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download selected files");
     }
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -1322,28 +1307,37 @@ export default function SubFolderDetailsPage() {
 
         {/* Batch Action Toolbar */}
         {selectedFilePaths.length > 0 && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xl px-2 lg:px-4">
-            <div className={`border rounded-xl lg:rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 transition-colors duration-200 ${isDark ? "bg-[#171717] border-[#E8D1AB]/50" : "bg-white border-black/10"}`}>
-              <div className="flex items-center gap-3">
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[min(94vw,760px)] px-2 lg:px-4">
+            <div className={`border rounded-xl lg:rounded-2xl shadow-2xl p-3 lg:p-4 flex flex-wrap items-center justify-between gap-3 transition-colors duration-200 ${isDark ? "bg-[#171717] border-[#E8D1AB]/50" : "bg-white border-black/10"}`}>
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ">
                   {selectedFilePaths.length}
                 </div>
-                <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
+                <span className={`text-sm lg:text-base font-medium leading-tight ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
                 <Button
                   variant="ghost"
-                  className={`gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
+                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
                   onClick={() => setSelectedFilePaths([])}
                 >
                   Clear
                 </Button>
 
-                <div className={`h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+                <Button
+                  variant="ghost"
+                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
+                  onClick={selectAllVisibleFiles}
+                >
+                  <CheckSquare size={18} />
+                  Select all
+                </Button>
+
+                <div className={`hidden sm:block h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
 
                 <Button
-                  className={`gap-2 border transition-colors ${isDark
+                  className={`shrink-0 gap-2 border transition-colors ${isDark
                     ? "bg-white/10 text-white hover:bg-white/20 border-white/10"
                     : "bg-black/5 text-black hover:bg-black/10 border-black/5"
                     }`}
@@ -1354,7 +1348,7 @@ export default function SubFolderDetailsPage() {
                 </Button>
 
                 <Button
-                  className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag disabled:cursor-not-allowed disabled:opacity-40"
+                  className="shrink-0 bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => {
                     if (!canDelete) return;
                     setIsDeleteModalOpen(true);
@@ -1369,7 +1363,7 @@ export default function SubFolderDetailsPage() {
 
               <button
                 onClick={() => setSelectedFilePaths([])}
-                className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                className={`shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
               >
                 <CloseIcon size={20} />
               </button>

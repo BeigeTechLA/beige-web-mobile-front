@@ -340,7 +340,7 @@ export default function SalesFileManagerPhasePage() {
         path: getSelectedFolderPath(),
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download folder");
@@ -388,27 +388,11 @@ export default function SalesFileManagerPhasePage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, file.title || file.name || "file");
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: any) => {
@@ -456,20 +440,15 @@ export default function SalesFileManagerPhasePage() {
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to download file");
-      }
-      await new Promise(r => setTimeout(r, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download selected files");
     }
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -706,7 +685,7 @@ export default function SalesFileManagerPhasePage() {
                               path: getPhaseRelativePath(folder.resourcePath, folder.title),
                             });
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                             } catch (err: any) {
                               toast.error(err?.message || "Failed to download folder");
@@ -808,7 +787,7 @@ export default function SalesFileManagerPhasePage() {
                                     path: getPhaseRelativePath(folder.resourcePath, folder.title),
                                   });
                                   if (result?.url) {
-                                    window.open(result.url, "_blank", "noopener,noreferrer");
+                                    fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                                   }
                                 } catch (err: any) {
                                   toast.error(err?.message || "Failed to download folder");
@@ -1316,6 +1295,19 @@ export default function SalesFileManagerPhasePage() {
                   onClick={() => setSelectedFilePaths([])}
                 >
                   Clear
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="text-white/70 hover:text-white gap-2"
+                  onClick={() => {
+                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    setSelectedFilePaths(Array.from(new Set(allVisible)));
+                    setIsSelectionMode(true);
+                  }}
+                >
+                  <CheckSquare size={18} />
+                  Select all
                 </Button>
 
                 <div className="h-6 w-[1px] bg-white/10 mx-1" />

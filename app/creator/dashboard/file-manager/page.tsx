@@ -150,7 +150,7 @@ export default function CreatorFileManagerPage() {
       const workspaceId = await ensureAssignedWorkspace(targetFolder);
       const result = await fileManagerApi.getExternalFolderDownloadUrl(workspaceId);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${targetFolder.title || "workspace"}.zip`);
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download workspace");

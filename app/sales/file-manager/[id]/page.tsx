@@ -130,7 +130,7 @@ export default function SalesFolderDetailsPage() {
         phase: getSelectedFolderPhase(),
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download folder");
@@ -294,7 +294,7 @@ export default function SalesFolderDetailsPage() {
                             phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
                           });
                           if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
+                            fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                           }
                         } catch (err: any) {
                           toast.error(err?.message || "Failed to download folder");

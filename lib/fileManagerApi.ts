@@ -375,6 +375,42 @@ const normalizeExternalLinkUrl = (rawUrl?: string): string => {
   }
 };
 
+const getFilenameFromDisposition = (value?: string | null) => {
+  const disposition = String(value || "");
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+  return filenameMatch?.[1] || "";
+};
+
+const triggerBrowserDownload = (url: string, filename?: string) => {
+  if (typeof document === "undefined" || !url) return;
+  const link = document.createElement("a");
+  link.href = url;
+  link.rel = "noopener noreferrer";
+  if (filename) link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  if (typeof window === "undefined") return;
+  const objectUrl = window.URL.createObjectURL(blob);
+  try {
+    triggerBrowserDownload(objectUrl, filename);
+  } finally {
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+  }
+};
+
 export interface UiFolderItem {
   id: string;
   title: string;
@@ -936,6 +972,10 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  downloadUrl(url: string, filename?: string) {
+    triggerBrowserDownload(url, filename);
+  },
+
   async getExternalFolderDownloadUrl(
     externalId: string | number,
     options?: { phase?: string; path?: string }
@@ -952,6 +992,26 @@ export const fileManagerApi = {
       response.data.url = normalizeExternalLinkUrl(response.data.url);
     }
     return response.data;
+  },
+
+  async downloadExternalSelectedFiles(filepaths: string[], filename = "selected-files.zip") {
+    const normalizedFilepaths = Array.from(
+      new Set(filepaths.map((item) => String(item || "").trim()).filter(Boolean))
+    );
+
+    if (!normalizedFilepaths.length) {
+      throw new Error("Select at least one file to download");
+    }
+
+    const response = await apiClient.getInstance().post("external-file-manager/selected-download", {
+      filepaths: normalizedFilepaths,
+      filename,
+    }, {
+      responseType: "blob",
+    });
+
+    const responseFilename = getFilenameFromDisposition(response.headers?.["content-disposition"]);
+    downloadBlob(response.data, responseFilename || filename);
   },
 
   async deleteExternalEntry(filepath: string) {

@@ -418,27 +418,11 @@ export default function AffiliateFileManager() {
     try {
       const response = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (response?.url) {
-        const link = document.createElement("a");
-        link.href = response.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(response.url, file.title || file.name || "file");
       }
     } catch (err) {
       console.error("Failed to download file:", err);
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const toggleFileSelection = (filepath: string) => {
@@ -557,23 +541,15 @@ export default function AffiliateFileManager() {
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
 
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-
-    for (const path of selectedFilePaths) {
-      try {
-        const response = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (response?.url) {
-          triggerBatchFileDownload(response.url);
-        }
-      } catch (error: unknown) {
-        toast.error(error instanceof Error ? error.message : "Failed to download file");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to download selected files");
     }
-
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleSendForEdits = async () => {
@@ -1430,6 +1406,17 @@ export default function AffiliateFileManager() {
               >
                 Clear Selection
               </button>
+              <Button
+                className="h-10 gap-2 rounded-xl bg-white/10 hover:bg-white/20 px-5 text-sm font-semibold text-white transition-colors"
+                onClick={() => {
+                  const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                  setSelectedFilePaths(Array.from(new Set(allVisible)));
+                  setIsSelectionMode(true);
+                }}
+              >
+                <CheckSquare size={16} />
+                Select all
+              </Button>
               {isRawFootageBrowser ? (
                 <Button
                   className="h-10 gap-2 rounded-xl bg-[#E8D1AB] hover:bg-[#D4C3A3] px-5 text-sm font-semibold text-black transition-colors"
@@ -2014,7 +2001,23 @@ export default function AffiliateFileManager() {
                   setIsSelectionMode(false);
                 }}
               >
-                Clearr
+                Clear
+              </Button>
+
+              <Button
+                variant="ghost"
+                className={`gap-2 transition-colors ${isDark
+                  ? "text-white/70 hover:text-white"
+                  : "text-black/60 hover:text-black"
+                  }`}
+                onClick={() => {
+                  const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                  setSelectedFilePaths(Array.from(new Set(allVisible)));
+                  setIsSelectionMode(true);
+                }}
+              >
+                <CheckSquare size={18} />
+                Select all
               </Button>
 
               <div
