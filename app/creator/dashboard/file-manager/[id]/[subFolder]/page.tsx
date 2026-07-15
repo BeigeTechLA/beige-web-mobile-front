@@ -374,27 +374,11 @@ export default function CreatorFileManagerPhasePage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, String(file.title || file.name || "file"));
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
@@ -470,23 +454,15 @@ export default function CreatorFileManagerPhasePage() {
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to download file");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to download selected files");
     }
-
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -983,7 +959,7 @@ export default function CreatorFileManagerPhasePage() {
                               path: getFolderActionPath(folder),
                             });
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                           } catch (err: unknown) {
                             toast.error(err instanceof Error ? err.message : "Failed to download folder");
@@ -1291,7 +1267,7 @@ export default function CreatorFileManagerPhasePage() {
                   path: getFolderActionPath(selectedFolder),
                 });
                 if (result?.url) {
-                  window.open(result.url, "_blank", "noopener,noreferrer");
+                  fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
                 }
               } catch (err: unknown) {
                 toast.error(err instanceof Error ? err.message : "Failed to download folder");
@@ -1371,6 +1347,19 @@ export default function CreatorFileManagerPhasePage() {
                   }}
                 >
                   Clear
+                </Button>
+                <Button
+                  variant="ghost"
+                  className={`text-xs lg:text-sm h-9 lg:h-10 gap-2 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                    }`}
+                  onClick={() => {
+                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    setSelectedFilePaths(Array.from(new Set(allVisible)));
+                    setIsSelectionMode(true);
+                  }}
+                >
+                  <CheckSquare size={16} />
+                  Select all
                 </Button>
               </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -98,6 +98,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   const [partner, setPartner] = useState<any>(null);
   const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
@@ -105,9 +106,9 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [stats, setStats] = useState<any>(null);
   const [upcomingShoots, setUpcomingShoots] = useState<any[]>([]);
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
+  const [shootTab, setShootTab] = useState<"current" | "past">("current");
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
-  const [allShoots, setAllShoots] = useState<any[]>([]);
-  const [shootsLoading, setShootsLoading] = useState(true);
+  const [pastShoots, setPastShoots] = useState<any[]>([]);  const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -193,25 +194,40 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
       setShootsLoading(true);
       try {
         const cleanId = id.startsWith('#') ? id.substring(1) : id;
-        const response = await adminApi.getCrewMemberAssignedProjects({
-          crew_member_id: cleanId
-        });
+        const response = await adminApi.getCrewMemberAssignedProjects(cleanId);
 
         const responseData = response?.data;
-        const shootsData = Array.isArray(responseData)
-          ? responseData
-          : Array.isArray(responseData?.items)
-            ? responseData.items
-            : Array.isArray(responseData?.projects)
-              ? responseData.projects
-              : Array.isArray(responseData?.rows)
-                ? responseData.rows
-                : [];
 
-        setAllShoots(shootsData);
+        const upcomingData = Array.isArray(responseData?.upcoming)
+          ? responseData.upcoming.map((item: any) => ({
+          ...item.project,
+          assignment_id: item.assignment_id,
+          project_id: item.project_id,
+          assignment_status: item.status,
+          crew_accept: item.crew_accept,
+          assigned_status: item.assigned_status,
+          assigned_date: item.assigned_date,
+        }))
+      : [];
+
+  const pastData = Array.isArray(responseData?.past)
+    ? responseData.past.map((item: any) => ({
+        ...item.project,
+        assignment_id: item.assignment_id,
+        project_id: item.project_id,
+        assignment_status: item.status,
+        crew_accept: item.crew_accept,
+        assigned_status: item.assigned_status,
+        assigned_date: item.assigned_date,
+      }))
+    : [];
+
+setUpcomingShoots(upcomingData);
+setPastShoots(pastData);
       } catch (error) {
         console.error("Error fetching assigned projects:", error);
-        setAllShoots([]);
+setUpcomingShoots([]);
+setPastShoots([]);
       } finally {
         setShootsLoading(false);
       }
@@ -373,21 +389,46 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
       console.error("Error parsing availability:", e);
     }
   }
+   const assignedProjects =
+    shootTab === "current"
+      ? upcomingShoots
+      : pastShoots;
+//  const shootColumns = assignedProjects.length > 0
+//     ? Object.keys(assignedProjects[0]).filter((key) => {
+//       const value = assignedProjects[0][key];
+//       return typeof value !== "object" || value === null;
+//     })
+//     : [];
 
-  const assignedProjects = Array.isArray(allShoots) ? allShoots : [];
-  const shootColumns = assignedProjects.length > 0
-    ? Object.keys(assignedProjects[0]).filter((key) => {
-      const value = assignedProjects[0][key];
-      return typeof value !== "object" || value === null;
-    })
-    : [];
+  // const formatShootCellValue = (value: any) => {
+  //   if (value === null || value === undefined || value === "") return "N/A";
+  //   if (typeof value === "boolean") return value ? "Yes" : "No";
+  //   if (Array.isArray(value)) return value.length ? value.join(", ") : "N/A";
+  //   if (typeof value === "object") return JSON.stringify(value);
+  //   return String(value);
+  // };
 
-  const formatShootCellValue = (value: any) => {
-    if (value === null || value === undefined || value === "") return "N/A";
-    if (typeof value === "boolean") return value ? "Yes" : "No";
-    if (Array.isArray(value)) return value.length ? value.join(", ") : "N/A";
-    if (typeof value === "object") return JSON.stringify(value);
-    return String(value);
+    const formatShootDate = (date?: string | null) => {
+    if (!date) return "N/A";
+
+    try {
+      return format(
+        new Date(`${date}T00:00:00`),
+        "do MMM, yyyy"
+      );
+      } catch {
+        return date;
+      }
+    };
+
+    const formatShootType = (type?: string | null) => {
+      if (!type) return "N/A";
+
+      return type
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (character) =>
+          character.toUpperCase()
+        );
   };
 
   const formatShootColumnLabel = (key: string) =>
@@ -478,18 +519,91 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
     setIsOpen(false);
   };
 
+  const handleGenerateLink = async () => {
+    if (isGeneratingLink) return;
+
+    setIsGeneratingLink(true);
+    try {
+      const cleanId = id.startsWith('#') ? id.substring(1) : id;
+      const publicUrl = `${window.location.origin}/creatives/${cleanId}`;
+      await navigator.clipboard.writeText(publicUrl);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      toast.success("Public link copied to clipboard");
+    } catch (error) {
+      console.error("Generate Link Error:", error);
+      toast.error("Failed to generate link");
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
   const SECTION_TITLE_STYLE = `lg:text-lg font-medium px-5 pt-5 lg:px-8 lg:pt-8 ${isDark ? "text-white" : "text-black"}`;
   const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
+
+  const formatAssignmentStatus = (status?: string | null) => {
+  if (!status) return "N/A";
+
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) =>
+      character.toUpperCase()
+    );
+  };
+
+  const getAssignmentStatusStyle = (status?: string | null) => {
+  switch (status?.toLowerCase()) {
+    case "accepted":
+      return "bg-[#D1FAE5] text-[#059669]";
+
+    case "rejected":
+    case "declined":
+      return "bg-[#FEE2E2] text-[#DC2626]";
+
+    case "pending":
+      return "bg-[#FEF3C7] text-[#D97706]";
+
+    case "selected":
+      return "bg-[#DBEAFE] text-[#2563EB]";
+
+    default:
+      return isDark
+        ? "bg-[#353535] text-[#BDBDBD]"
+        : "bg-gray-200 text-gray-600";
+  }
+  };
 
   return (
     <div className="space-y-3 lg:space-y-6">
       {/* Top Navigation */}
       {!hideActions && (
-        <div className="flex items-center gap-2 text-sm text-[#666] mb-6">
-          <button onClick={() => router.back()} className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => router.back()}
+            className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
+          >
             <ArrowLeft size={20} />
             <span>Back</span>
+          </button>
+
+          <button
+            onClick={() => {
+              void handleGenerateLink();
+            }}
+            disabled={isGeneratingLink}
+            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+              isDark
+                ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
+                : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
+            }`}
+          >
+            {isGeneratingLink ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <LinkIcon size={16} />
+            )}
+            <span>{isGeneratingLink ? "Generating..." : "Generate Link"}</span>
           </button>
         </div>
       )}
@@ -497,7 +611,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
       {/* Profile Header Card */}
       <div className={`rounded-2xl border transition-colors duration-200 ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFFCF6] border-[#E5E5E5] shadow-sm"
         }`}>
-        <div className="flex items-start justify-between px-4 pt-4 lg:p-6">
+        <div className="flex items-start justify-between gap-4 px-4 pt-4 lg:p-6">
           <div className="flex gap-6">
             {/* Avatar */}
             <div className={`w-[67px] h-[67px] lg:w-32 lg:h-32 rounded-lg lg:rounded-xl overflow-hidden relative flex-shrink-0 border ${isDark ? "bg-[#222] border-white/5" : "bg-gray-100 border-gray-200"}`}>
@@ -1141,140 +1255,317 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                 </button>
               </div>
             </div>
+
+            {!hideActions && (
+              <button
+                onClick={() => {
+                  void handleGenerateLink();
+                }}
+                disabled={isGeneratingLink}
+                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+                  isDark
+                    ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
+                    : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
+                }`}
+              >
+                {isGeneratingLink ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <LinkIcon size={16} />
+                )}
+                <span>{isGeneratingLink ? "Generating..." : "Generate Link"}</span>
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* TAB CONTENT: Shoots */}
-      {activeTab === 'Shoots' && (
-        <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+      {activeTab === "Shoots" && (
+        <div
+          className={`overflow-hidden rounded-3xl border transition-colors duration-200 ${
+            isDark
+              ? "border-[#333] bg-[#101010]"
+              : "border-gray-200 bg-white shadow-sm"
           }`}>
+                <div
+          className={`flex items-center gap-2 border-b px-4 py-4 ${
+            isDark ? "border-[#333]" : "border-gray-200"
+          }`}
+        >
+          <div
+            className={`inline-flex rounded-2xl border p-1 ${
+              isDark
+                ? "border-[#333333] bg-[#101010]"
+                : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShootTab("current")}
+              className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${
+                shootTab === "current"
+                  ? isDark
+                    ? "bg-[#E5D5B8] text-black"
+                    : "bg-black text-white"
+                  : isDark
+                    ? "text-[#8A8A8A] hover:text-white"
+                    : "text-[#666666] hover:text-black"
+              }`}
+            >
+              Current Shoots
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShootTab("past")}
+              className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${
+                shootTab === "past"
+                  ? isDark
+                    ? "bg-[#E5D5B8] text-black"
+                    : "bg-black text-white"
+                  : isDark
+                    ? "text-[#8A8A8A] hover:text-white"
+                    : "text-[#666666] hover:text-black"
+              }`}
+            >
+              Past Shoots
+            </button>
+          </div>
+        </div>
           {shootsLoading ? (
-                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 border-[#3D3D3D] bg-[#171717]" 
-                    }`}>
-                    <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-                  </div> 
+           <div className="flex items-center justify-center py-20">
+              <Loader2
+                className="animate-spin text-[#BFA780]"
+                size={40}
+              />
+            </div>
           ) : assignedProjects.length === 0 ? (
-            <div className={`py-12 px-6 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+            <div
+              className={`px-6 py-12 text-center ${
+                isDark ? "text-[#888]" : "text-gray-500"
+              }`}
+            >
               No shoots assigned to this creative partner.
             </div>
           ) : (
             <>
-          {/* MOBILE ONLY VIEW */}
-          <div className={`lg:hidden p-3 transition-colors ${isDark ? "bg-[#111111]" : "bg-white"}`}>
-            <div className={`flex justify-between px-5 py-3 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"
-              }`}>
-              {shootColumns.slice(0, 2).map((column) => (
-                <span key={column}>{formatShootColumnLabel(column)}</span>
-              ))}
+              {/* Desktop Table */}
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr
+                      className={`border-b text-left text-x ${
+                        isDark
+                          ? "border-[#292929] bg-[#1E1E1E] text-[#E8D1AB]"
+                          : "border-gray-200 bg-gray-50 text-black"
+                      }`}
+                    >
+                      <th className="px-4 py-4 font-medium">
+                        Shoot ID
+                      </th>
+
+                      <th className="px-4 py-4 font-medium">
+                        Shoot Name
+                      </th>
+
+                      <th className="px-4 py-4 font-medium">
+                        Shoot Type
+                      </th>
+
+                      <th className="px-4 py-4 font-medium">
+                        Shoot Date
+                      </th>
+
+                      <th className="px-4 py-4 font-medium">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {assignedProjects.map((shoot, index) => {
+                      const projectId =
+                        shoot.project_id ||
+                        shoot.stream_project_booking_id;
+
+                      return (
+                      <tr
+                        key={shoot.assignment_id || projectId || index}
+                        onClick={(event) => {
+                          if (!projectId) return;
+
+                          // Avoid duplicate navigation when clicking the Link.
+                          if ((event.target as HTMLElement).closest("a")) return;
+
+                          router.push(`/admin/shoots/${projectId}`);
+                        }}
+                        className={`border-b text-sm last:border-b-0 transition-colors ${
+                          projectId ? "cursor-pointer" : "cursor-default"
+                        } ${
+                          isDark
+                            ? "border-[#242424] text-white hover:bg-white/5"
+                            : "border-gray-100 text-black hover:bg-gray-50"
+                        }`}
+                      >
+                        <td className="p-0">
+                          <Link
+                            href={`/admin/shoots/${projectId}`}
+                            className="block px-4 py-4"
+                          >
+                            #{projectId || "N/A"}
+                          </Link>
+                        </td>
+
+                        <td className="p-0">
+                          <Link
+                            href={`/admin/shoots/${projectId}`}
+                            className="block px-4 py-4"
+                          >
+                            {shoot.project_name || "N/A"}
+                          </Link>
+                        </td>
+
+                        <td className="p-0">
+                          <Link
+                            href={`/admin/shoots/${projectId}`}
+                            className="block px-4 py-4"
+                          >
+                            {formatShootType(shoot.shoot_type || shoot.event_type)}
+                          </Link>
+                        </td>
+
+                        <td className="p-0">
+                          <Link
+                            href={`/admin/shoots/${projectId}`}
+                            className="block px-4 py-4"
+                          >
+                            {formatShootDate(shoot.event_date)}
+                          </Link>
+                        </td>
+
+                        <td className="p-0">
+                          <Link
+                            href={`/admin/shoots/${projectId}`}
+                            className="block px-4 py-4"
+                          >
+                            <span
+                              className={`inline-flex min-w-[90px] items-center justify-center rounded-full px-4 py-1.5 text-xs font-medium ${getAssignmentStatusStyle(
+                                shoot.assignment_status
+                              )}`}
+                            >
+                              {formatAssignmentStatus(shoot.assignment_status)}
+                            </span>
+                          </Link>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {assignedProjects.map((shoot, index) => {
-                const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
-                const isExpanded = expandedId === rowId;
+              {/* Mobile View */}
+              <div className="space-y-3 p-3 lg:hidden">
+                {assignedProjects.map((shoot, index) => {
+                  const projectId =
+                    shoot.project_id ||
+                    shoot.stream_project_booking_id;
 
-                return (
-                  <div
-                    key={rowId}
-                    className={`rounded-xl border transition-all ${isDark
-                      ? "bg-[#171717] border-white/5"
-                      : "bg-[#F4F5F7] border-[#F4F5F7]"
-                      }`}
-                  >
-                    {/* Header Row */}
+                  return (
                     <div
-                      className="flex items-center justify-between p-4 cursor-pointer active:bg-white/5"
-                      onClick={() => toggleRow(rowId)}
+                      key={
+                        shoot.assignment_id ||
+                        projectId ||
+                        index
+                      }
+                      className={`rounded-xl border p-4 ${
+                        isDark
+                          ? "border-white/5 bg-[#171717]"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-transform duration-300 ${isExpanded
-                          ? (isDark ? 'rotate-180 border-[#E8D1AB] text-[#E8D1AB]' : 'bg-white rotate-180 border-[#777674] text-[#777674]')
-                          : (isDark ? 'border-white/10 text-white/60' : 'bg-white border-[#D9D9D9] text-[#777674]')
-                          }`}>
-                          <ChevronDown size={14} />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p
+                            className={`truncate text-sm font-medium ${
+                              isDark
+                                ? "text-white"
+                                : "text-black"
+                            }`}
+                          >
+                            {shoot.project_name || "N/A"}
+                          </p>
+
+                          <p
+                            className={`mt-1 text-xs ${
+                              isDark
+                                ? "text-white/40"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            #{projectId || "N/A"}
+                          </p>
                         </div>
-                        <div className="flex flex-col">
-                          <span className={`text-sm ${isDark ? "font-semibold text-white" : "font-medium text-[#6D6D6D]"}`}>
-                            {formatShootCellValue(shoot[shootColumns[0]])}
-                          </span>
-                          <span className={`text-[10px] uppercase tracking-tight flex items-center gap-1 ${isDark ? "text-white/40" : "text-gray-400"
-                            }`}>
-                            {shootColumns[1] ? formatShootCellValue(shoot[shootColumns[1]]) : `#${rowId}`}
-                          </span>
-                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium ${getAssignmentStatusStyle(
+                            shoot.assignment_status
+                          )}`}
+                        >
+                          {formatAssignmentStatus(
+                            shoot.assignment_status
+                          )}
+                        </span>
                       </div>
 
-                      <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusStyle(String(shoot.status || shoot.project_status || 'Unknown'))}`}>
-                        {formatShootCellValue(shoot.status || shoot.project_status || "N/A")}
-                      </span>
-                    </div>
+                      <div
+                        className={`mt-4 grid grid-cols-2 gap-3 text-xs ${
+                          isDark
+                            ? "text-[#BDBDBD]"
+                            : "text-gray-600"
+                        }`}
+                      >
+                        <div>
+                          <p
+                            className={`mb-1 ${
+                              isDark
+                                ? "text-white/40"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            Shoot Type
+                          </p>
 
-                    {/* Collapsible Content */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className={`border-t ${isDark ? "border-white/5 bg-black/20" : "border-[#D9D9D9] bg-[#F4F5F7]"}`}
-                        >
-                          <div className="p-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              {shootColumns.map((column) => (
-                                <div key={column}>
-                                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/40" : "text-gray-400"
-                                    }`}>
-                                    {formatShootColumnLabel(column)}
-                                  </p>
-                                  <p className={`text-sm font-medium break-words ${isDark ? "text-white" : "text-black/80"}`}>
-                                    {formatShootCellValue(shoot[column])}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                          <p>
+                            {formatShootType(
+                              shoot.shoot_type ||
+                                shoot.event_type
+                            )}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p
+                            className={`mb-1 ${
+                              isDark
+                                ? "text-white/40"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            Shoot Date
+                          </p>
+
+                          <p>
+                            {formatShootDate(
+                              shoot.event_date
+                            )}
+                          </p>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* DESKTOP TABLE VIEW */}
-          <div className="hidden lg:block w-full overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className={`transition-colors border-b ${isDark ? "bg-[#202020] border-[#333]" : "bg-[#FFFCF6] border-[#F4F5F7]"
-                  }`}>
-                  {shootColumns.map((column) => (
-                    <th
-                      key={column}
-                      className={`text-left py-5 px-6 ${isDark ? "text-[#E5D5B8]" : "text-[#303030]"} font-medium text-sm`}
-                    >
-                      {formatShootColumnLabel(column)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={`divide-y transition-colors ${isDark ? "divide-[#333]" : "divide-gray-100"}`}>
-                {assignedProjects.map((shoot, index) => {
-                  const rowId = String(shoot.id || shoot.project_id || shoot.stream_project_booking_id || index);
-                  return (
-                    <tr key={rowId} className={`${isDark ? "hover:bg-[#161616]" : "bg-[#F4F5F7] hover:bg-gray-50/50"} transition-colors font-[family-name:var(--font-instrument-sans)]`}>
-                      {shootColumns.map((column) => (
-                        <td key={column} className={`py-6 px-6 text-[15px] ${isDark ? "text-[#E0E0E0]" : "text-[#000]"}`}>
-                          {formatShootCellValue(shoot[column])}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                </div>
+              </div>
+            );
+          })}
           </div>
             </>
           )}

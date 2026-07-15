@@ -7313,7 +7313,9 @@ function CreateQuotePageContent() {
                           <div className="min-w-0 flex-1 pr-2 flex lg:flex-col items-center justify-between lg:items-start lg:gap-1">
                             <h3
                               title={item.label}
-                              className={`max-w-full truncate text-sm lg:text-lg font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}
+                              className={`max-w-full truncate text-sm lg:text-lg font-medium leading-snug ${
+                                isDark ? "text-white" : "text-black"
+                              }`}
                             >
                               {item.label}
                             </h3>

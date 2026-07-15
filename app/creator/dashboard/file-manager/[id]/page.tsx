@@ -173,7 +173,7 @@ export default function CreatorFolderDetailsPage() {
         path: isCommonEventWorkspace ? targetFolder.rawName || targetFolder.title : undefined,
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${targetFolder.title || "folder"}.zip`);
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download folder");

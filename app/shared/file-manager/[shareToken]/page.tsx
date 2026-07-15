@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
+import SharedUploadFilesModal from "@/components/admin/file-manager/SharedUploadFilesModal";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Download, Lock, Mail, ShieldCheck, FileText, ArrowLeft,
   ChevronRight, Eye, X, Check, FileImage, FileVideo, FileArchive,
   FileSpreadsheet, Presentation, Home, KeyRound, CheckCircle2, EyeOff,
-  FileX2
+  FileX2, UploadCloud
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +38,8 @@ type SharedContent = {
   folders?: SharedFolder[];
   files?: SharedFile[];
   file?: SharedFile;
+  permission?: "view_download" | "upload_download";
+  accessMode?: "email_only" | "anyone_with_link";
 };
 
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -61,6 +64,36 @@ const formatFileSize = (bytes?: number) => {
 
 const isPreProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "pre-production";
 const isPostProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "post-production";
+
+const normalizeFolderSegment = (value?: string) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const isSharedUploadLocationAllowed = (phase?: string, path?: string) => {
+  const normalizedPhase = String(phase || "").trim().toLowerCase();
+  const pathSegments = String(path || "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (normalizedPhase === "pre") {
+    return true;
+  }
+
+  if (normalizedPhase === "post") {
+    return pathSegments.length > 0;
+  }
+
+  if (!normalizedPhase || normalizedPhase === "root") {
+    const rootSegment = normalizeFolderSegment(pathSegments[0]);
+    if (rootSegment === "preproduction") return pathSegments.length > 0;
+    if (rootSegment === "postproduction") return pathSegments.length > 1;
+  }
+
+  return false;
+};
 
 const getFileExt = (name?: string) => {
   const parts = (name || "").toLowerCase().split(".");
@@ -172,6 +205,8 @@ export default function SharedFileManagerPage() {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [accessToken, setAccessToken] = useState("");
+  const [accessPermission, setAccessPermission] = useState<"view_download" | "upload_download">("view_download");
+  const [isSharedUploadModalOpen, setIsSharedUploadModalOpen] = useState(false);
   const [content, setContent] = useState<SharedContent | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | undefined>(undefined);
@@ -228,6 +263,7 @@ export default function SharedFileManagerPage() {
     const response = await fileManagerApi.getSharedContent(shareToken, token, options);
     const payload = response?.data || null;
     setContent(payload);
+    if (payload?.permission) setAccessPermission(payload.permission);
     setCurrentPhase(payload?.phase || options?.phase);
     setCurrentPath(payload?.path || options?.path);
     setSelectedFilePaths([]);
@@ -276,6 +312,7 @@ export default function SharedFileManagerPage() {
       const token = result?.data?.accessToken;
       if (!token) throw new Error("Verification failed");
       setAccessToken(token);
+      setAccessPermission(result?.data?.permission === "upload_download" ? "upload_download" : "view_download");
       await loadContent(token);
       setStep("content");
       toast.success("Verified successfully");
@@ -441,6 +478,12 @@ export default function SharedFileManagerPage() {
     }
   };
 
+  const canUpload =
+    step === "content" &&
+    accessPermission === "upload_download" &&
+    content?.type !== "file" &&
+    isSharedUploadLocationAllowed(currentPhase, currentPath);
+
   const stepConfig = [
     { key: "email", label: "Email", icon: Mail },
     { key: "otp", label: "Verify", icon: KeyRound },
@@ -493,7 +536,7 @@ export default function SharedFileManagerPage() {
           </div>
           <div className="flex items-center gap-2 rounded-full border border-[#E5D5B8]/20 bg-[#E5D5B8]/[0.08] px-4 py-2 text-xs font-medium text-[#E5D5B8]">
             <EyeOff size={14} />
-            View + Download
+            {accessPermission === "upload_download" ? "Upload + Download" : "View + Download"}
           </div>
         </motion.div>
 
@@ -642,7 +685,7 @@ export default function SharedFileManagerPage() {
                   {[
                     { icon: Mail, text: "Only invited email can open this shared link." },
                     { icon: ShieldCheck, text: "OTP verification required before viewing content." },
-                    { icon: EyeOff, text: "Read-only mode: view and download files only." },
+                    { icon: EyeOff, text: "Upload access is available only when the sender grants it to your email." },
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3.5">
                       <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white/[0.05]">
@@ -676,6 +719,17 @@ export default function SharedFileManagerPage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {canUpload && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSharedUploadModalOpen(true)}
+                    disabled={selectionLockActive}
+                    className="flex h-10 items-center gap-2 rounded-xl bg-[#E5D5B8] px-4 text-sm font-semibold text-black transition-all hover:bg-[#dcb98a] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <UploadCloud size={16} />
+                    Upload
+                  </button>
+                )}
                 {(currentPhase || currentPath) && (
                   <button
                     onClick={() => {
@@ -920,6 +974,17 @@ export default function SharedFileManagerPage() {
           </AnimatePresence>
           </>
         )}
+
+        <SharedUploadFilesModal
+          isOpen={isSharedUploadModalOpen}
+          onClose={() => setIsSharedUploadModalOpen(false)}
+          shareToken={shareToken}
+          accessToken={accessToken}
+          folderName={breadcrumbs[breadcrumbs.length - 1]?.label || "Shared folder"}
+          phase={currentPhase}
+          path={currentPath}
+          onUploadComplete={() => loadContent(accessToken, { phase: currentPhase, path: currentPath })}
+        />
 
       <AnimatePresence>
         {(previewFile || previewLoading) && (

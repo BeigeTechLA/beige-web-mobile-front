@@ -198,7 +198,7 @@ export default function AdminFolderDetailsPage() {
         path: isCommonEventWorkspace ? selectedFolder.rawName || selectedFolder.title : undefined,
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download folder");
@@ -365,7 +365,7 @@ export default function AdminFolderDetailsPage() {
                               path: isCommonEventWorkspace ? folder.rawName || folder.title : undefined,
                             });
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                           } catch (err: any) {
                             toast.error(err?.message || "Failed to download folder");
@@ -414,7 +414,7 @@ export default function AdminFolderDetailsPage() {
                           try {
                             const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                           } catch (err: any) {
                             toast.error(err?.message || "Failed to download folder");

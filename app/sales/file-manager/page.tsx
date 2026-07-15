@@ -213,7 +213,7 @@ const filteredFolders = useMemo(() => {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(selectedFolder.id);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "workspace"}.zip`);
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to download workspace"));
@@ -384,7 +384,7 @@ const filteredFolders = useMemo(() => {
                     try {
                       const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
                       if (result?.url) {
-                        window.open(result.url, "_blank", "noopener,noreferrer");
+                        fileManagerApi.downloadUrl(result.url, `${folder.title || "workspace"}.zip`);
                       }
                         } catch (err: unknown) {
                           toast.error(getErrorMessage(err, "Failed to download workspace"));
