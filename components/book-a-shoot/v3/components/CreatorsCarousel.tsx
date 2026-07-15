@@ -1,5 +1,4 @@
 import React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
@@ -53,13 +52,15 @@ const CreatorCarousel = ({
   selectedIds,
   selectedRoles,
   activeRoleFilter,
-  toggleSelection
+  toggleSelection,
+  onViewProfile,
 }: {
   creators: Creator[],
   selectedIds: (string | number)[],
   selectedRoles: SelectedCrewRoles,
   activeRoleFilter: CrewRole | null,
   toggleSelection: (id: number) => void;
+  onViewProfile?: (url: string) => void;
 }) => {
   const count = creators.length;
 
@@ -215,15 +216,16 @@ const CreatorCarousel = ({
                             </>
                           )}
                         </button>
-                        <Link
-                          href={`/creatives/${creatorId}?from=booking_flow`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewProfile?.(`/creatives/${creatorId}?from=booking_flow&modal=1`);
+                          }}
                           className="text-center flex-1 border border-white/30 text-white py-2 lg:py-4 rounded-lg text-sm lg:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
