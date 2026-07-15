@@ -31,7 +31,7 @@ export default function Loading() {
         </div>
 
         {/* 4. MAIN CONTENT AREA SKELETON */}
-        <main className="flex-1 p-8 space-y-8 overflow-y-auto">
+        <main className="flex-1 p-8 space-y-8 overflow-y-auto no-scrollbar">
           {/* Page Title Section */}
           <div className="space-y-3">
             <div className="h-9 w-64 bg-[#1f1f23] rounded-lg animate-pulse"></div>

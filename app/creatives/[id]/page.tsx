@@ -8,11 +8,12 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft, X, Plus } from "lucide-react";
+import { ArrowLeft, Check, ArrowUpRight, ArrowDownLeft, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
+import AppLoading from "@/app/loading";
 import { Separator } from "../components/Separator";
 
 import CreatorCard from "../components/CreatorCard";
@@ -82,7 +83,7 @@ const sampleProjects: string[] = [
 ];
 */
 
-function CreatorProfileContent() {
+function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean }) {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
 
@@ -112,6 +113,18 @@ function CreatorProfileContent() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (!isModalView || typeof document === "undefined") return;
+
+    document.documentElement.classList.add("no-scrollbar");
+    document.body.classList.add("no-scrollbar");
+
+    return () => {
+      document.documentElement.classList.remove("no-scrollbar");
+      document.body.classList.remove("no-scrollbar");
+    };
+  }, [isModalView]);
+
   // Fetch creator profile data
   // FIX: Because your API slice uses transformResponse: (res) => res.data, 
   // 'profile' here is the actual creator object.
@@ -122,6 +135,19 @@ function CreatorProfileContent() {
   } = useGetCreatorProfileQuery(creatorIdNumber, {
     skip: !creatorIdNumber || isNaN(creatorIdNumber)
   });
+
+  useEffect(() => {
+    if (!isModalView || isLoadingProfile || typeof window === "undefined") return;
+    if (window.parent === window) return;
+
+    window.parent.postMessage(
+      {
+        type: "creator-profile-modal-ready",
+        creatorId,
+      },
+      window.location.origin,
+    );
+  }, [creatorId, isLoadingProfile, isModalView, profile, profileError]);
 
   // Fetch recommended creators (using search API)
   const { data: recommendedData } = useSearchCreatorsQuery({
@@ -166,14 +192,7 @@ function CreatorProfileContent() {
 
   // Loading state
   if (isLoadingProfile) {
-    return (
-      <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" />
-          <p className="text-white/60 text-lg">Loading creator profile...</p>
-        </div>
-      </div>
-    );
+    return <AppLoading />;
   }
 
   // Error state - 404 or other errors
@@ -210,7 +229,7 @@ function CreatorProfileContent() {
   })) || [];
 
   return (
-    <div className="pt-20 lg:pt-32 pb-20">
+    <div className={isModalView ? "pt-6 pb-20" : "pt-20 lg:pt-32 pb-20"}>
       <div className="px-4 md:px-0">
         <section className="mx-auto my-12 container">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -256,11 +275,11 @@ function CreatorProfileContent() {
                           <span className="text-[10px] lg:text-sm text-white font-medium">In Crew</span>
                         </div>
                       )}
-                      {profile.isAvailable && (
+                      {/* {profile.isAvailable && (
                         <p className="bg-[#EDF7EE] text-[#4CAF50] text-[10px] lg:text-base px-2 py-1 lg:px-3.5 lg:py-2 rounded-full border border-[#4CAF50] lg:leading-[20px]">
                           Available
                         </p>
-                      )}
+                      )} */}
                     </div>
                   </div>
 
@@ -480,14 +499,23 @@ function CreatorProfileContent() {
   );
 }
 
-export default function CreatorProfilePage() {
+function CreatorProfilePageShell() {
+  const searchParams = useSearchParams();
+  const isModalView = searchParams.get("modal") === "1";
+
   return (
     <main className="bg-[#101010] min-h-screen text-white">
-      <Navbar />
-      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
-        <CreatorProfileContent />
-      </Suspense>
-      <Footer />
+      {!isModalView && <Navbar />}
+      <CreatorProfileContent isModalView={isModalView} />
+      {!isModalView && <Footer />}
     </main>
+  );
+}
+
+export default function CreatorProfilePage() {
+  return (
+    <Suspense fallback={<AppLoading />}>
+      <CreatorProfilePageShell />
+    </Suspense>
   );
 }
