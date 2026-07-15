@@ -8,12 +8,11 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import type { Swiper as SwiperType } from "swiper";
 
-import { ArrowLeft, Check, ArrowUpRight, ArrowDownLeft, X, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Check, ArrowUpRight, ArrowDownLeft, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
-import AppLoading from "@/app/loading";
 import { Separator } from "../components/Separator";
 
 import CreatorCard from "../components/CreatorCard";
@@ -83,7 +82,7 @@ const sampleProjects: string[] = [
 ];
 */
 
-function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean }) {
+function CreatorProfileContent() {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
 
@@ -113,18 +112,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (!isModalView || typeof document === "undefined") return;
-
-    document.documentElement.classList.add("no-scrollbar");
-    document.body.classList.add("no-scrollbar");
-
-    return () => {
-      document.documentElement.classList.remove("no-scrollbar");
-      document.body.classList.remove("no-scrollbar");
-    };
-  }, [isModalView]);
-
   // Fetch creator profile data
   // FIX: Because your API slice uses transformResponse: (res) => res.data, 
   // 'profile' here is the actual creator object.
@@ -135,19 +122,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
   } = useGetCreatorProfileQuery(creatorIdNumber, {
     skip: !creatorIdNumber || isNaN(creatorIdNumber)
   });
-
-  useEffect(() => {
-    if (!isModalView || isLoadingProfile || typeof window === "undefined") return;
-    if (window.parent === window) return;
-
-    window.parent.postMessage(
-      {
-        type: "creator-profile-modal-ready",
-        creatorId,
-      },
-      window.location.origin,
-    );
-  }, [creatorId, isLoadingProfile, isModalView, profile, profileError]);
 
   // Fetch recommended creators (using search API)
   const { data: recommendedData } = useSearchCreatorsQuery({
@@ -192,7 +166,14 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
 
   // Loading state
   if (isLoadingProfile) {
-    return <AppLoading />;
+    return (
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-[#E8D1AB] animate-spin" />
+          <p className="text-white/60 text-lg">Loading creator profile...</p>
+        </div>
+      </div>
+    );
   }
 
   // Error state - 404 or other errors
@@ -229,7 +210,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
   })) || [];
 
   return (
-    <div className={isModalView ? "pt-6 pb-20" : "pt-20 lg:pt-32 pb-20"}>
+    <div className="pt-20 lg:pt-32 pb-20">
       <div className="px-4 md:px-0">
         <section className="mx-auto my-12 container">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -424,9 +405,8 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           </section>
         )}
 
-        <section className="mt-14 lg:mt-20 overflow-hidden">
+        {/* <section className="mt-14 lg:mt-20 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
-            {/* Header */}
             <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
                 <p className="text-xs md:text-base text-white">Recommendations</p>
@@ -436,7 +416,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                   Recommended Creators for you
                 </h2>
 
-                {/* NAV ARROWS */}
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => swiperRef.current?.slidePrev()}
@@ -456,7 +435,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
             </div>
 
             <div>
-              {/* CAROUSEL */}
               {recommendedCreators.length > 0 ? (
                 <Swiper
                   onSwiper={(swiper) => (swiperRef.current = swiper)}
@@ -496,29 +474,20 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               )}
             </div>
           </div>
-        </section>
+        </section> */}
       </div>
     </div>
   );
 }
 
-function CreatorProfilePageShell() {
-  const searchParams = useSearchParams();
-  const isModalView = searchParams.get("modal") === "1";
-
-  return (
-    <main className="bg-[#101010] min-h-screen text-white">
-      {!isModalView && <Navbar />}
-      <CreatorProfileContent isModalView={isModalView} />
-      {!isModalView && <Footer />}
-    </main>
-  );
-}
-
 export default function CreatorProfilePage() {
   return (
-    <Suspense fallback={<AppLoading />}>
-      <CreatorProfilePageShell />
-    </Suspense>
+    <main className="bg-[#101010] min-h-screen text-white">
+      <Navbar />
+      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
+        <CreatorProfileContent />
+      </Suspense>
+      <Footer />
+    </main>
   );
 }
