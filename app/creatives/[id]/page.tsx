@@ -82,7 +82,7 @@ const sampleProjects: string[] = [
 ];
 */
 
-function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean }) {
+function CreatorProfileContent() {
   const swiperRef = useRef<SwiperType | null>(null);
   const router = useRouter();
 
@@ -210,7 +210,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
   })) || [];
 
   return (
-    <div className={isModalView ? "pt-6 pb-20" : "pt-20 lg:pt-32 pb-20"}>
+    <div className="pt-20 lg:pt-32 pb-20">
       <div className="px-4 md:px-0">
         <section className="mx-auto my-12 container">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
@@ -405,9 +405,8 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           </section>
         )}
 
-        <section className="mt-14 lg:mt-20 overflow-hidden">
+        {/* <section className="mt-14 lg:mt-20 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
-            {/* Header */}
             <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
                 <p className="text-xs md:text-base text-white">Recommendations</p>
@@ -417,7 +416,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                   Recommended Creators for you
                 </h2>
 
-                {/* NAV ARROWS */}
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => swiperRef.current?.slidePrev()}
@@ -437,7 +435,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
             </div>
 
             <div>
-              {/* CAROUSEL */}
               {recommendedCreators.length > 0 ? (
                 <Swiper
                   onSwiper={(swiper) => (swiperRef.current = swiper)}
@@ -477,29 +474,20 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               )}
             </div>
           </div>
-        </section>
+        </section> */}
       </div>
     </div>
   );
 }
 
-function CreatorProfilePageShell() {
-  const searchParams = useSearchParams();
-  const isModalView = searchParams.get("modal") === "1";
-
-  return (
-    <main className="bg-[#101010] min-h-screen text-white">
-      {!isModalView && <Navbar />}
-      <CreatorProfileContent isModalView={isModalView} />
-      {!isModalView && <Footer />}
-    </main>
-  );
-}
-
 export default function CreatorProfilePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
-      <CreatorProfilePageShell />
-    </Suspense>
+    <main className="bg-[#101010] min-h-screen text-white">
+      <Navbar />
+      <Suspense fallback={<div className="min-h-screen bg-[#101010]" />}>
+        <CreatorProfileContent />
+      </Suspense>
+      <Footer />
+    </main>
   );
 }

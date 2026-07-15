@@ -25,7 +25,6 @@ import {
 import {
   format as formatDateFns,
   startOfDay,
-  subDays,
 } from "date-fns";
 
 import { toast } from "sonner";
@@ -83,10 +82,10 @@ export default function ShootsPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   const [exportStartDate, setExportStartDate] =
-    useState<Date | null>(subDays(new Date(), 30));
+    useState<Date | null>(null);
 
   const [exportEndDate, setExportEndDate] =
-    useState<Date | null>(new Date());
+    useState<Date | null>(null);
 
   useEffect(() => {
     try {
@@ -180,44 +179,56 @@ export default function ShootsPage() {
         return;
       }
 
-      if (!exportStartDate || !exportEndDate) {
-        toast.error("Please select start and end dates.");
+      if (Boolean(exportStartDate) !== Boolean(exportEndDate)) {
+        toast.error("Select both dates or leave both blank to export all records.");
         return;
       }
 
-      const normalizedStartDate = startOfDay(exportStartDate);
-      const normalizedEndDate = startOfDay(exportEndDate);
+      const normalizedStartDate = exportStartDate ? startOfDay(exportStartDate) : null;
+      const normalizedEndDate = exportEndDate ? startOfDay(exportEndDate) : null;
       const today = startOfDay(new Date());
 
       if (
-        normalizedStartDate > today ||
-        normalizedEndDate > today
+        normalizedStartDate &&
+        normalizedEndDate &&
+        (normalizedStartDate > today || normalizedEndDate > today)
       ) {
         toast.error("Future dates are not allowed.");
         return;
       }
 
-      if (normalizedStartDate > normalizedEndDate) {
+      if (
+        normalizedStartDate &&
+        normalizedEndDate &&
+        normalizedStartDate > normalizedEndDate
+      ) {
         toast.error("Start date cannot be after end date.");
         return;
       }
 
-      const formattedStartDate = formatDateFns(
-        normalizedStartDate,
-        "yyyy-MM-dd"
-      );
+      const formattedStartDate = normalizedStartDate
+        ? formatDateFns(normalizedStartDate, "yyyy-MM-dd")
+        : undefined;
 
-      const formattedEndDate = formatDateFns(
-        normalizedEndDate,
-        "yyyy-MM-dd"
-      );
+      const formattedEndDate = normalizedEndDate
+        ? formatDateFns(normalizedEndDate, "yyyy-MM-dd")
+        : undefined;
 
       setIsExporting(true);
 
       try {
         const blob = await adminApi.exportShootsCsv({
-          start_date: formattedStartDate,
-          end_date: formattedEndDate,
+          ...(formattedStartDate ? { start_date: formattedStartDate } : {}),
+          ...(formattedEndDate ? { end_date: formattedEndDate } : {}),
+          ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+          ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+          ...(range !== "all" ? { range } : {}),
+          ...(range === "custom" && selectedDate
+            ? { date_on: formatDateFns(startOfDay(selectedDate), "yyyy-MM-dd") }
+            : {}),
+          ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
+          ...(cpAssignmentFilter !== "all" ? { cp_assignment: cpAssignmentFilter } : {}),
+          ...(productionFilter !== "all" ? { production_filter: productionFilter } : {}),
         });
 
         if (!(blob instanceof Blob) || blob.size === 0) {
@@ -232,7 +243,9 @@ export default function ShootsPage() {
 
         downloadLink.href = downloadUrl;
         downloadLink.download =
-          `shoots-${formattedStartDate}-to-${formattedEndDate}.csv`;
+          formattedStartDate && formattedEndDate
+            ? `shoots-${formattedStartDate}-to-${formattedEndDate}.csv`
+            : "shoots-all-records.csv";
 
         document.body.appendChild(downloadLink);
         downloadLink.click();
@@ -487,7 +500,7 @@ export default function ShootsPage() {
                               : "text-black/55"
                           }`}
                         >
-                          Select a date range to download matching shoots.
+                          Leave both dates blank to download all shoots, or pick a date range to filter the export.
                         </p>
                       </div>
 
@@ -566,6 +579,24 @@ export default function ShootsPage() {
                         sx={{ height: "42px" }}
                       />
 
+                      {(exportStartDate || exportEndDate) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportStartDate(null);
+                            setExportEndDate(null);
+                          }}
+                          disabled={isExporting}
+                          className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                            isDark
+                              ? "text-white/70 hover:text-white"
+                              : "text-black/60 hover:text-black"
+                          }`}
+                        >
+                          Reset dates
+                        </button>
+                      )}
+
                       <div className="flex justify-end gap-2 pt-1">
                         <Button
                           type="button"
@@ -582,11 +613,7 @@ export default function ShootsPage() {
 
                         <Button
                           type="button"
-                          disabled={
-                            isExporting ||
-                            !exportStartDate ||
-                            !exportEndDate
-                          }
+                          disabled={isExporting}
                           onClick={() => {
                             void handleExportShoots();
                           }}

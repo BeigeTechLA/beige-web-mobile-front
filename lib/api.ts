@@ -2099,8 +2099,15 @@ export const adminApi = {
   },
   exportShootsCsv: async (
   params: {
-    start_date: string;
-    end_date: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    status?: string;
+    range?: string;
+    date_on?: string;
+    category?: string;
+    cp_assignment?: string;
+    production_filter?: string;
   }
   ): Promise<Blob> => {
     try {
@@ -2250,8 +2257,8 @@ export const adminApi = {
 
   exportCrewMembersCsv: async (
   params: {
-    start_date: string;
-    end_date: string;
+    start_date?: string;
+    end_date?: string;
     status?: string;
     search?: string;
     location?: string;
@@ -2489,8 +2496,8 @@ export const adminApi = {
   },
   exportClientsCsv: async (
     params: {
-        start_date: string;
-        end_date: string;
+        start_date?: string;
+        end_date?: string;
         status?: string;
         search?: string;
         client_type?: string;
@@ -3242,8 +3249,13 @@ export const salesApi = {
   },
 
     exportQuotesCsv: async (params: {
-    start_date: string;
-    end_date: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    status?: string;
+    range?: string;
+    date_on?: string;
+    assigned_sales_rep_id?: number | string;
   }): Promise<Blob> => {
     try {
       const response = await api.get<Blob>(

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
 import { Button } from "@/src/components/landing/ui/button";
+import AppLoading from "@/app/loading";
 import { Loader2, ArrowDownLeft, ArrowUpRight, CheckCircle2, X, AlertCircle, Video, Camera } from "lucide-react";
 import { useSearchCreatorsQuery, useGetRandomCrewQuery } from "@/lib/redux/features/creators/creatorsApi";
 import { useCreateSalesAssistedLeadMutation } from "@/lib/redux/features/sales/salesApi";
@@ -25,6 +26,7 @@ import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import type { CrewRole, SelectedCrewRoles } from "./types";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Props {
   data: BookingDataV3;
@@ -602,6 +604,23 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     setProfileModalUrl(url);
   };
 
+  useEffect(() => {
+    if (!profileModalUrl || typeof window === "undefined") return;
+
+    const handleProfileReady = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "creator-profile-modal-ready") return;
+
+      setIsProfileModalLoading(false);
+    };
+
+    window.addEventListener("message", handleProfileReady);
+
+    return () => {
+      window.removeEventListener("message", handleProfileReady);
+    };
+  }, [profileModalUrl]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
@@ -982,61 +1001,36 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </p>
         </motion.div>
       )} */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <AnimatePresence>
-            {profileModalUrl && (
-              <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-3 sm:p-6">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => {
-                    setProfileModalUrl(null);
-                    setIsProfileModalLoading(false);
-                  }}
-                  className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98, y: 12 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.98, y: 12 }}
-                  className="relative h-[92vh] w-full max-w-[1200px] overflow-hidden rounded-lg border border-white/10 bg-[#101010] shadow-2xl"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileModalUrl(null);
-                      setIsProfileModalLoading(false);
-                    }}
-                    className="absolute right-3 top-3 z-20 rounded bg-black/70 p-1 text-white/70 transition-colors hover:text-white"
-                    aria-label="Close profile"
-                  >
-                    <X size={18} />
-                  </button>
-                  {isProfileModalLoading && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#101010] text-white">
-                      <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
-                    </div>
-                  )}
-                  <iframe
-                    src={profileModalUrl}
-                    title="Creative profile"
-                    onLoad={() => setIsProfileModalLoading(false)}
-                    className={`h-full w-full border-0 bg-[#101010] transition-opacity duration-200 ${
-                      isProfileModalLoading ? "opacity-0" : "opacity-100"
-                    }`}
-                    style={{
-                      backgroundColor: "#101010",
-                      colorScheme: "dark",
-                    }}
-                  />
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
+      <Dialog
+        open={Boolean(profileModalUrl)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProfileModalUrl(null);
+            setIsProfileModalLoading(false);
+          }
+        }}
+      >
+        <DialogContent className="h-[92vh] w-[calc(100vw-24px)] max-w-[1200px] overflow-hidden border-white/10 bg-black p-0 sm:w-[calc(100vw-48px)] [&>button]:z-10 [&>button]:bg-black/70 [&>button]:text-white">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Creative profile</DialogTitle>
+            <DialogDescription>Creative profile opened from booking flow</DialogDescription>
+          </DialogHeader>
+          {isProfileModalLoading && (
+            <div className="absolute inset-0 z-10 overflow-hidden bg-[#09090b] text-white no-scrollbar">
+              <AppLoading />
+            </div>
+          )}
+          {profileModalUrl && (
+            <iframe
+              src={profileModalUrl}
+              title="Creative profile"
+              className={`h-full w-full border-0 bg-[#101010] no-scrollbar transition-opacity duration-150 ${
+                isProfileModalLoading ? "opacity-0" : "opacity-100"
+              }`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

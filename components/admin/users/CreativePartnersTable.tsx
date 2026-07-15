@@ -20,7 +20,6 @@ import { adminApi } from "@/lib/api";
 import {
   format,
   startOfDay,
-  subDays,
 } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -218,10 +217,10 @@ export const CreativePartnersTable = () => {
   const [isExporting, setIsExporting] = useState(false);
 
   const [exportStartDate, setExportStartDate] =
-    useState<Date | null>(subDays(new Date(), 30));
+    useState<Date | null>(null);
 
   const [exportEndDate, setExportEndDate] =
-    useState<Date | null>(new Date());
+    useState<Date | null>(null);
 
   const router = useRouter();
 
@@ -528,62 +527,73 @@ export const CreativePartnersTable = () => {
   const handleExportCreativePartners = async () => {
   if (isExporting) return;
 
-  if (!exportStartDate || !exportEndDate) {
-    toast.error("Please select start and end dates.");
-    return;
-  }
-
-  const normalizedStartDate =
-    startOfDay(exportStartDate);
-
-  const normalizedEndDate =
-    startOfDay(exportEndDate);
-
-  const today = startOfDay(new Date());
-
-  if (
-    normalizedStartDate > today ||
-    normalizedEndDate > today
-  ) {
-    toast.error("Future dates are not allowed.");
-    return;
-  }
-
-  if (normalizedStartDate > normalizedEndDate) {
-    toast.error(
-      "Start date cannot be after end date."
-    );
-    return;
-  }
-
-  const formattedStartDate = format(
-    normalizedStartDate,
-    "yyyy-MM-dd"
-  );
-
-  const formattedEndDate = format(
-    normalizedEndDate,
-    "yyyy-MM-dd"
-  );
-
   setIsExporting(true);
 
   try {
     const exportLocation = locationQuery.trim();
+    const startDate = exportStartDate;
+    const endDate = exportEndDate;
+
+    if (Boolean(startDate) !== Boolean(endDate)) {
+      throw new Error(
+        "Select both dates or leave both blank to export all records."
+      );
+    }
+
+    const exportParams: {
+      start_date?: string;
+      end_date?: string;
+      status?: string;
+      search?: string;
+      location?: string;
+    } = {
+      status:
+        statusFilter !== "all"
+          ? statusFilter
+          : undefined,
+      search:
+        normalizedSearch || undefined,
+      location:
+        exportLocation || undefined,
+    };
+
+    let fileName = "creative-partners-all-records.csv";
+
+    if (startDate && endDate) {
+      const normalizedStartDate = startOfDay(startDate);
+      const normalizedEndDate = startOfDay(endDate);
+      const today = startOfDay(new Date());
+
+      if (
+        normalizedStartDate > today ||
+        normalizedEndDate > today
+      ) {
+        throw new Error("Future dates are not allowed.");
+      }
+
+      if (normalizedStartDate > normalizedEndDate) {
+        throw new Error(
+          "Start date cannot be after end date."
+        );
+      }
+
+      const formattedStartDate = format(
+        normalizedStartDate,
+        "yyyy-MM-dd"
+      );
+
+      const formattedEndDate = format(
+        normalizedEndDate,
+        "yyyy-MM-dd"
+      );
+
+      exportParams.start_date = formattedStartDate;
+      exportParams.end_date = formattedEndDate;
+      fileName = `creative-partners-${formattedStartDate}-to-${formattedEndDate}.csv`;
+    }
 
     const blob =
-      await adminApi.exportCrewMembersCsv({
-        start_date: formattedStartDate,
-        end_date: formattedEndDate,
-        status:
-          statusFilter !== "all"
-            ? statusFilter
-            : undefined,
-        search:
-          normalizedSearch || undefined,
-        location:
-          exportLocation || undefined,
-      });
+      await adminApi.exportCrewMembersCsv(exportParams);
 
     if (!(blob instanceof Blob) || blob.size === 0) {
       throw new Error(
@@ -598,8 +608,7 @@ export const CreativePartnersTable = () => {
       document.createElement("a");
 
     downloadLink.href = downloadUrl;
-    downloadLink.download =
-      `creative-partners-${formattedStartDate}-to-${formattedEndDate}.csv`;
+    downloadLink.download = fileName;
 
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -725,7 +734,7 @@ export const CreativePartnersTable = () => {
                           : "text-black/55"
                       }`}
                     >
-                      Select a date range to download creative partner data.
+                      Leave both dates blank to download all creative partners, or pick a range to filter the export.
                     </p>
                   </div>
 
@@ -818,6 +827,24 @@ export const CreativePartnersTable = () => {
                     sx={{ height: "42px" }}
                   />
 
+                  {(exportStartDate || exportEndDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExportStartDate(null);
+                        setExportEndDate(null);
+                      }}
+                      disabled={isExporting}
+                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                        isDark
+                          ? "text-white/70 hover:text-white"
+                          : "text-black/60 hover:text-black"
+                      }`}
+                    >
+                      Reset dates
+                    </button>
+                  )}
+
                   <div className="flex justify-end gap-2 pt-1">
                     <Button
                       type="button"
@@ -837,9 +864,7 @@ export const CreativePartnersTable = () => {
                     <Button
                       type="button"
                       disabled={
-                        isExporting ||
-                        !exportStartDate ||
-                        !exportEndDate
+                        isExporting
                       }
                       onClick={() => {
                         void handleExportCreativePartners();
