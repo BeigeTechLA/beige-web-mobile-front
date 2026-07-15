@@ -1,0 +1,1757 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
+import { BookingDataV3 } from "./types";
+import { ShootTypeCard } from "./components/ShootTypeCard";
+import { Button } from "@/src/components/landing/ui/button";
+import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Check, Info, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp } from "lucide-react";
+import {
+  newshootTypes,
+  videoShootTypes,
+  photoShootTypes,
+  hybridShootTypes,
+  weddingEditTypes,
+  musicEditTypes,
+  commercialEditTypes,
+  tvSeriesEditTypes,
+  podcastEditTypes,
+  shortFilmEditTypes,
+  movieEditTypes,
+  corporateEventEditTypes,
+  privateEventEditTypes,
+  socialContentEditTypes,
+  weddingPhotoEditTypes,
+  corporateEventPhotoEditTypes,
+  privateEventPhotoEditTypes,
+  musicPhotoEditTypes,
+  commercialPhotoEditTypes,
+  socialContentPhotoEditTypes,
+  brandProductPhotoEditTypes,
+  peopleTeamsPhotoEditTypes,
+  behindScenesPhotoEditTypes,
+} from "@/app/data/shootData";
+import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
+import { parseDate } from "@/src/components/landing/lib/utils";
+import DatePicker from "@/components/ui/Datepicker";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { AnimatePresence, motion } from "framer-motion";
+import { pushToDataLayer } from "@/lib/gtm";
+import { getFormattedDateString } from "@/lib/utils";
+import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE, scrollToRef } from "./utils";
+
+interface Props {
+  data: BookingDataV3;
+  updateData: (data: Partial<BookingDataV3>) => void;
+  onNext: () => void;
+  onBack: () => void;
+}
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager"
+}
+
+const datePickerColours = {
+  inputBackground: "#101010",
+  inputText: "#FFFFFF",
+  inputBorder: "#ffffff4d",
+  inputBorderHover: "#E8D1AB",
+  inputBorderFocus: "#E8D1AB",
+  labelText: "#FFFFFF99",
+  iconColor: "#FFFFFF",
+  accent: "#E8D1AB",
+  accentText: "#101010",
+  hoverAccent: "#E8D1AB",
+  paperBackground: "#101010",
+  mobileCalendarBackground: "#101010",
+  calendarHeaderText: "#FFFFFF",
+  weekdayLabelText: "#ffffff99",
+  dayNumberText: "#FFFFFF",
+  navigationIconColor: "#E8D1AB",
+  desktopTimeAccent: "#E8D1AB",
+  mobileSelectedText: "#101010",
+  toolbarText: "#FFFFFF",
+  selectedHeaderDateTime: "#E8D1AB",
+  clockNumberColor: "#FFFFFF",
+  tabIconColor: "#ffffff99",
+  tabIconSelected: "#E8D1AB",
+  inputDisabled: "#ffffff33",
+  mutedText: "#ffffff66",
+  desktopCalendarText: "#FFFFFF",
+};
+
+const INITIAL_COUNT = 6;
+const LOAD_MORE_COUNT = 3;
+const STUDIO_SHOOT_TYPE_KEY = "studio";
+type ShootTypeOption = (typeof newshootTypes)[number];
+const STUDIO_SHOOT_TYPE_OPTION: ShootTypeOption = {
+  key: STUDIO_SHOOT_TYPE_KEY,
+  title: "Studio",
+  details: "Book a Beige studio by date and time",
+  image: "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  stats: [],
+};
+
+const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
+  const nonStudioTypes = types.filter((type) => type.key !== STUDIO_SHOOT_TYPE_KEY && type.key !== "coachella");
+  return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
+};
+
+export const V3AltChooseService: React.FC<Props> = ({
+  data,
+  updateData,
+  onNext,
+  onBack,
+}) => {
+  const { user, isAuthenticated } = useAuth();
+
+  const [errors, setErrors] = useState<string[]>([])
+
+  const [editTypeOptions, setEditTypeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
+
+  const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<
+    { key: string; value: string; note?: string }[]
+  >([]);
+
+  const [photoEditNote, setPhotoEditNote] = useState<string>("");
+
+  const [availableShootTypes, setAvailableShootTypes] = useState<ShootTypeOption[]>(
+    withStudioOption(newshootTypes)
+  );
+
+  const [timeOptions, setTimeOptions] = useState<
+    { key: string; value: string }[]
+  >([]);
+
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(null);
+
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+  const [updateBookingDateTime, setUpdateBookingDateTime] = useState<boolean>(true);
+  const [isExpanded, setSetIsExpanded] = useState<boolean>(false);
+
+  const reelRef = useRef<HTMLDivElement>(null);
+  const dateChipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const isDraggingReel = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
+  const dragStartScrollLeft = useRef(0);
+  const hasHydratedMultiDayState = useRef(false);
+  const dateTimeRef = useRef<HTMLDivElement>(null);
+
+  const isAllVisible = visibleCount >= availableShootTypes.length;
+
+  const shootTypeRef = useRef<HTMLDivElement>(null);
+  const bookingTypeRef = useRef<HTMLDivElement>(null);
+  const deliveryDateRef = useRef<HTMLDivElement>(null);
+  const editsRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+
+  const [openEditPanel, setOpenEditPanel] = useState<"video" | "photo" | null>(null);
+  const videoEditDropdownRef = useRef<HTMLDivElement>(null);
+  const photoEditDropdownRef = useRef<HTMLDivElement>(null);
+
+  console.log(data)
+
+
+  const buildEditCounts = (keys: string[]) =>
+    keys.reduce<Record<string, number>>((acc, key) => {
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+  const getEditSummaryItems = (
+    counts: Record<string, number>,
+    options: { key: string; value: string }[]
+  ) =>
+    Object.entries(counts).map(([key, count]) => ({
+      key,
+      count,
+      label: options.find((option) => option.key === key)?.value || key,
+    }));
+
+  const videoEditCounts = React.useMemo(
+    () => buildEditCounts(data.videoEditTypes),
+    [data.videoEditTypes]
+  );
+
+  const photoEditCounts = React.useMemo(
+    () => buildEditCounts(data.photoEditTypes),
+    [data.photoEditTypes]
+  );
+
+  const durationHours = React.useMemo(
+    () => getTotalDurationHours(data.bookingType, data.startDate, data.endDate, data.bookingDays),
+    [data.bookingType, data.startDate, data.endDate, data.bookingDays]
+  );
+
+  const photoEditSetCount = photoEditCounts.edited_photos || 0;
+  const photoEditSummary = React.useMemo(
+    () =>
+      getPhotoEditSummary({
+        shootType: data.shootType,
+        durationHours,
+        selectedAddOnSets: photoEditSetCount,
+      }),
+    [data.shootType, durationHours, photoEditSetCount]
+  );
+
+  const totalVideoEditsSelected = data.videoEditTypes.length;
+  const totalPhotoEditsSelected = data.photoEditTypes.length;
+  const videoEditSummaryItems = React.useMemo(
+    () => getEditSummaryItems(videoEditCounts, editTypeOptions),
+    [videoEditCounts, editTypeOptions]
+  );
+  const photoEditSummaryItems = React.useMemo(
+    () => getEditSummaryItems(photoEditCounts, photoEditTypeOptions),
+    [photoEditCounts, photoEditTypeOptions]
+  );
+  const isEditingOnly = data.contentType.length === 1 && data.contentType.includes("editing");
+  const isStudioSelected = data.shootType === STUDIO_SHOOT_TYPE_KEY;
+  const shouldBypassDateTime = !isEditingOnly && isStudioSelected;
+  const expectedDeliveryDate = React.useMemo(
+    () => (data.expectedDeliveryDate ? parseDate(data.expectedDeliveryDate) : null),
+    [data.expectedDeliveryDate]
+  );
+  const receiveSummaryText = [
+    (data.contentType.includes("photographer") || isEditingOnly)
+      ? `${photoEditSummary.totalCount} Photos`
+      : null,
+    totalVideoEditsSelected > 0 ? `${totalVideoEditsSelected} Videos` : null,
+  ].filter(Boolean).join(" + ");
+
+  const isVideoEditOpen = openEditPanel === "video";
+  const isPhotoEditOpen = openEditPanel === "photo";
+
+  const handleVideoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "video" ? null : "video"));
+  };
+
+  const handlePhotoEditToggle = () => {
+    setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
+  };
+
+  const handleExpectedDeliveryDateChange = (date: Date | null) => {
+    updateData({
+      expectedDeliveryDate: date
+        ? format(set(date, { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }), "yyyy-MM-dd")
+        : "",
+    });
+    if (date) {
+      scrollToRef(editsRef);
+    }
+  };
+
+  const updateEditQuantity = (type: "video" | "photo", key: string, nextQty: number) => {
+    const base = type === "video" ? data.videoEditTypes : data.photoEditTypes;
+    const cleaned = base.filter((k) => k !== key);
+    const next = nextQty > 0 ? [...cleaned, ...Array.from({ length: nextQty }, () => key)] : cleaned;
+    if (type === "video") {
+      updateData({ videoEditTypes: next });
+    } else {
+      updateData({ photoEditTypes: next });
+    }
+  };
+
+  const areBookingDaysEqual = (
+    a: BookingDataV3["bookingDays"] = [],
+    b: BookingDataV3["bookingDays"] = []
+  ) => {
+    if (a.length !== b.length) return false;
+    return a.every((day, index) => {
+      const other = b[index];
+      return (
+        other &&
+        day.date === other.date &&
+        day.startTime === other.startTime &&
+        day.endTime === other.endTime
+      );
+    });
+  };
+
+  // Auto-fill email if user is logged in
+  useEffect(() => {
+    if (isAuthenticated && user?.email && !data.email) {
+      updateData({ email: user.email });
+    }
+  }, [isAuthenticated, user?.email, data.email, updateData]);
+
+  useEffect(() => {
+    const start = data.startDate ? parseDate(data.startDate) : null;
+    const end = !start && data.endDate ? parseDate(data.endDate) : null;
+    const next = start || end;
+    setSelectedShootDate(next);
+  }, [data.startDate, data.endDate]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        openEditPanel === "video" &&
+        videoEditDropdownRef.current &&
+        !videoEditDropdownRef.current.contains(target)
+      ) {
+        setOpenEditPanel(null);
+      }
+
+      if (
+        openEditPanel === "photo" &&
+        photoEditDropdownRef.current &&
+        !photoEditDropdownRef.current.contains(target)
+      ) {
+        setOpenEditPanel(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openEditPanel]);
+
+  useEffect(() => {
+    if (data.bookingType !== "multi_day") {
+      setSelectedDates([]);
+      setMultiDayTimes({});
+      setSameTimingsMulti(true);
+      setExpandedDateKey(null);
+      hasHydratedMultiDayState.current = false;
+      return;
+    }
+
+    if (!Array.isArray(data.bookingDays) || data.bookingDays.length === 0) {
+      return;
+    }
+
+    if (hasHydratedMultiDayState.current) {
+      return;
+    }
+
+    const restoredDates = data.bookingDays
+      .map((day) => new Date(`${day.date}T00:00:00`))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (!restoredDates.length) {
+      return;
+    }
+
+    const restoredTimes = data.bookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, day) => {
+      acc[day.date] = {
+        startKey: day.startTime,
+        endKey: day.endTime,
+      };
+      return acc;
+    }, {});
+
+    const completeTimings = data.bookingDays.filter((day) => day.startTime && day.endTime);
+    const uniqueTimingPairs = new Set(
+      completeTimings.map((day) => `${day.startTime}-${day.endTime}`)
+    );
+    const restoredSameTimings =
+      completeTimings.length === data.bookingDays.length && uniqueTimingPairs.size <= 1;
+
+    setSelectedDates(restoredDates);
+    setSameTimingsMulti(restoredSameTimings);
+    setMultiDayTimes(restoredSameTimings ? {} : restoredTimes);
+    setSelectedShootDate(restoredDates[0]);
+    setCurrentCalendarMonth(restoredDates[0]);
+    hasHydratedMultiDayState.current = true;
+  }, [data.bookingType, data.bookingDays]);
+
+  const handleViewToggle = () => {
+    if (visibleCount >= availableShootTypes.length) {
+      setVisibleCount(INITIAL_COUNT);
+    } else {
+      setVisibleCount((prev) =>
+        Math.min(prev + LOAD_MORE_COUNT, availableShootTypes.length)
+      );
+    }
+  };
+
+  // Determine available shoot types based on content type selection
+  useEffect(() => {
+    const isVideo = data.contentType.includes("videographer");
+    const isPhoto = data.contentType.includes("photographer");
+    const isEditing = data.contentType.includes("editing");
+
+    if (isVideo && isPhoto) {
+      setAvailableShootTypes(withStudioOption(hybridShootTypes)); // video + photo (with or without editing)
+    } else if (isPhoto) {
+      setAvailableShootTypes(withStudioOption(photoShootTypes)); // photo only OR editing + photo
+    } else if (isVideo) {
+      setAvailableShootTypes(withStudioOption(videoShootTypes)); // video only OR editing + video
+    } else if (isEditing) {
+      setAvailableShootTypes(withStudioOption(hybridShootTypes)); // editing only
+    } else {
+      setAvailableShootTypes([]);
+    }
+  }, [data.contentType]);
+
+  // Generate time options
+  useEffect(() => {
+    const options = [];
+    for (let i = 0; i < 24; i++) {
+      for (let j = 0; j < 60; j += 15) {
+        const hour = i.toString().padStart(2, "0");
+        const minute = j.toString().padStart(2, "0");
+        const key = `${hour}:${minute}`;
+
+        const date = new Date();
+        date.setHours(i);
+        date.setMinutes(j);
+        const value = format(date, "h:mm aa");
+
+        options.push({ key, value });
+      }
+    }
+    setTimeOptions(options);
+
+    // add GA event on initial load
+    pushToDataLayer("booking_page_viewed_step1", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_step1",
+      user_id: isAuthenticated ? user?.id : "Unknown",
+      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      email: isAuthenticated ? user?.email : "Unknown",
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      duration_on_page: performance.now() / 1000,
+    });
+  }, []);
+
+  const reelDays = React.useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(currentCalendarMonth);
+    const monthEnd = endOfMonth(currentCalendarMonth);
+    const start =
+      isSameMonth(currentCalendarMonth, now) && now > monthStart
+        ? startOfDay(now)
+        : monthStart;
+    if (start > monthEnd) return [];
+    return eachDayOfInterval({ start, end: monthEnd });
+  }, [currentCalendarMonth]);
+
+  const calendarDays = React.useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentCalendarMonth));
+    const end = endOfWeek(endOfMonth(currentCalendarMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentCalendarMonth]);
+
+  const formatLocalDateTime = (date: Date) => {
+    return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+  };
+
+  // --- Move these helpers up here ---
+  const getStartTimeKey = () => {
+    if (!data.startDate) return "";
+    const date = parseDate(data.startDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
+  const getEndTimeKey = () => {
+    if (!data.endDate) return "";
+    const date = parseDate(data.endDate);
+    if (!date) return "";
+    return format(date, "HH:mm");
+  };
+
+  // --- Now the useMemos can safely use them ---
+  const filteredStartTimeOptions = React.useMemo(() => {
+    const selectedDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate;
+    if (!selectedDate) return timeOptions;
+    const now = new Date();
+
+    const isToday =
+      selectedDate?.getDate() === now.getDate() &&
+      selectedDate?.getMonth() === now.getMonth() &&
+      selectedDate?.getFullYear() === now.getFullYear();
+
+    if (!isToday) return timeOptions;
+
+    // Calculate minimum key (4 hours from now)
+    const minTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    const minKey = format(minTime, "HH:mm");
+
+    return timeOptions.filter((opt) => opt.key >= minKey);
+  }, [data.startDate, selectedShootDate, timeOptions]);
+
+  const filteredEndTimeOptions = React.useMemo(() => {
+    // If no start date/time is selected, show all
+    if (!data.startDate) return timeOptions;
+
+    const startTimeKey = getStartTimeKey();
+
+    // Only show times that are AFTER the selected start time
+    return timeOptions.filter((opt) => opt.key > startTimeKey);
+  }, [data.startDate, timeOptions]);
+
+  const getDateFromDateKey = useCallback((dateKey: string) => {
+    const parsed = new Date(`${dateKey}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
+
+  const isTodayDate = useCallback((date: Date) => {
+    const now = new Date();
+    return (
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    );
+  }, []);
+
+  const getDateSpecificStartOptions = useCallback((dateKey: string) => {
+    const date = getDateFromDateKey(dateKey);
+    if (!date || !isTodayDate(date)) return timeOptions;
+    const minKey = format(new Date(Date.now() + 4 * 60 * 60 * 1000), "HH:mm");
+    return timeOptions.filter((opt) => opt.key >= minKey);
+  }, [getDateFromDateKey, isTodayDate, timeOptions]);
+
+  const getDateSpecificEndOptions = useCallback((dateKey: string) => {
+    const dayStartKey = multiDayTimes[dateKey]?.startKey;
+    if (!dayStartKey) return getDateSpecificStartOptions(dateKey);
+    return getDateSpecificStartOptions(dateKey).filter((opt) => opt.key > dayStartKey);
+  }, [getDateSpecificStartOptions, multiDayTimes]);
+
+  const handleDateChange = (date: Date | null) => {
+    if (!date) {
+      setSelectedShootDate(null);
+      updateData({ startDate: "", endDate: "" });
+      return;
+    }
+
+    setSelectedShootDate(date);
+
+    const now = new Date();
+    const isToday =
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
+    const existingStart = data.startDate ? parseDate(data.startDate) : null;
+    const existingEnd = data.endDate ? parseDate(data.endDate) : null;
+
+    let finalStart: Date;
+    let finalEnd: Date;
+
+    if (existingStart && existingEnd) {
+      finalStart = set(date, {
+        hours: existingStart.getHours(),
+        minutes: existingStart.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      finalEnd = set(date, {
+        hours: existingEnd.getHours(),
+        minutes: existingEnd.getMinutes(),
+        seconds: 0,
+        milliseconds: 0,
+      });
+
+      if (isToday) {
+        const minStartTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+        if (finalStart < minStartTime) {
+          const roundedStart = new Date(minStartTime);
+          const mins = roundedStart.getMinutes();
+          if (mins > 0 && mins <= 30) {
+            roundedStart.setMinutes(30, 0, 0);
+          } else if (mins > 30) {
+            roundedStart.setHours(roundedStart.getHours() + 1, 0, 0, 0);
+          } else {
+            roundedStart.setMinutes(0, 0, 0);
+          }
+
+          finalStart = roundedStart;
+          const durationMs = existingEnd.getTime() - existingStart.getTime();
+          finalEnd = new Date(finalStart.getTime() + (durationMs > 0 ? durationMs : 8 * 60 * 60 * 1000));
+        }
+      }
+    } else {
+      if (isToday) {
+        const minStart = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        const mins = minStart.getMinutes();
+        if (mins > 0 && mins <= 30) {
+          minStart.setMinutes(30, 0, 0);
+        } else if (mins > 30) {
+          minStart.setHours(minStart.getHours() + 1, 0, 0, 0);
+        } else {
+          minStart.setMinutes(0, 0, 0);
+        }
+        finalStart = minStart;
+        finalEnd = new Date(finalStart.getTime() + 8 * 60 * 60 * 1000);
+      } else {
+        finalStart = set(date, { hours: 9, minutes: 0, seconds: 0, milliseconds: 0 });
+        finalEnd = set(date, { hours: 17, minutes: 0, seconds: 0, milliseconds: 0 });
+      }
+    }
+
+    updateData({
+      startDate: formatLocalDateTime(finalStart),
+      endDate: formatLocalDateTime(finalEnd),
+    });
+  };
+  const handleStartTimeChange = (timeKey: string) => {
+    if (!timeKey) {
+      updateData({ startDate: "" });
+      return;
+    }
+
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const currentDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!currentDate) return;
+
+    // Ensure we don't select a time before the current time
+    const now = new Date();
+    const selectedTime = new Date(currentDate.setHours(hours, minutes));
+
+    if (selectedTime < now) {
+      toast.error("Selected time must be later than the current time.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
+    }
+
+    // Enforce a 4-hour gap for same-day bookings
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours to current time
+
+    if (selectedTime < minimumTime) {
+      toast.error("You must select a start time at least 4 hours from now.");
+      setErrors((prev) => [...prev, "timeError"]);
+      return; // Don't update the time if it's invalid
+    }
+
+    const newStart = set(currentDate, { hours, minutes });
+    updateData({ startDate: formatLocalDateTime(newStart) });
+  };
+
+
+  const handleEndTimeChange = (timeKey: string) => {
+    if (!timeKey) {
+      updateData({ endDate: "" });
+      return;
+    }
+
+    const [hours, minutes] = timeKey.split(":").map(Number);
+
+    const baseDate = data.startDate
+      ? parseDate(data.startDate)
+      : selectedShootDate || new Date();
+    if (!baseDate) return;
+
+    const newEnd = set(new Date(baseDate), {
+      hours,
+      minutes,
+      seconds: 0,
+      milliseconds: 0
+    });
+
+    updateData({ endDate: formatLocalDateTime(newEnd) });
+    scrollToRef(editsRef);
+  };
+
+  const toggleDateSelection = (date: Date) => {
+    const clickedDateKey = getDateKey(date);
+    setSelectedDates((prev) => {
+      const exists = prev.some((d) => isSameDay(d, date));
+      if (exists) {
+        return prev.filter((d) => !isSameDay(d, date));
+      }
+      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+    });
+    if (data.bookingType === "multi_day") {
+      setSelectedShootDate(date);
+    }
+    requestAnimationFrame(() => {
+      dateChipRefs.current[clickedDateKey]?.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    });
+  };
+
+  const getTimeLabel = (key: string) => {
+    if (!key) return "";
+    const match = timeOptions.find((opt) => opt.key === key);
+    return match ? match.value : key;
+  };
+
+  const calculateDurationHours = (startKey: string, endKey: string) => {
+    if (!startKey || !endKey) return null;
+    const [sh, sm] = startKey.split(":").map(Number);
+    const [eh, em] = endKey.split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return null;
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    const diff = endMinutes - startMinutes;
+    if (diff <= 0) return null;
+    return Math.round((diff / 60) * 100) / 100;
+  };
+
+  const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
+
+  const buildDateTimeString = useCallback((date: Date, timeKey: string) => {
+    const [hours, minutes] = timeKey.split(":").map(Number);
+    const nextDate = set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
+    return formatLocalDateTime(nextDate);
+  }, []);
+
+  const buildMultiDayTimeMap = useCallback((
+    dates: Date[],
+    fallback: { startKey?: string; endKey?: string } = {},
+    existing: Record<string, { startKey?: string; endKey?: string }> = {}
+  ) => {
+    return dates.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, date) => {
+      const dateKey = getDateKey(date);
+      acc[dateKey] = existing[dateKey] || { ...fallback };
+      return acc;
+    }, {});
+  }, []);
+
+  const handleSameTimingsModeChange = (useSameTimings: boolean) => {
+    setSameTimingsMulti(useSameTimings);
+    setExpandedDateKey(null);
+
+    if (useSameTimings) {
+      const firstSelectedDate = selectedDates[0];
+      const firstSelectedTiming = firstSelectedDate
+        ? multiDayTimes[getDateKey(firstSelectedDate)]
+        : undefined;
+
+      if (firstSelectedDate && firstSelectedTiming?.startKey && firstSelectedTiming?.endKey) {
+        updateData({
+          startDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.startKey),
+          endDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.endKey),
+        });
+      }
+
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+  };
+
+  const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], startKey: timeKey }
+    }));
+  };
+
+  const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setMultiDayTimes((prev) => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], endKey: timeKey }
+    }));
+  };
+
+  useEffect(() => {
+    if (data.bookingType !== "multi_day" || sameTimingsMulti) {
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+
+    if (expandedDateKey && !selectedDates.some((date) => getDateKey(date) === expandedDateKey)) {
+      setExpandedDateKey(null);
+    }
+  }, [data.bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap]);
+
+  useEffect(() => {
+    if (data.bookingType !== "multi_day") {
+      if ((data.bookingDays?.length || 0) > 0) {
+        updateData({ bookingDays: [] });
+      }
+      return;
+    }
+
+    if (!selectedDates.length) {
+      if ((data.bookingDays?.length || 0) > 0) {
+        updateData({ bookingDays: [] });
+      }
+      return;
+    }
+
+    const startKey = getStartTimeKey();
+    const endKey = getEndTimeKey();
+
+    const days = selectedDates.map((date) => {
+      const dateKey = getDateKey(date);
+      const dayTimes = multiDayTimes[dateKey] || {};
+      const finalStart = sameTimingsMulti ? startKey : dayTimes.startKey;
+      const finalEnd = sameTimingsMulti ? endKey : dayTimes.endKey;
+      return {
+        date: dateKey,
+        startTime: finalStart,
+        endTime: finalEnd
+      };
+    });
+
+    if (!areBookingDaysEqual(days, data.bookingDays || [])) {
+      updateData({ bookingDays: days });
+    }
+  }, [
+    data.bookingType,
+    selectedDates,
+    data.startDate,
+    data.endDate,
+    data.bookingDays,
+    sameTimingsMulti,
+    multiDayTimes,
+    updateData
+  ]);
+
+  // Update edit type options based on shoot type
+  useEffect(() => {
+    let nextVideoOptions: { key: string; value: string }[] = [];
+    let nextPhotoOptions: { key: string; value: string; note?: string }[] = [];
+    let nextPhotoNote = "";
+
+    switch (data.shootType) {
+      case "wedding":
+        nextVideoOptions = weddingEditTypes;
+        nextPhotoOptions = weddingPhotoEditTypes;
+        nextPhotoNote = "50 edited photos per hour for weddings";
+        break;
+      case "music":
+        nextVideoOptions = musicEditTypes;
+        nextPhotoOptions = musicPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "commercial":
+        nextVideoOptions = commercialEditTypes;
+        nextPhotoOptions = commercialPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "tv":
+        nextVideoOptions = tvSeriesEditTypes;
+        break;
+      case "podcast":
+        nextVideoOptions = podcastEditTypes;
+        break;
+      case "short_film":
+        nextVideoOptions = shortFilmEditTypes;
+        break;
+      case "movie":
+        nextVideoOptions = movieEditTypes;
+        break;
+      case "corporate":
+        nextVideoOptions = corporateEventEditTypes;
+        nextPhotoOptions = corporateEventPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "private":
+        nextVideoOptions = privateEventEditTypes;
+        nextPhotoOptions = privateEventPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "social_content":
+        nextVideoOptions = socialContentEditTypes;
+        nextPhotoOptions = socialContentPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "brand_product":
+        nextPhotoOptions = brandProductPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "people_teams":
+        nextPhotoOptions = peopleTeamsPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case "behind_scenes":
+        nextPhotoOptions = behindScenesPhotoEditTypes;
+        nextPhotoNote = "25 edited photos per hour";
+        break;
+      case STUDIO_SHOOT_TYPE_KEY:
+        nextVideoOptions = corporateEventEditTypes;
+        nextPhotoOptions = corporateEventPhotoEditTypes;
+        nextPhotoNote = "Studio photo edits are calculated from the studio booking duration.";
+        break;
+      default:
+        break;
+    }
+
+    const hasVideoContent = data.contentType.includes("videographer");
+    const hasPhotoContent = data.contentType.includes("photographer");
+
+    // Fallbacks when user selects both but the shoot type only provides one set.
+    if (hasVideoContent && nextVideoOptions.length === 0) {
+      nextVideoOptions = socialContentEditTypes;
+    }
+    if (hasPhotoContent && nextPhotoOptions.length === 0) {
+      nextPhotoOptions = corporateEventPhotoEditTypes;
+      if (!nextPhotoNote) nextPhotoNote = "25 edited photos per hour";
+    }
+
+    setEditTypeOptions(nextVideoOptions);
+    setPhotoEditTypeOptions(nextPhotoOptions);
+    setPhotoEditNote(nextPhotoNote);
+    const validVideoKeys = nextVideoOptions.map((o) => o.key);
+    const validPhotoKeys = nextPhotoOptions.map((o) => o.key);
+
+    const filteredVideo = data.videoEditTypes.filter((k) => validVideoKeys.includes(k));
+    const filteredPhoto = data.photoEditTypes.filter((k) => validPhotoKeys.includes(k));
+
+    if (filteredVideo.length !== data.videoEditTypes.length || filteredPhoto.length !== data.photoEditTypes.length) {
+      updateData({
+        videoEditTypes: filteredVideo,
+        photoEditTypes: filteredPhoto,
+      });
+    }
+  }, [data.shootType, data.contentType]);
+
+  // Clear errors when data changes
+  useEffect(() => {
+    setErrors((prev) => {
+      const newErrors = [...prev];
+      if (data.email && newErrors.includes("emailError")) return newErrors.filter(e => e !== "emailError");
+      if (data.contentType.length > 0 && newErrors.includes("contentError")) return newErrors.filter(e => e !== "contentError");
+      if (data.shootType && newErrors.includes("shootTypeError")) return newErrors.filter(e => e !== "shootTypeError");
+      if (isEditingOnly && data.expectedDeliveryDate && newErrors.includes("deliveryDateError")) {
+        return newErrors.filter(e => e !== "deliveryDateError");
+      }
+      const hasMultiDayTimes = Array.isArray(data.bookingDays) && data.bookingDays.length > 0 && data.bookingDays.every(d => d.startTime && d.endTime);
+      if (
+        (isEditingOnly ||
+          shouldBypassDateTime ||
+          (data.bookingType !== "multi_day" && data.startDate && data.endDate) ||
+          (data.bookingType === "multi_day" && hasMultiDayTimes)) &&
+        newErrors.includes("timeError")
+      ) {
+        return newErrors.filter(e => e !== "timeError");
+      }
+      if (data.videoEditTypes.length > 0 && newErrors.includes("videoEditError")) return newErrors.filter(e => e !== "videoEditError");
+      if (data.photoEditTypes.length > 0 && newErrors.includes("photoEditError")) return newErrors.filter(e => e !== "photoEditError");
+      return prev;
+    });
+  }, [data, isEditingOnly, shouldBypassDateTime]);
+
+  const toggleContentType = (type: "videographer" | "photographer" | "editing" | "studio") => {
+    const current = [...data.contentType];
+    const isCurrentlySelected = current.includes(type);
+    const nextContentType = isCurrentlySelected
+      ? current.filter((t) => t !== type)
+      : [...current, type];
+
+    if (nextContentType.length === 0) {
+      updateData({
+        contentType: [],
+        shootType: "",
+        startDate: "",
+        endDate: "",
+        expectedDeliveryDate: "",
+        editsNeeded: true,
+        videoEditTypes: [],
+        photoEditTypes: [],
+      });
+    } else {
+      // Determine if editing is selected to automatically set editsNeeded to true
+      const includesEditing = nextContentType.includes("editing");
+
+      const updateObj: Partial<BookingDataV3> = {
+        contentType: nextContentType,
+        editsNeeded: includesEditing ? true : data.editsNeeded // Force true if editing is checked
+      };
+
+      if (!nextContentType.includes("videographer")) {
+        updateObj.videoEditTypes = [];
+      }
+      if (!nextContentType.includes("photographer")) {
+        updateObj.photoEditTypes = [];
+      }
+      if (!nextContentType.includes("editing")) {
+        updateObj.expectedDeliveryDate = "";
+      }
+
+      updateData(updateObj);
+    }
+
+    // Reset the view more toggle
+    setVisibleCount(INITIAL_COUNT);
+    if (nextContentType.length > 0) {
+      scrollToRef(shootTypeRef);
+    }
+  };
+
+  const validate = () => {
+    if (!data.email) {
+      toast.error("Please enter your email address");
+      setErrors((prev) => [...prev, "emailError"]);
+
+      return false;
+    }
+    
+    if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === "") {
+      toast.error("Please select a video/photo shoot type");
+      setErrors((prev) => [...prev, "shootTypeError"]);
+
+      return false;
+    }
+    
+    const requiresEditSelection = data.editsNeeded;
+    if (requiresEditSelection) {
+      const needsVideoEdit = data.contentType.includes("videographer")
+      const needsPhotoEdit = data.contentType.includes("photographer");
+      const hasVideoEditOptions = editTypeOptions.length > 0;
+      const hasPhotoEditOptions = photoEditTypeOptions.length > 0;
+
+      if (needsVideoEdit && data.videoEditTypes.length === 0) {
+        setErrors((prev) => [...prev, "videoEditError"]);
+        toast.error("Please select at least one video edit type");
+        return false;
+      }
+
+      if (needsPhotoEdit && data.photoEditTypes.length === 0) {
+        setErrors((prev) => [...prev, "photoEditError"]);
+        toast.error("Please select at least one photo edit type");
+        return false;
+      }
+
+      if (
+        isEditingOnly &&
+        ((hasVideoEditOptions && hasPhotoEditOptions && data.videoEditTypes.length === 0 && data.photoEditTypes.length === 0) ||
+          (hasVideoEditOptions && !hasPhotoEditOptions && data.videoEditTypes.length === 0) ||
+          (!hasVideoEditOptions && hasPhotoEditOptions && data.photoEditTypes.length === 0))
+      ) {
+        setErrors((prev) => [...prev, "videoEditError", "photoEditError"]);
+        toast.error("Please select at least one photo or video edit type");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = async () => {
+    if (!validate()) return;
+    onNext();
+  };
+
+  return (
+    <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-lg lg:text-[64px] leading-[1.1] font-bold text-gradient-white tracking-tight mb-2">
+          Videography/Photography Services
+        </h2>
+        <p className="text-white/60">Choose your shoot type, timing, and editing preferences for your project</p>
+
+      </div>
+
+      {data.contentType.length > 0 && (
+        <>
+          {/* Shoot Type */}
+          <div ref={shootTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("shootTypeError") ? "text-red-400" : "text-white/90"}`}>
+              {data.contentType.includes("videographer") && data.contentType.includes("photographer")
+                ? "Video and Photo Shoot Type"
+                : data.contentType.includes("photographer")
+                  ? "Photo Shoot Type"
+                  : data.contentType.includes("videographer")
+                    ? "Video Shoot Type"
+                    : "Shoot Type"}
+            </h3>
+            {/* <div className="flex flex-nowrap gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scrollbar-hide"> */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-6">
+              {availableShootTypes.slice(0, visibleCount).map((type) => (
+                <div
+                  key={type.key}
+                  className="min-w-[280px] md:min-w-[350px] flex-shrink-0 snap-start"
+                >
+                  <ShootTypeCard
+                    title={type.title} // Assuming your shootTypes array has label
+                    details={type.details} // and details
+                    image={type.image}
+                    selected={data.shootType === type.key}
+                    onClick={() => {
+                      updateData({ shootType: type.key });
+                      scrollToRef(isEditingOnly ? deliveryDateRef : bookingTypeRef);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleViewToggle}
+                className="bg-[#E8D1AB] text-black hover:bg-[#dcb98a] h-9 rounded-lg  text-sm md:text-lg font-medium flex items-center justify-between lg:gap-6 shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)]"
+              >
+                <span className="">{isAllVisible ? "View Less" : "View More"}</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Date Time Same/Diff */}
+          <div ref={dateTimeRef} className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
+            <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Do you want to update your videography service booking day and time?</h3>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setUpdateBookingDateTime(true)}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-fit rounded-2xl border px-2 lg:px-6 flex items-center gap-4 lg:gap-7 transition-colors duration-300 ease-in-out ${updateBookingDateTime ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${updateBookingDateTime ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {updateBookingDateTime && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUpdateBookingDateTime(false)}
+                className={`h-14 lg:h-[82px] w-[100px] lg:w-fit rounded-2xl border px-2 lg:px-6 flex items-center gap-4 lg:gap-7 transition-colors duration-300 ease-in-out ${!updateBookingDateTime ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+              >
+                <span className="font-medium text-sm lg:text-lg pr-2">Keep it same</span>
+                <div
+                  className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!updateBookingDateTime ? "bg-black" : "border border-[#E5E5E5]"
+                    }`}
+                >
+                  {!updateBookingDateTime && (
+                    <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* BookingDateTime block  */}
+            {updateBookingDateTime && (
+              <div className="space-y-4">
+                {/* Show Single Day Accordion only if bookingType is single_day */}
+                {data.bookingType === "single_day" && (
+                  <div className="rounded-xl bg-[#171717] overflow-hidden">
+                    <button
+                      onClick={() => setSetIsExpanded(!isExpanded)}
+                      className="w-full flex items-center justify-between px-3 py-5 lg:px-5 lg:py-7 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <span className="text-lg lg:text-xl font-medium text-[#E8D1AB]">Single Day</span>
+                      <ChevronDown
+                        className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                          className="p-5 pt-7 border-t border-t-[#FFFFFF33]"
+                        >
+                          <>
+                            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
+                              Shoot Date & Time
+                            </h3>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                              <div className="flex-1">
+                                <DatePicker
+                                  label="Select Date"
+                                  value={selectedShootDate}
+                                  onChange={handleDateChange}
+                                  minDate={new Date()}
+                                  colors={datePickerColours}
+                                  format="MM/dd/yyyy"
+                                  sx={{
+                                    height: { xs: "56px", md: "82px" },
+                                    borderRadius: "16px",
+                                  }}
+                                  floating={true}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="Start Time"
+                                  options={filteredStartTimeOptions}
+                                  value={getStartTimeKey()}
+                                  onChange={handleStartTimeChange}
+                                  bgColour="bg-[#171717]"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="End Time"
+                                  options={filteredEndTimeOptions}
+                                  value={getEndTimeKey()}
+                                  onChange={handleEndTimeChange}
+                                  bgColour="bg-[#171717]"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                              <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                Duration: {calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours
+                              </p>
+                            </div>
+                          </>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {/* Show Multiple Days Accordion only if bookingType is multi_day */}
+                {data.bookingType === "multi_day" && (
+                  <div className="rounded-xl bg-[#171717] overflow-hidden">
+                    <button
+                      onClick={() => setSetIsExpanded(!isExpanded)}
+                      className="w-full flex items-center justify-between p-6 lg:p-8 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <span className="text-lg lg:text-xl font-medium text-[#E8D1AB]">Multiple Days</span>
+                      <ChevronDown
+                        className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="p-6 lg:p-8 pt-0 border-t border-white/5"
+                        >
+                          <>
+                            <div className="relative mb-4 lg:mb-7">
+                              <div className="flex justify-between items-center mb-6">
+                                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
+                                  Select Date
+                                </h3>
+                                <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group">
+                                  <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                                  <Calendar size={20} className="text-white group-hover:text-[#E8D1AB] " />
+                                </button>
+                              </div>
+
+                              {/* Horizontal Scroll Reel */}
+                              <div
+                                ref={reelRef}
+                                onWheel={(e) => {
+                                  if (!reelRef.current) return;
+                                  e.preventDefault();
+                                  reelRef.current.scrollLeft += e.deltaY;
+                                }}
+                                onPointerDown={(e) => {
+                                  if (!reelRef.current) return;
+                                  if ((e.target as HTMLElement).closest("button")) return;
+                                  isDraggingReel.current = true;
+                                  dragStartX.current = e.clientX;
+                                  dragStartScrollLeft.current = reelRef.current.scrollLeft;
+                                  reelRef.current.setPointerCapture?.(e.pointerId);
+                                }}
+                                onPointerMove={(e) => {
+                                  if (!reelRef.current || !isDraggingReel.current) return;
+                                  const dx = e.clientX - dragStartX.current;
+                                  reelRef.current.scrollLeft = dragStartScrollLeft.current - dx;
+                                }}
+                                onPointerUp={(e) => {
+                                  isDraggingReel.current = false;
+                                  reelRef.current?.releasePointerCapture?.(e.pointerId);
+                                }}
+                                onPointerLeave={() => {
+                                  isDraggingReel.current = false;
+                                }}
+                                className="flex gap-3 overflow-x-auto pb-4 no-scrollbar cursor-grab active:cursor-grabbing select-none"
+                              >
+                                {reelDays.map((date) => {
+                                  const isSelected = selectedDates.some(d => isSameDay(d, date));
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={date.toISOString()}
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={() => toggleDateSelection(date)}
+                                      className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                                    >
+                                      <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                                      <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="flex gap-4">
+                                <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                  <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
+                                </div>
+                                <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                  <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
+                                </div>
+                              </div>
+
+                              {/* Calendar Popover */}
+                              <AnimatePresence>
+                                {isCalendarOpen && (
+                                  <motion.div ref={calendarRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]">
+                                    <div className="flex justify-between items-center mb-6">
+                                      <button type="button" onClick={() => setCurrentCalendarMonth(addDays(startOfMonth(currentCalendarMonth), -1))}>
+                                        <ChevronLeft size={20} />
+                                      </button>
+                                      <span className="text-white font-bold">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                                      <div className="flex items-center gap-2">
+                                        <button type="button" onClick={() => setCurrentCalendarMonth(addDays(endOfMonth(currentCalendarMonth), 1))}>
+                                          <ChevronRight size={20} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsCalendarOpen(false)}
+                                          className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                                          aria-label="Close calendar"
+                                        >
+                                          <X size={18} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-white/40 mb-2 uppercase font-bold">
+                                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d}>{d}</div>)}
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1">
+                                      {calendarDays.map((date) => {
+                                        const isSelected = selectedDates.some(d => isSameDay(d, date));
+                                        return (
+                                          <button
+                                            type="button"
+                                            key={date.toISOString()}
+                                            onClick={() => {
+                                              toggleDateSelection(date);
+                                            }}
+                                            className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                                          >
+                                            {format(date, "d")}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                            {/* timings selector will go here */}
+
+                            {selectedDates.length > 0 && (
+                              <div className="pt-4 lg:pt-7 border-t border-white/10 space-y-6">
+                                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>Are timings same for all selected dates?</h3>
+
+                                <div className="flex gap-4">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSameTimingsModeChange(true)}
+                                    disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                                  >
+                                    <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                                    <div
+                                      className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                                        }`}
+                                    >
+                                      {sameTimingsMulti && (
+                                        <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                                      )}
+                                    </div>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSameTimingsModeChange(false)}
+                                    disabled={(data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === ""}
+                                    className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                                  >
+                                    <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                                    <div
+                                      className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                                        }`}
+                                    >
+                                      {!sameTimingsMulti && (
+                                        <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                                      )}
+                                    </div>
+                                  </button>
+                                </div>
+
+                                {
+                                  sameTimingsMulti ? (
+                                    <div>
+                                      <div className="flex flex-col lg:flex-row gap-6">
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="Start Time"
+                                            options={filteredStartTimeOptions}
+                                            value={getStartTimeKey()}
+                                            onChange={handleStartTimeChange}
+                                            bgColour="bg-[#101010]"
+                                          />
+                                        </div>
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="End Time"
+                                            options={filteredEndTimeOptions}
+                                            value={getEndTimeKey()}
+                                            onChange={handleEndTimeChange}
+                                            bgColour="bg-[#101010]"
+                                          />
+                                        </div>
+                                      </div>
+                                      <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                                        <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                                      </p>
+                                      <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                                        <p className="text-white font-medium lg:text-[20px]">
+                                          {getFormattedDateString(selectedDates)}
+                                        </p>
+                                        <p className="text-white/60  font-medium lg:text-[20px]">
+                                          {getStartTimeKey() && getEndTimeKey()
+                                            ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                            : "Select time"}
+                                        </p>
+                                        <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                                          {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                            ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                            : "Duration Hour/Day"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-4">
+                                      {selectedDates.map((date) => {
+                                        const dateKey = getDateKey(date);
+                                        const isExpanded = expandedDateKey === dateKey;
+                                        return (
+                                          <div key={date.toISOString()} className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}>
+                                            <button type="button" onClick={() => setExpandedDateKey(isExpanded ? null : dateKey)} className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}>
+                                              <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                              <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                            </button>
+                                            <AnimatePresence>
+                                              {isExpanded && (
+                                                <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible">
+                                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                    <div className="flex-1">
+                                                      <DropdownSelect
+                                                        title="Start Time"
+                                                        options={filteredStartTimeOptions}
+                                                        value={multiDayTimes[dateKey]?.startKey || ""}
+                                                        onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                                        bgColour="bg-[#101010]"
+                                                      />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                      <DropdownSelect
+                                                        title="End Time"
+                                                        options={filteredEndTimeOptions}
+                                                        value={multiDayTimes[dateKey]?.endKey || ""}
+                                                        onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                                        bgColour="bg-[#101010]"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                                    <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                                      Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                                        ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                                        : "Select time"}
+                                                    </p>
+                                                  </div>
+                                                </motion.div>
+                                              )}
+                                            </AnimatePresence>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )
+                                }
+                              </div>
+                            )}
+                          </>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Edits Needed */}
+          {
+            <div ref={editsRef} className="pt-6 lg:pt-15 border-t border-white/10">
+              {!data.contentType.includes("editing") && (
+                <>
+                  <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("editError") ? "text-red-400" : "text-white/90"
+                    }`}>
+                    Edits Needed?
+                  </h3>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => {
+                        updateData({ editsNeeded: true });
+                        scrollToRef(navigationRef);
+                      }}
+                      disabled={data.shootType === ""}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                          }`}
+                      >
+                        {data.editsNeeded && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOpenEditPanel(null);
+                        updateData({
+                          editsNeeded: false,
+                          videoEditTypes: [],
+                          photoEditTypes: [],
+                        });
+                        scrollToRef(navigationRef);
+                      }}
+                      disabled={data.shootType === ""}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!data.editsNeeded ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                    >
+                      <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                      <div
+                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!data.editsNeeded ? "bg-black" : "border border-[#E5E5E5]"
+                          }`}
+                      >
+                        {!data.editsNeeded && (
+                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Edit Dropdowns — show when editsNeeded OR editing only */}
+              {(data.editsNeeded || isEditingOnly) && (
+                <div className={`animate-in slide-in-from-top-4 duration-300 ${!isEditingOnly ? "mt-4 lg:mt-8" : ""}`}>
+                  <h4 className={` ${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"} font-medium mb-4 flex items-center gap-2 lg:text-xl`}>
+                    <Info size={24} className={`${errors.includes("videoEditError") || errors.includes("photoEditError") ? "text-red-400" : "text-white"}`} />
+                    Editing includes
+                  </h4>
+                  <p className="text-white/60 text-sm mb-11">
+                    Professional editing includes color grading, sound mixing, and
+                    basic revisions.
+                  </p>
+
+                  <div className="grid grid-cols-1 items-start md:grid-cols-2 md:items-start gap-6">
+                    {(data.contentType.includes("videographer") || isEditingOnly) && editTypeOptions.length > 0 && (
+                      <div ref={videoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                          onClick={handleVideoEditToggle}
+                        >
+                          <div className="min-w-0 flex flex-1 items-center gap-3">
+                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Video Edits</div>
+                            {videoEditSummaryItems.length > 0 && (
+                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                {videoEditSummaryItems.map((item) => (
+                                  <span
+                                    key={item.key}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                  >
+                                    <span className="truncate max-w-[180px]">{item.label}</span>
+                                    <span className="shrink-0 text-white/50">x{item.count}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {isVideoEditOpen ? (
+                            <ChevronUp className="text-white flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="text-white flex-shrink-0" />
+                          )}
+                        </button>
+
+                        {isVideoEditOpen && (
+                          <div className="border-t border-white/10 px-5 py-3">
+                            {editTypeOptions.map((option) => {
+                              const count = videoEditCounts[option.key] || 0;
+                              return (
+                                <div
+                                  key={option.key}
+                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                >
+                                  <span className="text-sm lg:text-base text-white">{option.value}</span>
+                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                    <QuantityControl
+                                      value={count}
+                                      onDecrease={() => updateEditQuantity("video", option.key, Math.max(0, count - 1))}
+                                      onIncrease={() => updateEditQuantity("video", option.key, count + 1)}
+                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(data.contentType.includes("photographer") || isEditingOnly) && photoEditTypeOptions.length > 0 && (
+                      <div ref={photoEditDropdownRef} className="self-start rounded-[24px] border border-white/10 bg-[#171717] overflow-hidden">
+                        <button
+                          type="button"
+                          className="w-full px-5 py-5 flex items-center justify-between gap-4 text-left"
+                          onClick={handlePhotoEditToggle}
+                        >
+                          <div className="min-w-0 flex flex-1 items-center gap-3">
+                            <div className="shrink-0 text-base lg:text-lg font-medium text-white">Photo Edits</div>
+                            {photoEditSummaryItems.length > 0 && (
+                              <div className="min-w-0 flex flex-nowrap gap-2 overflow-hidden">
+                                {photoEditSummaryItems.map((item) => (
+                                  <span
+                                    key={item.key}
+                                    className="inline-flex max-w-full items-center gap-1 rounded-[10px] bg-[#2A2A2A] px-3 py-1.5 text-xs lg:text-sm text-white"
+                                  >
+                                    <span className="truncate max-w-[180px]">{item.label}</span>
+                                    <span className="shrink-0 text-white/50">x{item.count}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          {isPhotoEditOpen ? (
+                            <ChevronUp className="text-white flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="text-white flex-shrink-0" />
+                          )}
+                        </button>
+
+                        {isPhotoEditOpen && (
+                          <div className="border-t border-white/10 px-5 py-3">
+                            {photoEditTypeOptions.map((option) => {
+                              const count = photoEditCounts[option.key] || 0;
+                              return (
+                                <div
+                                  key={option.key}
+                                  className="flex items-center justify-between gap-4 py-4 border-b border-white/10 last:border-b-0"
+                                >
+                                  <div>
+                                    <div className="text-sm lg:text-base text-white">{option.value}</div>
+                                    <div className="text-xs text-white/40 mt-1">
+                                      +{PHOTO_EDIT_ADDON_SET_SIZE} Photos Per Set
+                                    </div>
+                                  </div>
+                                  <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                    <QuantityControl
+                                      value={count}
+                                      onDecrease={() => updateEditQuantity("photo", option.key, Math.max(0, count - 1))}
+                                      onIncrease={() => updateEditQuantity("photo", option.key, count + 1)}
+                                      className="h-[52px] min-w-[110px] rounded-[16px] px-5"
+                                      buttonClassName="grid h-8 w-8 place-items-center rounded-full transition hover:bg-black/5"
+                                      valueClassName="min-w-[30px] text-[18px] font-semibold tabular-nums tracking-[0.12em]"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <div className="flex flex-wrap gap-3 pt-4">
+                              {!isEditingOnly && (
+                                <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                  Includes {photoEditSummary.includedCount} free photo edits
+                                </div>
+                              )}
+                              {!isEditingOnly && (
+                                <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-[#171717]">
+                                  {durationHours} Hour Duration
+                                </div>
+                              )}
+                              <div className="rounded-xl bg-[#211F1C] px-4 py-3 text-sm text-[#E8D1AB]">
+                                + {photoEditSummary.extraCount} Added Extra
+                              </div>
+                            </div>
+
+                            {!isEditingOnly && photoEditNote && (
+                              <div className="mt-3 flex items-start gap-2 text-sm text-[#E8D1AB]">
+                                <Info size={16} className="mt-0.5 flex-shrink-0" />
+                                <span>{photoEditNote}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {receiveSummaryText && (
+                    <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-black text-[#E8D1AB]">
+                        <Image
+                          src="/images/misc/booking-sparkle.png"
+                          alt=""
+                          width={18}
+                          height={18}
+                          className="h-[18px] w-[18px]"
+                        />
+                      </div>
+                      <p className="text-sm lg:text-base font-semibold">
+                        You&apos;ll Receive {receiveSummaryText}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          }
+        </>
+      )}
+
+      {/* Navigation */}
+      <div ref={navigationRef} className="flex gap-3 lg:gap-6 items-center pt-6 lg:pt-15 border-t border-white/10">
+        <Button
+          onClick={onBack}
+          className="h-14 lg:h-[72px] border border-[#8E8E8E] hover:bg-[#1A1A1A] text-white font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] "
+        >
+          Back
+        </Button>
+        <Button
+          onClick={handleNext}
+          // disabled={!data.shootType || !data.editType}
+          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium  text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+        >
+          Continue
+        </Button>
+      </div>
+    </div >
+  );
+};

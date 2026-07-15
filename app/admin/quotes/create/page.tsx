@@ -46,6 +46,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, parseISO, isValid, differenceInDays, startOfDay } from "date-fns";
 import { DatePicker } from "@/components/ui/Datepicker";
 import Image from "next/image";
+import BookingDateTimeSection, {
+  type BookingScheduleData,
+} from "@/components/quotes/BookingDateTimeSection";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import QuoteReviewChangesModal from "@/components/quotes/QuoteReviewChangesModal";
 import QuoteSummaryModal from "@/components/quotes/QuoteSummaryModal";
@@ -399,6 +402,159 @@ const buildConvertModalInitialData = (
       date: singleDayDate,
       startTime: singleDayStartTime,
       endTime: singleDayEndTime,
+    },
+  };
+};
+
+const buildBookingScheduleInitialData = (
+  booking?: {
+    booking_type?: string | null;
+    time_zone?: string | null;
+    start_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    booking_days?: Array<{
+      date?: string | null;
+      event_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+    }> | null;
+    converted_booking_details?: {
+      booking_type?: string | null;
+      time_zone?: string | null;
+      start_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      booking_days?: Array<{
+        date?: string | null;
+        event_date?: string | null;
+        start_time?: string | null;
+        end_time?: string | null;
+      }> | null;
+    } | null;
+  } | null,
+): BookingScheduleData | null => {
+  if (!booking) {
+    return null;
+  }
+
+  if (booking.booking_type === null) {
+    return {
+      booking_type: "tbd",
+      time_zone: booking.time_zone || getBrowserTimeZone(),
+    };
+  }
+
+  const sourceBooking = booking.converted_booking_details ?? booking;
+  const timeZone = sourceBooking.time_zone || getBrowserTimeZone();
+  const bookingDays = Array.isArray(sourceBooking.booking_days)
+    ? sourceBooking.booking_days
+        .filter((day) => day?.date || day?.event_date)
+        .map((day) => ({
+          date: day.event_date || day.date || "",
+          startTime: normalizeConvertModalTime(day.start_time),
+          endTime: normalizeConvertModalTime(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+  const hasAnyBookingFields =
+    Boolean(sourceBooking.booking_type) ||
+    Boolean(sourceBooking.start_date) ||
+    Boolean(sourceBooking.start_time) ||
+    Boolean(sourceBooking.end_time) ||
+    bookingDays.length > 0;
+
+  if (sourceBooking.booking_type === "tbd" || !hasAnyBookingFields) {
+    return {
+      booking_type: "tbd",
+      time_zone: timeZone,
+    };
+  }
+
+  const shouldUseMultiDay =
+    sourceBooking.booking_type === "multi_day" || bookingDays.length > 1;
+
+  if (shouldUseMultiDay) {
+    if (!bookingDays.length) {
+      return null;
+    }
+
+    return {
+      booking_type: "multi_day",
+      time_zone: timeZone,
+      booking_days: bookingDays.map((day) => ({
+        date: day.date,
+        start_time: `${day.startTime}:00`,
+        end_time: `${day.endTime}:00`,
+      })),
+    };
+  }
+
+  const startDate = sourceBooking.start_date || bookingDays[0]?.date || "";
+  const startTime =
+    normalizeConvertModalTime(sourceBooking.start_time) || bookingDays[0]?.startTime || "";
+  const endTime =
+    normalizeConvertModalTime(sourceBooking.end_time) || bookingDays[0]?.endTime || "";
+
+  if (!startDate || !startTime || !endTime) {
+    return null;
+  }
+
+  return {
+    booking_type: "single_day",
+    time_zone: timeZone,
+    start_date: startDate,
+    start_time: `${startTime}:00`,
+    end_time: `${endTime}:00`,
+  };
+};
+
+const buildConvertBookingModalInitialDataFromSchedule = (
+  schedule: BookingScheduleData | null,
+  fallbackLocation = "",
+): ConvertBookingModalInitialData | null => {
+  if (!schedule) {
+    return null;
+  }
+
+  if (schedule.booking_type === "tbd") {
+    return null;
+  }
+
+  if (schedule.booking_type === "single_day") {
+    return {
+      bookingType: "single_day",
+      location: fallbackLocation,
+      singleDay: {
+        date: schedule.start_date,
+        startTime: schedule.start_time.slice(0, 5),
+        endTime: schedule.end_time.slice(0, 5),
+      },
+    };
+  }
+
+  const bookingDays = Array.isArray(schedule.booking_days) ? schedule.booking_days : [];
+
+  return {
+    bookingType: "multi_day",
+    location: fallbackLocation,
+    multiDay: {
+      sameTimings:
+        bookingDays.length > 0 &&
+        bookingDays.every(
+          (day) =>
+            day.start_time.slice(0, 5) ===
+            bookingDays[0]?.start_time.slice(0, 5) &&
+            day.end_time.slice(0, 5) ===
+            bookingDays[0]?.end_time.slice(0, 5),
+        ),
+      sharedStartTime: bookingDays[0]?.start_time.slice(0, 5),
+      sharedEndTime: bookingDays[0]?.end_time.slice(0, 5),
+      days: bookingDays.map((day) => ({
+        date: day.date,
+        startTime: day.start_time.slice(0, 5),
+        endTime: day.end_time.slice(0, 5),
+      })),
     },
   };
 };
@@ -1098,6 +1254,7 @@ export default function CreateQuotePage() {
   const [isDetailsClientDropdownOpen, setIsDetailsClientDropdownOpen] =
     useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
   const [clients, setClients] = useState<ClientDropdownItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
   const [isCreateNewClientFlow, setIsCreateNewClientFlow] = useState(false);
@@ -1110,6 +1267,7 @@ export default function CreateQuotePage() {
   const [address, setAddress] = useState("");
   const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
   const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [bookingSchedule, setBookingSchedule] = useState<BookingScheduleData | null>(null);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1217,6 +1375,24 @@ export default function CreateQuotePage() {
   const [loadingShootTypes, setLoadingShootTypes] = useState(false);
   const [loadingEditingTypes, setLoadingEditingTypes] = useState(false);
 
+  const catalogSearchTerm = catalogSearchQuery.trim().toLowerCase();
+  const filteredServices = React.useMemo(() => {
+    if (!catalogSearchTerm) return services;
+    return services.filter((service) =>
+      getServiceDisplayLabel(service.label).toLowerCase().includes(catalogSearchTerm),
+    );
+  }, [catalogSearchTerm, services]);
+
+  const filteredAddons = React.useMemo(() => {
+    if (!catalogSearchTerm) return addons;
+    return addons.filter((addon) => addon.label.toLowerCase().includes(catalogSearchTerm));
+  }, [addons, catalogSearchTerm]);
+
+  const filteredLogisticsItems = React.useMemo(() => {
+    if (!catalogSearchTerm) return logisticsItems;
+    return logisticsItems.filter((item) => item.label.toLowerCase().includes(catalogSearchTerm));
+  }, [catalogSearchTerm, logisticsItems]);
+
   // Delete Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{
@@ -1283,12 +1459,80 @@ export default function CreateQuotePage() {
   const { data: linkedLeadDetails } = useGetLeadByIdQuery(quoteLeadId ?? 0, {
     skip: !quoteLeadId,
   });
+  const bookingScheduleInitialData = React.useMemo(
+    () =>
+      buildBookingScheduleInitialData(
+        quoteToEdit ??
+          previewQuote ??
+          linkedLeadDetails?.booking,
+      ),
+    [
+      linkedLeadDetails?.booking,
+      previewQuote,
+      quoteToEdit,
+    ],
+  );
+  const effectiveBookingSchedule = bookingSchedule ?? bookingScheduleInitialData;
+  const bookingDurationHours = React.useMemo(() => {
+    if (!effectiveBookingSchedule) {
+      return null;
+    }
+
+    const calculateDurationHours = (startTime: string, endTime: string) => {
+      const [startHour, startMinute] = startTime.split(":").map(Number);
+      const [endHour, endMinute] = endTime.split(":").map(Number);
+
+      if (
+        !Number.isFinite(startHour) ||
+        !Number.isFinite(startMinute) ||
+        !Number.isFinite(endHour) ||
+        !Number.isFinite(endMinute)
+      ) {
+        return null;
+      }
+
+      const diffInMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+      return diffInMinutes > 0 ? Math.round((diffInMinutes / 60) * 100) / 100 : null;
+    };
+
+    if (effectiveBookingSchedule.booking_type === "single_day") {
+      return calculateDurationHours(
+        effectiveBookingSchedule.start_time.slice(0, 5),
+        effectiveBookingSchedule.end_time.slice(0, 5),
+      );
+    }
+
+    const bookingDays = Array.isArray(effectiveBookingSchedule.booking_days)
+      ? effectiveBookingSchedule.booking_days
+      : [];
+
+    const dayDurations = bookingDays
+      .map((day) => calculateDurationHours(day.start_time.slice(0, 5), day.end_time.slice(0, 5)))
+      .filter((duration): duration is number => typeof duration === "number" && duration > 0);
+
+    return dayDurations.length > 0 ? Math.max(...dayDurations) : null;
+  }, [effectiveBookingSchedule]);
   const convertModalInitialData = React.useMemo(
     () =>
       convertModalInitialDataOverride ||
+      buildConvertBookingModalInitialDataFromSchedule(
+        effectiveBookingSchedule,
+        address,
+      ) ||
       buildConvertModalInitialData(linkedLeadDetails?.booking),
-    [convertModalInitialDataOverride, linkedLeadDetails],
+    [address, convertModalInitialDataOverride, effectiveBookingSchedule, linkedLeadDetails],
   );
+
+  const syncQuoteDetailState = React.useCallback((quoteDetail: SalesQuoteDetailData | null) => {
+    setQuoteToEdit(quoteDetail);
+    setBookingSchedule(buildBookingScheduleInitialData(quoteDetail));
+  }, []);
+
+  React.useEffect(() => {
+    setBookingSchedule(null);
+  }, [editQuoteId]);
+
+  const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -2051,11 +2295,16 @@ export default function CreateQuotePage() {
     field: string,
     value: number,
   ) => {
+    const normalizedValue = Math.max(0, value);
+
     setServiceConfigs((prev) => ({
       ...prev,
       [serviceId]: {
         ...prev[serviceId],
-        [field]: Math.max(0, value),
+        [field]:
+          field === "duration" && bookingDurationHours !== null
+            ? Math.min(normalizedValue, getServiceDurationCap() ?? normalizedValue)
+            : normalizedValue,
       },
     }));
   };
@@ -2320,11 +2569,15 @@ export default function CreateQuotePage() {
         newSelected = [...prev, serviceId];
         // Initialize config for the new service
         if (!serviceConfigs[serviceId]) {
+          const initialDuration =
+            bookingDurationHours !== null
+              ? Math.min(4, bookingDurationHours)
+              : 4;
           setServiceConfigs((prevConfigs) => ({
             ...prevConfigs,
             [serviceId]: {
               quantity: 1,
-              duration: 4,
+              duration: initialDuration,
               crewSize: 1,
               estimatedPrice: price,
             },
@@ -2724,15 +2977,16 @@ export default function CreateQuotePage() {
   });
   const hasCurrentSavedQuoteState = isQuoteSaved && !hasUnsavedQuoteChanges;
   const shouldHideBackButton = isQuoteSaved || (!isEditMode && !!createdQuoteId);
+  const hasRequiredBookingSchedule = view !== "details" || Boolean(effectiveBookingSchedule);
 
-  const canContinueToNextStep = currentStepValidation.isValid;
+  const canContinueToNextStep = currentStepValidation.isValid && hasRequiredBookingSchedule;
   const canPrimaryAction =
     isEditMode
       ? isFullEditFlow
         ? view === "tax"
           ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
-          : currentStepValidation.isValid
-        : currentStepValidation.isValid
+          : currentStepValidation.isValid && hasRequiredBookingSchedule
+        : currentStepValidation.isValid && hasRequiredBookingSchedule
       : view === "tax"
         ? quoteReviewValidation.isValid && !hasCurrentSavedQuoteState
         : canContinueToNextStep;
@@ -2740,6 +2994,11 @@ export default function CreateQuotePage() {
   const handleContinue = async () => {
     if (!currentStepValidation.isValid) {
       toast.error(getQuoteValidationMessage(currentStepValidation));
+      return;
+    }
+
+    if (view === "details" && !effectiveBookingSchedule) {
+      toast.error("Please select a booking date and time or choose TBD.");
       return;
     }
 
@@ -3238,6 +3497,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3273,6 +3533,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -3309,6 +3570,7 @@ export default function CreateQuotePage() {
         discountValue,
         taxLabel,
         normalizedTaxRate,
+        bookingSchedule: effectiveBookingSchedule,
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
         selectedEditingTypes,
@@ -3345,6 +3607,7 @@ export default function CreateQuotePage() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedServices,
@@ -3437,6 +3700,7 @@ export default function CreateQuotePage() {
     return buildQuoteReviewChangesData({
       quote: quoteToEdit,
       currentDraftLineItems,
+      bookingSchedule: effectiveBookingSchedule,
       nextTotal: totalAfterTax,
       clientName,
       emailId,
@@ -3459,6 +3723,7 @@ export default function CreateQuotePage() {
     discountType,
     discountValue,
     emailId,
+    effectiveBookingSchedule,
     normalizedTaxRate,
     phoneNumber,
     projectDescription,
@@ -3570,6 +3835,7 @@ export default function CreateQuotePage() {
 
       if (persistedQuote) {
         setQuoteToEdit(persistedQuote);
+        setBookingSchedule(buildBookingScheduleInitialData(persistedQuote));
       }
 
       if (action === "save") {
@@ -3655,6 +3921,8 @@ export default function CreateQuotePage() {
         throw new Error("Quote preview could not be loaded");
       }
 
+      syncQuoteDetailState(quoteDetail);
+
       if (shouldOpenPreview) {
         setPreviewQuoteId(savedQuoteId);
         setPreviewQuote(quoteDetail);
@@ -3725,6 +3993,10 @@ export default function CreateQuotePage() {
   };
 
   const noQuoteChangesMessage = "No changes made, modify anything to save it";
+  const shouldBlockUnchangedEditSave =
+    Boolean(quoteToEdit) && !isDuplicateFlow && !hasUnsavedQuoteChanges;
+  const shouldFinishUnchangedDuplicateQuote =
+    Boolean(quoteToEdit) && isDuplicateFlow && !hasUnsavedQuoteChanges;
 
   const handleSaveQuote = async () => {
     if (!quoteReviewValidation.isValid) {
@@ -3732,8 +4004,16 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
+      return;
+    }
+
+    if (shouldFinishUnchangedDuplicateQuote) {
+      setIsQuoteSaved(true);
+      toast.success("Quote saved successfully");
+      await delayAfterSuccessToast();
+      router.push(editQuoteDetailsHref);
       return;
     }
 
@@ -3746,7 +4026,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
       return;
     }
@@ -3760,7 +4040,7 @@ export default function CreateQuotePage() {
       return;
     }
 
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
       return;
     }
@@ -3783,7 +4063,7 @@ export default function CreateQuotePage() {
   };
 
   const handleConfirmReviewChanges = async () => {
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
       return;
     }
@@ -3825,6 +4105,13 @@ export default function CreateQuotePage() {
             ? response.error
             : "Failed to update quote",
         );
+      }
+
+      const updatedQuote =
+        unwrapSalesQuoteDetail(response?.data ?? null) ?? quoteToEdit;
+
+      if (updatedQuote) {
+        syncQuoteDetailState(updatedQuote);
       }
 
       toast.success("Quote updated successfully");
@@ -3885,8 +4172,16 @@ export default function CreateQuotePage() {
         : "Continue";
 
   const handleSaveAsDraft = async () => {
-    if (quoteToEdit && !hasUnsavedQuoteChanges) {
+    if (shouldBlockUnchangedEditSave) {
       toast.error(noQuoteChangesMessage);
+      return;
+    }
+
+    if (shouldFinishUnchangedDuplicateQuote) {
+      setIsQuoteSaved(true);
+      toast.success("Draft saved successfully");
+      await delayAfterSuccessToast();
+      router.push(editQuoteDetailsHref);
       return;
     }
 
@@ -3936,32 +4231,15 @@ export default function CreateQuotePage() {
           cacheBust: true,
         })
         : null;
-      const brandedDownloadUrl = invoiceBookingId
-        ? buildBeigeInvoiceUrl(invoiceBookingId, {
-          manual: isManualInvoicePdf,
-          download: true,
-          cacheBust: true,
-        })
-        : null;
-
       if (!hostedInvoiceUrl && !invoicePdfUrl) {
         throw new Error("Invoice preview URL is not available");
       }
 
-      if (hostedInvoiceUrl && !isManualInvoicePdf && !invoicePdfUrl) {
-        window.open(hostedInvoiceUrl, "_blank", "noopener,noreferrer");
+      if (!brandedPdfUrl) {
+        throw new Error("Invoice PDF URL is not available");
       }
 
-      if (invoicePdfUrl) {
-        const link = document.createElement("a");
-        if (!brandedDownloadUrl && !brandedPdfUrl) {
-          throw new Error("Invoice PDF URL is not available");
-        }
-        link.href = brandedDownloadUrl || brandedPdfUrl || invoicePdfUrl;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.click();
-      }
+      window.open(brandedPdfUrl, "_blank", "noopener,noreferrer");
 
       toast.success("Invoice opened successfully");
     } catch (error) {
@@ -4077,6 +4355,16 @@ export default function CreateQuotePage() {
       return;
     }
     if (isConvertedToBooking) {
+      return;
+    }
+
+    const directBookingData = buildConvertBookingModalInitialDataFromSchedule(
+      effectiveBookingSchedule,
+      address,
+    );
+
+    if (directBookingData) {
+      void handleConvertBookingSubmit(directBookingData);
       return;
     }
 
@@ -5198,7 +5486,24 @@ export default function CreateQuotePage() {
 
                 {/* Logistics Selection Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {logisticsItems.map((item) => {
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search logistics"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredLogisticsItems.length === 0 ? (
+                    <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                      No logistics items match your search.
+                    </div>
+                  ) : filteredLogisticsItems.map((item) => {
                     const isSelected = selectedLogistics.includes(item.id);
                     return (
                       <div key={item.id} className="relative">
@@ -5551,7 +5856,24 @@ export default function CreateQuotePage() {
                 <hr className={`border-t ${isDark ? 'border-[#3D3D3D]' : "border-[#000000]/15"}`} />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
-                  {(addons || []).map((addon) => {
+                  <div className="col-span-full mb-2 flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search add-ons"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {filteredAddons.length === 0 ? (
+                    <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                      No add-ons match your search.
+                    </div>
+                  ) : filteredAddons.map((addon) => {
                     const isSelected = selectedAddons.includes(addon.id);
                     return (
                       <div key={addon.id} className="relative">
@@ -6020,24 +6342,43 @@ export default function CreateQuotePage() {
               {/* Services Section */}
               <section>
                 <div className="px-5 pt-5 lg:px-8 lg:pt-8">
-                  <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
-                    Services
-                  </h2>
-                  <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
-                    Select services and configure pricing
-                  </p>
+                  <div>
+                    <h2 className={`text-base lg:text-xl font-medium leading-none mb-2 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
+                      Services
+                    </h2>
+                    <p className={`text-sm font-normal leading-none transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
+                      Select services and configure pricing
+                    </p>
+                  </div>
                 </div>
 
                 <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
                 <div className="px-5 pb-5 lg:px-8 lg:pb-8 space-y-4 lg:space-y-8 mb-5">
+                  <div className="flex justify-start">
+                    <div className="w-full lg:max-w-[250px]">
+                      <div className={`relative rounded-[10px] border transition-colors ${isDark ? "border-white/15 bg-[#101010]" : "border-[#000000]/10 bg-white"}`}>
+                        <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-black/35"}`} />
+                        <Input
+                          value={catalogSearchQuery}
+                          onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                          placeholder="Search services"
+                          className={`h-10 border-0 bg-transparent pl-9 pr-3 text-sm shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                     {loadingServices ? (
                       <div className="col-span-3 py-10 flex justify-center items-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]"></div>
                       </div>
+                    ) : filteredServices.length === 0 ? (
+                      <div className={`col-span-3 rounded-xl border border-dashed px-5 py-8 text-sm ${isDark ? "border-white/15 text-white/55" : "border-[#000000]/10 text-black/55"}`}>
+                        No services match your search.
+                      </div>
                     ) : (
-                      (services || []).map((service) => {
+                      filteredServices.map((service) => {
                         const isProtectedService = isProtectedServiceLabel(
                           service.label,
                         );
@@ -6163,7 +6504,7 @@ export default function CreateQuotePage() {
                                 <div className={`absolute -top-3 left-4 z-10 px-3 transition-colors ${isDark ? "bg-[#171717]" : "bg-white"}`}>
                                   <span className={`text-xs font-normal transition-colors ${isDark ? "text-[#8A8A8A]" : "text-[#000000]/50"
                                     }`}>
-                                    Cost
+                                    Hourly Cost
                                   </span>
                                 </div>
                                 <Input
@@ -6303,16 +6644,20 @@ export default function CreateQuotePage() {
                                         const canDeleteShootType =
                                           canDeleteShootTypeItem(type);
 
-                                        return (
-                                          <div key={type.id} className="relative">
-                                            <button
-                                              onClick={() =>
-                                                setSelectedEditingTypes((prev) =>
-                                                  prev.includes(type.id)
-                                                    ? prev.filter((id) => id !== type.id)
-                                                    : [...prev, type.id]
-                                                )
-                                              }
+                                      return (
+                                        <div key={type.id} className="relative">
+                                          <button
+                                            onClick={() =>
+                                              setSelectedEditingTypes((prev) => {
+                                                if (prev.includes(type.id)) {
+                                                  if (prev.length === 1) {
+                                                    return prev;
+                                                  }
+                                                  return prev.filter((id) => id !== type.id);
+                                                }
+                                                return [...prev, type.id];
+                                              })
+                                            }
                                               className={`h-10 w-full lg:h-[52px] px-6 pr-11 rounded-xl font-medium transition-all border text-sm lg:text-base text-center lg:text-left leading-tight tracking-tight ${selectedEditingTypes.includes(type.id)
                                                 ? isDark ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-[#FFF7E6] border-[#E8D1AB] text-black shadow-inner"
                                                 : isDark
@@ -6445,10 +6790,10 @@ export default function CreateQuotePage() {
                               ? (selectedEditingTypes.length > 0 ? selectedEditingTypes : [""])
                               : [""];
 
-                            return editingTypeIds.map((editingTypeId, index) => {
-                              const shootTypeKind = resolveServiceShootTypeKind(
-                                service.label,
-                              );
+                                    return editingTypeIds.map((editingTypeId, index) => {
+                                      const shootTypeKind = resolveServiceShootTypeKind(
+                                        service.label,
+                                      );
                               const shootTypeLabel =
                                 shootTypeKind === "video"
                                   ? selectedVideoShootTypeLabel
@@ -6458,21 +6803,23 @@ export default function CreateQuotePage() {
                               const editingLabel = editingTypeId
                                 ? getSelectedShootTypeLabel(editingTypeOptions, editingTypeId)
                                 : "";
+                              const editingDisplayLabel = editingLabel || getServiceDisplayLabel(service.label) || service.label;
                               const editingConfig = editingTypeId
                                 ? editingTypeConfigs[editingTypeId]
                                 : null;
                               const quantity = Math.max(1, Number(editingConfig?.quantity ?? config.crewSize ?? 1));
-                              const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
-                              const estimatedPriceInputKey = getEstimatedPriceInputKey(
-                                isEditingService,
-                                serviceId,
-                                editingTypeId,
-                              );
-                              const serviceTotal = isEditingService
-                                ? quantity * estimatedPrice
-                                : config.duration *
-                                config.crewSize *
-                                config.estimatedPrice;
+                                      const estimatedPrice = Math.max(0, Number(editingConfig?.estimatedPrice ?? config.estimatedPrice ?? 0));
+                                      const estimatedPriceInputKey = getEstimatedPriceInputKey(
+                                        isEditingService,
+                                        serviceId,
+                                        editingTypeId,
+                                      );
+                                      const serviceDurationCap = getServiceDurationCap();
+                                      const serviceTotal = isEditingService
+                                        ? quantity * estimatedPrice
+                                        : config.duration *
+                                        config.crewSize *
+                                        config.estimatedPrice;
                               const cardKey = isEditingService
                                 ? `${serviceId}-${editingTypeId || "editing"}-${index}`
                                 : serviceId;
@@ -6490,7 +6837,7 @@ export default function CreateQuotePage() {
                                       <h3 className={`flex flex-wrap items-center gap-1.5 break-words text-[16px] font-medium leading-snug ${isDark ? "text-white" : "text-black"}`}>
                                         {isEditingServiceLabel(service.label) ? (
                                           <>
-                                            Editing Type - <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{editingLabel || "Not selected"}</span>
+                                            Editing Type - <span className={`break-words ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{editingDisplayLabel}</span>
                                           </>
                                         ) : shootTypeLabel ? (
                                           <>
@@ -6582,7 +6929,8 @@ export default function CreateQuotePage() {
                                                 config.duration + 0.5,
                                               )
                                             }
-                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 ${isDark
+                                            disabled={bookingDurationHours !== null && serviceDurationCap !== null && config.duration >= serviceDurationCap}
+                                            className={`w-10 h-full flex items-center justify-center rounded-[8px] transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${isDark
                                               ? "bg-[#F0DCB1] text-black hover:opacity-90"
                                               : "bg-[#E8D1AB] hover:bg-[#E8D1AB]/90"
                                               }`}
@@ -7653,6 +8001,12 @@ export default function CreateQuotePage() {
                     />
                   </div>
                 </div>
+                {/* Date and Time Selection Module */}
+                <BookingDateTimeSection
+                  isDark={isDark}
+                  initialData={effectiveBookingSchedule}
+                  onChange={setBookingSchedule}
+                />
 
                 {/* Location Picker Module */}
                 <div className="relative">

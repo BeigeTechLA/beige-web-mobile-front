@@ -30,7 +30,7 @@ export const getTotalDurationHours = (
       return sum + diff / 60;
     }, 0);
 
-    return Math.max(1, Math.round(total));
+    return Math.max(1, Math.round(total * 100) / 100);
   }
 
   if (!startDate || !endDate) return 0;
@@ -43,7 +43,7 @@ export const getTotalDurationHours = (
     return 0;
   }
 
-  return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+  return Math.max(1, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
 };
 
 export const getPhotoEditSummary = ({
@@ -79,4 +79,21 @@ export const buildEditTypeCounts = (editTypes: string[] = []): EditTypeCount[] =
     slug,
     quantity,
   }));
+};
+
+export const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+  setTimeout(() => {
+    if (ref && ref.current) {
+      const navOffset = 100;
+
+      // Calculate absolute position relative to the entire document
+      const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - navOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
+  }, 100);
 };

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
@@ -33,7 +34,8 @@ import { buildEditTypeCounts } from "./utils";
 import { V3BrowseStudios } from "./V3BrowseStudios";
 import { V3StudioChooseCreators } from "./V3StudiosChooseCreators";
 // import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
-import { getSelectedStudiosTotal, normalizeSelectedStudios, serializeStudioMeta } from "./studioData";
+import { HOURLY_STUDIO_LIST, buildHourlyStudioSelection, getSelectedStudiosTotal, normalizeSelectedStudios, serializeStudioMeta } from "./studioData";
+import { V3AltChooseService } from "./V3AltChooseService";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -87,6 +89,7 @@ const getDynamicSteps = (contentType: string[], isBrowsing: boolean) => {
 
 export const BookAShootV3 = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
   const [internalStep, setInternalStep] = useState(1);
@@ -99,6 +102,10 @@ export const BookAShootV3 = () => {
 
   const allowNavigation = useRef(false)
   const isStudioFlow = formData.contentType.length === 1 && formData.contentType.includes("studio"); //For studio: journey 2 where only studio is selected
+  const isStudioContentFlow =
+    formData.contentType.length > 1 &&
+    formData.contentType.includes("studio") &&
+    (formData.contentType.includes("videographer") || formData.contentType.includes("photographer")); //For studio: journey 3 where studio + video/photography is selected
 
   const [createGuestBooking, { isLoading: isBookingLoading }] =
     useCreateGuestBookingMutation();
@@ -106,6 +113,7 @@ export const BookAShootV3 = () => {
     useUpdateGuestBookingMutation();
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+  const [studioPrefillApplied, setStudioPrefillApplied] = useState(false);
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
   const shouldShowStudiosStep = formData.shootType === "studio";
@@ -124,6 +132,40 @@ export const BookAShootV3 = () => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
 
+  const toUtcIsoIfValid = (value?: string | null) => {
+    if (!value) return value;
+    const date = parseDate(value);
+    return date && !isNaN(date.getTime()) ? date.toISOString() : value;
+  };
+
+  const serializeStudioItemsForLead = (
+    selectedStudios: BookingDataV3["selectedStudios"] = [],
+    crewCount = 0,
+  ) =>
+    (selectedStudios || []).map((studio) => ({
+      studio_id: studio.studioId,
+      name: studio.name,
+      location: studio.location,
+      image: studio.image,
+      pricing_mode: studio.pricingMode,
+      pricing_category: studio.pricingCategory,
+      pricing_label: studio.pricingLabel,
+      unit_price: studio.unitPrice,
+      quantity: studio.quantity,
+      total: studio.totalPrice,
+      price_label: studio.priceLabel,
+      selected_date: studio.selectedDate,
+      start_time: studio.startTime,
+      end_time: studio.endTime,
+      time_zone: getBrowserTimeZone(),
+      studio_booking_type: "single_day",
+      booking_days: [],
+      cast_and_crew_count: crewCount,
+      update_studio_datetime: true,
+      lat: studio.lat,
+      lng: studio.lng,
+    }));
+
   // Track early interest when logged-in user lands on the page
   useEffect(() => {
     const trackLoggedInUser = async () => {
@@ -138,6 +180,9 @@ export const BookAShootV3 = () => {
           setDraftBookingId(result.data.booking_id);
           setLeadId(result.data.lead_id);
           setLeadTracked(true);
+
+          // generate_lead GA4 event can be called here but the parent function (trackLoggedInUser) is currently not being called. Hence not adding
+
           console.log("Lead tracked for logged-in user:", result.data);
         } catch (error) {
           console.error("Failed to track lead for logged-in user:", error);
@@ -159,6 +204,46 @@ export const BookAShootV3 = () => {
     leadTracked,
     trackEarlyInterest,
   ]);
+
+  useEffect(() => {
+    if (studioPrefillApplied) return;
+
+    const studioId = searchParams.get("studioId");
+    const pricingKey = searchParams.get("pricingKey") || "";
+
+    if (!studioId) return;
+
+    const matchedStudio = HOURLY_STUDIO_LIST.find((studio) => studio.id === studioId);
+    if (!matchedStudio) return;
+
+    const selectedPricing =
+      matchedStudio.pricingOptions?.find((option) => option.key === pricingKey) ||
+      matchedStudio.pricingOptions?.[0];
+
+    const normalizedSelection = selectedPricing
+      ? buildHourlyStudioSelection(matchedStudio, {
+          selectedDate: formData.startDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+          startTime: getLocalTimePart(formData.startDate) || "10:30",
+          endTime: getLocalTimePart(formData.endDate) || "14:30",
+          pricingKey: selectedPricing.key,
+        })
+      : null;
+
+    setFormData((prev) => ({
+      ...prev,
+      contentType: prev.contentType.includes("studio")
+        ? prev.contentType
+        : [...prev.contentType, "studio"],
+      shootType: prev.shootType || "podcast",
+      selectedStudioIds: [matchedStudio.id],
+      selectedStudioImage: matchedStudio.image,
+      selectedStudioName: matchedStudio.name,
+      selectedStudios: normalizedSelection ? [normalizedSelection] : prev.selectedStudios,
+      isBrowsingStudios: true,
+    }));
+
+    setStudioPrefillApplied(true);
+  }, [formData.endDate, formData.startDate, searchParams, studioPrefillApplied]);
 
   // forceBrowseOptions to be used when alt steps related to studios are added 
   const nextStep = async (forceBrowseOptions?: boolean) => {
@@ -214,7 +299,7 @@ export const BookAShootV3 = () => {
         const endTime = getLocalTimePart(formData.endDate);
         const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
 
-        const earlyInterestPayload: any = {
+        const earlyInterestPayload: Record<string, unknown> = {
           booking_id: draftBookingId,
           guest_email: formData.email,
           user_id: user?.id,
@@ -234,13 +319,20 @@ export const BookAShootV3 = () => {
           earlyInterestPayload.start_time = startTime;
           earlyInterestPayload.end_time = endTime;
           earlyInterestPayload.time_zone = browserTimeZone;
-          earlyInterestPayload.startDate = formData.startDate;
-          earlyInterestPayload.endDate = formData.endDate;
+          earlyInterestPayload.startDate = toUtcIsoIfValid(formData.startDate);
+          earlyInterestPayload.endDate = toUtcIsoIfValid(formData.endDate);
           earlyInterestPayload.booking_type = formData.bookingType;
-          earlyInterestPayload.booking_days = (formData.bookingDays || []).map((d: any) => ({
+          earlyInterestPayload.booking_days = (formData.bookingDays || []).map((d) => ({
             ...d,
             time_zone: d.time_zone || d.timeZone || browserTimeZone
           }));
+          if (formData.selectedStudios?.length) {
+            earlyInterestPayload.studio_total = getSelectedStudiosTotal(normalizeSelectedStudios(formData));
+            earlyInterestPayload.studio_items = serializeStudioItemsForLead(
+              formData.selectedStudios,
+              formData.crewCount || 0,
+            );
+          }
         }
 
         const result = await trackEarlyInterest(earlyInterestPayload).unwrap();
@@ -255,24 +347,53 @@ export const BookAShootV3 = () => {
           edits_needed: formData.editsNeeded
         };
 
+        let combinedEditTypes = "none";
         if (formData.editsNeeded) {
           formFields.photo_edit_types = formData.photoEditTypes.join(", ");
           formFields.video_edit_types = formData.videoEditTypes.join(", ");
+
+          const edits = [
+            ...(formData.photoEditTypes || []),
+            ...(formData.videoEditTypes || [])
+          ].filter(Boolean); // Remove any empty/falsy values
+
+          combinedEditTypes = edits.length > 0 ? edits.join(", ") : "none";
         }
 
         // add GA event on click of "Continue" in the first step
+        pushToDataLayer("generate_lead", {
+          value: 0, // Standard parameters
+          currency: "USD",
+          page_name: "Book-a-shoot Page",  // Custom data schema
+          location_in_website: "book_a_shoot_step1",
+          duration_on_page: performance.now() / 1000,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
+          booking_id: result?.data?.booking_id,
+          email: formData.email,
+        });
+
         pushToDataLayer("service_details_submitted_step1", {
           type: "Action Tracking",
           page_name: "Book-a-shoot Page",
           location_in_website: "book_a_shoot_step1",
           duration_on_page: performance.now() / 1000,
           phone: user?.phone_number,
-          user_id: user?.id,
-          user_type: userTypeName,
+          user_id: user?.id || "Guest",
+          user_type: userTypeName || "Guest",
           booking_id: result?.data?.booking_id,
-          booking_form_fields: formFields,
           email: formData.email,
+
+          // Flat fields passed individually for seamless GA4 tracking:
+          form_content_type: formFields.content_type,
+          form_shoot_type: formFields.shoot_type,
+          form_shoot_date_time: formFields.shoot_date_time,
+          form_edits_needed: formFields.edits_needed ? "true" : "false", // Convert boolean to a clear string
+          form_edit_types: combinedEditTypes,
+          form_booking_type: formData.bookingType,
         });
+
+        console.log("Generate_lead pushed to DL");
 
         setLeadTracked(true);
         if (isStudioFlow) {
@@ -280,6 +401,13 @@ export const BookAShootV3 = () => {
           setActiveStep(2);
           return;
         }
+
+        if (isStudioContentFlow) {
+          setInternalStep(2.1); // Move to Videography/Photography services page
+          setActiveStep(2);
+          return;
+        }
+
         setInternalStep(2);
         setActiveStep(2);
       } catch (error) {
@@ -304,6 +432,13 @@ export const BookAShootV3 = () => {
     if (internalStep === 1.7) {
       setInternalStep(6);
       setActiveStep(4); // Adjust based on dynamic steps length
+      return;
+    }
+
+    // --- Journey 3 specific: Next from 2.1 (Select services) goes to More details(step2) ---
+    if (internalStep === 2.1) {
+      setInternalStep(2);
+      setActiveStep(2); // Adjust based on dynamic steps length
       return;
     }
 
@@ -350,12 +485,14 @@ export const BookAShootV3 = () => {
         page_name: "Book-a-shoot Page",
         location_in_website: `book_a_shoot_step${crewMatchingStep}`,
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : formData.email,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.user_type_id !== undefined
+          ? USER_TYPE[user.user_type_id]
+          : "Guest",
         email: isAuthenticated ? user?.email : "Unknown",
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: formData?.bookingId,
-        booking_form_fields: formFields
+        // booking_form_fields: formFields
       });
 
       // Step 3 -> Loading -> Crew Selection
@@ -392,6 +529,13 @@ export const BookAShootV3 = () => {
     // Back from New Step 2.5 goes to More Details
     if (internalStep === 2.5) {
       setInternalStep(2);
+      return;
+    }
+
+    // Back from New Step 2.1 to the first step
+    if (internalStep === 2.1 && isStudioContentFlow) {
+      setInternalStep(1); // Move to Videography/Photography services page
+      setActiveStep(1);
       return;
     }
 
@@ -474,7 +618,7 @@ export const BookAShootV3 = () => {
       const calculateDurationHours = () => {
         if (formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0) {
           const total = formData.bookingDays.reduce((sum, d) => sum + calculateDayHours(d.startTime, d.endTime), 0);
-          return Math.max(1, Math.round(total));
+          return Math.max(1, Math.round(total * 100) / 100);
         }
 
         if (!formData.startDate || !formData.endDate) return 3; // Default fallback
@@ -482,21 +626,33 @@ export const BookAShootV3 = () => {
         const end = parseDate(formData.endDate);
         if (!start || !end) return 3;
         const diffMs = end.getTime() - start.getTime();
-        // Round to nearest hour, minimum 1
-        return Math.max(1, Math.round(diffMs / (1000 * 60 * 60)));
+        // Preserve quarter/half hours so saved pricing matches confirmation.
+        return Math.max(1, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
       };
 
       const isEditingOnly =
         formData.contentType.length === 1 &&
         formData.contentType.includes("editing");
-      const shootHours = isEditingOnly ? 0 : calculateDurationHours();
       const selectedStudios = normalizeSelectedStudios(formData);
       const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
-      const isStudioBooking = formData.shootType === "studio";
-      const useContentHouseInclusivePricing =
-        isStudioBooking && selectedStudios.length > 0;
-      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const primaryStudio = selectedStudios[0];
+      const shootHours = isEditingOnly
+        ? 0
+        : primaryStudio
+          ? calculateDayHours(primaryStudio.startTime, primaryStudio.endTime)
+          : calculateDurationHours();
+      const isStudioBooking = formData.shootType === "studio";
+      const hasSelectedCreatorPricing =
+        !isEditingOnly &&
+        (
+          (formData.selectedCrewIds?.length || 0) > 0 ||
+          Number(formData.roleCounts?.videographer || 0) > 0 ||
+          Number(formData.roleCounts?.photographer || 0) > 0 ||
+          Number(formData.roleCounts?.cinematographer || 0) > 0
+        );
+      const useContentHouseInclusivePricing =
+        isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
+      const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
       const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
         ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
         : "";
@@ -563,6 +719,7 @@ export const BookAShootV3 = () => {
       // 5. SAVE QUOTE (API Call)
       // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
       let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
 
       const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
         ? formData.bookingDays
@@ -578,8 +735,15 @@ export const BookAShootV3 = () => {
             return d && !isNaN(d.getTime()) ? d.toISOString() : value;
           };
 
-          const quotePayload: any = {
+          const quotePayload: Record<string, unknown> = {
             items: quoteItems,
+            creator_ids: formData.selectedCrewIds || [],
+            role_counts:
+              isEditingOnly
+                ? { editor: 1 }
+                : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
+                  ? {}
+                  : (formData.roleCounts || {}),
             shootHours: pricingShootHours,
             eventType: formData.shootType || "general",
             guestEmail: formData.email,
@@ -599,10 +763,20 @@ export const BookAShootV3 = () => {
             }
             quotePayload.notes = formData.specialInstructions || undefined;
             quotePayload.studio_total = selectedStudiosTotal || 0;
+            quotePayload.studio_items = selectedStudios.map((studio) => ({
+              studio_id: studio.studioId,
+              name: studio.name,
+              quantity: studio.quantity,
+              unit_price: studio.unitPrice,
+              total: studio.totalPrice,
+              pricing_mode: studio.pricingMode,
+            }));
           }
 
           const savedQuote = await saveQuote(quotePayload).unwrap();
           savedQuoteId = savedQuote.quote_id;
+          savedQuoteTotal = savedQuote.total;
+
           console.log("Pricing Quote Generated:", savedQuoteId);
         } catch (quoteError) {
           console.error("Pricing Calculation Error:", quoteError);
@@ -625,11 +799,13 @@ export const BookAShootV3 = () => {
       const endTime = getLocalTimePart(formData.endDate);
       const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
 
-      const finalBookingData: any = {
+      const finalBookingData: Record<string, unknown> = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
         guest_email: formData.email,
         content_type: isEditingOnly ? "ai editing" : formData.contentType.join(","),
         shoot_type: formData.shootType,
+        studio_booking_for: formData.bookingFor || "production",
+        project_name: formData.projectName || "",
         booking_type: formData.bookingType,
         booking_days: primaryStudio
           ? [{
@@ -650,11 +826,13 @@ export const BookAShootV3 = () => {
         duration_hours: primaryStudio?.quantity || shootHours,
         location: primaryStudio?.location || formData.location,
         location_latitude:
+          primaryStudio?.lat ??
           formData.locationDetails?.coordinates?.lat ??
           formData.locationDetails?.lat ??
           formData.locationDetails?.center?.[1] ??
           undefined,
         location_longitude:
+          primaryStudio?.lng ??
           formData.locationDetails?.coordinates?.lng ??
           formData.locationDetails?.lng ??
           formData.locationDetails?.center?.[0] ??
@@ -669,14 +847,21 @@ export const BookAShootV3 = () => {
         edits_needed: formData.editsNeeded,
         video_edit_types: formData.videoEditTypes,
         photo_edit_types: formData.photoEditTypes,
+        crew_roles: formData.roleCounts || {},
 
         // Team Logic
-        crew_size: String(formData.crewCount || 1),
-        matching_method: formData.matchingMethod || "ai_matchmaker",
+        crew_size: String(
+          formData.contentType.includes("studio")
+            ? (formData.selectedCrewIds?.length || Object.values(formData.roleCounts || {}).reduce((sum, count) => sum + Number(count || 0), 0))
+            : (formData.crewCount || 1),
+        ),
+        matching_method: formData.contentType.includes("studio")
+          ? (formData.selectedCrewIds?.length ? "manual_selection" : "studio_only")
+          : (formData.matchingMethod || "ai_matchmaker"),
         selected_crew_ids: formData.selectedCrewIds || [],
 
         // Project Scope
-        special_instructions: finalSpecialInstructions || undefined,
+        special_instructions: formData.description?.trim() || finalSpecialInstructions || undefined,
         reference_links: formData.referenceLinks,
         start_date_time: studioStartDateTime || undefined,
         end_date_time: studioEndDateTime || undefined,
@@ -698,21 +883,44 @@ export const BookAShootV3 = () => {
       }
 
       // add GA event on payment submit in step4
-      pushToDataLayer("booking_payment_confirm_submit", {
-        type: "Action Tracking",
+      // pushToDataLayer("booking_payment_confirm_submit", {
+      //   type: "Action Tracking",
+      //   page_name: "Book-a-shoot Page",
+      //   location_in_website: "book_a_shoot_review_confirm",
+      //   user_id: isAuthenticated ? user?.id : "Unknown",
+      //   user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",,
+      //   email: isAuthenticated ? user?.email : formData.email,
+      //   phone: isAuthenticated ? user?.phone_number : formData.phone,
+      //   duration_on_page: performance.now() / 1000,
+      //   booking_id: formData?.bookingId,
+      //   booking_form_fields: {
+      //     full_name: formData.fullName,
+      //     phone: formData.phone,
+      //   }
+      // });
+
+      // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
+      pushToDataLayer("begin_checkout", {
+        currency: "USD",
+        value: savedQuoteTotal || 0,
+
         page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_review_confirm",
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        location_in_website: "book_a_shoot_review_confirm_btn",
+
         email: isAuthenticated ? user?.email : formData.email,
-        phone: isAuthenticated ? user?.phone_number : formData.phone,
-        duration_on_page: performance.now() / 1000,
-        booking_id: formData?.bookingId,
-        booking_form_fields: {
-          full_name: formData.fullName,
-          phone: formData.phone,
-        }
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        full_name: formData.fullName,
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+
+        booking_id: submissionResult?.booking_id || draftBookingId,
+        items: [{
+          item_name: finalBookingData?.order_name || "Shoot Booking",
+          price: savedQuoteTotal || 0,
+          quantity: 1
+        }]
       });
+      // ---------------------------------------------------------
 
       toast.success("Booking Secured!", {
         description: "Redirecting to secure payment gateway...",
@@ -722,16 +930,19 @@ export const BookAShootV3 = () => {
       const paymentUrl = `/search-results/payment?shootId=${submissionResult.booking_id}`;
       router.push(paymentUrl);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Final Booking Submission Failed:", error);
+      const message =
+        typeof error === "object" && error && "data" in error
+          ? String((error as { data?: { message?: string } }).data?.message || "")
+          : "";
       toast.error("Submission Failed", {
-        description: error?.data?.message || "Could not complete booking. Please check your connection.",
+        description: message || "Could not complete booking. Please check your connection.",
       });
     }
   };
 
   useEffect(() => {
-    console.log(internalStep);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [internalStep]);
 
@@ -749,12 +960,13 @@ export const BookAShootV3 = () => {
       case 1.5: // New Studio Browse Step
         return <V3BrowseStudios {...props} />;
       case 1.7:
-        return <V3StudioChooseCreators {...props} />; //  new component
+        return <V3StudioChooseCreators {...props} />; // Studios journey 2
       case 2:
         return <V3Step2MoreDetails {...props} />;
+      case 2.1:
+        return <V3AltChooseService {...props} />; //  Studios journey 3
       case 2.5: // New Step for non-studio primary flows
         return <V3BrowseStudios {...props} />;
-        return shouldShowStudiosStep ? <V3Step5Studios {...props} /> : <V3Step2MoreDetails {...props} />;
       case 3:
         return shouldShowStudiosStep ? <V3Step2MoreDetails {...props} /> : <V3Step3CrewMatching {...props} />;
       case 4:

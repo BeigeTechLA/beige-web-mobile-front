@@ -71,6 +71,26 @@ export const salesApi = createApi({
         video_edit_types?: string[];
         photo_edit_types?: string[];
         estimated_delivery_date?: string | null;
+        studio_total?: number;
+        studio_items?: Array<{
+          studio_id: string;
+          name: string;
+          quantity: number;
+          unit_price: number;
+          total: number;
+          pricing_mode: "hourly" | "weekend";
+          selected_date?: string;
+          start_time?: string;
+          end_time?: string;
+          time_zone?: string;
+          studio_booking_type?: string;
+          booking_days?: Array<Record<string, any>>;
+          cast_and_crew_count?: number;
+          update_studio_datetime?: boolean;
+          lat?: number;
+          lng?: number;
+          location?: string;
+        }>;
       }
     >({
       query: (data) => ({
@@ -306,6 +326,7 @@ export const salesApi = createApi({
       reason_code?: string;
       booking_id?: number;
       discount_code?: string;
+      requested_amount?: number | string | null;
     }, string>({
       query: (token) => `sales/payment-links/${token}/validate`,
       transformResponse: (response: any) => {
@@ -444,7 +465,7 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'],
     }),
-    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[] }>({
+    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[]; allow_pending_compensation_assignment?: boolean }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-shoot',
         method: 'POST',

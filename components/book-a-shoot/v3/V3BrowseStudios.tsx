@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import { BookingDataV3 } from "./types";
 import { Search, ChevronDown, Calendar, Check, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,11 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StudioCard from "./components/StudioCard";
-import { HOURLY_STUDIO_LIST } from "./studioData";
+import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 import DatePicker from "@/components/ui/Datepicker";
 import { Button } from "@/src/components/landing/ui/button";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
@@ -70,17 +68,17 @@ interface Props {
   onBack: () => void;
 }
 
-const studioData = HOURLY_STUDIO_LIST.map((studio) => ({
-  slug: studio.id,
-  image: studio.image,
+const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
+  slug: studio.slug || studio.id,
+  image: studio.image || "",
   name: studio.name,
-  description: `(${studio.poolType})`,
-  location: PUBLIC_STUDIO_LOCATION,
-  price: studio.priceValue || studio.pricingOptions?.[0]?.hourlyRate || 0,
+  description: studio.propertyType ? `(${studio.propertyType})` : "",
+  location: studio.location || PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || 0,
   rating: Number(studio.rating || 5),
   reviews: studio.reviews || 0,
-  tags: (studio.bestFor?.length ? studio.bestFor : studio.amenities || []).slice(0, 2),
-}));
+  tags: studio.tags?.length ? studio.tags : [],
+});
 
 export const V3BrowseStudios: React.FC<Props> = ({
   data,
@@ -106,6 +104,10 @@ export const V3BrowseStudios: React.FC<Props> = ({
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(data.bookingType || "single_day");
   const [visibleCount, setVisibleCount] = useState(6);
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
+  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [studioError, setStudioError] = useState("");
+  const [hasMoreStudios, setHasMoreStudios] = useState(false);
 
   // Ref Varibales
   const studioTypeRef = useRef<HTMLDivElement>(null);
@@ -133,23 +135,6 @@ export const V3BrowseStudios: React.FC<Props> = ({
 
     // Pass true directly to ensure the parent acts on it immediately
     onNext(true);
-  };
-
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
-    setTimeout(() => {
-      if (ref && ref.current) {
-        const navOffset = 100;
-
-        // Calculate absolute position relative to the entire document
-        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
-        const offsetPosition = elementPosition - navOffset;
-
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth",
-        });
-      }
-    }, 100);
   };
 
   // Please move the repetitive and commion date functions to a utils file for easier reuse
@@ -450,6 +435,51 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadStudios = async () => {
+      setStudioLoading(true);
+      setStudioError("");
+
+      try {
+        const bookingForParam =
+          bookingFor === "production"
+            ? "productions"
+            : bookingFor === "audio"
+              ? "audio"
+              : bookingFor === "event"
+                ? "event"
+                : undefined;
+
+        const response = await studioCatalogApi.list({
+          page: 1,
+          limit: visibleCount,
+          search: searchQuery.trim() || undefined,
+          booking_for: bookingForParam,
+        });
+
+        if (!isActive) return;
+        setStudioData((response.data || []).map(mapCatalogStudio));
+        setHasMoreStudios(Boolean(response.pagination?.hasMore));
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load studio catalog:", error);
+        setStudioError("Unable to load studios right now.");
+        setStudioData([]);
+        setHasMoreStudios(false);
+      } finally {
+        if (isActive) setStudioLoading(false);
+      }
+    };
+
+    loadStudios();
+
+    return () => {
+      isActive = false;
+    };
+  }, [bookingFor, searchQuery, visibleCount]);
+
   console.log(data);
 
 
@@ -484,7 +514,9 @@ export const V3BrowseStudios: React.FC<Props> = ({
 
       {/* Studio Listings */}
       <div ref={studiosRef} className="pt-6 lg:pt-15 border-t border-white/10">
-        <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">5 Studio Available Based on Categories</p>
+        <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">
+          {studioLoading ? "Loading studios..." : `${studioData.length} Studio Available Based on Categories`}
+        </p>
         <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
           {/* Search field */}
           <div className="relative flex-1 min-w-[240px]">
@@ -512,15 +544,24 @@ export const V3BrowseStudios: React.FC<Props> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
-          {studioData.slice(0, visibleCount).map((studio, index) => (
-            <StudioCard key={index} {...studio} />
-          ))}
+          {studioError ? (
+            <div className="col-span-full text-white/50 text-sm py-4">{studioError}</div>
+          ) : studioData.length === 0 ? (
+            <div className="col-span-full text-white/50 text-sm py-4">No studios match your search.</div>
+          ) : (
+            studioData.map((studio) => (
+              <StudioCard key={studio.slug} {...studio} />
+            ))
+          )}
         </div>
         <button
           onClick={() => setVisibleCount((prev) => prev + 6)}
-          className="bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg"
+          disabled={studioLoading || !hasMoreStudios}
+          className="bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className="text-lg lg:text-xl pl-7">View More</span>
+          <span className="text-lg lg:text-xl pl-7">
+            {studioLoading ? "Loading..." : hasMoreStudios ? "View More" : "No More Studios"}
+          </span>
           <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"

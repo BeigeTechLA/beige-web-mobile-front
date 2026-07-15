@@ -49,6 +49,8 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const CREATORS_PAGE_SIZE = 20;
+
 export const V3SelectDreamTeam: React.FC<Props> = ({
   data,
   updateData,
@@ -62,6 +64,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(0);
   const [showSalesModal, setShowSalesModal] = useState(false);
   const [activeRoleFilter, setActiveRoleFilter] = useState<"video" | "photo" | null>(null);
+  const [profileModalUrl, setProfileModalUrl] = useState<string | null>(null);
 
   // Use local state for selection if not in data yet
   const [selectedIds, setSelectedIds] = useState<number[]>(data.selectedCrewIds || []);
@@ -69,6 +72,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     data.selectedCrewRoles || {}
   );
   const [showSalesPopup, setShowSalesPopup] = useState(false);
+  const [creatorPage, setCreatorPage] = useState(1);
+  const [loadedCreators, setLoadedCreators] = useState<Creator[]>([]);
 
   // Sales lead mutation
   const [createSalesLead, { isLoading: isCreatingSalesLead }] =
@@ -80,36 +85,74 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     data.locationDetails?.coordinates?.lat ??
     data.locationDetails?.lat ??
     data.locationDetails?.center?.[1] ??
+    data.selectedStudios?.[0]?.lat ??
     undefined;
   const locationLongitude =
     data.locationDetails?.coordinates?.lng ??
     data.locationDetails?.lng ??
     data.locationDetails?.center?.[0] ??
+    data.selectedStudios?.[0]?.lng ??
     undefined;
+
+  const searchableContentTypes = data.contentType.filter((t) => t !== "editing" && t !== "studio");
+
+  const creatorSearchKey = [
+    isEditingOnly ? "editor" : searchableContentTypes.join(","),
+    isEditingOnly ? "" : locationLatitude ?? "",
+    isEditingOnly ? "" : locationLongitude ?? "",
+  ].join("|");
+
+  useEffect(() => {
+    setCreatorPage(1);
+    setLoadedCreators([]);
+  }, [creatorSearchKey]);
 
   // Build search params from booking data
   const searchParams = {
     content_types: isEditingOnly
       ? "editor"
-      : data.contentType.filter((t) => t !== "editing").join(","),
+      : searchableContentTypes.join(","),
     latitude: isEditingOnly ? undefined : locationLatitude,
     longitude: isEditingOnly ? undefined : locationLongitude,
-    limit: 12,
-    page: 1,
+    limit: CREATORS_PAGE_SIZE,
+    page: creatorPage,
   };
 
   // Fetch real creators from API
   const {
     data: creatorsResponse,
     isLoading,
+    isFetching,
     error,
   } = useSearchCreatorsQuery(searchParams, {
     skip:
-      data.contentType.length === 0 || (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
+      (isEditingOnly ? data.contentType.length === 0 : searchableContentTypes.length === 0) ||
+      (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
   });
 
   // Transform API creators to display format
-  const creators: Creator[] = creatorsResponse?.data || [];
+  useEffect(() => {
+    if (!creatorsResponse?.data) return;
+
+    setLoadedCreators((prevCreators) => {
+      const mergedCreators =
+        creatorPage === 1
+          ? creatorsResponse.data
+          : [...prevCreators, ...creatorsResponse.data];
+      const creatorsById = new Map<number, Creator>();
+
+      mergedCreators.forEach((creator) => {
+        creatorsById.set(creator.crew_member_id, creator);
+      });
+
+      return Array.from(creatorsById.values());
+    });
+  }, [creatorPage, creatorsResponse]);
+
+  const creators: Creator[] = loadedCreators;
+  const hasMoreCreators = Boolean(creatorsResponse?.pagination?.hasMore);
+  const isLoadingMoreCreators = isFetching && creatorPage > 1;
+  const totalCreators = creatorsResponse?.pagination?.total;
 
   // Fetch random crew
   const { data: randomCrewResponse } = useGetRandomCrewQuery();
@@ -129,8 +172,8 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.roleCounts?.videographer,
-      photographyCount: data?.roleCounts?.photographer,
+      videographyCount: data?.roleCounts?.videographer || 0,
+      photographyCount: data?.roleCounts?.photographer || 0,
     };
 
     const dlEvent = (creators.length > 0) ? "cp_selection_found" : "cp_selection_not_found"
@@ -139,12 +182,23 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      form_content_type: data.contentType.join(","),
+      form_shoot_type: data.shootType,
+      form_shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      form_edits_needed: data.editsNeeded,
+      form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+      form_booking_type: data.bookingType,
+      form_additional_creative: data.addTeamMembers ? (formFields.videographyCount + formFields.photographyCount) : data.addTeamMembers,
+      form_shoot_location: data.location,
+      form_additional_details: data.specialInstructions,
+      form_supporting_url: data.referenceLinks,
     });
   }, [creators])
 
@@ -157,7 +211,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
 
     // 1=Videographer, 11=Videographer (Pricing), 12=Cinematographer (Pricing/Video)
     const isVideo = roleName.includes("video") || roleId === 1 || roleId === 11 || roleId === 12 || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
-    
+
     // 2=Photographer, 10=Photographer (Pricing)
     const isPhoto = roleName.includes("photo") || roleId === 2 || roleId === 10 || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
 
@@ -261,14 +315,14 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
     const targetP = requirements.required.photo;
 
     both.forEach(() => {
-        const deficitV = targetV - videoCount;
-        const deficitP = targetP - photoCount;
-        if (deficitV > 0 && deficitP > 0) videoCount++;
-        else if (deficitV > deficitP) videoCount++;
-        else if (deficitP > deficitV) photoCount++;
-        else {
-          if (videoCount <= photoCount) videoCount++;
-          else photoCount++;
+      const deficitV = targetV - videoCount;
+      const deficitP = targetP - photoCount;
+      if (deficitV > 0 && deficitP > 0) videoCount++;
+      else if (deficitV > deficitP) videoCount++;
+      else if (deficitP > deficitV) photoCount++;
+      else {
+        if (videoCount <= photoCount) videoCount++;
+        else photoCount++;
       }
     });
 
@@ -507,12 +561,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
         page_name: "Book-a-shoot Page",
         location_in_website: "book_a_shoot_dream_team",
         duration_on_page: performance.now() / 1000,
-        user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-        email: isAuthenticated ? user?.email : "Unknown",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+        email: isAuthenticated ? user?.email : data.email,
         phone: isAuthenticated ? user?.phone_number : "Unknown",
         booking_id: data?.bookingId,
-        booking_form_fields: { cp_id: selectedIds }
+        form_cp_id: selectedIds,
       });
       onNext();
     }
@@ -524,12 +578,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: { cp_id: "Not Found" }
+      form_cp_id: "Not Found"
     });
     onNext()
   }
@@ -540,12 +594,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_dream_team",
       duration_on_page: performance.now() / 1000,
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-      email: isAuthenticated ? user?.email : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       booking_id: data?.bookingId,
-      booking_form_fields: { cp_id: "Not Found" }
+      form_cp_id: "Not Found"
     });
     setShowSalesPopup(true)
   }
@@ -739,6 +793,7 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
             selectedRoles={selectedRoles}
             activeRoleFilter={activeRoleFilter}
             toggleSelection={toggleSelection}
+            onViewProfile={setProfileModalUrl}
           />
         ) : (
           <div className="text-center text-white/60 py-16">
@@ -746,6 +801,32 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {creators.length > 0 && (
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm text-white/50">
+            Showing {creators.length}
+            {typeof totalCreators === "number" ? ` of ${totalCreators}` : ""} creator(s)
+          </p>
+          {hasMoreCreators && (
+            <Button
+              type="button"
+              onClick={() => setCreatorPage((page) => page + 1)}
+              disabled={isLoadingMoreCreators}
+              className="h-12 min-w-[190px] rounded-[10px] border border-white/20 bg-[#1A1A1A] px-6 text-sm font-medium text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingMoreCreators ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </span>
+              ) : (
+                "Show More Creators"
+              )}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-center gap-4">
         {requirements.required.video > 0 && (
@@ -836,12 +917,12 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
                       page_name: "Book-a-shoot Page",
                       location_in_website: "book_a_shoot_dream_team",
                       duration_on_page: performance.now() / 1000,
-                      user_id: isAuthenticated ? user?.id : "Unknown",
-                      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : data.email,
-                      email: isAuthenticated ? user?.email : "Unknown",
+                      user_id: isAuthenticated ? user?.id : "Guest",
+                      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+                      email: isAuthenticated ? user?.email : data.email,
                       phone: isAuthenticated ? user?.phone_number : "Unknown",
                       booking_id: data?.bookingId,
-                      booking_form_fields: { cp_id: "Not Selected" }
+                      form_cp_id: "Not Selected"
                     });
                     onNext();
                   }}
@@ -903,6 +984,26 @@ export const V3SelectDreamTeam: React.FC<Props> = ({
           </p>
         </motion.div>
       )} */}
+      <Dialog
+        open={Boolean(profileModalUrl)}
+        onOpenChange={(open) => {
+          if (!open) setProfileModalUrl(null);
+        }}
+      >
+        <DialogContent className="h-[92vh] w-[calc(100vw-24px)] max-w-[1200px] overflow-hidden border-white/10 bg-black p-0 sm:w-[calc(100vw-48px)] [&>button]:z-10 [&>button]:bg-black/70 [&>button]:text-white">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Creative profile</DialogTitle>
+            <DialogDescription>Creative profile opened from booking flow</DialogDescription>
+          </DialogHeader>
+          {profileModalUrl && (
+            <iframe
+              src={profileModalUrl}
+              title="Creative profile"
+              className="h-full w-full border-0"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

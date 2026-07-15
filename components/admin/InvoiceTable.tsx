@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Eye, Loader2, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { salesApi } from "@/lib/api";
-import apiClient from "@/lib/apiClient";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -23,9 +22,13 @@ interface InvoiceHistoryItem {
   client_email: string | null;
   send_date_time: string | null;
   payment_status: string | null;
+  booking_payment_status?: string | null;
   invoice_number: string | null;
   invoice_url: string | null;
   invoice_pdf: string | null;
+  payment_amount?: number | string | null;
+  payment_method?: string | null;
+  receipt_type?: string | null;
   sent_by: string | null;
   sales_rep?: {
     id: number;
@@ -44,12 +47,18 @@ interface InvoiceTableInvoiceRow {
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
+  leadOrQuoteHref: string | null;
   paymentStatus: string;
+  overallPaymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
+  documentKind: "invoice" | "receipt";
 }
 
 interface InvoiceTableGroupRow {
@@ -61,9 +70,13 @@ interface InvoiceTableGroupRow {
   clientName: string;
   clientEmail: string;
   leadOrQuoteId: string;
+  leadOrQuoteHref: string | null;
   paymentStatus: string;
   invoiceMethod: "manual" | "stripe" | "unknown";
   invoiceSendStatus: "sent" | "not_sent";
+  paymentAmount: number | null;
+  paymentMethod: string | null;
+  paymentMetaLabel: string | null;
   sendDateLabel: string;
   sendDateRaw: number;
   invoicePdf: string | null;
@@ -84,8 +97,6 @@ interface InvoiceHistoryResponse {
   } | null;
   error?: string;
 }
-
-const INVOICE_FILTER_BATCH_SIZE = 200;
 
 const normalizeStatus = (status: string | null) => {
   if (!status) return "Unknown";
@@ -113,37 +124,72 @@ const getDateValue = (dateValue: string | null) => {
   return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
 };
 
+const formatCurrencyValue = (value: number | string | null | undefined) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null;
+
+  return numericValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPaymentMethodLabel = (method: string | null | undefined) => {
+  const normalizedMethod = String(method || "").trim();
+  if (!normalizedMethod) return null;
+
+  return normalizedMethod
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
+
 const getLeadOrQuoteValue = (item: InvoiceHistoryItem) => {
   if (item.quote_id) {
     return `Quote Id : ${item.quote_id}`;
   }
 
-  if (item.client_lead_id) {
-    return `Client Lead Id : ${item.client_lead_id}`;
-  }
-
   if (item.lead_id) {
     return `Lead Id : ${item.lead_id}`;
+  }
+
+  if (item.client_lead_id) {
+    return `Client Lead Id : ${item.client_lead_id}`;
   }
   
   return "N/A";
 };
 
-const getStatusLookupKey = (item: InvoiceHistoryItem) => {
-  if (item.client_lead_id) {
-    return `client:${item.client_lead_id}`;
+const getLeadOrQuoteHref = (item: InvoiceHistoryItem, isSalesRoute: boolean) => {
+  if (item.quote_id) {
+    return `/admin/quotes/${item.quote_id}`;
   }
 
   if (item.lead_id) {
-    return `lead:${item.lead_id}`;
+    return isSalesRoute
+      ? `/sales/leads/${item.lead_id}`
+      : `/admin/sales-representative/${item.lead_id}`;
+  }
+
+  if (item.client_lead_id) {
+    return isSalesRoute
+      ? `/sales/client/${item.client_lead_id}`
+      : `/admin/sales-representative/client/${item.client_lead_id}`;
   }
 
   return null;
 };
 
 const getInvoiceGroupKey = (item: InvoiceHistoryItem) => {
-  if (item.booking_id && item.quote_id) {
-    return `booking:${item.booking_id}|quote:${item.quote_id}`;
+  if (item.booking_id) {
+    return `booking:${item.booking_id}`;
+  }
+
+  if (item.quote_id) {
+    return `quote:${item.quote_id}`;
   }
 
   return `history:${item.invoice_send_history_id}`;
@@ -161,6 +207,48 @@ const matchesPaymentFilter = (paymentStatus: string, paymentFilter: string) => {
   }
 
   return true;
+};
+
+const getStatusValue = (status: string | null | undefined) =>
+  String(status || "").trim().toLowerCase();
+
+const resolveGroupPaymentStatus = (rows: InvoiceTableInvoiceRow[]) => {
+  const overallStatuses = rows
+    .map((row) => row.overallPaymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const receiptStatuses = rows
+    .map((row) => row.paymentStatus)
+    .filter((status) => getStatusValue(status) && getStatusValue(status) !== "unknown");
+  const statuses = overallStatuses.length > 0 ? overallStatuses : receiptStatuses;
+  const normalizedStatuses = statuses.map(getStatusValue);
+
+  if (normalizedStatuses.some((status) => status === "partially paid" || status === "partially_paid")) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "approval pending" || status === "approval_pending")) {
+    return "Approval Pending";
+  }
+
+  if (
+    normalizedStatuses.length > 0 &&
+    normalizedStatuses.every((status) => status === "paid" || status === "no payment due")
+  ) {
+    return "Paid";
+  }
+
+  if (
+    normalizedStatuses.some((status) => status === "paid" || status === "no payment due") &&
+    normalizedStatuses.some((status) => ["pending", "unpaid", "unknown"].includes(status))
+  ) {
+    return "Partially Paid";
+  }
+
+  if (normalizedStatuses.some((status) => status === "pending" || status === "unpaid")) {
+    return "Pending";
+  }
+
+  return statuses[0] || rows[0]?.paymentStatus || "Unknown";
 };
 
 const matchesInvoiceMethodFilter = (
@@ -193,64 +281,11 @@ const matchesInvoiceSendFilter = (
   return true;
 };
 
-const resolveLivePaymentStatus = async (item: InvoiceHistoryItem) => {
-  const currentStatus = String(item.payment_status || "").trim().toLowerCase();
-  if (currentStatus === "paid") {
-    return item.payment_status;
-  }
-
-  try {
-    if (item.client_lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/client-leads/${item.client_lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-
-    if (item.lead_id) {
-      const response = await apiClient.get<{ success: boolean; data?: { payment_status?: string | null } }>(
-        `sales/leads/${item.lead_id}`
-      );
-      return response?.data?.payment_status || item.payment_status;
-    }
-  } catch (error) {
-    console.error("Failed to resolve live invoice payment status:", error);
-  }
-
-  return item.payment_status;
-};
-
-const resolveItemsWithLivePaymentStatus = async (items: InvoiceHistoryItem[]) => {
-  const requestCache = new Map<string, Promise<string | null>>();
-
-  return Promise.all(
-    items.map(async (item) => {
-      const lookupKey = getStatusLookupKey(item);
-
-      if (!lookupKey) {
-        return {
-          item,
-          livePaymentStatus: item.payment_status,
-        };
-      }
-
-      if (!requestCache.has(lookupKey)) {
-        requestCache.set(lookupKey, resolveLivePaymentStatus(item));
-      }
-
-      return {
-        item,
-        livePaymentStatus: (await requestCache.get(lookupKey)) || item.payment_status,
-      };
-    })
-  );
-};
-
 const mapInvoiceHistoryItemsToRows = (
-  items: Awaited<ReturnType<typeof resolveItemsWithLivePaymentStatus>>,
+  items: InvoiceHistoryItem[],
   isSalesRoute: boolean
 ): InvoiceTableInvoiceRow[] =>
-  items.map(({ item, livePaymentStatus }) => {
+  items.map((item) => {
     const sendDate = item.send_date_time || item.created_at;
     const detailHref = item.client_lead_id
       ? isSalesRoute
@@ -277,11 +312,24 @@ const mapInvoiceHistoryItemsToRows = (
     const hasInvoiceSendHistoryId =
       Number.isInteger(item.invoice_send_history_id) && item.invoice_send_history_id > 0;
     const invoiceSendStatus: "sent" | "not_sent" = hasInvoiceSendHistoryId ? "sent" : "not_sent";
+    const paymentAmount = Number(item.payment_amount);
+    const normalizedPaymentAmount =
+      Number.isFinite(paymentAmount) && paymentAmount > 0 ? paymentAmount : null;
+    const paymentMethodLabel = formatPaymentMethodLabel(item.payment_method);
+    const paymentAmountLabel = formatCurrencyValue(normalizedPaymentAmount);
+    const paymentMetaLabel = [paymentMethodLabel, paymentAmountLabel].filter(Boolean).join(" - ") || null;
+
+    const documentKind: "invoice" | "receipt" =
+      String(item.receipt_type || "").toLowerCase().includes("payment") ||
+      /[?&]receipt=(1|true)\b/i.test(invoicePdf)
+        ? "receipt"
+        : "invoice";
 
     return {
       id: item.invoice_send_history_id,
-      invoiceHistoryId:
-        item.invoice_send_history_id && item.invoice_send_history_id > 0
+      invoiceHistoryId: item.invoice_number
+        ? item.invoice_number
+        : item.invoice_send_history_id && item.invoice_send_history_id > 0
           ? `#${item.invoice_send_history_id}`
           : item.booking_id
             ? `BOOKING-${item.booking_id}`
@@ -293,12 +341,18 @@ const mapInvoiceHistoryItemsToRows = (
       clientName: item.client_name || "N/A",
       clientEmail: item.client_email || "N/A",
       leadOrQuoteId: getLeadOrQuoteValue(item),
-      paymentStatus: normalizeStatus(livePaymentStatus),
+      leadOrQuoteHref: getLeadOrQuoteHref(item, Boolean(isSalesRoute)),
+      paymentStatus: normalizeStatus(item.payment_status),
+      overallPaymentStatus: normalizeStatus(item.booking_payment_status || item.payment_status),
       invoiceMethod,
       invoiceSendStatus,
+      paymentAmount: normalizedPaymentAmount,
+      paymentMethod: paymentMethodLabel,
+      paymentMetaLabel,
       sendDateLabel: formatDateLabel(sendDate),
       sendDateRaw: getDateValue(sendDate),
-      invoicePdf: item.invoice_pdf,
+      invoicePdf: item.invoice_pdf || item.invoice_url || null,
+      documentKind,
     };
   });
 
@@ -321,24 +375,29 @@ const groupInvoiceRows = (rows: InvoiceTableInvoiceRow[]): InvoiceTableGroupRow[
         return right.id - left.id;
       });
 
-      const latestInvoice = sortedInvoices[0];
+      const parentInvoice = sortedInvoices.find((invoice) => invoice.documentKind === "invoice") || sortedInvoices[0];
+      const groupPaymentStatus = resolveGroupPaymentStatus(sortedInvoices);
 
       return {
-        id: latestInvoice.id,
+        id: parentInvoice.id,
         groupKey,
-        bookingIdValue: latestInvoice.bookingIdValue,
-        bookingId: latestInvoice.bookingId,
-        detailHref: latestInvoice.detailHref,
-        clientName: latestInvoice.clientName,
-        clientEmail: latestInvoice.clientEmail,
-        leadOrQuoteId: latestInvoice.leadOrQuoteId,
-        paymentStatus: latestInvoice.paymentStatus,
-        invoiceMethod: latestInvoice.invoiceMethod,
-        invoiceSendStatus: latestInvoice.invoiceSendStatus,
-        sendDateLabel: latestInvoice.sendDateLabel,
-        sendDateRaw: latestInvoice.sendDateRaw,
-        invoicePdf: latestInvoice.invoicePdf,
-        latestInvoiceHistoryId: latestInvoice.invoiceHistoryId,
+        bookingIdValue: parentInvoice.bookingIdValue,
+        bookingId: parentInvoice.bookingId,
+        detailHref: parentInvoice.detailHref,
+        clientName: parentInvoice.clientName,
+        clientEmail: parentInvoice.clientEmail,
+        leadOrQuoteId: parentInvoice.leadOrQuoteId,
+        leadOrQuoteHref: parentInvoice.leadOrQuoteHref,
+        paymentStatus: groupPaymentStatus,
+        invoiceMethod: parentInvoice.invoiceMethod,
+        invoiceSendStatus: parentInvoice.invoiceSendStatus,
+        paymentAmount: parentInvoice.paymentAmount,
+        paymentMethod: parentInvoice.paymentMethod,
+        paymentMetaLabel: parentInvoice.paymentMetaLabel,
+        sendDateLabel: parentInvoice.sendDateLabel,
+        sendDateRaw: parentInvoice.sendDateRaw,
+        invoicePdf: parentInvoice.invoicePdf,
+        latestInvoiceHistoryId: parentInvoice.invoiceHistoryId,
         invoices: sortedInvoices,
       };
     })
@@ -365,13 +424,24 @@ const matchesSearchQuery = (group: InvoiceTableGroupRow, searchQuery: string) =>
     group.leadOrQuoteId,
     group.latestInvoiceHistoryId,
     ...group.invoices.map((invoice) => invoice.invoiceHistoryId),
+    ...group.invoices.map((invoice) => invoice.paymentMetaLabel),
   ].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
 };
 
-const getInvoiceHistoryPage = async (page: number, limit: number) => {
+const groupMatchesPaymentFilter = (group: InvoiceTableGroupRow, paymentFilter: string) =>
+  matchesPaymentFilter(group.paymentStatus, paymentFilter);
+
+const groupMatchesInvoiceMethodFilter = (group: InvoiceTableGroupRow, methodFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceMethodFilter(invoice.invoiceMethod, methodFilter));
+
+const groupMatchesInvoiceSendFilter = (group: InvoiceTableGroupRow, sendFilter: string) =>
+  group.invoices.some((invoice) => matchesInvoiceSendFilter(invoice.invoiceSendStatus, sendFilter));
+
+const getInvoiceHistoryPage = async (page: number, limit: number, search?: string) => {
   const response = await salesApi.getInvoiceHistory({
     page,
     limit,
+    ...(search?.trim() ? { search: search.trim() } : {}),
   });
 
   return response as InvoiceHistoryResponse;
@@ -395,10 +465,54 @@ const getAllInvoiceHistoryItems = async () => {
   return items;
 };
 
+const resolveInvoiceViewUrl = (
+  invoicePdf: string | null,
+  bookingIdValue: number | null,
+  documentKind: "invoice" | "receipt" = "invoice"
+) => {
+  if (typeof window === "undefined") return null;
+
+  if (documentKind === "invoice" && bookingIdValue) {
+    return buildBeigeInvoiceUrl(bookingIdValue, { manual: true, cacheBust: true });
+  }
+
+  if (!invoicePdf) {
+    return null;
+  }
+
+  const parsedUrl = new URL(invoicePdf, window.location.origin);
+  const invoicePdfPathMatch = parsedUrl.pathname.match(/\/sales\/invoice-pdf\/([^/]+)$/);
+
+  if (invoicePdfPathMatch) {
+    const proxiedUrl = new URL(
+      `/beige_invoice/${encodeURIComponent(invoicePdfPathMatch[1])}`,
+      window.location.origin
+    );
+    parsedUrl.searchParams.forEach((value, key) => {
+      if (key === "download") return;
+      proxiedUrl.searchParams.set(key, value);
+    });
+    proxiedUrl.searchParams.set("t", String(Date.now()));
+    return `${proxiedUrl.pathname}${proxiedUrl.search}`;
+  }
+
+  if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
+    parsedUrl.searchParams.set("t", String(Date.now()));
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  }
+
+  return invoicePdf;
+};
+
+const buildGooglePdfViewerUrl = (invoiceUrl: string) => {
+  const absoluteInvoiceUrl = new URL(invoiceUrl, window.location.origin);
+  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(absoluteInvoiceUrl.toString())}`;
+};
+
 export const InvoiceTable = () => {
   const { theme, resolvedTheme } = useTheme();
-  const pathname = usePathname();
   const router = useRouter();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -433,31 +547,26 @@ export const InvoiceTable = () => {
 
       try {
         const isSalesRoute = pathname?.startsWith("/sales");
-        const allItems = await getAllInvoiceHistoryItems();
+        const response = await getInvoiceHistoryPage(currentPage, itemsPerPage, debouncedSearch);
+        const responseItems = response?.data?.items || [];
+        const pagination = response?.data?.pagination;
         const groupedRows = groupInvoiceRows(
-          mapInvoiceHistoryItemsToRows(
-            await resolveItemsWithLivePaymentStatus(allItems),
-            Boolean(isSalesRoute)
-          )
+          mapInvoiceHistoryItemsToRows(responseItems, Boolean(isSalesRoute))
         );
         const filteredRows = groupedRows.filter((row) =>
-          matchesPaymentFilter(row.paymentStatus, paymentFilter) &&
-          matchesInvoiceMethodFilter(row.invoiceMethod, invoiceMethodFilter) &&
-          matchesInvoiceSendFilter(row.invoiceSendStatus, invoiceSendFilter) &&
+          groupMatchesPaymentFilter(row, paymentFilter) &&
+          groupMatchesInvoiceMethodFilter(row, invoiceMethodFilter) &&
+          groupMatchesInvoiceSendFilter(row, invoiceSendFilter) &&
           matchesSearchQuery(row, debouncedSearch)
         );
-        const nextTotalPages = Math.max(Math.ceil(filteredRows.length / itemsPerPage), 1);
+        const nextTotalPages = Math.max(pagination?.total_pages || 1, 1);
         const safePage = Math.min(currentPage, nextTotalPages);
-        const paginatedRows = filteredRows.slice(
-          (safePage - 1) * itemsPerPage,
-          safePage * itemsPerPage
-        );
 
         if (isCancelled) return;
 
-        setRows(paginatedRows);
+        setRows(filteredRows);
         setTotalPages(nextTotalPages);
-        setTotalItems(filteredRows.length);
+        setTotalItems(pagination?.total || filteredRows.length);
 
         if (safePage !== currentPage) {
           setCurrentPage(safePage);
@@ -484,34 +593,17 @@ export const InvoiceTable = () => {
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
-  const handleDownload = (invoicePdf: string | null, bookingIdValue: number | null) => {
+  const handleViewDocument = (
+    invoicePdf: string | null,
+    bookingIdValue: number | null,
+    documentKind: "invoice" | "receipt" = "invoice"
+  ) => {
     if (typeof window === "undefined") return;
 
-    const isManualInvoice = typeof invoicePdf === "string" && /[?&]manual=(1|true)\b/i.test(invoicePdf);
-    const brandedDownloadUrl = bookingIdValue
-      ? buildBeigeInvoiceUrl(bookingIdValue, {
-          manual: isManualInvoice,
-          download: true,
-          cacheBust: true,
-        })
-      : null;
-    const resolvedUrl = brandedDownloadUrl || invoicePdf;
+    const resolvedUrl = resolveInvoiceViewUrl(invoicePdf, bookingIdValue, documentKind);
     if (!resolvedUrl) return;
 
-    const link = document.createElement("a");
-    link.href = resolvedUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.download = "";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleRowNavigation = (detailHref: string | null) => {
-    if (!detailHref) return;
-
-    router.push(detailHref);
+    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
   };
 
   const toggleGroup = (groupKey: string) => {
@@ -523,24 +615,28 @@ export const InvoiceTable = () => {
   };
 
   const handleGroupAction = (row: InvoiceTableGroupRow) => {
-    if (row.invoices.length > 1) {
-      toggleGroup(row.groupKey);
-      return;
-    }
-
-    handleRowNavigation(row.detailHref);
+    toggleGroup(row.groupKey);
   };
 
-  const handleRowKeyDown = (
-    event: React.KeyboardEvent<HTMLElement>,
-    detailHref: string | null
-  ) => {
-    if (!detailHref) return;
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      router.push(detailHref);
+  const renderLinkedId = (label: string, href: string | null, className: string) => {
+    if (!href) {
+      return <span className={className}>{label}</span>;
     }
+
+    return (
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          router.push(href);
+        }}
+        className={`inline-block max-w-full ${className} text-left font-medium text-inherit decoration-current underline-offset-4 transition-colors hover:opacity-80`}
+        title={`Open ${label}`}
+        aria-label={`Open ${label}`}
+      >
+        {label}
+      </button>
+    );
   };
 
   const handleGroupKeyDown = (
@@ -622,11 +718,11 @@ export const InvoiceTable = () => {
             {rows.map((row) => (
               <div
                 key={row.groupKey}
-                className={`p-4 space-y-3 ${(row.detailHref || row.invoices.length > 1) ? "cursor-pointer" : ""}`}
+                className="p-4 space-y-3 cursor-pointer"
                 onClick={() => handleGroupAction(row)}
                 onKeyDown={(event) => handleGroupKeyDown(event, row)}
-                role={row.detailHref || row.invoices.length > 1 ? "button" : undefined}
-                tabIndex={row.detailHref || row.invoices.length > 1 ? 0 : undefined}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2">
@@ -636,20 +732,19 @@ export const InvoiceTable = () => {
                       }`}
                       aria-hidden="true"
                     >
-                      {row.invoices.length > 1
-                        ? (expandedGroups.includes(row.groupKey) ? <ChevronDown size={16} /> : <ChevronRight size={16} />)
-                        : null}
+                      {expandedGroups.includes(row.groupKey) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </span>
                     <div>
                     <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
                       Invoice ID {row.latestInvoiceHistoryId}
                     </p>
-                    {row.invoices.length > 1 && (
-                      <p className={`text-xs mt-1 ${isDark ? "text-white/45" : "text-[#777]"}`}>
-                        {row.invoices.length} invoices in this booking/quote
-                      </p>
-                    )}
+                    <p className={`text-xs mt-1 ${isDark ? "text-white/45" : "text-[#777]"}`}>
+                      {row.invoices.filter((invoice) => invoice.documentKind === "receipt").length} receipt{row.invoices.filter((invoice) => invoice.documentKind === "receipt").length === 1 ? "" : "s"} in this booking/quote
+                    </p>
                     <p className={`text-sm mt-1 ${isDark ? "text-white/70" : "text-[#555]"}`}>{row.sendDateLabel}</p>
+                    {row.paymentMetaLabel && (
+                      <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
+                    )}
                     </div>
                   </div>
                   <LeadsStatusBadge status={row.paymentStatus} />
@@ -670,7 +765,9 @@ export const InvoiceTable = () => {
                   </div>
                   <div>
                     <p className={isDark ? "text-white/40" : "text-[#888]"}>Lead ID/Quote ID</p>
-                    <p className={isDark ? "text-white/80" : "text-[#333]"}>{row.leadOrQuoteId}</p>
+                    <div className={isDark ? "text-white/80" : "text-[#333]"}>
+                      {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "text-sm")}
+                    </div>
                   </div>
                 </div>
 
@@ -679,32 +776,55 @@ export const InvoiceTable = () => {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      handleDownload(row.invoicePdf, row.bookingIdValue);
+                      toggleGroup(row.groupKey);
                     }}
-                    disabled={!row.invoicePdf}
                     className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
+                    aria-label="Open invoice documents"
+                    title="Open invoice documents"
                   >
-                    <Download size={14} />
+                    {expandedGroups.includes(row.groupKey) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </button>
                 </div>
 
-                {row.invoices.length > 1 && expandedGroups.includes(row.groupKey) && (
+                {expandedGroups.includes(row.groupKey) && (
                   <div className={`mt-3 rounded-xl border overflow-hidden ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#ECE6D8] bg-[#FFFCF6]"}`}>
-                    {row.invoices.map((invoice) => (
-                      <div
-                        key={invoice.id}
-                        className={`flex items-center justify-between gap-3 px-4 py-3 border-t first:border-t-0 ${invoice.detailHref ? "cursor-pointer" : ""} ${isDark ? "border-white/10 hover:bg-white/[0.03]" : "border-[#EFE7D6] hover:bg-[#FFF7E8]"}`}
+                    <div
+                      className={`flex items-center justify-between gap-3 px-4 py-3 border-t first:border-t-0 ${isDark ? "border-white/10" : "border-[#EFE7D6]"}`}
+                    >
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Parent Invoice {row.latestInvoiceHistoryId}</p>
+                        <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{row.sendDateLabel}</p>
+                      </div>
+                      <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleRowNavigation(invoice.detailHref);
+                          handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
                         }}
-                        onKeyDown={(event) => handleRowKeyDown(event, invoice.detailHref)}
-                        role={invoice.detailHref ? "button" : undefined}
-                        tabIndex={invoice.detailHref ? 0 : undefined}
+                        disabled={!row.invoicePdf && !row.bookingIdValue}
+                        className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
+                        aria-label="View parent invoice"
+                        title="View parent invoice"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    </div>
+                    {row.invoices.filter((invoice) => invoice.documentKind === "receipt").map((invoice) => (
+                      <div
+                        key={invoice.id}
+                        className={`flex items-center justify-between gap-3 px-4 py-3 border-t ${isDark ? "border-white/10" : "border-[#EFE7D6]"}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
                       >
                         <div className="min-w-0">
-                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{invoice.invoiceHistoryId}</p>
+                          <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {invoice.documentKind === "receipt" ? "Receipt" : "Invoice"} {invoice.invoiceHistoryId}
+                          </p>
                           <p className={`text-xs mt-1 ${isDark ? "text-white/60" : "text-[#666]"}`}>{invoice.sendDateLabel}</p>
+                          {invoice.paymentMetaLabel && (
+                            <p className={`text-xs mt-1 ${isDark ? "text-white/50" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-3">
                           <LeadsStatusBadge status={invoice.paymentStatus} />
@@ -712,14 +832,14 @@ export const InvoiceTable = () => {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
+                              handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
                             }}
                             disabled={!invoice.invoicePdf}
                             className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                            aria-label="Download invoice pdf"
-                            title="Download invoice pdf"
+                            aria-label={`View ${invoice.documentKind} pdf`}
+                            title={`View ${invoice.documentKind} pdf`}
                           >
-                            <Download size={14} />
+                            <ExternalLink size={14} />
                           </button>
                         </div>
                       </div>
@@ -755,16 +875,16 @@ export const InvoiceTable = () => {
               <tbody>
                 {rows.map((row) => {
                   const isExpanded = expandedGroups.includes(row.groupKey);
-                  const hasChildren = row.invoices.length > 1;
+                  const receiptRows = row.invoices.filter((invoice) => invoice.documentKind === "receipt");
 
                   return (
                     <React.Fragment key={row.groupKey}>
                       <tr
-                        className={`border-b align-top transition-colors ${(row.detailHref || hasChildren) ? "cursor-pointer" : ""} ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                        className={`border-b align-top transition-colors cursor-pointer ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                         onClick={() => handleGroupAction(row)}
                         onKeyDown={(event) => handleGroupKeyDown(event, row)}
-                        role={row.detailHref || hasChildren ? "button" : undefined}
-                        tabIndex={row.detailHref || hasChildren ? 0 : undefined}
+                        role="button"
+                        tabIndex={0}
                       >
                         <td className="py-5 px-6 align-top">
                           <div className="flex items-start gap-2">
@@ -774,16 +894,17 @@ export const InvoiceTable = () => {
                               }`}
                               aria-hidden="true"
                             >
-                              {hasChildren ? (isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />) : null}
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                             </span>
                             <div className="min-w-0">
                               <p className={`truncate text-base font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{row.latestInvoiceHistoryId}</p>
                               <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-[#666]"}`}>{row.sendDateLabel}</p>
-                              {hasChildren && (
-                                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
-                                  {row.invoices.length} invoices in this booking/quote
-                                </p>
+                              {row.paymentMetaLabel && (
+                                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.paymentMetaLabel}</p>
                               )}
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>
+                                {receiptRows.length} receipt{receiptRows.length === 1 ? "" : "s"} in this booking/quote
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -797,7 +918,9 @@ export const InvoiceTable = () => {
                           <p className="truncate" title={row.clientEmail}>{row.clientEmail}</p>
                         </td>
                         <td className={`py-5 px-6 align-top text-base ${isDark ? "text-[#666666]" : "text-[#777]"}`}>
-                          <p className="truncate" title={row.leadOrQuoteId}>{row.leadOrQuoteId}</p>
+                          <div className="truncate" title={row.leadOrQuoteId}>
+                            {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "truncate text-base")}
+                          </div>
                         </td>
                         <td className="py-5 px-6 align-top">
                           <LeadsStatusBadge status={row.paymentStatus} />
@@ -808,30 +931,91 @@ export const InvoiceTable = () => {
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleDownload(row.invoicePdf, row.bookingIdValue);
+                                toggleGroup(row.groupKey);
                               }}
-                              disabled={!row.invoicePdf}
                               className={`inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-[#FFFCF6] text-black hover:bg-[#F6EFD9]"}`}
-                              aria-label="Download invoice pdf"
-                              title="Download invoice pdf"
+                              aria-label="Open invoice documents"
+                              title="Open invoice documents"
                             >
-                              <Download size={18} />
+                              {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                             </button>
                           </div>
                         </td>
                       </tr>
-                      {hasChildren && isExpanded && row.invoices.map((invoice) => (
+                      {isExpanded && (
                         <tr
-                          key={invoice.id}
-                          className={`border-b transition-colors ${invoice.detailHref ? "cursor-pointer" : ""} ${isDark ? "border-[#1D1D1D] bg-white/[0.015] hover:bg-white/[0.03]" : "border-[#F5F0E7] bg-[#FFFDF8] hover:bg-[#FFF7E8]"}`}
-                          onClick={() => handleRowNavigation(invoice.detailHref)}
-                          onKeyDown={(event) => handleRowKeyDown(event, invoice.detailHref)}
-                          role={invoice.detailHref ? "button" : undefined}
-                          tabIndex={invoice.detailHref ? 0 : undefined}
+                          className={`border-b transition-colors ${
+                                row.invoicePdf || row.bookingIdValue ? "cursor-pointer" : "cursor-not-allowed"
+                              } ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}                          
+                          onClick={(event) => {
+                              event.stopPropagation();
+                              if (!row.invoicePdf && !row.bookingIdValue) return;
+
+                              handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
+                           }}                        
                         >
                           <td className="py-4 pl-14 pr-6 align-top">
-                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>{invoice.invoiceHistoryId}</p>
+                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                              Parent Invoice {row.latestInvoiceHistoryId}
+                            </p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{row.sendDateLabel}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.bookingId}>{row.bookingId}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.clientName}>{row.clientName}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
+                            <p className="truncate" title={row.clientEmail}>{row.clientEmail}</p>
+                          </td>
+                          <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#777]" : "text-[#888]"}`}>
+                            <div className="truncate" title={row.leadOrQuoteId}>
+                              {renderLinkedId(row.leadOrQuoteId, row.leadOrQuoteHref, "truncate text-sm")}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 align-top">
+                            <LeadsStatusBadge status={row.paymentStatus} />
+                          </td>
+                          <td className="py-4 px-6 align-top">
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleViewDocument(row.invoicePdf, row.bookingIdValue, "invoice");
+                                }}
+                                disabled={!row.invoicePdf && !row.bookingIdValue}
+                                className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
+                                aria-label="View parent invoice"
+                                title="View parent invoice"
+                              >
+                                <ExternalLink size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {isExpanded && receiptRows.map((invoice) => (
+                        <tr
+                          key={invoice.id}
+                          className={`border-b transition-colors ${
+                                invoice.invoicePdf ? "cursor-pointer" : "cursor-not-allowed"
+                              } ${isDark ? "border-[#1D1D1D] bg-white/[0.015]" : "border-[#F5F0E7] bg-[#FFFDF8]"}`}
+                              onClick={(event) => {
+                                    event.stopPropagation();
+                                    if (!invoice.invoicePdf) return;
+                                    handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
+                          }}
+                        >
+                          <td className="py-4 pl-14 pr-6 align-top">
+                            <p className={`truncate text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                              {invoice.documentKind === "receipt" ? "Receipt" : "Invoice"} {invoice.invoiceHistoryId}
+                            </p>
                             <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#777]"}`}>{invoice.sendDateLabel}</p>
+                            {invoice.paymentMetaLabel && (
+                              <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#777]"}`}>{invoice.paymentMetaLabel}</p>
+                            )}
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#D0D0D0]" : "text-[#444]"}`}>
                             <p className="truncate" title={invoice.bookingId}>{invoice.bookingId}</p>
@@ -843,7 +1027,9 @@ export const InvoiceTable = () => {
                             <p className="truncate" title={invoice.clientEmail}>{invoice.clientEmail}</p>
                           </td>
                           <td className={`py-4 px-6 align-top text-sm ${isDark ? "text-[#777]" : "text-[#888]"}`}>
-                            <p className="truncate" title={invoice.leadOrQuoteId}>{invoice.leadOrQuoteId}</p>
+                            <div className="truncate" title={invoice.leadOrQuoteId}>
+                              {renderLinkedId(invoice.leadOrQuoteId, invoice.leadOrQuoteHref, "truncate text-sm")}
+                            </div>
                           </td>
                           <td className="py-4 px-6 align-top">
                             <LeadsStatusBadge status={invoice.paymentStatus} />
@@ -854,14 +1040,14 @@ export const InvoiceTable = () => {
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleDownload(invoice.invoicePdf, invoice.bookingIdValue);
+                                  handleViewDocument(invoice.invoicePdf, invoice.bookingIdValue, invoice.documentKind);
                                 }}
                                 disabled={!invoice.invoicePdf}
                                 className={`inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors disabled:opacity-40 ${isDark ? "bg-[#1A1A1A] text-white hover:bg-[#242424]" : "bg-white text-black hover:bg-[#F6EFD9]"}`}
-                                aria-label="Download invoice pdf"
-                                title="Download invoice pdf"
+                                aria-label={`View ${invoice.documentKind} pdf`}
+                                title={`View ${invoice.documentKind} pdf`}
                               >
-                                <Download size={16} />
+                                <ExternalLink size={16} />
                               </button>
                             </div>
                           </td>

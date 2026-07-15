@@ -597,6 +597,26 @@ export const V3Step5Studios: React.FC<Props> = ({
         video_edit_types: data.videoEditTypes || [],
         photo_edit_types: data.photoEditTypes || [],
         estimated_delivery_date: data.expectedDeliveryDate || null,
+        studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
+        studio_items: selectedStudios.map((studio) => ({
+          studio_id: studio.studioId,
+          name: studio.name,
+          quantity: studio.quantity,
+          unit_price: studio.unitPrice,
+          total: studio.totalPrice,
+          pricing_mode: studio.pricingMode,
+          selected_date: studio.selectedDate,
+          start_time: studio.startTime,
+          end_time: studio.endTime,
+          time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          studio_booking_type: data.bookingType,
+          booking_days: [],
+          cast_and_crew_count: data.crewCount || 0,
+          update_studio_datetime: true,
+          lat: studio.lat,
+          lng: studio.lng,
+          location: studio.location,
+        })),
       };
 
       const response = await trackEarlyInterest(apiPayload).unwrap();

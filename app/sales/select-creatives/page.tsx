@@ -167,6 +167,7 @@ export default function ClientDetailPage() {
       <AssignmentMissingDetailsModal
         isOpen={isMissingDetailsModalOpen}
         onClose={() => setIsMissingDetailsModalOpen(false)}
+        onConfirm={executeAssignment}
         missingDetails={missingDetails}
         isDark={isDark}
       />

@@ -128,6 +128,42 @@ interface ShootTypeProps {
   stats?: { label: string; value: string }[];
 }
 
+type CreatorQuotePayload = {
+  creator_ids: number[];
+  role_counts?: {
+    videographer?: number;
+    photographer?: number;
+    cinematographer?: number;
+    editor?: number;
+  };
+  event_type: string;
+  video_edit_types: Array<{ slug: string; quantity: number }>;
+  photo_edit_types: Array<{ slug: string; quantity: number }>;
+  skip_discount: boolean;
+  skip_margin: boolean;
+  studio_total: number;
+  studio_items?: Array<{
+    studio_id: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+    pricing_mode: "hourly" | "weekend";
+  }>;
+  content_type?: string;
+  shoot_hours?: number;
+  shoot_start_date?: string | null;
+};
+
+type QuoteLineItem = {
+  item_name?: string;
+  quantity?: string | number;
+  line_total?: string | number;
+  category_slug?: string;
+  is_mandatory?: boolean;
+  hidden?: boolean;
+};
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -254,8 +290,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const [showSalesPopup, setShowSalesPopup] = useState(false);
   const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
+  const hasSelectedCreatorPricing =
+    !isEditingOnly &&
+    (
+      (data.selectedCrewIds?.length || 0) > 0 ||
+      Number(data.roleCounts?.videographer || 0) > 0 ||
+      Number(data.roleCounts?.photographer || 0) > 0 ||
+      Number(data.roleCounts?.cinematographer || 0) > 0
+    );
+  const hasEditPricing = data.videoEditTypes.length > 0 || data.photoEditTypes.length > 0;
   const useContentHouseInclusivePricing =
-    isStudioBooking && selectedStudios.length > 0;
+    isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
+  const useStudioOnlyLocalPricing =
+    isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing && !hasEditPricing;
   const photoEditCounts = buildEditTypeCounts(data.photoEditTypes);
   const photoEditSetCount = photoEditCounts.find((item) => item.slug === "edited_photos")?.quantity || 0;
   const photoEditSummary = getPhotoEditSummary({
@@ -390,8 +437,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       shoot_location: data.location,
       additional_details: data.specialInstructions,
       supporting_url: data.referenceLinks,
-      videographyCount: data?.videographyCount,
-      photographyCount: data?.photographyCount,
+      videographyCount: data?.videographyCount || 0,
+      photographyCount: data?.photographyCount || 0,
       cp_ids: data?.selectedCrewIds,
     };
 
@@ -400,13 +447,27 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       email: isAuthenticated ? user?.email : data.email,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: formFields
+      // booking_form_fields: formFields
+
+      form_content_type: data.contentType.join(","),
+      form_shoot_type: data.shootType,
+      form_shoot_date_time: `${data.startDate} to ${data.endDate}`,
+      form_edits_needed: data.editsNeeded,
+      form_edit_types: [...data.photoEditTypes, ...data.videoEditTypes].join(", "),
+      form_booking_type: data.bookingType,
+      form_additional_creative: data.addTeamMembers ? (formFields.videographyCount + formFields.photographyCount) : data.addTeamMembers,
+      form_shoot_location: data.location,
+      form_additional_details: data.specialInstructions,
+      form_supporting_url: data.referenceLinks,
+      form_cp_id: data?.selectedCrewIds,
+      form_selected_studio: data?.selectedStudioIds?.toString(),
+      form_studio_pricing_category: data?.selectedStudios?.map((studio) => studio.pricingCategory).toString(),
     });
   }, [])
 
@@ -420,6 +481,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   // Calculate quote when component mounts or data changes
   useEffect(() => {
     const fetchQuote = async () => {
+      if (useStudioOnlyLocalPricing) {
+        setQuoteTotal(selectedStudiosTotal);
+        setCrewBreakdown([]);
+        setPricingGroups({
+          shootCost: 0,
+          editingFees: 0,
+          additionalCP: { totalCost: 0, videoCount: 0, photoCount: 0 },
+          mandatoryAddons: [],
+          studioCost: selectedStudiosTotal,
+        });
+        return;
+      }
+
       // Check if we have duration
       if (!isEditingOnly && !useContentHouseInclusivePricing && durationHours === 0) {
         setQuoteTotal(null);
@@ -458,11 +532,13 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           ? data.bookingDays.slice().sort((a, b) => a.date.localeCompare(b.date))[0]?.date
           : null;
 
-        const quotePayload: any = {
-          creator_ids: useContentHouseInclusivePricing ? [] : data.selectedCrewIds,
+        const quotePayload: CreatorQuotePayload = {
+          // Saved quotes are catalog/role based, so preview must use the same
+          // role counts instead of re-deriving roles from creator profiles.
+          creator_ids: [],
           role_counts: isEditingOnly
             ? { editor: 1 }
-            : useContentHouseInclusivePricing
+            : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
               ? {}
               : data.roleCounts,
           event_type: data.shootType || "general",
@@ -471,12 +547,20 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           skip_discount: true,
           skip_margin: true,
           studio_total: selectedStudiosTotal || 0,
+          studio_items: selectedStudios.map((studio) => ({
+            studio_id: studio.studioId,
+            name: studio.name,
+            quantity: studio.quantity,
+            unit_price: studio.unitPrice,
+            total: studio.totalPrice,
+            pricing_mode: studio.pricingMode,
+          })),
         };
 
         if (isEditingOnly) {
           quotePayload.content_type = "ai editing";
         } else {
-          if (useContentHouseInclusivePricing) {
+          if (useContentHouseInclusivePricing && !hasSelectedCreatorPricing) {
             // Backend validation requires shoot_hours > 0 for non-AI-editing flows.
             // Keep it at minimum valid value while excluding creator/role items.
             quotePayload.shoot_hours = 1;
@@ -508,7 +592,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         const mandatoryAddonsList: Array<{ role: string; cost: number }> = [];
 
         if (result.lineItems && result.lineItems.length > 0) {
-          result.lineItems.forEach((item: any) => {
+          result.lineItems.forEach((item: QuoteLineItem) => {
             const name = item.item_name;
             const quantity = parseInt(item.quantity || 1);
             const lineTotal = parseFloat(item.line_total || 0);
@@ -519,7 +603,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               lowerName.includes("resort") ||
               lowerName.includes("location platform");
 
-            if (useContentHouseInclusivePricing) {
+            if (useContentHouseInclusivePricing && !hasSelectedCreatorPricing) {
               if (item.category_slug === "editing") {
                 editFeesTotal += lineTotal;
                 return;
@@ -589,7 +673,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
         if (result.lineItems && result.lineItems.length > 0) {
           const breakdown: Array<{ role: string; cost: number }> = [];
 
-          result.lineItems.forEach((item: any) => {
+          result.lineItems.forEach((item: QuoteLineItem) => {
             if (item.is_mandatory || item.hidden) return;
 
             const itemTotal = parseFloat(item.line_total || 0);
@@ -626,6 +710,8 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     durationHours,
     isEditingOnly,
     useContentHouseInclusivePricing,
+    useStudioOnlyLocalPricing,
+    hasSelectedCreatorPricing,
     calculateQuoteFromCreators,
     selectedStudiosTotal,
   ]);
@@ -685,20 +771,19 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
       type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "book_a_shoot_review_confirm",
-      user_id: isAuthenticated ? user?.id : "Unknown",
-      user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
       email: isAuthenticated ? user?.email : data.email,
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
       phone: isAuthenticated ? user?.phone_number : data.phone,
       duration_on_page: performance.now() / 1000,
       booking_id: data?.bookingId,
-      booking_form_fields: {
-        full_name: data.fullName,
-        phone: data.phone,
-      }
+      full_name: data.fullName,
     })
 
     setShowSalesPopup(true)
   }
+
+  console.log(data)
 
   return (
     <div className="flex flex-col gap-6 md:gap-12 w-full animate-in fade-in duration-500">
@@ -725,7 +810,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             {/* Project Summary */}
             <div className="p-4 lg:p-6 flex flex-col gap-3 lg:gap-6 ">
               {
-                // Studios only flow
+                // Studios only flow (journey 2)
                 (data.contentType.length === 1 && data.contentType.includes("studio")) ? (
                   <>
                     <div className="rounded-[12px] overflow-hidden border border-white/10">
@@ -755,7 +840,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <div className="flex gap-2 w-full items-center justify-start">
                             {["Natural Light", "Product friendly"].map((feature) => {
                               return (
-                                <div className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
                                   {feature}
                                 </div>
                               )
@@ -775,7 +860,6 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           <ContentTypeIcon />
                         </div>
 
-
                         <div className="min-w-0">
                           <div className="text-sm text-[#999] capitalize tracking-wide mb-1">
                             Content Type
@@ -786,6 +870,64 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </h3>
                         </div>
                       </div>
+
+                      {/* Studio journey 3 */}
+                      {
+                        (data.contentType.length > 1 && data.contentType.includes("studio")) && (
+                          <>
+                            <div className="rounded-[12px] overflow-hidden border border-white/10">
+                              <div className="p-4 flex gap-4 items-center">
+                                <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                                  <Image
+                                    src={"/images/projects/interior.png"}
+                                    alt={"Sample shoot"}
+                                    fill
+                                    className="object-cover rounded-lg"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                                  <div className="flex w-full min-w-0 items-center justify-between gap-5 ">
+                                    <div className="flex flex-col gap-1">
+                                      {/* Studio Name */}
+                                      <h4 className="text-white lg:text-lg font-medium capitalize">
+                                        Beige Media (Modern Resort Villa with Jacuzzi)
+                                      </h4>
+                                      {/* Studio Address */}
+                                      <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
+                                        <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                                      </span>
+                                    </div>
+                                    <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
+                                      Duration: {durationHours} Hours
+
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
+                                    {["Natural Light", "Product friendly"].map((feature) => {
+                                      return (
+                                        <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                          {feature}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="w-full flex flex-col lg:flex-row gap-4 justify-start lg:gap-10 text-xs lg:text-sm text-white">
+                                    <div className="flex gap-2">
+                                      <Clock size={16} />
+                                      {displayTimeText}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Calendar size={16} />
+                                      {summaryDateText}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )
+                      }
+
                       <div className="rounded-[12px] overflow-hidden border border-white/10">
                         <div className="p-4 flex gap-4 items-center">
                           <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
@@ -816,6 +958,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                           </div>
                         </div>
                       </div>
+
                     </>
                   )
               }
@@ -879,140 +1022,141 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               </div>
 
               {!isEditingOnly && (
-              <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
-                    <Map size={32} className="text-[#9D9595]" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
-                      {locationDisplayText}
-                    </span>
-                    <span className="text-sm text-[#A9A9A9]">Location</span>
+                <div className="bg-[#101010] px-5 py-3 rounded-xl border border-white/5 col-span-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 lg:h-[62px] lg:w-[62px] rounded-xl bg-[#171717] flex items-center justify-center">
+                      <Map size={32} className="text-[#9D9595]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-white text-base lg:text-lg font-medium line-clamp-2">
+                        {locationDisplayText}
+                      </span>
+                      <span className="text-sm text-[#A9A9A9]">Location</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
+              )}
 
               {
                 // Studios only flow
                 (data.contentType.length === 1 && data.contentType.includes("studio")) && (
-                  <div className="bg-[#171717] rounded-2xl">
-                    <div className="p-8 ">
-                      <p className="text-white text-lg lg:text-xl font-medium">Project Details</p>
-                    </div>
-                    <hr className={`border-t border-[#FFFFFF33] w-full `} />
-                    <div className="p-8 space-y-6">
-                      <div className="grid grid-cols-12 gap-4 w-full">
-                        <div className="col-span-4 ">
-                          <p className="text-sm text-white/40 mb-3">Project Name:</p>
-                          <p className="text-sm text-white font-medium">Spring Collection Fashion Shoot</p>
+                  <>
+                    <div className="bg-[#171717] rounded-2xl">
+                      <div className="p-8 ">
+                        <p className="text-white text-lg lg:text-xl font-medium">Project Details</p>
+                      </div>
+                      <hr className={`border-t border-[#FFFFFF33] w-full `} />
+                      <div className="p-8 space-y-6">
+                        <div className="grid grid-cols-12 gap-4 w-full">
+                          <div className="col-span-4 ">
+                            <p className="text-sm text-white/40 mb-3">Project Name:</p>
+                            <p className="text-sm text-white font-medium">Spring Collection Fashion Shoot</p>
+                          </div>
+                          <div className="col-span-8">
+                            <p className="text-sm text-white/40 mb-3">Crew Members:</p>
+                            <p className="text-sm text-white font-medium">6 (Photographer, Videographer, Assistant, Stylist, Makeup Artist, Producer)</p>
+                          </div>
                         </div>
-                        <div className="col-span-8">
-                          <p className="text-sm text-white/40 mb-3">Crew Members:</p>
-                          <p className="text-sm text-white font-medium">6 (Photographer, Videographer, Assistant, Stylist, Makeup Artist, Producer)</p>
+                        <div>
+                          <p className="text-sm text-white/40 mb-3">Shoot Type :</p>
+                          <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 w-fit rounded-sm">
+                            Product Shoot
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-white/40 mb-3">Description:</p>
+                          <p className="text-sm text-white font-medium">
+                            A full-day fashion shoot for a spring collection, including both photography and video content for digital and social media campaigns.
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-white/40 mb-3">Shoot Type :</p>
-                        <p className="bg-[#E8D5B533] text-[#E8D5B5] text-xs px-3 py-2 w-fit rounded-sm">
-                          Product Shoot
-                        </p>
+                    </div>
+
+                    {/* Professional Creatives */}
+                    <div className="max-w-sm lg:max-w-3xl 2xl:max-w-4xl border-y border-[#FFFFFF33] py-6">
+                      <div className="pb-6 ">
+                        <p className="text-white text-lg lg:text-xl font-medium">Professional Creatives</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-white/40 mb-3">Description:</p>
-                        <p className="text-sm text-white font-medium">
-                          A full-day fashion shoot for a spring collection, including both photography and video content for digital and social media campaigns.
-                        </p>
+                      <div className="p-0">
+                        <div className="relative">
+                          {dummyCrewData.length > 0 ? (
+                            <Swiper
+                              effect={"coverflow"}
+                              grabCursor={true}
+                              centeredSlides={true}
+                              slidesPerView={1.2}
+                              spaceBetween={30}
+                              breakpoints={{
+                                768: { slidesPerView: 2.2 },
+                                1024: { slidesPerView: 2.6 }
+                              }}
+                              coverflowEffect={{
+                                rotate: 15,
+                                stretch: 0,
+                                depth: 100,
+                                modifier: 1,
+                                slideShadows: false,
+                              }}
+                              modules={[EffectCoverflow]}
+                              onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
+                              className="w-full py-8"
+                            >
+                              {dummyCrewData.map((cp, index) => (
+                                <SwiperSlide key={cp.id}>
+                                  <div className="group relative transition-all duration-300">
+                                    {/* FLOATING IMAGE AREA */}
+                                    <div
+                                      className="relative aspect-[4/3] rounded-[20px] overflow-hidden shadow-2xl mb-4 cursor-pointer bg-zinc-800"
+                                    >
+                                      {cp.image ? (
+                                        <img
+                                          src={cp.image}
+                                          alt={cp.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-3xl font-bold bg-zinc-700">
+                                          {/* Fixed initials logic to prevent crashes on empty/single names */}
+                                          {cp.name
+                                            .split(" ")
+                                            .filter(Boolean)
+                                            .map((n) => n[0])
+                                            .join("")}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
+                                    <div
+                                      className={`px-2 transition-all duration-500 transform ${index === activeCPIndex
+                                        ? "opacity-100 translate-y-0"
+                                        : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
+                                        }`}
+                                    >
+                                      <div className="flex flex-col justify-center items-center mb-4">
+                                        <h3 className="lg:text-lg font-bold truncate leading-tight text-[#E8D1AB]">
+                                          {cp.name}
+                                        </h3>
+                                        <p className="text-[#A9A9A9] text-sm mt-0.5">
+                                          {cp.role}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </SwiperSlide>
+                              ))}
+                            </Swiper>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center border-dashed border rounded-[32px] text-white/40 border-[#3D3D3D]">
+                              No partners found matching this status.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )
               }
-
-              {/* Professional Creatives */}
-              <div className="max-w-sm lg:max-w-3xl 2xl:max-w-4xl border-y border-[#FFFFFF33] py-6">
-                <div className="pb-6 ">
-                  <p className="text-white text-lg lg:text-xl font-medium">Professional Creatives</p>
-                </div>
-                <div className="p-0">
-                  <div className="relative">
-                    {dummyCrewData.length > 0 ? (
-                      <Swiper
-                        effect={"coverflow"}
-                        grabCursor={true}
-                        centeredSlides={true}
-                        slidesPerView={1.2}
-                        spaceBetween={30}
-                        breakpoints={{
-                          768: { slidesPerView: 2.2 },
-                          1024: { slidesPerView: 2.6 }
-                        }}
-                        coverflowEffect={{
-                          rotate: 15,
-                          stretch: 0,
-                          depth: 100,
-                          modifier: 1,
-                          slideShadows: false,
-                        }}
-                        modules={[EffectCoverflow]}
-                        onSlideChange={(swiper) => setActiveCPIndex(swiper.realIndex)}
-                        className="w-full py-8"
-                      >
-                        {dummyCrewData.map((cp, index) => (
-                          <SwiperSlide key={cp.id}>
-                            <div className="group relative transition-all duration-300">
-                              {/* FLOATING IMAGE AREA */}
-                              <div
-                                className="relative aspect-[4/3] rounded-[20px] overflow-hidden shadow-2xl mb-4 cursor-pointer bg-zinc-800"
-                              >
-                                {cp.image ? (
-                                  <img
-                                    src={cp.image}
-                                    alt={cp.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold bg-zinc-700">
-                                    {/* Fixed initials logic to prevent crashes on empty/single names */}
-                                    {cp.name
-                                      .split(" ")
-                                      .filter(Boolean)
-                                      .map((n) => n[0])
-                                      .join("")}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* METADATA - ONLY SHOW FOR ACTIVE CARD */}
-                              <div
-                                className={`px-2 transition-all duration-500 transform ${index === activeCPIndex
-                                  ? "opacity-100 translate-y-0"
-                                  : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
-                                  }`}
-                              >
-                                <div className="flex flex-col justify-center items-center mb-4">
-                                  <h3 className="lg:text-lg font-bold truncate leading-tight text-[#E8D1AB]">
-                                    {cp.name}
-                                  </h3>
-                                  <p className="text-[#A9A9A9] text-sm mt-0.5">
-                                    {cp.role}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </SwiperSlide>
-                        ))}
-                      </Swiper>
-                    ) : (
-                      <div className="h-[300px] flex items-center justify-center border-dashed border rounded-[32px] text-white/40 border-[#3D3D3D]">
-                        No partners found matching this status.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Editing Services */}
               <div className="rounded-[16px] border border-white/5 bg-[#171717]">
@@ -1064,6 +1208,63 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
 
                 </div>
               </div>
+
+              {/* Studio Journey 1: if a studio is selected */}
+              {
+                (data?.selectedStudios) && (
+                  <>
+                    <div className="rounded-[12px] overflow-hidden border border-white/10">
+                      <div className="p-4 flex gap-4 items-center">
+                        <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
+                          <Image
+                            src={"/images/projects/interior.png"}
+                            alt={"Sample shoot"}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 lg:gap-0 justify-between lg:items-center flex-1 min-w-0">
+                          <div className="flex w-full min-w-0 items-center justify-between gap-5 ">
+                            <div className="flex flex-col gap-1">
+                              {/* Studio Name */}
+                              <h4 className="text-white lg:text-lg font-medium capitalize">
+                                Beige Media (Modern Resort Villa with Jacuzzi)
+                              </h4>
+                              {/* Studio Address */}
+                              <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
+                                <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                              </span>
+                            </div>
+                            <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
+                              Duration: {durationHours} Hours
+
+                            </div>
+                          </div>
+                          <div className="flex gap-2 w-full items-center justify-start border-y my-3 lg:my-6 py-3 lg:py-5 border-[#FFFFFF33] w-full">
+                            {["Natural Light", "Product friendly"].map((feature) => {
+                              return (
+                                <div key={feature} className="bg-[#1F1F1F] border border-[#FFFFFF1A] text-[#FFFFFFAD] rounded-sm py-1 px-3 text-xs ">
+                                  {feature}
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="w-full flex flex-col lg:flex-row gap-4 justify-start lg:gap-10 text-xs lg:text-sm text-white">
+                            <div className="flex gap-2">
+                              <Clock size={16} />
+                              {displayTimeText}
+                            </div>
+                            <div className="flex gap-2">
+                              <Calendar size={16} />
+                              {summaryDateText}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )
+              }
 
               {selectedStudios.length > 0 && (
                 <div className="rounded-[16px] border border-white/5 bg-[#171717]">

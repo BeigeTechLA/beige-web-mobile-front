@@ -1,16 +1,27 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from "react";
-import { Tag, X, Upload, Image as ImageIcon, Loader2, Plus } from "lucide-react";
+import Image from "next/image";
+import { Tag, X, Upload, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface FeaturedWorkItem {
+  id?: string | number;
+  title?: string;
+  tags?: string[];
+  image?: string;
+  previews?: string[];
+  files?: File[];
+}
+
 interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: any) => void;
-  editItem?: any | null;
+  onAdd: (item: FeaturedWorkItem) => void;
+  editItem?: FeaturedWorkItem | null;
+  isDark: boolean;
 }
 
 interface PreviewItem {
@@ -24,9 +35,9 @@ interface StoredFileItem {
 }
 
 const MAX_FILE_SIZE_MB = 30;
-const MAX_TOTAL_PROJECT_MB = 50;
+const MIN_PROJECT_IMAGES = 5;
+const MAX_PROJECT_IMAGES = 20;
 
-// NEW: Allowed types constants
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const ALLOWED_EXT_TEXT = "png, jpg, jpeg, webp";
 
@@ -36,7 +47,7 @@ const createPreviewId = () =>
 const getFileSignature = (file: File) =>
   [file.name, file.size, file.lastModified, file.type].join("__");
 
-const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModalProps) => {
+const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
@@ -47,8 +58,13 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const inputClasses = "h-14 w-full rounded-[12px] border border-white/20 bg-[#1A1A1A] px-4 text-white placeholder:text-white/40 outline-none focus:border-[#E8D1AB] focus:ring-0 transition-all";
-  const modalBg = "bg-[#101010] border border-white/10 shadow-2xl rounded-[20px]";
+  // Dynamic conditional class rules based on themes
+  const inputClasses = `h-14 w-full rounded-[12px] border px-4 outline-none focus:ring-0 transition-all ${isDark
+      ? "border-white/20 bg-[#1A1A1A] text-white placeholder:text-white/40 focus:border-[#E8D1AB]"
+      : "border-black/10 bg-neutral-50 text-black placeholder:text-black/40 focus:border-[#cbb38b]"
+    }`;
+
+  const modalBg = `shadow-2xl rounded-[20px] border ${isDark ? "bg-[#101010] border-white/10" : "bg-white border-black/5"}`;
 
   useEffect(() => {
     if (open) {
@@ -83,7 +99,12 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    // 1. Validation: File Type Check
+    if (imagePreviews.length + files.length > MAX_PROJECT_IMAGES) {
+      toast.error(`Maximum ${MAX_PROJECT_IMAGES} images allowed per project.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
     const invalidFiles = files.filter(f => !ALLOWED_TYPES.includes(f.type));
     if (invalidFiles.length > 0) {
       toast.error("Invalid File Type", {
@@ -93,7 +114,6 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       return;
     }
 
-    // 2. Validation: Size checks
     const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       toast.error(`File too large. Max ${MAX_FILE_SIZE_MB}MB allowed.`);
@@ -113,7 +133,6 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
       for (const file of files) {
         let processedFile = file;
 
-        // Compress images
         if (file.type.startsWith('image/')) {
           processedFile = await compressImage(file);
         }
@@ -129,8 +148,6 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(processedFile);
-          // Note: if editing, some files might already be blobs/strings from previous upload, 
-          // but handleFileChange is only for NEW files.
         });
 
         newPreviews.push({
@@ -200,47 +217,71 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
 
           <div className="flex items-center justify-between px-8 pt-6 pb-2">
             <div>
-              <h3 className="text-xl font-bold text-white">{editItem ? "Edit Featured Work" : "Add Featured Work"}</h3>
-              <p className="text-sm text-white/40">{editItem ? "Update your project details" : "Upload a project to showcase on your profile"}</p>
+              <h3 className={`text-lg lg:text-xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                {editItem ? "Edit Featured Work" : "Add Featured Work"}
+              </h3>
+              <p className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
+                {editItem ? "Update your project details" : "Upload a project to showcase on your profile"}
+              </p>
             </div>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors">
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-full transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-white" : "hover:bg-black/5 text-black/60 hover:text-black"}`}
+            >
               <X size={24} />
             </button>
           </div>
 
           <div className="px-8 py-6 overflow-auto flex-1 space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-white/60 ml-1">Project Title</label>
+              <label className={`text-sm font-medium ml-1 ${isDark ? "text-white/60" : "text-black/60"}`}>Project Title</label>
               <input placeholder="e.g. Cinematic Commercial Reel 2024" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClasses} />
             </div>
 
             <div className="space-y-2 relative">
               <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-medium text-white/60">Thumbnail / Media</label>
-                <span className="text-[10px] text-white/30 tracking-widest uppercase">
-                  {ALLOWED_EXT_TEXT} only • Max {MAX_FILE_SIZE_MB}MB
+                <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>Thumbnail / Media</label>
+                <span className={`text-[10px] lg:text-xs tracking-widest uppercase ${isDark ? "text-white/30" : "text-black/40"}`}>
+                  {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images &bull; Max {MAX_FILE_SIZE_MB}MB each
                 </span>
               </div>
 
               {imagePreviews.length === 0 ? (
                 <div
-                  className={`border-2 border-dashed border-white/10 rounded-[12px] h-56 flex flex-col items-center justify-center bg-white/5 transition-all group ${isCompressing ? "opacity-50 cursor-wait" : "hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"}`}
+                  className={`border-2 border-dashed rounded-xl h-56 flex flex-col items-center justify-center transition-all group ${isCompressing
+                      ? "opacity-50 cursor-wait"
+                      : isDark
+                        ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-[#E8D1AB]/40 cursor-pointer"
+                        : "border-black/10 bg-black/5 hover:bg-black/10 hover:border-[#E8D1AB]/60 cursor-pointer"
+                    }`}
                   onClick={() => !isCompressing && fileRef.current?.click()}
                 >
-                  <div className="p-4 rounded-full bg-[#1A1A1A] border border-white/10 mb-4 group-hover:scale-110 transition-transform">
+                  <div className={`p-4 rounded-full border mb-4 group-hover:scale-110 transition-transform ${isDark ? "bg-[#1A1A1A] border-white/10" : "bg-white border-black/10"
+                    }`}>
                     {isCompressing ? <Loader2 className="w-8 h-8 text-[#E8D1AB] animate-spin" /> : <Upload className="w-8 h-8 text-[#E8D1AB]" />}
                   </div>
                   <div className="text-center px-6">
-                    <div className="font-bold text-white text-lg">{isCompressing ? "Optimizing Files..." : "Upload Project Media"}</div>
-                    <div className="text-sm text-white/40 mt-1">Allowed: {ALLOWED_EXT_TEXT}</div>
+                    <div className={`font-bold text-lg ${isDark ? "text-white" : "text-black"}`}>
+                      {isCompressing ? "Optimizing Files..." : "Upload Project Media"}
+                    </div>
+                    <div className={`text-sm mt-1 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Allowed: {ALLOWED_EXT_TEXT}. Add {MIN_PROJECT_IMAGES}-{MAX_PROJECT_IMAGES} images.
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 relative">
-                  {/* Previews logic remains same */}
                   {imagePreviews.map((preview, index) => (
-                    <div key={preview.id} className="relative rounded-[12px] overflow-hidden border border-white/20 aspect-square group">
-                      <img src={preview.src} className="w-full h-full object-cover" />
+                    <div key={preview.id} className={`relative rounded-xl overflow-hidden border aspect-square group ${isDark ? "border-white/20" : "border-black/10"
+                      }`}>
+                      <Image
+                        src={preview.src}
+                        alt="Preview element"
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="(max-width: 768px) 50vw, 200px"
+                      />
                       <button
                         onClick={() => {
                           setImagePreviews((prev) => prev.filter((_, i) => i !== index));
@@ -257,14 +298,14 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                     type="button"
                     onClick={() => !isCompressing && fileRef.current?.click()}
                     disabled={isCompressing}
-                    className="flex items-center justify-center border border-dashed border-white/20 rounded-[12px] aspect-square hover:bg-white/5 transition disabled:opacity-50"
+                    className={`flex items-center justify-center border border-dashed rounded-xl aspect-square transition disabled:opacity-50 ${isDark ? "border-white/20 hover:bg-white/5" : "border-black/20 hover:bg-black/5"
+                      }`}
                   >
-                    <Plus className="text-white/60" />
+                    <Plus className={isDark ? "text-white/60" : "text-black/60"} />
                   </button>
                 </div>
               )}
 
-              {/* Updated accept attribute */}
               <input
                 ref={fileRef}
                 type="file"
@@ -277,23 +318,43 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
 
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => (
-                <span key={t} className="px-4 py-1.5 bg-[#E8D1AB]/10 border border-[#E8D1AB]/30 rounded-full flex items-center gap-2 text-sm text-[#E8D1AB]">
+                <span
+                  key={t}
+                  className={`px-4 py-1.5 border rounded-full flex items-center gap-2 text-sm ${isDark
+                      ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/30 text-[#E8D1AB]"
+                      : "bg-[#E8D1AB]/15 border-[#cbb38b]/40 text-[#cbb38b]"
+                    }`}
+                >
                   #{t}
-                  <button onClick={() => removeTag(t)} className="hover:text-white"><X size={14} /></button>
+                  <button onClick={() => removeTag(t)} className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}>
+                    <X size={14} />
+                  </button>
                 </span>
               ))}
-              <button onClick={() => setAddTagsOpen(true)} className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:bg-white/5 transition-all text-sm">
+              <button
+                onClick={() => setAddTagsOpen(true)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-sm ${isDark
+                    ? "border-white/10 text-white/60 hover:text-white hover:bg-white/5"
+                    : "border-black/10 text-black/60 hover:text-black hover:bg-black/5"
+                  }`}
+              >
                 <Tag className="w-4 h-4" /> Add Tags
               </button>
             </div>
           </div>
 
-          <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-4 bg-[#161616]">
-            <Button variant="ghost" onClick={onClose} className="rounded-[12px] h-12 px-8 text-white hover:bg-white/5">Cancel</Button>
+          <div className={`px-8 py-6 border-t flex justify-end gap-4 ${isDark ? "border-white/10 bg-[#161616]" : "border-black/5 bg-neutral-50"}`}>
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className={`rounded-xl h-12 px-8 ${isDark ? "text-white hover:bg-white/5" : "text-black hover:bg-black/5"}`}
+            >
+              Cancel
+            </Button>
             <Button
               onClick={handleAdd}
-              disabled={!title || imagePreviews.length === 0 || isCompressing}
-              className="rounded-[12px] h-12 px-10 bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] font-bold disabled:opacity-50"
+              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing}
+              className={`rounded-xl h-12 px-10 font-bold disabled:opacity-50 text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#DCD1BE]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
             >
               {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}
             </Button>
@@ -302,9 +363,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
           {addTagsOpen && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center p-6">
               <div className="absolute inset-0 bg-black/60 backdrop-blur-md rounded-[20px]" onClick={() => setAddTagsOpen(false)} />
-              <div className="relative bg-[#1A1A1A] w-full max-w-[400px] border border-white/20 rounded-[16px] p-6 shadow-2xl">
-                <h2 className="text-xl font-bold text-white mb-1">Add Tags</h2>
-                <p className="text-sm text-white/40 mb-4">Help people find your work</p>
+              <div className={`relative w-full max-w-[400px] border rounded-[16px] p-6 shadow-2xl ${isDark ? "bg-[#1A1A1A] border-white/20" : "bg-white border-black/10"}`}>
+                <h2 className={`text-xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>Add Tags</h2>
+                <p className={`text-sm mb-4 ${isDark ? "text-white/40" : "text-black/40"}`}>Help people find your work</p>
                 <input
                   autoFocus
                   placeholder="Type tag and press Enter..."
@@ -322,13 +383,22 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem }: FeaturedWorkModal
                 />
                 <div className="flex flex-wrap gap-2 mt-4 max-h-32 overflow-auto py-2">
                   {tags.map((t) => (
-                    <div key={t} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full flex items-center gap-2 text-xs text-white/80">
+                    <div
+                      key={t}
+                      className={`px-3 py-1 border rounded-full flex items-center gap-2 text-xs ${isDark ? "bg-white/5 border-white/10 text-white/80" : "bg-black/5 border-black/10 text-black/80"}`}
+                    >
                       {t} <X size={12} className="cursor-pointer" onClick={() => removeTag(t)} />
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-end gap-3 mt-6">
-                  <Button variant="ghost" onClick={() => setAddTagsOpen(false)} className="text-white hover:bg-white/5 h-10">Done</Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setAddTagsOpen(false)}
+                    className={`h-10 ${isDark ? "text-white hover:bg-white/5" : "text-black hover:bg-black/5"}`}
+                  >
+                    Done
+                  </Button>
                 </div>
               </div>
             </div>

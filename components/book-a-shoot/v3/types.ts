@@ -68,8 +68,6 @@ export type BookingDataV3 = {
   selectedStudios?: SelectedStudio[];
   selectedStudioImage?: string;
   selectedStudioName?: string;
-
-
   roleCounts?: {
     videographer?: number;
     photographer?: number;
@@ -83,7 +81,7 @@ export type BookingDataV3 = {
   email: string;
   phone: string;
   paymentMethod: 'card' | 'stripe';
-  
+
   // Budget (kept for compatibility)
   budgetMin: number;
   budgetMax: number;

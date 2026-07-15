@@ -100,13 +100,13 @@ export function LoginForm() {
       const loggedInEmail = String(user?.email || data.email || "").trim().toLowerCase()
 
       pushToDataLayer("login", {
-        custom_user_id: user?.id || null,
+        method: "email", // Added the official GA4 standard parameter
+        user_id: user?.id || null,
         email: data.email, // using form data
         user_type: userTypeName,
         page_name: "Login Page",
         location_in_website: "login_page",
         duration_on_page: performance.now() / 1000,
-        // Phone might be in the result object depending on your API
         phone: user?.phone || null,
       });
       // ---------------------------
@@ -193,13 +193,13 @@ export function LoginForm() {
           </div>
 
           <div className="relative space-y-1 lg:space-y-2">
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="password"
-                className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
-              >
-                Password
-              </Label>
+            <Label
+              htmlFor="password"
+              className="block text-sm font-medium text-[#A4A0A0] lg:absolute lg:-top-3 lg:left-4 lg:z-10 lg:px-2 lg:bg-[#101010] lg:text-white/60 lg:pointer-events-none"
+            >
+              Password
+            </Label>
+            <div className="flex items-center justify-end lg:hidden">
               <Link
                 href="/forgot-password"
                 onClick={() => {

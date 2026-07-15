@@ -21,6 +21,47 @@ const publicApi = axios.create({
   withCredentials: false,
 });
 
+export interface StudioCatalogListItem {
+  studio_id: number;
+  id: string;
+  slug: string | null;
+  name: string;
+  status: string;
+  location: string | null;
+  image: string | null;
+  priceLabel: string | null;
+  priceValue: number | null;
+  rating: number | null;
+  reviews: number | null;
+  propertyType: string | null;
+  description?: string | null;
+  size?: string | null;
+  beds?: number | null;
+  baths?: number | null;
+  poolType?: string | null;
+  minimumBookingHours?: number | null;
+  operatingHours?: string | null;
+  weeklySchedule?: string | null;
+  amenities?: string[];
+  rules?: string[];
+  highlights?: string[];
+  images?: string[];
+  tags: string[];
+  pricingMode: string | null;
+}
+
+export interface StudioCatalogResponse {
+  success: boolean;
+  data: StudioCatalogListItem[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
@@ -70,6 +111,23 @@ export const creatorApi = {
       reviews_count: reviewsCount,
       bio: rawCreator.bio,
     };
+  },
+};
+
+export const studioCatalogApi = {
+  list: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    booking_for?: string;
+  } = {}): Promise<StudioCatalogResponse> => {
+    const response = await publicApi.get('/studios/catalog', { params });
+    return response.data;
+  },
+  getBySlug: async (slug: string): Promise<StudioCatalogListItem> => {
+    const response = await publicApi.get(`/studios/catalog/${slug}`);
+    const payload = response.data;
+    return payload.data || payload;
   },
 };
 
@@ -605,6 +663,17 @@ export interface SalesQuoteConvertToBookingData {
   prefill_data?: unknown;
   booking_summary?: unknown;
   missing_required_fields?: string[];
+}
+
+export interface CreatorEarningsParams {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  range?: string;
+  date_on?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export type SalesQuoteConvertSingleDayPayload = {
@@ -1435,6 +1504,26 @@ export const EditPortfolioLink = async (crewFilesId: string | number, payload: {
   }
 };
 
+export const EditFeaturedWorkProject = async (payload: {
+  crew_member_id: number;
+  file_ids: Array<string | number>;
+  title: string;
+  tag?: string;
+}) => {
+  try {
+    const response = await api.post("creator/profile/edit-featured-work", payload);
+    return response;
+  } catch (error) {
+    console.error("Edit Featured Work Error:", error);
+    return {
+      data: {
+        error: true,
+        message: "Failed to edit featured work",
+      },
+    };
+  }
+};
+
 export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
@@ -1449,6 +1538,74 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
     };
   }
 };
+
+// ==================== Creator Earnings Dashboard ====================
+export const getCreatorEarningsDashboard = async () => {
+  try {
+    const response = await api.get(
+      "creator-earnings/me/dashboard"
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earnings Dashboard Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earnings dashboard",
+    };
+  }
+};
+
+// ==================== Creator Earnings List ====================
+export const getCreatorEarningsList = async (
+  queryParams: CreatorEarningsParams = {
+    page: 1,
+    limit: 10,
+    status: "all",
+    search: "",
+  }
+) => {
+  try {
+    const response = await api.get(
+      "creator-earnings/me/earnings",
+      {
+        params: queryParams,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earnings List Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earnings list",
+    };
+  }
+};
+
+// ==================== Creator Earning Details ====================
+export const getCreatorEarningDetails = async (
+  earningId: number
+) => {
+  try {
+    const response = await api.get(
+      `creator-earnings/me/earnings/${earningId}`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Get Creator Earning Details Error:", error);
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch creator earning details",
+    };
+  }
+};
+
+
 
 export const adminApi = {
   createInternalCredential: async (payload: {
@@ -1475,6 +1632,13 @@ export const adminApi = {
     start_date?: string;
     end_date?: string;
     date_on?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    history_status?: string;
+    date_from?: string;
+    date_to?: string;
   } = {}) => {
     try {
       const response = await api.get('finance/admin/credit-points/dashboard', {
@@ -1625,11 +1789,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes`,
@@ -1651,11 +1815,11 @@ export const adminApi = {
       const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-            const formData = new FormData();
-            formData.append('note', payload.note || '');
-            payload.attachments?.forEach((file) => formData.append('attachments', file));
-            return formData;
-          })()
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes/${noteId}/replies`,
@@ -1848,7 +2012,7 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string } = {}) => {
+  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
@@ -1940,11 +2104,13 @@ export const adminApi = {
   },
   getCrewMembers: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
     try {
-      const response = await api.post('admin/get-crew-members', {
-        page: params.page || 1,
-        limit: params.limit || 50,
-        search: params.search,
-        status: params.status,
+      const response = await api.get('admin/get-crew-members', {
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          search: params.search,
+          status: params.status,
+        },
       });
       return response.data;
     } catch (error: any) {
@@ -2109,7 +2275,12 @@ export const adminApi = {
       const response = await api.get('admin/dashboard-chart-data', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Dashboard Chart Data Error:', error.response?.data || error.message);
+      console.error('Get Dashboard Chart Data Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        params,
+      });
       return {
         success: false,
         data: null,
@@ -2130,7 +2301,7 @@ export const adminApi = {
       };
     }
   },
-  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string } = {}) => {
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-clients', { params });
       return response.data;
@@ -2200,6 +2371,37 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client details',
+      };
+    }
+  },
+
+  deleteClient: async (clientId: string | number) => {
+    try {
+      const response = await api.delete(`admin/delete-client/${clientId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete client',
+      };
+    }
+  },
+
+  restoreClient: async (clientId: string | number, reason = "Archived by mistake.", mode = "normal") => {
+    try {
+      const response = await api.post(`admin/restore-client/${clientId}`, {
+        reason,
+        mode,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Restore Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to restore client',
       };
     }
   },

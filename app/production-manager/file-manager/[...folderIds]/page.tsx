@@ -83,6 +83,7 @@ export default function ProductionManagerFolderDetailsPage() {
   const params = useParams<{ folderIds: string[] }>();
   const folderIds = params.folderIds || [];
   const [projectId, phaseSlug, nestedSlug] = folderIds;
+  const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [project, setProject] = useState<ProjectItem | null>(null);
   const [files, setFiles] = useState<ProjectFileItem[]>([]);
@@ -155,8 +156,8 @@ export default function ProductionManagerFolderDetailsPage() {
           ? "Pre Production"
           : nestedSlug === "raw-footage"
           ? "Raw Footages"
-          : nestedSlug === "edited-footage"
-          ? "Edited Footages"
+          : nestedSlug === "edits" || nestedSlug === "edited-footage"
+          ? "Edits"
           : nestedSlug === "final-deliverables"
           ? "Final Deliverables"
           : "Files",
@@ -310,7 +311,7 @@ export default function ProductionManagerFolderDetailsPage() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
                   {visibleFiles.map((file) => (
-                    <FileCard key={file.id} file={file} onMenuTrigger={() => {}} />
+                    <FileCard key={file.id} file={file} stage={fileCardStage} onMenuTrigger={() => {}} />
                   ))}
                 </div>
                 {hasMoreFiles && (

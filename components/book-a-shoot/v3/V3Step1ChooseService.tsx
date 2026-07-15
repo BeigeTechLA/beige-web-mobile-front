@@ -9,7 +9,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, MapPin } from "lucide-react";
+import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, MapPin, Search } from "lucide-react";
 import {
   newshootTypes,
   videoShootTypes,
@@ -36,6 +36,13 @@ import {
   behindScenesPhotoEditTypes,
 } from "@/app/data/shootData";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { parseDate } from "@/src/components/landing/lib/utils";
 import DatePicker from "@/components/ui/Datepicker";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
@@ -43,8 +50,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
 import { getFormattedDateString } from "@/lib/utils";
-import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE } from "./utils";
+import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE, scrollToRef } from "./utils";
 import { Input } from "@/components/ui/input";
+import StudioCard from "./components/StudioCard";
+import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 
 interface Props {
   data: BookingDataV3;
@@ -116,6 +125,20 @@ const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
   return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
 };
 
+const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
+
+const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
+  slug: studio.slug || studio.id,
+  image: studio.image || "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  name: studio.name,
+  description: studio.propertyType ? `(${studio.propertyType})` : "",
+  location: studio.location || PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || 0,
+  rating: Number(studio.rating || 5),
+  reviews: studio.reviews || 0,
+  tags: studio.tags?.length ? studio.tags : ["Studio", "Available"],
+});
+
 export const V3Step1ChooseService: React.FC<Props> = ({
   data,
   updateData,
@@ -123,6 +146,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   onBack,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const autoFilledEmailRef = useRef<string | null>(null);
 
   const [errors, setErrors] = useState<string[]>([])
 
@@ -152,6 +176,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<string>("");
+
   const reelRef = useRef<HTMLDivElement>(null);
   const selectedDateCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dateChipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -163,13 +190,57 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const dragStartScrollLeft = useRef(0);
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
   const hasHydratedMultiDayState = useRef(false);
+  const studiosRef = useRef<HTMLDivElement>(null);
+  const crewCountRef = useRef<HTMLDivElement>(null);
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const isAllVisible = visibleCount >= availableShootTypes.length;
 
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(data.bookingFor || "");
+  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadStudios = async () => {
+      setStudioLoading(true);
+      try {
+        const bookingForParam =
+          bookingFor === "production"
+            ? "productions"
+            : bookingFor === "audio"
+              ? "audio"
+              : bookingFor === "event"
+                ? "event"
+                : undefined;
+
+        const response = await studioCatalogApi.list({
+          page: 1,
+          limit: visibleCount,
+          search: searchQuery.trim() || undefined,
+          booking_for: bookingForParam,
+        });
+
+        if (!isActive) return;
+        setStudioData((response.data || []).map(mapCatalogStudio));
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load studio catalog:", error);
+        setStudioData([]);
+      } finally {
+        if (isActive) setStudioLoading(false);
+      }
+    };
+
+    loadStudios();
+
+    return () => {
+      isActive = false;
+    };
+  }, [bookingFor, searchQuery, visibleCount]);
 
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
@@ -302,9 +373,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   };
 
-  // Auto-fill email if user is logged in
+  // Auto-fill once per signed-in account, then let the user freely edit or clear it.
   useEffect(() => {
-    if (isAuthenticated && user?.email && !data.email) {
+    if (!isAuthenticated || !user?.email) {
+      autoFilledEmailRef.current = null;
+      return;
+    }
+
+    if (autoFilledEmailRef.current !== user.email && !data.email) {
+      autoFilledEmailRef.current = user.email;
       updateData({ email: user.email });
     }
   }, [isAuthenticated, user?.email, data.email, updateData]);
@@ -964,6 +1041,9 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         photoEditTypes: filteredPhoto,
       });
     }
+
+    console.log(data.contentType);
+
   }, [data.shootType, data.contentType]);
 
   // Clear errors when data changes
@@ -1058,8 +1138,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       setErrors((prev) => [...prev, "contentError"]);
       return false;
     }
-    // if (!data.shootType) {
-    if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === "") {
+
+    if (!data.contentType.includes("studio") && (data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.shootType === "") {
       toast.error("Please select a video/photo shoot type");
       setErrors((prev) => [...prev, "shootTypeError"]);
 
@@ -1124,7 +1204,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }
     }
     // if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.editsNeeded) 
-    const requiresEditSelection = data.editsNeeded || isEditingOnly;
+    const requiresEditSelection = !data.contentType.includes("studio") && (data.editsNeeded || isEditingOnly);
     if (requiresEditSelection) {
       const needsVideoEdit = data.contentType.includes("videographer")
       const needsPhotoEdit = data.contentType.includes("photographer");
@@ -1176,23 +1256,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     // } catch (err) {
     //   toast.error("Failed to start booking. Please try again.");
     // }
-  };
-
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
-    setTimeout(() => {
-      if (ref && ref.current) {
-        const navOffset = 100;
-
-        // Calculate absolute position relative to the entire document
-        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
-        const offsetPosition = elementPosition - navOffset;
-
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth",
-        });
-      }
-    }, 100);
   };
 
   return (
@@ -1299,6 +1362,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             disabled={true}
           />
         </div>
+
+        {(data.contentType.length > 1 && data.contentType.includes("studio")) && (
+          <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
+            <p className="text-xs lg:text-sm">
+              Note : Videography Service will be available in the next step
+            </p>
+          </div>
+        )}
       </div>
 
       {data.contentType.length > 0 && (
@@ -1425,6 +1496,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             </div>
           )}
 
+          {/* Studios Journey 2 */}
           {(data.contentType.length === 1 && data.contentType.includes("studio")) && (
             <>
               {/* Contact Details */}
@@ -1503,6 +1575,115 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                       className={`w-full h-[82px] lg:h-[262px] bg-transparent border border-[#FFFFFF4D] rounded-xl p-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
                     />
                   </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Studios: Journey 3 */}
+          {(data.contentType.length > 1 && data.contentType.includes("studio")) && (
+            <>
+              <div ref={bookingTypeRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
+                  What type of studio do you need?
+                </h3>
+
+                <div className="flex-1">
+                  <DropdownSelect
+                    title="Booking For"
+                    options={STUDIO_BOOKING_TYPES}
+                    value={bookingFor}
+                    onChange={setBookingFor}
+                    bgColour="bg-[#101010]"
+                  />
+                </div>
+
+                <div className="mt-3 lg:mt-6 bg-[#211F1C] px-4 lg:px-7 py-3.5 rounded-lg lg:rounded-xl text-[#E8D1AB] w-fit ">
+                  <p className="text-xs lg:text-sm">
+                    Note : Studios are shown based on your selected category. Pricing, availability, and rules may vary.
+                  </p>
+                </div>
+              </div>
+
+              {/* Studio Listings */}
+              <div ref={studiosRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">
+                  {studioLoading ? "Loading studios..." : `${studioData.length} Studio Available Based on Categories`}
+                </p>
+                <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
+                  {/* Search field */}
+                  <div className="relative flex-1 min-w-[240px]">
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 text-[#BEBEBE]`} size={24} />
+                    <input
+                      type="text"
+                      placeholder="Search ..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors bg-[#202020] border-[#FFFFFF33] text-[#BEBEBE]}`} />
+                  </div>
+                  <Select
+                    value={sortBy}
+                    onValueChange={(v) => setSortBy(v)}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-12 text-sm focus:ring-0 capitalize bg-[#202020] border-[#FFFFFF33] text-white`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className={`bg-[#202020] border-[#FFFFFF33]`}>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="production">Production</SelectItem>
+                      <SelectItem value="events">Events</SelectItem>
+                      <SelectItem value="audios">Audios</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
+                  {studioData.slice(0, visibleCount).map((studio, index) => (
+                    <StudioCard key={index} {...studio} />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setVisibleCount((prev) => prev + 6)}
+                  className="bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg"
+                >
+                  <span className="text-lg lg:text-xl pl-7">View More</span>
+                  <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="26"
+                      height="32"
+                      viewBox="0 0 32 26"
+                      fill="none"
+                    >
+                      <path
+                        d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
+                        fill="#1D1D1B"
+                      />
+                    </svg>
+                  </div>
+                </button>
+              </div>
+
+              {/* Crew Count */}
+              <div ref={crewCountRef} className="pt-6 lg:pt-15 border-t border-white/10">
+                <div className="relative">
+                  <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                    <span className={`text-sm font-medium `}>No of Cast & Crew</span>
+                  </div>
+                  <Input
+                    value={data.crewCount}
+                    onChange={(e) => updateData({ crewCount: parseInt(e.target.value) })}
+                    className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                  />
+                </div>
+                <div className="relative mt-9">
+                  <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
+                    <span className={`text-sm font-medium `}>Shoot Type</span>
+                  </div>
+                  <Input
+                    value={data.shootType}
+                    onChange={(e) => updateData({ shootType: e.target.value })}
+                    className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+                  />
                 </div>
               </div>
             </>

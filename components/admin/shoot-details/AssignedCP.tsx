@@ -31,6 +31,7 @@ interface AssignedCPProps {
   projectId: string;
   leadId?: string | number;
   assignedCrew?: CrewAssignment[];
+  cpCompensationStatus?: string | null;
   onRequestAssignment?: (continueAction: () => void) => void;
 }
 
@@ -54,7 +55,12 @@ interface CrewAssignment {
   crew_member?: CrewMemberProfile;
 }
 
-export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssignment }: AssignedCPProps) {
+export default function AssignedCP({
+  projectId,
+  assignedCrew = [],
+  cpCompensationStatus,
+  onRequestAssignment
+}: AssignedCPProps) {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -73,8 +79,14 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
   }, [assignedCrew]);
 
   const hasCPs = crewMembers.length > 0;
+  const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
 
   const handleOpenAssignment = () => {
+    if (isCompensationApproved) {
+      toast.error("CP compensation is approved for this shoot. Adding more CPs is locked.");
+      return;
+    }
+
     const goToAddCreatives = () => router.push(`/admin/shoots/${projectId}/add-creatives`);
     if (onRequestAssignment) {
       onRequestAssignment(goToAddCreatives);
@@ -211,7 +223,8 @@ export default function AssignedCP({ projectId, assignedCrew = [], onRequestAssi
               <div className="flex flex-col lg:flex-row gap-4">
                 <Button
                   onClick={handleOpenAssignment}
-                  className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black"
+                  disabled={isCompensationApproved}
+                  className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus /> Add More CPs
                 </Button>

@@ -4,17 +4,20 @@ import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "re
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { 
-  AlertCircle, 
   CheckCircle2, 
   ChevronLeft, 
   ChevronRight, 
   ChevronDown,
   ChevronUp,
+  FileText,
   X,
   Calendar,
   Check,
   Loader2,
 } from "lucide-react";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+import yellowAnimation from "@/public/animations/Yellow.json";
 import { LocationPicker, darkThemeColors as mapColors } from "@/src/components/booking/v2/component/LocationPicker";
 import DatePicker from "@/components/ui/Datepicker";
 import { adminApi } from "@/lib/api";
@@ -438,6 +441,7 @@ export const MissingFieldsModal = ({
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const [isDateLocationModalOpen, setIsDateLocationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isReminderSending, setIsReminderSending] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -580,6 +584,7 @@ export const MissingFieldsModal = ({
 
     return Array.from(new Set(labels));
   }, [fields]);
+  const missingFieldsAnimation = missingFieldLabels.length >= 3 ? redAnimation : yellowAnimation;
 
   useEffect(() => {
     setLocation("");
@@ -597,6 +602,7 @@ export const MissingFieldsModal = ({
     setIsSaving(false);
     setIsReminderSending(false);
     setCurrentCalendarMonth(new Date());
+    setIsDateLocationModalOpen(false);
   }, [isOpen]);
 
   useEffect(() => {
@@ -817,7 +823,7 @@ export const MissingFieldsModal = ({
   const needsLocation = normalizedFields.includes("location");
   const needsDate = normalizedFields.includes("date");
   const needsOnboardingForm = normalizedFields.includes("onboarding_form");
-  const showOnboardingOnlyActions = needsOnboardingForm && !needsLocation && !needsDate;
+  const showDateLocationDetails = isDateLocationModalOpen && (needsLocation || needsDate);
 
   const handleFillManually = () => {
     const normalizedShootId = String(shootId || "").replace(/^#/, "").trim();
@@ -828,6 +834,20 @@ export const MissingFieldsModal = ({
 
     onClose();
     router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
+  };
+
+  const handlePrimaryCompleteNow = () => {
+    if (needsOnboardingForm) {
+      handleFillManually();
+      return;
+    }
+
+    if (needsLocation || needsDate) {
+      setIsDateLocationModalOpen(true);
+      return;
+    }
+
+    onClose();
   };
 
   const handleRemindOnboardingForm = async () => {
@@ -867,6 +887,7 @@ export const MissingFieldsModal = ({
   if (!isOpen) return null;
   const hasMissingFields = fields.length > 0;
   return (
+    <>
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className={`relative w-full max-w-4xl max-h-[94vh] min-h-0 flex flex-col overflow-y-auto overflow-x-hidden rounded-[28px] border shadow-2xl ${isDark ? "bg-[#171717] border-white/10 text-white" : "bg-white border-[#E5E7EB] text-black"}`}>
         {isSaving ? (
@@ -887,30 +908,45 @@ export const MissingFieldsModal = ({
         <div className="shrink-0 px-5 pt-5 pb-0 lg:px-6 lg:pt-6">
           <div className="pr-8 lg:pr-10">
             <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-              Complete Shoot Details
+              Complete Missing Shoot Details
             </h2>
             <p className={`mt-2 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
-              Provide the following missing information to continue.
+              The following information is required before you can continue.
             </p>
           </div>
 
           <div className={`mt-4 rounded-2xl border p-4 lg:p-5 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/5 bg-[#F9FAFB]"}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1">
-                <p className={`text-xs font-bold uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                  Missing Fields
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#2A2210]" : "bg-[#F6EDD8]"}`}>
+                    <div className="h-7 w-7">
+                      <Lottie animationData={missingFieldsAnimation} loop />
+                    </div>
+                  </div>
+                  <p className={`text-sm font-medium ${isDark ? "text-white/90" : "text-black/80"}`}>
+                    Missing Information
+                  </p>
                   {missingFieldLabels.length > 0 ? (
-                    missingFieldLabels.map((label) => (
-                      <span
-                        key={label}
-                        className="inline-flex items-center gap-2 rounded-full bg-[#E8D1AB] px-3 py-1 text-xs font-bold text-black"
-                      >
-                        <AlertCircle size={12} />
-                        {label}
-                      </span>
-                    ))
+                    missingFieldLabels.map((label) => {
+                      const isHighPriority = /date|location/i.test(label);
+                      return (
+                        <span
+                          key={label}
+                          className={`inline-flex items-center rounded-xl border px-5 py-2 text-sm font-medium shadow-sm transition-colors ${
+                            isDark
+                              ? isHighPriority
+                                ? "border-[#2F281A] bg-[#211D16] text-[#E8D1AB]"
+                                : "border-[#2F281A] bg-[#201C15] text-[#E8D1AB]/90"
+                              : isHighPriority
+                                ? "border-[#E7D4A7] bg-[#F6EAD0] text-[#8C6A00]"
+                                : "border-[#E7D4A7] bg-[#FAF1DC] text-[#8C6A00]"
+                          }`}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })
                   ) : (
                     <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${isDark ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-50 text-emerald-700"}`}>
                       <CheckCircle2 size={12} />
@@ -922,27 +958,34 @@ export const MissingFieldsModal = ({
             </div>
 
             {needsOnboardingForm ? (
-              <div className={`mt-4 rounded-2xl border p-4 ${isDark ? "border-white/10 bg-black/20" : "border-black/5 bg-white"}`}>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className={`text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding form is missing</p>
-                    <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
-                      You can complete it manually now or send a reminder email later.
-                    </p>
+              <div className={`mt-4 overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#171717]" : "border-black/5 bg-white"}`}>
+                <div className="p-4 lg:p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#3A3533]" : "bg-[#F0EBE0]"}`}>
+                      <FileText size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm lg:text-base font-bold ${isDark ? "text-white" : "text-black"}`}>Onboarding Form Required</p>
+                      <p className={`mt-1 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        The client has not completed the onboarding form yet. You can complete it on their behalf or send a reminder on email.
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                </div>
+                <div className={`border-t px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-white/10" : "border-black/5"}`}>
+                  <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                       type="button"
                       onClick={handleFillManually}
-                      className="inline-flex items-center justify-center rounded-xl bg-[#E8D1AB] px-4 py-2.5 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f]"
+                      className="inline-flex min-w-[150px] items-center justify-center rounded-xl bg-[#E8D1AB] px-4 py-3 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f]"
                     >
-                      Fill Manually
+                      Complete Now
                     </button>
                     <button
                       type="button"
                       onClick={handleRemindOnboardingForm}
                       disabled={isReminderSending}
-                      className={`inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-bold transition-colors ${
+                      className={`inline-flex min-w-[240px] items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
                         isDark
                           ? "border-white/10 bg-white/5 text-white hover:bg-white/10"
                           : "border-black/10 bg-black/[0.03] text-black hover:bg-black/[0.06]"
@@ -954,18 +997,97 @@ export const MissingFieldsModal = ({
                           Sending...
                         </span>
                       ) : (
-                        "Remind Onboarding Form"
+                        "Send Reminder Email"
                       )}
                     </button>
                   </div>
                 </div>
               </div>
             ) : null}
+
+            {(needsLocation || needsDate) ? (
+              <button
+                type="button"
+                onClick={() => setIsDateLocationModalOpen(true)}
+                className={`mt-4 w-full overflow-hidden rounded-2xl border text-left transition-all hover:shadow-lg ${isDark ? "border-white/10 bg-[#171717] hover:bg-[#1B1B1B]" : "border-black/5 bg-white hover:bg-[#FAFAFA]"}`}
+              >
+                <div className="p-4 lg:p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#3A3533]" : "bg-[#F0EBE0]"}`}>
+                      <Calendar size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#7A5A1E]"} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm lg:text-base font-bold ${isDark ? "text-white" : "text-black"}`}>
+                        Date & Location Missing from Booking
+                      </p>
+                      <p className={`mt-1 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        Date and location required for booking. Please add and continue booking.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`border-t px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-white/10" : "border-black/5"}`}>
+                  <div className="inline-flex rounded-xl bg-[#E8D1AB] px-5 py-3 text-sm font-bold text-black">
+                    Proceed
+                  </div>
+                </div>
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="px-5 pb-5 pt-4 lg:px-6 lg:pb-6 overflow-visible">
-          <div className="space-y-8 pb-6">
+        <div className={`shrink-0 border-t px-5 py-4 lg:px-6 lg:py-4 ${isDark ? "border-white/10" : "border-black/5"}`}>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving || isReminderSending}
+              className={`flex h-12 min-w-[140px] items-center justify-center rounded-xl border px-6 text-sm font-semibold transition-colors ${
+                isDark
+                  ? "border-white/10 bg-[#262626] text-white hover:bg-[#2F2F2F]"
+                  : "border-black/10 bg-white text-black hover:bg-black/[0.04]"
+              } ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrimaryCompleteNow}
+              disabled={isSaving || isReminderSending || !hasMissingFields}
+              className={`flex h-12 min-w-[160px] items-center justify-center rounded-xl bg-[#E8D1AB] px-6 text-sm font-bold text-black transition-colors hover:bg-[#ddc79f] ${
+                (isSaving || isReminderSending || !hasMissingFields) ? "cursor-not-allowed opacity-50" : ""
+              }`}
+            >
+              Complete Now
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+      <div className={showDateLocationDetails ? "fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" : "hidden"}>
+          <div className={`relative w-full max-w-4xl max-h-[94vh] min-h-0 flex flex-col overflow-y-auto overflow-x-hidden rounded-[28px] border shadow-2xl ${isDark ? "bg-[#171717] border-white/10 text-white" : "bg-white border-[#E5E7EB] text-black"}`}>
+            <button
+              onClick={() => setIsDateLocationModalOpen(false)}
+              className={`absolute right-4 top-4 z-10 rounded-full p-2 transition-all ${isDark ? "text-white/40 hover:bg-white/10 hover:text-white" : "text-black/40 hover:bg-black/5 hover:text-black"} ${isSaving ? "pointer-events-none opacity-40" : ""}`}
+            >
+              <X size={20} />
+            </button>
+
+            <div className="shrink-0 px-5 pt-5 pb-0 lg:px-6 lg:pt-6">
+              <div className="pr-8 lg:pr-10">
+                <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                  Complete Missing Shoot Details
+                </h2>
+                <p className={`mt-2 text-sm lg:text-base ${isDark ? "text-white/55" : "text-black/55"}`}>
+                  The following information is required before you can continue.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-4 lg:px-6 lg:pb-6 overflow-visible">
+              <div className="space-y-8 pb-6">
             {fields.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <CheckCircle2 size={64} className="text-green-500 mb-4 opacity-80" />
@@ -1231,60 +1353,38 @@ export const MissingFieldsModal = ({
               {saveError}
             </div>
           ) : null}
-          {showOnboardingOnlyActions ? (
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <button
-                onClick={onClose}
-                disabled={isSaving || isReminderSending}
-                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
-              >
-                Close
-              </button>
-              <button
-                onClick={handleFillManually}
-                disabled={isSaving || isReminderSending}
-                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
-                  isDark
-                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
-                    : "bg-black text-white hover:bg-black/90 shadow-xl"
-                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
-              >
-                Fill Manually
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <button
-                onClick={onClose}
-                disabled={isSaving || isReminderSending}
-                className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={hasMissingFields ? handleSave : onClose}
-                disabled={isSaving || isReminderSending}
-                className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
-                  isDark
-                    ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
-                    : "bg-black text-white hover:bg-black/90 shadow-xl"
-                } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
-              >
-                {hasMissingFields
-                  ? isSaving
-                    ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 size={16} className="animate-spin" />
-                        Saving...
-                      </span>
-                    )
-                    : "Save Changes"
-                  : "Close"}
-              </button>
-            </div>
-          )}
+          <div className="flex flex-col sm:flex-row gap-3 justify-end">
+            <button
+              onClick={() => setIsDateLocationModalOpen(false)}
+              disabled={isSaving || isReminderSending}
+              className={`px-6 py-3.5 rounded-2xl font-bold transition-all ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"} ${(isSaving || isReminderSending) ? "cursor-not-allowed opacity-50" : ""}`}
+            >
+              Back
+            </button>
+            <button
+              onClick={hasMissingFields ? handleSave : () => setIsDateLocationModalOpen(false)}
+              disabled={isSaving || isReminderSending}
+              className={`px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all min-w-[180px] ${
+                isDark
+                  ? "bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgb(255,255,255,0.2)]"
+                  : "bg-black text-white hover:bg-black/90 shadow-xl"
+              } ${(isSaving || isReminderSending) ? "opacity-70 cursor-not-allowed" : ""}`}
+            >
+              {hasMissingFields
+                ? isSaving
+                  ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </span>
+                  )
+                  : "Save Changes"
+                : "Close"}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
