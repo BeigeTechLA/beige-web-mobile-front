@@ -603,7 +603,7 @@ setPastShoots([]);
             ) : (
               <LinkIcon size={16} />
             )}
-            <span>{isGeneratingLink ? "Generating..." : "Generate Link"}</span>
+            <span>{isGeneratingLink ? "Generating..." : "Copy Profile Link"}</span>
           </button>
         </div>
       )}
