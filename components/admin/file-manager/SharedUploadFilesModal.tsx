@@ -39,6 +39,31 @@ const chunkArray = <T,>(items: T[], size: number) => {
   return chunks;
 };
 
+const cleanSharedPath = (value?: string) =>
+  String(value || "")
+    .replace(/^Website_Shoots_Flow\//, "")
+    .replace(/^shoots\//, "")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+
+const normalizeFolderSegment = (value?: string) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const canonicalizeWorkflowPath = (value?: string) =>
+  cleanSharedPath(value)
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      const normalized = normalizeFolderSegment(segment);
+      if (normalized === "preproduction") return "Pre-Production";
+      if (normalized === "postproduction") return "Post-Production";
+      return segment;
+    })
+    .join("/");
+
 export default function SharedUploadFilesModal({
   isOpen,
   onClose,
@@ -164,7 +189,7 @@ export default function SharedUploadFilesModal({
   };
 
   const getUploadFilepath = (fileName: string) => {
-    const cleanBasePath = String(uploadPath || "").replace(/^\/+|\/+$/g, "");
+    const cleanBasePath = canonicalizeWorkflowPath(uploadPath);
     if (!cleanBasePath) return undefined;
     return `${cleanBasePath}/${fileName}`;
   };
@@ -232,11 +257,19 @@ export default function SharedUploadFilesModal({
       for (let index = 0; index < policyChunks.length; index += 1) {
         if (cancelUploadRef.current) break;
         const chunk = policyChunks[index];
+        const chunkHasExplicitFilepaths = chunk.every((item) => !!item.filepath);
         setStatusMessage(`Preparing upload links ${index + 1}/${policyChunks.length}...`);
         const response = await fileManagerApi.getSharedUploadPoliciesBatch(shareToken, accessToken, {
-          phase,
-          path,
-          items: chunk.map(({ fileName, filepath, fileContentType, fileSize }) => ({ fileName, filepath, fileContentType, fileSize, phase, path })),
+          phase: chunkHasExplicitFilepaths ? undefined : phase,
+          path: chunkHasExplicitFilepaths ? undefined : path,
+          items: chunk.map(({ fileName, filepath, fileContentType, fileSize }) => ({
+            fileName,
+            filepath,
+            fileContentType,
+            fileSize,
+            phase: filepath ? undefined : phase,
+            path: filepath ? undefined : path,
+          })),
         });
         const batchItems = Array.isArray(response?.data?.items) ? response.data.items : [];
         batchItems.forEach((item: { success?: boolean; filepath?: string; data?: { url?: string; fields?: Record<string, string>; filepath?: string } }) => {
