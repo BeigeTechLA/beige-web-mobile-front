@@ -12,6 +12,7 @@ interface SharedUploadFilesModalProps {
   folderName: string;
   phase?: string;
   path?: string;
+  uploadPath?: string;
   onUploadComplete?: () => Promise<void> | void;
 }
 
@@ -46,6 +47,7 @@ export default function SharedUploadFilesModal({
   folderName,
   phase,
   path,
+  uploadPath,
   onUploadComplete,
 }: SharedUploadFilesModalProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -161,6 +163,12 @@ export default function SharedUploadFilesModal({
     }
   };
 
+  const getUploadFilepath = (fileName: string) => {
+    const cleanBasePath = String(uploadPath || "").replace(/^\/+|\/+$/g, "");
+    if (!cleanBasePath) return undefined;
+    return `${cleanBasePath}/${fileName}`;
+  };
+
   const removeFile = (id: string) => {
     if (isUploading) return;
     setSelectedFiles((prev) => {
@@ -213,6 +221,7 @@ export default function SharedUploadFilesModal({
       const policyRequests = filesToUpload.map((item) => ({
         id: item.id,
         fileName: item.file.name,
+        filepath: getUploadFilepath(item.file.name),
         fileContentType: item.file.type || "application/octet-stream",
         fileSize: item.file.size,
         phase,
@@ -227,7 +236,7 @@ export default function SharedUploadFilesModal({
         const response = await fileManagerApi.getSharedUploadPoliciesBatch(shareToken, accessToken, {
           phase,
           path,
-          items: chunk.map(({ fileName, fileContentType, fileSize }) => ({ fileName, fileContentType, fileSize, phase, path })),
+          items: chunk.map(({ fileName, filepath, fileContentType, fileSize }) => ({ fileName, filepath, fileContentType, fileSize, phase, path })),
         });
         const batchItems = Array.isArray(response?.data?.items) ? response.data.items : [];
         batchItems.forEach((item: { success?: boolean; filepath?: string; data?: { url?: string; fields?: Record<string, string>; filepath?: string } }) => {

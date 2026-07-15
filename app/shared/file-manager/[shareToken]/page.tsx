@@ -35,6 +35,9 @@ type SharedContent = {
   type?: "file" | "folder" | "workspace";
   phase?: string;
   path?: string;
+  basePath?: string;
+  fullPath?: string;
+  rootPath?: string;
   folders?: SharedFolder[];
   files?: SharedFile[];
   file?: SharedFile;
@@ -44,6 +47,25 @@ type SharedContent = {
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+
+const cleanSharedPath = (value?: string) =>
+  String(value || "")
+    .replace(/^Website_Shoots_Flow\//, "")
+    .replace(/^shoots\//, "")
+    .replace(/^\/+|\/+$/g, "")
+    .trim();
+
+const canonicalizeWorkflowPath = (value?: string) =>
+  cleanSharedPath(value)
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      const normalized = normalizeFolderSegment(segment);
+      if (normalized === "preproduction") return "Pre-Production";
+      if (normalized === "postproduction") return "Post-Production";
+      return segment;
+    })
+    .join("/");
 
 const isSharedResourceUnavailable = (error: unknown) => {
   const sharedError = error as SharedPageError;
@@ -211,6 +233,7 @@ export default function SharedFileManagerPage() {
   const [resendTimer, setResendTimer] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<string | undefined>(undefined);
   const [currentPath, setCurrentPath] = useState<string | undefined>(undefined);
+  const [currentUploadPath, setCurrentUploadPath] = useState<string | undefined>(undefined);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; contentType?: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -259,13 +282,33 @@ export default function SharedFileManagerPage() {
   return () => clearInterval(interval);
 }, [resendTimer]);
 
-  const loadContent = async (token: string, options?: { phase?: string; path?: string }) => {
+  const resolveUploadPathFromPayload = (payload: SharedContent | null, fallback?: string) =>
+    canonicalizeWorkflowPath(
+      fallback ||
+      payload?.basePath ||
+      payload?.fullPath ||
+      payload?.rootPath ||
+      ""
+    ) || undefined;
+
+  const getUploadPathForRelativePath = (relativePath?: string) => {
+    const cleanRelativePath = cleanSharedPath(relativePath);
+    const cleanCurrentPath = cleanSharedPath(currentPath);
+    const cleanCurrentUploadPath = cleanSharedPath(currentUploadPath);
+    if (!cleanRelativePath || !cleanCurrentPath || !cleanCurrentUploadPath) return undefined;
+    if (!cleanCurrentUploadPath.endsWith(cleanCurrentPath)) return undefined;
+    const prefix = cleanCurrentUploadPath.slice(0, cleanCurrentUploadPath.length - cleanCurrentPath.length).replace(/\/+$/g, "");
+    return canonicalizeWorkflowPath([prefix, cleanRelativePath].filter(Boolean).join("/")) || undefined;
+  };
+
+  const loadContent = async (token: string, options?: { phase?: string; path?: string; uploadPath?: string }) => {
     const response = await fileManagerApi.getSharedContent(shareToken, token, options);
     const payload = response?.data || null;
     setContent(payload);
     if (payload?.permission) setAccessPermission(payload.permission);
     setCurrentPhase(payload?.phase || options?.phase);
     setCurrentPath(payload?.path || options?.path);
+    setCurrentUploadPath(resolveUploadPathFromPayload(payload, options?.uploadPath));
     setSelectedFilePaths([]);
   };
 
@@ -459,7 +502,8 @@ export default function SharedFileManagerPage() {
       }
 
       const nextPath = currentPath ? `${currentPath}/${folderName}` : folderName;
-      await loadContent(accessToken, { phase: currentPhase, path: nextPath });
+      const nextUploadPath = canonicalizeWorkflowPath(folder.path) || undefined;
+      await loadContent(accessToken, { phase: currentPhase, path: nextPath, uploadPath: nextUploadPath });
     } catch (error: unknown) {
       if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open folder"));
     }
@@ -472,7 +516,11 @@ export default function SharedFileManagerPage() {
         await loadContent(accessToken);
         return;
       }
-      await loadContent(accessToken, { phase: crumb.phase, path: crumb.path });
+      await loadContent(accessToken, {
+        phase: crumb.phase,
+        path: crumb.path,
+        uploadPath: getUploadPathForRelativePath(crumb.path),
+      });
     } catch (error: unknown) {
       if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open location"));
     }
@@ -983,7 +1031,8 @@ export default function SharedFileManagerPage() {
           folderName={breadcrumbs[breadcrumbs.length - 1]?.label || "Shared folder"}
           phase={currentPhase}
           path={currentPath}
-          onUploadComplete={() => loadContent(accessToken, { phase: currentPhase, path: currentPath })}
+          uploadPath={currentUploadPath}
+          onUploadComplete={() => loadContent(accessToken, { phase: currentPhase, path: currentPath, uploadPath: currentUploadPath })}
         />
 
       <AnimatePresence>

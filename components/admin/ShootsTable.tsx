@@ -1843,12 +1843,12 @@ export const ShootsTable = ({
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
               {/* Pagination Entries Info */}
-              <div className={`hidden lg:block text-sm truncate max-w-xs shrink ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+              <div className={`hidden lg:block shrink-0 whitespace-nowrap text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
                 {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
               </div>
 
               {/* Pagination Controls Wrapper */}
-              <div className="flex gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+              <div className="flex gap-2 items-center justify-center sm:justify-end w-full sm:w-auto max-w-full min-w-0 overflow-hidden">
 
                 {/* Previous Button: Text on desktop, Icon on mobile */}
                 <button

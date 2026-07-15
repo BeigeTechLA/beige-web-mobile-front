@@ -1244,6 +1244,7 @@ export const fileManagerApi = {
     payload: {
       items: Array<{
         fileName: string;
+        filepath?: string;
         fileContentType: string;
         fileSize: number;
         phase?: string;
