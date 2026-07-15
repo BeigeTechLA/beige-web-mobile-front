@@ -9,6 +9,9 @@ import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type CpCompensationDetails, type CpPaymentHistoryItem } from "@/lib/api/cpCompensation";
 import { formatCurrency } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { getFirstAllowedAdminPath } from "@/lib/permissions";
 
 type HistoryEntry = {
   id: string;
@@ -111,6 +114,8 @@ export default function CpCompensationHistoryPage() {
   const pathname = usePathname();
   const params = useParams<{ bookingId?: string | string[] }>();
   const { isDark } = useResolvedTheme();
+  const { canView, isLoading: isPermissionLoading } = usePermissions("finances");
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const bookingId = useMemo(() => {
     const raw = params?.bookingId;
@@ -125,6 +130,8 @@ export default function CpCompensationHistoryPage() {
   const hasInitializedExpandedGroup = useRef(false);
 
   useEffect(() => {
+    if (!canView) return;
+
     if (!Number.isFinite(numericBookingId) || numericBookingId <= 0) {
       setLoading(false);
       toast.error("Invalid booking ID for payment history.");
@@ -157,7 +164,16 @@ export default function CpCompensationHistoryPage() {
     return () => {
       active = false;
     };
-  }, [numericBookingId]);
+  }, [canView, numericBookingId]);
+
+  useEffect(() => {
+    if (isPermissionLoading || canView) return;
+
+    const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
+    if (fallbackPath && fallbackPath !== pathname) {
+      router.replace(fallbackPath);
+    }
+  }, [canView, isPermissionLoading, pathname, permissions, router]);
 
   const creatorHistoryGroups = useMemo<CreatorHistoryGroup[]>(() => {
     return (details?.creators || []).map((creator) => {
@@ -242,6 +258,10 @@ export default function CpCompensationHistoryPage() {
       value: String(details?.creators?.length || 0),
     },
   ];
+
+  if (isPermissionLoading) {
+    return null;
+  }
 
   return (
     <>

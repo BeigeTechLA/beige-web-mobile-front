@@ -136,6 +136,7 @@ const DASHBOARD_FALLBACK_PATHS = [
   "/admin/invoice",
   "/admin/roles-permissions",
   "/admin/finances/transactions",
+  "/admin/finances/cpCompensation",
   "/admin/users/all",
   "/admin/quotes",
 ];
