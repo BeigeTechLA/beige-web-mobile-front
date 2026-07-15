@@ -9,7 +9,6 @@ import { SortDateButton } from "@/components/admin/SortDateButton"; // Re-added 
 import {
     format,
     startOfDay,
-    subDays,
 } from "date-fns";
 import { Button } from "@/components/ui/button"; 
 import DatePicker from "@/components/ui/Datepicker";
@@ -112,10 +111,10 @@ export const ClientsTable = () => {
     const [isExporting, setIsExporting] = useState(false);
 
     const [exportStartDate, setExportStartDate] =
-        useState<Date | null>(subDays(new Date(), 30));
+        useState<Date | null>(null);
 
     const [exportEndDate, setExportEndDate] =
-        useState<Date | null>(new Date());
+        useState<Date | null>(null);
 
     // --- DATE FILTER STATES ---
     const [range, setRange] = useState<string>("all");
@@ -339,44 +338,22 @@ export const ClientsTable = () => {
         const handleExportClients = async () => {
         if (isExporting) return;
 
-        if (!exportStartDate || !exportEndDate) {
-            toast.error("Please select start and end dates.");
-            return;
-        }
-
-        const normalizedStartDate = startOfDay(exportStartDate);
-        const normalizedEndDate = startOfDay(exportEndDate);
-        const today = startOfDay(new Date());
-
-        if (
-            normalizedStartDate > today ||
-            normalizedEndDate > today
-        ) {
-            toast.error("Future dates are not allowed.");
-            return;
-        }
-
-        if (normalizedStartDate > normalizedEndDate) {
-            toast.error("Start date cannot be after end date.");
-            return;
-        }
-
-        const formattedStartDate = format(
-            normalizedStartDate,
-            "yyyy-MM-dd"
-        );
-
-        const formattedEndDate = format(
-            normalizedEndDate,
-            "yyyy-MM-dd"
-        );
-
         setIsExporting(true);
 
         try {
-            const blob = await adminApi.exportClientsCsv({
-                start_date: formattedStartDate,
-                end_date: formattedEndDate,
+            const startDate = exportStartDate;
+            const endDate = exportEndDate;
+
+            if (Boolean(startDate) !== Boolean(endDate)) {
+                throw new Error("Select both dates or leave both blank to export all records.");
+            }
+
+            const exportParams: {
+                start_date?: string;
+                end_date?: string;
+                status?: string;
+                search?: string;
+            } = {
                 status:
                     activeTab === "archived"
                         ? "archived"
@@ -384,6 +361,43 @@ export const ClientsTable = () => {
                             ? "active"
                             : "all",
                 search: debouncedSearch || undefined,
+            };
+
+            let fileName = "clients-all-records.csv";
+
+            if (startDate && endDate) {
+                const normalizedStartDate = startOfDay(startDate);
+                const normalizedEndDate = startOfDay(endDate);
+                const today = startOfDay(new Date());
+
+                if (
+                    normalizedStartDate > today ||
+                    normalizedEndDate > today
+                ) {
+                    throw new Error("Future dates are not allowed.");
+                }
+
+                if (normalizedStartDate > normalizedEndDate) {
+                    throw new Error("Start date cannot be after end date.");
+                }
+
+                const formattedStartDate = format(
+                    normalizedStartDate,
+                    "yyyy-MM-dd"
+                );
+
+                const formattedEndDate = format(
+                    normalizedEndDate,
+                    "yyyy-MM-dd"
+                );
+
+                exportParams.start_date = formattedStartDate;
+                exportParams.end_date = formattedEndDate;
+                fileName = `clients-${formattedStartDate}-to-${formattedEndDate}.csv`;
+            }
+
+            const blob = await adminApi.exportClientsCsv({
+                ...exportParams,
             });
 
             if (!(blob instanceof Blob) || blob.size === 0) {
@@ -397,8 +411,7 @@ export const ClientsTable = () => {
                 document.createElement("a");
 
             downloadLink.href = downloadUrl;
-            downloadLink.download =
-                `clients-${formattedStartDate}-to-${formattedEndDate}.csv`;
+            downloadLink.download = fileName;
 
             document.body.appendChild(downloadLink);
             downloadLink.click();
@@ -542,7 +555,7 @@ export const ClientsTable = () => {
                             </Button>
                         </PopoverTrigger>
 
-                        <PopoverContent
+            <PopoverContent
                             align="end"
                             sideOffset={10}
                             className={`w-[340px] rounded-2xl border p-5 ${
@@ -557,15 +570,15 @@ export const ClientsTable = () => {
                                         Export Clients
                                     </h3>
 
-                                    <p
-                                        className={`mt-1 text-xs ${
-                                            isDark
-                                                ? "text-white/55"
-                                                : "text-black/55"
-                                        }`}
-                                    >
-                                        Select a date range to download client data.
-                                    </p>
+                                <p
+                                    className={`mt-1 text-xs ${
+                                        isDark
+                                            ? "text-white/55"
+                                            : "text-black/55"
+                                    }`}
+                                >
+                                    Leave both dates blank to download all client records, or pick a range to filter the export.
+                                </p>
                                 </div>
 
                                 <DatePicker
@@ -657,6 +670,24 @@ export const ClientsTable = () => {
                                     sx={{ height: "42px" }}
                                 />
 
+                                {(exportStartDate || exportEndDate) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setExportStartDate(null);
+                                            setExportEndDate(null);
+                                        }}
+                                        disabled={isExporting}
+                                        className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                                            isDark
+                                                ? "text-white/70 hover:text-white"
+                                                : "text-black/60 hover:text-black"
+                                        }`}
+                                    >
+                                        Reset dates
+                                    </button>
+                                )}
+
                                 <div className="flex justify-end gap-2 pt-1">
                                     <Button
                                         type="button"
@@ -675,11 +706,7 @@ export const ClientsTable = () => {
 
                                     <Button
                                         type="button"
-                                        disabled={
-                                            isExporting ||
-                                            !exportStartDate ||
-                                            !exportEndDate
-                                        }
+                                        disabled={isExporting}
                                         onClick={() => {
                                             void handleExportClients();
                                         }}
