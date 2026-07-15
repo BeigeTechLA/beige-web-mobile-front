@@ -1,28 +1,35 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
-  Info,
   CheckCircle,
   Calendar,
   MapPin,
   Clock,
-  Video,
-  Mic,
   Copy,
   ArrowLeft,
   X,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import Topbar from "@/components/admin/Topbar";
-import { adminApi, getCrewAvailability } from "@/lib/api";
+import DatePicker from "@/components/ui/Datepicker";
+import TimePicker from "@/components/ui/Timepicker";
+import { adminApi, getCrewAvailability, AddAvailability } from "@/lib/api";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { useTheme } from "next-themes";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
@@ -40,10 +47,10 @@ const formatLocation = (locationInput: string) => {
       const prev = decoded;
       try {
         decoded = JSON.parse(decoded);
-        if (decoded && typeof decoded === "object" && (decoded as any).address) {
-          decoded = (decoded as any).address;
+        if (decoded && typeof decoded === "object" && "address" in decoded) {
+          decoded = String((decoded as { address?: string }).address || "");
         }
-      } catch (e) {
+      } catch {
 
         decoded = decoded.replace(/^[\\"]+|[\\"]+$/g, '');
         break;
@@ -51,7 +58,7 @@ const formatLocation = (locationInput: string) => {
       if (prev === decoded) break;
     }
     addressStr = decoded;
-  } catch (e) {
+  } catch {
   }
 
   addressStr = addressStr.replace(/\\+/g, '').replace(/"/g, '').trim();
@@ -76,10 +83,80 @@ const formatTimeRange = (start?: string, end?: string) => {
     const s = format(parseISO(`2000-01-01T${start}`), "h:mm a");
     const e = format(parseISO(`2000-01-01T${end}`), "h:mm a");
     return `${s} - ${e}`;
-  } catch (error) {
+  } catch {
     return `${start} - ${end}`;
   }
 };
+
+const getDefaultFormData = () => ({
+  type: "1",
+  recurrence: "1",
+  includeWeekends: false,
+  repeatOn: [] as string[],
+  monthlyDay: "",
+  untilDate: null as Date | null,
+  startTime: null as Date | null,
+  endTime: null as Date | null,
+  notes: "",
+});
+
+const parseLocalDate = (value: Date | string | null) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const formatTimeForApi = (value: Date | string | null) => {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return format(value, "HH:mm:ss");
+  }
+
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+
+  const hours = Math.min(Number(match[1]), 23).toString().padStart(2, "0");
+  const minutes = Math.min(Number(match[2]), 59).toString().padStart(2, "0");
+  const seconds = Math.min(Number(match[3] || "0"), 59).toString().padStart(2, "0");
+
+  return `${hours}:${minutes}:${seconds}`;
+};
+
+const formatTimeForDisplay = (value?: Date | string | null) => {
+  const time = formatTimeForApi(value || null);
+  if (!time) return "";
+
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+
+  return format(date, "h:mm a");
+};
+
+type FormValue = string | boolean | string[] | Date | null;
+
+interface CrewMemberFile {
+  file_type?: string;
+  file_path?: string;
+}
+
+interface AddAvailabilityPayload {
+  crew_member_id: number;
+  date: string;
+  availability_status: number;
+  is_full_day: number;
+  start_time: string | null;
+  end_time: string | null;
+  recurrence: number;
+  notes: string;
+  recurrence_until?: string;
+  recurrence_days?: string[];
+  recurrence_day_of_month?: number;
+}
 
 interface CrewMember {
   id: number;
@@ -90,9 +167,9 @@ interface CrewMember {
   role?: {
     role_name: string;
   };
-  skills?: any;
+  skills?: unknown;
   status: string;
-  crew_member_files?: any[];
+  crew_member_files?: CrewMemberFile[];
   city?: string;
   state?: string;
   country?: string;
@@ -115,6 +192,8 @@ interface AvailabilityStatus {
   available?: boolean;
   projectAssigned?: boolean;
   projectDetails?: ProjectDetails;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 export default function AvailabilityDetailsPage() {
@@ -135,6 +214,11 @@ export default function AvailabilityDetailsPage() {
     bookedShoots: 0,
     timeOff: 0,
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [formData, setFormData] = useState(getDefaultFormData);
 
   const [mounted, setMounted] = useState(false);
 
@@ -165,30 +249,30 @@ export default function AvailabilityDetailsPage() {
     fetchMember();
   }, [id]);
 
-  // Fetch Availability
-  useEffect(() => {
+  const fetchAvailability = useCallback(async () => {
     if (!id) return;
 
-    const fetchAvailability = async () => {
-      try {
-        const response = await getCrewAvailability({
-          crew_member_id: parseInt(id),
-          month: currentMonth,
-          year: currentYear,
-        });
+    try {
+      const response = await getCrewAvailability({
+        crew_member_id: parseInt(id),
+        month: currentMonth,
+        year: currentYear,
+      });
 
-        if (response && response.data && response.data.data && response.data.data.availability) {
-          setAvailability(response.data.data.availability);
-        } else {
-          setAvailability({});
-        }
-      } catch (error) {
-        console.error("Failed to fetch availability:", error);
+      if (response && response.data && response.data.data && response.data.data.availability) {
+        setAvailability(response.data.data.availability);
+      } else {
+        setAvailability({});
       }
-    };
-
-    fetchAvailability();
+    } catch (error) {
+      console.error("Failed to fetch availability:", error);
+    }
   }, [id, currentMonth, currentYear]);
+
+  // Fetch Availability
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
 
   // Calculate Summary
   useEffect(() => {
@@ -235,6 +319,99 @@ export default function AvailabilityDetailsPage() {
     }
   };
 
+  const handleFormChange = (value: FormValue, name: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleAllDayChange = () => {
+    setIsAllDay(!isAllDay);
+    if (!isAllDay) {
+      setFormData((prevData) => ({ ...prevData, startTime: null, endTime: null }));
+    }
+  };
+
+  const handleTimeChange = (time: Date | null, field: "startTime" | "endTime") => {
+    setIsAllDay(false);
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: time,
+    }));
+  };
+
+  const handleModalOpen = () => {
+    setFormData(getDefaultFormData());
+    setIsAllDay(false);
+    setIsModalOpen(true);
+    setIsAnimating(true);
+  };
+
+  const handleModalClose = () => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      setIsModalOpen(false);
+      setFormData(getDefaultFormData());
+      setIsAllDay(false);
+      setSelectedDate(null);
+    }, 300);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const selectedDateValue = parseLocalDate(selectedDate);
+    if (!selectedDateValue) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    const startTime = formatTimeForApi(formData.startTime);
+    const endTime = formatTimeForApi(formData.endTime);
+    const hasTimeRange = Boolean(startTime && endTime);
+
+    if (!isAllDay && !hasTimeRange) {
+      toast.error("Please select both start and end time");
+      return;
+    }
+
+    const payload: AddAvailabilityPayload = {
+      crew_member_id: parseInt(id),
+      date: format(selectedDateValue, "yyyy-MM-dd"),
+      availability_status: Number(formData.type),
+      is_full_day: isAllDay || !hasTimeRange ? 1 : 0,
+      start_time: isAllDay ? null : startTime,
+      end_time: isAllDay ? null : endTime,
+      recurrence: Number(formData.recurrence),
+      notes: formData.notes || "",
+    };
+
+    if (formData.recurrence !== "1") {
+      if (formData.untilDate) {
+        payload.recurrence_until = format(new Date(formData.untilDate), "yyyy-MM-dd");
+      }
+
+      if (formData.recurrence === "2" && !formData.includeWeekends) {
+        payload.recurrence_days = ["mon", "tue", "wed", "thu", "fri"];
+      } else if (formData.recurrence === "3") {
+        payload.recurrence_days = (formData.repeatOn || []).map((day) => day.toLowerCase());
+      } else if (formData.recurrence === "4" && formData.monthlyDay) {
+        payload.recurrence_day_of_month = Number(formData.monthlyDay);
+      }
+    }
+
+    try {
+      await AddAvailability(payload);
+      handleModalClose();
+      toast.success("Availability Updated");
+      fetchAvailability();
+    } catch (error) {
+      console.error("Error adding availability:", error);
+      toast.error("Update Failed");
+    }
+  };
+
   const getFirstDayOfMonth = (month: number, year: number) => {
     return new Date(year, month - 1, 1).getDay();
   };
@@ -261,6 +438,9 @@ export default function AvailabilityDetailsPage() {
 
       const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
       const isAssigned = availabilityStatus?.projectAssigned;
+      const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
+      const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
+      const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
 
       const isPastDate = dateString < todayDateString;
       const isToday = dateString === todayDateString;
@@ -280,16 +460,24 @@ export default function AvailabilityDetailsPage() {
         : (isAvailable ? "text-black" : "text-black/30");
 
       const borderColor = isDark ? "border-white/5" : "border-[#E5E5E5]";
+      const handleDateClick = () => {
+        if (isAssigned) {
+          setSidebarDate(dateString);
+          setIsSidebarOpen(true);
+          return;
+        }
+
+        if (!isPastDate) {
+          setSelectedDate(parseLocalDate(dateString));
+          handleModalOpen();
+        }
+      };
+
       calendarDays.push(
         <div
           key={i}
-          onClick={() => {
-            if (isAssigned) {
-              setSidebarDate(dateString);
-              setIsSidebarOpen(true);
-            }
-          }}
-          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} ${isAssigned ? "cursor-pointer" : "cursor-default"} ${isDark
+          onClick={handleDateClick}
+          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} ${isAssigned || !isPastDate ? "cursor-pointer" : "cursor-default"} ${isDark
             ? "hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A]"
             : "hover:border-black/20 hover:bg-black/[0.02]"
             } group`}
@@ -319,6 +507,18 @@ export default function AvailabilityDetailsPage() {
                   <span className="hidden lg:block">Available</span>
                 </div>
               )}
+              {!isAvailable && !isAssigned && (
+                <div className="flex items-center gap-1 text-red-400/75">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  <span className="hidden lg:block">Not Available</span>
+                </div>
+              )}
+              {hasTimeRange && (
+                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
+                  <Clock size={11} />
+                  <span>{startTimeDisplay} - {endTimeDisplay}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -342,7 +542,7 @@ export default function AvailabilityDetailsPage() {
        }
 
   const profilePhoto = member?.crew_member_files?.find(
-    (file: any) => file.file_type === 'profile_photo'
+    (file) => file.file_type === 'profile_photo'
   );
   const imageUrl = profilePhoto
     ? `${S3_PREFIX}${profilePhoto.file_path}`
@@ -379,10 +579,19 @@ export default function AvailabilityDetailsPage() {
               Back
             </button>
 
-            <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/40 " : "text-black/70 "} mb-2`}>
-              <span>Availability Management</span>
-              <span>/</span>
-              <span className={isDark ? "text-white" : "text-black"}>Creative Partner Profile Details</span>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/40 " : "text-black/70 "} mb-2`}>
+                <span>Availability Management</span>
+                <span>/</span>
+                <span className={isDark ? "text-white" : "text-black"}>Creative Partner Profile Details</span>
+              </div>
+              <Button
+                onClick={handleModalOpen}
+                className={`w-full sm:w-auto px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d4be9a]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"}`}
+              >
+                <Plus size={18} />
+                Add Availability
+              </Button>
             </div>
           </div>
 
@@ -667,6 +876,241 @@ export default function AvailabilityDetailsPage() {
                   <p className="text-white/20 italic">No project details available.</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Availability Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
+            <div
+              className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
+                ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
+                ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
+                max-h-[90vh] overflow-y-auto no-scrollbar`}
+            >
+              <button
+                onClick={handleModalClose}
+                className={`absolute top-3 right-3 lg:top-6 lg:right-6 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
+              >
+                <X size={20} />
+              </button>
+
+              <h2 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+                Add Availability
+              </h2>
+              <p className={`text-xs lg:text-sm mb-4 lg:mb-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                Schedule working hours for {fullName}
+              </p>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Type
+                  </label>
+                  <Select value={formData.type} onValueChange={(value) => handleFormChange(value, "type")}>
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${formData.type === "1" ? "bg-green-500" : "bg-red-500"}`} />
+                        <SelectValue placeholder="Select option" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      <SelectItem value="1">Available</SelectItem>
+                      <SelectItem value="2">Not Available</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Date
+                  </label>
+                  <DatePicker
+                    label=""
+                    value={parseLocalDate(selectedDate)}
+                    minDate={new Date()}
+                    isDark={isDark}
+                    onChange={(date) => {
+                      setSelectedDate(date);
+                      if (formData.recurrence === "4") {
+                        handleFormChange(date?.getDate().toString() || "", "monthlyDay");
+                      }
+                    }}
+                  />
+                </div>
+
+                {!isAllDay && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Start Time
+                      </label>
+                      <TimePicker
+                        label=""
+                        value={formData.startTime}
+                        onChange={(time) => handleTimeChange(time, "startTime")}
+                        isDark={isDark}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        End Time
+                      </label>
+                      <TimePicker
+                        label=""
+                        value={formData.endTime}
+                        onChange={(time) => handleTimeChange(time, "endTime")}
+                        minTime={formData.startTime || undefined}
+                        isDark={isDark}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    id="adminAllDay"
+                    checked={isAllDay}
+                    onChange={handleAllDayChange}
+                    className={`w-4 h-4 rounded border transition-colors ${isDark ? "border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]" : "border-black/20 bg-neutral-50 text-[#cbb38b] focus:ring-[#cbb38b]"}`}
+                  />
+                  <label htmlFor="adminAllDay" className={`text-sm font-medium cursor-pointer ${isDark ? "text-white/80" : "text-black/80"}`}>
+                    All day availability
+                  </label>
+                </div>
+
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Recurrence
+                  </label>
+                  <Select value={formData.recurrence} onValueChange={(value) => handleFormChange(value, "recurrence")}>
+                    <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                      <SelectValue placeholder="Does not repeat" />
+                    </SelectTrigger>
+                    <SelectContent className={`border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      <SelectItem value="1">Does Not Repeat</SelectItem>
+                      <SelectItem value="2">Daily</SelectItem>
+                      <SelectItem value="3">Weekly</SelectItem>
+                      <SelectItem value="4">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.recurrence !== "1" && (
+                  <div className={`space-y-4 p-4 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                    {formData.recurrence === "2" && (
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="adminIncWeekends"
+                          checked={formData.includeWeekends}
+                          onChange={(event) => handleFormChange(event.target.checked, "includeWeekends")}
+                          className={`rounded border ${isDark ? "border-white/10 bg-black" : "border-black/20 bg-neutral-50"}`}
+                        />
+                        <label htmlFor="adminIncWeekends" className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          Include Weekends
+                        </label>
+                      </div>
+                    )}
+
+                    {formData.recurrence === "3" && (
+                      <div className="space-y-3">
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>
+                          Repeat on
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
+                            const isSelected = formData.repeatOn.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const current = formData.repeatOn || [];
+                                  const updated = current.includes(day) ? current.filter((item) => item !== day) : [...current, day];
+                                  handleFormChange(updated, "repeatOn");
+                                }}
+                                className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${isSelected
+                                  ? isDark
+                                    ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                    : "bg-[#cbb38b] text-white border-[#cbb38b]"
+                                  : isDark
+                                    ? "bg-black text-white/60 border-white/10 hover:border-white/30"
+                                    : "bg-neutral-50 text-black/60 border-black/10 hover:border-black/30"
+                                  }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.recurrence === "4" && (
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
+                        <span>Repeat on Day</span>
+                        <input
+                          type="text"
+                          value={formData.monthlyDay ?? ""}
+                          onChange={(event) => {
+                            const value = event.target.value.replace(/[^0-9]/g, "");
+                            if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
+                              handleFormChange(value, "monthlyDay");
+                            }
+                          }}
+                          className={`w-14 px-2 py-1 rounded-lg border text-center outline-none focus:ring-2 transition-colors ${isDark ? "bg-neutral-800 border-neutral-700 text-white focus:ring-[#E8D1AB]" : "bg-white border-neutral-200 text-neutral-900 focus:ring-[#cbb38b]"}`}
+                        />
+                        <span>of each month</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Until Date
+                      </label>
+                      <DatePicker
+                        label=""
+                        value={formData.untilDate}
+                        minDate={parseLocalDate(selectedDate) || new Date()}
+                        isDark={isDark}
+                        onChange={(date) => handleFormChange(date, "untilDate")}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Notes
+                  </label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(event) => handleFormChange(event.target.value, "notes")}
+                    placeholder="Optional notes"
+                    className={`min-h-20 resize-none ${isDark ? "bg-black border-white/10 text-white placeholder:text-white/30" : "bg-neutral-50 border-black/10 text-black placeholder:text-black/30"}`}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={handleModalClose}
+                    variant="ghost"
+                    className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className={`font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
         )}

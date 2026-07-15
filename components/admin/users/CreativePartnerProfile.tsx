@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, cloneElement } from "react";
+import React, { useCallback, useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
-import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
+import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails, AddAvailability } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
@@ -16,6 +16,16 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import DatePicker from "@/components/ui/Datepicker";
+import TimePicker from "@/components/ui/Timepicker";
+import { Textarea } from "@/components/ui/textarea";
 import { StatCard } from "../StatCard";
 import { MobileShootRow } from "../shoot-details/MobileShootRow";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,6 +38,44 @@ interface ProfileProps {
   hideActions?: boolean;
   isDark?: boolean;
 }
+
+const getDefaultAvailabilityFormData = () => ({
+  type: "1",
+  recurrence: "1",
+  includeWeekends: false,
+  repeatOn: [] as string[],
+  monthlyDay: "",
+  untilDate: null as Date | null,
+  startTime: null as Date | null,
+  endTime: null as Date | null,
+  notes: "",
+});
+
+const parseLocalDate = (value: Date | string | null) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const formatTimeForApi = (value: Date | string | null) => {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return format(value, "HH:mm:ss");
+  }
+
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return null;
+
+  const hours = Math.min(Number(match[1]), 23).toString().padStart(2, "0");
+  const minutes = Math.min(Number(match[2]), 59).toString().padStart(2, "0");
+  const seconds = Math.min(Number(match[3] || "0"), 59).toString().padStart(2, "0");
+
+  return `${hours}:${minutes}:${seconds}`;
+};
 
 // --- PREMIUM UI HELPERS ---
 const formatLocation = (locationInput: string) => {
@@ -93,7 +141,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1)); // Default to Jan 2026 for demo
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
@@ -106,6 +154,11 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [upcomingShoots, setUpcomingShoots] = useState<any[]>([]);
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
+  const [isAvailabilityModalAnimating, setIsAvailabilityModalAnimating] = useState(false);
+  const [isAllDayAvailability, setIsAllDayAvailability] = useState(false);
+  const [selectedAvailabilityDate, setSelectedAvailabilityDate] = useState<Date | null>(null);
+  const [availabilityFormData, setAvailabilityFormData] = useState(getDefaultAvailabilityFormData);
   const [allShoots, setAllShoots] = useState<any[]>([]);
   const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
@@ -251,29 +304,29 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
     }
   };
 
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      try {
-        const cleanId = id.startsWith('#') ? id.substring(1) : id;
-        const response = await getAvailabilityDetails({
-          year: format(currentMonth, 'yyyy'),
-          month: format(currentMonth, 'MM'),
-          crew_member_id: cleanId
-        });
-        if (response && response.data) {
-          const data = response.data;
-          // availabilityDetails should store the actual availability object map
-          setAvailabilityDetails(data.availability || {});
-        }
-      } catch (error) {
-        console.error("Error fetching availability details:", error);
+  const fetchAvailability = useCallback(async () => {
+    try {
+      const cleanId = id.startsWith('#') ? id.substring(1) : id;
+      const response = await getAvailabilityDetails({
+        year: format(currentMonth, 'yyyy'),
+        month: format(currentMonth, 'MM'),
+        crew_member_id: cleanId
+      });
+      if (response && response.data) {
+        const data = response.data;
+        // availabilityDetails should store the actual availability object map
+        setAvailabilityDetails(data.availability || {});
       }
-    };
+    } catch (error) {
+      console.error("Error fetching availability details:", error);
+    }
+  }, [id, currentMonth]);
 
+  useEffect(() => {
     if (id && currentMonth) {
       fetchAvailability();
     }
-  }, [id, currentMonth]);
+  }, [id, currentMonth, fetchAvailability]);
 
   useEffect(() => {
     const calculateSummary = () => {
@@ -469,6 +522,101 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
     const time = new Date();
     time.setHours(Number(match[1]), Number(match[2]), 0, 0);
     return format(time, "h:mm a");
+  };
+
+  const handleAvailabilityFormChange = (value: string | boolean | string[] | Date | null, name: string) => {
+    setAvailabilityFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleAvailabilityModalOpen = (date?: Date) => {
+    setAvailabilityFormData(getDefaultAvailabilityFormData());
+    setIsAllDayAvailability(false);
+    setSelectedAvailabilityDate(date || null);
+    setIsAvailabilityModalOpen(true);
+    setIsAvailabilityModalAnimating(true);
+  };
+
+  const handleAvailabilityModalClose = () => {
+    setIsAvailabilityModalAnimating(false);
+    setTimeout(() => {
+      setIsAvailabilityModalOpen(false);
+      setAvailabilityFormData(getDefaultAvailabilityFormData());
+      setIsAllDayAvailability(false);
+      setSelectedAvailabilityDate(null);
+    }, 300);
+  };
+
+  const handleAvailabilityAllDayChange = () => {
+    setIsAllDayAvailability(!isAllDayAvailability);
+    if (!isAllDayAvailability) {
+      setAvailabilityFormData((prevData) => ({ ...prevData, startTime: null, endTime: null }));
+    }
+  };
+
+  const handleAvailabilityTimeChange = (time: Date | null, field: "startTime" | "endTime") => {
+    setIsAllDayAvailability(false);
+    setAvailabilityFormData((prevData) => ({
+      ...prevData,
+      [field]: time,
+    }));
+  };
+
+  const handleAvailabilitySubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const selectedDateValue = parseLocalDate(selectedAvailabilityDate);
+    if (!selectedDateValue) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    const startTime = formatTimeForApi(availabilityFormData.startTime);
+    const endTime = formatTimeForApi(availabilityFormData.endTime);
+    const hasTimeRange = Boolean(startTime && endTime);
+
+    if (!isAllDayAvailability && !hasTimeRange) {
+      toast.error("Please select both start and end time");
+      return;
+    }
+
+    const cleanId = id.startsWith('#') ? id.substring(1) : id;
+    const payload: any = {
+      crew_member_id: parseInt(cleanId),
+      date: format(selectedDateValue, "yyyy-MM-dd"),
+      availability_status: Number(availabilityFormData.type),
+      is_full_day: isAllDayAvailability || !hasTimeRange ? 1 : 0,
+      start_time: isAllDayAvailability ? null : startTime,
+      end_time: isAllDayAvailability ? null : endTime,
+      recurrence: Number(availabilityFormData.recurrence),
+      notes: availabilityFormData.notes || "",
+    };
+
+    if (availabilityFormData.recurrence !== "1") {
+      if (availabilityFormData.untilDate) {
+        payload.recurrence_until = format(new Date(availabilityFormData.untilDate), "yyyy-MM-dd");
+      }
+
+      if (availabilityFormData.recurrence === "2" && !availabilityFormData.includeWeekends) {
+        payload.recurrence_days = ["mon", "tue", "wed", "thu", "fri"];
+      } else if (availabilityFormData.recurrence === "3") {
+        payload.recurrence_days = (availabilityFormData.repeatOn || []).map((day) => day.toLowerCase());
+      } else if (availabilityFormData.recurrence === "4" && availabilityFormData.monthlyDay) {
+        payload.recurrence_day_of_month = Number(availabilityFormData.monthlyDay);
+      }
+    }
+
+    try {
+      await AddAvailability(payload);
+      handleAvailabilityModalClose();
+      toast.success("Availability Updated");
+      fetchAvailability();
+    } catch (error) {
+      console.error("Error adding availability:", error);
+      toast.error("Update Failed");
+    }
   };
 
   const toggleDropdown = () => setIsOpen(!isOpen);
@@ -950,6 +1098,16 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           <div className="grid grid-cols-12 gap-6">
             {/* Main Calendar Section */}
             <div className="col-span-12 lg:col-span-9 space-y-6">
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => handleAvailabilityModalOpen()}
+                  className={`w-full sm:w-auto px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d4be9a]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80"}`}
+                >
+                  <Plus size={18} />
+                  Add Availability
+                </Button>
+              </div>
+
               <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden shadow-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200"
                 }`}>
                 {/* Calendar Controls */}
@@ -980,7 +1138,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                   <div className="flex items-center gap-2">
                     <button
                       className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
-                      onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
+                      onClick={() => setCurrentMonth(new Date())}
                     >
                       Today
                     </button>
@@ -1012,7 +1170,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
                     const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
                     const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
-                    const isTodayDate = isSameDay(day, new Date(2026, 0, 16)); // Mocking "Today" as Jan 16 for demo visual match
+                    const isTodayDate = isSameDay(day, new Date());
+                    const isPastDate = format(day, "yyyy-MM-dd") < format(new Date(), "yyyy-MM-dd");
 
                     // Determine border classes
                     const isLastRow = dayIdx >= calendarDays.length - 7;
@@ -1021,10 +1180,15 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                     return (
                       <div
                         key={day.toString()}
+                        onClick={() => {
+                          if (isCurrentMonth && !isPastDate) {
+                            handleAvailabilityModalOpen(day);
+                          }
+                        }}
                         className={`min-h-[100px] p-3 transition-colors ${isDark ? "border-[#333]" : "border-gray-100"} ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth
                           ? (isDark ? 'bg-[#0A0A0A] text-[#444]' : 'bg-[#F4F4F4] text-[#878787]')
                           : (isDark ? 'text-[#E0E0E0]' : 'bg-[#F8F4EE] text-[#3F3F3F]')
-                          }`}
+                          } ${isCurrentMonth && !isPastDate ? "cursor-pointer hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A]" : "cursor-default"}`}
                       >
                         <span className={`text-sm font-medium block mb-2 w-7 h-7 flex items-center justify-center ${isTodayDate ? 'bg-[#E5D5B8] text-black rounded-full' : ''
                           }`}>
@@ -1473,6 +1637,247 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Availability Modal */}
+      {isAvailabilityModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-lg">
+          <div
+            className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
+              ${isAvailabilityModalAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
+              ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
+              max-h-[90vh] overflow-y-auto no-scrollbar`}
+          >
+            <button
+              onClick={handleAvailabilityModalClose}
+              className={`absolute top-3 right-3 lg:top-6 lg:right-6 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+              Add Availability
+            </h2>
+            <p className={`text-xs lg:text-sm mb-4 lg:mb-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
+              Schedule working hours for {partner?.first_name || "creative partner"} {partner?.last_name || ""}
+            </p>
+
+            <form onSubmit={handleAvailabilitySubmit} className="space-y-6">
+              <div>
+                <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Type
+                </label>
+                <Select value={availabilityFormData.type} onValueChange={(value) => handleAvailabilityFormChange(value, "type")}>
+                  <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${availabilityFormData.type === "1" ? "bg-green-500" : "bg-red-500"}`} />
+                      <SelectValue placeholder="Select option" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className={`z-[130] border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}
+                  >
+                    <SelectItem value="1">Available</SelectItem>
+                    <SelectItem value="2">Not Available</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Date
+                </label>
+                <DatePicker
+                  label=""
+                  value={parseLocalDate(selectedAvailabilityDate)}
+                  minDate={new Date()}
+                  isDark={isDark}
+                  onChange={(date) => {
+                    setSelectedAvailabilityDate(date);
+                    if (availabilityFormData.recurrence === "4") {
+                      handleAvailabilityFormChange(date?.getDate().toString() || "", "monthlyDay");
+                    }
+                  }}
+                />
+              </div>
+
+              {!isAllDayAvailability && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Start Time
+                    </label>
+                    <TimePicker
+                      label=""
+                      value={availabilityFormData.startTime}
+                      onChange={(time) => handleAvailabilityTimeChange(time, "startTime")}
+                      isDark={isDark}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      End Time
+                    </label>
+                    <TimePicker
+                      label=""
+                      value={availabilityFormData.endTime}
+                      onChange={(time) => handleAvailabilityTimeChange(time, "endTime")}
+                      minTime={availabilityFormData.startTime || undefined}
+                      isDark={isDark}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 py-2">
+                <input
+                  type="checkbox"
+                  id="profileAllDayAvailability"
+                  checked={isAllDayAvailability}
+                  onChange={handleAvailabilityAllDayChange}
+                  className={`w-4 h-4 rounded border transition-colors ${isDark ? "border-white/10 bg-black text-[#E8D1AB] focus:ring-[#E8D1AB]" : "border-black/20 bg-neutral-50 text-[#cbb38b] focus:ring-[#cbb38b]"}`}
+                />
+                <label htmlFor="profileAllDayAvailability" className={`text-sm font-medium cursor-pointer ${isDark ? "text-white/80" : "text-black/80"}`}>
+                  All day availability
+                </label>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Recurrence
+                </label>
+                <Select value={availabilityFormData.recurrence} onValueChange={(value) => handleAvailabilityFormChange(value, "recurrence")}>
+                  <SelectTrigger className={`w-full h-12 border ${isDark ? "bg-black border-white/10 text-white" : "bg-neutral-50 border-black/10 text-black"}`}>
+                    <SelectValue placeholder="Does not repeat" />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="item-aligned"
+                    className={`z-[130] border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}
+                  >
+                    <SelectItem value="1">Does Not Repeat</SelectItem>
+                    <SelectItem value="2">Daily</SelectItem>
+                    <SelectItem value="3">Weekly</SelectItem>
+                    <SelectItem value="4">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {availabilityFormData.recurrence !== "1" && (
+                <div className={`space-y-4 p-4 rounded-xl border transition-colors ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                  {availabilityFormData.recurrence === "2" && (
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="profileIncWeekends"
+                        checked={availabilityFormData.includeWeekends}
+                        onChange={(event) => handleAvailabilityFormChange(event.target.checked, "includeWeekends")}
+                        className={`rounded border ${isDark ? "border-white/10 bg-black" : "border-black/20 bg-neutral-50"}`}
+                      />
+                      <label htmlFor="profileIncWeekends" className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        Include Weekends
+                      </label>
+                    </div>
+                  )}
+
+                  {availabilityFormData.recurrence === "3" && (
+                    <div className="space-y-3">
+                      <label className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>
+                        Repeat on
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
+                          const isSelected = availabilityFormData.repeatOn.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => {
+                                const current = availabilityFormData.repeatOn || [];
+                                const updated = current.includes(day) ? current.filter((item) => item !== day) : [...current, day];
+                                handleAvailabilityFormChange(updated, "repeatOn");
+                              }}
+                              className={`px-3 py-1.5 rounded-lg border text-xs transition-colors ${isSelected
+                                ? isDark
+                                  ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                                  : "bg-[#cbb38b] text-white border-[#cbb38b]"
+                                : isDark
+                                  ? "bg-black text-white/60 border-white/10 hover:border-white/30"
+                                  : "bg-neutral-50 text-black/60 border-black/10 hover:border-black/30"
+                                }`}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {availabilityFormData.recurrence === "4" && (
+                    <div className={`flex items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
+                      <span>Repeat on Day</span>
+                      <input
+                        type="text"
+                        value={availabilityFormData.monthlyDay ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value.replace(/[^0-9]/g, "");
+                          if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
+                            handleAvailabilityFormChange(value, "monthlyDay");
+                          }
+                        }}
+                        className={`w-14 px-2 py-1 rounded-lg border text-center outline-none focus:ring-2 transition-colors ${isDark ? "bg-neutral-800 border-neutral-700 text-white focus:ring-[#E8D1AB]" : "bg-white border-neutral-200 text-neutral-900 focus:ring-[#cbb38b]"}`}
+                      />
+                      <span>of each month</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Until Date
+                    </label>
+                    <DatePicker
+                      label=""
+                      value={availabilityFormData.untilDate}
+                      minDate={parseLocalDate(selectedAvailabilityDate) || new Date()}
+                      isDark={isDark}
+                      onChange={(date) => handleAvailabilityFormChange(date, "untilDate")}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                  Notes
+                </label>
+                <Textarea
+                  value={availabilityFormData.notes}
+                  onChange={(event) => handleAvailabilityFormChange(event.target.value, "notes")}
+                  placeholder="Optional notes"
+                  className={`min-h-20 resize-none ${isDark ? "bg-black border-white/10 text-white placeholder:text-white/30" : "bg-neutral-50 border-black/10 text-black placeholder:text-black/30"}`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  onClick={handleAvailabilityModalClose}
+                  variant="ghost"
+                  className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className={`font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

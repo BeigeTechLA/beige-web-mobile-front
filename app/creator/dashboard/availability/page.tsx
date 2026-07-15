@@ -712,7 +712,7 @@ export default function AvailabilityPage() {
               className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
       ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
       ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
-      max-h-[90vh] overflow-y-auto`}
+      max-h-[90vh] overflow-y-auto no-scrollbar`}
             >
               <button
                 onClick={handleModalClose}
