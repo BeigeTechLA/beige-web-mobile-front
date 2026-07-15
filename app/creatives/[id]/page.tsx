@@ -405,9 +405,8 @@ function CreatorProfileContent() {
           </section>
         )}
 
-        <section className="mt-14 lg:mt-20 overflow-hidden">
+        {/* <section className="mt-14 lg:mt-20 overflow-hidden">
           <div className="container mx-auto relative overflow-hidden px-5 lg:px-0">
-            {/* Header */}
             <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <div className="border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-6">
                 <p className="text-xs md:text-base text-white">Recommendations</p>
@@ -417,7 +416,6 @@ function CreatorProfileContent() {
                   Recommended Creators for you
                 </h2>
 
-                {/* NAV ARROWS */}
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => swiperRef.current?.slidePrev()}
@@ -437,7 +435,6 @@ function CreatorProfileContent() {
             </div>
 
             <div>
-              {/* CAROUSEL */}
               {recommendedCreators.length > 0 ? (
                 <Swiper
                   onSwiper={(swiper) => (swiperRef.current = swiper)}
@@ -477,7 +474,7 @@ function CreatorProfileContent() {
               )}
             </div>
           </div>
-        </section>
+        </section> */}
       </div>
     </div>
   );
