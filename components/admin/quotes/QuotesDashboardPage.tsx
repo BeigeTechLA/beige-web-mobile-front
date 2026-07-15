@@ -1150,7 +1150,7 @@ export default function QuotesDashboardPage({
             limit: QUOTES_PER_PAGE,
             ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
-              ? { status: selectedStatusFilter === "partially_paid" ? "pending" : selectedStatusFilter }
+              ? { status: selectedStatusFilter }
               : {}),
             ...(selectedSalesperson !== "all"
               ? { assigned_sales_rep_id: selectedSalesperson }
@@ -1327,7 +1327,7 @@ export default function QuotesDashboardPage({
         } = {
           ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
           ...(selectedStatusFilter !== "all"
-            ? { status: selectedStatusFilter === "partially_paid" ? "pending" : selectedStatusFilter }
+            ? { status: selectedStatusFilter }
             : {}),
           ...(selectedSalesperson !== "all"
             ? { assigned_sales_rep_id: selectedSalesperson }
@@ -1646,29 +1646,18 @@ export default function QuotesDashboardPage({
   );
 
   const filteredQuotesData = useMemo(() => {
+    if (quotePagination) {
+      return displayQuotesData;
+    }
+
     if (selectedStatusFilter === "all") {
       return displayQuotesData;
     }
 
-    return displayQuotesData.filter((quote) => {
-      const statusKey = quote.statusKey;
-
-      // Strict filtering as requested by the user
-      if (selectedStatusFilter === "accepted") {
-        return statusKey === "accepted";
-      }
-
-      if (selectedStatusFilter === "pending") {
-        return statusKey === "pending";
-      }
-
-      if (selectedStatusFilter === "rejected") {
-        return statusKey === "rejected";
-      }
-
-      return statusKey === selectedStatusFilter;
-    });
-  }, [displayQuotesData, selectedStatusFilter]);
+    return displayQuotesData.filter((quote) =>
+      matchesStatusFilter(quote.statusKey, selectedStatusFilter)
+    );
+  }, [displayQuotesData, quotePagination, selectedStatusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1677,10 +1666,11 @@ export default function QuotesDashboardPage({
   const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
   const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
   const safeCurrentPage = quotePagination?.page ?? Math.min(currentPage, totalListPages);
+  const listPageLimit = quotePagination?.limit ?? QUOTES_PER_PAGE;
   const listStartIndex =
     totalFilteredQuotes === 0
       ? 0
-      : (safeCurrentPage - 1) * (quotePagination?.limit ?? QUOTES_PER_PAGE);
+      : (safeCurrentPage - 1) * listPageLimit;
   const paginatedQuotesData = filteredQuotesData;
   const paginationItems = buildPaginationItems(safeCurrentPage, totalListPages);
 
@@ -2397,7 +2387,7 @@ export default function QuotesDashboardPage({
                       <td colSpan={8} className="px-4 py-4 md:px-6">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                           <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
-                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
+                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + listPageLimit, totalFilteredQuotes)} of {totalFilteredQuotes}
                           </div>
 
                           <div className="flex items-center justify-between md:justify-end gap-2">
