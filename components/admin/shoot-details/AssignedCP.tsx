@@ -9,7 +9,7 @@ import { useTheme } from "next-themes";
 
 import "swiper/css";
 import "swiper/css/effect-cards";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -17,11 +17,6 @@ import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 
-/**
- * Custom CSS to force the "Top-Stacking" behavior.
- * Swiper Cards effect usually translates slides down;
- * we override the slide transformations to stack them upwards.
- */
 const stackStyles = `
   .top-stack-swiper .swiper-slide-shadow { display: none !important; }
   .top-stack-swiper .swiper-slide {
@@ -74,6 +69,7 @@ export default function AssignedCP({
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
   const [selectedCrewId, setSelectedCrewId] = useState<number | null>(null);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [swiperInstance, setSwiperInstance] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -172,63 +168,99 @@ export default function AssignedCP({
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`;
   };
 
+  const handleNextSlide = () => {
+    if (swiperInstance && hasCPs && activeIndex < crewMembers.length - 1) {
+      swiperInstance.slideNext();
+    }
+  };
+
+  const handlePrevSlide = () => {
+    if (swiperInstance && hasCPs && activeIndex > 0) {
+      swiperInstance.slidePrev();
+    }
+  };
+
   if (!mounted) return null;
 
   return (
     <div
-      className={`rounded-2xl h-full flex flex-col items-center transition-all duration-300 ${isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7] border border-[#E5E5E5]"}`}
+      className={`rounded-2xl h-full flex flex-col items-center transition-all duration-300 overflow-hidden ${isDark ? "bg-[#111111]" : "bg-[#F4F5F7]"}`}
       style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
       <style>{stackStyles}</style>
-      <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
+
+      {/* Header */}
+      <div className={`flex items-center justify-center w-full p-6 border-b relative ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
         <h3 className={`text-lg font-medium transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
           Assigned CP
         </h3>
+        <div className="absolute right-6">
+          <AlertCircle className="w-6 h-6 text-[#E5D5B8]" fill="#E5D5B8" fillOpacity={0.3} />
+        </div>
       </div>
 
-      <div className="p-6 h-full">
-        {
-          hasCPs ? (
-            <div className=" flex flex-col items-center gap-4">
-              {/* Cards Swiper - Vertical Direction to match 'down' interaction feel */}
-              <div className=" relative z-10 py-10">
-                <Swiper
-                  effect={"cards"}
-                  direction={"vertical"} // Vertical swipe to "pull down" or "push up"
-                  grabCursor={true}
-                  modules={[EffectCards]}
-                  className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
-                  cardsEffect={{
-                    perSlideOffset: 12, // Reduced offset to keep in box
-                    perSlideRotate: 0, // No rotation
-                    slideShadows: false,
-                  }}
-                  onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-                >
-                  {crewMembers.map((member, index) => {
-                    const crewMemberId = Number(member.crew_member_id || member.id);
-                    const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
-                    return (
-                      <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedCrewId(crewMemberId);
-                            setIsRemoveModalOpen(true);
-                          }}
-                          disabled={removingCrewId === Number(member.crew_member_id || member.id)}
-                          className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
-                          aria-label="Remove CP"
-                        >
-                          {removingCrewId === Number(member.crew_member_id || member.id) ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <X size={18} />
-                          )}
-                        </button>
-                       <a
+      <div className="p-6 h-full flex flex-col">
+        {hasCPs ? (
+          <div className="flex flex-col items-center gap-4">
+            {/* Cards Swiper Container */}
+            <div className="relative z-10 py-10">
+              <Swiper
+                effect={"cards"}
+                direction={"vertical"}
+                grabCursor={true}
+                modules={[EffectCards]}
+                className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                cardsEffect={{
+                  perSlideOffset: 12,
+                  perSlideRotate: 0,
+                  slideShadows: false,
+                }}
+                onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+                onSwiper={(swiper) => setSwiperInstance(swiper)}
+              >
+                {/* Navigation Arrows - Outside Swiper */}
+                <div className="absolute right-0 top-0 z-50 p-2.5">
+                  <div className="flex flex-col overflow-hidden rounded-full border-[0.5px] border-white/40 bg-white/20 p-1 shadow-[0_0.937px_18.75px_0_rgba(255,255,255,0.20)] backdrop-blur-[43.35px]">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handlePrevSlide();
+                      }}
+                      disabled={activeIndex === 0}
+                      className="w-7 h-7 flex items-center justify-center text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Previous CP"
+                    >
+                      <ArrowUp size={16} strokeWidth={2.5} color="white" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleNextSlide();
+                      }}
+                      disabled={activeIndex === crewMembers.length - 1}
+                      className="w-7 h-7 flex items-center justify-center text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Next CP"
+                    >
+                      <ArrowDown size={16} strokeWidth={2.5} color="white" />
+                    </button>
+                  </div>
+                </div>
+                {crewMembers.map((member, index) => {
+                  const crewMemberId = Number(member.crew_member_id || member.id);
+                  const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+
+                  return (
+                    <SwiperSlide
+                      key={member.id || index}
+                      className={`relative rounded-3xl overflow-hidden shadow-lg ${bgColor}`}
+                    >
+                      <div className="relative h-full w-full">
+                        {/* Profile Image */}
+                        <a
                           href={`/admin/users/creative-partners/${crewMemberId}`}
                           onClick={(event) => {
                             const isModifiedClick =
@@ -252,41 +284,76 @@ export default function AssignedCP({
                           }}
                           className="relative block h-full w-full cursor-pointer"
                         >
-                        <Image
-                          src={getProfileImage(member)}
-                          alt={`${member.crew_member?.first_name|| ""} ${member.crew_member?.last_name || ""}`}
-                          fill
-                          className="object-cover object-top"
-                        />
-                      </a>
-                      </SwiperSlide>
-                    );
-                  })}
-                </Swiper>
-              </div>
-
-            <div className="mt-auto lg:mb-2 text-center z-10 relative">
-              <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
-                {crewMembers[activeIndex]?.crew_member
-                  ? `${crewMembers[activeIndex].crew_member.first_name || ""} ${crewMembers[activeIndex].crew_member.last_name || ""}`.trim() || "Unknown"
-                  : "Unknown"}
-              </h4>
-              <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-                {getPrimaryRoleLabel(
-                  crewMembers[activeIndex]?.crew_member?.primary_role,
-                  crewMembers[activeIndex]?.crew_member?.role_name
-                )}
-              </p>
+                          <Image
+                            src={getProfileImage(member)}
+                            alt={`${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`}
+                            fill
+                            className="object-cover object-top"
+                          />
+                          {/* Gradient overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        </a>
+                        {/* Bottom Info Section */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                          <div className="flex items-end justify-between">
+                            <div className="flex-1">
+                              <h4 className="text-white text-base font-semibold mb-0.5">
+                                {`${member.crew_member?.first_name || ""} ${member.crew_member?.last_name || ""}`.trim() || "Unknown"}
+                              </h4>
+                              <p className="text-[#E5D5B8] text-xs">
+                                Total Compensation $6,250
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (crewMemberId) {
+                                    router.push(`/admin/users/creative-partners/${crewMemberId}`);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-white rounded-full text-black text-xs font-medium hover:bg-gray-100 transition-all"
+                              >
+                                View Profile
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedCrewId(crewMemberId);
+                                  setIsRemoveModalOpen(true);
+                                }}
+                                disabled={removingCrewId === crewMemberId}
+                                className="w-8 h-8 rounded-full bg-[#FF6B6B] hover:bg-[#FF5252] flex items-center justify-center text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="Remove CP"
+                              >
+                                {removingCrewId === crewMemberId ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </SwiperSlide>
+                  );
+                })}
+              </Swiper>
             </div>
 
+            {/* Action Buttons */}
             <div className="flex flex-col lg:flex-row gap-4">
               <Button
                 onClick={handleOpenAssignment}
                 disabled={!canAssignCP}
                 title={assignmentLockTitle}
-                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] text-black disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-base hover:bg-[#D4C4A8] transition-all"
               >
-                <Plus /> Add More CPs
+                <Plus size={20} className="mr-2" /> Add More CPs
               </Button>
             </div>
           </div>
@@ -306,81 +373,79 @@ export default function AssignedCP({
           </div>
         )}
       </div>
-     {isRemoveModalOpen && (
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
-        onClick={() => {
-          if (removingCrewId === null) {
-            setIsRemoveModalOpen(false);
-            setSelectedCrewId(null);
-          }
-        }}
-      >
+      {isRemoveModalOpen && (
         <div
-          onClick={(e) => e.stopPropagation()}
-          className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl ${
-            isDark
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (removingCrewId === null) {
+              setIsRemoveModalOpen(false);
+              setSelectedCrewId(null);
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl ${isDark
               ? "border-[#333333] bg-[#161616] text-white"
               : "border-[#E5E5E5] bg-white text-black"
-          }`}
-        >
-          <h3 className="text-lg font-semibold">
-            Remove Creative Partner?
-          </h3>
-
-          <p
-            className={`mt-2 text-sm ${
-              isDark ? "text-[#A3A3A3]" : "text-[#666666]"
-            }`}
+              }`}
           >
-            Are you sure you want to remove this creative partner from the shoot?
-            This action cannot be undone.
-          </p>
+            <h3 className="text-lg font-semibold">
+              Remove Creative Partner?
+            </h3>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={removingCrewId !== null}
-              onClick={() => {
-                setIsRemoveModalOpen(false);
-                setSelectedCrewId(null);
-              }}
-              className={
-                isDark
-                  ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]"
-                  : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"
-              }
+            <p
+              className={`mt-2 text-sm ${isDark ? "text-[#A3A3A3]" : "text-[#666666]"
+                }`}
             >
-              Cancel
-            </Button>
+              Are you sure you want to remove this creative partner from the shoot?
+              This action cannot be undone.
+            </p>
 
-            <Button
-              type="button"
-              disabled={!selectedCrewId || removingCrewId !== null}
-              onClick={async () => {
-                if (!selectedCrewId) return;
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={removingCrewId !== null}
+                onClick={() => {
+                  setIsRemoveModalOpen(false);
+                  setSelectedCrewId(null);
+                }}
+                className={
+                  isDark
+                    ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]"
+                    : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"
+                }
+              >
+                Cancel
+              </Button>
 
-                await handleRemoveCP(selectedCrewId);
+              <Button
+                type="button"
+                disabled={!selectedCrewId || removingCrewId !== null}
+                onClick={async () => {
+                  if (!selectedCrewId) return;
 
-                setIsRemoveModalOpen(false);
-                setSelectedCrewId(null);
-              }}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              {removingCrewId !== null ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Removing...
-                </>
-              ) : (
-                "Remove"
-              )}
-            </Button>
+                  await handleRemoveCP(selectedCrewId);
+
+                  setIsRemoveModalOpen(false);
+                  setSelectedCrewId(null);
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {removingCrewId !== null ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  "Remove"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
+      )}
+    </div>
   );
 }
