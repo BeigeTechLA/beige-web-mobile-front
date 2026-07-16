@@ -103,7 +103,7 @@ export const UserManagementTabbed = () => {
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
@@ -231,7 +231,8 @@ export const UserManagementTabbed = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const params: any = { page: currentPage, limit: limit };
+            const shouldUseLocalPagination = activeTab === "All" || activeTab === "Client";
+            const params: any = { page: shouldUseLocalPagination ? 1 : currentPage, limit: shouldUseLocalPagination ? 1000 : limit };
             if (debouncedSearch) params.search = debouncedSearch;
 
             // Filter logic based on requirements
@@ -304,9 +305,18 @@ export const UserManagementTabbed = () => {
                 }
             }
 
-            setUsers(allUsers);
-            setTotalRecords(paginationData?.total_records || allUsers.length);
-            setTotalPages(paginationData?.total_pages || 1);
+            if (shouldUseLocalPagination) {
+                const startIndex = (currentPage - 1) * limit;
+                const paginatedUsers = allUsers.slice(startIndex, startIndex + limit);
+
+                setUsers(paginatedUsers);
+                setTotalRecords(allUsers.length);
+                setTotalPages(Math.max(1, Math.ceil(allUsers.length / limit)));
+            } else {
+                setUsers(allUsers.slice(0, limit));
+                setTotalRecords(paginationData?.total_records || allUsers.length);
+                setTotalPages(paginationData?.total_pages || 1);
+            }
         } catch (error) {
             console.error("Fetch error:", error);
             toast.error("Failed to load users");
@@ -326,7 +336,7 @@ export const UserManagementTabbed = () => {
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4 lg:gap-5">
+        <div className="space-y-6">
             <div>
                 <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
                 <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
@@ -390,9 +400,9 @@ export const UserManagementTabbed = () => {
             </div>
 
             {/* Table Container */}
-            <div className={`w-full flex min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
+            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
                 }`}>
-                <div className="min-h-0 flex-1 overflow-auto">
+                <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]":"bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
@@ -487,21 +497,39 @@ export const UserManagementTabbed = () => {
                             Previous
                         </button>
                         <div className="flex gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === pageNum
-                                            ? "bg-[#E5D5B8] text-black"
-                                            : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
+                            {(() => {
+                                const rangePages = [];
+                                const delta = 1;
+                                const left = currentPage - delta;
+                                const right = currentPage + delta + 1;
+
+                                for (let i = 1; i <= totalPages; i++) {
+                                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                                        rangePages.push(i);
+                                    } else if (i === left - 1 || i === right) {
+                                        rangePages.push("...");
+                                    }
+                                }
+
+                                return rangePages
+                                    .filter((value, index, pages) => value !== "..." || pages[index - 1] !== "...")
+                                    .map((page, index) => (
+                                        page === "..." ? (
+                                            <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs self-center">...</span>
+                                        ) : (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page as number)}
+                                                className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
+                                                    ? "bg-[#E5D5B8] text-black"
+                                                    : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    ));
+                            })()}
                         </div>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}

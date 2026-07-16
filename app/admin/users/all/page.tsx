@@ -41,7 +41,7 @@ export default function AllUsersPage() {
                 }
             />
 
-            <div className="h-[calc(100vh-88px)] overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-6">
+            <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
                 <UserManagementTabbed />
             </div>
         </>

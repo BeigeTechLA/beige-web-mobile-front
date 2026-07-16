@@ -191,7 +191,7 @@ export const CreativePartnersTable = () => {
   const [users, setUsers] = useState<CreativePartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(20);
+  const [limit] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
