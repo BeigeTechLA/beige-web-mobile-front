@@ -274,7 +274,8 @@ export default function SharedUploadFilesModal({
         const batchItems = Array.isArray(response?.data?.items) ? response.data.items : [];
         batchItems.forEach((item: { success?: boolean; filepath?: string; data?: { url?: string; fields?: Record<string, string>; filepath?: string } }) => {
           const filepath = item.data?.filepath || item.filepath || "";
-          const request = chunk.find((entry) => entry.fileName === String(filepath).split("/").pop());
+          const request = chunk.find((entry) => entry.filepath === filepath) ||
+            chunk.find((entry) => entry.fileName === String(filepath).split("/").pop());
           if (!request || !filepath) return;
           policyPathById.set(request.id, filepath);
           if (item.success && item.data?.url && item.data?.fields) {
