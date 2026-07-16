@@ -13,7 +13,7 @@ import {
   useUpdateGuestBookingMutation,
 } from "@/lib/redux/features/booking/guestBookingApi";
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
-import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
+import { useTrackEarlyInterestMutation, useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 import {
@@ -36,6 +36,11 @@ import { V3StudioChooseCreators } from "./V3StudiosChooseCreators";
 // import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 import { HOURLY_STUDIO_LIST, buildHourlyStudioSelection, getSelectedStudiosTotal, normalizeSelectedStudios, serializeStudioMeta } from "./studioData";
 import { V3AltChooseService } from "./V3AltChooseService";
+import {
+  buildStudioFinalizePayload,
+  buildStudioLeadPayload,
+  buildStudioQuotePayload,
+} from "./studioPayload";
 
 const V3_STEPS = [
   { label: "Choose Service" },
@@ -113,6 +118,7 @@ export const BookAShootV3 = () => {
     useUpdateGuestBookingMutation();
   const [saveQuote, { isLoading: isQuoteLoading }] = useSaveQuoteMutation();
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+  const [updateBookingCrew] = useUpdateBookingCrewMutation();
   const [studioPrefillApplied, setStudioPrefillApplied] = useState(false);
 
   const isSubmitting = isBookingLoading || isQuoteLoading || isUpdatingBooking;
@@ -137,34 +143,6 @@ export const BookAShootV3 = () => {
     const date = parseDate(value);
     return date && !isNaN(date.getTime()) ? date.toISOString() : value;
   };
-
-  const serializeStudioItemsForLead = (
-    selectedStudios: BookingDataV3["selectedStudios"] = [],
-    crewCount = 0,
-  ) =>
-    (selectedStudios || []).map((studio) => ({
-      studio_id: studio.studioId,
-      name: studio.name,
-      location: studio.location,
-      image: studio.image,
-      pricing_mode: studio.pricingMode,
-      pricing_category: studio.pricingCategory,
-      pricing_label: studio.pricingLabel,
-      unit_price: studio.unitPrice,
-      quantity: studio.quantity,
-      total: studio.totalPrice,
-      price_label: studio.priceLabel,
-      selected_date: studio.selectedDate,
-      start_time: studio.startTime,
-      end_time: studio.endTime,
-      time_zone: getBrowserTimeZone(),
-      studio_booking_type: "single_day",
-      booking_days: [],
-      cast_and_crew_count: crewCount,
-      update_studio_datetime: true,
-      lat: studio.lat,
-      lng: studio.lng,
-    }));
 
   // Track early interest when logged-in user lands on the page
   useEffect(() => {
@@ -305,6 +283,10 @@ export const BookAShootV3 = () => {
           user_id: user?.id,
           shoot_type: formData.shootType,
           client_name: user?.name || formData.fullName,
+          phone: formData.phone,
+          studio_booking_for: formData.bookingFor || "production",
+          project_name: formData.projectName || "",
+          special_instructions: formData.specialInstructions || "",
           edits_needed: formData.editsNeeded,
           video_edit_types: formData.videoEditTypes,
           photo_edit_types: formData.photoEditTypes,
@@ -327,12 +309,12 @@ export const BookAShootV3 = () => {
             time_zone: d.time_zone || d.timeZone || browserTimeZone
           }));
           if (formData.selectedStudios?.length) {
-            earlyInterestPayload.studio_total = getSelectedStudiosTotal(normalizeSelectedStudios(formData));
-            earlyInterestPayload.studio_items = serializeStudioItemsForLead(
-              formData.selectedStudios,
-              formData.crewCount || 0,
-            );
+            Object.assign(earlyInterestPayload, buildStudioLeadPayload(formData));
           }
+        }
+
+        if (!draftBookingId) {
+          earlyInterestPayload.booking_id = null;
         }
 
         const result = await trackEarlyInterest(earlyInterestPayload).unwrap();
@@ -653,12 +635,6 @@ export const BookAShootV3 = () => {
       const useContentHouseInclusivePricing =
         isStudioBooking && selectedStudios.length > 0 && !hasSelectedCreatorPricing;
       const pricingShootHours = useContentHouseInclusivePricing ? 0 : shootHours;
-      const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
-        : "";
-      const studioEndDateTime = primaryStudio?.selectedDate && primaryStudio?.endTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
-        : "";
       const studioMeta = serializeStudioMeta(selectedStudios);
       const finalSpecialInstructions = [formData.specialInstructions, studioMeta]
         .filter((entry) => String(entry || "").trim())
@@ -720,14 +696,6 @@ export const BookAShootV3 = () => {
 
       // 6. PREPARE FINAL BOOKING PAYLOAD
       const browserTimeZone = getBrowserTimeZone();
-      const bookingDaysPayload = formData.bookingDays?.map((d) => ({
-        date: d.date,
-        start_time: d.startTime,
-        end_time: d.endTime,
-        duration_hours: calculateDayHours(d.startTime, d.endTime),
-        time_zone: browserTimeZone
-      })) || [];
-
       const startDate = getLocalDatePart(formData.startDate);
       const startTime = getLocalTimePart(formData.startDate);
       const endTime = getLocalTimePart(formData.endDate);
@@ -749,14 +717,18 @@ export const BookAShootV3 = () => {
             duration_hours: primaryStudio.quantity,
             time_zone: browserTimeZone,
           }]
-          : bookingDaysPayload,
+          : formData.bookingDays?.map((d) => ({
+            date: d.date,
+            start_time: d.startTime,
+            end_time: d.endTime,
+            duration_hours: calculateDayHours(d.startTime, d.endTime),
+            time_zone: browserTimeZone,
+          })) || [],
         start_date: primaryStudio?.selectedDate || startDate,
         start_time: primaryStudio?.startTime || startTime,
         end_time: primaryStudio?.endTime || endTime,
         time_zone: browserTimeZone,
         estimated_delivery_date: isEditingOnly ? estimatedDeliveryDate : undefined,
-        // start_date_time: formData.startDate,
-        // end_time: formData.endDate,
         duration_hours: primaryStudio?.quantity || shootHours,
         location: primaryStudio?.location || formData.location,
         location_latitude:
@@ -772,6 +744,10 @@ export const BookAShootV3 = () => {
           formData.locationDetails?.center?.[0] ??
           undefined,
         quote_id: savedQuoteId ?? undefined, // Attach the calculated price when available
+        ...buildStudioFinalizePayload({
+          ...formData,
+          selectedStudios,
+        }),
 
         // User Profile Details
         full_name: formData.fullName,
@@ -784,21 +760,9 @@ export const BookAShootV3 = () => {
         crew_roles: formData.roleCounts || {},
 
         // Team Logic
-        crew_size: String(
-          formData.contentType.includes("studio")
-            ? (formData.selectedCrewIds?.length || Object.values(formData.roleCounts || {}).reduce((sum, count) => sum + Number(count || 0), 0))
-            : (formData.crewCount || 1),
-        ),
-        matching_method: formData.contentType.includes("studio")
-          ? (formData.selectedCrewIds?.length ? "manual_selection" : "studio_only")
-          : (formData.matchingMethod || "ai_matchmaker"),
-        selected_crew_ids: formData.selectedCrewIds || [],
-
         // Project Scope
         special_instructions: formData.description?.trim() || finalSpecialInstructions || undefined,
         reference_links: formData.referenceLinks,
-        start_date_time: studioStartDateTime || undefined,
-        end_date_time: studioEndDateTime || undefined,
         is_draft: false, // Marking as final booking
       };
 
@@ -824,7 +788,7 @@ export const BookAShootV3 = () => {
           .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
         : null;
 
-      if (finalBookingId && (quoteItems.length > 0 || isEditingOnly || useContentHouseInclusivePricing)) {
+      if (finalBookingId) {
         try {
           const toIsoIfValid = (value?: string | null) => {
             if (!value) return value;
@@ -835,6 +799,7 @@ export const BookAShootV3 = () => {
           const quotePayload: Record<string, unknown> = {
             items: quoteItems,
             creator_ids: formData.selectedCrewIds || [],
+            booking_id: finalBookingId,
             bookingId: finalBookingId,
             role_counts:
               isEditingOnly
@@ -860,14 +825,9 @@ export const BookAShootV3 = () => {
                 : toIsoIfValid(formData.startDate);
             }
             quotePayload.notes = formData.specialInstructions || undefined;
-            quotePayload.studio_total = selectedStudiosTotal || 0;
-            quotePayload.studio_items = selectedStudios.map((studio) => ({
-              studio_id: studio.studioId,
-              name: studio.name,
-              quantity: studio.quantity,
-              unit_price: studio.unitPrice,
-              total: studio.totalPrice,
-              pricing_mode: studio.pricingMode,
+            Object.assign(quotePayload, buildStudioQuotePayload({
+              ...formData,
+              selectedStudios,
             }));
           }
 

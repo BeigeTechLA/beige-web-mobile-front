@@ -71,25 +71,33 @@ export const salesApi = createApi({
         video_edit_types?: string[];
         photo_edit_types?: string[];
         estimated_delivery_date?: string | null;
+        studio_booking_for?: string;
+        project_name?: string;
+        special_instructions?: string;
         studio_total?: number;
         studio_items?: Array<{
           studio_id: string;
           name: string;
+          location?: string;
+          image?: string;
+          pricing_category?: string;
+          pricing_label?: string;
           quantity: number;
           unit_price: number;
           total: number;
           pricing_mode: "hourly" | "weekend";
+          price_label?: string;
           selected_date?: string;
           start_time?: string;
           end_time?: string;
           time_zone?: string;
-          studio_booking_type?: string;
+          studio_booking_type?: "single_day" | "multi_day";
           booking_days?: Array<Record<string, any>>;
           cast_and_crew_count?: number;
           update_studio_datetime?: boolean;
           lat?: number;
           lng?: number;
-          location?: string;
+          price_label?: string;
         }>;
       }
     >({

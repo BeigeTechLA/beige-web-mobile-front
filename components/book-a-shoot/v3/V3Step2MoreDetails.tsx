@@ -172,6 +172,27 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
   const [updateBookingCrew, { isLoading: isSavingCrew }] = useUpdateBookingCrewMutation();
 
+  const getCrewRolePayload = () => {
+    const crewRoles: Record<string, number> = {};
+
+    includedRoles.forEach((role: TeamRole) => {
+      const apiRoleId = role.id === "editing" ? "editor" : role.id;
+      crewRoles[apiRoleId] = 1;
+    });
+
+    Object.entries(extraTeam).forEach(([roleId, count]) => {
+      if (count > 0) {
+        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
+      }
+    });
+
+    if (isEditingOnly) {
+      crewRoles.editor = 1;
+    }
+
+    return crewRoles;
+  };
+
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
     const current = nextExtra[id] || 0;
@@ -326,24 +347,14 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       return;
     }
 
-    const crewRoles: Record<string, number> = {};
-
-    // 1. Calculate Base Crew (Step 1 choices)
-    includedRoles.forEach((role: TeamRole) => {
-      const apiRoleId = role.id === "editing" ? "editor" : role.id;
-      crewRoles[apiRoleId] = 1;
-    });
-
-    // 2. Add Extra Crew (Step 2 choices)
-    Object.entries(extraTeam).forEach(([roleId, count]) => {
-      if (count > 0) {
-        crewRoles[roleId] = (crewRoles[roleId] || 0) + count;
-      }
-    });
-
-    if (isEditingOnly) {
-      crewRoles.editor = 1;
-    }
+    const crewRoles = getCrewRolePayload();
+    const vCount = Number(crewRoles.videographer || 0);
+    const pCount = Number(crewRoles.photographer || 0);
+    const editorCount = Number(crewRoles.editor || 0);
+    const totalCrewCount = Object.values(crewRoles).reduce(
+      (sum: number, count: unknown) => sum + Number(count || 0),
+      0
+    );
 
     try {
       // 3. CALL API WITH ALL DETAILS
@@ -376,26 +387,24 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           undefined;
       }
 
-      if (!isStudio) {
-        const response = await updateBookingCrew(payload).unwrap();
+      const response = await updateBookingCrew(payload).unwrap();
 
-        const serverCrewRoles = response.data?.crew_roles || crewRoles;
-        const vCount = Number(serverCrewRoles.videographer || 0);
-        const pCount = Number(serverCrewRoles.photographer || 0);
-        const editorCount = Number(serverCrewRoles.editor || 0);
-        const totalCrewCount = Object.values(serverCrewRoles || {}).reduce(
-          (sum: number, count: unknown) => sum + Number(count || 0),
-          0
-        );
+      const serverCrewRoles = response.data?.crew_roles || crewRoles;
+      const serverVideoCount = Number(serverCrewRoles.videographer || 0);
+      const serverPhotoCount = Number(serverCrewRoles.photographer || 0);
+      const serverEditorCount = Number(serverCrewRoles.editor || 0);
+      const serverCrewCount = Object.values(serverCrewRoles || {}).reduce(
+        (sum: number, count: unknown) => sum + Number(count || 0),
+        0
+      );
 
-        // Update local context for Step 3/4
-        updateData({
-          roleCounts: serverCrewRoles,
-          videographyCount: vCount,
-          photographyCount: pCount,
-          crewCount: totalCrewCount || editorCount || vCount + pCount,
-        });
-      }
+      // Update local context for Step 3/4
+      updateData({
+        roleCounts: serverCrewRoles,
+        videographyCount: serverVideoCount,
+        photographyCount: serverPhotoCount,
+        crewCount: serverCrewCount || serverEditorCount || serverVideoCount + serverPhotoCount || totalCrewCount || editorCount || vCount + pCount,
+      });
 
       const formFields: FormFields = {
         additional_creative: data.addTeamMembers,
@@ -405,8 +414,8 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       }
 
       if (data.addTeamMembers) {
-        formFields.videographyCount = vCount
-        formFields.photographyCount = pCount
+        formFields.videographyCount = String(vCount);
+        formFields.photographyCount = String(pCount);
       }
 
       // add GA event on click of "Continue" in the first step

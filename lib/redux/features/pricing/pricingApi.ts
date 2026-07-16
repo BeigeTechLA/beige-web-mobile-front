@@ -11,10 +11,25 @@ import type {
 type StudioQuoteItem = {
   studio_id: string;
   name: string;
+  location?: string;
+  image?: string;
+  pricing_category?: string;
+  pricing_label?: string;
   quantity: number;
   unit_price: number;
   total: number;
   pricing_mode: "hourly" | "weekend";
+  price_label?: string;
+  selected_date?: string;
+  start_time?: string;
+  end_time?: string;
+  time_zone?: string;
+  studio_booking_type?: "single_day" | "multi_day";
+  booking_days?: Array<Record<string, unknown>>;
+  cast_and_crew_count?: number;
+  update_studio_datetime?: boolean;
+  lat?: number;
+  lng?: number;
 };
 
 const API_BASE_URL =
@@ -98,6 +113,7 @@ export const pricingApi = createApi({
         eventType: string;
         guestEmail?: string;
         bookingId?: number;
+        booking_id?: number;
         notes?: string;
         shoot_start_date?: string;
         studio_total?: number;
@@ -176,6 +192,11 @@ export const pricingApi = createApi({
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
+        creator_ids?: number[];
+        booking_id?: number;
+        bookingId?: number;
+        role_counts?: Record<string, number>;
+        notes?: string;
         studio_total?: number;
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;

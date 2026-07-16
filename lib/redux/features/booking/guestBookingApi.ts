@@ -27,12 +27,38 @@ export interface GuestBookingData {
   location_latitude?: number;
   location_longitude?: number;
   streaming_platforms?: string[];
-  crew_roles?: string[];
+  crew_roles?: Record<string, number>;
   skills_needed?: string;
   equipments_needed?: string;
   is_draft?: boolean;
   // Pricing quote reference
   quote_id?: number | null;
+  studio_booking_for?: string;
+  project_name?: string;
+  booking_type?: "single_day" | "multi_day";
+  booking_days?: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+    duration_hours: number;
+    time_zone?: string;
+  }>;
+  location_latitude?: number;
+  location_longitude?: number;
+  full_name?: string;
+  phone?: string;
+  edits_needed?: boolean;
+  video_edit_types?: string[];
+  photo_edit_types?: string[];
+  selected_crew_ids?: number[];
+  crew_roles?: Record<string, number>;
+  matching_method?: string;
+  special_instructions?: string;
+  reference_links?: string[] | string;
+  start_date_time?: string;
+  end_date_time?: string;
+  studio_total?: number;
+  studio_items?: Array<Record<string, unknown>>;
 }
 
 export interface LocationObject {

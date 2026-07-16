@@ -33,6 +33,7 @@ import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModa
 import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 import { getDashboardPathForUser } from "@/lib/auth-routing";
+import { parseStudioMeta } from "@/components/book-a-shoot/v3/studioData";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -1823,14 +1824,11 @@ function MultiCreatorPaymentContent() {
     const description = paymentDetails?.booking?.description || "";
     if (description.includes("[BEIGE_STUDIO_META]")) {
       try {
-        const metaMatch = description.match(/\[BEIGE_STUDIO_META\]\[(.*?)\]/);
-        if (metaMatch && metaMatch[1]) {
-          const metaData = JSON.parse(metaMatch[1]);
-          const studio = Array.isArray(metaData) ? metaData[0] : metaData;
-          if (studio) {
-            studioMetaName = studio.name || "";
-            studioMetaPrice = parseFloat(studio.totalPrice || 0);
-          }
+        const studios = parseStudioMeta(description);
+        const studio = studios[0];
+        if (studio) {
+          studioMetaName = studio.name || "";
+          studioMetaPrice = parseFloat(String(studio.totalPrice || 0));
         }
       } catch (e) {
         console.error("Error parsing studio meta:", e);
