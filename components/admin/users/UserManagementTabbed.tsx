@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -46,6 +46,52 @@ type SortConfig = {
     key: keyof UserData;
     direction: 'asc' | 'desc';
 } | null;
+
+type UserFetchParams = {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+};
+
+type PaginationData = {
+    total_records?: number;
+    total_pages?: number;
+};
+
+type RawClient = {
+    client_id?: string | number;
+    id?: string | number;
+    name?: string;
+    email?: string;
+    is_active?: boolean | number;
+    created_at?: string;
+    phone_number?: string;
+    profile_image?: string | null;
+    referral_code?: string | null;
+    client_type?: string;
+};
+
+type CrewMemberFile = {
+    file_type?: string;
+    file_path?: string;
+};
+
+type RawCrewMember = {
+    crew_member_id?: string | number;
+    id?: string | number;
+    first_name?: string;
+    last_name?: string;
+    name?: string;
+    email?: string;
+    status?: string;
+    created_at?: string;
+    role?: {
+        role_name?: string;
+    };
+    crew_member_files?: CrewMemberFile[];
+    referral_code?: string | null;
+};
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
     const styles = {
@@ -103,7 +149,7 @@ export const UserManagementTabbed = () => {
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
@@ -228,12 +274,9 @@ export const UserManagementTabbed = () => {
             <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E5D5B8]":" text-[#666]"}`} />;
     };
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const params: any = { page: currentPage, limit: limit };
-            if (debouncedSearch) params.search = debouncedSearch;
-
             // Filter logic based on requirements
             const isCreativeStatus = ["approved", "pending", "rejected"].includes(statusFilter);
             const isActiveFilter = statusFilter === "active";
@@ -248,14 +291,22 @@ export const UserManagementTabbed = () => {
                 activeTab === "Creative Partner" ||
                 (activeTab === "All" && !isActiveFilter);
 
+            const isCombinedAllUsers = shouldFetchClients && shouldFetchCreatives;
+            const sourceLimit = isCombinedAllUsers ? Math.ceil(limit / 2) : limit;
+            const params: UserFetchParams = { page: currentPage, limit: sourceLimit };
+            if (debouncedSearch) params.search = debouncedSearch;
+
             let allUsers: UserData[] = [];
-            let paginationData: any = null;
+            let paginationData: PaginationData | null = null;
+            let clientTotalRecords = 0;
+            let creativeTotalRecords = 0;
 
             if (shouldFetchClients) {
                 const clientsRes = await adminApi.getAdminClients(params);
                 if (clientsRes?.data) {
+                    const clientPagination = clientsRes.pagination as PaginationData | undefined;
                     const items = Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || []);
-                    const mapped = items.map((client: any) => ({
+                    const mapped = items.map((client: RawClient) => ({
                         id: `#${client.client_id || client.id}`,
                         name: client.name || "Unknown",
                         email: client.email || "No Email",
@@ -269,7 +320,8 @@ export const UserManagementTabbed = () => {
                         clientType: client?.client_type === "registered" ? "Registered" : "Guest",
                     }));
                     allUsers = [...allUsers, ...mapped];
-                    paginationData = clientsRes.pagination;
+                    clientTotalRecords = clientPagination?.total_records || mapped.length;
+                    paginationData = clientPagination || null;
                 }
             }
 
@@ -280,10 +332,11 @@ export const UserManagementTabbed = () => {
 
                 const creativeRes = await adminApi.getCrewMembers(creativeParams);
                 if (creativeRes?.data) {
+                    const creativePagination = creativeRes.pagination as PaginationData | undefined;
                     const items = Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []);
-                    const mapped = items.map((member: any) => {
+                    const mapped = items.map((member: RawCrewMember) => {
                         const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
-                        const profilePhoto = member.crew_member_files?.find((f: any) => f.file_type === 'profile_photo');
+                        const profilePhoto = member.crew_member_files?.find((file) => file.file_type === 'profile_photo');
                         return {
                             id: `#${member.crew_member_id || member.id}`,
                             name: fullName,
@@ -300,25 +353,35 @@ export const UserManagementTabbed = () => {
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
-                    if (!paginationData) paginationData = creativeRes.pagination;
+                    creativeTotalRecords = creativePagination?.total_records || mapped.length;
+                    if (!paginationData) paginationData = creativePagination || null;
                 }
             }
 
-            setUsers(allUsers);
-            setTotalRecords(paginationData?.total_records || allUsers.length);
-            setTotalPages(paginationData?.total_pages || 1);
+            const combinedTotalRecords = clientTotalRecords + creativeTotalRecords;
+            const resolvedTotalRecords = isCombinedAllUsers
+                ? combinedTotalRecords || allUsers.length
+                : paginationData?.total_records || allUsers.length;
+
+            setUsers(allUsers.slice(0, limit));
+            setTotalRecords(resolvedTotalRecords);
+            setTotalPages(
+                isCombinedAllUsers
+                    ? Math.max(1, Math.ceil(resolvedTotalRecords / limit))
+                    : paginationData?.total_pages || 1
+            );
         } catch (error) {
             console.error("Fetch error:", error);
             toast.error("Failed to load users");
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, currentPage, debouncedSearch, limit, statusFilter]);
 
     useEffect(() => {
         if (!filtersInitialized) return;
         fetchUsers();
-    }, [activeTab, currentPage, debouncedSearch, statusFilter, filtersInitialized]);
+    }, [fetchUsers, filtersInitialized]);
 
     const handleRowClick = (user: UserData) => {
         const cleanId = user.id.replace('#', '');
@@ -326,7 +389,7 @@ export const UserManagementTabbed = () => {
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4 lg:gap-5">
+        <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             <div>
                 <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
                 <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
@@ -390,9 +453,9 @@ export const UserManagementTabbed = () => {
             </div>
 
             {/* Table Container */}
-            <div className={`w-full flex min-h-0 flex-1 flex-col rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
+            <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"
                 }`}>
-                <div className="min-h-0 flex-1 overflow-auto">
+                <div className="w-full overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]":"bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
@@ -472,9 +535,8 @@ export const UserManagementTabbed = () => {
                 </div>
             </div>
 
-            {/* Pagination remains the same using original totalRecords */}
             {!loading && totalPages > 1 && (
-                <div className="flex justify-between items-center pt-2">
+                <div className="flex justify-between items-center p-6 border-t border-[#333333]">
                     <div className="text-sm text-[#666666]">
                         Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
                     </div>
@@ -487,21 +549,37 @@ export const UserManagementTabbed = () => {
                             Previous
                         </button>
                         <div className="flex gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === pageNum
-                                            ? "bg-[#E5D5B8] text-black"
-                                            : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
+                            {(() => {
+                                const rangePages = [];
+                                const delta = 1;
+                                const left = currentPage - delta;
+                                const right = currentPage + delta + 1;
+
+                                for (let i = 1; i <= totalPages; i++) {
+                                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                                        rangePages.push(i);
+                                    } else if (i === left - 1 || i === right) {
+                                        rangePages.push('...');
+                                    }
+                                }
+
+                                return rangePages.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                                    page === '...' ? (
+                                        <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                                    ) : (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page as number)}
+                                            className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
+                                                ? "bg-[#E5D5B8] text-black"
+                                                : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                                ));
+                            })()}
                         </div>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
