@@ -854,6 +854,7 @@ export default function CreateMeetingModal({
                         </SelectContent>
                       </Select>
                     </div>
+
                     <div className="relative">
                       <DatePickerFloating
                         selectedDate={meetingDate}
@@ -893,7 +894,7 @@ export default function CreateMeetingModal({
                   </div>
 
                   {/* Description Field */}
-                  <div className="relative md:col-span-2">
+                  <div className="relative">
                     <label className={`absolute -top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
                       Description
                     </label>
