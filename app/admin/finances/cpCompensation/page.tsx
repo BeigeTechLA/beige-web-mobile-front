@@ -28,6 +28,9 @@ import {
   type CpCompensationDetails,
   type PendingCompensationShoot,
 } from "@/lib/api/cpCompensation";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { getFirstAllowedAdminPath } from "@/lib/permissions";
 
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
 
@@ -191,6 +194,8 @@ export default function AdminFinancesPage() {
   const pathname = usePathname();
   const router = useRouter();
   const { isDark } = useResolvedTheme();
+  const { canView, canCreate, canEdit, isLoading: isPermissionLoading } = usePermissions("finances");
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
@@ -321,6 +326,11 @@ export default function AdminFinancesPage() {
   };
 
   const handleDueDateChange = async (row: ShootCPRow, dueDate: Date) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      throw new Error("Edit permission not allowed");
+    }
+
     const bookingId = row.bookingId || Number(row.id);
     if (!bookingId) {
       toast.error("This payout does not have a valid booking ID yet.");
@@ -338,6 +348,10 @@ export default function AdminFinancesPage() {
   };
 
   const handleOpenModify = (creatorEarningIds?: number[]) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     const earningIds = creatorEarningIds?.filter(Boolean) || [];
     if (earningIds.length > 1) {
       toast.error("Select one Creative Partner to modify payout");
@@ -349,23 +363,39 @@ export default function AdminFinancesPage() {
   };
 
   const handleOpenApprove = (creatorEarningIds?: number[]) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsApproveOpen(true);
     setIsCompOpen(false);
   };
 
   const handleOpenReject = (creatorEarningIds?: number[]) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsRejectOpen(true);
     setIsCompOpen(false);
   };
 
   const handleOpenReceipt = () => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsReceiptOpen(true);
     setIsCompOpen(false);
   };
 
   const handleOpenPayment = (creatorEarningId: number) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setSelectedPaymentEarningId(creatorEarningId);
     setIsCompOpen(false);
     setPaymentSelectionOpen(true);
@@ -380,6 +410,10 @@ export default function AdminFinancesPage() {
     amount < remainingAmount ? "advance" : "final";
 
   const handleStripePayment = async () => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsReceiptSubmitting(true);
     try {
       const earningId = selectedPaymentEarningId || getActionEarningIds()[0];
@@ -408,6 +442,10 @@ export default function AdminFinancesPage() {
   };
 
   const handleAddCompensation = () => {
+    if (!canCreate) {
+      toast.error("Create permission not allowed");
+      return;
+    }
     setIsAddCompOpen(true);
   };
 
@@ -425,6 +463,10 @@ export default function AdminFinancesPage() {
   // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
 
   const handleModifySubmit = async (payload: { reason: string; payoutAmount: string }) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsModifySubmitting(true);
     try {
       const earningId = getActionEarningIds()[0];
@@ -453,6 +495,10 @@ export default function AdminFinancesPage() {
   };
 
   const handleApproveSubmit = async (payload?: { reason?: string }) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsApproveSubmitting(true);
     try {
       const earningIds = getActionEarningIds();
@@ -477,6 +523,10 @@ export default function AdminFinancesPage() {
   };
 
   const handleRejectSubmit = async (payload: { reason: string }) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsRejectSubmitting(true);
     try {
       const earningIds = getActionEarningIds();
@@ -502,6 +552,10 @@ export default function AdminFinancesPage() {
 
   // <-- 4. Handle Add Receipt Form Submission Async Lifecycle
   const handleReceiptSubmit = async (payload: ReceiptPayload) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsReceiptSubmitting(true);
     try {
       const earningId = selectedPaymentEarningId || getActionEarningIds()[0];
@@ -557,6 +611,10 @@ export default function AdminFinancesPage() {
   };
 
   const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
     setIsModifySubmitting(true);
     try {
       const earningId = getActionEarningIds()[0];
@@ -584,16 +642,33 @@ export default function AdminFinancesPage() {
   };
 
   useEffect(() => {
+    if (!canView) return;
     loadHistory(dataType);
-  }, [dataType, loadHistory]);
+  }, [canView, dataType, loadHistory]);
 
   useEffect(() => {
-    if (isAddCompOpen) {
+    if (isPermissionLoading || canView) return;
+
+    const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
+    if (fallbackPath && fallbackPath !== pathname) {
+      router.replace(fallbackPath);
+    }
+  }, [canView, isPermissionLoading, pathname, permissions, router]);
+
+  useEffect(() => {
+    if (isAddCompOpen && canCreate) {
       loadPendingShoots();
     }
-  }, [isAddCompOpen]);
+    if (isAddCompOpen && !canCreate) {
+      setIsAddCompOpen(false);
+    }
+  }, [canCreate, isAddCompOpen]);
 
   const handleAddSubmit = async (payload: AddCpCompensationPayload) => {
+    if (!canCreate) {
+      toast.error("Create permission not allowed");
+      return;
+    }
     setIsAddSubmitting(true);
     try {
       await cpCompensationApi.add(payload);
@@ -610,6 +685,10 @@ export default function AdminFinancesPage() {
     }
   };
 
+  if (isPermissionLoading) {
+    return null;
+  }
+
   return (
     <>
       <Topbar
@@ -621,7 +700,9 @@ export default function AdminFinancesPage() {
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
-              onClick={() => setIsAddCompOpen(true)}
+              onClick={handleAddCompensation}
+              disabled={!canCreate}
+              title={canCreate ? "Add Compensation" : "Create permission not allowed"}
             >
               Add Compensation
             </Button>
@@ -679,8 +760,9 @@ export default function AdminFinancesPage() {
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => setIsAddCompOpen(true)}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            onClick={handleAddCompensation}
+            disabled={!canCreate}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Add Compensation
           </Button>
@@ -697,6 +779,7 @@ export default function AdminFinancesPage() {
           onApproveClick={handleOpenApprove}
           onRejectClick={handleOpenReject}
           onPaymentClick={handleOpenPayment}
+          canEditActions={canEdit}
         />
 
         <AddCompendationModal
@@ -773,8 +856,6 @@ export default function AdminFinancesPage() {
           isSubmitting={isModifySubmitting}
           onSubmit={handleAdvanceSubmit}
         />
-
-
       </div>
     </>
   );

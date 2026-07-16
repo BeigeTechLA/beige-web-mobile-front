@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Download } from "lucide-react";
 
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { getFirstAllowedAdminPath } from "@/lib/permissions";
 
 const buildProxyUrl = (url: string, filename: string, disposition: "inline" | "attachment") => {
   const params = new URLSearchParams({
@@ -19,6 +22,8 @@ function CpReceiptViewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isDark } = useResolvedTheme();
+  const { canView, isLoading: isPermissionLoading } = usePermissions("finances");
+  const permissions = useAppSelector((state) => state.auth.permissions);
 
   const receiptUrl = searchParams.get("url") || "";
   const filename = searchParams.get("filename") || "cp-receipt.pdf";
@@ -34,6 +39,23 @@ function CpReceiptViewContent() {
   );
 
   const backHref = bookingId ? `/admin/finances/cpCompensation/${bookingId}` : "/admin/finances/cpCompensation";
+
+  React.useEffect(() => {
+    if (isPermissionLoading || canView) return;
+
+    const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
+    if (fallbackPath) {
+      router.replace(fallbackPath);
+    }
+  }, [canView, isPermissionLoading, permissions, router]);
+
+  if (isPermissionLoading) {
+    return null;
+  }
+
+  if (!canView) {
+    return null;
+  }
 
   return (
     <div className={`min-h-screen p-4 lg:px-10 lg:py-8 ${isDark ? "bg-[#0B0B0B] text-white" : "bg-[#F4F5F7] text-black"}`}>
