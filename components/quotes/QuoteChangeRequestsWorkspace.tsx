@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, UseRouter } from "react";
 import Link from "next/link";
 import { format, isValid, parseISO } from "date-fns";
 import {
@@ -19,9 +19,11 @@ import {
   UsersRound,
   X,
   ChevronUp,
-  TrendingDown
+  TrendingDown,
+  Component,
+  Bell,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
@@ -717,6 +719,7 @@ export default function QuoteChangeRequestsWorkspace({
 }: QuoteChangeRequestsWorkspaceProps) {
   const pathname = usePathname();
   const { theme } = useTheme();
+  const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
   const [requests, setRequests] = useState<QuoteChangeRequestItem[]>([]);
@@ -729,6 +732,7 @@ export default function QuoteChangeRequestsWorkspace({
   const [selectedRequest, setSelectedRequest] = useState<QuoteChangeRequestItem | null>(null);
   const [processingAction, setProcessingAction] = useState<"approve" | "reject" | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(null);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const isDark = !mounted || theme === "dark";
   const searchQuery = useDebounce(searchInput.trim(), 300);
@@ -821,7 +825,24 @@ export default function QuoteChangeRequestsWorkspace({
 
   return (
     <div className="relative overflow-hidden">
-      <TopbarComponent pathname={pathname} />
+      <TopbarComponent
+        pathname={pathname}
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/admin/quotes/notifications")}
+              className={`relative flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${isDark
+                ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                : "text-black hover:bg-black/5"
+                }`}
+            >
+              <Bell size={28} />
+            </Button>
+          </div>
+        }
+      />
       <div
         className={`min-h-screen px-4 pb-12 pt-6 lg:px-10 lg:pt-10 lg:pb-16 lg:pt-8 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#101010]"}`}
       >
