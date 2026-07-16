@@ -25,6 +25,9 @@ import {
   Eye,
   Loader2,
   Mail,
+  FileText,
+  Upload,
+  X,
 } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -154,6 +157,15 @@ type LineItem = {
   basePrice: number;
   createdAt?: string | null;
   originalIndex?: number;
+};
+
+type PreProductionFileDraft = {
+  name: string;
+  type: string;
+  size: number;
+  content?: string;
+  path?: string;
+  url?: string;
 };
 
 type CatalogEditType = "service" | "addon" | "logistics" | "line_item";
@@ -1367,6 +1379,10 @@ function CreateQuotePageContent() {
   const [showCustomTax, setShowCustomTax] = useState<boolean>(false);
   const [taxRate, setTaxRate] = useState<number | string>(0);
   const [taxType, setTaxType] = useState("");
+  const [preProductionNotes, setPreProductionNotes] = useState("");
+  const [preProductionFile, setPreProductionFile] =
+    useState<PreProductionFileDraft | null>(null);
+  const [clearPreProductionFile, setClearPreProductionFile] = useState(false);
 
   // Configuration for each selected service
   const [serviceConfigs, setServiceConfigs] = useState<
@@ -1549,6 +1565,21 @@ function CreateQuotePageContent() {
   const syncQuoteDetailState = React.useCallback((quoteDetail: SalesQuoteDetailData | null) => {
     setQuoteToEdit(quoteDetail);
     setBookingSchedule(buildBookingScheduleInitialData(quoteDetail));
+    setPreProductionNotes(String(quoteDetail?.pre_production_notes || ""));
+    setPreProductionFile(
+      quoteDetail?.pre_production_file_name ||
+      quoteDetail?.pre_production_file_url ||
+      quoteDetail?.pre_production_file_path
+        ? {
+            name: String(quoteDetail.pre_production_file_name || "pre-production-file"),
+            type: String(quoteDetail.pre_production_file_type || "application/octet-stream"),
+            size: Number(quoteDetail.pre_production_file_size || 0),
+            path: String(quoteDetail.pre_production_file_path || ""),
+            url: String(quoteDetail.pre_production_file_url || ""),
+          }
+        : null,
+    );
+    setClearPreProductionFile(false);
   }, []);
 
   React.useEffect(() => {
@@ -2021,6 +2052,9 @@ function CreateQuotePageContent() {
         setLocationLatitude(hydratedState.locationLatitude ?? null);
         setLocationLongitude(hydratedState.locationLongitude ?? null);
         setProjectDescription(hydratedState.projectDescription);
+        setPreProductionNotes(hydratedState.preProductionNotes);
+        setPreProductionFile(hydratedState.preProductionFile);
+        setClearPreProductionFile(false);
         setValidityDays(hydratedState.validityDays);
         setValidUntil(hydratedState.validUntil);
         setDiscountEnabled(hydratedState.discountEnabled);
@@ -2984,6 +3018,8 @@ function CreateQuotePageContent() {
     phoneNumber,
     address,
     projectDescription,
+    preProductionNotes,
+    preProductionFile,
     validUntil,
     selectedServices,
   });
@@ -3498,6 +3534,44 @@ function CreateQuotePageContent() {
   const showInvoiceActions =
     view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
+  const maxPreProductionFileSizeBytes = 10 * 1024 * 1024;
+  const handlePreProductionFileChange = (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (file.size > maxPreProductionFileSizeBytes) {
+      toast.error("Pre-production file must be 10MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const content = result.replace(/^data:.*;base64,/, "").trim();
+
+      if (!content) {
+        toast.error("Unable to read the selected file.");
+        return;
+      }
+
+      setPreProductionFile({
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        content,
+      });
+      setClearPreProductionFile(false);
+    };
+    reader.onerror = () => {
+      toast.error("Unable to read the selected file.");
+    };
+    reader.readAsDataURL(file);
+  };
+  const handleRemovePreProductionFile = () => {
+    setPreProductionFile(null);
+    setClearPreProductionFile(true);
+  };
   const convertBookingActionLabel = isConvertedToBooking
     ? "Converted to Booking"
     : "Convert to Booking";
@@ -3513,6 +3587,9 @@ function CreateQuotePageContent() {
       locationLatitude,
       locationLongitude,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
+      clearPreProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -3549,6 +3626,9 @@ function CreateQuotePageContent() {
       locationLatitude,
       locationLongitude,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
+      clearPreProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -3586,6 +3666,9 @@ function CreateQuotePageContent() {
         locationLatitude,
         locationLongitude,
         projectDescription,
+        preProductionNotes,
+        preProductionFile,
+        clearPreProductionFile,
         validityDays,
         validUntil,
         discountEnabled,
@@ -3623,6 +3706,8 @@ function CreateQuotePageContent() {
       locationLatitude,
       locationLongitude,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -3730,6 +3815,10 @@ function CreateQuotePageContent() {
       phoneNumber,
       address,
       projectDescription,
+      preProductionNotes,
+      preProductionFileName: preProductionFile
+        ? `${preProductionFile.name} (${Math.round(preProductionFile.size)} bytes)`
+        : "",
       validUntil,
       discountEnabled,
       discountType,
@@ -3750,6 +3839,8 @@ function CreateQuotePageContent() {
     normalizedTaxRate,
     phoneNumber,
     projectDescription,
+    preProductionNotes,
+    preProductionFile,
     storedShootTypeLabel,
     quoteToEdit,
     taxLabel,
@@ -3857,8 +3948,7 @@ function CreateQuotePageContent() {
       }
 
       if (persistedQuote) {
-        setQuoteToEdit(persistedQuote);
-        setBookingSchedule(buildBookingScheduleInitialData(persistedQuote));
+        syncQuoteDetailState(persistedQuote);
       }
 
       if (action === "save") {
@@ -7931,6 +8021,88 @@ function CreateQuotePageContent() {
                       }`}>
                       {formatCurrency(totalAfterTax)}
                     </span>
+                  </div>
+                </div>
+              </div>
+
+              <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
+
+              <div className="p-4 lg:p-8">
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                  Pre-production Details
+                </h3>
+                <p className={`mt-1 text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                  Share additional information or upload relevant files related to pre-production that will be included with the client's quote.
+                </p>
+
+                <div className={`mt-5 rounded-xl border p-4 lg:p-6 ${isDark ? "border-[#3D3D3D] bg-[#282727]" : "border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="relative">
+                      <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#282727]" : "bg-[#F4F5F7]"}`}>
+                        <span className={`text-xs font-normal ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                          Pre-production Notes
+                        </span>
+                      </div>
+                      <Textarea
+                        value={preProductionNotes}
+                        onChange={(event) => setPreProductionNotes(event.target.value)}
+                        placeholder="Add pre-production notes"
+                        className={`min-h-[154px] resize-none rounded-xl px-5 py-5 text-sm lg:text-base ${isDark
+                          ? "border-[#4A4A4A] bg-[#171717] text-white placeholder:text-[#65656D] focus:border-[#A78857]"
+                          : "border-[#D7D7D7] bg-white text-black placeholder:text-[#8A8A8A] focus:border-[#B38F43]"
+                          }`}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <div className={`absolute -top-3 left-4 z-10 px-3 ${isDark ? "bg-[#282727]" : "bg-[#F4F5F7]"}`}>
+                        <span className={`text-xs font-normal ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                          Pre-production File
+                        </span>
+                      </div>
+
+                      {preProductionFile ? (
+                        <div className={`flex min-h-[154px] items-center justify-between gap-3 rounded-xl border px-4 py-4 ${isDark ? "border-[#4A4A4A] bg-[#171717]" : "border-[#D7D7D7] bg-white"}`}>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/30 text-[#8E6F32]"}`}>
+                              <FileText size={20} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                {preProductionFile.name}
+                              </p>
+                              <p className={`mt-1 text-xs ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+                                {(preProductionFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemovePreProductionFile}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${isDark ? "border-white/10 text-white hover:bg-white/10" : "border-[#D7D7D7] text-black hover:bg-[#ECECEC]"}`}
+                            aria-label="Remove pre-production file"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`flex min-h-[154px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 text-center transition-colors ${isDark ? "border-[#4A4A4A] bg-[#171717] text-[#CFCFD3] hover:border-[#E8D1AB]" : "border-[#CFCFCF] bg-white text-[#505050] hover:border-[#A78857]"}`}>
+                          <Upload size={24} className={isDark ? "text-[#E8D1AB]" : "text-[#A78857]"} />
+                          <span className="mt-3 text-sm font-medium">Choose File</span>
+                          <span className={`mt-1 text-xs ${isDark ? "text-[#8A8A8A]" : "text-[#727272]"}`}>
+                            Optional, max 10MB
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(event) => {
+                              handlePreProductionFileChange(event.target.files?.[0] ?? null);
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -14,6 +14,10 @@ import {
   resolveSecureQuotePreviewKey,
   resolveSecureQuotePreviewUrl,
 } from "@/lib/quotePreview";
+import {
+  buildQuotePreProductionFileHref,
+  getQuotePreProductionFile,
+} from "@/lib/quotePreProduction";
 import { downloadQuotePdf } from "@/lib/quotePdf";
 import { getQuoteSendSuccessMessage, isQuoteAlreadySent } from "@/lib/quoteSend";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
@@ -118,6 +122,8 @@ export default function QuotePreviewModal({
 
   const quoteData = unwrapSalesQuoteDetail(quote);
   const isExpired = isQuoteValidityExpired(quoteData);
+  const preProductionFile = getQuotePreProductionFile(quoteData);
+  const preProductionFileHref = buildQuotePreProductionFileHref(preProductionFile);
 
   const resolvedQuoteId = String(
     quoteData?.sales_quote_id ?? quoteData?.quote_id ?? quoteData?.id ?? quoteId ?? ""
@@ -253,6 +259,26 @@ export default function QuotePreviewModal({
     }
   };
 
+  const handleDownloadPreProductionFile = () => {
+    if (!preProductionFileHref || !preProductionFile) {
+      toast.error("Pre-production file is unavailable.");
+      return;
+    }
+
+    if (/^https?:\/\//i.test(preProductionFileHref)) {
+      window.open(preProductionFileHref, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = preProductionFileHref;
+    link.download = preProductionFile.name || "pre-production-file";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <div
       className={`fixed inset-0 z-[110] p-3 backdrop-blur-md sm:p-4 lg:p-6 ${isDark ? "bg-black/85" : "bg-black/50"
@@ -291,6 +317,18 @@ export default function QuotePreviewModal({
               >
                 {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
                 {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </PreviewActionButton>
+            ) : null}
+            {preProductionFileHref ? (
+              <PreviewActionButton
+                onClick={handleDownloadPreProductionFile}
+                className={`h-11 rounded-xl px-4 ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                <Download size={18} className="mr-2" />
+                Pre-production File
               </PreviewActionButton>
             ) : null}
             {!isExpired && showShareActions ? (
@@ -388,6 +426,18 @@ export default function QuotePreviewModal({
               >
                 {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
                 {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </PreviewActionButton>
+            ) : null}
+            {preProductionFileHref ? (
+              <PreviewActionButton
+                onClick={handleDownloadPreProductionFile}
+                className={`w-full h-11 rounded-xl ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                <Download size={18} className="mr-2" />
+                Pre-production File
               </PreviewActionButton>
             ) : null}
             {!showShareActions || isExpired ? null : (

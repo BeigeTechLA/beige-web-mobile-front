@@ -61,6 +61,8 @@ type BuildQuoteReviewChangesDataInput = {
   phoneNumber: string;
   address: string;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFileName?: string;
   validUntil: string;
   discountEnabled: boolean;
   discountType: "percentage" | "fixed";
@@ -112,6 +114,18 @@ const formatReviewValue = (value: unknown) => {
   }
 
   return String(value).trim();
+};
+
+const formatFileReviewValue = (name: unknown, size?: unknown) => {
+  const fileName = formatReviewValue(name);
+  if (!fileName) {
+    return "";
+  }
+
+  const fileSize = Number(size || 0);
+  return Number.isFinite(fileSize) && fileSize > 0
+    ? `${fileName} (${Math.round(fileSize)} bytes)`
+    : fileName;
 };
 
 const formatEditorDate = (value: string) => {
@@ -309,6 +323,8 @@ export const buildQuoteReviewChangesData = ({
   phoneNumber,
   address,
   projectDescription,
+  preProductionNotes = "",
+  preProductionFileName = "",
   validUntil,
   discountEnabled,
   discountType,
@@ -425,6 +441,21 @@ export const buildQuoteReviewChangesData = ({
       label: "Project Description",
       previousValue: formatReviewValue(quote?.project_description),
       nextValue: projectDescription.trim(),
+    },
+    {
+      id: "pre_production_notes",
+      label: "Pre-production Notes",
+      previousValue: formatReviewValue(quote?.pre_production_notes),
+      nextValue: preProductionNotes.trim(),
+    },
+    {
+      id: "pre_production_file",
+      label: "Pre-production File",
+      previousValue: formatFileReviewValue(
+        quote?.pre_production_file_name,
+        quote?.pre_production_file_size,
+      ),
+      nextValue: preProductionFileName.trim(),
     },
     {
       id: "shoot_type",

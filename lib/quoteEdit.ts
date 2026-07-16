@@ -85,6 +85,15 @@ export type QuoteEditorHydrationState = {
   locationLatitude: number | null;
   locationLongitude: number | null;
   projectDescription: string;
+  preProductionNotes: string;
+  preProductionFile: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
   validityDays: number | "custom";
   validUntil: string;
   discountEnabled: boolean;
@@ -725,6 +734,21 @@ export const buildQuoteEditorHydrationState = ({
       quote.converted_booking_details?.longitude
     ),
     projectDescription: getQuoteText(quote.project_description),
+    preProductionNotes: getQuoteText(quote.pre_production_notes),
+    preProductionFile:
+      getQuoteText(quote.pre_production_file_name) ||
+      getQuoteText(quote.pre_production_file_url) ||
+      getQuoteText(quote.pre_production_file_path)
+        ? {
+            name: getQuoteText(quote.pre_production_file_name) || "pre-production-file",
+            type:
+              getQuoteText(quote.pre_production_file_type) ||
+              "application/octet-stream",
+            size: Math.max(0, getQuoteNumber(quote.pre_production_file_size) ?? 0),
+            path: getQuoteText(quote.pre_production_file_path),
+            url: getQuoteText(quote.pre_production_file_url),
+          }
+        : null,
     validityDays:
       quoteValidityDays && quoteValidityDays > 0 ? quoteValidityDays : "custom",
     validUntil: validUntilValue,

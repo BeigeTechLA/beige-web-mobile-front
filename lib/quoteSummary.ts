@@ -74,6 +74,15 @@ export interface QuoteSummarySnapshot {
   clientPhone: string;
   clientAddress: string;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
   validUntil: string;
   quoteValidityDays: number;
   shootTypeLabel: string;
@@ -102,6 +111,15 @@ export interface BuildQuoteSummaryInput {
   phoneNumber: string;
   address: string;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
   validityDays: number | "custom";
   validUntil: string;
   discountEnabled: boolean;
@@ -131,6 +149,8 @@ export interface QuoteValidationInput {
   phoneNumber: string;
   address: string;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: unknown;
   validUntil: string;
   selectedServices: string[];
 }
@@ -166,6 +186,8 @@ export const hasQuoteSummaryContent = (input: {
       hasText(input.phoneNumber) ||
       hasText(input.address) ||
       hasText(input.projectDescription) ||
+      hasText(input.preProductionNotes || "") ||
+      Boolean(input.preProductionFile) ||
       hasText(input.validUntil) ||
       hasText(input.selectedShootType) ||
       input.selectedServices.length > 0 ||
@@ -456,6 +478,17 @@ export const buildQuoteSummarySnapshot = (
     clientPhone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
     clientAddress: input.address.trim(),
     projectDescription: input.projectDescription.trim(),
+    preProductionNotes: input.preProductionNotes?.trim() || "",
+    preProductionFile: input.preProductionFile
+      ? {
+          name: input.preProductionFile.name,
+          type: input.preProductionFile.type || "application/octet-stream",
+          size: input.preProductionFile.size,
+          content: input.preProductionFile.content,
+          path: input.preProductionFile.path,
+          url: input.preProductionFile.url,
+        }
+      : null,
     validUntil: input.validUntil,
     quoteValidityDays,
     shootTypeLabel,
@@ -638,6 +671,13 @@ export const buildPreviewQuoteFromSummary = (
     client_phone: snapshot.clientPhone,
     client_address: snapshot.clientAddress,
     project_description: snapshot.projectDescription,
+    pre_production_notes: snapshot.preProductionNotes || null,
+    pre_production_file_name: snapshot.preProductionFile?.name || null,
+    pre_production_file_type: snapshot.preProductionFile?.type || null,
+    pre_production_file_size: snapshot.preProductionFile?.size || null,
+    pre_production_file_content: snapshot.preProductionFile?.content || null,
+    pre_production_file_path: snapshot.preProductionFile?.path || null,
+    pre_production_file_url: snapshot.preProductionFile?.url || null,
     video_shoot_type: snapshot.shootTypeLabel,
     quote_validity_days: snapshot.quoteValidityDays,
     valid_until: snapshot.validUntil,

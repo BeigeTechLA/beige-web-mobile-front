@@ -583,6 +583,13 @@ export interface SalesQuoteDetailData {
   address?: string;
   location?: string;
   project_description?: string;
+  pre_production_notes?: string | null;
+  pre_production_file_name?: string | null;
+  pre_production_file_type?: string | null;
+  pre_production_file_size?: number | string | null;
+  pre_production_file_content?: string | null;
+  pre_production_file_path?: string | null;
+  pre_production_file_url?: string | null;
   video_shoot_type?: string;
   quote_validity_days?: number | string;
   quote_status?: string;

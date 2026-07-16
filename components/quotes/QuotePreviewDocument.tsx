@@ -15,6 +15,7 @@ import {
   normalizeQuoteTerms,
   type NormalizedQuoteLineItem,
 } from "@/lib/quoteDetail";
+import { getQuotePreProductionNotes } from "@/lib/quotePreProduction";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getDefaultQuoteTerms, isLegacyDefaultQuoteTerms } from "@/lib/quoteTerms";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -302,6 +303,7 @@ export default function QuotePreviewDocument({
     previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
     revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
   });
+  const preProductionNotes = getQuotePreProductionNotes(quoteData);
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""
@@ -419,6 +421,17 @@ export default function QuotePreviewDocument({
             <PreviewAmountList title="Add-ons" items={addonItems} isDark={isDark} showQuantity={true} />
             <PreviewAmountList title="Logistics" items={logisticsItems} isDark={isDark} />
             <PreviewAmountList title="Custom Items" items={customItems} isDark={isDark} showBullet />
+          </div>
+        ) : null}
+
+        {preProductionNotes ? (
+          <div className={`rounded-lg lg:rounded-xl p-3 lg:p-4 ${isDark ? "border border-white/10 bg-[#202020]" : "border border-[#D7D7D7] bg-[#F4F5F7]"}`}>
+            <p className={`text-[10px] font-semibold uppercase lg:text-sm ${isDark ? "text-white/55" : "text-[#71717B]"}`}>
+              Pre-production Notes
+            </p>
+            <p className={`mt-1 whitespace-pre-wrap break-words text-xs lg:mt-2 lg:text-base ${isDark ? "text-white/80" : "text-[#18181B]"}`}>
+              {preProductionNotes}
+            </p>
           </div>
         ) : null}
 
