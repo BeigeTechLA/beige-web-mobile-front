@@ -4963,7 +4963,7 @@ function CreateQuotePageContent() {
 
     setIsSubmittingLineItem(true);
     try {
-      const trimmedName = clampTextLength(customItemName).trim();
+      const trimmedName = customItemName.trim();
       const cost = parseFloat(customItemCost.replace(/[^0-9.]/g, "")) || 0;
       if (!trimmedName) {
         toast.error("Name is required");
@@ -6807,10 +6807,7 @@ function CreateQuotePageContent() {
                       <Input
                         placeholder="Eg : Consulting Fee, Rush Delivery..."
                         value={customItemName}
-                        onChange={(e) =>
-                          setCustomItemName(clampTextLength(e.target.value))
-                        }
-                        maxLength={MAX_QUOTE_OPTION_LABEL_LENGTH}
+                        onChange={(e) => setCustomItemName(e.target.value)}
                         className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
                       />
                     </div>

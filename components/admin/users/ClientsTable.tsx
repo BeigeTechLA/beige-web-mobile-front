@@ -9,6 +9,12 @@ import { SortDateButton } from "@/components/admin/SortDateButton"; // Re-added 
 import {
     format,
     startOfDay,
+    startOfWeek,
+    endOfWeek,
+    startOfMonth,
+    endOfMonth,
+    startOfYear,
+    endOfYear,
 } from "date-fns";
 import { Button } from "@/components/ui/button"; 
 import DatePicker from "@/components/ui/Datepicker";
@@ -339,6 +345,8 @@ export const ClientsTable = () => {
         if (isExporting) return;
 
         setIsExporting(true);
+        setExportStartDate(null);
+        setExportEndDate(null);
 
         try {
             const startDate = exportStartDate;
@@ -347,6 +355,7 @@ export const ClientsTable = () => {
             if (Boolean(startDate) !== Boolean(endDate)) {
                 throw new Error("Select both dates or leave both blank to export all records.");
             }
+            const hasExportDateRange = Boolean(startDate && endDate);
 
             const exportParams: {
                 start_date?: string;
@@ -360,10 +369,74 @@ export const ClientsTable = () => {
                         : activeTab === "active"
                             ? "active"
                             : "all",
-                search: debouncedSearch || undefined,
+                search: searchQuery.trim() || undefined,
             };
 
+            if (
+                !hasExportDateRange &&
+                range === "custom" &&
+                selectedDate
+            ) {
+                const formattedSelectedDate = format(
+                    selectedDate,
+                    "yyyy-MM-dd"
+                );
+
+                exportParams.start_date = formattedSelectedDate;
+                exportParams.end_date = formattedSelectedDate;
+            }
             let fileName = "clients-all-records.csv";
+
+
+            if (!hasExportDateRange) {
+                const today = new Date();
+
+                if (range === "week") {
+                    exportParams.start_date = format(
+                        startOfWeek(today, { weekStartsOn: 1 }),
+                        "yyyy-MM-dd"
+                    );
+
+                    exportParams.end_date = format(
+                        endOfWeek(today, { weekStartsOn: 1 }),
+                        "yyyy-MM-dd"
+                    );
+                }
+
+                if (range === "month") {
+                    exportParams.start_date = format(
+                        startOfMonth(today),
+                        "yyyy-MM-dd"
+                    );
+
+                    exportParams.end_date = format(
+                        endOfMonth(today),
+                        "yyyy-MM-dd"
+                    );
+                }
+
+                if (range === "year") {
+                    exportParams.start_date = format(
+                        startOfYear(today),
+                        "yyyy-MM-dd"
+                    );
+
+                    exportParams.end_date = format(
+                        endOfYear(today),
+                        "yyyy-MM-dd"
+                    );
+                }
+
+                if (range === "custom" && selectedDate) {
+                    const formattedSelectedDate = format(
+                        selectedDate,
+                        "yyyy-MM-dd"
+                    );
+
+                    exportParams.start_date = formattedSelectedDate;
+                    exportParams.end_date = formattedSelectedDate;
+                }
+            }
 
             if (startDate && endDate) {
                 const normalizedStartDate = startOfDay(startDate);
@@ -506,6 +579,7 @@ export const ClientsTable = () => {
                             <SelectItem value="all">All Time</SelectItem>
                             <SelectItem value="week">This Week</SelectItem>
                             <SelectItem value="month">This Month</SelectItem>
+                            <SelectItem value="year">This Year</SelectItem>
                             <SelectItem value="custom">Custom Date</SelectItem>
                         </SelectContent>
                     </Select>

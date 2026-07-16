@@ -617,6 +617,8 @@ export const CreativePartnersTable = () => {
     window.URL.revokeObjectURL(downloadUrl);
 
     setIsExportOpen(false);
+    setExportStartDate(null);
+    setExportEndDate(null);
 
     toast.success(
       "Creative partners exported successfully."
