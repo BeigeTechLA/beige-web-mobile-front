@@ -7310,10 +7310,10 @@ function CreateQuotePageContent() {
                           }`}
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="min-w-0 flex-1 pr-2 flex lg:flex-col items-center justify-between lg:items-start lg:gap-1">
+                         <div className="min-w-0 flex-1 pr-2 flex flex-col items-start gap-1">
                             <h3
                               title={item.label}
-                              className={`max-w-full truncate text-sm lg:text-lg font-medium leading-snug ${
+                              className={`min-w-0 max-w-full whitespace-normal break-words text-sm lg:text-lg font-medium leading-snug ${
                                 isDark ? "text-white" : "text-black"
                               }`}
                             >

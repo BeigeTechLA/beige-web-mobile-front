@@ -1396,6 +1396,8 @@ export default function QuotesDashboardPage({
         window.URL.revokeObjectURL(downloadUrl);
 
         setIsExportOpen(false);
+        setExportStartDate(null);
+        setExportEndDate(null);
         toast.success("Quotes exported successfully.");
       } catch (error) {
         console.error("Export Quotes Error:", error);

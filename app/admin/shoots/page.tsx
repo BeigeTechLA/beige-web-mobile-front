@@ -254,6 +254,8 @@ export default function ShootsPage() {
         window.URL.revokeObjectURL(downloadUrl);
 
         setIsExportOpen(false);
+        setExportStartDate(null);
+        setExportEndDate(null);
         toast.success("Shoots exported successfully.");
       } catch (error) {
         console.error("Export Shoots Error:", error);
