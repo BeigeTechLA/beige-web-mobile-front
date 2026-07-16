@@ -3,7 +3,8 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
@@ -45,6 +46,9 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(!assignedMembers);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -106,6 +110,39 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
     fetchTeamMembers();
     setIsModalOpen(false);
   }
+
+  const handleRemoveMember = async (memberId: number) => {
+    // try {
+    //   setRemovingMemberId(memberId);
+
+    //   const response = await adminApi.removeProjectPostProductionMember({
+    //     project_id: Number(projectId),
+    //     post_production_member_id: memberId,
+    //   });
+
+    //   if (response?.success === false && response?.error) {
+    //     toast.error(response.error);
+    //     return;
+    //   }
+
+    //   setTeamMembers((prev) => {
+    //     const updated = prev.filter((m) => m.id !== memberId);
+
+    //     setActiveIndex((current) =>
+    //       updated.length === 0 ? 0 : Math.min(current, updated.length - 1)
+    //     );
+
+    //     return updated;
+    //   });
+
+    //   toast.success("Team member removed successfully");
+    // } catch (error) {
+    //   console.error(error);
+    //   toast.error("Failed to remove team member");
+    // } finally {
+    //   setRemovingMemberId(null);
+    // }
+  };
 
   const handleOpenAssignment = () => {
     if (onRequestAssignment) {
@@ -219,6 +256,23 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
                     activeIndex === index ? 'opacity-100 scale-100' : 'opacity-40 scale-95'
                   )}
                 >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedMemberId(member.id);
+                      setIsRemoveModalOpen(true);
+                    }}
+                    disabled={removingMemberId === member.id}
+                    className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black flex items-center justify-center text-white transition-all"
+                  >
+                    {removingMemberId === member.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <X size={18} />
+                    )}
+                  </button>
                   <div className="w-full h-full flex items-center justify-center">
                     <span className="text-5xl font-bold text-black/85">
                       {(member.name || "U")
@@ -260,6 +314,81 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
             </Button>
           </div>
         </>
+      )}
+      {isRemoveModalOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (removingMemberId === null) {
+              setIsRemoveModalOpen(false);
+              setSelectedMemberId(null);
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "w-full max-w-md rounded-2xl border p-6 shadow-2xl",
+              isDark
+                ? "border-[#333333] bg-[#161616] text-white"
+                : "border-[#E5E5E5] bg-white text-black"
+            )}
+          >
+            <h3 className="text-lg font-semibold">
+              Remove Team Member?
+            </h3>
+
+            <p
+              className={cn(
+                "mt-2 text-sm",
+                isDark ? "text-[#A3A3A3]" : "text-[#666666]"
+              )}
+            >
+              Are you sure you want to remove this post production team member?
+              This action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                disabled={removingMemberId !== null}
+                onClick={() => {
+                  setIsRemoveModalOpen(false);
+                  setSelectedMemberId(null);
+                }}
+                className={
+                  isDark
+                    ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]"
+                    : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"
+                }
+              >
+                Cancel
+              </Button>
+
+              <Button
+                disabled={!selectedMemberId || removingMemberId !== null}
+                onClick={async () => {
+                  if (!selectedMemberId) return;
+
+                  await handleRemoveMember(selectedMemberId);
+
+                  setIsRemoveModalOpen(false);
+                  setSelectedMemberId(null);
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {removingMemberId !== null ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  "Remove"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
