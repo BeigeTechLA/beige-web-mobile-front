@@ -232,6 +232,45 @@ const formatShootTypeLabel = (value?: string | null) => {
   return toTitleCase(String(value));
 };
 
+const getCrewCountByRole = (
+  crewCounts: unknown,
+  role: "video" | "photo",
+  fallbackIndex: number,
+) => {
+  const items = Array.isArray(crewCounts) ? crewCounts : [];
+  const roleMatchers =
+    role === "video" ? ["video", "videographer"] : ["photo", "photographer"];
+
+  const readField = (item: unknown, key: string) =>
+    item && typeof item === "object"
+      ? (item as Record<string, unknown>)[key]
+      : undefined;
+
+  const matchedItem = items.find((item) => {
+    const label = String(
+      readField(item, "role") ||
+      readField(item, "type") ||
+      readField(item, "label") ||
+      readField(item, "name") ||
+      readField(item, "crew_type") ||
+      readField(item, "creative_type") ||
+      "",
+    ).toLowerCase();
+
+    return roleMatchers.some((matcher) => label.includes(matcher));
+  });
+
+  const selectedItem = matchedItem || items[fallbackIndex];
+  const count = Number(
+    readField(selectedItem, "count") ??
+    readField(selectedItem, "quantity") ??
+    readField(selectedItem, "total") ??
+    0,
+  );
+
+  return Number.isFinite(count) ? count : 0;
+};
+
 const extractContactName = (value?: string | null) => {
   if (!value) return "";
   const text = String(value);
@@ -2131,6 +2170,21 @@ function MultiCreatorPaymentContent() {
   const shootTypeLabel = formatShootTypeLabel(
     summaryData?.event_type || booking?.event_type,
   );
+  const normalizedEventType = String(summaryData?.event_type || booking?.event_type || "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  const hasVideoCrew =
+    normalizedEventType.includes("video") ||
+    normalizedEventType.includes("videographer");
+  const hasPhotoCrew =
+    normalizedEventType.includes("photo") ||
+    normalizedEventType.includes("photographer");
+  const videoCrewCount = getCrewCountByRole(summaryData?.crew_counts, "video", 0);
+  const photoCrewCount = getCrewCountByRole(
+    summaryData?.crew_counts,
+    "photo",
+    hasVideoCrew && hasPhotoCrew ? 1 : 0,
+  );
 
   const paymentCompletionState = getPaymentCompletionState(paymentDetails);
   const isSettledPayment = paymentCompletionState.isSettled;
@@ -2410,18 +2464,18 @@ function MultiCreatorPaymentContent() {
                       <div className="flex flex-col lg:text-lg">
                         <span className="text-[#626467]">Dedicated Team:</span>
                         {
-                          booking.event_type === "videographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) </span>
+                          hasVideoCrew && !hasPhotoCrew && (
+                            <span className="text-[#070707] font-medium">{videoCrewCount} Videographer(s) </span>
                           )
                         }
                         {
-                          booking.event_type === "photographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Photographer(s)</span>
+                          hasPhotoCrew && !hasVideoCrew && (
+                            <span className="text-[#070707] font-medium">{photoCrewCount} Photographer(s)</span>
                           )
                         }
                         {
-                          booking.event_type === "videographer,photographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) & {summaryData?.crew_counts[1].count || 0} Photographer(s)</span>
+                          hasVideoCrew && hasPhotoCrew && (
+                            <span className="text-[#070707] font-medium">{videoCrewCount} Videographer(s) & {photoCrewCount} Photographer(s)</span>
                           )
                         }
                       </div>
