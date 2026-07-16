@@ -23,6 +23,12 @@ import DatePicker from "@/components/ui/Datepicker";
 import { Button } from "@/src/components/landing/ui/button";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { Input } from "@/components/ui/input";
+import {
+  buildHourlyStudioSelection,
+  normalizeSelectedStudios,
+  removeSelectedStudio,
+  upsertSelectedStudio,
+} from "./studioData";
 
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
@@ -435,6 +441,19 @@ export const V3BrowseStudios: React.FC<Props> = ({
     return eachDayOfInterval({ start, end });
   }, [currentCalendarMonth]);
 
+  const selectedStudios = React.useMemo(
+    () =>
+      normalizeSelectedStudios({
+        selectedStudios: data.selectedStudios,
+        selectedStudioIds: data.selectedStudioIds,
+      }),
+    [data.selectedStudios, data.selectedStudioIds],
+  );
+  const selectedStudioIds = React.useMemo(
+    () => selectedStudios.map((studio) => studio.studioId),
+    [selectedStudios],
+  );
+
   useEffect(() => {
     let isActive = true;
 
@@ -550,7 +569,54 @@ export const V3BrowseStudios: React.FC<Props> = ({
             <div className="col-span-full text-white/50 text-sm py-4">No studios match your search.</div>
           ) : (
             studioData.map((studio) => (
-              <StudioCard key={studio.slug} {...studio} />
+              <StudioCard
+                key={studio.slug}
+                {...studio}
+                isSelected={selectedStudioIds.includes(studio.slug)}
+                onToggle={() => {
+                  const existing = selectedStudios.find((item) => item.studioId === studio.slug);
+                  if (existing) {
+                    updateData({
+                      selectedStudios: removeSelectedStudio(selectedStudios, studio.slug),
+                      selectedStudioIds: selectedStudioIds.filter((id) => id !== studio.slug),
+                    });
+                    toast.success("Studio removed.");
+                    return;
+                  }
+
+                  const fallbackDate = data.startDate ? format(parseDate(data.startDate) || new Date(), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+                  const selection = buildHourlyStudioSelection(
+                    {
+                      id: studio.slug,
+                      name: studio.name,
+                      location: studio.location,
+                      image: studio.image,
+                      pricingMode: "hourly",
+                      priceValue: studio.price,
+                      priceLabel: `$${studio.price}/Hr`,
+                      pricingOptions: [],
+                      beds: 0,
+                      baths: 0,
+                      poolType: "",
+                    },
+                    {
+                      selectedDate: fallbackDate,
+                      startTime: data.startDate ? format(parseDate(data.startDate) || new Date(), "HH:mm") : "10:30",
+                      endTime: data.endDate ? format(parseDate(data.endDate) || new Date(), "HH:mm") : "14:30",
+                      pricingKey: "",
+                    },
+                  );
+
+                  updateData({
+                    selectedStudios: upsertSelectedStudio(selectedStudios, selection),
+                    selectedStudioIds: [...selectedStudioIds, studio.slug],
+                    selectedStudioImage: studio.image,
+                    selectedStudioName: studio.name,
+                    isBrowsingStudios: false,
+                  });
+                  toast.success("Studio added.");
+                }}
+              />
             ))
           )}
         </div>

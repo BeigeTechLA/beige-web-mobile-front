@@ -17,6 +17,7 @@ interface StudioCardProps {
   tags: string[];
   isDark?: boolean;
   isSelected?: boolean;
+  onToggle?: () => void;
 }
 
 export default function StudioCard({
@@ -30,7 +31,8 @@ export default function StudioCard({
   reviews,
   tags,
   isDark = true,
-  isSelected = false
+  isSelected = false,
+  onToggle,
 }: StudioCardProps) {
 
   return (
@@ -129,11 +131,19 @@ export default function StudioCard({
           <div className="mt-4 flex items-center gap-2 lg:gap-3">
             {
               isSelected ? (
-                <button className="flex gap-1.5 justify-center items-center flex-1 rounded-lg bg-[#FFC9C9] py-3.5 text-base font-medium text-[#C31717] transition-opacity hover:opacity-90">
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="flex gap-1.5 justify-center items-center flex-1 rounded-lg bg-[#FFC9C9] py-3.5 text-base font-medium text-[#C31717] transition-opacity hover:opacity-90"
+                >
                   <X size={20} strokeWidth={2} /> Remove
                 </button>
               ) : (
-                <button className="flex-1 rounded-lg bg-[#E8D1AB] py-3.5 text-base font-medium text-black transition-opacity hover:opacity-90">
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="flex-1 rounded-lg bg-[#E8D1AB] py-3.5 text-base font-medium text-black transition-opacity hover:opacity-90"
+                >
                   Add this Studio
                 </button>
               )

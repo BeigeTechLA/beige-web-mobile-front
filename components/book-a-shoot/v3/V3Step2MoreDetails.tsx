@@ -27,6 +27,7 @@ const TEAM_ROLES = [
   // { id: "producer", label: "Producer", price: 220, icon: <User size={28} /> },
   // { id: "director", label: "Director", price: 275, icon: <Film size={28} /> },
 ];
+type TeamRole = (typeof TEAM_ROLES)[number];
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -169,7 +170,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
   const [extraTeam, setExtraTeam] = useState<Record<string, number>>(data.extraRoleSelections || {});
   const [errors, setErrors] = useState<string[]>([]);
 
-  const [updateBookingCrew] = useUpdateBookingCrewMutation();
+  const [updateBookingCrew, { isLoading: isSavingCrew }] = useUpdateBookingCrewMutation();
 
   const handleExtraTeamChange = (id: string, delta: number) => {
     const nextExtra = { ...extraTeam };
@@ -328,7 +329,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
     const crewRoles: Record<string, number> = {};
 
     // 1. Calculate Base Crew (Step 1 choices)
-    includedRoles.forEach((role: any) => {
+    includedRoles.forEach((role: TeamRole) => {
       const apiRoleId = role.id === "editing" ? "editor" : role.id;
       crewRoles[apiRoleId] = 1;
     });
@@ -375,24 +376,26 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
           undefined;
       }
 
-      const response = await updateBookingCrew(payload).unwrap();
+      if (!isStudio) {
+        const response = await updateBookingCrew(payload).unwrap();
 
-      const serverCrewRoles = response.data.crew_roles;
-      const vCount = serverCrewRoles.videographer || 0;
-      const pCount = serverCrewRoles.photographer || 0;
-      const editorCount = serverCrewRoles.editor || 0;
-      const totalCrewCount = Object.values(serverCrewRoles || {}).reduce(
-        (sum: number, count: any) => sum + Number(count || 0),
-        0
-      );
+        const serverCrewRoles = response.data?.crew_roles || crewRoles;
+        const vCount = Number(serverCrewRoles.videographer || 0);
+        const pCount = Number(serverCrewRoles.photographer || 0);
+        const editorCount = Number(serverCrewRoles.editor || 0);
+        const totalCrewCount = Object.values(serverCrewRoles || {}).reduce(
+          (sum: number, count: unknown) => sum + Number(count || 0),
+          0
+        );
 
-      // Update local context for Step 3/4
-      updateData({
-        roleCounts: serverCrewRoles,
-        videographyCount: vCount,
-        photographyCount: pCount,
-        crewCount: totalCrewCount || editorCount || vCount + pCount
-      });
+        // Update local context for Step 3/4
+        updateData({
+          roleCounts: serverCrewRoles,
+          videographyCount: vCount,
+          photographyCount: pCount,
+          crewCount: totalCrewCount || editorCount || vCount + pCount,
+        });
+      }
 
       const formFields: FormFields = {
         additional_creative: data.addTeamMembers,
@@ -477,7 +480,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         <div>
           {includedRoles.length > 0 ? (
             <div className={`grid grid-cols-1 ${includedRoles.length > 1 ? 'md:grid-cols-2' : ''} gap-4`}>
-              {includedRoles.map((role: any) => (
+              {includedRoles.map((role: TeamRole) => (
                 <div key={role.id} className="flex items-center justify-between p-4 bg-[#101010] rounded-[12px] border border-white/10">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 lg:w-15 lg:h-15 rounded-[12px] flex items-center justify-center bg-[#171717] text-[#E8D1AB]">
@@ -520,7 +523,7 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
               </button>
               <button
                 onClick={() => {
-                  { handleRemoveAllExtra }
+                  handleRemoveAllExtra();
                   updateData({ addTeamMembers: false });
                   setExtraTeam({});
                   updateData({ teamIncluded: [] });
@@ -806,10 +809,10 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         </Button>
         <Button
           onClick={handleNext}
-          // disabled={!data.shootType || !data.editType}
-          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px]"
+          disabled={isSavingCrew}
+          className="h-14 lg:h-[72px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black font-medium text-base lg:text-xl rounded-[10px] min-w-[140px] lg:min-w-[185px] disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Continue
+          {isSavingCrew ? "Saving..." : "Continue"}
         </Button>
       </div>
     </div>

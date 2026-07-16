@@ -663,6 +663,8 @@ export const BookAShootV3 = () => {
       const finalSpecialInstructions = [formData.specialInstructions, studioMeta]
         .filter((entry) => String(entry || "").trim())
         .join("\n\n");
+      let savedQuoteId: number | null = null;
+      let savedQuoteTotal: number | null = null;
 
       // 2. Map Database Item IDs based on your SQL structure
       const ITEM_IDS = {
@@ -714,74 +716,6 @@ export const BookAShootV3 = () => {
         quoteItems.push({ item_id: ITEM_IDS.soundEngineer, quantity: 1 });
         quoteItems.push({ item_id: ITEM_IDS.director, quantity: 1 });
         quoteItems.push({ item_id: ITEM_IDS.gaffer, quantity: 1 });
-      }
-
-      // 5. SAVE QUOTE (API Call)
-      // We pass shoot_start_date so the backend can calculate the Rush Fee automatically
-      let savedQuoteId: number | null = null;
-      let savedQuoteTotal: number | null = null;
-
-      const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
-        ? formData.bookingDays
-          .slice()
-          .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
-        : null;
-
-      if (quoteItems.length > 0 || isEditingOnly || useContentHouseInclusivePricing) {
-        try {
-          const toIsoIfValid = (value?: string | null) => {
-            if (!value) return value;
-            const d = parseDate(value);
-            return d && !isNaN(d.getTime()) ? d.toISOString() : value;
-          };
-
-          const quotePayload: Record<string, unknown> = {
-            items: quoteItems,
-            creator_ids: formData.selectedCrewIds || [],
-            role_counts:
-              isEditingOnly
-                ? { editor: 1 }
-                : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
-                  ? {}
-                  : (formData.roleCounts || {}),
-            shootHours: pricingShootHours,
-            eventType: formData.shootType || "general",
-            guestEmail: formData.email,
-            video_edit_types: formData.editsNeeded
-              ? buildEditTypeCounts(formData.videoEditTypes)
-              : [],
-            photo_edit_types: formData.editsNeeded
-              ? buildEditTypeCounts(formData.photoEditTypes)
-              : [],
-          };
-
-          if (!isEditingOnly) {
-            if (!useContentHouseInclusivePricing) {
-              quotePayload.shoot_start_date = firstBookingDate
-                ? `${firstBookingDate}T00:00:00.000Z`
-                : toIsoIfValid(formData.startDate);
-            }
-            quotePayload.notes = formData.specialInstructions || undefined;
-            quotePayload.studio_total = selectedStudiosTotal || 0;
-            quotePayload.studio_items = selectedStudios.map((studio) => ({
-              studio_id: studio.studioId,
-              name: studio.name,
-              quantity: studio.quantity,
-              unit_price: studio.unitPrice,
-              total: studio.totalPrice,
-              pricing_mode: studio.pricingMode,
-            }));
-          }
-
-          const savedQuote = await saveQuote(quotePayload).unwrap();
-          savedQuoteId = savedQuote.quote_id;
-          savedQuoteTotal = savedQuote.total;
-
-          console.log("Pricing Quote Generated:", savedQuoteId);
-        } catch (quoteError) {
-          console.error("Pricing Calculation Error:", quoteError);
-          toast.error("Error calculating final price, but proceeding with booking...");
-        }
       }
 
       // 6. PREPARE FINAL BOOKING PAYLOAD
@@ -837,7 +771,7 @@ export const BookAShootV3 = () => {
           formData.locationDetails?.lng ??
           formData.locationDetails?.center?.[0] ??
           undefined,
-        quote_id: savedQuoteId, // Attach the calculated price
+        quote_id: savedQuoteId ?? undefined, // Attach the calculated price when available
 
         // User Profile Details
         full_name: formData.fullName,
@@ -880,6 +814,81 @@ export const BookAShootV3 = () => {
       } else {
         // Fallback: Create fresh booking
         submissionResult = await createGuestBooking(finalBookingData).unwrap();
+      }
+
+      const finalBookingId = submissionResult?.booking_id || draftBookingId;
+
+      const firstBookingDate = formData.bookingType === "multi_day" && formData.bookingDays && formData.bookingDays.length > 0
+        ? formData.bookingDays
+          .slice()
+          .sort((a, b) => a.date.localeCompare(b.date))[0]?.date
+        : null;
+
+      if (finalBookingId && (quoteItems.length > 0 || isEditingOnly || useContentHouseInclusivePricing)) {
+        try {
+          const toIsoIfValid = (value?: string | null) => {
+            if (!value) return value;
+            const d = parseDate(value);
+            return d && !isNaN(d.getTime()) ? d.toISOString() : value;
+          };
+
+          const quotePayload: Record<string, unknown> = {
+            items: quoteItems,
+            creator_ids: formData.selectedCrewIds || [],
+            bookingId: finalBookingId,
+            role_counts:
+              isEditingOnly
+                ? { editor: 1 }
+                : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
+                  ? {}
+                  : (formData.roleCounts || {}),
+            shootHours: pricingShootHours,
+            eventType: formData.shootType || "general",
+            guestEmail: formData.email,
+            video_edit_types: formData.editsNeeded
+              ? buildEditTypeCounts(formData.videoEditTypes)
+              : [],
+            photo_edit_types: formData.editsNeeded
+              ? buildEditTypeCounts(formData.photoEditTypes)
+              : [],
+          };
+
+          if (!isEditingOnly) {
+            if (!useContentHouseInclusivePricing) {
+              quotePayload.shoot_start_date = firstBookingDate
+                ? `${firstBookingDate}T00:00:00.000Z`
+                : toIsoIfValid(formData.startDate);
+            }
+            quotePayload.notes = formData.specialInstructions || undefined;
+            quotePayload.studio_total = selectedStudiosTotal || 0;
+            quotePayload.studio_items = selectedStudios.map((studio) => ({
+              studio_id: studio.studioId,
+              name: studio.name,
+              quantity: studio.quantity,
+              unit_price: studio.unitPrice,
+              total: studio.totalPrice,
+              pricing_mode: studio.pricingMode,
+            }));
+          }
+
+          const savedQuote = await saveQuote(quotePayload).unwrap();
+          savedQuoteId = savedQuote.quote_id;
+          savedQuoteTotal = savedQuote.total;
+
+          if (savedQuoteId && finalBookingId) {
+            await updateGuestBooking({
+              id: finalBookingId,
+              data: {
+                quote_id: savedQuoteId,
+              } as Partial<BookingDataV3>,
+            }).unwrap();
+          }
+
+          console.log("Pricing Quote Generated:", savedQuoteId);
+        } catch (quoteError) {
+          console.error("Pricing Calculation Error:", quoteError);
+          toast.error("Error calculating final price, but proceeding with booking...");
+        }
       }
 
       // add GA event on payment submit in step4

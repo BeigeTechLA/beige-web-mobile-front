@@ -1913,6 +1913,20 @@ function MultiCreatorPaymentContent() {
     return null;
   };
 
+  const fetchQuoteById = async (quoteId: number) => {
+    try {
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/")
+        .replace(/\/$/, "") + "/";
+      const response = await axios.get(`${API_BASE_URL}pricing/quotes/${quoteId}`);
+      if (response.data?.success) {
+        return response.data.data;
+      }
+    } catch (err) {
+      console.error("Failed to fetch quote fallback:", err);
+    }
+    return null;
+  };
+
   useEffect(() => {
     const fetchPaymentDetails = async () => {
       if (!shootId) {
@@ -1936,8 +1950,37 @@ function MultiCreatorPaymentContent() {
         }
 
         const data = response.data.data;
-        setPaymentDetails(data);
-        await fetchIntent(data);
+
+        let resolvedQuote = data.quote || null;
+        if (!resolvedQuote) {
+          const summaryRecord = summaryData as Record<string, unknown> | null;
+          const summaryQuote =
+            (summaryRecord?.quote as Record<string, unknown> | null) ||
+            ((summaryRecord?.pricing as Record<string, unknown> | undefined)?.quote as Record<string, unknown> | null) ||
+            null;
+          if (summaryQuote) {
+            resolvedQuote = summaryQuote;
+          }
+        }
+
+        const bookingQuoteId =
+          data?.booking?.quote_id ||
+          data?.booking?.quoteId ||
+          data?.quote_id ||
+          data?.quoteId ||
+          null;
+
+        if (!resolvedQuote && bookingQuoteId) {
+          resolvedQuote = await fetchQuoteById(Number(bookingQuoteId));
+        }
+
+        const nextPaymentDetails = {
+          ...data,
+          quote: resolvedQuote || data.quote || null,
+        };
+
+        setPaymentDetails(nextPaymentDetails);
+        await fetchIntent(nextPaymentDetails);
         setStep("payment");
         setIsLoading(false);
       } catch (err: any) {

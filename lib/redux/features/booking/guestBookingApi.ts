@@ -32,7 +32,7 @@ export interface GuestBookingData {
   equipments_needed?: string;
   is_draft?: boolean;
   // Pricing quote reference
-  quote_id?: number;
+  quote_id?: number | null;
 }
 
 export interface LocationObject {
