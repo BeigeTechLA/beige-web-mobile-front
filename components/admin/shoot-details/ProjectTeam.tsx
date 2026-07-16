@@ -112,36 +112,36 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   }
 
   const handleRemoveMember = async (memberId: number) => {
-    // try {
-    //   setRemovingMemberId(memberId);
+    try {
+      setRemovingMemberId(memberId);
 
-    //   const response = await adminApi.removeProjectPostProductionMember({
-    //     project_id: Number(projectId),
-    //     post_production_member_id: memberId,
-    //   });
+      const response = await adminApi.removeProjectPostProductionMember({
+        project_id: Number(projectId),
+        post_production_member_id: memberId,
+      });
 
-    //   if (response?.success === false && response?.error) {
-    //     toast.error(response.error);
-    //     return;
-    //   }
+      if (response?.success === false && response?.error) {
+        toast.error(response.error);
+        return;
+      }
 
-    //   setTeamMembers((prev) => {
-    //     const updated = prev.filter((m) => m.id !== memberId);
+      setTeamMembers((prev) => {
+        const updated = prev.filter((m) => m.id !== memberId);
 
-    //     setActiveIndex((current) =>
-    //       updated.length === 0 ? 0 : Math.min(current, updated.length - 1)
-    //     );
+        setActiveIndex((current) =>
+          updated.length === 0 ? 0 : Math.min(current, updated.length - 1)
+        );
 
-    //     return updated;
-    //   });
+        return updated;
+      });
 
-    //   toast.success("Team member removed successfully");
-    // } catch (error) {
-    //   console.error(error);
-    //   toast.error("Failed to remove team member");
-    // } finally {
-    //   setRemovingMemberId(null);
-    // }
+      toast.success("Team member removed successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to remove team member");
+    } finally {
+      setRemovingMemberId(null);
+    }
   };
 
   const handleOpenAssignment = () => {

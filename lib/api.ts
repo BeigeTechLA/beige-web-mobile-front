@@ -1974,17 +1974,17 @@ export const adminApi = {
     }
   },
   exportShootsCsv: async (
-  params: {
-    start_date?: string;
-    end_date?: string;
-    search?: string;
-    status?: string;
-    range?: string;
-    date_on?: string;
-    category?: string;
-    cp_assignment?: string;
-    production_filter?: string;
-  }
+    params: {
+      start_date?: string;
+      end_date?: string;
+      search?: string;
+      status?: string;
+      range?: string;
+      date_on?: string;
+      category?: string;
+      cp_assignment?: string;
+      production_filter?: string;
+    }
   ): Promise<Blob> => {
     try {
       const response = await api.get<Blob>(
@@ -1995,49 +1995,49 @@ export const adminApi = {
         }
       );
 
-    return response.data;
-  } catch (error: unknown) {
-    let message = "Failed to export shoots.";
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export shoots.";
 
-    if (axios.isAxiosError(error)) {
-      const responseData = error.response?.data;
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
 
-      if (responseData instanceof Blob) {
-        try {
-          const errorText = await responseData.text();
-          const parsedError = JSON.parse(errorText);
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+
+            message =
+              parsedError?.message ||
+              parsedError?.error ||
+              message;
+          } catch {
+            // Keep fallback message.
+          }
+        } else if (
+          responseData &&
+          typeof responseData === "object"
+        ) {
+          const data = responseData as {
+            message?: string;
+            error?: string;
+          };
 
           message =
-            parsedError?.message ||
-            parsedError?.error ||
+            data.message ||
+            data.error ||
             message;
-        } catch {
-          // Keep fallback message.
         }
-      } else if (
-        responseData &&
-        typeof responseData === "object"
-      ) {
-        const data = responseData as {
-          message?: string;
-          error?: string;
-        };
-
-        message =
-          data.message ||
-          data.error ||
-          message;
       }
+
+      console.error(
+        "Export Shoots CSV Error:",
+        error
+      );
+
+      throw new Error(message);
     }
-
-    console.error(
-      "Export Shoots CSV Error:",
-      error
-    );
-
-    throw new Error(message);
-  }
-},
+  },
 
   getProjectDetails: async (id: string) => {
     try {
@@ -2132,55 +2132,55 @@ export const adminApi = {
   },
 
   exportCrewMembersCsv: async (
-  params: {
-    start_date?: string;
-    end_date?: string;
-    status?: string;
-    search?: string;
-    location?: string;
-  }
-): Promise<Blob> => {
-  try {
-    const response = await api.get<Blob>(
-      "admin/crew-members/export",
-      {
-        params,
-        responseType: "blob",
-      }
-    );
+    params: {
+      start_date?: string;
+      end_date?: string;
+      status?: string;
+      search?: string;
+      location?: string;
+    }
+  ): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>(
+        "admin/crew-members/export",
+        {
+          params,
+          responseType: "blob",
+        }
+      );
 
-    return response.data;
-  } catch (error: unknown) {
-    let message =
-      "Failed to export creative partners.";
+      return response.data;
+    } catch (error: unknown) {
+      let message =
+        "Failed to export creative partners.";
 
-    if (axios.isAxiosError(error)) {
-      const responseData =
-        error.response?.data;
+      if (axios.isAxiosError(error)) {
+        const responseData =
+          error.response?.data;
 
-      if (responseData instanceof Blob) {
-        try {
-          const errorText =
-            await responseData.text();
+        if (responseData instanceof Blob) {
+          try {
+            const errorText =
+              await responseData.text();
 
-          const parsedError =
-            JSON.parse(errorText);
+            const parsedError =
+              JSON.parse(errorText);
 
-          message =
-            parsedError?.message ||
-            parsedError?.error ||
-            message;
-        } catch {
+            message =
+              parsedError?.message ||
+              parsedError?.error ||
+              message;
+          } catch {
+          }
         }
       }
-    }
 
-    console.error(
-      "Export Creative Partners CSV Error:",
-      error
-    );
+      console.error(
+        "Export Creative Partners CSV Error:",
+        error
+      );
 
-    throw new Error(message);
+      throw new Error(message);
     }
   },
 
@@ -2250,11 +2250,11 @@ export const adminApi = {
       const response = await api.get(`admin/crew-member-assigned-projects/${crewMemberId}`);
       return response.data;
     } catch (error: any) {
-      console.error("Get Crew Member Assigned Projects Error:",error.response?.data || error.message);
+      console.error("Get Crew Member Assigned Projects Error:", error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error:error.response?.data?.message || "Failed to fetch assigned projects",
+        error: error.response?.data?.message || "Failed to fetch assigned projects",
       };
     }
   },
@@ -2331,6 +2331,32 @@ export const adminApi = {
       };
     }
   },
+  removeProjectPostProductionMember: async (payload: {
+    project_id: number;
+    post_production_member_id: number;
+  }) => {
+    try {
+      const response = await api.post(
+        'admin/remove-project-post-production-member',
+        payload
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        'Remove Project Post Production Member Error:',
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to remove post production member',
+      };
+    }
+  },
   getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/dashboard-chart-data', { params });
@@ -2372,54 +2398,54 @@ export const adminApi = {
   },
   exportClientsCsv: async (
     params: {
-        start_date?: string;
-        end_date?: string;
-        status?: string;
-        search?: string;
-        client_type?: string;
+      start_date?: string;
+      end_date?: string;
+      status?: string;
+      search?: string;
+      client_type?: string;
     }
-): Promise<Blob> => {
+  ): Promise<Blob> => {
     try {
-        const response = await api.get<Blob>(
-            "admin/clients/export",
-            {
-                params,
-                responseType: "blob",
-            }
-        );
-
-        return response.data;
-    } catch (error: unknown) {
-        let message =
-            "Failed to export clients.";
-
-        if (axios.isAxiosError(error)) {
-            const responseData =
-                error.response?.data;
-
-            if (responseData instanceof Blob) {
-                try {
-                    const errorText =
-                        await responseData.text();
-
-                    const parsedError =
-                        JSON.parse(errorText);
-
-                    message =
-                        parsedError?.message ||
-                        parsedError?.error ||
-                        message;
-                } catch {
-                }
-            }
+      const response = await api.get<Blob>(
+        "admin/clients/export",
+        {
+          params,
+          responseType: "blob",
         }
+      );
 
-        console.error(
-            "Export Clients CSV Error:",
-            error
-        );
+      return response.data;
+    } catch (error: unknown) {
+      let message =
+        "Failed to export clients.";
 
-        throw new Error(message);
+      if (axios.isAxiosError(error)) {
+        const responseData =
+          error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText =
+              await responseData.text();
+
+            const parsedError =
+              JSON.parse(errorText);
+
+            message =
+              parsedError?.message ||
+              parsedError?.error ||
+              message;
+          } catch {
+          }
+        }
+      }
+
+      console.error(
+        "Export Clients CSV Error:",
+        error
+      );
+
+      throw new Error(message);
     }
   },
 
@@ -2905,7 +2931,7 @@ export const salesApi = {
     }
   },
 
-    exportQuotesCsv: async (params: {
+  exportQuotesCsv: async (params: {
     start_date?: string;
     end_date?: string;
     search?: string;
