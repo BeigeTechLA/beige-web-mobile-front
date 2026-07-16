@@ -285,7 +285,7 @@ export default function ShootsPage() {
               onClick={() => router.push("/book-a-shoot")}
               disabled={!canCreate}
               title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
-              className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7"
+              className="bg-[#E8D1AB] text-black h-12 px-4 lg:px-7"
             >
               Book a Shoot
             </Button>

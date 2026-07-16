@@ -34,11 +34,9 @@ export const StatCard = ({
         />
       </div>
       <div className="relative z-10">
-        <p className={`text-sm font-medium mb-1 ${isDark ? "text-white/40" : "text-gray-400"
-          }`}>{label}</p>
+        <p className={`text-sm font-medium mb-1 ${isDark ? "text-white/40" : "text-gray-400"}`}>{label}</p>
         <p className={`text-xl lg:text-2xl font-bold ${valueColor}`}>{value}</p>
-        {subtext && <p className={`text-xs mt-1 ${isDark ? "text-white/40" : "text-gray-500"
-          }`}>{subtext}</p>}
+        {subtext && <p className={`text-xs mt-1 ${isDark ? "text-white/40" : "text-gray-500"}`}>{subtext}</p>}
       </div>
     </div>
   );

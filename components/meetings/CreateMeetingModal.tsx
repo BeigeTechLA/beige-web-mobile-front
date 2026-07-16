@@ -7,12 +7,15 @@ import {
   Search,
   Video,
   X,
+  User,
+  Plus
 } from "lucide-react";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/Datepicker";
+import { DatePickerFloating } from "../admin/DatePickerFloating";
 import { TimePicker } from "@/components/ui/Timepicker";
 import {
   Select,
@@ -27,8 +30,9 @@ import { meetingsApi } from "@/lib/meetingsApi";
 import { getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { getBrowserTimeZone } from "@/lib/timezone";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
+import { TabsSwitcher } from "../admin/TabsSwitcher";
 type MeetingType = "pre_production" | "post_production";
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type GeneratedMeetEvent = {
@@ -193,6 +197,7 @@ const resolveClientName = (project: ProjectSource | null | undefined) => {
     project?.client?.client_name,
     project?.client?.full_name,
     project?.client?.name,
+    project?.lead_details?.client_name,
   ];
   return String(candidates.find((value) => value && String(value).trim()) || "").trim();
 };
@@ -272,12 +277,20 @@ export default function CreateMeetingModal({
   }>({});
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [selectedExtraCpIds, setSelectedExtraCpIds] = useState<string[]>([]);
+
+  // Committed/Confirmed array states to reflect verified user selection on main layout forms
+  const [confirmedStaffIds, setConfirmedStaffIds] = useState<string[]>([]);
+  const [confirmedExtraCpIds, setConfirmedExtraCpIds] = useState<string[]>([]);
+
   const [memberSearch, setMemberSearch] = useState("");
   const [memberTab, setMemberTab] = useState<MemberTab>("staff");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
+
+  const [showAdditionalMembersView, setShowAdditionalMembersView] = useState(false);
+
   const projectsRequestIdRef = useRef(0);
 
   const fixedOrder = !!orderId;
@@ -287,8 +300,8 @@ export default function CreateMeetingModal({
     const excluded = new Set([
       ...selectedManagerIds,
       ...selectedCpIds,
-      ...selectedStaffIds,
-      ...selectedExtraCpIds,
+      // ...selectedStaffIds,
+      // ...selectedExtraCpIds,
       String(currentUserId || ""),
     ]);
 
@@ -309,9 +322,9 @@ export default function CreateMeetingModal({
     memberSearch,
     memberTab,
     selectedCpIds,
-    selectedExtraCpIds,
+    // selectedExtraCpIds,
     selectedManagerIds,
-    selectedStaffIds,
+    // selectedStaffIds,
   ]);
 
   const selectedAdditionalMembers = useMemo(() => {
@@ -335,6 +348,12 @@ export default function CreateMeetingModal({
     };
   }, [directory.creativePartners, directory.staff, selectedExtraCpIds, selectedStaffIds]);
 
+  const handleCommitParticipants = () => {
+    setConfirmedStaffIds([...selectedStaffIds]);
+    setConfirmedExtraCpIds([...selectedExtraCpIds]);
+    setShowAdditionalMembersView(false);
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -354,6 +373,8 @@ export default function CreateMeetingModal({
     setSelectedCpIds([]);
     setSelectedStaffIds([]);
     setSelectedExtraCpIds([]);
+    setConfirmedStaffIds([]);
+    setConfirmedExtraCpIds([]);
     setMemberSearch("");
     setMemberTab("staff");
     setIsSubmitting(false);
@@ -395,12 +416,12 @@ export default function CreateMeetingModal({
           new Map(normalizedProjectSources
             .filter((item) => getProjectId(item))
             .map((item) => [getProjectId(item), {
-            id: getProjectId(item),
-            label: getProjectOptionLabel(item),
-            description:
-              resolveClientName(item) ||
-              resolveClientEmail(item) ||
-              (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
+              id: getProjectId(item),
+              label: getProjectOptionLabel(item),
+              description:
+                resolveClientName(item) ||
+                resolveClientEmail(item) ||
+                (getProjectId(item) ? `Booking #${getProjectId(item)}` : "Project"),
             }] as const)
           ).values()
         );
@@ -498,6 +519,8 @@ export default function CreateMeetingModal({
         setSelectedCpIds(cps.map((cp) => cp.id));
         setSelectedStaffIds([]);
         setSelectedExtraCpIds([]);
+        setConfirmedStaffIds([]);
+        setConfirmedExtraCpIds([]);
 
         if (!meetingTitle.trim()) {
           setMeetingTitle(`${getProjectName(normalizedProject)} Catch-up`);
@@ -580,7 +603,7 @@ export default function CreateMeetingModal({
             <html>
               <head>
                 <title>Redirecting to Google</title>
-                <style>body{margin:0;background:#090909;color:#fff;font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;} .card{max-width:520px;padding:32px;border-radius:24px;background:rgba(17,17,17,.95);box-shadow:0 20px 80px rgba(0,0,0,.35); text-align:center;} .button{display:inline-flex;align-items:center;justify-content:center;margin-top:24px;padding:12px 22px;border-radius:999px;background:#E5D5B8;color:#000;text-decoration:none;font-weight:700;}</style>
+                <style>body{margin:0;background:#090909;color:#fff;font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;} .card{max-width:520px;padding:32px;border-radius:24px;background:rgba(17,17,17,.95);box-shadow:0 20px 80px rgba(0,0,0,.35); text-align:center;} .button{display:inline-flex;align-items:center;justify-content:center;margin-top:24px;padding:12px 22px;border-radius:999px;background:#E8D1AB;color:#000;text-decoration:none;font-weight:700;}</style>
               </head>
               <body>
                 <div class="card">
@@ -637,13 +660,13 @@ export default function CreateMeetingModal({
       return;
     }
 
-    if (selectedManagerIds.length === 0 && selectedCpIds.length === 0 && selectedStaffIds.length === 0 && selectedExtraCpIds.length === 0) {
+    if (selectedManagerIds.length === 0 && selectedCpIds.length === 0 && confirmedStaffIds.length === 0 && confirmedExtraCpIds.length === 0) {
       toast.error("Select at least one member for this meeting.");
       return;
     }
 
-    const cpParticipantIds = Array.from(new Set([...selectedCpIds, ...selectedExtraCpIds].filter(Boolean)));
-    const managerParticipantIds = Array.from(new Set([...selectedManagerIds, ...selectedStaffIds].filter(Boolean)));
+    const cpParticipantIds = Array.from(new Set([...selectedCpIds, ...confirmedExtraCpIds].filter(Boolean)));
+    const managerParticipantIds = Array.from(new Set([...selectedManagerIds, ...confirmedStaffIds].filter(Boolean)));
 
     setIsSubmitting(true);
     try {
@@ -733,514 +756,560 @@ export default function CreateMeetingModal({
     ? new Date(meetingDate).toDateString() === new Date().toDateString()
     : false;
 
+  const tabs: { label: string; value: "staff" | "cp" }[] = [
+    { label: "Staff", value: "staff" },
+    { label: "Creative Partners", value: "cp" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-8">
-      <div className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-black/80" : "bg-black/10"}`} />
+    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center p-0 lg:px-4 lg:py-8">
+      <div
+        onClick={onClose}
+        className={`absolute inset-0 backdrop-blur-sm ${isDark ? "bg-[#101010]/80" : "bg-black/10"}`}
+      />
 
-      <div className={`relative mx-auto flex max-h-[calc(100vh-4rem)] w-full max-w-[860px] flex-col rounded-2xl lg:rounded-4xl border shadow-2xl ${isDark ? "shadow-black/40 border-[#262626] bg-[#090909]" : "shadow-[#64646f33] bg-[#FFFFFF] border-[#FFFFFF66]"}`}>
-        <div className={`flex items-start justify-between border-b p-4 lg:px-6 lg:py-5 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
-          <div>
-            <div className={`mb-2 inline-flex items-center gap-2 rounded-full border px-2 lg:px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "border-[#E5D5B8]/20 bg-[#17130d] text-[#E5D5B8]" : "border-[#CACACA] bg-[#F0F0F0] text-[#000]"}`}>
-              <Video size={12} />
-              Google Meet Only
-            </div>
-            <h2 className={`text-xl lg:text-3xl font-semibold tracking-[-0.02em] ${isDark ? "text-white" : "text-black"}`}>Create Meeting</h2>
-            <p className={`mt-1 max-w-[560px] text-xs lg:text-sm lg:leading-6 ${isDark ? "text-white/45" : " text-black/75"}`}>
-              Schedule a project meeting, choose the right members, and generate a Google Meet link they can join after accepting.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`shrink-0 flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${isDark ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]" : "border-[#F0F0F0] bg-[#F0F0F0] text-black hover:bg-black/20"}`}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 lg:p-6 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-          <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-            <div className={`rounded-xl lg:rounded-3xl border  p-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-white"}`}>
-              <div className="mb-3 lg:mb-5">
-                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : " text-black/60"}`}>Meeting Basics</p>
-                <h3 className={`mt-1 lg:mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Schedule & context</h3>
-              </div>
-
-              <div className="grid gap-3 lg:gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <label className={`text-xs lg:text-smfont-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Project / Shoot</label>
-                  {fixedOrder ? (
-                    <div className={`h-12 rounded-lg rounded-xl border px-4 text-xs lg:text-sm flex items-center ${isDark ? "text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff]"}`}>
-                      {projects.find((project) => project.id === activeOrderId)?.label || `Booking #${activeOrderId}`}
-                    </div>
-                  ) : (
-                    <SearchAutocomplete
-                      placeholder={isLoadingProjects ? "Loading projects..." : "Search by project name or booking ID"}
-                      options={projects.map((project) => ({
-                        id: project.id,
-                        label: project.label,
-                        description: project.description,
-                      }))}
-                      value={activeOrderId}
-                      onChange={setSelectedOrderId}
-                      emptyMessage="No project matches your search"
-                      isDark={isDark}
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Meeting Title</label>
-                  <Input
-                    value={meetingTitle}
-                    onChange={(event) => setMeetingTitle(event.target.value)}
-                    placeholder="Project catch-up"
-                    className={`h-12 rounded-lg lg:rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className={`text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Meeting Type</label>
-                  <Select value={meetingType} onValueChange={(value) => setMeetingType(value as MeetingType)}>
-                    <SelectTrigger className={`h-12 rounded-lg lg:rounded-xl ${isDark ? "text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff]"}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className={`rounded-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "text-black border-black/20 bg-[#fff]"}`}>
-                      <SelectItem value="pre_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white " : "focus:bg-[#E8D1AB] focus:text-black"}`}>Pre Production</SelectItem>
-                      <SelectItem value="post_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}`}>Post Production</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <DatePicker
-                      label="Meeting Date"
-                      value={meetingDate}
-                      onChange={setMeetingDate}
-                      minDate={new Date()}
-                      // colors={datePickerColours}
-                      isDark={isDark}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <TimePicker
-                      label="Start Time"
-                      value={meetingStartTime}
-                      onChange={setMeetingStartTime}
-                      minTime={isToday ? getMinimumStartTime() : null}
-                      isDark={isDark}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <TimePicker
-                      label="End Time"
-                      value={meetingEndTime}
-                      onChange={setMeetingEndTime}
-                      minTime={getMinimumMeetingEndTime(meetingStartTime) || (isToday ? getNextValidTime() : null)}
-                      isDark={isDark}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Description</label>
-                  <Textarea
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                    rows={4}
-                    placeholder="Agenda, discussion points, or notes for the team."
-                    className={`min-h-[120px] rounded-lg lg:rounded-2xl text-sm lg:text-base ${isDark ? "border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-[#fff]"}`}>
-                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Host</p>
-                <div className={`mt-4 rounded-lg lg:rounded-2xl border p-3 lg:p-4 ${isDark ? "border-[#2C2C2C] bg-[#151515]" : "border-black/20 bg-[#f5f5f5]"}`}>
-                  <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{currentUserName}</p>
-                  <p className={`mt-1 text-xs uppercase tracking-[0.2em] ${isDark ? "text-[#E5D5B8]" : "text-[#000]/80"}`}>{formatRoleLabel(role)}</p>
-                </div>
-              </div>
-
-              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-[#E5D5B8]/10 bg-[linear-gradient(180deg,#15120d_0%,#101010_100%)]" : "border-black/20 bg-[#fff]"}`}>
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${isDark ? "border-[#E5D5B8]/30 bg-[#1A1A1A] text-[#E5D5B8]" : "border-[#E8D1AB] bg-[#E8D1AB] text-black"}`}>
-                    <Video size={18} />
-                  </div>
-                  <div>
-                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Google Meet</p>
-                    <p className={`mt-1 text-xs lg:text-sm leading-6 ${isDark ? "text-white/45 " : "text-black/55 "}`}>
-                      The meeting will take place via Google Meet.
+      <div className={`relative mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-[860px] flex-col rounded-lg lg:rounded-2xl border shadow-2xl ${isDark ? "shadow-black/40 border-white/40 bg-black" : "shadow-[#64646f33] bg-[#FFFFFF] border-[#FFFFFF66]"}`}>
+        {
+          !showAdditionalMembersView ?
+            <>
+              <div className={`flex items-start justify-between border-b p-4 lg:p-7 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
+                <div>
+                  <div className="flex items-end gap-1">
+                    <h2 className={`text-xl lg:text-3xl font-semibold tracking-[-0.02em] ${isDark ? "text-white" : "text-black"}`}>Create Meeting</h2>
+                    <p className={`text-xs lg:text-xl font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                      (Google Meet Only)
                     </p>
                   </div>
-                </div>
-              </div>
-
-              <div className={`rounded-xl lg:rounded-3xl borderp-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"}`}>
-                <div className="flex items-start gap-3">
-                  <Info className={`mt-0.5 shrink-0 ${isDark ? "text-white/60" : "text-black/80"}`} size={16} />
-                  <p className={`text-xs lg:text-sm leading-6 ${isDark ? "text-white/45" : "text-black/55"} `}>
-                    Invited members can approve or reject the invite, and once accepted they can join directly from the saved meeting card.
+                  <p className={`mt-1 max-w-[560px] text-xs lg:text-sm lg:leading-6 ${isDark ? "text-white/70" : " text-black/75"}`}>
+                    Schedule a project meeting, choose the right members, and generate a Google Meet link they can join after accepting.
                   </p>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`rounded-xl lg:rounded-3xl border p-3 lg:p-5 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/20 bg-[#fff]"}`}>
-            <div className="mb-3 lg:mb-5 flex items-center justify-between gap-3">
-              <div>
-                <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Project Team</p>
-                <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Default invited members</h3>
-              </div>
-              {isLoadingOrderDetails ? (
-                <span className={`inline-flex items-center gap-2 text-xs ${isDark ? "text-white/40" : "text-black/60"}`}>
-                  <Loader2 size={12} className="animate-spin" />
-                  Loading members
-                </span>
-              ) : null}
-            </div>
-
-            {/* Added w-full and overflow-hidden to the immediate container block */}
-            <div className={`rounded-lg lg:rounded-2xl border p-3 lg:p-4 w-full overflow-hidden ${isDark ? "border-white/10 bg-[#111111]" : "border-black/20 bg-[#f5f5f5]"}`}>
-              {!activeOrderId ? (
-                <p className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/60"}`}>Choose a project first to load sales rep and assigned creative partners.</p>
-              ) : (
-                /* Added min-w-0 and w-full directly to the grid component layer */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 lg:gap-3 w-full min-w-0">
-
-                  {/* --- CLIENT CARD --- */}
-                  {(clientName || clientEmail) ? (
-                    <div className={`rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left min-w-0 w-full ${isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
-                      <div className="flex items-start justify-between gap-3 min-w-0 w-full">
-                        <div className="min-w-0 w-full">
-                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white " : "text-black "}`}>{clientName || clientEmail || "Client"}</p>
-                          <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Client</p>
-                          {clientEmail ? (
-                            <p className={`mt-2 truncate text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>{clientEmail}</p>
-                          ) : null}
-                        </div>
-                        <span className={`rounded-full bg-[#E8D1AB] px-2.5 py-1 text-xs font-medium text-black shrink-0`}>
-                          Client
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* --- MANAGER / SALES REP CARD --- */}
-                  {managerOption ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedManagerIds((current) =>
-                          current.includes(managerOption.id) ? [] : [managerOption.id]
-                        )
-                      }
-                      className={cn(
-                        "rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left transition-colors min-w-0 w-full",
-                        selectedManagerIds.includes(managerOption.id)
-                          ? (isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
-                          : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3 min-w-0 w-full">
-                        <div className="min-w-0 w-full">
-                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{managerOption.name}</p>
-                          <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Sales Rep</p>
-                        </div>
-                        <span className={cn(
-                          "rounded-full px-2.5 py-1 text-xs font-medium shrink-0",
-                          selectedManagerIds.includes(managerOption.id)
-                            ? "bg-[#E5D5B8] text-black"
-                            : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
-                        )}>
-                          {selectedManagerIds.includes(managerOption.id) ? "Selected" : "Optional"}
-                        </span>
-                      </div>
-                    </button>
-                  ) : null}
-
-                  {/* --- CREATIVE PARTNER CARDS --- */}
-                  {cpOptions.map((cp) => {
-                    const selected = selectedCpIds.includes(cp.id);
-                    return (
-                      <button
-                        key={cp.id}
-                        type="button"
-                        onClick={() =>
-                          setSelectedCpIds((current) =>
-                            selected
-                              ? current.filter((value) => value !== cp.id)
-                              : [...current, cp.id]
-                          )
-                        }
-                        className={cn(
-                          "rounded-lg lg:rounded-2xl border p-3 lg:p-4 text-left transition-colors min-w-0 w-full",
-                          selected
-                            ? (isDark ? "border-[#E5D5B8]/40 bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
-                            : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3 min-w-0 w-full">
-                          <div className="min-w-0 w-full">
-                            <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{cp.name}</p>
-                            <p className={`mt-1 text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/75"}`}>Creative Partner</p>
-                          </div>
-                          <span className={cn(
-                            "rounded-full px-2.5 py-1 text-xs font-medium shrink-0",
-                            selected ? "bg-[#E5D5B8] text-black"
-                              : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
-                          )}>
-                            {selected ? "Selected" : "Optional"}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {managerOption === null && cpOptions.length === 0 ? (
-                    <p className={`text-xs lg:text-sm md:col-span-2 ${isDark ? "text-white/40" : "text-black/60"}`}>No default project members were found.</p>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={`rounded-xl lg:rounded-3xl border ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"} p-3 lg:p-5`}>
-            <div className="mb-5">
-              <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Additional Members</p>
-              <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Invite more staff or creative partners</h3>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex gap-2">
                 <button
-                  type="button"
-                  onClick={() => setMemberTab("staff")}
-                  className={cn(
-                    "rounded-lg lg:rounded-2xl border px-4 py-2.5 text-sm transition-colors",
-                    memberTab === "staff"
-                      ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#E3E3E3] bg-[#F0F0F0] text-black")
-                      : (isDark ? "border-white/10 bg-[#111111] text-white/60" : "border-[#E3E3E3] bg-[#F0F0F0] text-black/60")
-                  )}
+                  onClick={onClose}
+                  className={`rounded-full p-2 lg:p-3.5 shrink-0 transition-colors ${isDark ? "bg-[#2B2626] text-white/60 hover:bg-[#2B2626]/75" : "bg-[#F0F0F0] text-zinc-400 hover:bg-[#F0F0F0]/70"}`}
                 >
-                  Staff
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMemberTab("cp")}
-                  className={cn(
-                    "rounded-lg lg:rounded-2xl border px-4 py-2.5 text-xs lg:text-sm transition-colors",
-                    memberTab === "cp"
-                      ? (isDark ? "border-[#E5D5B8] bg-[#1B1812] text-white" : "border-[#E3E3E3] bg-[#F0F0F0] text-black")
-                      : (isDark ? "border-white/10 bg-[#111111] text-white/60" : "border-[#E3E3E3] bg-[#F0F0F0] text-black/60")
-                  )}
-                >
-                  CPs
+                  <X className="h-4 w-4 lg:h-7 lg:w-7" />
                 </button>
               </div>
 
-              <div className="relative">
-                <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-black/60"}`} />
-                <Input
-                  value={memberSearch}
-                  onChange={(event) => setMemberSearch(event.target.value)}
-                  placeholder={memberTab === "cp" ? "Search creative partners" : "Search staff members"}
-                  className={`h-12 pl-10 rounded-xl ${isDark ? "border-[#2C2C2C] bg-[#151515] text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
-                />
-              </div>
-
-              {selectedAdditionalMembers.staff.length > 0 || selectedAdditionalMembers.cp.length > 0 ? (
-                <div className={`rounded-lg lg:rounded-2xl border p-4 ${isDark ? "border-[#E5D5B8]/15 bg-[#14110d]" : "border-black/20 bg-[#f5f5f5]"}`}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-h-0 flex-1 overflow-y-auto py-4 lg:py-7 no-scrollbar">
+                <div className="px-4 lg:px-7 space-y-4 lg:space-y-7">
+                  <div className={`flex gap-4 items-center rounded-lg border p-3 lg:p-5 ${isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/10" : "border-[#E8D1AB] bg-[#E8D1AB]/10"}`}>
+                    <User className="text-[#E8D1AB] w-5 h-5 lg:h-9 lg:w-9" />
                     <div>
-                      <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Added to this meeting</p>
-                      <p className={`text-xs ${isDark ? "text-white/45" : "text-black/60"}`}>
-                        {selectedAdditionalMembers.staff.length + selectedAdditionalMembers.cp.length} additional member(s) selected
-                      </p>
+                      <p className={`text-base font-medium ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>Hosted by {currentUserName}</p>
+                      <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/80"}`}>The meeting will take place via Google Meet.</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAdditionalMembers.staff.map((member) => {
-                      const memberId = String(member.id || "");
+                  <div className="space-y-2">
+                    {fixedOrder ? (
+                      <div className={`h-16 lg:h-20 rounded-lg rounded-xl border px-4 text-xs lg:text-sm flex items-center ${isDark ? "text-white border-white/50 bg-[#151515]" : "text-black border-black/20 bg-[#fff]"}`}>
+                        {projects.find((project) => project.id === activeOrderId)?.label || `Booking #${activeOrderId}`}
+                      </div>
+                    ) : (
+                      <SearchAutocomplete
+                        label="Project / Shoot"
+                        placeholder={isLoadingProjects ? "Loading projects..." : "Search by project name or booking ID"}
+                        options={projects.map((project) => ({
+                          id: project.id,
+                          label: project.label,
+                          description: project.description,
+                        }))}
+                        value={activeOrderId}
+                        onChange={setSelectedOrderId}
+                        emptyMessage="No project matches your search"
+                        isDark={isDark}
+                      />
+                    )}
+                  </div>
 
-                      return (
-                        <button
-                          key={`staff-${memberId}`}
-                          type="button"
-                          onClick={() =>
-                            setSelectedStaffIds((current) => current.filter((value) => value !== memberId))
-                          }
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs lg:text-sm transition-colors ${isDark ? "text-white border-[#E5D5B8]/30 bg-[#1B1812] hover:bg-[#241d14]" : "text-black border-black/20 bg-[#F0F0F0] hover:bg-[#fff]"}`}
-                        >
-                          <span className="max-w-[220px] truncate">{member.name || member.email || "Staff Member"}</span>
-                          <span className="rounded-full bg-[#E8D1AB] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-black">
-                            Staff
-                          </span>
-                          <span className={isDark ? "text-white/55" : "text-black/55"}><X size={12} /></span>
-                        </button>
-                      );
-                    })}
+                  {/* Meeting Title Field */}
+                  <div className="relative">
+                    <label className={`absolute -top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
+                      Meeting Title*
+                    </label>
+                    <Input
+                      value={meetingTitle}
+                      onChange={(event) => setMeetingTitle(event.target.value)}
+                      placeholder="Project catch-up"
+                      className={`h-16 lg:h-[82px] rounded-lg lg:rounded-xl pt-1 ${isDark ? "placeholder:text-white/30 text-white border-white/50 bg-black focus:border-[#E8D1AB]/50" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60 focus:border-[#E8D1AB]"}`}
+                    />
+                  </div>
 
-                    {selectedAdditionalMembers.cp.map((member) => {
-                      const memberId = String(member.id || "");
+                  {/* Meeting Pickers Container */}
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Meeting Type Field */}
+                    <div className="relative">
+                      <label className={`absolute -top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
+                        Meeting Type*
+                      </label>
+                      <Select value={meetingType} onValueChange={(value) => setMeetingType(value as MeetingType)}>
+                        <SelectTrigger className={`h-16 lg:h-[82px] rounded-lg lg:rounded-xl text-left ${isDark ? "text-white border-white/50 bg-black" : "text-black border-black/20 bg-[#fff]"}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className={`rounded-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "text-black border-black/20 bg-[#fff]"}`}>
+                          <SelectItem value="pre_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white " : "focus:bg-[#E8D1AB] focus:text-black"}`}>Pre Production</SelectItem>
+                          <SelectItem value="post_production" className={`${isDark ? "focus:bg-[#1B1B1B] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}`}>Post Production</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                      return (
-                        <button
-                          key={`cp-${memberId}`}
-                          type="button"
-                          onClick={() =>
-                            setSelectedExtraCpIds((current) => current.filter((value) => value !== memberId))
-                          }
-                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-left text-xs lg:text-sm transition-colors ${isDark ? "text-white border-[#E5D5B8]/30 bg-[#1B1812] hover:bg-[#241d14]" : "text-black border-black/20 bg-[#F0F0F0] hover:bg-[#fff]"}`}
-                        >
-                          <span className="max-w-[220px] truncate">{member.name || member.email || "Creative Partner"}</span>
-                          <span className="rounded-full bg-[#E5D5B8] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-black">
-                            CP
-                          </span>
-                          <span className={isDark ? "text-white/55" : "text-black/55"}><X size={12} /></span>
-                        </button>
-                      );
-                    })}
+                    <div className="relative">
+                      <DatePickerFloating
+                        selectedDate={meetingDate}
+                        onDateChange={setMeetingDate}
+                        width="w-full"
+                        classnames={`rounded-xl h-14 lg:h-[82px] w-full resize-none px-0 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
+                        labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}
+                        label="Meeting Date"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <TimePicker
+                        label="Start Time"
+                        value={meetingStartTime}
+                        onChange={setMeetingStartTime}
+                        minTime={isToday ? getMinimumStartTime() : null}
+                        isDark={isDark}
+                        height={{ xs: "60px", lg: "82px" }}
+                        fontSize={"text-sm lg:text-base"}
+                        labelFontSize={"text-sm lg:text-base"}
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <TimePicker
+                        label="End Time"
+                        value={meetingEndTime}
+                        onChange={setMeetingEndTime}
+                        minTime={getMinimumMeetingEndTime(meetingStartTime) || (isToday ? getNextValidTime() : null)}
+                        isDark={isDark}
+                        height={{ xs: "60px", lg: "82px" }}
+                        fontSize={"text-sm lg:text-base"}
+                        labelFontSize={"text-sm lg:text-base"}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description Field */}
+                  <div className="relative">
+                    <label className={`absolute -top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
+                      Description
+                    </label>
+                    <Textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      rows={4}
+                      placeholder="Agenda, discussion points, or notes for the team."
+                      className={`min-h-[120px] rounded-lg lg:rounded-xl text-sm lg:text-base p-3 lg:p-5 ${isDark ? "border-white/50 bg-black text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
+                    />
                   </div>
                 </div>
-              ) : null}
 
-              <div className={`max-h-56 space-y-2 overflow-y-auto rounded-lg lg:rounded-2xl border p-3 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
-                {filteredDirectoryMembers.length === 0 ? (
-                  <p className={`px-2 py-3 text-sm ${isDark ? "text-white/40" : "text-black/60"}`}>
-                    {memberTab === "cp" ? "No additional CPs found for this search." : "No additional staff found for this search."}
-                  </p>
-                ) : (
-                  filteredDirectoryMembers.map((member) => {
-                    const memberId = String(member.id || "");
-                    const selected =
-                      memberTab === "cp"
-                        ? selectedExtraCpIds.includes(memberId)
-                        : selectedStaffIds.includes(memberId);
+                <hr className={`border-t my-4 lg:my-7 ${isDark ? "border-[#CACACA]" : "border-[#E3E3E3]"}`} />
 
-                    return (
-                      <button
-                        key={memberId}
-                        type="button"
-                        onClick={() =>
-                          memberTab === "cp"
-                            ? setSelectedExtraCpIds((current) =>
-                              selected
-                                ? current.filter((value) => value !== memberId)
-                                : [...current, memberId]
-                            )
-                            : setSelectedStaffIds((current) =>
-                              selected
-                                ? current.filter((value) => value !== memberId)
-                                : [...current, memberId]
-                            )
-                        }
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-lg lg:rounded-2xl border px-4 py-4 text-left transition-colors",
-                          selected
-                            ? (isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-[#E3E3E3] bg-[#F0F0F0]")
-                            : (isDark ? "border-white/10 bg-[#0f0f0f] hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]")
-                        )}
-                      >
-                        <div className="min-w-0">
-                          <p className={`truncate text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{member.name || member.email || "Staff Member"}</p>
-                          {member.email ? (
-                            <p className={`truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{member.email}</p>
+                <div className="px-4 lg:px-7">
+                  <div className="mb-3 lg:mb-4 flex items-center justify-between gap-3">
+                    <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Default invited members</h3>
+                    {isLoadingOrderDetails ? (
+                      <span className={`inline-flex items-center gap-2 text-xs ${isDark ? "text-white/40" : "text-black/60"}`}>
+                        <Loader2 size={12} className="animate-spin" />
+                        Loading members
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <>
+                    {!activeOrderId ? (
+                      <p className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/60"}`}>Choose a project first to load sales rep and assigned creative partners.</p>
+                    ) : (
+                      <div className="space-y-4 lg:space-y-5">
+                        {/* /* Added min-w-0 and w-full directly to the grid component layer */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 lg:gap-3 w-full min-w-0">
+
+                          {/* --- CLIENT CARD --- */}
+                          {(clientName || clientEmail) ? (
+                            <div className={`rounded-lg lg:rounded-xl border p-4 lg:py-5 text-left min-w-0 w-full border-[#E8D1AB] bg-[#E8D1AB]`}>
+                              <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                                <div className="min-w-0 w-full">
+                                  <p className={`truncate text-xs text-black`}>{clientName || clientEmail || "Client"}</p>
+                                  <p className={`lg:mt-1 text-base uppercase tracking-[0.16em] text-black/50`}>Client</p>
+                                  {/* {clientEmail ? (
+                                    <p className={`mt-2 truncate text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>{clientEmail}</p>
+                                  ) : null} */}
+                                </div>
+                                <span className={`rounded-full bg-[#1D1D1B] px-2.5 py-1 text-xs text-[#E8D1AB] shrink-0`}>
+                                  Client
+                                </span>
+                              </div>
+                            </div>
                           ) : null}
-                          <p className={`truncate text-xs uppercase tracking-[0.16em] ${isDark ? "text-white/35" : "text-black/35"}`}>
-                            {memberTab === "cp" ? "Creative Partner" : formatRoleLabel(member.role || "Manager")}
-                          </p>
+
+                          {/* --- MANAGER / SALES REP CARD --- */}
+                          {managerOption ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedManagerIds((current) =>
+                                  current.includes(managerOption.id) ? [] : [managerOption.id]
+                                )
+                              }
+                              className={`rounded-lg lg:rounded-xl border p-4 lg:py-5 text-left transition-colors min-w-0 w-full ${selectedManagerIds.includes(managerOption.id)
+                                  ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                                  : isDark ? "border-white/30 bg-white/5 hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]"
+                                }`}
+                            >
+                              <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                                <div className="min-w-0 w-full">
+                                  <p className={`truncate text-xs ${selectedManagerIds.includes(managerOption.id)
+                                    ? "text-black"
+                                    : isDark ? "text-white" : "text-black"}`}
+                                  >{managerOption.name}</p>
+                                  <p
+                                    className={`lg:mt-1 text-base uppercase tracking-[0.16em] ${selectedManagerIds.includes(managerOption.id)
+                                      ? "text-black/50"
+                                      : isDark ? "text-white/50" : "text-black/75"}`}>Sales Rep</p>
+                                </div>
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium shrink-0 ${selectedManagerIds.includes(managerOption.id)
+                                    ? "bg-[#1D1D1B] text-[#E8D1AB]"
+                                    : isDark ? "bg-[#2C2C2C] text-[#E2DFDF]" : "bg-black/15 text-black/60"
+                                  }`}>
+                                  {selectedManagerIds.includes(managerOption.id) ? "Selected" : "Optional"}
+                                </span>
+                              </div>
+                            </button>
+                          ) : null}
+
+                          {/* --- CREATIVE PARTNER CARDS --- */}
+                          {cpOptions.map((cp) => {
+                            const selected = selectedCpIds.includes(cp.id);
+                            return (
+                              <button
+                                key={cp.id}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedCpIds((current) =>
+                                    selected
+                                      ? current.filter((value) => value !== cp.id)
+                                      : [...current, cp.id]
+                                  )
+                                }
+                                className={`rounded-lg lg:rounded-xl border px-4 py-5 text-left transition-colors min-w-0 w-full ${selected
+                                    ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                                    : isDark ? "border-white/30 bg-white/5 hover:bg-[#151515]" : "border-[#E3E3E3] bg-[#F4F5F7] hover:bg-[#f0f0f0]"
+                                  }`}
+                              >
+                                <div className="flex items-start justify-between gap-3 min-w-0 w-full">
+                                  <div className="min-w-0 w-full">
+                                    <p className={`truncate text-xs ${selected
+                                      ? "text-black"
+                                      : isDark ? "text-white" : "text-black"}`}>{cp.name}</p>
+                                    <p className={`mt-1 text-base uppercase tracking-[0.16em] ${selected
+                                      ? "text-black/50"
+                                      : isDark ? "text-white/50" : "text-black/75"}`}>Creative Partner</p>
+                                  </div>
+                                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium shrink-0 ${selected ? "bg-[#1D1D1B] text-[#E8D1AB]"
+                                      : isDark ? "bg-[#2C2C2C] text-[#E2DFDF]" : "bg-black/15 text-black/60"
+                                    }`}>
+                                    {selected ? "Selected" : "Optional"}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+
+                          {managerOption === null && cpOptions.length === 0 ? (
+                            <p className={`text-xs lg:text-sm md:col-span-2 ${isDark ? "text-white/40" : "text-black/60"}`}>No default project members were found.</p>
+                          ) : null}
                         </div>
-                        <span className={cn(
-                          "rounded-full px-2.5 py-1 text-xs font-medium",
-                          selected ? "bg-[#E5D5B8] text-black" : (isDark ? "bg-white/5 text-white/45" : "bg-black/15 text-black/60")
-                        )}>
-                          {selected ? "Selected" : "Add"}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div className={`rounded-xl lg:rounded-3xl border ${isDark ? "border-white/10 bg-[#101010]" : " border-black/20 bg-[#fff]"} p-3 lg:p-5`}>
-            <div className="mb-5">
-              <p className={`text-xs font-medium uppercase tracking-[0.24em] ${isDark ? "text-white/35" : "text-black/75"}`}>Link & Notifications</p>
-              <h3 className={`mt-2 lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Generate the meeting room</h3>
-            </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAdditionalMembersView(true)}
+                          className="text-[#E8D1AB] flex gap-2 items-center"
+                        >
+                          <Plus size={24} />
+                          <span className="underline underline-offset-2 text-sm font-semibold">Invite Additional Members </span>
+                        </button>
+                      </div>
+                    )}
+                  </>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className={`text-xs lg:text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Google Meet Link</label>
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input
-                    value={meetLink}
-                    onChange={(event) => {
-                      setMeetLink(event.target.value);
-                      setGeneratedMeetEvent(null);
-                    }}
-                    placeholder="Auto-generated Google Meet link"
-                    className={`h-12 rounded-xl ${isDark ? "placeholder:text-white/30 text-white border-[#2C2C2C] bg-[#151515]" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={generateMeetLink}
-                    disabled={isGeneratingLink || !activeOrderId}
-                    className="h-12 rounded-xl border-white/10 bg-[#141414] text-[#E8D1AB] hover:bg-[#1c1c1c]"
-                  >
-                    {isGeneratingLink ? <Loader2 size={15} className="animate-spin" /> : <Video size={15} />}
-                    Generate
-                  </Button>
+                  {(selectedAdditionalMembers.staff.length > 0 || selectedAdditionalMembers.cp.length > 0) && (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {selectedAdditionalMembers.staff.map((member) => {
+                          const memberId = String(member.id || "");
+                          return (
+                            <div
+                              key={`main-staff-${memberId}`}
+                              className={`inline-flex items-center gap-2 rounded-sm px-3 py-1 text-left text-sm transition-colors ${isDark ? "text-white bg-[#e8d1ab]/10" : "text-black  bg-[#F0F0F0]"}`}
+                            >
+                              <span className="max-w-[180px] truncate">{member.name || member.email || "Staff Member"}</span>
+                              <span className="text-[#E8D1AB]">
+                                (Staff)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmedStaffIds((current) => current.filter((id) => id !== memberId));
+                                  setSelectedStaffIds((current) => current.filter((id) => id !== memberId));
+                                }}
+                                className={`rounded-full p-0.5 hover:bg-black/10 transition-colors ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/60"}`}
+                              >
+                                <X size={22} />
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                        {selectedAdditionalMembers.cp.map((member) => {
+                          const memberId = String(member.id || "");
+                          return (
+                            <div
+                              key={`main-cp-${memberId}`}
+                              className={`inline-flex items-center gap-2 rounded-sm px-3 py-1 text-left text-sm transition-colors ${isDark ? "text-white bg-[#e8d1ab]/10" : "text-black  bg-[#F0F0F0]"}`}
+                            >
+                              <span className="max-w-[180px] truncate">{member.name || member.email || "Creative Partner"}</span>
+                              <span className="text-[#E8D1AB]">
+                                (CP)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmedExtraCpIds((current) => current.filter((id) => id !== memberId));
+                                  setSelectedExtraCpIds((current) => current.filter((id) => id !== memberId));
+                                }}
+                                className={`rounded-full p-0.5 hover:bg-black/10 transition-colors ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/60"}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <hr className={`border-t my-4 lg:my-7 ${isDark ? "border-[#CACACA]" : "border-[#E3E3E3]"}`} />
+
+                <div className="px-4 lg:px-7 space-y-4 lg:space-y-5">
+                  <h3 className={`text-sm lg:text-base font-medium  ${isDark ? "text-white" : "text-black"}`}>Link & Notifications</h3>
+
+                  <div className="space-y-4">
+                    <div className="relative w-full">
+                      {/* Floating Label with clean cutout effect */}
+                      <label className={`absolute -top-2 lg:-top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
+                        Google Meet Link*
+                      </label>
+
+                      {/* Outer Border Wrapper containing Input and Button together */}
+                      <div
+                        className={`flex items-center justify-between gap-3 px-4 rounded-xl border w-full h-16 lg:h-20 ${isDark
+                          ? "border-white/50 bg-black"
+                          : "border-black/45 bg-white"
+                          }`}
+                      >
+                        {/* Borderless Input field */}
+                        <Input
+                          type="text"
+                          value={meetLink}
+                          onChange={(event) => {
+                            setMeetLink(event.target.value);
+                            setGeneratedMeetEvent(null);
+                          }}
+                          placeholder="Auto-generated google meet link.."
+                          className={`w-full h-full bg-transparent border-none outline-none text-xs lg:text-base focus:ring-0 p-0 ${isDark
+                            ? "text-white placeholder:text-white/30"
+                            : "text-black placeholder:text-black/35"
+                            }`}
+                        />
+
+                        {/* Styled Action Button */}
+                        <Button
+                          type="button"
+                          onClick={generateMeetLink}
+                          disabled={isGeneratingLink || !activeOrderId}
+                          className={`shrink-0 rounded-md px-3 lg:px-6 h-7 lg:h-11 text-xs lg:text-lg transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2 ${isDark
+                            ? "bg-[#E8D1AB] text-black hover:bg-[#d4c2a1]"
+                            : "bg-[#E8D1AB] text-black hover:bg-[#d4c2a1]"
+                            }`}
+                        >
+                          {isGeneratingLink ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            "Generate"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <label className={`flex items-start gap-3`}>
+                      <input
+                        type="checkbox"
+                        checked={sendNotification}
+                        onChange={(event) => setSendNotification(event.target.checked)}
+                        className="mt-0.5 h-6 w-6 accent-[#E8D1AB]"
+                      />
+                      <div>
+                        <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Send meeting invitation notifications</p>
+                        <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          Selected members will get the meeting invite and can approve or reject it from their side.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <label className={`flex items-start gap-3 rounded-lg lg:rounded-2xl border p-4 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E3E3E3] bg-[#F0F0F0]"}`}>
-                <input
-                  type="checkbox"
-                  checked={sendNotification}
-                  onChange={(event) => setSendNotification(event.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-[#E5D5B8]"
+              <div className="flex w-full gap-3 p-4 lg:p-7">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  className={`flex-1 border ${isDark ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1c1c1c]" : "border-[#f0f0f0] bg-[#f0f0f0] text-zinc-700 hover:bg-zinc-100"}`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || isGeneratingLink}
+                  className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d9c5a0]"
+                >
+                  {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
+                  Create Meeting
+                </Button>
+              </div>
+            </>
+            :
+            <>
+              {/* Header */}
+              <div className={`flex items-center justify-between border-b p-4 lg:p-7 ${isDark ? "border-white/10" : "border-[#CACACA]"}`}>
+                <h2 className={`text-xl lg:text-3xl font-semibold tracking-[-0.02em] ${isDark ? "text-white" : "text-black"}`}>Invite more staff or creative partners</h2>
+                <button
+                  onClick={onClose}
+                  className={`rounded-full p-2 lg:p-3.5 shrink-0 transition-colors ${isDark ? "bg-[#2B2626] text-white/60 hover:bg-[#2B2626]/75" : "bg-[#F0F0F0] text-zinc-400 hover:bg-[#F0F0F0]/70"}`}
+                >
+                  <X className="h-4 w-4 lg:h-7 lg:w-7" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 lg:px-7 space-y-3 lg:space-y-5 no-scrollbar">
+                <TabsSwitcher
+                  tabs={tabs}
+                  activeTab={memberTab}
+                  onChange={(tab) => setMemberTab(tab)}
+                  className="w-full"
                 />
-                <div>
-                  <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Send meeting invitation notifications</p>
-                  <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/45" : "text-black/60"}`}>
-                    Selected members will get the meeting invite and can approve or reject it from their side.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="border-white/10 bg-[#141414] text-white hover:bg-[#1c1c1c]"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting || isGeneratingLink}
-              className="bg-[#E5D5B8] text-black hover:bg-[#d9c5a0]"
-            >
-              {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
-              Create Meeting
-            </Button>
-          </div>
-        </div>
+                <div className="relative">
+                  <Search size={15} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-black/60"}`} />
+                  <Input
+                    value={memberSearch}
+                    onChange={(event) => setMemberSearch(event.target.value)}
+                    placeholder={memberTab === "cp" ? "Search creative partners" : "Search staff members"}
+                    className={`h-12 pl-10 rounded-xl ${isDark ? "border-white/50 bg-[#151515] text-white placeholder:text-white/30" : "text-black border-black/20 bg-[#fff] placeholder:text-black/60"}`}
+                  />
+                </div>
+
+                <p className={`font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-black/70"}`}>
+                  <span className={isDark ? "text-white" : "text-black"}>{memberTab === "cp" ? "Creative Partners" : "Staff Members"}{" "}</span>
+                  ({(memberTab === "cp" ? selectedExtraCpIds : selectedStaffIds).length.toString().padStart(2, '0')} Selected)
+                </p>
+
+                <div className={`max-h-115 space-y-2.5 overflow-y-auto no-scrollbar`}>
+                  {filteredDirectoryMembers.length === 0 ? (
+                    <p className={`px-2 py-3 text-sm text-center ${isDark ? "text-white/40" : "text-black/60"}`}>
+                      {memberTab === "cp" ? "No additional CPs found for this search." : "No additional staff found for this search."}
+                    </p>
+                  ) : (
+                    filteredDirectoryMembers.map((member) => {
+                      const memberId = String(member.id || "");
+                      const selected =
+                        memberTab === "cp"
+                          ? selectedExtraCpIds.includes(memberId)
+                          : selectedStaffIds.includes(memberId);
+
+                      return (
+                        <button
+                          key={memberId}
+                          type="button"
+                          onClick={() =>
+                            memberTab === "cp"
+                              ? setSelectedExtraCpIds((current) =>
+                                selected
+                                  ? current.filter((value) => value !== memberId)
+                                  : [...current, memberId]
+                              )
+                              : setSelectedStaffIds((current) =>
+                                selected
+                                  ? current.filter((value) => value !== memberId)
+                                  : [...current, memberId]
+                              )
+                          }
+                          className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-all ${isDark ? "bg-[#171717] hover:bg-[#151515]" : "bg-white hover:bg-[#F4F5F7]"} ${selected ? "border-[#E8D1AB]/50 " : (isDark ? "border-[#171717]" : "border-[#E3E3E3]")}`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-15 h-15 rounded-full flex items-center justify-center font-medium text-lg shrink-0 uppercase ${isDark ? "bg-[#332E28] text-[#E8D1AB]" : "bg-zinc-200 text-black"}`}>
+                              {getInitials(member.name || member.email)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`truncate text-sm font-semibold ${isDark ? "text-[#CECECE]" : "text-black"}`}>{member.name || member.email || "Staff Member"}</p>
+                              <p className={`truncate text-xs ${isDark ? "text-[#737373]" : "text-black/45"}`}>{formatRoleLabel(member.role || "Staff")}</p>
+                              {member.email ? (
+                                <p className={`truncate text-xs mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black/35"}`}>{member.email}</p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {/* Custom visual checkbox mapping box indicator structure */}
+                          <div className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${selected
+                              ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                              : isDark ? "border-white/20 bg-transparent" : "border-black/20 bg-transparent"
+                            }`}>
+                            {selected && (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex w-full gap-3 p-4 lg:p-7 lg:pt-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    // Revert temporary staging vectors to last confirmed values to cancel clean
+                    setSelectedStaffIds([...confirmedStaffIds]);
+                    setSelectedExtraCpIds([...confirmedExtraCpIds]);
+                    setShowAdditionalMembersView(false);
+                  }}
+                  className={`flex-1 border ${isDark ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1c1c1c]" : "border-[#f0f0f0] bg-[#f0f0f0] text-zinc-700 hover:bg-zinc-100"}`}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleCommitParticipants}
+                  className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d9c5a0]"
+                >
+                  Add Participants
+                </Button>
+              </div>
+            </>
+        }
       </div>
     </div>
   );

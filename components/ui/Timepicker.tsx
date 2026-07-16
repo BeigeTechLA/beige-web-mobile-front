@@ -32,10 +32,10 @@ const themeColors: { dark: TimePickerColors; light: TimePickerColors } = {
   dark: {
     inputBackground: "#000000",
     inputText: "#FFFFFF",
-    inputBorder: "rgba(255, 255, 255, 0.1)",
+    inputBorder: "rgba(255, 255, 255, 0.50)",
     inputBorderHover: "rgba(255, 255, 255, 0.2)",
     inputBorderFocus: "#E8D1AB",
-    labelText: "rgba(255, 255, 255, 0.4)",
+    labelText: "rgba(255, 255, 255, 0.6)",
     iconColor: "#FFFFFF",
     inputDisabled: "rgba(255, 255, 255, 0.3)",
     accent: "#E8D1AB",
@@ -77,6 +77,10 @@ interface Props {
   colors?: Partial<TimePickerColors>;
   disabled?: boolean;
   isDark?: boolean;
+  floatingLabel?: boolean;
+  height?: string | number | object;
+  fontSize?: string;
+  labelFontSize?: string;
 }
 
 export const TimePicker: React.FC<Props> = ({
@@ -87,6 +91,10 @@ export const TimePicker: React.FC<Props> = ({
   colors: customColors,
   disabled = false,
   isDark = true,
+  floatingLabel = true,
+  height = "48px",
+  fontSize = "14px",
+  labelFontSize = "13px",
 }) => {
   const baseColors = isDark ? themeColors.dark : themeColors.light;
   const colors = { ...baseColors, ...customColors };
@@ -117,20 +125,23 @@ export const TimePicker: React.FC<Props> = ({
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ width: "100%" }}>
-        <Typography
-          variant="body2"
-          sx={{
-            color: colors.labelText,
-            fontWeight: "bold",
-            mb: 1,
-            fontSize: "10px",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          {label}
-        </Typography>
+      <Box sx={{ width: "100%", position: "relative" }}>
+        {/* Legacy Header Label */}
+        {!floatingLabel && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: colors.labelText,
+              fontWeight: "bold",
+              mb: 1,
+              fontSize: labelFontSize,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+            }}
+          >
+            {label}
+          </Typography>
+        )}
 
         <MuiTimePicker
           value={value}
@@ -143,11 +154,27 @@ export const TimePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
+              label: floatingLabel ? label : undefined,
               placeholder: "HH:MM am/pm",
               onClick: () => !disabled && setOpen(true),
+              InputLabelProps: floatingLabel ? {
+                shrink: true,
+                sx: {
+                  color: `${colors.labelText} !important`,
+                  fontSize: labelFontSize,
+                  fontWeight: 500,
+                  transform: "translate(14px, -8px) scale(0.9)",
+                  backgroundColor: isDark ? "#000000" : "#FFFFFF",
+                  padding: "0 6px",
+                  borderRadius: "8px",
+                  "&.Mui-focused": {
+                    color: `${colors.inputBorderFocus} !important`,
+                  },
+                }
+              } : undefined,
               sx: {
                 "& .MuiOutlinedInput-root": {
-                  height: "48px",
+                  height: height,
                   backgroundColor: colors.inputBackground,
                   borderRadius: "8px",
                   display: "flex",
@@ -155,7 +182,7 @@ export const TimePicker: React.FC<Props> = ({
                   paddingRight: "12px",
                   "& fieldset": {
                     borderColor: colors.inputBorder,
-                    borderWidth: "1px",
+                    borderWidth: "1.5px",
                   },
                   "&:hover fieldset": {
                     borderColor: colors.inputBorderHover,
@@ -168,10 +195,14 @@ export const TimePicker: React.FC<Props> = ({
                     borderColor: colors.inputDisabled,
                     opacity: 0.6,
                   },
+                  "& legend": floatingLabel ? {
+                    maxWidth: "100%",
+                    transition: "max-width 50ms cubic-bezier(0.0, 0, 0.2, 1) 0ms",
+                  } : undefined,
                 },
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
-                  fontSize: "14px",
+                  fontSize: fontSize,
                   padding: "0 14px",
                   height: "100%",
                   "&::placeholder": {
@@ -200,12 +231,11 @@ export const TimePicker: React.FC<Props> = ({
                   marginTop: "8px",
                   ...interiorStyles,
                 },
-                // THE SPECIFIC FIX: Targeting the list sections to hide scrollbars
                 "& .MuiMultiSectionDigitalClockSection-root": {
-                  scrollbarWidth: "none", // Firefox
-                  msOverflowStyle: "none", // IE
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
                   "&::-webkit-scrollbar": {
-                    display: "none", // Chrome/Safari
+                    display: "none",
                   },
                 },
               },

@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCards } from "swiper/modules";
 import { useTheme } from "next-themes";
+import type { Swiper as SwiperType } from "swiper";
 
 import "swiper/css";
 import "swiper/css/effect-cards";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, ArrowUp, ArrowDown } from "lucide-react";
 import Cookies from "js-cookie";
 import { affiliateApi } from "@/lib/api";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
@@ -37,12 +38,15 @@ interface CrewMember {
 const BG_COLORS = ["bg-[#FFD6D6]", "bg-[#C4B5FD]", "bg-[#E0F2FE]", "bg-[#F3E8FF]", "bg-[#DCFCE7]"];
 
 export default function AffiliateAssignedCP({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
+
+  const swiperRef = useRef<SwiperType | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -140,42 +144,110 @@ export default function AffiliateAssignedCP({ projectId }: { projectId: string }
         ) : (
           <>
             {/* Cards Swiper - Vertical Direction */}
-            <div className=" relative z-10 py-10">
+            <div className="relative z-10 w-full flex justify-center items-center py-10">
               <Swiper
                 effect={"cards"}
                 direction={"vertical"}
                 grabCursor={true}
                 modules={[EffectCards]}
-                className="w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                className="top-stack-swiper w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
                 cardsEffect={{
                   perSlideOffset: 12,
                   perSlideRotate: 0,
                   slideShadows: false,
                 }}
+                onSwiper={(swiper) => {
+                  swiperRef.current = swiper;
+                }}
                 onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
               >
-                {crewMembers.map((member) => (
-                  <SwiperSlide key={member.id} className={`rounded-3xl overflow-hidden shadow-lg ${member.bgColor}`}>
-                    <Image
-                      src={member.image}
-                      alt={member.name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </SwiperSlide>
-                ))}
+                {crewMembers.map((member, index) => {
+                  const crewMemberId = Number(member.id);
+                  return (
+                    <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg group ${member.bgColor}`}>
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={member.image}
+                          alt={member.name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+
+                      {/* Bottom Gradient Fade */}
+                      <div
+                        className="absolute inset-0 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{ background: "linear-gradient(180deg, rgba(0, 0, 0, 0.00) 40%, #000 100%)" }}
+                      />
+
+                      {/* Absolute Pill Controller Element on the Slide */}
+                      <div className="absolute top-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1.5 border border-white/40 bg-white/20 rounded-full px-2 py-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            swiperRef.current?.slidePrev();
+                          }}
+                          disabled={activeIndex === 0}
+                          className="text-white hover:text-[#E5D5B8] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ArrowUp size={16} strokeWidth={2.5} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            swiperRef.current?.slideNext();
+                          }}
+                          disabled={activeIndex === crewMembers.length - 1}
+                          className="text-white hover:text-[#E5D5B8] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ArrowDown size={16} strokeWidth={2.5} />
+                        </button>
+                      </div>
+
+                      {/* Identity Text and Interactive Inline Operations Panel */}
+                      <div className="absolute inset-0 flex flex-col justify-end p-5 z-20 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100 lg:transition-opacity lg:duration-300">
+                        <div className="flex items-end justify-between w-full gap-2">
+                          <div className="text-left select-none min-w-0 flex-1">
+                            <h4 className="text-sm font-semibold leading-tight text-white truncate">
+                              {member.name
+                                ? `${member.name || ""}`.trim() || "Unknown"
+                                : "Unknown"}
+                            </h4>
+                            {/* Instead of role, replace with compensation if required */}
+                            <p className="text-xs leading-normal mt-1 text-[#E8D1AB] truncate">
+                              {member.role}
+                            </p>
+                          </div>
+
+                          {/* Action Controls Frame Context: This page doesnt exist under client as of now */}
+                          {/* <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/users/creative-partners/${crewMemberId}`)}
+                              className="h-8 px-3 py-1.5 bg-white text-black hover:bg-zinc-200 text-[10px] font-semibold rounded-full shadow transition-all"
+                            >
+                              View Profile
+                            </button>
+                          </div> */}
+                        </div>
+                      </div>
+                    </SwiperSlide>
+                  );
+                })}
               </Swiper>
             </div>
 
             {/* Text Info */}
-            <div className="mt-auto lg:mb-2 text-center z-10 relative">
+            {/* <div className="mt-auto lg:mb-2 text-center z-10 relative">
               <h4 className={`lg:text-xl font-semibold leading-none tracking-normal transition-all duration-300 ${isDark ? "text-white" : "text-black"}`}>
                 {crewMembers[activeIndex]?.name}
               </h4>
               <p className={`text-sm lg:text-base font-medium leading-none mt-1 lg:mt-2 transition-all duration-300 ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
                 {crewMembers[activeIndex]?.role}
               </p>
-            </div>
+            </div> */}
           </>
         )}
       </div>
