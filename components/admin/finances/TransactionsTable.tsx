@@ -25,6 +25,16 @@ import {
 export type TransactionStatus = "Paid" | "Pending" | "Failed";
 type TransactionView = "Transactions ID" | "Shoot ID";
 
+export type TransactionDetailRow = {
+  id: string;
+  transactionId: string;
+  date: string;
+  method: string;
+  status: TransactionStatus;
+  amount: string;
+  feeNote: string;
+};
+
 export type TransactionRow = {
   id: string;
   transactionId: string;
@@ -39,14 +49,8 @@ export type TransactionRow = {
   avatarColor: string;
   avatarImage?: string;
   invoiceIds?: string[];
-  invoiceDetails?: {
-    id: string;
-    date: string;
-    method: string;
-    status: TransactionStatus;
-    amount: string;
-    feeNote: string;
-  }[];
+  transactionCount?: number;
+  transactionDetails?: TransactionDetailRow[];
 };
 
 interface TransactionsTableProps {
@@ -63,7 +67,11 @@ interface TransactionsTableProps {
   viewValue: TransactionView;
   onViewChange: (value: TransactionView) => void;
   itemsPerPage?: number;
-  action?: () => void;
+  currentPage?: number;
+  totalPages?: number;
+  totalItems?: number;
+  onPageChange?: (page: number) => void;
+  action?: (row: TransactionRow, event?: React.MouseEvent) => void;
 
 }
 
@@ -122,24 +130,41 @@ export default function TransactionsTable({
   viewValue,
   onViewChange,
   itemsPerPage = 7,
+  currentPage,
+  totalPages: controlledTotalPages,
+  totalItems,
+  onPageChange,
   action
 }: TransactionsTableProps) {
   const { isDark } = useResolvedTheme();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [localCurrentPage, setLocalCurrentPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(rows[0]?.id ?? null);
+  const isControlledPagination = typeof currentPage === "number" && typeof onPageChange === "function";
+  const activePage = isControlledPagination ? Math.max(currentPage || 1, 1) : localCurrentPage;
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [rows, searchValue, statusValue, monthValue, typeValue, viewValue]);
+    if (!isControlledPagination) {
+      setLocalCurrentPage(1);
+    }
+  }, [rows, searchValue, statusValue, monthValue, typeValue, viewValue, isControlledPagination]);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * itemsPerPage;
+  useEffect(() => {
+    setExpandedRowId(rows[0]?.id ?? null);
+  }, [rows, viewValue]);
+
+  const totalPages = Math.max(1, controlledTotalPages || Math.ceil(rows.length / itemsPerPage));
+  const safePage = Math.min(activePage, totalPages);
+  const startIndex = isControlledPagination ? 0 : (safePage - 1) * itemsPerPage;
   const visibleRows = useMemo(
-    () => rows.slice(startIndex, startIndex + itemsPerPage),
-    [rows, startIndex, itemsPerPage]
+    () => isControlledPagination ? rows : rows.slice(startIndex, startIndex + itemsPerPage),
+    [rows, startIndex, itemsPerPage, isControlledPagination]
   );
   const paginationItems = buildPaginationItems(safePage, totalPages);
+  const displayTotal = totalItems ?? rows.length;
+  const displayStart = displayTotal === 0 ? 0 : isControlledPagination ? ((safePage - 1) * itemsPerPage) + 1 : startIndex + 1;
+  const displayEnd = isControlledPagination
+    ? Math.min((safePage - 1) * itemsPerPage + rows.length, displayTotal)
+    : Math.min(startIndex + itemsPerPage, rows.length);
 
   const primaryIdLabel = viewValue === "Transactions ID" ? "Transaction ID" : "Shoot ID";
   const isShootIdView = viewValue === "Shoot ID";
@@ -148,22 +173,21 @@ export default function TransactionsTable({
     setExpandedRowId((current) => (current === id ? null : id));
   };
 
-  // Reusable sub-panel component shared between Desktop Table and Mobile Card Drawers
   const DetailPanelContent = ({ row }: { row: TransactionRow }) => (
     <div className={`p-5 lg:px-5 lg:py-6 ${isDark ? "bg-[#0A0A0A]" : "bg-[#FAFAFA]"}`}>
       <div className="mb-4 flex items-center gap-2">
         <ReceiptText size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
         <p className={`text-base font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-          Invoices for {row.shootId || "Shoot"}
+          Transactions for {row.shootId || "Shoot"}
         </p>
       </div>
 
       <div className="space-y-3">
-        {(row.invoiceDetails || []).map((invoice) => {
-          const isCardPayment = invoice.method.toLowerCase().includes("card");
+        {(row.transactionDetails || []).length > 0 ? (row.transactionDetails || []).map((transaction) => {
+          const isCardPayment = transaction.method.toLowerCase().includes("card") || transaction.method.toLowerCase().includes("stripe");
 
           return (
-            <div key={invoice.id}>
+            <div key={transaction.id}>
               <div
 
                 className={`hidden lg:flex items-center justify-between rounded-lg border p-4 ${isDark ? "border-[#262626] bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}
@@ -171,10 +195,10 @@ export default function TransactionsTable({
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="min-w-0">
                     <p className={`text-sm lg:text-base leading-none font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {invoice.id}
+                      {transaction.transactionId}
                     </p>
                     <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#777]"}`}>
-                      {invoice.date}
+                      {transaction.date}
                     </p>
                   </div>
 
@@ -185,20 +209,20 @@ export default function TransactionsTable({
                       <Landmark size={16} className={isDark ? "text-[#A0A0A0]" : "text-[#777]"} />
                     )}
                     <span className={`text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#666]"}`}>
-                      {invoice.method}
+                      {transaction.method}
                     </span>
                   </div>
 
-                  <TransactionStatusBadge status={invoice.status} mobile={true} />
+                  <TransactionStatusBadge status={transaction.status} mobile={true} />
                 </div>
 
                 <div className="ml-4 flex items-center gap-4">
                   <div className="text-right">
                     <p className={`text-sm lg:text-lg leading-none font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {invoice.amount}
+                      {transaction.amount}
                     </p>
                     <p className={`mt-1 text-[10px] lg:text-xs ${isDark ? "text-[#A0A0A0]" : "text-[#8A8A8A]"}`}>
-                      {invoice.feeNote}
+                      {transaction.feeNote}
                     </p>
                   </div>
                   <ChevronRight size={20} className={isDark ? "text-[#A0A0A0]" : "text-[#676767]"} />
@@ -210,19 +234,19 @@ export default function TransactionsTable({
                 <div className={`p-4 flex justify-between items-start border-b ${isDark ? "border-[#3D3D3D]" : "border-white/30"}`}>
                   <div className="min-w-0">
                     <p className={`text-sm lg:text-base leading-none font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {invoice.id}
+                      {transaction.transactionId}
                     </p>
                     <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#777]"}`}>
-                      {invoice.date}
+                      {transaction.date}
                     </p>
                   </div>
 
                   <div className="text-right">
                     <p className={`text-sm lg:text-lg leading-none font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {invoice.amount}
+                      {transaction.amount}
                     </p>
                     <p className={`mt-1 text-[10px] lg:text-xs ${isDark ? "text-[#A0A0A0]" : "text-[#8A8A8A]"}`}>
-                      {invoice.feeNote}
+                      {transaction.feeNote}
                     </p>
                   </div>
                 </div>
@@ -235,18 +259,22 @@ export default function TransactionsTable({
                         <Landmark size={16} className={isDark ? "text-[#A0A0A0]" : "text-[#777]"} />
                       )}
                       <span className={`text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#666]"}`}>
-                        {invoice.method}
+                        {transaction.method}
                       </span>
                     </div>
 
-                    <TransactionStatusBadge status={invoice.status} mobile={true} />
+                    <TransactionStatusBadge status={transaction.status} mobile={true} />
                   </div>
                   <ChevronRight size={20} className={isDark ? "text-[#A0A0A0]" : "text-[#676767]"} />
                 </div>
               </div>
             </div>
           );
-        })}
+        }) : (
+          <div className={`rounded-lg border p-4 text-sm ${isDark ? "border-[#262626] bg-[#141414] text-white/50" : "border-[#E5E5E5] bg-white text-[#777]"}`}>
+            No transactions found for this shoot.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -324,6 +352,7 @@ export default function TransactionsTable({
                   <SelectItem value="All">All</SelectItem>
                   <SelectItem value="Stripe">Stripe</SelectItem>
                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Manual">Manual</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -355,7 +384,7 @@ export default function TransactionsTable({
                 <th className="py-5 px-4 font-medium w-[22%] truncate">Client Name</th>
                 <th className="py-5 px-4 font-medium w-[14%] truncate">Shoot Type</th>
                 <th className="py-5 px-4 font-medium w-[12%] truncate">Total Amount</th>
-                {isShootIdView && <th className="py-5 px-4 font-medium w-[13%] truncate">Invoices</th>}
+                {isShootIdView && <th className="py-5 px-4 font-medium w-[13%] truncate">Transactions</th>}
                 <th className="py-5 px-4 font-medium w-[14%] truncate">Payment Method</th>
                 <th className="py-5 px-4 font-medium w-[10%] truncate">Status</th>
                 <th className="py-5 px-4 font-medium text-right w-[8%] truncate">Action</th>
@@ -426,7 +455,7 @@ export default function TransactionsTable({
                           <span
                             className={`inline-flex min-w-[108px] items-center justify-center rounded-full px-3 py-2 text-sm font-medium whitespace-nowrap ${isDark ? "bg-[#312D2D] text-[#D3B98A]" : "bg-[#F2EEE7] text-[#8B6B36]"}`}
                           >
-                            {String((row.invoiceIds || []).length).padStart(2, "0")} Invoices
+                            {String(row.transactionCount ?? row.transactionDetails?.length ?? 0).padStart(2, "0")} Transactions
                           </span>
                         </td>
                       )}
@@ -438,7 +467,11 @@ export default function TransactionsTable({
                       </td>
                       <td className="p-5 text-right">
                         <div className="flex min-h-[44px] items-center justify-end">
-                          <button onClick={action} className={isDark ? "text-white" : "text-[#171717]"}>
+                          <button
+                            type="button"
+                            onClick={(event) => action?.(row, event)}
+                            className={isDark ? "text-white" : "text-[#171717]"}
+                          >
                             <MoreVertical size={30} />
                           </button>
                         </div>
@@ -541,9 +574,9 @@ export default function TransactionsTable({
                         </div>
                         {isShootIdView && (
                           <div className="col-span-2">
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Invoices</p>
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Transactions</p>
                             <p className={`mt-1 ${isDark ? "text-[#A1A1A1]" : "text-black/90"}`}>
-                              {String((row.invoiceIds || []).length).padStart(2, "0")} Invoices
+                              {String(row.transactionCount ?? row.transactionDetails?.length ?? 0).padStart(2, "0")} Transactions
                             </p>
                           </div>
                         )}
@@ -554,7 +587,7 @@ export default function TransactionsTable({
                         <span className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Actions</span>
                         <button
                           type="button"
-                           onClick={action}
+                          onClick={(event) => action?.(row, event)}
                           className={`p-1 ${isDark ? "text-white hover:text-white/70" : "text-black/70 hover:text-black"}`}
                         >
                           <MoreVertical size={24} />
@@ -583,11 +616,11 @@ export default function TransactionsTable({
         {!loading && rows.length > 0 && (
           <div className={`flex justify-center lg:justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-              Page {startIndex + 1} to {Math.min(startIndex + itemsPerPage, rows.length)}
+              Showing {displayStart} to {displayEnd} of {displayTotal}
             </div>
             <div className="flex gap-2 items-center">
               <button
-                onClick={() => setCurrentPage(safePage - 1)}
+                onClick={() => isControlledPagination ? onPageChange?.(safePage - 1) : setLocalCurrentPage(safePage - 1)}
                 disabled={safePage === 1}
                 className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
                   }`}
@@ -604,7 +637,7 @@ export default function TransactionsTable({
                   ) : (
                     <button
                       key={page}
-                      onClick={() => setCurrentPage(page)}
+                      onClick={() => isControlledPagination ? onPageChange?.(page) : setLocalCurrentPage(page)}
                       className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safePage === page
                         ? isDark
                           ? "bg-[#E5D5B8] text-black"
@@ -620,7 +653,7 @@ export default function TransactionsTable({
                 )}
               </div>
               <button
-                onClick={() => setCurrentPage(safePage + 1)}
+                onClick={() => isControlledPagination ? onPageChange?.(safePage + 1) : setLocalCurrentPage(safePage + 1)}
                 disabled={safePage === totalPages}
                 className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
                   }`}

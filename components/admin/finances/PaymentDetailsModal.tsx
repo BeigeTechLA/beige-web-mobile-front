@@ -45,7 +45,7 @@ export default function PaymentDetailsModal({
       >
         {/* Header Block Section */}
         <div className="flex items-center justify-between p-4 lg:p-9">
-          <h2 className="text-xl lg:text-3xl font-bold tracking-tight">Earnings Breakdown</h2>
+          <h2 className="text-xl lg:text-3xl font-bold tracking-tight">Payment Details</h2>
           <button
             onClick={onClose}
             className={`p-3 lg:p-4 rounded-full transition-colors border ${isDark ? "bg-[#2B2626] text-white hover:text-white/90 border-[#2B2626]":"bg-[#F0F0F0] text-black hover:text-black/90 border-[#F0F0F0]"}`}
@@ -60,22 +60,22 @@ export default function PaymentDetailsModal({
           {/* Informational Key-Value Metrics Stack Matrix Grid Layout */}
           <div className="space-y-4 lg:space-y-6 text-base lg:text-xl">
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Account Holder</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Client</span>
               <span className="font-medium">{payoutData.accountHolder}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Account Number</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Transaction ID</span>
               <span className="font-medium">{payoutData.accountNumber}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Payout Amount</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Amount</span>
               <span className="font-medium text-[#16A34A]">{payoutData.payoutAmount}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Phone Number</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Shoot ID</span>
               <span className="font-medium">{payoutData.phoneNumber}</span>
             </div>
 
@@ -85,12 +85,12 @@ export default function PaymentDetailsModal({
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Account Type</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Payment Method</span>
               <span className="font-medium">{payoutData.accountType}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Branch Name</span>
+              <span className={isDark ? "text-[#AEAEAE]" : "text-black/50"}>Shoot Type</span>
               <span className="font-medium">{payoutData.branchName}</span>
             </div>
 

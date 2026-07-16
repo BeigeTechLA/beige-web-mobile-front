@@ -3,292 +3,215 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowUpToLine } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/src/components/landing/ui/button";
 import TransactionsTable, {
+  type TransactionDetailRow,
   type TransactionRow,
+  type TransactionStatus,
 } from "@/components/admin/finances/TransactionsTable";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import PaymentDetailsModal, { PaymentDetailsModalProps } from "@/components/admin/finances/PaymentDetailsModal";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  financeTransactionsApi,
+  type FinancePagination,
+  type FinanceShootApiRow,
+  type FinanceTransactionApiRow,
+} from "@/lib/api/financeTransactions";
 
-const transactionRows: TransactionRow[] = [
-  {
-    id: "txn-1",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Prince Carter",
-    date: "Jan 13, 2026",
-    shootType: "Wedding Videography",
-    totalAmount: "$12,000",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    initials: "PC",
-    avatarColor: "#F0C4E3",
-    invoiceIds: ["INV-101-A", "INV-101-B"],
-    invoiceDetails: [
-      {
-        id: "INV-001-A",
-        date: "2026-04-20",
-        method: "Credit Card",
-        status: "Paid",
-        amount: "$7,500",
-        feeNote: "Service: $7000 + Tax: $500",
-      },
-      {
-        id: "INV-001-B",
-        date: "2026-04-21",
-        method: "Bank Transfer",
-        status: "Paid",
-        amount: "$5,000",
-        feeNote: "Service: $4500 + Tax: $350",
-      },
-    ],
-  },
-  {
-    id: "txn-2",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Ethan Carter",
-    date: "Jan 13, 2026",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    paymentMethod: "Bank Transfer",
-    status: "Failed",
-    initials: "EC",
-    avatarColor: "#F5E4BC",
-    avatarImage: "/images/avatar.png",
-    invoiceIds: ["INV-102-A", "INV-102-B"],
-    invoiceDetails: [
-      {
-        id: "INV-002-A",
-        date: "2026-04-18",
-        method: "Credit Card",
-        status: "Failed",
-        amount: "$4,000",
-        feeNote: "Service: $3800 + Tax: $200",
-      },
-      {
-        id: "INV-002-B",
-        date: "2026-04-19",
-        method: "Bank Transfer",
-        status: "Failed",
-        amount: "$4,000",
-        feeNote: "Service: $3650 + Tax: $350",
-      },
-    ],
-  },
-  {
-    id: "txn-3",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Sophia Johnson",
-    date: "Jan 13, 2026",
-    shootType: "Music Video",
-    totalAmount: "$14,000",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    initials: "SJ",
-    avatarColor: "#F4E5CC",
-    avatarImage: "/images/avatar.png",
-    invoiceIds: ["INV-103-A", "INV-103-B"],
-    invoiceDetails: [
-      {
-        id: "INV-003-A",
-        date: "2026-04-15",
-        method: "Credit Card",
-        status: "Paid",
-        amount: "$8,500",
-        feeNote: "Service: $8000 + Tax: $500",
-      },
-      {
-        id: "INV-003-B",
-        date: "2026-04-16",
-        method: "Bank Transfer",
-        status: "Paid",
-        amount: "$5,500",
-        feeNote: "Service: $5100 + Tax: $400",
-      },
-    ],
-  },
-  {
-    id: "txn-4",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Maya Ross",
-    date: "Jan 13, 2026",
-    shootType: "Podcast Shoot",
-    totalAmount: "$4,000",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    initials: "MR",
-    avatarColor: "#CFF3B9",
-    invoiceIds: ["INV-104-A", "INV-104-B"],
-    invoiceDetails: [
-      {
-        id: "INV-004-A",
-        date: "2026-04-11",
-        method: "Credit Card",
-        status: "Pending",
-        amount: "$2,250",
-        feeNote: "Service: $2100 + Tax: $150",
-      },
-      {
-        id: "INV-004-B",
-        date: "2026-04-12",
-        method: "Bank Transfer",
-        status: "Pending",
-        amount: "$1,750",
-        feeNote: "Service: $1600 + Tax: $150",
-      },
-    ],
-  },
-  {
-    id: "txn-5",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "John Lee",
-    date: "Jan 13, 2026",
-    shootType: "Podcast Shoot",
-    totalAmount: "$15,000",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    initials: "JL",
-    avatarColor: "#E8DDD0",
-    avatarImage: "/images/avatar.png",
-    invoiceIds: ["INV-105-A", "INV-105-B"],
-    invoiceDetails: [
-      {
-        id: "INV-005-A",
-        date: "2026-04-09",
-        method: "Credit Card",
-        status: "Pending",
-        amount: "$7,800",
-        feeNote: "Service: $7300 + Tax: $500",
-      },
-      {
-        id: "INV-005-B",
-        date: "2026-04-10",
-        method: "Bank Transfer",
-        status: "Pending",
-        amount: "$7,200",
-        feeNote: "Service: $6800 + Tax: $400",
-      },
-    ],
-  },
-  {
-    id: "txn-6",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Arvi Ross",
-    date: "Jan 13, 2026",
-    shootType: "Music Video",
-    totalAmount: "$6,000",
-    paymentMethod: "Bank Transfer",
-    status: "Pending",
-    initials: "AR",
-    avatarColor: "#E2E2E2",
-    avatarImage: "/images/avatar.png",
-    invoiceIds: ["INV-106-A", "INV-106-B"],
-    invoiceDetails: [
-      {
-        id: "INV-006-A",
-        date: "2026-04-07",
-        method: "Credit Card",
-        status: "Pending",
-        amount: "$3,250",
-        feeNote: "Service: $3000 + Tax: $250",
-      },
-      {
-        id: "INV-006-B",
-        date: "2026-04-08",
-        method: "Bank Transfer",
-        status: "Pending",
-        amount: "$2,750",
-        feeNote: "Service: $2550 + Tax: $200",
-      },
-    ],
-  },
-  {
-    id: "txn-7",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Daniel Roberts",
-    date: "Jan 13, 2026",
-    shootType: "Corporate Photography",
-    totalAmount: "$8,200",
-    paymentMethod: "Bank Transfer",
-    status: "Pending",
-    initials: "DR",
-    avatarColor: "#F3F3F3",
-    invoiceIds: ["INV-107-A", "INV-107-B"],
-    invoiceDetails: [
-      {
-        id: "INV-007-A",
-        date: "2026-04-05",
-        method: "Credit Card",
-        status: "Pending",
-        amount: "$4,400",
-        feeNote: "Service: $4100 + Tax: $300",
-      },
-      {
-        id: "INV-007-B",
-        date: "2026-04-06",
-        method: "Bank Transfer",
-        status: "Pending",
-        amount: "$3,800",
-        feeNote: "Service: $3550 + Tax: $250",
-      },
-    ],
-  },
-  {
-    id: "txn-8",
-    transactionId: "TXN-2026-001245",
-    shootId: "#1234",
-    clientName: "Raj Yadhav",
-    date: "Jan 13, 2026",
-    shootType: "Music Video",
-    totalAmount: "$4,500",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    initials: "RY",
-    avatarColor: "#D5D9E8",
-    avatarImage: "/images/avatar.png",
-    invoiceIds: ["INV-108-A", "INV-108-B"],
-    invoiceDetails: [
-      {
-        id: "INV-008-A",
-        date: "2026-04-03",
-        method: "Credit Card",
-        status: "Pending",
-        amount: "$2,600",
-        feeNote: "Service: $2400 + Tax: $200",
-      },
-      {
-        id: "INV-008-B",
-        date: "2026-04-04",
-        method: "Bank Transfer",
-        status: "Pending",
-        amount: "$1,900",
-        feeNote: "Service: $1750 + Tax: $150",
-      },
-    ],
-  },
-];
+type TransactionView = "Transactions ID" | "Shoot ID";
 
-const dummyPayoutData: PaymentDetailsModalProps["payoutData"] = {
-  accountHolder: "Prince Carter",
-  accountNumber: "1422 2452 3251 4545",
-  payoutAmount: "$12,000.00",
-  phoneNumber: "+1 415-555-0198",
-  date: "23 April, 2026",
-  accountType: "Bank",
-  branchName: "Los Angles",
-  status: "Paid",
-  initialsLeft: "P",
-  initialsRight: "D",
+const ITEMS_PER_PAGE = 20;
+
+const STATUS_OPTIONS: Record<string, string | undefined> = {
+  All: undefined,
+  Paid: "paid",
+  Pending: "pending",
+  Failed: "failed",
 };
+
+const formatCurrency = (value: number | string | null | undefined, currency = "USD") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "$0.00";
+
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatDateLabel = (value: string | null | undefined) => {
+  if (!value) return "N/A";
+  const parsed = parseISO(value);
+  if (!Number.isFinite(parsed.getTime())) return "N/A";
+  return format(parsed, "MMM dd, yyyy");
+};
+
+const formatApiDate = (date: Date | null) => {
+  if (!date) return undefined;
+  return format(date, "yyyy-MM-dd");
+};
+
+const getPresetDateRange = (monthFilter: string) => {
+  const now = new Date();
+  const end = format(now, "yyyy-MM-dd");
+
+  if (monthFilter === "Last 30 Days") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    return { date_from: format(start, "yyyy-MM-dd"), date_to: end };
+  }
+
+  if (monthFilter === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const start = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return { date_from: format(start, "yyyy-MM-dd"), date_to: end };
+  }
+
+  if (monthFilter === "This Year") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    return { date_from: format(start, "yyyy-MM-dd"), date_to: end };
+  }
+
+  return {};
+};
+
+const normalizeStatus = (status: string | null | undefined): TransactionStatus => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "paid" || normalized === "succeeded") return "Paid";
+  if (normalized === "failed") return "Failed";
+  return "Pending";
+};
+
+const normalizePaymentMethod = (method: string | null | undefined) => {
+  const value = String(method || "").trim();
+  return value || "N/A";
+};
+
+const buildInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0 || name === "N/A") return "NA";
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+};
+
+const avatarColors = ["#F0C4E3", "#F5E4BC", "#F4E5CC", "#CFF3B9", "#E8DDD0", "#E2E2E2", "#D5D9E8"];
+
+const getAvatarColor = (seed: string) => {
+  const total = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return avatarColors[total % avatarColors.length];
+};
+
+const buildFeeNote = (transaction: FinanceTransactionApiRow) => {
+  const parts = [
+    transaction.invoice_number ? `Invoice: ${transaction.invoice_number}` : null,
+    transaction.receipt_number ? `Receipt: ${transaction.receipt_number}` : null,
+    transaction.source ? `Source: ${String(transaction.source).replace(/_/g, " ")}` : null,
+  ].filter(Boolean);
+
+  return parts.join(" + ") || "Payment receipt";
+};
+
+const mapTransactionDetail = (transaction: FinanceTransactionApiRow): TransactionDetailRow => {
+  const transactionId =
+    transaction.transaction_id ||
+    transaction.transaction_code ||
+    transaction.receipt_number ||
+    `PAY-${transaction.finance_transaction_id || transaction.payment_id || transaction.manual_payment_id || "N/A"}`;
+
+  return {
+    id: String(transaction.finance_transaction_id || transactionId),
+    transactionId,
+    date: formatDateLabel(transaction.transaction_date || transaction.event_date),
+    method: normalizePaymentMethod(transaction.payment_method),
+    status: normalizeStatus(transaction.status),
+    amount: formatCurrency(transaction.total_amount, transaction.currency || "USD"),
+    feeNote: buildFeeNote(transaction),
+  };
+};
+
+const mapTransactionRow = (transaction: FinanceTransactionApiRow, index = 0): TransactionRow => {
+  const transactionId =
+    transaction.transaction_id ||
+    transaction.transaction_code ||
+    transaction.receipt_number ||
+    `PAY-${transaction.finance_transaction_id || transaction.payment_id || transaction.manual_payment_id || "N/A"}`;
+  const bookingId = transaction.booking_id || transaction.shoot_id;
+  const shootId = bookingId ? `#${bookingId}` : "N/A";
+  const clientName = transaction.client_name || transaction.client_email || "N/A";
+
+  return {
+    id: String(transaction.finance_transaction_id || `${transactionId}-${index}`),
+    transactionId,
+    shootId,
+    clientName,
+    date: formatDateLabel(transaction.transaction_date || transaction.event_date),
+    shootType: transaction.shoot_type || transaction.project_name || "N/A",
+    totalAmount: formatCurrency(transaction.total_amount, transaction.currency || "USD"),
+    paymentMethod: normalizePaymentMethod(transaction.payment_method),
+    status: normalizeStatus(transaction.status),
+    initials: buildInitials(clientName),
+    avatarColor: getAvatarColor(clientName || transactionId),
+    transactionCount: 1,
+    transactionDetails: [mapTransactionDetail(transaction)],
+  };
+};
+
+const mapShootRow = (shoot: FinanceShootApiRow, index = 0): TransactionRow => {
+  const bookingId = shoot.booking_id || shoot.shoot_id;
+  const shootId = bookingId ? `#${bookingId}` : "N/A";
+  const transactions = Array.isArray(shoot.transactions) ? shoot.transactions : [];
+  const primaryTransaction = transactions[0];
+  const clientName =
+    shoot.customer?.name ||
+    shoot.client?.name ||
+    primaryTransaction?.client_name ||
+    shoot.customer?.email ||
+    primaryTransaction?.client_email ||
+    "N/A";
+  const currency = shoot.currency || shoot.cost_breakdown?.currency || primaryTransaction?.currency || "USD";
+  const paidAmount = transactions.reduce((sum, transaction) => {
+    const amount = Number(transaction.total_amount);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
+  const amount = paidAmount > 0
+    ? paidAmount
+    : shoot.cost_breakdown?.collected_amount ?? shoot.total_amount ?? shoot.cost_breakdown?.total_amount ?? primaryTransaction?.total_amount;
+
+  return {
+    id: String(bookingId || `shoot-${index}`),
+    transactionId: primaryTransaction?.transaction_id || primaryTransaction?.transaction_code || "N/A",
+    shootId,
+    clientName,
+    date: formatDateLabel(shoot.date_time || shoot.event_date || primaryTransaction?.transaction_date),
+    shootType: shoot.shoot_type || shoot.project_name || primaryTransaction?.shoot_type || "N/A",
+    totalAmount: formatCurrency(amount, currency),
+    paymentMethod: normalizePaymentMethod(shoot.payment_method || primaryTransaction?.payment_method),
+    status: normalizeStatus(shoot.status || shoot.payment_status || primaryTransaction?.status),
+    initials: buildInitials(clientName),
+    avatarColor: getAvatarColor(clientName || String(bookingId || index)),
+    transactionCount: transactions.length,
+    transactionDetails: transactions.map(mapTransactionDetail),
+  };
+};
+
+const buildPayoutData = (row: TransactionRow | null): PaymentDetailsModalProps["payoutData"] => ({
+  accountHolder: row?.clientName || "N/A",
+  accountNumber: row?.transactionId || "N/A",
+  payoutAmount: row?.totalAmount || "$0.00",
+  phoneNumber: row?.shootId || "N/A",
+  date: row?.date || "N/A",
+  accountType: row?.paymentMethod || "N/A",
+  branchName: row?.shootType || "N/A",
+  status: row?.status || "Pending",
+  initialsLeft: row?.initials?.[0] || "B",
+  initialsRight: row?.initials?.[1] || "G",
+});
 
 export default function AdminTransactionsPage() {
   const pathname = usePathname();
@@ -298,37 +221,91 @@ export default function AdminTransactionsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
-  const [view, setView] = useState<"Transactions ID" | "Shoot ID">("Transactions ID");
+  const [view, setView] = useState<TransactionView>("Transactions ID");
+  const [rows, setRows] = useState<TransactionRow[]>([]);
+  const [pagination, setPagination] = useState<FinancePagination>({ page: 1, limit: ITEMS_PER_PAGE, total: 0, total_pages: 1 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRow, setSelectedRow] = useState<TransactionRow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      setLoading(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, [selectedDate, searchQuery, statusFilter, monthFilter, typeFilter, view]);
-
+  const debouncedSearch = useDebounce(searchQuery, 400);
   const { isDark } = useResolvedTheme();
 
-  const filteredRows = useMemo(() => {
-    return transactionRows.filter((row) => {
-      const matchesSearch =
-        row.transactionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        row.shootId.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "All" || row.status === statusFilter;
-      const matchesType = typeFilter === "All" || row.paymentMethod === typeFilter;
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [searchQuery, statusFilter, typeFilter]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, selectedDate, statusFilter, monthFilter, typeFilter, view]);
 
-  const handleAction = (e?: React.MouseEvent) => {
-    e?.stopPropagation(); // Safely calls stopPropagation if 'e' exists
+  const paymentMethodFilter = useMemo(() => {
+    if (typeFilter === "Stripe") return "Stripe";
+    if (typeFilter === "Bank Transfer") return "Bank Transfer";
+    if (typeFilter === "Manual") return "Manual";
+    return undefined;
+  }, [typeFilter]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchRows = async () => {
+      setLoading(true);
+
+      try {
+        const exactDate = formatApiDate(selectedDate);
+        const presetRange = selectedDate ? {} : getPresetDateRange(monthFilter);
+        const baseParams = {
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+          search: debouncedSearch.trim() || undefined,
+        };
+
+        if (view === "Transactions ID") {
+          const response = await financeTransactionsApi.listTransactions({
+            ...baseParams,
+            status: STATUS_OPTIONS[statusFilter],
+            transaction_type: undefined,
+            payment_method: paymentMethodFilter,
+            date_from: exactDate || presetRange.date_from,
+            date_to: exactDate || presetRange.date_to,
+          });
+          const mappedRows = (response.data?.rows || []).map(mapTransactionRow);
+
+          if (isCancelled) return;
+          setRows(mappedRows);
+          setPagination(response.data?.pagination || { page: 1, limit: ITEMS_PER_PAGE, total: mappedRows.length, total_pages: 1 });
+          return;
+        }
+
+        const response = await financeTransactionsApi.listShoots({
+          ...baseParams,
+          payment_status: STATUS_OPTIONS[statusFilter],
+          payment_method: paymentMethodFilter,
+        });
+        const mappedRows = (response.data?.rows || []).map(mapShootRow);
+
+        if (isCancelled) return;
+        setRows(mappedRows);
+        setPagination(response.data?.pagination || { page: 1, limit: ITEMS_PER_PAGE, total: mappedRows.length, total_pages: 1 });
+      } catch (error) {
+        console.error("Failed to fetch finance transactions:", error);
+        if (isCancelled) return;
+        setRows([]);
+        setPagination({ page: 1, limit: ITEMS_PER_PAGE, total: 0, total_pages: 1 });
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void fetchRows();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPage, debouncedSearch, monthFilter, paymentMethodFilter, selectedDate, statusFilter, view]);
+
+  const handleAction = (row: TransactionRow, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    setSelectedRow(row);
     setIsModalOpen(true);
-    console.log("Handle action clicked");
   };
 
   return (
@@ -336,15 +313,15 @@ export default function AdminTransactionsPage() {
       <Topbar
         pathname={pathname}
         actions={
-          <>
-            <Button variant="outline"
-              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
-                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
-                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
-                }`}>
-              <ArrowUpToLine /> Export
-            </Button>
-          </>
+          <Button
+            variant="outline"
+            className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+              ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+              : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+            }`}
+          >
+            <ArrowUpToLine /> Export
+          </Button>
         }
       />
 
@@ -365,7 +342,7 @@ export default function AdminTransactionsPage() {
         </div>
 
         <TransactionsTable
-          rows={filteredRows}
+          rows={rows}
           loading={loading}
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
@@ -377,13 +354,18 @@ export default function AdminTransactionsPage() {
           onTypeChange={setTypeFilter}
           viewValue={view}
           onViewChange={setView}
+          itemsPerPage={ITEMS_PER_PAGE}
+          currentPage={currentPage}
+          totalPages={pagination.total_pages || 1}
+          totalItems={pagination.total || rows.length}
+          onPageChange={setCurrentPage}
           action={handleAction}
         />
 
         <PaymentDetailsModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          payoutData={dummyPayoutData}
+          payoutData={buildPayoutData(selectedRow)}
         />
       </div>
     </>
