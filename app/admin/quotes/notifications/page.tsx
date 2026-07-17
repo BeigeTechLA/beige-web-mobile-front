@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     Bell,
     ChevronLeft,
@@ -127,6 +127,7 @@ const getIconForType = (iconType: string, isDark: boolean) => {
 };
 
 export default function NotificationsPage() {
+    const pathname = usePathname();
     const router = useRouter();
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -280,13 +281,22 @@ export default function NotificationsPage() {
                                     return (
                                         <div
                                             key={notification.id}
-                                            className={`group flex items-start gap-4 rounded-2xl border-[0.5px] p-4 transition-colors ${isDark
-                                                ? "border-[#3D3D3D] bg-[#171717] hover:bg-white/[0.02]"
-                                                : "border-[#E5E5E5] bg-white hover:bg-black/[0.02]"
-                                                }`}
+                                            onClick={() => router.push(`${pathname}/${notification.id}`)}
+                                            className={`
+                                                group flex items-start gap-4 rounded-2xl border p-4 transition-all duration-300 cursor-pointer
+                                                ${isDark
+                                                    ? notification.isRead
+                                                        ? "bg-[#171717] border-[#3D3D3D] opacity-40"
+                                                        : "bg-[#171717] border-[#3D3D3D] hover:bg-[#1B1B1B]"
+                                                    : notification.isRead
+                                                        ? "bg-white border-[#E5E5E5] opacity-40"
+                                                        : "bg-white border-[#E5E5E5] hover:bg-[#FAFAFA]"
+                                                }
+                                            `}
                                         >
                                             {/* Icon */}
-                                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconMeta.bgClass}`}>
+                                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconMeta.bgClass}`}
+                                            >
                                                 <IconComponent size={20} className={iconMeta.iconClass} />
                                             </div>
 
@@ -294,23 +304,44 @@ export default function NotificationsPage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div>
-                                                        <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+                                                        <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-[#101010]"
+                                                            }`}
+                                                        >
                                                             {notification.title}
                                                         </h3>
-                                                        <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-[#101010]/60"}`}>
+
+                                                        <p className={`mt-1 text-sm ${isDark
+                                                            ? "text-white/60"
+                                                            : "text-[#101010]/60"
+                                                            }`}
+                                                        >
                                                             {notification.description}
                                                         </p>
                                                     </div>
+
                                                     {!notification.isRead && (
-                                                        <div className={`h-2 w-2 shrink-0 rounded-full ${isDark ? "bg-[#E8D1AB]" : "bg-[#C87913]"}`} />
+                                                        <div className={`h-2 w-2 shrink-0 rounded-full ${isDark
+                                                            ? "bg-[#E8D1AB]"
+                                                            : "bg-[#C87913]"
+                                                            }`}
+                                                        />
                                                     )}
                                                 </div>
+
                                                 <div className="mt-2 flex items-center gap-3">
-                                                    <span className={`text-xs ${isDark ? "text-white/40" : "text-[#101010]/40"}`}>
+                                                    <span className={`text-xs ${isDark
+                                                        ? "text-white/40"
+                                                        : "text-[#101010]/40"
+                                                        }`}
+                                                    >
                                                         {notification.date}
                                                     </span>
-                                                    <span className={`rounded px-2 py-0.5 text-xs ${isDark ? "bg-white/5 text-white/60" : "bg-black/5 text-[#101010]/60"
-                                                        }`}>
+
+                                                    <span className={`rounded px-2 py-0.5 text-xs ${isDark
+                                                        ? "bg-white/5 text-white/60"
+                                                        : "bg-black/5 text-[#101010]/60"
+                                                        }`}
+                                                    >
                                                         {notification.quoteRef}
                                                     </span>
                                                 </div>
