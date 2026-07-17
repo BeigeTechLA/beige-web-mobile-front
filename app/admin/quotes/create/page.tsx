@@ -3436,9 +3436,13 @@ function CreateQuotePageContent() {
       : normalizedDiscountValue;
   const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
   const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
-  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
-  const totalAfterTax = discountedSubtotal + taxAmount;
+  // Tax controls are hidden for now, but the step remains for pre-production details.
+  // const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  // const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
+  // const totalAfterTax = discountedSubtotal + taxAmount;
+  const normalizedTaxRate = 0;
+  const taxAmount = 0;
+  const totalAfterTax = discountedSubtotal;
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
@@ -7699,6 +7703,8 @@ function CreateQuotePageContent() {
             </div>
           ) : view === "tax" ? (
             <div>
+              {false ? (
+                <>
               <div className="p-4 pt-5 lg:p-8">
                 <h2 className={`text-base lg:text-xl font-medium mb-1 ${isDark ? "text-white" : "text-black"}`}>
                   Tax
@@ -7902,13 +7908,15 @@ function CreateQuotePageContent() {
                   </div>
                 </>
               )}
+                </>
+              ) : null}
 
               <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
               {/* Live Calculation Table Display */}
               <div className="p-4 lg:p-8">
                 <h3 className={`text-base lg:text-lg font-medium tracking-tight mb-3 lg:mb-6 ${isDark ? "text-white" : "text-black"}`}>
-                  Tax Calculation
+                  Pricing Summary
                 </h3>
 
                 <div className={`rounded-xl p-4 lg:p-6 border ${isDark ? "bg-[#282727] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
@@ -7947,7 +7955,9 @@ function CreateQuotePageContent() {
                     </span>
                   </div>
 
-                  {/* Calculated Tax Amount */}
+                  {/* Calculated Tax Amount - hidden while tax controls are disabled. */}
+                  {false ? (
+                    <>
                   <div className="flex justify-between items-center">
                     <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {`${taxLabel} (${normalizedTaxRate}%)`}
@@ -7965,6 +7975,8 @@ function CreateQuotePageContent() {
                       {formatCurrency(totalAfterTax)}
                     </span>
                   </div>
+                    </>
+                  ) : null}
 
                   {/* Revision Multi-Layer Summary */}
                   {showQuoteRevisionSummary ? (
@@ -8032,7 +8044,7 @@ function CreateQuotePageContent() {
                   Pre-production Details
                 </h3>
                 <p className={`mt-1 text-sm ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
-                  Share additional information or upload relevant files related to pre-production that will be included with the client's quote.
+                  Share additional information or upload relevant files related to pre-production that will be included with the client&apos;s quote.
                 </p>
 
                 <div className={`mt-5 rounded-xl border p-4 lg:p-6 ${isDark ? "border-[#3D3D3D] bg-[#282727]" : "border-[#D7D7D7] bg-[#F4F5F7]"}`}>
