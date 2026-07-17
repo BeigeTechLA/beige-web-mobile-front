@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
+import { ArrowDownAZ, ArrowDownNarrowWide, ArrowUpAZ, ArrowUpNarrowWide } from "lucide-react";
 import { useTheme } from "next-themes";
 import { PermissionUsersTable } from "@/components/admin/roles-permissions/PermissionUsersTable";
 import { RoleCard } from "@/components/admin/roles-permissions/RoleCard";
@@ -18,9 +18,11 @@ import {
 } from "@/components/admin/roles-permissions/types";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
+import { Button } from "@/components/ui/button";
 
 type RolesPermissionsPageProps = {
   searchQuery?: string;
+  canCreateUser?: boolean;
 };
 
 const CARD_TONES = [
@@ -100,6 +102,7 @@ const mapUserToPermissionUser = (
 
 export function RolesPermissionsPage({
   searchQuery = "",
+  canCreateUser
 }: RolesPermissionsPageProps) {
   const router = useRouter();
   const { theme } = useTheme();
@@ -175,7 +178,7 @@ export function RolesPermissionsPage({
     }
 
     setIsLoadingUsers(false);
-  }, [searchQuery,sortOrder]);
+  }, [searchQuery, sortOrder]);
 
   useEffect(() => {
     const loadPage = async () => {
@@ -186,7 +189,7 @@ export function RolesPermissionsPage({
   }, [loadRoles, loadUsers]);
 
   const roleCards = useMemo<RoleCardData[]>(() => {
-      return sortRolesForDisplay(roles).map((role, index) => {
+    return sortRolesForDisplay(roles).map((role, index) => {
       const roleUsers = users.filter(
         (user) => user.role_id != null && user.role_id === role.role_id && user.status === "Active",
       );
@@ -205,13 +208,13 @@ export function RolesPermissionsPage({
           })),
           ...(remainingUsers > 0
             ? [
-                {
-                  id: `${role.role_id}-count`,
-                  label: `+${remainingUsers}`,
-                  tone: "bg-[#ECD7AD] text-[#161616]",
-                  isCountBadge: true,
-                },
-              ]
+              {
+                id: `${role.role_id}-count`,
+                label: `+${remainingUsers}`,
+                tone: "bg-[#ECD7AD] text-[#161616]",
+                isCountBadge: true,
+              },
+            ]
             : []),
         ],
       };
@@ -293,50 +296,45 @@ export function RolesPermissionsPage({
   return (
     <>
       <div
-        className={`overflow-hidden px-4 pb-16 pt-6 transition-colors duration-300 lg:px-10 lg:pb-24 lg:pt-10 ${
-          isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-[#323232]"
-        }`}
+        // className={`overflow-hidden px-4 pb-16 pt-6 transition-colors duration-300 lg:px-10 lg:pb-24 lg:pt-10 ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-[#323232]"}`}
+        className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}
       >
-        <div className="mx-auto w-full max-w-[1270px]">
-          <div className="flex flex-col gap-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-[610px]">
-                <h1 className={`text-[32px] font-bold tracking-tight lg:text-[36px] transition-colors duration-300 ${isDark ? "text-white" : "text-[#101010]"}`}>
-                  Roles & Permissions
-                </h1>
-                <p className={`mt-3 max-w-[560px] text-[15px] leading-relaxed transition-colors duration-300 ${isDark ? "text-white/50" : "text-[#323232B2]"}`}>
-                  A role provided access to predefined menus and features so that
-                  depending on assigned role an administrator can have access to what
-                  user needs.
-                </p>
-                <p className={`mt-3 text-sm transition-colors duration-300 ${isDark ? "text-white/35" : "text-[#010101]"}`}>{rolesSummary}</p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
-                }
-                className={`inline-flex h-12 items-center gap-3 rounded-full border px-6 text-[15px] font-medium transition-colors duration-300 ${
-                  isDark
-                    ? "border-white/10 bg-transparent text-white/70 hover:border-white/20 hover:bg-white/5 hover:text-white"
-                    : "border-[#D9D9D9] bg-white text-[#323232] hover:border-[#CFCFCF] hover:bg-[#F7F7F7] hover:text-[#101010]"
-                }`}
-              >
-                <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
-                {sortOrder === "desc" ? (
-                  <ArrowDownAZ size={18} className={isDark ? "text-white/40" : "text-[#32323266]"} />
-                ) : (
-                  <ArrowUpAZ size={18} className={isDark ? "text-white/40" : "text-[#32323266]"} />
-                )}
-              </button>
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-3 lg:gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-[610px]">
+              <h1 className={`font-semibold lg:font-bold tracking-tight lg:text-2xl transition-colors duration-300 ${isDark ? "text-white" : "text-[#101010]"}`}>
+                Roles & Permissions
+              </h1>
+              <p className={`mt-1 max-w-[560px] text-xs lg:text-sm lg:leading-relaxed transition-colors duration-300 ${isDark ? "text-white/70" : "text-[#323232B2]"}`}>
+                A role provided access to predefined menus and features so that
+                depending on assigned role an administrator can have access to what
+                user needs.
+              </p>
+              <p className={`mt-1 lg:mt-2 text-sm transition-colors duration-300 ${isDark ? "text-white/35" : "text-[#010101]"}`}>{rolesSummary}</p>
             </div>
 
-            <div className={`border-t border-dashed transition-colors duration-300 ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`} />
+            <button
+              type="button"
+              onClick={() =>
+                setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
+              }
+              className={`w-fit inline-flex h-8 lg:h-12 items-center gap-2 lg:gap-3 rounded-full border px-3 lg:px-6 text-xs lg:text-base transition-colors duration-300 ${isDark
+                ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4] hover:border-white/20 hover:bg-[#161616] hover:text-white"
+                : "border-[#D9D9D9] bg-white text-[#323232] hover:border-[#CFCFCF] hover:bg-[#F7F7F7] hover:text-[#101010]"
+                }`}
+            >
+              <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
+              {sortOrder === "desc" ? (
+                <ArrowDownNarrowWide size={18} className="w-3 h-3 lg:w-5 lg:h-5 " />
+              ) : (
+                <ArrowUpNarrowWide size={18} className="w-3 h-3 lg:w-5 lg:h-5 " />
+              )}
+            </button>
+          </div>
 
-            <div className="grid justify-items-start gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {!isLoadingRoles &&
-                roleCards.map((card) => (
+          <div className="grid justify-items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {!isLoadingRoles &&
+              roleCards.map((card) => (
                 <RoleCard
                   key={card.id}
                   card={card}
@@ -358,47 +356,56 @@ export function RolesPermissionsPage({
                 />
               ))}
 
-              {isLoadingRoles && (
-                <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${
-                  isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
+            {isLoadingRoles && (
+              <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
                 }`}>
-                  Loading roles...
-                </div>
-              )}
+                Loading roles...
+              </div>
+            )}
 
-              {!isLoadingRoles && !roles.length && (
-                <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${
-                  isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
+            {!isLoadingRoles && !roles.length && (
+              <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
                 }`}>
-                  {rolesError || "No roles found."}
-                </div>
-              )}
-            </div>
-
-            <PermissionUsersTable
-              users={users}
-              sortOrder={sortOrder} 
-              isDark={isDark}
-              isLoading={isLoadingUsers}
-              error={usersError}
-              onEdit={handleOpenUserDetails}
-              onRowClick={handleOpenUserDetails}
-              onDelete={canDelete ? handleOpenDeleteModal : undefined}
-              onRestore={canDelete ? handleOpenRestoreModal : undefined}
-              successModal={
-                successModal.isOpen
-                  ? {
-                      ...successModal,
-                      onSubmit: () =>
-                        setSuccessModal((current) => ({
-                          ...current,
-                          isOpen: false,
-                        })),
-                    }
-                  : undefined
-              }
-            />
+                {rolesError || "No roles found."}
+              </div>
+            )}
           </div>
+
+          <PermissionUsersTable
+            users={users}
+            sortOrder={sortOrder}
+            isDark={isDark}
+            isLoading={isLoadingUsers}
+            error={usersError}
+            onEdit={handleOpenUserDetails}
+            onRowClick={handleOpenUserDetails}
+            onDelete={canDelete ? handleOpenDeleteModal : undefined}
+            onRestore={canDelete ? handleOpenRestoreModal : undefined}
+            successModal={
+              successModal.isOpen
+                ? {
+                  ...successModal,
+                  onSubmit: () =>
+                    setSuccessModal((current) => ({
+                      ...current,
+                      isOpen: false,
+                    })),
+                }
+                : undefined
+            }
+          />
+        </div>
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => router.push("/admin/internal-credentials")}
+            disabled={!canCreateUser}
+            title={canCreateUser ? "Add New User" : "Create permission not allowed"}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Add New User
+          </Button>
         </div>
       </div>
 
