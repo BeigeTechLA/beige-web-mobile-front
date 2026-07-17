@@ -1518,7 +1518,7 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
 
     // 2. Append metadata
     if (metadata.title) formData.append("title", metadata.title);
-    if (metadata.tag) formData.append("tag", metadata.tag);
+    if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
 
     const response = await api.post(`creator/profile/files/${fileType}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -2266,7 +2266,7 @@ export const adminApi = {
       }
 
       if (metadata.title) formData.append("title", metadata.title);
-      if (metadata.tag) formData.append("tag", metadata.tag);
+      if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
 
       const response = await api.post(`admin/crew-member/${id}/profile/files/${fileType}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },

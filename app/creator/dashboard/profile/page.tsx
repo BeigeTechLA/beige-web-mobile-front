@@ -129,11 +129,34 @@ const getEmbedUrl = (url: string) => {
   return fullUrl;
 };
 
-const normalizeFeaturedWorkTag = (value: unknown) => {
-  if (typeof value !== "string") return "";
+const parseMaybeJson = (value: unknown): unknown => {
+  if (typeof value !== "string") return value;
   const trimmed = value.trim();
-  if (!trimmed || trimmed === "[]") return "";
-  return trimmed;
+  if (!trimmed) return "";
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed;
+  }
+};
+
+const normalizeFeaturedWorkTags = (value: unknown): string[] => {
+  const parsed = parseMaybeJson(value);
+  const values = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === "string"
+      ? parsed.split(",")
+      : [];
+
+  return values
+    .map((tag) => String(tag).trim())
+    .filter(Boolean)
+    .filter((tag) => tag.toLowerCase() !== "uploaded");
+};
+
+const normalizeFeaturedWorkTag = (value: unknown) => {
+  return normalizeFeaturedWorkTags(value).join(", ");
 };
 
 const getRoleLabel = (roleData: any) => formatCreatorRoles(roleData);
@@ -684,10 +707,11 @@ export default function ProfilePage() {
     try {
       setIsPageLoading(true);
 
-      const fileIds = (data.fileIds || []).filter(Boolean);
+      const fileIds = (data.fileIds || [])
+        .filter(Boolean);
       const removedFileIds = (data.removedFileIds || []).filter(Boolean);
-      const newFiles = data.files || [];
-      const tag = data.tags.join(",");
+      const newFiles = (data.files || []).filter((file: unknown): file is File => file instanceof File);
+      const tag = normalizeFeaturedWorkTags(data.tags).join(",");
 
       if (removedFileIds.length > 0) {
         await Promise.all(
@@ -903,6 +927,27 @@ export default function ProfilePage() {
       }
       return acc;
     }, []);
+
+  const getFeaturedWorkModalItem = (project: any) => {
+    const images = Array.isArray(project?.images) ? project.images : [];
+    return {
+      id: `${project?.title || "featured-work"}-${project?.tag || "untagged"}`,
+      title: project?.title || "Recent Work",
+      tags: normalizeFeaturedWorkTags(project?.tag),
+      previews: images
+        .map((image: any) => image?.file_path ? `${S3_BASE_URL}${image.file_path}` : "")
+        .filter(Boolean),
+      files: images.map((image: any) => ({
+        crew_files_id: image.crew_files_id,
+        crewFilesId: image.crew_files_id,
+        file_path: image.file_path,
+        title: image.title,
+        tag: image.tag,
+      })),
+      fileIds: images.map((image: any) => image.crew_files_id).filter(Boolean),
+      project,
+    };
+  };
 
   const handleAddPortfolioLinks = async (updatedLinks: any[]) => {
     const userStr = localStorage.getItem("revure_user");
@@ -1383,7 +1428,7 @@ export default function ProfilePage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingFeaturedWork(project);
+                                setEditingFeaturedWork(getFeaturedWorkModalItem(project));
                                 setIsFeaturedModalOpen(true);
                               }}
                               className="p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-colors shadow-lg"

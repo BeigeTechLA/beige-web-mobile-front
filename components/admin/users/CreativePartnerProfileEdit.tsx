@@ -945,6 +945,9 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         title="Edit Creative Partner Profile"
         description="Update basic information, professional details, and portfolio assets in one page."
         onBack={() => router.push(`/admin/users/creative-partners/${id}`)}
+        onCancel={() => router.push(`/admin/users/creative-partners/${id}`)}
+        onSave={handleSaveProfile}
+        isSaving={isSaving}
         leftContent={
           <>
             <StepOne
@@ -972,13 +975,10 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
               setResume={setResume}
               portfolioFiles={portfolioFiles}
               setPortfolioFiles={setPortfolioFiles}
-              onCancel={() => router.push(`/admin/users/creative-partners/${id}`)}
               setSocialModalOpen={setSocialModalOpen}
               setPortfolioModalOpen={setPortfolioModalOpen}
               onRemoveSocialLink={(linkId) => removeLink("social", linkId)}
               onDeletePortfolioLink={handleDeletePortfolioLink}
-              onSave={handleSaveProfile}
-              isSaving={isSaving}
               onDeleteResume={handleDeleteResume}
               onDeletePortfolioFile={handleDeletePortfolioFile}
               onDeleteCertification={handleDeleteCertification}
@@ -1024,39 +1024,68 @@ function AdminEditLayout({
   title,
   description,
   onBack,
+  onCancel,
+  onSave,
+  isSaving,
   leftContent,
 }: {
   title: string;
   description: string;
   onBack: () => void;
+  onCancel: () => void;
+  onSave: () => void;
+  isSaving: boolean;
   leftContent: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 md:px-6 md:py-8 lg:px-8 lg:py-10">
-      <div className="rounded-[12px] border border-white/10 bg-black/10 px-4 py-5 shadow-[0_20px_60px_rgba(0,0,0,0.18)] md:px-8 md:py-8 lg:px-10 lg:py-10">
-        <div className="flex flex-col gap-8">
-          <div>
-            <button
-              type="button"
-              onClick={onBack}
-              className="mb-8 flex items-center justify-center transition-all group"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4 text-white/60 group-hover:text-[#FFF]" />
-              <span className="text-white/60 group-hover:text-[#FFF] transition-colors text-sm">Back</span>
-            </button>
+    <div className="mx-auto flex h-screen w-full max-w-7xl flex-col overflow-hidden px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-white/10 bg-black/10 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+        <div className="flex shrink-0 flex-col gap-6 border-b border-white/10 bg-[#101010] px-4 py-5 md:px-8 md:py-6 lg:px-10">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <button
+                type="button"
+                onClick={onBack}
+                className="mb-6 flex items-center justify-center transition-all group"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4 text-white/60 group-hover:text-[#FFF]" />
+                <span className="text-white/60 group-hover:text-[#FFF] transition-colors text-sm">Back</span>
+              </button>
 
-            <div className="max-w-none">
-              <h1 className="text-xl lg:text-3xl font-semibold text-white leading-tight">
-                {title}
-              </h1>
-              <p className="text-white/50 mt-4 text-lg leading-relaxed">
-                {description}
-              </p>
+              <div className="max-w-none">
+                <h1 className="text-xl lg:text-3xl font-semibold text-white leading-tight">
+                  {title}
+                </h1>
+                <p className="text-white/50 mt-4 text-lg leading-relaxed">
+                  {description}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row lg:pb-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                className="h-12 w-full rounded-[12px] border-white/15 bg-transparent px-5 text-sm font-semibold text-white hover:bg-white/5 hover:text-white sm:w-36"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={onSave}
+                disabled={isSaving}
+                className="h-12 w-full rounded-[12px] bg-[#E8D1AB] px-5 text-sm font-semibold text-black hover:bg-[#d9c39d] disabled:cursor-not-allowed disabled:opacity-70 sm:w-40"
+              >
+                {isSaving ? "Saving..." : "Save Profile"}
+              </Button>
             </div>
           </div>
+        </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8 lg:px-10">
           <div className="w-full max-w-none">
-            <div className="space-y-16">{leftContent}</div>
+            <div className="space-y-16 pb-8">{leftContent}</div>
           </div>
         </div>
       </div>
@@ -1280,13 +1309,10 @@ function StepThree({
   setResume,
   portfolioFiles,
   setPortfolioFiles,
-  onCancel,
   setSocialModalOpen,
   setPortfolioModalOpen,
   onRemoveSocialLink,
   onDeletePortfolioLink,
-  onSave,
-  isSaving,
   onDeleteResume,
   onDeletePortfolioFile,
   onUploadResume,
@@ -1303,13 +1329,10 @@ function StepThree({
   setResume: React.Dispatch<React.SetStateAction<any>>;
   portfolioFiles: any[];
   setPortfolioFiles: React.Dispatch<React.SetStateAction<any[]>>;
-  onCancel: () => void;
   setSocialModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPortfolioModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onRemoveSocialLink: (linkId: string | number) => void;
   onDeletePortfolioLink: (item: LinkItem) => Promise<void>;
-  onSave: () => void;
-  isSaving: boolean;
   onDeleteResume: (item: any) => Promise<void>;
   onDeletePortfolioFile: (item: any) => Promise<void>;
   onUploadResume: (processedResume: any, originalFile: File) => Promise<any>;
@@ -1395,25 +1418,6 @@ function StepThree({
         onDeleteResume={onDeleteResume}
         onDeletePortfolio={onDeletePortfolioFile}
       />
-
-      <div className="flex items-center gap-4 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="h-14 w-40 flex-none rounded-[12px] border-white/15 bg-transparent px-4 text-sm font-semibold text-white hover:bg-white/5 hover:text-white"
-        >
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving}
-          className="h-14 w-40 flex-none rounded-[12px] bg-[#E8D1AB] px-4 text-sm font-semibold text-black hover:bg-[#d9c39d] disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isSaving ? "Saving..." : "Save Profile"}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -13,7 +13,17 @@ interface FeaturedWorkItem {
   tags?: string[];
   image?: string;
   previews?: string[];
-  files?: File[];
+  files?: Array<File | ExistingFileItem>;
+  fileIds?: Array<string | number>;
+  removedFileIds?: Array<string | number>;
+}
+
+interface ExistingFileItem {
+  crew_files_id?: string | number;
+  crewFilesId?: string | number;
+  id?: string | number;
+  file_path?: string;
+  file?: File;
 }
 
 interface FeaturedWorkModalProps {
@@ -30,7 +40,8 @@ interface PreviewItem {
 }
 
 interface StoredFileItem {
-  file: File;
+  file?: File;
+  fileId?: string | number;
   signature: string;
 }
 
@@ -47,6 +58,12 @@ const createPreviewId = () =>
 const getFileSignature = (file: File) =>
   [file.name, file.size, file.lastModified, file.type].join("__");
 
+const getExistingFileId = (file: ExistingFileItem) =>
+  file.crew_files_id ?? file.crewFilesId ?? file.id;
+
+const isFile = (value: unknown): value is File =>
+  typeof File !== "undefined" && value instanceof File;
+
 const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -54,6 +71,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
   const [tagInput, setTagInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState<PreviewItem[]>([]);
   const [rawFiles, setRawFiles] = useState<StoredFileItem[]>([]);
+  const [initialFileIds, setInitialFileIds] = useState<Array<string | number>>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -73,17 +91,34 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         setTitle(editItem.title || "");
         setTags(editItem.tags || []);
         const previews = editItem.previews || (editItem.image ? [editItem.image] : []);
+        const editFiles = Array.isArray(editItem.files) ? editItem.files : [];
         setImagePreviews(
           previews.map((src: string) => ({
             id: createPreviewId(),
             src,
           }))
         );
-        setRawFiles(
-          (editItem.files || []).map((file: File) => ({
-            file,
-            signature: getFileSignature(file),
-          }))
+        const storedFiles = editFiles.map((file) => {
+          if (isFile(file)) {
+            return {
+              file,
+              signature: getFileSignature(file),
+            };
+          }
+
+          const fileId = getExistingFileId(file);
+          return {
+            file: file.file,
+            fileId,
+            signature: fileId ? `existing-${fileId}` : `existing-${file.file_path || createPreviewId()}`,
+          };
+        });
+
+        setRawFiles(storedFiles);
+        setInitialFileIds(
+          storedFiles
+            .map((item) => item.fileId)
+            .filter((fileId): fileId is string | number => Boolean(fileId))
         );
       } else {
         setTitle("");
@@ -91,6 +126,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         setTagInput("");
         setImagePreviews([]);
         setRawFiles([]);
+        setInitialFileIds([]);
       }
       setAddTagsOpen(false);
       setIsSaving(false);
@@ -202,12 +238,23 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
 
     try {
       setIsSaving(true);
+      const currentFileIds = rawFiles
+        .map((item) => item.fileId)
+        .filter((fileId): fileId is string | number => Boolean(fileId));
+      const removedFileIds = initialFileIds.filter(
+        (fileId) => !currentFileIds.map(String).includes(String(fileId))
+      );
+
       await onAdd({
         id: editItem ? editItem.id : Date.now(),
         title,
         tags,
         previews: imagePreviews.map((item) => item.src),
-        files: rawFiles.map((item) => item.file),
+        files: rawFiles
+          .map((item) => item.file || (item.fileId ? { crewFilesId: item.fileId } : null))
+          .filter((file): file is File | ExistingFileItem => Boolean(file)),
+        fileIds: currentFileIds,
+        removedFileIds,
       });
       onClose();
     } catch (error) {
