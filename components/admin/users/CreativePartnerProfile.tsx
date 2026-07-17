@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -580,31 +580,45 @@ setPastShoots([]);
       {!hideActions && (
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/admin/users/creative-partners")}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
 
-          <button
-            onClick={() => {
-              void handleGenerateLink();
-            }}
-            disabled={isGeneratingLink}
-            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
-              isDark
-                ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
-                : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
-            }`}
-          >
-            {isGeneratingLink ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <LinkIcon size={16} />
-            )}
-            <span>{isGeneratingLink ? "Generating..." : "Copy Profile Link"}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/admin/users/creative-partners/${id}/edit`)}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+                isDark
+                  ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+              }`}
+            >
+              <span>Edit Profile</span>
+            </button>
+
+            <button
+              onClick={() => {
+                void handleGenerateLink();
+              }}
+              disabled={isGeneratingLink}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+                isDark
+                  ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
+                  : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
+              }`}
+            >
+              {isGeneratingLink ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <LinkIcon size={16} />
+              )}
+              <span>{isGeneratingLink ? "Generating..." : "Copy Profile Link"}</span>
+            </button>
+          </div>
         </div>
       )}
 

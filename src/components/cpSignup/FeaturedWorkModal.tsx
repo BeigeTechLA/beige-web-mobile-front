@@ -19,7 +19,7 @@ interface FeaturedWorkItem {
 interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: FeaturedWorkItem) => void;
+  onAdd: (item: FeaturedWorkItem) => void | Promise<void>;
   editItem?: FeaturedWorkItem | null;
   isDark: boolean;
 }
@@ -55,6 +55,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
   const [imagePreviews, setImagePreviews] = useState<PreviewItem[]>([]);
   const [rawFiles, setRawFiles] = useState<StoredFileItem[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -92,6 +93,7 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         setRawFiles([]);
       }
       setAddTagsOpen(false);
+      setIsSaving(false);
     }
   }, [open, editItem]);
 
@@ -185,7 +187,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
     setTags(tags.filter((x) => x !== t));
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (isSaving) return;
     if (!title.trim()) {
       toast.error("Please enter a project title.");
       return;
@@ -197,15 +200,22 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
       return;
     }
 
-    onAdd({
-      id: editItem ? editItem.id : Date.now(),
-      title,
-      tags,
-      previews: imagePreviews.map((item) => item.src),
-      files: rawFiles.map((item) => item.file),
-    });
-
-    onClose();
+    try {
+      setIsSaving(true);
+      await onAdd({
+        id: editItem ? editItem.id : Date.now(),
+        title,
+        tags,
+        previews: imagePreviews.map((item) => item.src),
+        files: rawFiles.map((item) => item.file),
+      });
+      onClose();
+    } catch (error) {
+      console.error("Failed to save featured work:", error);
+      toast.error("Failed to save featured work.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -353,10 +363,15 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing}
+              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing || isSaving}
               className={`rounded-xl h-12 px-10 font-bold disabled:opacity-50 text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#DCD1BE]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
             >
-              {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}
+              {isCompressing || isSaving ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {isCompressing ? "Processing..." : "Saving..."}
+                </span>
+              ) : editItem ? "Save Changes" : "Add Project"}
             </Button>
           </div>
 
