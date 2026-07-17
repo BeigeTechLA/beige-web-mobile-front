@@ -24,7 +24,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`flex flex-1 min-h-0 overflow-hidden relative transition-colors duration-300 ${
-      isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+      isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
     }`}>
       <div className="hidden lg:block h-full border-r border-transparent">
         <Sidebar />
@@ -130,7 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Root container handles base text and background colors */}
       <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
         isDark 
-          ? "bg-[#0f0f0f] text-white" 
+          ? "bg-[#101010] text-white" 
           : "bg-[#F4F5F7] text-[#000000]"
       }`}>
         {isResolvingInitialRoute && shouldGateInitialAdminRoute ? null : (

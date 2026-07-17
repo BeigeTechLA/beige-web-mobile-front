@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
+import EditMeetingModal from "@/components/meetings/EditMeetingModal";
 import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
 import { meetingsApi, type MeetingItem, type MeetingParticipantRef } from "@/lib/meetingsApi";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -169,6 +170,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin", createP
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -534,6 +536,20 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin", createP
       <MeetingDetailsModal
         open={!!selectedMeeting}
         onClose={() => setSelectedMeeting(null)}
+        meeting={selectedMeeting}
+        role={role}
+        currentUserId={currentUserId}
+        currentUserEmail={currentUserEmail}
+        onUpdated={loadMeetings}
+        onEdit={() => setIsEditModalOpen(true)}
+      />
+
+      <EditMeetingModal
+        open={isEditModalOpen}
+        onClose={() => {
+          setSelectedMeeting(null)
+          setIsEditModalOpen(false)
+        }}
         meeting={selectedMeeting}
         role={role}
         currentUserId={currentUserId}

@@ -46,7 +46,7 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
           {/* Outlined Floating-Label Field Trigger Component */}
           <div 
             onClick={() => setIsOpen(true)}
-            className={`relative rounded-lg border px-4 py-2 mt-2 transition-colors cursor-pointer flex items-center justify-between group ${
+            className={`relative rounded-lg border px-4 py-2 transition-colors cursor-pointer flex items-center justify-between group ${
               width ? width : "w-full min-w-[240px]"
             } ${
               isDark 

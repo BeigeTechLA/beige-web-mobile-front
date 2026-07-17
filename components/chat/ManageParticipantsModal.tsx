@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Loader2, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { Loader2, Search, Trash2, UserRoundPlus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { externalChatApi, type ExternalChatRoom, type ExternalChatUser } from "@/lib/externalChatApi";
 
@@ -288,21 +288,22 @@ export default function ManageParticipantsModal({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-3 lg:p-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
+    <div className={`fixed inset-0 z-50 flex items-end lg:items-center justify-center p-0 lg:p-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
       <div className="absolute inset-0" onClick={onClose} />
 
-      <div
-        className={`relative w-full max-w-2xl overflow-hidden rounded-2xl lg:rounded-[28px] border shadow-2xl transition-colors duration-200 flex flex-col max-h-[92vh]
-      ${isDark ? "border-white/10 bg-[#0B0B0B]" : "border-zinc-200 bg-white"}`}
-      >
+      <div className={`relative w-full lg:max-w-[616px] overflow-hidden rounded-t-2xl lg:rounded-2xl border shadow-2xl transition-colors duration-200 flex flex-col max-h-[90vh] lg:max-h-[92vh] ${isDark ? "border-white/40 bg-black" : "border-white/40 bg-white"}`}>
+
+        {/* Mobile Swipe / Drag Indicator Bar */}
+        <div className="w-12 h-1 bg-zinc-600/40 rounded-full mx-auto my-2 shrink-0 lg:hidden" />
+
         {/* Header Section */}
-        <div className={`flex items-center justify-between border-b p-4 lg:px-6 lg:py-5 ${isDark ? "border-white/10" : "border-zinc-100"}`}>
+        <div className={`flex items-center justify-between border-b p-4 lg:px-6 lg:py-5 border-[#CACACA]`}>
           <div className="flex items-center gap-3 lg:gap-4 min-w-0">
-            <div className={`rounded-full p-2.5 lg:p-3 shrink-0 ${isDark ? "bg-[#E5D5B8]/15 text-[#E5D5B8]" : "bg-zinc-100 text-black"}`}>
+            {/* <div className={`rounded-full p-2.5 lg:p-3 shrink-0 ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-zinc-100 text-black"}`}>
               <Users className="h-4 w-4 lg:h-5 lg:w-5" />
-            </div>
+            </div> */}
             <div className="min-w-0">
-              <h2 className={`text-lg lg:text-2xl font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>
+              <h2 className={`text-xl lg:text-3xl font-bold truncate ${isDark ? "text-white" : "text-black"}`}>
                 Manage Participants
               </h2>
               <p className={`mt-1 text-xs lg:text-sm truncate ${isDark ? "text-white/50" : "text-zinc-500"}`}>
@@ -312,47 +313,47 @@ export default function ManageParticipantsModal({
           </div>
           <button
             onClick={onClose}
-            className={`rounded-full p-2 shrink-0 transition-colors ${isDark ? "text-white/60 hover:bg-white/5" : "text-zinc-400 hover:bg-zinc-100"}`}
+            className={`rounded-full p-2 lg:p-3.5 shrink-0 transition-colors ${isDark ? "bg-[#2B2626] text-white/60 hover:bg-[#2B2626]/75" : "bg-[#F0F0F0] text-zinc-400 hover:bg-[#F0F0F0]/70"}`}
           >
-            <X className="h-4 w-4 lg:h-5 lg:w-5" />
+            <X className="h-4 w-4 lg:h-7 lg:w-7" />
           </button>
         </div>
 
         {/* Tab Actions */}
-        <div className={`border-b px-4 lg:px-6 ${isDark ? "border-white/10" : "border-zinc-100"}`}>
+        <div className={`border-b px-4 lg:px-7 ${isDark ? "border-white/10" : "border-zinc-100"}`}>
           <div className={`grid ${canManage ? "grid-cols-2" : "grid-cols-1"}`}>
             {canManage ? (
               <button
                 type="button"
                 onClick={() => setActiveTab("add")}
-                className={`border-b-2 p-4 text-xs lg:text-sm font-medium transition-colors ${activeTab === "add"
-                  ? isDark ? "border-[#E5D5B8] text-[#E5D5B8]" : "border-black text-black"
+                className={`border-b-2 p-4 transition-colors ${activeTab === "add"
+                  ? isDark ? "border-[#E8D1AB] text-[#E8D1AB]" : "border-black text-black"
                   : "border-transparent text-zinc-400"
                   }`}
               >
-                <span className="inline-flex items-center justify-center gap-2 w-full">
-                  <UserPlus className="h-4 w-4" />
-                  Add New
+                <span className="inline-flex items-center justify-center gap-2 w-full text-sm font-medium">
+                  <UserRoundPlus className="h-4 w-4 lg:h-6 lg:w-6" />
+                  Add New User
                 </span>
               </button>
             ) : null}
             <button
               type="button"
               onClick={() => setActiveTab("current")}
-              className={`border-b-2 p-4 text-xs lg:text-sm font-medium transition-colors ${activeTab === "current"
-                ? isDark ? "border-[#E5D5B8] text-[#E5D5B8]" : "border-black text-black"
+              className={`border-b-2 p-4 transition-colors ${activeTab === "current"
+                ? isDark ? "border-[#E8D1AB] text-[#E8D1AB]" : "border-black text-black"
                 : "border-transparent text-zinc-400"
                 }`}
             >
-              <span className="inline-flex items-center justify-center gap-2 w-full">
-                <Users className="h-4 w-4" />
+              <span className="inline-flex items-center justify-center gap-2 w-full text-sm font-medium">
+                <Users className="h-4 w-4 lg:h-6 lg:w-6" />
                 Current ({currentParticipants.length})
               </span>
             </button>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 lg:p-7 overflow-y-auto no-scrollbar flex-1 min-h-0">
           {loading ? (
             <div className={`flex items-center gap-2 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -360,51 +361,53 @@ export default function ManageParticipantsModal({
             </div>
           ) : activeTab === "current" || !canManage ? (
             <div className="space-y-4">
-              <div className={`rounded-xl lg:rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-zinc-50"}`}>
+              <div className={`rounded-lg lg:rounded-xl border overflow-hidden ${isDark ? "border-white/20 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
                 {currentParticipants.length ? (
-                  <div className={`max-h-[260px] lg:max-h-[360px] divide-y overflow-y-auto ${isDark ? "divide-white/10" : "divide-zinc-200"}`}>
+                  <div className={`max-h-[320px] lg:max-h-[360px] divide-y overflow-y-auto ${isDark ? "divide-white/10" : "divide-zinc-200"}`}>
                     {currentParticipants.map((member) => {
                       const isCurrentUser = currentUserId != null && String(member.id || "") === String(currentUserId);
                       return (
-                        <div key={`current-${member.role}-${member.id}`} className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between p-3 lg:px-5 lg:py-4">
+                        <div key={`current-${member.role}-${member.id}`} className="flex gap-3 items-center justify-between p-3 lg:px-5 lg:py-4">
                           <div className="flex items-center gap-3 min-w-0">
                             {resolveImage(member) ? (
                               <img
                                 src={resolveImage(member) || ""}
                                 alt={member.name || "Participant"}
-                                className="h-9 w-9 lg:h-11 lg:w-11 rounded-full object-cover shrink-0"
+                                className="h-10 w-10 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
                               />
                             ) : (
-                              <div className={`flex h-9 w-9 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-full text-xs lg:text-sm font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-zinc-200 text-zinc-800"}`}>
+                              <div className={`flex h-10 w-10 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
                                 {getInitials(member.name || member.email)}
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className={`text-sm lg:text-base font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
-                                {member.name || member.email || member.id}
-                              </p>
-                              <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <p className={`text-sm lg:text-base font-semibold truncate max-w-[140px] lg:max-w-none ${isDark ? "text-white" : "text-black"}`}>
+                                  {member.name || member.email || member.id}
+                                </p>
+                                <span className={`rounded-full border px-2.5 py-0.5 text-[9px] lg:text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}>
+                                  {getRoleLabel(member.role)}
+                                </span>
+                              </div>
+                              <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-400"}`}>
                                 {member.email || "No email"}
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center justify-end gap-2.5 lg:gap-3 shrink-0">
-                            <span className={`rounded-full border px-2.5 py-0.5 lg:px-3 lg:py-1 text-[10px] lg:text-xs font-medium ${isDark ? "border-white/10 bg-white/5 text-white/60" : "border-zinc-300 bg-white text-zinc-600"}`}>
-                              {getRoleLabel(member.role)}
-                            </span>
                             {canManage && member.role !== "client" && !isCurrentUser ? (
                               <button
                                 type="button"
                                 onClick={() => removeParticipant(member)}
                                 disabled={removingId === String(member.id)}
-                                className="rounded-full border border-red-500/20 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20 disabled:opacity-60"
+                                className={`rounded-full p-3 text-[#FF6467] transition hover:bg-red-500/20 disabled:opacity-60 lg:h-12 lg:w-12 ${isDark ? "bg-[#323232]" : "bg-[#F0F0F0]"}`}
                                 title="Remove participant"
                               >
                                 {removingId === String(member.id) ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-4 w-4 lg:h-6 lg:w-6" />
                                 )}
                               </button>
                             ) : null}
@@ -423,51 +426,51 @@ export default function ManageParticipantsModal({
           ) : (
             <div className="space-y-4">
               <div>
-                <p className={`mb-2 text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-zinc-700"}`}>
+                <p className={`mb-2 text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-zinc-700"}`}>
                   Select Role
                 </p>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-3">
+                <div className={`grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-3 border rounded-xl p-2 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F0F0F0] border-[#E5E5E5]"}`}>
                   <button
                     type="button"
                     onClick={() => setAddRole("cp")}
-                    className={`rounded-xl lg:rounded-2xl border p-3 lg:p-4 text-left transition-all ${addRole === "cp"
-                      ? isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-black bg-zinc-50 ring-1 ring-black"
-                      : isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+                    className={`rounded-md p-3 lg:px-5 lg:py-2.5 text-center border transition-all ${addRole === "cp"
+                      ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/20" : " border-[#E5E5E5] bg-zinc-50"
+                      : isDark ? "border-[#171717] bg-[#171717]" : "border-[#F0F0F0] bg-[#F0F0F0]"
                       }`}
                   >
-                    <p className={`text-sm lg:text-lg ${isDark ? "text-white" : "text-black"}`}>Creative Partner</p>
-                    <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>Photographers, videographers, editors</p>
+                    <p className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#C4C4C4]" : "text-black"}`}>Creative Partner</p>
+                    <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>Photographers, videographers, editors</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setAddRole("staff")}
-                    className={`rounded-xl lg:rounded-2xl border p-3 lg:p-4 text-left transition-all ${addRole === "staff"
-                      ? isDark ? "border-[#E5D5B8] bg-[#1B1812]" : "border-black bg-zinc-50 ring-1 ring-black"
-                      : isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+                    className={`rounded-md p-3 lg:px-5 lg:py-2.5 text-center border transition-all ${addRole === "staff"
+                      ? isDark ? "border border-[#E8D1AB] bg-[#E8D1AB]/20" : "border border-[#E5E5E5] bg-zinc-50 "
+                      : isDark ? "border-[#171717] bg-[#171717]" : "border-[#F0F0F0] bg-[#F0F0F0]"
                       }`}
                   >
-                    <p className={`text-sm lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Staff / Client</p>
-                    <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>Admin, sales rep, client, production team</p>
+                    <p className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#C4C4C4]" : "text-black"}`}>Staff / Client</p>
+                    <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>Admin, sales rep, client, production team</p>
                   </button>
                 </div>
               </div>
 
               <div className="relative">
-                <Search className={`absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-white/35" : "text-zinc-400"}`} />
+                <Search className={`absolute left-4 top-1/2 h-4 w-4 lg:h-6 lg:w-6 -translate-y-1/2 ${isDark ? "text-[#727272]" : "text-zinc-400"}`} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name or email..."
-                  className={`h-11 lg:h-12 w-full rounded-xl lg:rounded-2xl border pl-10 pr-4 text-xs lg:text-sm outline-none transition-colors
+                  className={`h-11 lg:h-12 w-full rounded-lg lg:rounded-xl border pl-12 pr-4 text-sm lg:text-base outline-none transition-colors
                 ${isDark
-                      ? "border-white/10 bg-[#111111] text-white placeholder:text-white/30 focus:border-white/20"
+                      ? "border-white/20 bg-[#171717] text-white placeholder:text-[#727272] focus:border-white/20"
                       : "border-zinc-200 bg-white text-black placeholder:text-zinc-400 focus:border-zinc-400"
                     }`}
                 />
               </div>
 
-              <div className={`rounded-xl lg:rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"}`}>
-                <div className="max-h-[200px] lg:max-h-[320px] overflow-y-auto divide-y divide-transparent">
+              <div className={`rounded-lg lg:rounded-xl border overflow-hidden ${isDark ? "border-white/20 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
+                <div className="max-h-[320px] overflow-y-auto divide-y divide-transparent">
                   {filteredCandidates.length ? (
                     filteredCandidates.map((member) => {
                       const memberId = String(member.id);
@@ -478,26 +481,26 @@ export default function ManageParticipantsModal({
                           key={`${member.source}-${member.role}-${memberId}`}
                           className={`flex items-center justify-between border-b p-3 lg:p-4 last:border-b-0 transition-colors
                         ${isDark ? "border-white/10" : "border-zinc-100 hover:bg-zinc-50"}
-                        ${alreadyAdded ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                        ${alreadyAdded ? "cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {resolveImage(member) ? (
                               <img
                                 src={resolveImage(member) || ""}
                                 alt={member.name || "Participant"}
-                                className="h-9 w-9 lg:h-11 lg:w-11 rounded-full object-cover shrink-0"
+                                className="h-12 w-12 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
                               />
                             ) : (
-                              <div className={`flex h-9 w-9 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-full text-xs lg:text-sm font-semibold ${isDark ? "bg-[#E5D5B8]/20 text-[#E5D5B8]" : "bg-zinc-100 text-zinc-700"}`}>
+                              <div className={`flex h-12 w-12 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
                                 {getInitials(member.name || member.email || memberId)}
                               </div>
                             )}
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <p className={`text-xs lg:text-base font-medium truncate max-w-[140px] lg:max-w-none ${isDark ? "text-white" : "text-black"}`}>
+                                <p className={`text-sm lg:text-base font-semibold truncate max-w-[140px] lg:max-w-none ${isDark ? "text-white" : "text-black"}`}>
                                   {member.name || member.email || memberId}
                                 </p>
-                                <span className={`rounded-full border px-1.5 py-0.5 text-[9px] lg:text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white/55" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}>
+                                <span className={`rounded-full border px-2.5 py-0.5 text-[9px] lg:text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}>
                                   {getRoleLabel(member.role)}
                                 </span>
                               </div>
@@ -509,7 +512,7 @@ export default function ManageParticipantsModal({
 
                           <div className="shrink-0 ml-2">
                             {alreadyAdded ? (
-                              <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${isDark ? "border-[#E5D5B8]/25 bg-[#E5D5B8]/10 text-[#E5D5B8]" : "border-zinc-300 bg-zinc-100 text-zinc-600"}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-xs font-medium border-[#E8D1AB] bg-[#E8D1AB] text-black`}>
                                 Already Added
                               </span>
                             ) : (
@@ -521,7 +524,7 @@ export default function ManageParticipantsModal({
                                     current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId]
                                   )
                                 }
-                                className={`h-5 w-5 lg:h-6 lg:w-6 rounded transition-transform active:scale-90 ${isDark ? "accent-[#E5D5B8]" : "accent-black"}`}
+                                className={`h-5 w-5 lg:h-6 lg:w-6 rounded-md transition-transform active:scale-90 ${isDark ? "border-[#DDDDDD80] bg-[#171717] accent-[#E8D1AB]" : "accent-black"}`}
                               />
                             )}
                           </div>
@@ -540,12 +543,11 @@ export default function ManageParticipantsModal({
         </div>
 
         {/* Footer Action Buttons */}
-        <div className={`p-4 lg:p-6 mt-auto flex gap-2.5 lg:gap-3 border-t ${isDark ? "border-white/10" : "border-zinc-100"}`}>
+        <div className={`p-4 lg:p-6 lg:pt-0 mt-auto flex gap-2.5 lg:gap-3 shrink-0`}>
           <button
             type="button"
             onClick={onClose}
-            className={`flex-1 rounded-xl lg:rounded-2xl border p-4 text-sm lg:text-base font-medium transition-all active:scale-[0.99]
-          ${isDark ? "border-white/10 bg-[#111111] text-white hover:bg-white/5" : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"}`}
+            className={`flex-1 rounded-lg border p-3 lg:h-12 text-sm font-medium transition-all ${isDark ? "border-[#262626] bg-[#1F1F1F] text-white hover:bg-[#1F1F1F]/80" : "border-[#f0f0f0] bg-[#f0f0f0] text-zinc-700 hover:bg-zinc-100"}`}
           >
             Cancel
           </button>
@@ -554,8 +556,7 @@ export default function ManageParticipantsModal({
               type="button"
               onClick={submit}
               disabled={submitting || !selectedIds.length}
-              className={`flex-1 rounded-xl lg:rounded-2xl p-4 text-sm lg:text-base font-semibold transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none
-            ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c2a1]" : "bg-black text-white hover:bg-zinc-800"}`}
+              className={`flex-1 rounded-lg p-3 lg:h-12 text-sm font-medium transition-all disabled:opacity-40 disabled:pointer-events-none bg-[#E8D1AB] text-black hover:bg-[#d4c2a1]`}
             >
               {submitting ? "Adding..." : "Add to Conversation"}
             </button>

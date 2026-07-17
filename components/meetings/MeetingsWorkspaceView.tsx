@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
 import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
+import EditMeetingModal from "@/components/meetings/EditMeetingModal";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
@@ -98,7 +99,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [search, setSearch] = useState("");
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  
+
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
   };
@@ -144,14 +145,14 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   }, [loadMeetings]);
 
   const filteredMeetings = useMemo(() => {
-      let result = meetings;
+    let result = meetings;
 
-      if (selectedDate) {
-        const targetDate = selectedDate.toDateString();
-        result = result.filter((m) => 
-          m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
-        );
-      }
+    if (selectedDate) {
+      const targetDate = selectedDate.toDateString();
+      result = result.filter((m) =>
+        m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
+      );
+    }
     const normalizedSearch = search.trim().toLowerCase();
     if (!normalizedSearch) return result;
 
@@ -188,21 +189,21 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
 
       {/* Top Actions Panel */}
       <div className="mb-3 lg:mb-6 flex flex-col gap-4">
-       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-            Meetings
-          </h1>
-          <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
-            {role === "admin"
-              ? "Browse scheduled meetings across shoots and open each shoot for full management."
-              : "Browse your scheduled meetings and jump into the related shoot when needed."}
-          </p>
-        </div>
-        <div className="flex-shrink-0">
-           <SortDateButton
-             selectedDate={selectedDate}
-             onDateChange={handleDateSort}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <h1 className={`text-xl lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+              Meetings
+            </h1>
+            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
+              {role === "admin"
+                ? "Browse scheduled meetings across shoots and open each shoot for full management."
+                : "Browse your scheduled meetings and jump into the related shoot when needed."}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <SortDateButton
+              selectedDate={selectedDate}
+              onDateChange={handleDateSort}
             />
           </div>
         </div>
@@ -299,16 +300,29 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
         isDark={isDark}
       />
 
-      <MeetingDetailsModal
-        open={!!selectedMeeting}
-        onClose={() => setSelectedMeeting(null)}
-        meeting={selectedMeeting}
-        role={effectiveRoleForActions}
-        currentUserId={currentUserId}
-        currentUserEmail={currentUserEmail}
-        onUpdated={loadMeetings}
-        isDark={isDark}
-      />
+      {isAdminView ?
+        <EditMeetingModal
+          open={!!selectedMeeting}
+          onClose={() => setSelectedMeeting(null)}
+          meeting={selectedMeeting}
+          role={effectiveRoleForActions}
+          currentUserId={currentUserId}
+          currentUserEmail={currentUserEmail}
+          onUpdated={loadMeetings}
+          isDark={isDark}
+        />
+        :
+        <MeetingDetailsModal
+          open={!!selectedMeeting}
+          onClose={() => setSelectedMeeting(null)}
+          meeting={selectedMeeting}
+          role={effectiveRoleForActions}
+          currentUserId={currentUserId}
+          currentUserEmail={currentUserEmail}
+          onUpdated={loadMeetings}
+          isDark={isDark}
+        />
+      }
 
       <DeleteMeetingConfirmModal
         open={!!meetingPendingDelete}

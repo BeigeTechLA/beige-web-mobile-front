@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Map, { Marker, NavigationControl, GeolocateControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapPin, Search, X } from 'lucide-react';
@@ -28,21 +28,21 @@ export const darkThemeColors = {
 
 export const lightThemeColors = {
   inputBg: "#FFFFFF",
-  inputBorder: "#00000026",          // Clean border color (equivalent to border-[#000000]/15)
-  inputBorderHover: "#0000004d",     // Subtle hover state enhancement
-  labelText: "#00000099",            // Medium contrast text (60% opacity)
-  primaryText: "#171717",            // Deep charcoal for strong readability
-  secondaryText: "#00000080",          // Muted text (50% opacity)
-  paperBg: "#F9F9F9",                // Slightly off-white for structural cards/dropdowns
-  divider: "#0000001a",              // Subtle break line (equivalent to border-[#000000]/10)
-  accent: "#E8D1AB",                 // Preserved brand accent
-  accentHover: "#dcb98a",            // Preserved brand accent hover
-  buttonPrimaryText: "#171717",      // Legible dark text over the warm gold accent
-  buttonPrimaryBg: "#E8D1AB",        // Preserved brand primary CTA
-  buttonPrimaryBgHover: "#dcb98a",   // Preserved brand primary CTA hover
-  buttonSecondaryText: "#171717",    // Dark text for light secondary buttons
-  buttonSecondaryBg: "#0000000d",    // Very light neutral background (5% opacity)
-  buttonSecondaryBgHover: "#0000001a", // Slightly deeper hover state (10% opacity)
+  inputBorder: "#00000026",
+  inputBorderHover: "#0000004d",
+  labelText: "#00000099",
+  primaryText: "#171717",
+  secondaryText: "#00000080",
+  paperBg: "#F9F9F9",
+  divider: "#0000001a",
+  accent: "#E8D1AB",
+  accentHover: "#dcb98a",
+  buttonPrimaryText: "#171717",
+  buttonPrimaryBg: "#E8D1AB",
+  buttonPrimaryBgHover: "#dcb98a",
+  buttonSecondaryText: "#171717",
+  buttonSecondaryBg: "#0000000d",
+  buttonSecondaryBgHover: "#0000001a",
 };
 
 export interface LocationPickerColors {
@@ -79,17 +79,17 @@ const defaultColors: LocationPickerColors = {
   inputBorder: "#E5E5E5",
   inputBorderHover: "#1A1A1A",
   inputBorderFocus: "#1A1A1A",
-  labelText: "#00000099", // #000/60
+  labelText: "#00000099",
   errorText: "#fc8181",
   placeholderText: "#666666",
   primaryText: "#1A1A1A",
   secondaryText: "#666666",
   iconBg: "#F5F5F5",
-  iconBgHover: "rgba(232, 209, 171, 0.3)", // #E8D1AB/30
+  iconBgHover: "rgba(232, 209, 171, 0.3)",
   iconColor: "#666666",
   iconColorHover: "#C58213",
-  iconBgSelected: "#DCFCE7", // green-100
-  iconColorSelected: "#16A34A", // green-600
+  iconBgSelected: "#DCFCE7",
+  iconColorSelected: "#16A34A",
   buttonPrimaryBg: "#1A1A1A",
   buttonPrimaryBgHover: "#333333",
   buttonPrimaryText: "#FFFFFF",
@@ -128,7 +128,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   hasError = false,
   disabled = false
 }) => {
-
   const colors = { ...defaultColors, ...customColors };
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,7 +135,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isQueryFromSelection, setIsQueryFromSelection] = useState(false);
 
-  // Initialize with fallback
+  // Structural DOM reference anchor wrapper frame
+  const expandedCardRef = useRef<HTMLDivElement>(null);
+
   const [viewState, setViewState] = useState({
     latitude: 34.0522,
     longitude: -118.2437,
@@ -288,6 +289,18 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     }
   }, [marker, onChange, selectedFeature]);
 
+  // Handle visual shifts cleanly when mobile viewport triggers keyboard heights
+  const handleInputFocus = useCallback(() => {
+    setTimeout(() => {
+      if (expandedCardRef.current) {
+        expandedCardRef.current.scrollIntoView({
+          block: "center",
+          behavior: "smooth"
+        });
+      }
+    }, 280);
+  }, []);
+
   if (!isExpanded) {
     return (
       <div
@@ -356,7 +369,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   }
 
   return (
-    <div style={{ borderColor: colors.divider, backgroundColor: colors.paperBg }} className="w-full border rounded-xl overflow-hidden shadow-lg">
+    <div
+      ref={expandedCardRef}
+      style={{ borderColor: colors.divider, backgroundColor: colors.paperBg }}
+      className="w-full border rounded-xl overflow-hidden shadow-lg transition-all"
+    >
       {/* Search Bar */}
       <div style={{ borderColor: colors.divider, backgroundColor: colors.inputBg }} className="p-3 border-b">
         <div className="flex gap-2">
@@ -364,6 +381,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             <Search size={16} style={{ color: colors.secondaryText }} className="absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               value={searchQuery}
+              onFocus={handleInputFocus}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setIsQueryFromSelection(false);
@@ -375,8 +393,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 borderColor: colors.divider,
                 color: colors.primaryText
               }}
-              onFocus={(e) => e.target.style.borderColor = colors.inputBorderFocus}
-              onBlur={(e) => e.target.style.borderColor = colors.divider}
+              // onFocus={(e) => e.target.style.borderColor = colors.inputBorderFocus}
+              // onBlur={(e) => e.target.style.borderColor = colors.divider}
               className="w-full h-10 pl-9 pr-3 border rounded-lg outline-none"
             />
           </div>
@@ -440,7 +458,6 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             ))}
           </div>
         )}
-
       </div>
 
       {/* Map Container */}

@@ -38,7 +38,7 @@ export function TabsSwitcher<T extends string>({
   return (
     <div
       className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-all duration-300 ${isDark
-        ? "bg-[#111] border-[#333]"
+        ? "bg-[#171717] border-[#333]"
         : "bg-[#fff] border-[#E5E5E5]"
         } ${className}`}
     >
@@ -49,7 +49,7 @@ export function TabsSwitcher<T extends string>({
           <button
             key={tab.value}
             onClick={() => onChange(tab.value)}
-            className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium ${buttonLength} transition-all duration-300 ${isActive
+            className={`flex-1 px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium ${buttonLength} transition-all duration-300 ${isActive
               ? (isDark
                 ? "bg-[#E5D5B8] text-black shadow-lg"
                 : "bg-[#E8D1AB] text-black shadow-sm")
