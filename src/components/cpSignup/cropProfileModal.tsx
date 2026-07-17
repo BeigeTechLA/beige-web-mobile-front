@@ -4,12 +4,24 @@ import { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { Minus, Plus } from "lucide-react";
 
-export default function CropProfileModal({ image, onClose, onSave }) {
+type CropProfileModalProps = {
+  image: string;
+  onClose: () => void;
+  onSave: (croppedBlob: Blob, previewUrl: string) => void | Promise<void>;
+  isSaving?: boolean;
+};
+
+export default function CropProfileModal({ image, onClose, onSave, isSaving = false }: CropProfileModalProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedPixels, setCroppedPixels] = useState(null);
+  const [croppedPixels, setCroppedPixels] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
-  const onCropComplete = useCallback((_, pixels) => {
+  const onCropComplete = useCallback((_: unknown, pixels: { x: number; y: number; width: number; height: number }) => {
     setCroppedPixels(pixels);
   }, []);
 
@@ -53,7 +65,7 @@ export default function CropProfileModal({ image, onClose, onSave }) {
         croppedPixels.height
       );
 
-      canvas.toBlob((blob) => {
+      canvas.toBlob((blob: Blob | null) => {
         if (!blob) return;
         const previewUrl = URL.createObjectURL(blob);
         onSave(blob, previewUrl);
@@ -136,9 +148,10 @@ export default function CropProfileModal({ image, onClose, onSave }) {
 
           <button
             onClick={createCroppedImage}
-            className="flex-1 h-14 rounded-[12px] bg-[#E8D1AB] text-black text-base font-semibold hover:bg-[#DCD1BE] transition-all"
+            disabled={isSaving}
+            className="flex-1 h-14 rounded-[12px] bg-[#E8D1AB] text-black text-base font-semibold hover:bg-[#DCD1BE] transition-all disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Save Photo
+            {isSaving ? "Saving..." : "Save Photo"}
           </button>
         </div>
       </div>
