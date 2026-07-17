@@ -6855,7 +6855,9 @@ export default function CreateQuotePage() {
                           <div className="min-w-0 flex-1 pr-2 lg:flex lg:flex-col lg:justify-between lg:gap-1">
                             <h3
                               title={item.label}
-                              className="max-w-full truncate text-base font-medium text-white leading-snug"
+                              className={`max-w-full truncate text-sm lg:text-lg font-medium leading-snug ${
+                                isDark ? "text-white" : "text-black"
+                              }`}
                             >
                               {item.label}
                             </h3>

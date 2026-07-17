@@ -14,7 +14,7 @@ import {
   subDays,
   subMonths,
 } from "date-fns";
-import { ChevronDown, ChevronUp, SquarePen, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronUp, SquarePen, ChevronLeft, ChevronRight, Sheet, CloudDownload, ArrowUpToLine } from "lucide-react";
 import QuotesEmptyState from "@/components/admin/quotes/QuotesEmptyState";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/components/ui/button";
@@ -55,13 +55,14 @@ import {
 import QuoteEditAccessModal, {
   type QuoteEditAccessModalProps,
 } from "@/components/admin/quotes/QuoteEditAccessModal";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
   persistQuoteEditorEditReason,
   persistQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
+import DatePicker from "@/components/ui/Datepicker";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -1077,6 +1078,16 @@ export default function QuotesDashboardPage({
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [exportStartDate, setExportStartDate] = useState<Date | null>(
+    null
+  );
+
+  const [exportEndDate, setExportEndDate] = useState<Date | null>(
+    null
+  );
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchTerm, 500);
@@ -1139,7 +1150,7 @@ export default function QuotesDashboardPage({
             limit: QUOTES_PER_PAGE,
             ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
             ...(selectedStatusFilter !== "all"
-              ? { status: selectedStatusFilter === "partially_paid" ? "pending" : selectedStatusFilter }
+              ? { status: selectedStatusFilter }
               : {}),
             ...(selectedSalesperson !== "all"
               ? { assigned_sales_rep_id: selectedSalesperson }
@@ -1284,6 +1295,108 @@ export default function QuotesDashboardPage({
       toast.error(error instanceof Error ? error.message : "Failed to duplicate quote");
     } finally {
       setDuplicatingQuoteId(null);
+        }
+      };
+    const handleExportQuotes = async () => {
+    if (isExporting) {
+      return;
+    }
+
+      setIsExporting(true);
+
+      try {
+        const effectiveExportRange = selectedDate ? "custom" : chartRange;
+        const effectiveExportDateOn = selectedDate
+          ? formatDateFns(selectedDate, "yyyy-MM-dd")
+          : undefined;
+        const startDate = exportStartDate;
+        const endDate = exportEndDate;
+
+        if (Boolean(startDate) !== Boolean(endDate)) {
+          throw new Error("Select both dates or leave both blank to export all records.");
+        }
+
+        const exportParams: {
+          start_date?: string;
+          end_date?: string;
+          search?: string;
+          status?: string;
+          range?: string;
+          date_on?: string;
+          assigned_sales_rep_id?: number | string;
+        } = {
+          ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+          ...(selectedStatusFilter !== "all"
+            ? { status: selectedStatusFilter }
+            : {}),
+          ...(selectedSalesperson !== "all"
+            ? { assigned_sales_rep_id: selectedSalesperson }
+            : {}),
+          range: effectiveExportRange,
+          ...(effectiveExportDateOn ? { date_on: effectiveExportDateOn } : {}),
+        };
+
+        let fileName = "quotes-all-records.csv";
+
+        if (startDate && endDate) {
+          const normalizedStartDate = startOfDay(startDate);
+          const normalizedEndDate = startOfDay(endDate);
+          const today = startOfDay(new Date());
+
+      if (normalizedStartDate > today || normalizedEndDate > today) {
+        throw new Error("Future dates are not allowed.");
+    
+      }
+
+      if (normalizedStartDate > normalizedEndDate) {
+        throw new Error("Start date cannot be after end date.");
+      }
+
+      const formattedStartDate = formatDateFns(
+        normalizedStartDate,
+        "yyyy-MM-dd"
+      );
+
+      const formattedEndDate = formatDateFns(
+        normalizedEndDate,
+        "yyyy-MM-dd"
+      );
+
+      exportParams.start_date = formattedStartDate;
+      exportParams.end_date = formattedEndDate;
+      fileName = `quotes-${formattedStartDate}-to-${formattedEndDate}.csv`;
+    }
+
+    const blob = await salesApi.exportQuotesCsv(exportParams);
+
+        if (!(blob instanceof Blob) || blob.size === 0) {
+          throw new Error("Invalid or empty export response.");
+        }
+
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const downloadLink = document.createElement("a");
+
+        downloadLink.href = downloadUrl;
+        downloadLink.download = fileName;
+
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+
+        window.URL.revokeObjectURL(downloadUrl);
+
+        setIsExportOpen(false);
+        toast.success("Quotes exported successfully.");
+      } catch (error) {
+        console.error("Export Quotes Error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to export quotes."
+        );
+      } finally {
+        setIsExporting(false);
     }
   };
 
@@ -1533,29 +1646,18 @@ export default function QuotesDashboardPage({
   );
 
   const filteredQuotesData = useMemo(() => {
+    if (quotePagination) {
+      return displayQuotesData;
+    }
+
     if (selectedStatusFilter === "all") {
       return displayQuotesData;
     }
 
-    return displayQuotesData.filter((quote) => {
-      const statusKey = quote.statusKey;
-
-      // Strict filtering as requested by the user
-      if (selectedStatusFilter === "accepted") {
-        return statusKey === "accepted";
-      }
-
-      if (selectedStatusFilter === "pending") {
-        return statusKey === "pending";
-      }
-
-      if (selectedStatusFilter === "rejected") {
-        return statusKey === "rejected";
-      }
-
-      return statusKey === selectedStatusFilter;
-    });
-  }, [displayQuotesData, selectedStatusFilter]);
+    return displayQuotesData.filter((quote) =>
+      matchesStatusFilter(quote.statusKey, selectedStatusFilter)
+    );
+  }, [displayQuotesData, quotePagination, selectedStatusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1564,10 +1666,11 @@ export default function QuotesDashboardPage({
   const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
   const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
   const safeCurrentPage = quotePagination?.page ?? Math.min(currentPage, totalListPages);
+  const listPageLimit = quotePagination?.limit ?? QUOTES_PER_PAGE;
   const listStartIndex =
     totalFilteredQuotes === 0
       ? 0
-      : (safeCurrentPage - 1) * (quotePagination?.limit ?? QUOTES_PER_PAGE);
+      : (safeCurrentPage - 1) * listPageLimit;
   const paginatedQuotesData = filteredQuotesData;
   const paginationItems = buildPaginationItems(safeCurrentPage, totalListPages);
 
@@ -1609,7 +1712,7 @@ export default function QuotesDashboardPage({
         pathname={pathname}
         actions={
           <div className="flex gap-3">
-            <Button
+            {/* <Button
               variant="outline"
               className={
                 isDark
@@ -1619,7 +1722,7 @@ export default function QuotesDashboardPage({
             >
               <Download size={18} className="mr-2" />
               Export
-            </Button>
+            </Button> */}
             <Link href={createHref}>
               <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Create New Quote
@@ -1841,7 +1944,7 @@ export default function QuotesDashboardPage({
                 />
                 {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
-              <div className="flex gap-4 flex-row">
+              <div className="flex w-full flex-wrap gap-3 md:w-auto md:flex-nowrap md:gap-4">
                 <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
                   <SelectTrigger
                     className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
@@ -1904,6 +2007,194 @@ export default function QuotesDashboardPage({
                     ))}
                   </SelectContent>
                 </Select>
+                <Popover
+                  open={isExportOpen}
+                  onOpenChange={(open) => {
+                    if (!isExporting) {
+                      setIsExportOpen(open);
+                    }
+                  }}
+                >
+               <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isExporting}
+                    className={`flex h-12 w-full shrink-0 items-center justify-center rounded-xl px-4 text-sm font-medium sm:w-full md:w-auto md:min-w-[120px] ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#161616] text-white/70 hover:bg-white/5 hover:text-white"
+                        : "border-[#E3E3E3] bg-white text-black/70 hover:bg-black/5 hover:text-black"
+                    }`}
+                  >
+                    {isExporting ? (
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                    ) : (
+                      <ArrowUpToLine size={18} className="mr-2" />
+                    )}
+
+                    {isExporting ? "Exporting..." : "Export"}
+                  </Button>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  align="end"
+                  sideOffset={10}
+                  className={`w-[340px] rounded-2xl border p-5 ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#171717] text-white"
+                      : "border-[#E5E5E5] bg-white text-black"
+                  }`}
+                  >
+                    <div className="space-y-5">
+                      <div>
+                        <h3 className="text-sm font-semibold">
+                          Export Quotes
+                        </h3>
+
+                        <p
+                          className={`mt-1 text-xs ${
+                            isDark ? "text-white/55" : "text-black/55"
+                          }`}
+                        >
+                          Leave both dates blank to download all quote records, or pick a range to filter the export.
+                        </p>
+                      </div>
+
+                    <DatePicker
+                        label="Start Date"
+                        value={exportStartDate}
+                        onChange={(date) => {
+                          if (!date) {
+                            setExportStartDate(null);
+                            return;
+                          }
+
+                          const normalizedDate = startOfDay(date);
+                          const today = startOfDay(new Date());
+
+                          if (normalizedDate > today) {
+                            return;
+                          }
+
+                          setExportStartDate(normalizedDate);
+
+                          if (
+                            exportEndDate &&
+                            normalizedDate > startOfDay(exportEndDate)
+                          ) {
+                            setExportEndDate(normalizedDate);
+                          }
+                        }}
+                        maxDate={
+                          exportEndDate
+                            ? startOfDay(exportEndDate)
+                            : startOfDay(new Date())
+                        }
+                        disabled={isExporting}
+                        isDark={isDark}
+                        disablePortal
+                        format="MM/dd/yyyy"
+                        sx={{ height: "42px" }}
+                      />
+
+                      <DatePicker
+                        label="End Date"
+                        value={exportEndDate}
+                        onChange={(date) => {
+                          if (!date) {
+                            setExportEndDate(null);
+                            return;
+                          }
+
+                          const normalizedDate = startOfDay(date);
+                          const today = startOfDay(new Date());
+
+                          if (normalizedDate > today) {
+                            return;
+                          }
+
+                          if (
+                            exportStartDate &&
+                            normalizedDate < startOfDay(exportStartDate)
+                          ) {
+                            return;
+                          }
+
+                          setExportEndDate(normalizedDate);
+                        }}
+                        minDate={
+                          exportStartDate
+                            ? startOfDay(exportStartDate)
+                            : undefined
+                        }
+                        maxDate={startOfDay(new Date())}
+                        disabled={isExporting}
+                        isDark={isDark}
+                        disablePortal
+                        format="MM/dd/yyyy"
+                        sx={{ height: "42px" }}
+                      />
+
+                      {(exportStartDate || exportEndDate) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportStartDate(null);
+                            setExportEndDate(null);
+                          }}
+                          disabled={isExporting}
+                          className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                            isDark
+                              ? "text-white/70 hover:text-white"
+                              : "text-black/60 hover:text-black"
+                          }`}
+                        >
+                          Reset dates
+                        </button>
+                      )}
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isExporting}
+                          onClick={() => setIsExportOpen(false)}
+                          className={
+                            isDark
+                              ? "border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                              : "border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                          }
+                        >
+                          Cancel
+                        </Button>
+
+                        <Button
+                          type="button"
+                          disabled={isExporting}
+                          onClick={() => {
+                            void handleExportQuotes();
+                          }}
+                          className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+                        >
+                          {isExporting ? (
+                            <>
+                              <Loader2
+                                size={16}
+                                className="mr-2 animate-spin"
+                              />
+                              Exporting...
+                            </>
+                          ) : (
+                            <>
+                              <Download size={16} className="mr-2" />
+                              Download CSV
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
@@ -2096,7 +2387,7 @@ export default function QuotesDashboardPage({
                       <td colSpan={8} className="px-4 py-4 md:px-6">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                           <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
-                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + QUOTES_PER_PAGE, totalFilteredQuotes)} of {totalFilteredQuotes}
+                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + listPageLimit, totalFilteredQuotes)} of {totalFilteredQuotes}
                           </div>
 
                           <div className="flex items-center justify-between md:justify-end gap-2">
