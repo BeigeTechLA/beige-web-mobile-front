@@ -245,7 +245,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
           <div className="px-8 py-6 overflow-auto flex-1 space-y-6">
             <div className="space-y-2">
               <label className={`text-sm font-medium ml-1 ${isDark ? "text-white/60" : "text-black/60"}`}>Project Title</label>
-              <input placeholder="e.g. Cinematic Commercial Reel 2024" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClasses} />
+              <input
+                placeholder="e.g. Cinematic Commercial Reel 2024"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={inputClasses}
+                readOnly={Boolean(editItem)}
+                disabled={Boolean(editItem)}
+              />
+              {editItem && (
+                <p className={`text-xs ${isDark ? "text-white/35" : "text-black/35"}`}>
+                  Project title is locked while editing an existing saved project.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 relative">
