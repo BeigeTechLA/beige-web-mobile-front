@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 
 interface ProfileProps {
   id: string;
@@ -337,9 +338,7 @@ setPastShoots([]);
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
   // Get profile photo
-  const profilePhoto = partner.crew_member_files?.find(
-    (file: any) => file.file_type === 'profile_photo'
-  );
+  const profilePhoto = getLatestProfilePhoto(partner.crew_member_files);
   const imageUrl = profilePhoto
     ? `${S3_BASE_URL}${profilePhoto.file_path}`
     : null;

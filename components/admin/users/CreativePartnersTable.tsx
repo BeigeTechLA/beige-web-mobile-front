@@ -50,6 +50,7 @@ import {
 import { useTheme } from 'next-themes';
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -313,10 +314,8 @@ export const CreativePartnersTable = () => {
             }
             if (!displayRole) displayRole = "N/A";
 
-            // Get profile photo from crew_member_files
-            const profilePhoto = member.crew_member_files?.find(
-              (file: any) => file.file_type === 'profile_photo'
-            );
+            // Get latest active profile photo from crew_member_files
+            const profilePhoto = getLatestProfilePhoto(member.crew_member_files);
             const imageUrl = profilePhoto
               ? `${S3_PREFIX}${profilePhoto.file_path}`
               : null;

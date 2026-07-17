@@ -28,6 +28,7 @@ import { editorSkills, photographerSkills, roleOptions, videographerSkills, SOCI
 import { adminApi } from "@/lib/api";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 
 interface EditProps {
   id: string;
@@ -131,26 +132,6 @@ const mapPrimaryRoles = (primaryRole: unknown, roleName?: string | null) => {
   }
 
   return [];
-};
-
-const inferRolesFromSkills = (skills: Array<string | number>, primaryRoles: string[] = []) => {
-  const selected = new Set<string>(primaryRoles);
-  const normalizedSkills = new Set(skills.map((skill) => String(skill)));
-
-  const roleBuckets = [
-    { role: "1", values: new Set(videographerSkills.map((skill) => skill.value)) },
-    { role: "2", values: new Set(photographerSkills.map((skill) => skill.value)) },
-    { role: "3", values: new Set(editorSkills.map((skill) => skill.value)) },
-  ];
-
-  roleBuckets.forEach(({ role, values }) => {
-    const hasMatch = Array.from(normalizedSkills).some((skill) => values.has(skill));
-    if (hasMatch) {
-      selected.add(role);
-    }
-  });
-
-  return Array.from(selected);
 };
 
 export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
@@ -492,13 +473,73 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
     }));
   };
 
+  const normalizeFeaturedWorkTags = (value: unknown): string[] => {
+    const cleanTags = (tags: unknown[]) =>
+      tags
+        .map((tagItem) => String(tagItem).trim())
+        .filter(Boolean)
+        .filter((tagItem) => normalizeText(tagItem) !== "uploaded");
+
+    const parsedTags = parseMaybeJson<unknown>(value, value);
+
+    if (Array.isArray(parsedTags)) {
+      return cleanTags(parsedTags);
+    }
+
+    if (typeof parsedTags === "string" && parsedTags.trim()) {
+      return cleanTags(parsedTags.split(","));
+    }
+
+    return [];
+  };
+
+  const getFeaturedWorkGroupKey = (title: unknown, tags: string[] = []) => {
+    const normalizedTitle = normalizeText(String(title || "Recent Work").trim() || "Recent Work");
+    const normalizedTags = tags.map((tag) => normalizeText(tag)).filter(Boolean).sort().join("|");
+    return `${normalizedTitle}__${normalizedTags}`;
+  };
+
+  const getFeaturedWorkItemGroupKey = (item: FeaturedWorkItem) =>
+    getFeaturedWorkGroupKey(item.title, normalizeFeaturedWorkTags(item.tags));
+
+  const mergeFeaturedWorkProjects = (items: FeaturedWorkItem[]) => {
+    const merged = new Map<string, FeaturedWorkItem>();
+
+    items.forEach((item) => {
+      const key = getFeaturedWorkItemGroupKey(item);
+      const existing = merged.get(key);
+      const itemPreviews = Array.isArray(item.previews) ? item.previews : item.image ? [item.image] : [];
+      const itemFiles = Array.isArray(item.files) ? item.files : [];
+
+      if (!existing) {
+        merged.set(key, {
+          ...item,
+          title: String(item.title || "Recent Work").trim() || "Recent Work",
+          tags: normalizeFeaturedWorkTags(item.tags),
+          previews: itemPreviews,
+          files: itemFiles,
+        });
+        return;
+      }
+
+      merged.set(key, {
+        ...existing,
+        previews: [...(existing.previews || []), ...itemPreviews],
+        files: [...(Array.isArray(existing.files) ? existing.files : []), ...itemFiles],
+      });
+    });
+
+    return Array.from(merged.values());
+  };
+
   const handleFeaturedWorkChange = async (nextItems: FeaturedWorkItem[]) => {
     const previousItems = initialFeaturedWorkRef.current || [];
-    setData((prev) => ({ ...prev, featuredWork: nextItems }));
+    const normalizedNextItems = mergeFeaturedWorkProjects(nextItems);
+    setData((prev) => ({ ...prev, featuredWork: normalizedNextItems }));
 
     try {
       await Promise.all(
-        nextItems.map(async (item) => {
+        normalizedNextItems.map(async (item) => {
           const previousItem = previousItems.find((prevItem) => String(prevItem.id) === String(item.id));
           const currentFiles = Array.isArray(item.files) ? item.files : [];
           const previousFiles = Array.isArray(previousItem?.files) ? previousItem.files : [];
@@ -577,31 +618,21 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
     if (files.length === 0) return [];
 
     const groups = new Map<string, any[]>();
-    files.forEach((file: any, index: number) => {
+    files.forEach((file: any) => {
       const title = String(file.title || "").trim() || "Recent Work";
-      const parsedTags = parseMaybeJson<unknown>(file.tag, file.tag);
-      const tag = Array.isArray(parsedTags)
-        ? parsedTags.map((tagItem) => String(tagItem).trim()).filter(Boolean).join("|")
-        : String(parsedTags || "").trim();
-      const key = `${title}__${tag || "default"}`;
+      const key = getFeaturedWorkGroupKey(title, normalizeFeaturedWorkTags(file.tag));
       const bucket = groups.get(key) || [];
       bucket.push(file);
       groups.set(key, bucket);
     });
 
-    return Array.from(groups.entries()).map(([key, groupFiles], index) => {
-      const [titleFromKey] = key.split("__");
+    return Array.from(groups.entries()).map(([, groupFiles], index) => {
       const previews = groupFiles.map((file: any) => `${S3_BASE_URL}${file.file_path}`);
-      const parsedTags = parseMaybeJson<unknown>(groupFiles[0]?.tag, groupFiles[0]?.tag);
-      const normalizedTags = Array.isArray(parsedTags)
-        ? parsedTags.map((tag) => String(tag).trim()).filter(Boolean)
-        : typeof parsedTags === "string" && parsedTags.trim()
-          ? parsedTags.split(",").map((tag) => tag.trim()).filter(Boolean)
-          : [];
+      const normalizedTags = normalizeFeaturedWorkTags(groupFiles[0]?.tag);
       return {
-        id: String(getRecentWorkCrewFilesId(groupFiles[0]) || groupFiles[0]?.file_path || `${titleFromKey}-${index}`),
-        title: groupFiles[0]?.title || titleFromKey || `Recent Work ${index + 1}`,
-        tags: normalizedTags.length > 0 ? normalizedTags : ["Uploaded"],
+        id: String(getRecentWorkCrewFilesId(groupFiles[0]) || groupFiles[0]?.file_path || `recent-work-${index}`),
+        title: groupFiles[0]?.title || `Recent Work ${index + 1}`,
+        tags: normalizedTags,
         previews,
           files: groupFiles.map((file: any) => ({
           crewFilesId: getRecentWorkCrewFilesId(file),
@@ -642,12 +673,10 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
 
     if (filesToUpload.length === 0) return item;
 
-    const normalizedTags = Array.isArray(item.tags)
-      ? item.tags.filter((tag) => typeof tag === "string" && tag.trim() !== "")
-      : [];
+    const normalizedTags = normalizeFeaturedWorkTags(item.tags);
 
     const response = await adminApi.uploadCrewMemberProfileFiles(id, "recent_work", filesToUpload, {
-      title: item.title || "Recent Work",
+      title: String(item.title || "Recent Work").trim() || "Recent Work",
       tag: JSON.stringify(normalizedTags),
     });
 
@@ -768,7 +797,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         const payload = response?.data;
         if (!active || !payload) return;
 
-        const profilePhoto = payload.crew_member_files?.find((file: any) => file.file_type === "profile_photo");
+        const profilePhoto = getLatestProfilePhoto(payload.crew_member_files);
         const recentWorkFiles = payload.crew_member_files?.filter((file: any) => file.file_type === "recent_work") || [];
         const certificationFiles = payload.crew_member_files?.filter((file: any) => file.file_type === "certifications") || [];
         const resumeFile = payload.crew_member_files?.find((file: any) => file.file_type === "resume");
@@ -868,7 +897,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         initialFeaturedWorkRef.current = featuredGroups;
         initialPortfolioLinksRef.current = portfolioLinksPrefill;
         const primaryRoles = mapPrimaryRoles(payload.primary_role, payload.role?.role_name);
-        setSelectedRoles(inferRolesFromSkills(mappedSkills, primaryRoles));
+        setSelectedRoles(primaryRoles);
       } catch (error) {
         console.error("Failed to load crew member details:", error);
       } finally {
