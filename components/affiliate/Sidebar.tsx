@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { pushToDataLayer } from "@/lib/gtm";
-import { Button } from "../ui/button";
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -43,7 +42,6 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
 };
 
 import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission } from '@/lib/permissions';
 
 const menuItems = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard', permissionKeys: ['dashboard'] },
@@ -55,7 +53,15 @@ const menuItems = [
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['shoots'] },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['quotes'] },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['shoots'] },
-  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances', permissionKeys: ['invoices'] },
+  {
+    name: 'Finances',
+    icon: DollarSign,
+    permissionKeys: ['invoices'],
+    children: [
+      { name: 'Beige Credit Points', link: '/affiliate/finances' },
+      { name: 'Transactions', link: '/affiliate/finances/transactions' },
+    ],
+  },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['settings'] },
 ];
 
@@ -72,14 +78,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const { permissions, permissionsVersion } = useAppSelector((state) => ({
-    permissions: state.auth.permissions,
+  const { permissionsVersion } = useAppSelector((state) => ({
     permissionsVersion: state.auth.permissionsVersion,
   }));
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (pathname.startsWith("/affiliate/finances")) {
+      setExpanded((prev) => (prev.includes("Finances") ? prev : [...prev, "Finances"]));
+    }
+  }, [pathname]);
 
   const isDark = !mounted || theme === "dark";
 
