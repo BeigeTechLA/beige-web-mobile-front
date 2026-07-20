@@ -26,6 +26,10 @@ import DisputeDetailsModal, {
   type DisputeDetailsRecord,
 } from "@/components/admin/finances/DisputeDetailsModal";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import ResolveDisputeModal from "@/components/admin/finances/ResolveDisputeModal";
+import ConfirmResolutionModal from "@/components/admin/finances/ConfirmResolutionModal";
+import ResolutionSuccessfulModal from "@/components/admin/finances/ResolutionSuccessfulModal";
+import ProcessingResolutionModal from "@/components/admin/finances/ProcessingResolutionModal";
 
 const disputeItems: DisputeHistoryItem[] = [
   {
@@ -176,6 +180,11 @@ export default function AdminDisputesPage() {
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
 
+  // Resolution modal states
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -357,6 +366,55 @@ export default function AdminDisputesPage() {
         isOpen={!!selectedDispute}
         onClose={() => setSelectedDispute(null)}
         dispute={selectedDispute}
+        onOpenResolve={() => {
+          setResolveModalOpen(true)
+          setSelectedDispute(null)
+        }}
+      />
+
+      <ResolveDisputeModal
+        open={resolveModalOpen}
+        handleResolvePayment={() => {
+          setConfirmResolveOpen(true)
+          setResolveModalOpen(false)
+        }}
+      />
+
+      <ConfirmResolutionModal
+        open={confirmResolveOpen}
+        isDark={isDark}
+        // isSubmitting={isSubmitting}
+        disputeData={{
+          resolutionType: "manual", // Options: "auto" | "credits" | "manual"
+          disputeId: "DIS-001",
+          recipient: "Client",
+          amount: "$5,000",
+          creditAmount: "454 credits",
+          paymentMethod: "UPI",
+          transactionId: "TXN-2026-458921"
+        }}
+        onClose={() => setConfirmResolveOpen(false)}
+        onConfirm={() => {
+          console.log("Handle function called here");
+        }}
+      />
+
+      <ResolutionSuccessfulModal
+        open={isSuccessOpen}
+        isDark={isDark}
+        disputeData={{
+          paymentType: "auto", // Render layouts dynamically: "auto" | "credits" | "manual"
+          disputeId: "DIS-001",
+          status: "Resolved - Paid",
+          amount: "$5,000",
+          creditAmount: "500 Points"
+        }}
+        onClose={() => setIsSuccessOpen(false)}
+      />
+
+      <ProcessingResolutionModal
+        open={isProcessing}
+        isDark={true}
       />
     </>
   );
