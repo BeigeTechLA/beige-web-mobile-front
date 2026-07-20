@@ -419,6 +419,16 @@ export const salesApi = createApi({
       {
         booking_id: number;
         crew_roles: Record<string, number>;
+        shoot_type?: string;
+        booking_type?: "single_day" | "multi_day";
+        start_date?: string;
+        start_time?: string;
+        end_time?: string;
+        time_zone?: string;
+        duration_hours?: number;
+        edits_needed?: boolean;
+        video_edit_types?: string[];
+        photo_edit_types?: string[];
         location?: string;           // Added
         location_latitude?: number;
         location_longitude?: number;

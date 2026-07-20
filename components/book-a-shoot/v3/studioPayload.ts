@@ -120,7 +120,7 @@ export const buildStudioFinalizePayload = (data: BookingDataV3) => {
   return {
     studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
     studio_items: selectedStudios.map((studio) =>
-      buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, false),
+      buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, true),
     ),
     start_date_time:
       primaryStudio?.selectedDate && primaryStudio?.startTime
