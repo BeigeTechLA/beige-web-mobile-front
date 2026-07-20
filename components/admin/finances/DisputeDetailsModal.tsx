@@ -46,6 +46,7 @@ interface DisputeDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   dispute: DisputeDetailsRecord | null;
+  onOpenResolve: () => void;
 }
 
 const timelineStyles: Record<
@@ -113,6 +114,7 @@ export default function DisputeDetailsModal({
   isOpen,
   onClose,
   dispute,
+  onOpenResolve
 }: DisputeDetailsModalProps) {
   const { isDark } = useResolvedTheme();
 
@@ -255,6 +257,7 @@ export default function DisputeDetailsModal({
         <div className="grid grid-cols-2 gap-2 border-t border-white/10 p-5 lg:grid-cols-3 lg:px-6">
           <button
             type="button"
+             onClick={() => onOpenResolve()}
             className="col-span-2 lg:col-span-1 flex justify-center gap-2 items-center rounded-lg bg-[#10B981] px-3 py-3 text-xs font-medium text-white transition-colors hover:bg-[#1fb48b]"
           >
             <CircleCheckBig size={16} className="shrink-0" />

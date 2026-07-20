@@ -14,6 +14,7 @@ interface TabsSwitcherProps<T extends string> {
   onChange: (tab: T) => void;
   className?: string;
   buttonSize?: string;
+  textCenter?: boolean;
 }
 
 export function TabsSwitcher<T extends string>({
@@ -21,7 +22,8 @@ export function TabsSwitcher<T extends string>({
   activeTab,
   onChange,
   className = "",
-  buttonSize = "regular"
+  buttonSize = "regular",
+  textCenter = false
 }: TabsSwitcherProps<T>) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -49,7 +51,8 @@ export function TabsSwitcher<T extends string>({
           <button
             key={tab.value}
             onClick={() => onChange(tab.value)}
-            className={`flex-1 px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium ${buttonLength} transition-all duration-300 ${isActive
+            type="button"
+            className={`flex-1 px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium ${textCenter ? "text-center" : ""} ${buttonLength} transition-all duration-300 ${isActive
               ? (isDark
                 ? "bg-[#E5D5B8] text-black shadow-lg"
                 : "bg-[#E8D1AB] text-black shadow-sm")
