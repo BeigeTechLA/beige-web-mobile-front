@@ -801,7 +801,7 @@ export interface SalesLeadUpdateBookingScheduleResponse {
 }
 
 export type AdminShootUpdateDateLocationSingleDayPayload = {
-  location: string;
+  location?: string;
   latitude?: number | null;
   longitude?: number | null;
   booking_type: "single_day";
@@ -812,7 +812,7 @@ export type AdminShootUpdateDateLocationSingleDayPayload = {
 };
 
 export type AdminShootUpdateDateLocationMultiDayPayload = {
-  location: string;
+  location?: string;
   latitude?: number | null;
   longitude?: number | null;
   booking_type: "multi_day";
@@ -824,9 +824,18 @@ export type AdminShootUpdateDateLocationMultiDayPayload = {
   }>;
 };
 
+export type AdminShootUpdateDateLocationTbdPayload = {
+  location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  booking_type: "tbd";
+  time_zone: string;
+};
+
 export type AdminShootUpdateDateLocationPayload =
   | AdminShootUpdateDateLocationSingleDayPayload
-  | AdminShootUpdateDateLocationMultiDayPayload;
+  | AdminShootUpdateDateLocationMultiDayPayload
+  | AdminShootUpdateDateLocationTbdPayload;
 
 export interface AdminShootUpdateDateLocationResponse {
   success: boolean;

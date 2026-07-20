@@ -1292,7 +1292,7 @@ setPastShoots([]);
               </div>
             </div>
 
-            {!hideActions && (
+            {/* {!hideActions && (
               <button
                 onClick={() => {
                   void handleGenerateLink();
@@ -1311,7 +1311,7 @@ setPastShoots([]);
                 )}
                 <span>{isGeneratingLink ? "Generating..." : "Generate Link"}</span>
               </button>
-            )}
+            )} */}
           </div>
         </div>
       )}
