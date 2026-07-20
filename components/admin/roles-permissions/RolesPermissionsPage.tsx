@@ -402,7 +402,7 @@ export function RolesPermissionsPage({
             onClick={() => router.push("/admin/internal-credentials")}
             disabled={!canCreateUser}
             title={canCreateUser ? "Add New User" : "Create permission not allowed"}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             Add New User
           </Button>
