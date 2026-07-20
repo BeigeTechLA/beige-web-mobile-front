@@ -192,10 +192,8 @@ export const pricingApi = createApi({
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
-        creator_ids?: number[];
         booking_id?: number;
         bookingId?: number;
-        role_counts?: Record<string, number>;
         notes?: string;
         studio_total?: number;
         studio_items?: StudioQuoteItem[];

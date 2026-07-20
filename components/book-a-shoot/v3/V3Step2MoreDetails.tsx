@@ -361,6 +361,16 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       const payload: {
         booking_id: number;
         crew_roles: Record<string, number>;
+        shoot_type?: string;
+        booking_type?: "single_day" | "multi_day";
+        start_date?: string;
+        start_time?: string;
+        end_time?: string;
+        time_zone?: string;
+        duration_hours?: number;
+        edits_needed?: boolean;
+        video_edit_types?: string[];
+        photo_edit_types?: string[];
         location?: string;
         location_latitude?: number;
         location_longitude?: number;
@@ -369,11 +379,37 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       } = {
         booking_id: data.bookingId,
         crew_roles: crewRoles,
+        shoot_type: data.shootType,
+        edits_needed: data.editsNeeded,
+        video_edit_types: data.videoEditTypes,
+        photo_edit_types: data.photoEditTypes,
         description: data.specialInstructions,
         reference_links: data.referenceLinks.filter(l => l.trim() !== ""),
       };
 
-      if (!isEditingOnly && data.location) {
+      if (data.bookingType) {
+        payload.booking_type = data.bookingType;
+      }
+      if (data.startDate) {
+        payload.start_date = data.startDate.slice(0, 10);
+        payload.start_time = data.startDate.slice(11, 16);
+      }
+      if (data.endDate) {
+        payload.end_time = data.endDate.slice(11, 16);
+      }
+      if (data.bookingType === "single_day" && data.startDate && data.endDate) {
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        const diffHours = Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+          ? undefined
+          : Math.max(0, Math.round(((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 100) / 100);
+        if (diffHours !== undefined) payload.duration_hours = diffHours;
+      }
+      if (data.startDate || data.endDate) {
+        payload.time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      }
+
+      if (data.location) {
         payload.location = data.location;
         payload.location_latitude =
           data.locationDetails?.coordinates?.lat ??

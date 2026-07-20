@@ -43,8 +43,6 @@ export interface GuestBookingData {
     duration_hours: number;
     time_zone?: string;
   }>;
-  location_latitude?: number;
-  location_longitude?: number;
   full_name?: string;
   phone?: string;
   edits_needed?: boolean;

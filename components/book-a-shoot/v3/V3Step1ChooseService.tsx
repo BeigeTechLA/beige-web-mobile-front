@@ -54,6 +54,12 @@ import { getPhotoEditSummary, getTotalDurationHours, PHOTO_EDIT_ADDON_SET_SIZE, 
 import { Input } from "@/components/ui/input";
 import StudioCard from "./components/StudioCard";
 import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
+import {
+  buildHourlyStudioSelection,
+  normalizeSelectedStudios,
+  removeSelectedStudio,
+  upsertSelectedStudio,
+} from "./studioData";
 
 interface Props {
   data: BookingDataV3;
@@ -201,6 +207,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [studioLoading, setStudioLoading] = useState(false);
 
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
+  const selectedStudios = React.useMemo(
+    () =>
+      normalizeSelectedStudios({
+        selectedStudios: data.selectedStudios,
+        selectedStudioIds: data.selectedStudioIds,
+      }),
+    [data.selectedStudios, data.selectedStudioIds],
+  );
+  const selectedStudioIds = React.useMemo(
+    () => selectedStudios.map((studio) => studio.studioId),
+    [selectedStudios],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -241,6 +259,54 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       isActive = false;
     };
   }, [bookingFor, searchQuery, visibleCount]);
+
+  const handleStudioToggle = useCallback((studio: ReturnType<typeof mapCatalogStudio>) => {
+    const existing = selectedStudios.find((item) => item.studioId === studio.slug);
+
+    if (existing) {
+      updateData({
+        selectedStudios: removeSelectedStudio(selectedStudios, studio.slug),
+        selectedStudioIds: selectedStudioIds.filter((id) => id !== studio.slug),
+      });
+      toast.success("Studio removed.");
+      return;
+    }
+
+    const fallbackDate = data.startDate
+      ? format(parseDate(data.startDate) || new Date(), "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd");
+
+    const selection = buildHourlyStudioSelection(
+      {
+        id: studio.slug,
+        name: studio.name,
+        location: studio.location,
+        image: studio.image,
+        pricingMode: "hourly",
+        priceValue: studio.price,
+        priceLabel: `$${studio.price}/Hr`,
+        pricingOptions: [],
+        beds: 0,
+        baths: 0,
+        poolType: "",
+      },
+      {
+        selectedDate: fallbackDate,
+        startTime: data.startDate ? format(parseDate(data.startDate) || new Date(), "HH:mm") : "10:30",
+        endTime: data.endDate ? format(parseDate(data.endDate) || new Date(), "HH:mm") : "14:30",
+        pricingKey: "",
+      },
+    );
+
+    updateData({
+      selectedStudios: upsertSelectedStudio(selectedStudios, selection),
+      selectedStudioIds: [...selectedStudioIds, studio.slug],
+      selectedStudioImage: studio.image,
+      selectedStudioName: studio.name,
+      isBrowsingStudios: false,
+    });
+    toast.success("Studio added.");
+  }, [data.endDate, data.startDate, selectedStudioIds, selectedStudios, updateData]);
 
   const emailRef = useRef<HTMLDivElement>(null);
   const contentTypeRef = useRef<HTMLDivElement>(null);
@@ -1638,7 +1704,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
                   {studioData.slice(0, visibleCount).map((studio, index) => (
-                    <StudioCard key={index} {...studio} />
+                    <StudioCard
+                      key={index}
+                      {...studio}
+                      isSelected={selectedStudioIds.includes(studio.slug)}
+                      onToggle={() => handleStudioToggle(studio)}
+                    />
                   ))}
                 </div>
                 <button
