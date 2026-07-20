@@ -364,7 +364,18 @@ const normalizeExternalLinkUrl = (rawUrl?: string): string => {
       parsed.hostname === "127.0.0.1" ||
       parsed.hostname === "::1";
 
-    if (!isLocalHost) return rawUrl;
+    if (!isLocalHost) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.protocol === "https:" &&
+        parsed.protocol === "http:"
+      ) {
+        parsed.protocol = "https:";
+        return parsed.toString();
+      }
+
+      return rawUrl;
+    }
 
     const origin = getApiOriginForExternalLinks();
     if (!origin) return rawUrl;
@@ -1301,6 +1312,24 @@ export const fileManagerApi = {
     const response = await apiClient.getInstance().post(
       `external-file-manager/share/${shareToken}/files-uploaded/batch`,
       payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedFileViewUrlsBatch(
+    shareToken: string,
+    accessToken: string,
+    filepaths: string[],
+    options?: { phase?: string; path?: string }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/view-urls`,
+      {
+        filepaths,
+        phase: options?.phase,
+        path: options?.path,
+      },
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;

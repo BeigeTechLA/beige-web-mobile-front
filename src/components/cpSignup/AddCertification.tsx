@@ -10,7 +10,7 @@ const MAX_CERTS = 10;
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
+const AddCertification = ({ value = [], onChange, bg = "bg-card", onUploadFiles, onDeleteItem }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -66,7 +66,16 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
       });
 
       const newCerts = await Promise.all(uploadPromises);
-      onChange([...value, ...newCerts]);
+      if (onUploadFiles) {
+        const uploadedCerts = await onUploadFiles(newCerts, filesToProcess);
+        if (Array.isArray(uploadedCerts) && uploadedCerts.length > 0) {
+          onChange([...value, ...uploadedCerts]);
+        } else {
+          onChange([...value, ...newCerts]);
+        }
+      } else {
+        onChange([...value, ...newCerts]);
+      }
       toast.success(`${newCerts.length} file(s) uploaded successfully!`);
 
     } catch (error) {
@@ -76,8 +85,16 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
     }
   };
 
-  const removeCert = (id: string) => {
-    const updated = value.filter((c) => c.id !== id);
+  const removeCert = async (cert: any) => {
+    try {
+      await onDeleteItem?.(cert);
+    } catch (error) {
+      console.error("Failed to delete certification:", error);
+      toast.error("Failed to remove certification.");
+      return;
+    }
+
+    const updated = value.filter((c) => c.id !== cert.id);
     onChange(updated);
     toast.info("Certification removed");
   };
@@ -166,7 +183,7 @@ const AddCertification = ({ value = [], onChange, bg = "bg-card" }) => {
 
               <button
                 type="button"
-                onClick={() => removeCert(cert.id)}
+                onClick={() => removeCert(cert)}
                 className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500 transition-colors"
               >
                 <Trash2 size={18} />

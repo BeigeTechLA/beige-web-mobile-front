@@ -1243,21 +1243,16 @@ export default function QuoteDetailsPage({
     : 0;
   const discountAmount = Math.min(rawDiscountAmount, subtotal);
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
-  const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
-  const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
-  const taxAmount = quote
-    ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
-    : 0;
-  const amountAfterTax = quote
-    ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
-    : 0;
-  const finalTotal = quote
-    ? getQuoteNumber(
-      quote.final_total,
-      quote.total_amount,
-      quote.amount_after_discount
-    ) ?? amountAfterTax
-    : 0;
+  // Tax is hidden from quote details for now.
+  // const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
+  // const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
+  // const taxAmount = quote
+  //   ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
+  //   : 0;
+  // const amountAfterTax = quote
+  //   ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
+  //   : 0;
+  const finalTotal = discountedSubtotal;
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
@@ -2778,7 +2773,7 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel={canEditSelectedVersion ? "Edit Tax & Discounts" : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Discounts" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("discounts") : undefined}
               isDark={isDark}
             >
@@ -2794,6 +2789,7 @@ export default function QuoteDetailsPage({
                   >
                     Discounts
                   </button>
+                  {/*
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
@@ -2804,6 +2800,7 @@ export default function QuoteDetailsPage({
                   >
                     Tax
                   </button>
+                  */}
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
@@ -2855,6 +2852,7 @@ export default function QuoteDetailsPage({
                     />
                   </div>
                 ) : (
+                  /* Tax details hidden while tax is disabled.
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
                     <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
@@ -2862,6 +2860,8 @@ export default function QuoteDetailsPage({
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                   </div>
+                  */
+                  null
                 )}
 
                 <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">

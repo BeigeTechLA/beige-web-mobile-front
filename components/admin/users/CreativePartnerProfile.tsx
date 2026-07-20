@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 
 interface ProfileProps {
   id: string;
@@ -107,6 +108,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [upcomingShoots, setUpcomingShoots] = useState<any[]>([]);
   const [pendingProjects, setPendingProjects] = useState<any[]>([]);
   const [shootTab, setShootTab] = useState<"current" | "past">("current");
+  const [shootSearchQuery, setShootSearchQuery] = useState("");
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
   const [pastShoots, setPastShoots] = useState<any[]>([]);  const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
@@ -336,9 +338,7 @@ setPastShoots([]);
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
   // Get profile photo
-  const profilePhoto = partner.crew_member_files?.find(
-    (file: any) => file.file_type === 'profile_photo'
-  );
+  const profilePhoto = getLatestProfilePhoto(partner.crew_member_files);
   const imageUrl = profilePhoto
     ? `${S3_BASE_URL}${profilePhoto.file_path}`
     : null;
@@ -573,6 +573,28 @@ setPastShoots([]);
         : "bg-gray-200 text-gray-600";
   }
   };
+  const normalizedShootSearchQuery = shootSearchQuery.trim().toLowerCase();
+  const filteredAssignedProjects = normalizedShootSearchQuery
+    ? assignedProjects.filter((shoot) => {
+        const projectId = shoot.project_id || shoot.stream_project_booking_id;
+        const searchableText = [
+          projectId ? `#${projectId}` : "",
+          projectId,
+          shoot.project_name,
+          formatShootType(shoot.shoot_type || shoot.event_type),
+          shoot.event_date,
+          formatShootDate(shoot.event_date),
+          formatAssignmentStatus(shoot.assignment_status),
+          formatAssignmentStatus(shoot.assigned_status),
+          shoot.crew_accept,
+        ]
+          .filter((value) => value !== null && value !== undefined)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedShootSearchQuery);
+      })
+    : assignedProjects;
 
   return (
     <div className="space-y-3 lg:space-y-6">
@@ -580,31 +602,45 @@ setPastShoots([]);
       {!hideActions && (
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push("/admin/users/creative-partners")}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
 
-          <button
-            onClick={() => {
-              void handleGenerateLink();
-            }}
-            disabled={isGeneratingLink}
-            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
-              isDark
-                ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
-                : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
-            }`}
-          >
-            {isGeneratingLink ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <LinkIcon size={16} />
-            )}
-            <span>{isGeneratingLink ? "Generating..." : "Copy Profile Link"}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/admin/users/creative-partners/${id}/edit`)}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+                isDark
+                  ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+              }`}
+            >
+              <span>Edit Profile</span>
+            </button>
+
+            <button
+              onClick={() => {
+                void handleGenerateLink();
+              }}
+              disabled={isGeneratingLink}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
+                isDark
+                  ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
+                  : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
+              }`}
+            >
+              {isGeneratingLink ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <LinkIcon size={16} />
+              )}
+              <span>{isGeneratingLink ? "Generating..." : "Copy Profile Link"}</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1289,7 +1325,7 @@ setPastShoots([]);
               : "border-gray-200 bg-white shadow-sm"
           }`}>
                 <div
-          className={`flex items-center gap-2 border-b px-4 py-4 ${
+          className={`flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-center lg:justify-between ${
             isDark ? "border-[#333]" : "border-gray-200"
           }`}
         >
@@ -1332,6 +1368,31 @@ setPastShoots([]);
               Past Shoots
             </button>
           </div>
+          <div
+            className={`relative w-full rounded-xl border transition-colors lg:max-w-[320px] ${
+              isDark
+                ? "border-[#333333] bg-[#171717]"
+                : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <Search
+              size={16}
+              className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${
+                isDark ? "text-[#777]" : "text-gray-400"
+              }`}
+            />
+            <input
+              type="search"
+              value={shootSearchQuery}
+              onChange={(event) => setShootSearchQuery(event.target.value)}
+              placeholder="Search shoots"
+              className={`h-12 w-full rounded-xl bg-transparent pl-10 pr-4 text-sm outline-none transition-colors ${
+                isDark
+                  ? "text-white placeholder:text-[#777]"
+                  : "text-black placeholder:text-gray-400"
+              }`}
+            />
+          </div>
         </div>
           {shootsLoading ? (
            <div className="flex items-center justify-center py-20">
@@ -1347,6 +1408,14 @@ setPastShoots([]);
               }`}
             >
               No shoots assigned to this creative partner.
+            </div>
+          ) : filteredAssignedProjects.length === 0 ? (
+            <div
+              className={`px-6 py-12 text-center ${
+                isDark ? "text-[#888]" : "text-gray-500"
+              }`}
+            >
+              No shoots match your search.
             </div>
           ) : (
             <>
@@ -1384,7 +1453,7 @@ setPastShoots([]);
                   </thead>
 
                   <tbody>
-                    {assignedProjects.map((shoot, index) => {
+                    {filteredAssignedProjects.map((shoot, index) => {
                       const projectId =
                         shoot.project_id ||
                         shoot.stream_project_booking_id;
@@ -1467,7 +1536,7 @@ setPastShoots([]);
 
               {/* Mobile View */}
               <div className="space-y-3 p-3 lg:hidden">
-                {assignedProjects.map((shoot, index) => {
+                {filteredAssignedProjects.map((shoot, index) => {
                   const projectId =
                     shoot.project_id ||
                     shoot.stream_project_booking_id;

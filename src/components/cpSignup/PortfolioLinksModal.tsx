@@ -23,15 +23,19 @@ export default function PortfolioLinksModal({
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
+  const [draftLinks, setDraftLinks] = useState<any[]>(Array.isArray(links) ? links : []);
 
   useEffect(() => {
-    if (!open) {
-      setScreen("list");
-      setSelectedPlatform(null);
-      setLinkUrl("");
-      setEditId(null);
+    if (open) {
+      setDraftLinks(Array.isArray(links) ? links : []);
+      return;
     }
-  }, [open]);
+
+    setScreen("list");
+    setSelectedPlatform(null);
+    setLinkUrl("");
+    setEditId(null);
+  }, [open, links]);
 
   const handlePlatformSelect = (platformId: string) => {
     setSelectedPlatform(platformId);
@@ -60,18 +64,18 @@ export default function PortfolioLinksModal({
     if (!platformData) return;
     const autoName = platformData.label;
 
-    let updated = [...links];
+    let updated = [...draftLinks];
     if (screen === "edit") {
       updated = updated.map((i) => i.id === editId ? { ...i, platform: selectedPlatform, url: linkUrl, name: autoName } : i);
     } else {
       updated.push({ id: Date.now(), platform: selectedPlatform, url: linkUrl.trim(), name: autoName });
     }
-    onChange(updated);
+    setDraftLinks(updated);
     setScreen("list");
   };
 
   const deleteLink = (id: number) => {
-    onChange(links.filter((l: any) => l.id !== id));
+    setDraftLinks((prev) => prev.filter((l: any) => l.id !== id));
   };
 
   return (
@@ -159,7 +163,7 @@ export default function PortfolioLinksModal({
           {screen === "list" && (
             <>
               <div className="space-y-3 max-h-[260px] overflow-auto pr-2">
-                {links.map((item) => {
+                {draftLinks.map((item) => {
                   const platform = PORTFOLIO_ICONS.find((i) => i.id === item.platform);
                   return (
                     <div
@@ -213,7 +217,7 @@ export default function PortfolioLinksModal({
                   Close
                 </Button>
                 <Button
-                  onClick={() => { onChange(links); onClose(); }}
+                  onClick={() => { onChange(draftLinks); onClose(); }}
                   className={`rounded-full px-6 font-bold ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]" : "bg-[#cbb38b] text-white hover:bg-[#bfa57c]"}`}
                 >
                   Save Changes

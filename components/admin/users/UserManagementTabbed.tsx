@@ -5,6 +5,7 @@ import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Lo
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import { useTheme } from 'next-themes';
 import {
     Select,
@@ -336,7 +337,7 @@ export const UserManagementTabbed = () => {
                     const items = Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []);
                     const mapped = items.map((member: RawCrewMember) => {
                         const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
-                        const profilePhoto = member.crew_member_files?.find((file) => file.file_type === 'profile_photo');
+                        const profilePhoto = getLatestProfilePhoto(member.crew_member_files);
                         return {
                             id: `#${member.crew_member_id || member.id}`,
                             name: fullName,

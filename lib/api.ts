@@ -1518,7 +1518,7 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
 
     // 2. Append metadata
     if (metadata.title) formData.append("title", metadata.title);
-    if (metadata.tag) formData.append("tag", metadata.tag);
+    if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
 
     const response = await api.post(`creator/profile/files/${fileType}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -2194,6 +2194,122 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch crew member details',
+      };
+    }
+  },
+  updateCrewMemberProfile: async (id: string | number, payload: Record<string, unknown>) => {
+    try {
+      const response = await api.put(`admin/crew-member/${id}/profile`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Crew Member Profile Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update crew member profile',
+      };
+    }
+  },
+  updateCrewMemberProfilePhoto: async (id: string | number, file: File | Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append("files[]", file, file instanceof File ? file.name : "profile-photo.jpg");
+
+      const response = await api.post(`admin/crew-member/${id}/profile/files/profile_photo`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Update Crew Member Profile Photo Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to update crew member profile photo",
+      };
+    }
+  },
+  deleteCrewMemberProfileFile: async (id: string | number, crewFilesId: string | number, payload: Record<string, unknown> = {}) => {
+    try {
+      const response = await api.delete(`admin/crew-member/${id}/profile-file/${crewFilesId}`, {
+        data: payload,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Delete Crew Member Profile File Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to delete crew member profile file",
+      };
+    }
+  },
+  uploadCrewMemberProfileFiles: async (
+    id: string | number,
+    fileType:
+      | "resume"
+      | "certifications"
+      | "certificates"
+      | "portfolio"
+      | "recent_work"
+      | "featured_work"
+      | "featurework"
+      | "feature_work",
+    files: File | File[],
+    metadata: { title?: string; tag?: string } = {}
+  ) => {
+    try {
+      const formData = new FormData();
+      if (Array.isArray(files)) {
+        files.forEach((file) => formData.append("files[]", file));
+      } else {
+        formData.append("files[]", files);
+      }
+
+      if (metadata.title) formData.append("title", metadata.title);
+      if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
+
+      const response = await api.post(`admin/crew-member/${id}/profile/files/${fileType}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Upload Crew Member Profile Files Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || `Failed to upload crew member ${fileType}`,
+      };
+    }
+  },
+  addCrewMemberPortfolioLinks: async (id: string | number, portfolioLinks: Array<{ url: string; title: string; platform: string }>) => {
+    try {
+      const response = await api.post(`admin/crew-member/${id}/profile/portfolio-links`, {
+        portfolio_links: portfolioLinks,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Add Crew Member Portfolio Links Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to add portfolio links",
+      };
+    }
+  },
+  updateCrewMemberPortfolioLink: async (
+    id: string | number,
+    crewFileId: string | number,
+    payload: { url: string; title: string; platform: string }
+  ) => {
+    try {
+      const response = await api.put(`admin/crew-member/${id}/profile/portfolio-links/${crewFileId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error("Update Crew Member Portfolio Link Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to update portfolio link",
       };
     }
   },
