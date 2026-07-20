@@ -364,7 +364,18 @@ const normalizeExternalLinkUrl = (rawUrl?: string): string => {
       parsed.hostname === "127.0.0.1" ||
       parsed.hostname === "::1";
 
-    if (!isLocalHost) return rawUrl;
+    if (!isLocalHost) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.protocol === "https:" &&
+        parsed.protocol === "http:"
+      ) {
+        parsed.protocol = "https:";
+        return parsed.toString();
+      }
+
+      return rawUrl;
+    }
 
     const origin = getApiOriginForExternalLinks();
     if (!origin) return rawUrl;
