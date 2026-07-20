@@ -324,87 +324,87 @@ const StudioCard = ({
           selected ? "border-[#E8D1AB] ring-1 ring-[#E8D1AB]" : "border-white/10"
         }`}
       > */}
-        <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
-          <Image
-            src={studio.image}
-            alt={studio.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+      <button type="button" onClick={onSelect} className="relative h-[210px] w-full overflow-hidden rounded-t-[24px]">
+        <Image
+          src={studio.image}
+          alt={studio.name}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
 
-          <div className="absolute bottom-0 left-4 rounded-t-xl bg-white px-3 py-1.5 z-10">
-            <span className="text-[13px] font-extrabold text-black">
-              {getStudioStartingPriceLabel(studio)}
-            </span>
+        <div className="absolute bottom-0 left-4 rounded-t-xl bg-white px-3 py-1.5 z-10">
+          <span className="text-[13px] font-extrabold text-black">
+            {getStudioStartingPriceLabel(studio)}
+          </span>
+        </div>
+
+        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">
+          <div className="h-2 w-2 rounded-full bg-[#14C573] shadow-[0_0_8px_#14C573]" />
+          <span className="text-[10px] font-bold text-white">Available</span>
+        </div>
+
+        {studio.rating && (
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md">
+            <Star size={13} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+            {studio.rating}
           </div>
+        )}
+      </button>
 
-          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">
-            <div className="h-2 w-2 rounded-full bg-[#14C573] shadow-[0_0_8px_#14C573]" />
-            <span className="text-[10px] font-bold text-white">Available</span>
+      <div className="flex flex-1 flex-col gap-3.5 p-5">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="text-[17px] font-bold leading-snug text-white group-hover:text-[#E8D1AB] transition-colors">
+              {studio.name}
+            </h3>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40">
+              <MapPin size={12} />
+              <span>Los Angeles, California</span>
+            </div>
           </div>
-
-          {studio.rating && (
-            <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-white backdrop-blur-md">
-              <Star size={13} className="fill-[#E8D1AB] text-[#E8D1AB]" />
-              {studio.rating}
+          {selected && (
+            <div className="flex items-center gap-1 rounded-full bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20 px-2 py-1 text-[10px] font-bold ">
+              <Check size={10} strokeWidth={3} /> Added
             </div>
           )}
-        </button>
-
-        <div className="flex flex-1 flex-col gap-3.5 p-5">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-[17px] font-bold leading-snug text-white group-hover:text-[#E8D1AB] transition-colors">
-                {studio.name}
-              </h3>
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/40">
-                <MapPin size={12} />
-                <span>Los Angeles, California</span>
-              </div>
-            </div>
-            {selected && (
-              <div className="flex items-center gap-1 rounded-full bg-[#F0FFF4] text-[#22C55E] border-[#22C55E]/20 px-2 py-1 text-[10px] font-bold ">
-                <Check size={10} strokeWidth={3} /> Added
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2 py-3 border-y border-white/5">
-            {(studio.bestFor || []).slice(0, 2).map((item) => (
-              <span key={item} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-white/50">
-                {item}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-auto flex items-center gap-2 pt-2">
-            {selected ? (
-              <button
-                type="button"
-                onClick={onSelect}
-                className="flex flex-1 items-center justify-center gap-2 h-11 rounded-xl bg-[#FF4444]/10 text-[#FF4444] border border-[#FF4444]/20 text-sm font-bold hover:bg-[#FF4444]/20 transition-colors"
-              >
-                <X size={16} /> Remove
-              </button>
-            ) : (
-              <Button
-                type="button"
-                onClick={onSelect}
-                className="h-11 flex-1 rounded-xl bg-[#E8D1AB] text-black text-sm font-bold hover:bg-[#dcb98a]"
-              >
-                Select Studio
-              </Button>
-            )}
-
-            <Link
-              href={`/studios/${studio.id}`}
-              target="_blank"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-            >
-              <MoveUpRight size={18} />
-            </Link>
-          </div>
         </div>
+
+        <div className="flex flex-wrap gap-2 py-3 border-y border-white/5">
+          {(studio.bestFor || []).slice(0, 2).map((item) => (
+            <span key={item} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-white/50">
+              {item}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-auto flex items-center gap-2 pt-2">
+          {selected ? (
+            <button
+              type="button"
+              onClick={onSelect}
+              className="flex flex-1 items-center justify-center gap-2 h-11 rounded-xl bg-[#FF4444]/10 text-[#FF4444] border border-[#FF4444]/20 text-sm font-bold hover:bg-[#FF4444]/20 transition-colors"
+            >
+              <X size={16} /> Remove
+            </button>
+          ) : (
+            <Button
+              type="button"
+              onClick={onSelect}
+              className="h-11 flex-1 rounded-xl bg-[#E8D1AB] text-black text-sm font-bold hover:bg-[#dcb98a]"
+            >
+              Select Studio
+            </Button>
+          )}
+
+          <Link
+            href={`/studios/${studio.id}`}
+            target="_blank"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+          >
+            <MoveUpRight size={18} />
+          </Link>
+        </div>
+      </div>
       {/* </motion.div> */}
     </div>
   );
@@ -441,6 +441,13 @@ const BookStudioDetailsStep = ({
   const isDraggingReel = useRef(false);
   const didDragReel = useRef(false);
   const suppressChipClickUntil = useRef(0);
+
+  const emailRef = useRef<HTMLDivElement>(null);
+  const studioRef = useRef<HTMLDivElement>(null);
+  const bookingTypeRef = useRef<HTMLDivElement>(null);
+  const dateTimeRef = useRef<HTMLDivElement>(null);
+  const purposeRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
 
   const timeOptions = useMemo(() => buildTimeOptions(), []);
   const selectedStudios = normalizeSelectedStudios(data);
@@ -620,6 +627,7 @@ const BookStudioDetailsStep = ({
       setExpandedDateKey(null);
       updateData({ bookingType: "single_day", bookingDays: [] });
       syncSingleDay(nextDate, startTime, endTime);
+      scrollToRef(dateTimeRef);
       return;
     }
 
@@ -629,6 +637,7 @@ const BookStudioDetailsStep = ({
     setMultiDayTimes(nextTimes);
     updateData({ bookingType: "multi_day" });
     syncMultiDay(nextDates, true, startTime, endTime, nextTimes);
+    scrollToRef(dateTimeRef);
   };
 
   const handleDateChange = (date: Date | null) => {
@@ -653,6 +662,7 @@ const BookStudioDetailsStep = ({
       return;
     }
     syncSingleDay(selectedDate, startTime, value);
+    scrollToRef(purposeRef);
   };
 
   const toggleDateSelection = (date: Date) => {
@@ -742,6 +752,10 @@ const BookStudioDetailsStep = ({
       }];
 
     applyStudioSelection(studio, nextPricingKey, nextBookingDays);
+
+    if (studio) {
+      scrollToRef(bookingTypeRef);
+    }
   };
 
   const handlePricingOptionChange = (nextPricingKey: string) => {
@@ -776,6 +790,7 @@ const BookStudioDetailsStep = ({
     }
 
     applyStudioSelection(selectedStudio, nextPricingKey, schedule);
+    scrollToRef(navigationRef);
   };
 
   useEffect(() => {
@@ -804,6 +819,22 @@ const BookStudioDetailsStep = ({
     (selectedPricing ? selectedPricing.hourlyRate * billableHours + (selectedPricing.cleaningFee || 0) : 0)
     : 0;
 
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    setTimeout(() => {
+      if (ref && ref.current) {
+        const navOffset = 100;
+
+        const elementPosition = ref.current.getBoundingClientRect().top + window.scrollY;
+        const offsetPosition = elementPosition - navOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    }, 100);
+  };
+
   return (
     <div className="flex w-full flex-col gap-8 animate-in fade-in duration-500">
       <div className="text-center">
@@ -811,7 +842,7 @@ const BookStudioDetailsStep = ({
         <p className="mt-3 text-sm text-white/60 lg:text-lg">Choose your studio, date, time, and whether you need creators on set.</p>
       </div>
 
-      <div className="border-t border-white/10 pt-6 lg:pt-15">
+      <div ref={emailRef} className="border-t border-white/10 pt-6 lg:pt-15">
         <h2 className="mb-3 text-base font-medium text-white/90 lg:mb-6 lg:text-xl">
           Email Address <span className="text-[#E8D1AB]">*</span>
         </h2>
@@ -819,12 +850,21 @@ const BookStudioDetailsStep = ({
           type="email"
           value={data.email}
           onChange={(event) => updateData({ email: event.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (emailRegex.test(data.email)) {
+                scrollToRef(studioRef);
+                (e.target as HTMLInputElement).blur(); // Remove focus
+              }
+            }
+          }}
           placeholder="your@email.com"
           className="h-14 w-full rounded-2xl border border-white/10 bg-[#101010] px-4 text-white placeholder:text-white/40 transition-colors focus:border-[#E8D1AB] focus:outline-none lg:h-[82px] lg:px-6"
         />
       </div>
 
-      <div className="border-t border-white/10 pt-8">
+      <div ref={studioRef} className="border-t border-white/10 pt-8">
         <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-white lg:text-2xl">Select Studio</h2>
@@ -852,8 +892,7 @@ const BookStudioDetailsStep = ({
         </div>
       </div>
 
-
-      <div className="border-t border-white/10 pt-8">
+      <div ref={bookingTypeRef} className="border-t border-white/10 pt-8">
         <h2 className="mb-3 text-base font-medium text-white/90 lg:mb-6 lg:text-xl">Select Booking Type</h2>
         <div className="flex gap-4 overflow-x-auto pb-1">
           {[
@@ -879,7 +918,7 @@ const BookStudioDetailsStep = ({
         </div>
       </div>
 
-      <div className="border-t border-white/10 pt-8">
+      <div ref={dateTimeRef} className="border-t border-white/10 pt-8">
         {data.bookingType === "single_day" ? (
           <>
             <h2 className="mb-6 text-base font-medium text-white/90 lg:text-xl">Shoot Date & Time</h2>
@@ -1197,7 +1236,7 @@ const BookStudioDetailsStep = ({
       </div>
 
       {selectedStudio && selectedStudio.pricingOptions && selectedStudio.pricingOptions.length > 0 && (
-        <div className="border-t border-white/10 pt-8">
+        <div ref={purposeRef} className="border-t border-white/10 pt-8">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-white lg:text-2xl">What are you booking the studio for?</h2>
             <p className="mt-1 text-sm text-white/50">
@@ -1278,7 +1317,7 @@ const BookStudioDetailsStep = ({
         </div>
       </div>
 
-      <div className="flex gap-3 border-t border-white/10 pt-8">
+      <div ref={navigationRef} className="flex gap-3 border-t border-white/10 pt-8">
         <Button
           type="button"
           onClick={onSaveAndConfirm}

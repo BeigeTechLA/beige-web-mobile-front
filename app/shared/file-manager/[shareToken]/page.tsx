@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { fileManagerApi } from "@/lib/fileManagerApi";
@@ -34,10 +34,13 @@ type SharedContent = {
   type?: "file" | "folder" | "workspace";
   phase?: string;
   path?: string;
+  basePath?: string;
   folders?: SharedFolder[];
   files?: SharedFile[];
   file?: SharedFile;
 };
+
+const FILES_PAGE_SIZE = 9;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -66,6 +69,19 @@ const getFileExt = (name?: string) => {
   const parts = (name || "").toLowerCase().split(".");
   return parts.length > 1 ? parts.pop() || "" : "";
 };
+
+const isVideoLikeFile = (file?: { name?: string; contentType?: string }) => {
+  const name = String(file?.name || "").toLowerCase();
+  const ct = String(file?.contentType || "").toLowerCase();
+  return ct.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
+};
+
+const normalizeSharedPath = (value?: string) =>
+  String(value || "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\/+/g, "/")
+    .trim();
 
 const getFileMeta = (contentType?: string, name?: string) => {
   const ext = getFileExt(name);
@@ -150,16 +166,44 @@ function OtpDigitInput({ value, onChange, length = 6 }: { value: string; onChang
   );
 }
 
-function Thumbnail({ file, getFileThumbnail }: { file: SharedFile; getFileThumbnail: (file: SharedFile) => Promise<string> }) {
-  const [url, setUrl] = useState<string>("");
+function Thumbnail({ file, url }: { file: SharedFile; url?: string }) {
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    let active = true;
-    void getFileThumbnail(file).then((r) => { if (active) setUrl(r || ""); });
-    return () => { active = false; };
-  }, [file, getFileThumbnail]);
+    setLoaded(false);
+  }, [url]);
+
   if (!url) return <div className="flex h-full w-full items-center justify-center"><FileText className="h-5 w-5 text-white/40" /></div>;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={file.name || "thumbnail"} className="h-full w-full object-cover" />;
+  if (isVideoLikeFile(file)) {
+    return (
+      <div className="relative h-full w-full bg-[#0A0A0A]">
+        {!loaded && <div className="absolute inset-0 bg-white/[0.03]" />}
+        <video
+          src={url}
+          muted
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setLoaded(true)}
+          onLoadedMetadata={() => setLoaded(true)}
+          className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="relative h-full w-full bg-[#0A0A0A]">
+      {!loaded && <div className="absolute inset-0 bg-white/[0.03]" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={file.name || "thumbnail"}
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+        onLoad={() => setLoaded(true)}
+        className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </div>
+  );
 }
 
 export default function SharedFileManagerPage() {
@@ -181,6 +225,11 @@ export default function SharedFileManagerPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [unavailableMessage, setUnavailableMessage] = useState("");
+  const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
+  const thumbnailUrlCacheRef = useRef<Record<string, string>>({});
+  const thumbnailRequestKeysRef = useRef<Set<string>>(new Set());
+  const thumbnailFailedKeysRef = useRef<Set<string>>(new Set());
 
   const handleUnavailableError = (error: unknown) => {
     if (!isSharedResourceUnavailable(error)) return false;
@@ -191,8 +240,18 @@ export default function SharedFileManagerPage() {
     return true;
   };
 
+  const showFileAccessError = (error: unknown, fallback: string) => {
+    if (isSharedResourceUnavailable(error)) {
+      toast.error("This file is not available in the shared folder anymore.");
+      return;
+    }
+    toast.error(getErrorMessage(error, fallback));
+  };
+
   const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
   const files = useMemo(() => (Array.isArray(content?.files) ? (content.files as SharedFile[]) : []), [content]);
+  const visibleFiles = useMemo(() => files.slice(0, visibleFileCount), [files, visibleFileCount]);
+  const hasMoreFiles = visibleFileCount < files.length;
   const selectionLockActive = selectedFilePaths.length > 0;
 
   const breadcrumbs = useMemo(() => {
@@ -231,7 +290,29 @@ export default function SharedFileManagerPage() {
     setCurrentPhase(payload?.phase || options?.phase);
     setCurrentPath(payload?.path || options?.path);
     setSelectedFilePaths([]);
+    setVisibleFileCount(FILES_PAGE_SIZE);
   };
+
+  const resolveFilePath = useCallback((fileOrPath?: SharedFile | string) => {
+    const rawPath = typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path;
+    const normalizedPath = normalizeSharedPath(rawPath);
+    if (!normalizedPath) return "";
+    if (normalizedPath.includes("/")) return normalizedPath;
+
+    const basePath = normalizeSharedPath(content?.basePath);
+    if (basePath) return `${basePath}/${normalizedPath}`;
+
+    const currentBase = normalizeSharedPath(currentPath);
+    if (currentBase) return `${currentBase}/${normalizedPath}`;
+
+    return normalizedPath;
+  }, [content?.basePath, currentPath]);
+
+  const getThumbnailCacheKey = useCallback((file: SharedFile) => {
+    const resolvedFilepath = resolveFilePath(file);
+    if (!resolvedFilepath) return "";
+    return [shareToken, accessToken, currentPhase || "", currentPath || "", resolvedFilepath].join("::");
+  }, [accessToken, currentPath, currentPhase, resolveFilePath, shareToken]);
 
   const requestOtp = async () => {
     try {
@@ -287,27 +368,30 @@ export default function SharedFileManagerPage() {
   };
 
   const downloadFile = async (filepath?: string) => {
-    if (!accessToken || !filepath) return;
+    const resolvedFilepath = resolveFilePath(filepath);
+    if (!accessToken || !resolvedFilepath) return;
     try {
       const result = await fileManagerApi.getSharedFileDownloadUrl(
         shareToken,
         accessToken,
-        filepath,
+        resolvedFilepath,
         { phase: currentPhase, path: currentPath }
       );
       if (result?.data?.url) {
         window.open(result.data.url, "_blank", "noopener,noreferrer");
       }
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to get download link"));
+      showFileAccessError(error, "Failed to get download link");
     }
   };
 
   const downloadBlobInPage = async (filepath: string, fileName: string) => {
+    const resolvedFilepath = resolveFilePath(filepath);
+    if (!resolvedFilepath) throw new Error("Download path missing");
     const result = await fileManagerApi.getSharedFileDownloadUrl(
       shareToken,
       accessToken,
-      filepath,
+      resolvedFilepath,
       { phase: currentPhase, path: currentPath }
     );
     const url = result?.data?.url;
@@ -344,20 +428,21 @@ export default function SharedFileManagerPage() {
       setSelectedFilePaths([]);
       toast.success(`Downloaded ${selectedFilePaths.length} file(s)`);
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to download selected files"));
+      showFileAccessError(error, "Failed to download selected files");
     } finally {
       setBulkDownloading(false);
     }
   };
 
   const openPreview = async (file: SharedFile) => {
-    if (!file?.path) return;
+    const resolvedFilepath = resolveFilePath(file);
+    if (!resolvedFilepath) return;
     try {
       setPreviewLoading(true);
       const result = await fileManagerApi.getSharedFileViewUrl(
         shareToken,
         accessToken,
-        file.path,
+        resolvedFilepath,
         { phase: currentPhase, path: currentPath }
       );
       const url = result?.data?.url;
@@ -368,7 +453,7 @@ export default function SharedFileManagerPage() {
         contentType: file.contentType,
       });
     } catch (error: unknown) {
-      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open preview"));
+      showFileAccessError(error, "Failed to open preview");
     } finally {
       setPreviewLoading(false);
     }
@@ -381,9 +466,7 @@ export default function SharedFileManagerPage() {
   };
 
   const isPreviewVideo = (file?: { name?: string; contentType?: string }) => {
-    const name = String(file?.name || "").toLowerCase();
-    const ct = String(file?.contentType || "").toLowerCase();
-    return ct.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(name);
+    return isVideoLikeFile(file);
   };
 
   const isPreviewPdf = (file?: { name?: string; contentType?: string }) => {
@@ -392,19 +475,82 @@ export default function SharedFileManagerPage() {
     return ct === "application/pdf" || /\.pdf$/i.test(name);
   };
 
-  const getFileThumbnail = async (file: SharedFile) => {
-    if (!file?.path) return "";
-    try {
-      const response = await fileManagerApi.getSharedFileViewUrl(
-        shareToken,
-        accessToken,
-        file.path,
-        { phase: currentPhase, path: currentPath }
+  useEffect(() => {
+    thumbnailUrlCacheRef.current = {};
+    thumbnailRequestKeysRef.current = new Set();
+    thumbnailFailedKeysRef.current = new Set();
+    setThumbnailUrls({});
+  }, [accessToken]);
+
+  useEffect(() => {
+    let active = true;
+    const missingItems = visibleFiles
+      .filter((file) => isPreviewImage(file) || isPreviewVideo(file))
+      .map((file) => {
+        const filepath = resolveFilePath(file);
+        const cacheKey = getThumbnailCacheKey(file);
+        return { filepath, cacheKey };
+      })
+      .filter(({ filepath, cacheKey }) =>
+        filepath &&
+        cacheKey &&
+        !thumbnailUrls[cacheKey] &&
+        !thumbnailUrlCacheRef.current[cacheKey] &&
+        !thumbnailRequestKeysRef.current.has(cacheKey) &&
+        !thumbnailFailedKeysRef.current.has(cacheKey)
       );
-      return response?.data?.url || "";
-    } catch {
-      return "";
+
+    if (!missingItems.length) {
+      return () => {
+        active = false;
+      };
     }
+
+    missingItems.forEach(({ cacheKey }) => thumbnailRequestKeysRef.current.add(cacheKey));
+
+    void fileManagerApi.getSharedFileViewUrlsBatch(
+      shareToken,
+      accessToken,
+      missingItems.map((item) => item.filepath),
+      { phase: currentPhase, path: currentPath }
+    ).then((response) => {
+      if (!active) return;
+      const itemsByPath = new Map(missingItems.map((item) => [normalizeSharedPath(item.filepath), item.cacheKey]));
+      const nextUrls: Record<string, string> = {};
+
+      (response?.data?.files || []).forEach((item: { filepath?: string; success?: boolean; data?: { url?: string } }) => {
+        const cacheKey = itemsByPath.get(normalizeSharedPath(item.filepath));
+        if (!cacheKey) return;
+        if (item.success && item.data?.url) {
+          thumbnailUrlCacheRef.current[cacheKey] = item.data.url;
+          nextUrls[cacheKey] = item.data.url;
+        } else {
+          thumbnailFailedKeysRef.current.add(cacheKey);
+        }
+      });
+
+      if (Object.keys(nextUrls).length) {
+        setThumbnailUrls((prev) => ({ ...prev, ...nextUrls }));
+      }
+    }).catch(() => {
+      missingItems.forEach(({ cacheKey }) => thumbnailFailedKeysRef.current.add(cacheKey));
+    }).finally(() => {
+      missingItems.forEach(({ cacheKey }) => thumbnailRequestKeysRef.current.delete(cacheKey));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken, currentPath, currentPhase, getThumbnailCacheKey, resolveFilePath, shareToken, thumbnailUrls, visibleFiles]);
+
+  const showMoreFiles = () => {
+    setVisibleFileCount((count) => Math.min(count + FILES_PAGE_SIZE, files.length));
+  };
+
+  const getVisibleFileStatus = () => {
+    if (!files.length) return "";
+    const shown = Math.min(visibleFileCount, files.length);
+    return `Showing ${shown} of ${files.length} files`;
   };
 
   const openFolder = async (folder: SharedFolder) => {
@@ -425,6 +571,27 @@ export default function SharedFileManagerPage() {
       await loadContent(accessToken, { phase: currentPhase, path: nextPath });
     } catch (error: unknown) {
       if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to open folder"));
+    }
+  };
+
+  const goBackOneLevel = async () => {
+    if (!accessToken || selectionLockActive) return;
+    try {
+      if (currentPath) {
+        const parentPath = currentPath
+          .split("/")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .slice(0, -1)
+          .join("/");
+        await loadContent(accessToken, { phase: currentPhase, path: parentPath || undefined });
+        return;
+      }
+      if (currentPhase) {
+        await loadContent(accessToken);
+      }
+    } catch (error: unknown) {
+      if (!handleUnavailableError(error)) toast.error(getErrorMessage(error, "Failed to go back"));
     }
   };
 
@@ -678,6 +845,16 @@ export default function SharedFileManagerPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {(currentPhase || currentPath) && (
                   <button
+                    type="button"
+                    onClick={goBackOneLevel}
+                    disabled={selectionLockActive}
+                    className="flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white/70 transition-all hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                )}
+                {(currentPhase || currentPath) && (
+                  <button
                     onClick={() => {
                       if (selectionLockActive) return;
                       loadContent(accessToken);
@@ -782,15 +959,22 @@ export default function SharedFileManagerPage() {
 
                 {/* Files */}
                 <div>
-                  <h3 className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-white/35">
-                    <FileText size={13} /> Files
-                  </h3>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-white/35">
+                      <FileText size={13} /> Files
+                    </h3>
+                    {files.length > FILES_PAGE_SIZE && (
+                      <span className="text-xs text-white/35">{getVisibleFileStatus()}</span>
+                    )}
+                  </div>
                   {files.length ? (
+                    <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {files.map((file, fi) => {
+                      {visibleFiles.map((file, fi) => {
                         const meta = getFileMeta(file.contentType, file.name);
                         const Icon = meta.icon;
                         const selected = selectedFilePaths.includes(String(file.path || ""));
+                        const thumbnailUrl = thumbnailUrls[getThumbnailCacheKey(file)] || "";
                         return (
                           <motion.div
                             key={file.path || file.name}
@@ -825,7 +1009,7 @@ export default function SharedFileManagerPage() {
                               className="relative aspect-[16/10] w-full overflow-hidden bg-[#0A0A0A] disabled:cursor-not-allowed"
                             >
                               {(isPreviewImage(file) || isPreviewVideo(file)) ? (
-                                <Thumbnail file={file} getFileThumbnail={getFileThumbnail} />
+                                <Thumbnail file={file} url={thumbnailUrl} />
                               ) : (
                                 <div className="flex h-full w-full flex-col items-center justify-center gap-2">
                                   <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${meta.badge}`}>
@@ -881,6 +1065,21 @@ export default function SharedFileManagerPage() {
                         );
                       })}
                     </div>
+                    {hasMoreFiles && (
+                      <div className="mt-5 flex justify-center">
+                        <Button
+                          type="button"
+                          onClick={showMoreFiles}
+                          className="h-11 rounded-xl border border-white/10 bg-white/[0.03] px-5 text-sm font-semibold text-white/70 transition-all hover:bg-white/[0.07] hover:text-white"
+                        >
+                          View more files
+                          <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/50">
+                            +{Math.min(FILES_PAGE_SIZE, files.length - visibleFileCount)}
+                          </span>
+                        </Button>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] px-4 py-8 text-center text-sm text-white/30">
                       No files found in this location.

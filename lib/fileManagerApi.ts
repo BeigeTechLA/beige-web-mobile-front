@@ -1149,6 +1149,24 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async getSharedFileViewUrlsBatch(
+    shareToken: string,
+    accessToken: string,
+    filepaths: string[],
+    options?: { phase?: string; path?: string }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/view-urls`,
+      {
+        filepaths,
+        phase: options?.phase,
+        path: options?.path,
+      },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
   async getComments(fileMetaId: string) {
     return apiClient.get<FileCommentItem[]>("comments", { metaId: fileMetaId });
   },
