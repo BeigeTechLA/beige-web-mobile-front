@@ -58,35 +58,41 @@ export function UpdateRoleModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={`max-w-[500px] overflow-hidden rounded-[32px] p-0 [&>button]:hidden ${
-        isDark
-          ? "border-white/10 bg-[#0A0A0A] text-white"
-          : "border-[#E3E3E3] bg-white text-[#101010]"
-      }`}>
-        <DialogHeader className="px-10 pt-10 pb-6 text-left relative">
-           <DialogTitle className={`text-[32px] font-bold ${isDark ? "text-white" : "text-[#101010]"}`}>
+      {/* 
+        Fixed layout positioning breakdown:
+        Explicitly forced layout defaults to override centering primitives on mobile viewports.
+      */}
+      <DialogContent className={`fixed flex flex-col md:grid !gap-0 top-auto bottom-0 left-0 right-0 translate-x-0 translate-y-0 max-w-full md:max-w-xl overflow-hidden rounded-t-4xl rounded-b-0 md:rounded-4xl p-0 [&>button]:hidden md:bottom-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95 ${isDark
+          ? "border-t border-x border-white/40 md:border bg-black text-white"
+          : "border-t border-x border-[#E3E3E3] md:border bg-white text-[#101010]"
+        }`}>
+
+        {/* Mobile Top Drag Indicator Handle Bar */}
+        <div className="flex w-full justify-center pt-1 md:hidden">
+          <div className={`h-1.5 w-16 rounded-full ${isDark ? "bg-white/25" : "bg-black/15"}`} />
+        </div>
+
+        <DialogHeader className="flex !flex-row items-center justify-between px-4 py-7 md:p-7 text-left relative">
+          <DialogTitle className={`text-xl lg:text-3xl font-bold ${isDark ? "text-white" : "text-[#101010]"}`}>
             {title}
           </DialogTitle>
           <button
             onClick={onClose}
-            className={`absolute right-8 top-10 rounded-full p-3 transition-colors ${
-              isDark ? "bg-white/5 text-white/60 hover:text-white" : "bg-black/5 text-[#32323299] hover:text-[#101010]"
-            }`}
+            className={`rounded-full p-3 transition-colors ${isDark ? "bg-white/5 text-white/60 hover:text-white" : "bg-black/5 text-[#32323299] hover:text-[#101010]"}`}
           >
             <X size={24} />
           </button>
-          <div className={`mt-6 h-px w-full ${isDark ? "bg-white/10" : "bg-[#E3E3E3]"}`} />
         </DialogHeader>
 
-        <div className="px-10 pb-10">
-          <div className="space-y-10">
+        <div className={`px-4 py-10 lg:p-8 lg:pt-9 border-t ${isDark ? "border-[#CACACA]" : "border-[#E3E3E3]"}`}>
+          <div className="space-y-5 lg:space-y-8">
             {mode === "assign" ? (
               <div className="relative">
-                <label className={`absolute -top-2.5 left-4 z-10 px-2 text-[13px] font-medium ${isDark ? "bg-[#0A0A0A] text-white/40" : "bg-white text-[#32323299]"}`}>
+                <label className={`absolute -top-3 left-4 z-10 px-2 text-sm lg:text-base font-medium transition-colors ${isDark ? "bg-black text-white/50" : "bg-white text-black/60"}`}>
                   Select Roles
                 </label>
                 <Select value={selectedRole || undefined} onValueChange={setSelectedRole}>
-                  <SelectTrigger className={`h-[72px] rounded-[20px] px-6 text-[18px] focus:ring-0 focus:ring-offset-0 ${isDark ? "border-white/10 bg-transparent text-white" : "border-[#E3E3E3] bg-white text-[#101010]"}`}>
+                  <SelectTrigger className={`h-[82px] rounded-xl text-left ${isDark ? "text-white border-white/50 bg-black" : "text-black border-black/20 bg-[#fff]"}`}>
                     <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
                   <SelectContent className={isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#E3E3E3] bg-white text-[#101010]"}>
@@ -107,7 +113,7 @@ export function UpdateRoleModal({
                   <input
                     value={editedRoleName}
                     onChange={(event) => setEditedRoleName(event.target.value)}
-                    className={`h-[72px] w-full rounded-[20px] border px-6 text-[18px] outline-none ${isDark ? "border-white/10 bg-transparent text-white focus:border-[#E5D5B8]/50" : "border-[#E3E3E3] bg-white text-[#101010] focus:border-[#C9A96E]/50"}`}
+                    className={`h-[72px] w-full rounded-xl border px-6 text-lg outline-none ${isDark ? "border-white/10 bg-transparent text-white focus:border-[#E5D5B8]/50" : "border-[#E3E3E3] bg-white text-[#101010] focus:border-[#C9A96E]/50"}`}
                     placeholder="Enter role name"
                   />
                 </div>
@@ -119,7 +125,7 @@ export function UpdateRoleModal({
                   <textarea
                     value={editedDescription}
                     onChange={(event) => setEditedDescription(event.target.value)}
-                    className={`min-h-[150px] w-full rounded-[20px] border px-6 py-5 text-[16px] outline-none ${isDark ? "border-white/10 bg-transparent text-white focus:border-[#E5D5B8]/50" : "border-[#E3E3E3] bg-white text-[#101010] focus:border-[#C9A96E]/50"}`}
+                    className={`min-h-[150px] w-full rounded-xl border px-6 py-5 text-base outline-none ${isDark ? "border-white/10 bg-transparent text-white focus:border-[#E5D5B8]/50" : "border-[#E3E3E3] bg-white text-[#101010] focus:border-[#C9A96E]/50"}`}
                     placeholder="Describe this role"
                   />
                 </div>
@@ -137,11 +143,10 @@ export function UpdateRoleModal({
                   description: mode === "assign" ? "" : editedDescription,
                 })
               }
-              className={`h-[72px] w-full rounded-[20px] text-[20px] font-bold transition-all active:scale-[0.98] ${
-                isDark
+              className={`h-12 px-7 w-full lg:w-fit rounded-lg text-sm font-semibold transition-all ${isDark
                   ? "bg-[#E5D5B8] text-black hover:bg-[#d6c29b]"
                   : "bg-[#E5D5B8] text-[#101010] hover:bg-[#d6c29b]"
-              }`}
+                }`}
             >
               Save & Update
             </button>
