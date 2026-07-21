@@ -131,6 +131,18 @@ const isMeetingGapStatusFilter = (value: string) =>
 const isFileGapStatusFilter = (value: string) =>
   value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
 
+type PaymentFilter = "all" | "pending" | "paid";
+
+const isPaymentFilter = (value: string): value is PaymentFilter =>
+  value === "all" || value === "pending" || value === "paid";
+
+const matchesPaymentFilter = (shoot: ShootRecord, paymentFilter: PaymentFilter) => {
+  if (paymentFilter === "all") return true;
+  if (paymentFilter === "pending") return shoot.rawPending > 0;
+
+  return shoot.rawPending <= 0 && shoot.rawPaid > 0;
+};
+
 const normalizeStatusKey = (value: string) =>
   String(value || "")
     .toLowerCase()
@@ -239,6 +251,8 @@ interface ShootsTableProps {
   setCategoryFilter: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  paymentFilter?: PaymentFilter;
+  setPaymentFilter?: (v: PaymentFilter) => void;
   productionFilter?: string;
   setProductionFilter?: (v: string) => void;
   range: string;
@@ -262,6 +276,8 @@ export const ShootsTable = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
+  paymentFilter,
+  setPaymentFilter,
   productionFilter = "all",
   setProductionFilter,
   range,
@@ -312,10 +328,13 @@ export const ShootsTable = ({
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [internalPaymentFilter, setInternalPaymentFilter] = useState<PaymentFilter>("all");
   const activeViewMode = viewMode ?? internalViewMode;
   const setActiveViewMode = setViewMode ?? setInternalViewMode;
   const activeCpAssignmentFilter = cpAssignmentFilter ?? internalCpAssignmentFilter;
   const setActiveCpAssignmentFilter = setCpAssignmentFilter ?? setInternalCpAssignmentFilter;
+  const activePaymentFilter = paymentFilter ?? internalPaymentFilter;
+  const setActivePaymentFilter = setPaymentFilter ?? setInternalPaymentFilter;
   const shouldRenderHeaderControls = showHeaderControls && (showHeaderFilters || showViewToggle);
 
   // --- SORTING STATE ---
@@ -478,6 +497,10 @@ export const ShootsTable = ({
     }
     setCurrentPage(1);
   }, [debouncedSearchQuery, filtersReady]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activePaymentFilter]);
 
   useEffect(() => {
     if (!hasRestoredCurrentPage) return;
@@ -708,6 +731,7 @@ export const ShootsTable = ({
         shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
         (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
       if (!matchesSearch) return false;
+      if (!matchesPaymentFilter(shoot, activePaymentFilter)) return false;
 
       if (statusFilter === "all") return true;
 
@@ -762,7 +786,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds, range]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, activePaymentFilter, meetingGapBookingIds, range]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -1092,6 +1116,23 @@ export const ShootsTable = ({
                           {option.label}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={activePaymentFilter}
+                    onValueChange={(v) => {
+                      if (!isPaymentFilter(v)) return;
+                      setActivePaymentFilter(v);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>

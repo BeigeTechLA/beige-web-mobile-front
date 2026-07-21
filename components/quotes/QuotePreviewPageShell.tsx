@@ -307,6 +307,47 @@ const buildQuoteStatePatch = (value: unknown): Partial<SalesQuoteDetailData> => 
 
 const hasQuoteStatePatch = (patch: Partial<SalesQuoteDetailData>) => Object.keys(patch).length > 0;
 
+const mergeQuoteBookingSchedule = (
+  ...quotes: Array<SalesQuoteDetailData | null | undefined>
+): SalesQuoteDetailData => {
+  const merged: SalesQuoteDetailData = {};
+  const mergedBookingDetails: Record<string, unknown> = {};
+
+  quotes.forEach((quote) => {
+    if (!quote || typeof quote !== "object") {
+      return;
+    }
+
+    Object.assign(merged, quote);
+
+    const bookingDetails = asRecord(quote.converted_booking_details);
+    const source = bookingDetails ?? asRecord(quote);
+    if (!source) {
+      return;
+    }
+
+    ["booking_type", "time_zone", "start_date", "start_time", "end_time", "location"].forEach((key) => {
+      const value = source[key];
+      if (typeof value === "string" && value.trim()) {
+        mergedBookingDetails[key] = value;
+      }
+    });
+
+    if (Array.isArray(source.booking_days) && source.booking_days.length > 0) {
+      mergedBookingDetails.booking_days = source.booking_days;
+    }
+  });
+
+  if (Object.keys(mergedBookingDetails).length > 0) {
+    merged.converted_booking_details = {
+      ...(asRecord(merged.converted_booking_details) || {}),
+      ...mergedBookingDetails,
+    } as SalesQuoteDetailData["converted_booking_details"];
+  }
+
+  return merged;
+};
+
 const resolveLatestPreviewLink = (value: unknown) => {
   const latestUrl = findFirstStringField(value, [
     "latest_preview_url",
@@ -604,7 +645,7 @@ export default function QuotePreviewPageShell({
             if (fullResponse?.success !== false && fullResponse?.data) {
               const unwrappedFull = unwrapSalesQuoteDetail(fullResponse.data);
               if (unwrappedFull) {
-                finalQuoteDetail = unwrappedFull;
+                finalQuoteDetail = mergeQuoteBookingSchedule(initialQuoteDetail, unwrappedFull);
               }
             }
           } catch (fullErr) {
@@ -749,22 +790,14 @@ export default function QuotePreviewPageShell({
               return current;
             }
 
-            return {
-              ...current,
-              ...publicQuote,
-              ...authenticatedQuote,
-              ...publicPatch,
-              ...authenticatedPatch,
-              ...signaturePatch,
-              converted_booking_details: {
-                ...(current.converted_booking_details || {}),
-                ...(publicQuote?.converted_booking_details || {}),
-                ...(authenticatedQuote?.converted_booking_details || {}),
-                ...(publicPatch.converted_booking_details || {}),
-                ...(authenticatedPatch.converted_booking_details || {}),
-                ...(signaturePatch.converted_booking_details || {}),
-              },
-            };
+            return mergeQuoteBookingSchedule(
+              current,
+              publicQuote,
+              authenticatedQuote,
+              publicPatch as SalesQuoteDetailData,
+              authenticatedPatch as SalesQuoteDetailData,
+              signaturePatch as SalesQuoteDetailData,
+            );
           });
         }
       } catch (error) {

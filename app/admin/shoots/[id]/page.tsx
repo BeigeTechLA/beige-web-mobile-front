@@ -17,7 +17,7 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download, MessageCirclePlus } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
@@ -28,6 +28,7 @@ import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
+import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 
 type SkillOption = {
   id?: number | string;
@@ -45,6 +46,16 @@ type ProjectDetails = {
   start_time?: string;
   end_time?: string;
   event_start_time?: string;
+  event_end_time?: string;
+  booking_type?: string | null;
+  time_zone?: string | null;
+  booking_days?: Array<{
+    date?: string | null;
+    event_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    time_zone?: string | null;
+  }> | null;
   total_paid_amount?: string | number;
   total_value_amount?: string | number;
   converted_quote_amount?: string | number;
@@ -65,6 +76,7 @@ type ProjectDetails = {
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
   payment_history?: PaymentHistoryItem[];
+  notes_count?: string | number | null;
   [key: string]: unknown;
 };
 
@@ -182,6 +194,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -201,6 +214,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
   const convertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const notesCount = Number(project?.notes_count || 0);
+  const notesButtonText = notesCount > 0 ? `Notes (${notesCount})` : "Notes";
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
     : [];
@@ -225,6 +240,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     setPendingAssignmentAction(null);
     action?.();
   };
+
+  const handleNotesCountChange = useCallback((shootId: string, count: number) => {
+    void shootId;
+    setProject((previousProject) =>
+      previousProject ? { ...previousProject, notes_count: count } : previousProject
+    );
+  }, []);
 
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
@@ -525,6 +547,18 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               </Button>
             ) : null}
             <Button
+              type="button"
+              onClick={() => setIsNotesDrawerOpen(true)}
+              variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                }`}
+            >
+              <MessageCirclePlus className="w-4 h-4" />
+              {notesButtonText}
+            </Button>
+            <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
               disabled={!canEdit}
@@ -587,6 +621,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             missingFields={missingFields}
             hasFormDetails={hasFormDetails}
             onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
+            onScheduleUpdated={() => fetchProjectAndSkills(false)}
           />
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
@@ -800,6 +835,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               <Eye size={18} /> Preview Quote
             </Button>
           ) : null}
+          <Button
+            onClick={() => setIsNotesDrawerOpen(true)}
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+          >
+            <MessageCirclePlus size={18} /> {notesButtonText}
+          </Button>
           <div className="flex gap-2 w-full">
             <Button
               onClick={handleDelete}
@@ -836,6 +877,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           quote={quotePreviewData}
           quoteId={convertedSalesQuoteId}
           isLoading={isLoadingQuotePreview}
+        />
+        <NotesDrawer
+          isOpen={isNotesDrawerOpen}
+          onClose={() => setIsNotesDrawerOpen(false)}
+          shootId={String(bookingId || id)}
+          isDark={isDark}
+          onNotesCountChange={handleNotesCountChange}
         />
       </div>
     </>

@@ -136,11 +136,11 @@ export default function MeetingsStructure({
                 : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"
                 }`}>
                 {/* Defined exact explicit widths on the table headers */}
-                <th className="p-5 font-medium w-[30%]">Meeting</th>
-                <th className="p-5 font-medium w-[22%]">Date & Time</th>
-                <th className="p-5 font-medium text-center w-[15%]">Participants</th>
-                <th className="p-5 font-medium text-center w-[12%]">Status</th>
-                <th className="p-5 font-medium text-right w-[21%]">Actions</th>
+                <th className="p-5 font-medium w-[27%]">Meeting</th>
+                <th className="p-5 font-medium w-[18%]">Date & Time</th>
+                <th className="p-5 font-medium text-center w-[12%]">Participants</th>
+                <th className="p-5 font-medium text-center w-[11%]">Status</th>
+                <th className="p-5 font-medium text-right w-[32%]">Actions</th>
               </tr>
             </thead>
             <tbody >
@@ -237,13 +237,13 @@ export default function MeetingsStructure({
 
                     {/* COLUMN 5: Actions */}
                     <td className={`p-5 border-t text-right ${borderClass}`}>
-                      <div className="grid grid-cols-2 items-center justify-end gap-2">
+                      <div className="grid grid-cols-2 items-center justify-end gap-3">
                         {canRespond && currentResponse !== "accepted" && (
                           <Button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleRespond(meeting.id, "accepted"); }}
                             disabled={isResponding}
-                            className="bg-emerald-500 text-white hover:bg-emerald-600 text-center px-3 py-2 h-auto text-xs"
+                          className="bg-emerald-500 text-white hover:bg-emerald-600 text-center px-3 py-2 h-auto text-xs justify-center"
                           >
                             {isResponding && <RefreshCw size={12} className="animate-spin mr-1" />}
                             Accept
@@ -255,7 +255,7 @@ export default function MeetingsStructure({
                             variant="outline"
                             onClick={(e) => { e.stopPropagation(); handleRespond(meeting.id, "declined"); }}
                             disabled={isResponding}
-                            className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-center px-3 py-2 h-auto text-xs whitespace-nowrap truncate"
+                            className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-center px-3 py-2 h-auto text-xs whitespace-nowrap truncate justify-center"
                           >
                             Reject
                           </Button>
@@ -291,7 +291,7 @@ export default function MeetingsStructure({
                             e.stopPropagation();
                             setSelectedMeeting(meeting);
                           }}
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap ${
                             canOpenDetails
                               ? isDark
                                 ? "border-white/20 bg-[#202020] text-white hover:bg-[#282828]"
@@ -300,10 +300,10 @@ export default function MeetingsStructure({
                                 ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
                                 : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
                           }`}
-                        >
-                          <SquarePen className="shrink-0 w-3.5 h-3.5" />
-                          <span>{isAdminView ? "Edit/Reschedule" : "Details"}</span>
-                        </button>
+                          >
+                            <SquarePen className="shrink-0 w-3.5 h-3.5" />
+                            <span>{isAdminView ? "Edit/Reschedule" : "Details"}</span>
+                          </button>
                         {shootLink && (
                           <Link
                             href={shootLink}

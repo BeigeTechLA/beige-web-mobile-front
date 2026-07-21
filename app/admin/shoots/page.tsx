@@ -55,6 +55,11 @@ const RANGE_FILTER_OPTIONS = new Set([
   "in_1_year",
   "custom",
 ]);
+const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
+type PaymentFilter = "all" | "pending" | "paid";
+
+const isPaymentFilter = (value: string): value is PaymentFilter =>
+  PAYMENT_FILTER_OPTIONS.has(value);
 
 export default function ShootsPage() {
   const router = useRouter()
@@ -71,6 +76,7 @@ export default function ShootsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -95,6 +101,9 @@ export default function ShootsPage() {
       if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
       if (typeof parsed.categoryFilter === "string") setCategoryFilter(parsed.categoryFilter);
       if (typeof parsed.statusFilter === "string") setStatusFilter(parsed.statusFilter);
+      if (typeof parsed.paymentFilter === "string") {
+        setPaymentFilter(isPaymentFilter(parsed.paymentFilter) ? parsed.paymentFilter : "all");
+      }
       if (typeof parsed.productionFilter === "string") setProductionFilter(parsed.productionFilter);
       if (typeof parsed.range === "string") {
         setRange(RANGE_FILTER_OPTIONS.has(parsed.range) ? parsed.range : "all");
@@ -127,6 +136,7 @@ export default function ShootsPage() {
           searchQuery,
           categoryFilter,
           statusFilter,
+          paymentFilter,
           productionFilter,
           range,
           cpAssignmentFilter,
@@ -142,6 +152,7 @@ export default function ShootsPage() {
     searchQuery,
     categoryFilter,
     statusFilter,
+    paymentFilter,
     productionFilter,
     range,
     cpAssignmentFilter,
@@ -154,6 +165,7 @@ export default function ShootsPage() {
     setSearchQuery("");
     setCategoryFilter("all");
     setStatusFilter("all");
+    setPaymentFilter("all");
     setProductionFilter("all");
     setRange("all");
     setCpAssignmentFilter("all");
@@ -389,6 +401,22 @@ export default function ShootsPage() {
                     {FILTER_STATUS_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={paymentFilter}
+                  onValueChange={(value) => {
+                    if (isPaymentFilter(value)) setPaymentFilter(value);
+                  }}
+                >
+                  <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectValue placeholder="Payment" />
+                  </SelectTrigger>
+                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -658,6 +686,8 @@ export default function ShootsPage() {
           setCategoryFilter={setCategoryFilter}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          paymentFilter={paymentFilter}
+          setPaymentFilter={setPaymentFilter}
           productionFilter={productionFilter}
           setProductionFilter={setProductionFilter}
           range={range}

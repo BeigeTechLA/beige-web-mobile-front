@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, CalendarClock, Eye, Loader2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,9 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/landing/ui/tooltip";
 
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
+import BookingDateTimeSection, {
+  type BookingScheduleData,
+} from "@/components/quotes/BookingDateTimeSection";
 
 type ShootHeaderProject = {
   payment_status?: string | null;
@@ -36,6 +39,8 @@ type ShootHeaderProject = {
   start_time?: string;
   end_time?: string;
   event_start_time?: string;
+  event_end_time?: string;
+  booking_type?: string | null;
   booking_days?: Array<{
     date?: string | null;
     event_date?: string | null;
@@ -54,6 +59,10 @@ type ShootHeaderProject = {
   city?: unknown;
   state?: unknown;
   country?: unknown;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+  location_latitude?: string | number | null;
+  location_longitude?: string | number | null;
   needs_attention?: {
     required?: boolean;
     missing_fields?: string[];
@@ -170,7 +179,127 @@ interface ShootHeaderProps {
   projectId?: string;
   convertedSalesQuoteId?: string | null;
   hasFormDetails?: boolean;
+  missingFields?: string[];
+  onOpenMissingFields?: () => void;
+  onScheduleUpdated?: () => void | Promise<void>;
 }
+
+const getBrowserTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Calcutta";
+
+const getDateInputValue = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+  const datePrefix = rawValue.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (datePrefix) return datePrefix;
+
+  const parsedDate = new Date(rawValue);
+  if (Number.isNaN(parsedDate.getTime())) return "";
+
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getTimeInputValue = (value?: string | null) => {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+
+  const match = rawValue.match(/^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s*([AaPp][Mm]))?$/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const meridiem = match[3]?.toUpperCase();
+
+    if (meridiem) {
+      if (hours === 12) {
+        hours = meridiem === "AM" ? 0 : 12;
+      } else if (meridiem === "PM") {
+        hours += 12;
+      }
+    }
+
+    if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    }
+  }
+
+  const parsedDate = new Date(rawValue);
+  if (Number.isNaN(parsedDate.getTime())) return "";
+
+  return `${String(parsedDate.getHours()).padStart(2, "0")}:${String(parsedDate.getMinutes()).padStart(2, "0")}`;
+};
+
+const getNumericValue = (...values: unknown[]) => {
+  for (const value of values) {
+    const parsedValue = Number(value);
+    if (Number.isFinite(parsedValue)) return parsedValue;
+  }
+
+  return null;
+};
+
+const buildBookingScheduleData = (project?: ShootHeaderProject): BookingScheduleData => {
+  const explicitType = String(project?.booking_type || "").trim().toLowerCase();
+  const bookingDays = Array.isArray(project?.booking_days) ? project.booking_days : [];
+  const timeZone = String(project?.time_zone || "").trim() || getBrowserTimeZone();
+
+  if (explicitType === "tbd") {
+    return {
+      booking_type: "tbd",
+      time_zone: timeZone,
+    };
+  }
+
+  const normalizedBookingDays = bookingDays
+    .map((day) => {
+      const date = getDateInputValue(day?.event_date || day?.date);
+      const startTime = getTimeInputValue(day?.start_time);
+      const endTime = getTimeInputValue(day?.end_time);
+
+      return date && startTime && endTime
+        ? {
+          date,
+          start_time: `${startTime}:00`,
+          end_time: `${endTime}:00`,
+        }
+        : null;
+    })
+    .filter((day): day is { date: string; start_time: string; end_time: string } => Boolean(day));
+
+  if (explicitType === "multi_day" || normalizedBookingDays.length > 1) {
+    return normalizedBookingDays.length > 0
+      ? {
+        booking_type: "multi_day",
+        time_zone: timeZone,
+        booking_days: normalizedBookingDays,
+      }
+      : {
+        booking_type: "tbd",
+        time_zone: timeZone,
+      };
+  }
+
+  const startDate = getDateInputValue(project?.event_date);
+  const startTime = getTimeInputValue(project?.start_time || project?.event_start_time);
+  const endTime = getTimeInputValue(project?.end_time || project?.event_end_time);
+
+  if (startDate && startTime && endTime) {
+    return {
+      booking_type: "single_day",
+      time_zone: timeZone,
+      start_date: startDate,
+      start_time: `${startTime}:00`,
+      end_time: `${endTime}:00`,
+    };
+  }
+
+  return {
+    booking_type: "tbd",
+    time_zone: timeZone,
+  };
+};
 
 export default function ShootHeader({
   activeTab = "Overview",
@@ -178,6 +307,7 @@ export default function ShootHeader({
   projectId,
   convertedSalesQuoteId = null,
   hasFormDetails = false,
+  onScheduleUpdated,
 }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -193,6 +323,9 @@ export default function ShootHeader({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [workspaceFileCount, setWorkspaceFileCount] = React.useState<number | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = React.useState(false);
+  const [scheduleDraft, setScheduleDraft] = React.useState<BookingScheduleData | null>(null);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const isConvertedBooking = !!(project?.is_quote_converted_booking || project?.converted_sales_quote_id);
@@ -364,9 +497,18 @@ export default function ShootHeader({
       isMounted = false;
     };
   }, [projectId]);
-  const projectDateText = getProjectDateText(project);
-  const projectTimeText = getProjectScheduleTimeText(project);
+  const hasScheduledDate =
+    Boolean(project?.event_date) ||
+    (Array.isArray(project?.booking_days) && project.booking_days.length > 0);
+  const projectDateText = hasScheduledDate ? getProjectDateText(project) : "TBD";
+  const projectTimeText = hasScheduledDate ? getProjectScheduleTimeText(project) : "TBD";
   const scheduleTooltipText = getProjectScheduleTooltipText(project);
+
+  useEffect(() => {
+    if (!isScheduleModalOpen) return;
+
+    setScheduleDraft(buildBookingScheduleData(project));
+  }, [isScheduleModalOpen, project]);
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
@@ -493,6 +635,71 @@ export default function ShootHeader({
     }
   };
 
+  const handleSaveSchedule = async () => {
+    if (!projectId || !canEdit) return;
+
+    if (!scheduleDraft) {
+      toast.error("Please select a booking date and time or choose TBD.");
+      return;
+    }
+
+    const locationForPayload = locationText === "No location specified" ? "" : locationText.trim();
+
+    if (scheduleDraft.booking_type !== "tbd" && !locationForPayload) {
+      toast.error("Shoot location is required before rescheduling.");
+      return;
+    }
+
+    setIsSavingSchedule(true);
+    try {
+      const timeZone = String(project?.time_zone || "").trim() || getBrowserTimeZone();
+      const locationFields = locationForPayload
+        ? {
+          location: locationForPayload,
+          latitude: getNumericValue(project?.latitude, project?.location_latitude),
+          longitude: getNumericValue(project?.longitude, project?.location_longitude),
+        }
+        : {};
+
+      const payload =
+        scheduleDraft.booking_type === "tbd"
+          ? {
+            booking_type: "tbd" as const,
+            time_zone: scheduleDraft.time_zone || timeZone,
+          }
+          : scheduleDraft.booking_type === "multi_day"
+            ? {
+              booking_type: "multi_day" as const,
+              time_zone: scheduleDraft.time_zone || timeZone,
+              ...locationFields,
+              booking_days: scheduleDraft.booking_days,
+            }
+            : {
+              booking_type: "single_day" as const,
+              time_zone: scheduleDraft.time_zone || timeZone,
+              ...locationFields,
+              start_date: scheduleDraft.start_date,
+              start_time: scheduleDraft.start_time,
+              end_time: scheduleDraft.end_time,
+            };
+
+      const response = await adminApi.updateShootDateLocation(projectId, payload);
+
+      if (response?.success === false || response?.error) {
+        throw new Error(response?.error || response?.message || "Failed to update shoot schedule");
+      }
+
+      toast.success("Shoot schedule updated");
+      setIsScheduleModalOpen(false);
+      await onScheduleUpdated?.();
+    } catch (error) {
+      console.error("Failed to update shoot schedule", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update shoot schedule");
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  };
+
   if (!mounted) return null;
 
   return (
@@ -561,6 +768,75 @@ export default function ShootHeader({
         isLoading={isDeleting}
       />
 
+      {isScheduleModalOpen ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className={`max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl border shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+            <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <div>
+                <h3 className="text-base font-semibold">Edit Shoot Schedule</h3>
+                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  Update the client&apos;s rescheduled date and time.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                disabled={isSavingSchedule}
+                className={`rounded-lg p-2 transition-colors ${isDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-black/50 hover:bg-black/5 hover:text-black"}`}
+                aria-label="Close schedule editor"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5">
+              <BookingDateTimeSection
+                key={`${projectId || "shoot"}-${isScheduleModalOpen ? "open" : "closed"}`}
+                isDark={isDark}
+                initialData={scheduleDraft}
+                onChange={setScheduleDraft}
+              />
+              <div className={`mt-5 rounded-xl px-4 py-3 text-xs leading-5 ${isDark ? "bg-white/[0.04] text-white/55" : "bg-[#F8F4EA] text-black/55"}`}>
+                {scheduleDraft?.booking_type === "tbd" ? (
+                  "Saving as TBD will remove the shoot date and time from this booking."
+                ) : (
+                  <>
+                    Location will stay as: <span className={isDark ? "text-white/80" : "text-black/75"}>{locationText}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className={`flex justify-end gap-2 border-t px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <Button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                disabled={isSavingSchedule}
+                variant="outline"
+                className={isDark ? "border-white/10 bg-transparent text-white hover:bg-white/10" : "border-[#E5E5E5] bg-white text-black hover:bg-black/5"}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveSchedule}
+                disabled={isSavingSchedule || !canEdit}
+                className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+              >
+                {isSavingSchedule ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
@@ -622,7 +898,19 @@ export default function ShootHeader({
           <div className={`hidden lg:block w-full h-px my-6 transition-colors ${isDark ? "bg-[#222222]" : "bg-[#E5E5E5]"}`} />
           <div className={`mt-4 lg:mt-0 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-10 text-sm lg:text-base ${isDark ? "text-[#AAA7A7]" : "text-[#AAA7A7] lg:text-[#747171]"}`}>
             <div className="space-y-3 min-w-0">
-              <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className={`text-xs uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>Schedule & Location</p>
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  disabled={!canEdit || !projectId}
+                  title={canEdit ? "Edit schedule" : "Edit permission not allowed"}
+                  className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${isDark ? "border-white/10 bg-white/[0.03] text-[#E8D1AB] hover:bg-white/[0.07]" : "border-[#E7D7BC] bg-[#FFFCF6] text-[#7A5A00] hover:bg-[#F6EFD9]"}`}
+                >
+                  <CalendarClock size={14} />
+                  Edit
+                </button>
+              </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Date :</span>
                 <ScheduleTooltipValue

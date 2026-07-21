@@ -73,6 +73,18 @@ export interface QuoteSummarySnapshot {
   clientEmail: string;
   clientPhone: string;
   clientAddress: string;
+  bookingSchedule?: {
+    booking_type: "single_day" | "multi_day" | "tbd";
+    time_zone: string;
+    start_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null;
   projectDescription: string;
   preProductionNotes?: string;
   preProductionFile?: {
@@ -110,6 +122,18 @@ export interface BuildQuoteSummaryInput {
   emailId: string;
   phoneNumber: string;
   address: string;
+  bookingSchedule?: {
+    booking_type: "single_day" | "multi_day" | "tbd";
+    time_zone: string;
+    start_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null;
   projectDescription: string;
   preProductionNotes?: string;
   preProductionFile?: {
@@ -477,6 +501,18 @@ export const buildQuoteSummarySnapshot = (
     clientEmail: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
     clientPhone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
     clientAddress: input.address.trim(),
+    bookingSchedule: input.bookingSchedule
+      ? {
+          booking_type: input.bookingSchedule.booking_type,
+          time_zone: input.bookingSchedule.time_zone,
+          ...(input.bookingSchedule.start_date ? { start_date: input.bookingSchedule.start_date } : {}),
+          ...(input.bookingSchedule.start_time ? { start_time: input.bookingSchedule.start_time } : {}),
+          ...(input.bookingSchedule.end_time ? { end_time: input.bookingSchedule.end_time } : {}),
+          ...(Array.isArray(input.bookingSchedule.booking_days)
+            ? { booking_days: input.bookingSchedule.booking_days }
+            : {}),
+        }
+      : null,
     projectDescription: input.projectDescription.trim(),
     preProductionNotes: input.preProductionNotes?.trim() || "",
     preProductionFile: input.preProductionFile
@@ -670,6 +706,18 @@ export const buildPreviewQuoteFromSummary = (
     client_email: snapshot.clientEmail,
     client_phone: snapshot.clientPhone,
     client_address: snapshot.clientAddress,
+    converted_booking_details: snapshot.bookingSchedule
+      ? {
+          booking_type: snapshot.bookingSchedule.booking_type,
+          time_zone: snapshot.bookingSchedule.time_zone,
+          ...(snapshot.bookingSchedule.start_date ? { start_date: snapshot.bookingSchedule.start_date } : {}),
+          ...(snapshot.bookingSchedule.start_time ? { start_time: snapshot.bookingSchedule.start_time } : {}),
+          ...(snapshot.bookingSchedule.end_time ? { end_time: snapshot.bookingSchedule.end_time } : {}),
+          ...(Array.isArray(snapshot.bookingSchedule.booking_days)
+            ? { booking_days: snapshot.bookingSchedule.booking_days }
+            : {}),
+        }
+      : null,
     project_description: snapshot.projectDescription,
     pre_production_notes: snapshot.preProductionNotes || null,
     pre_production_file_name: snapshot.preProductionFile?.name || null,

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Minus } from "lucide-react";
+import { format } from "date-fns";
 
 import type { SalesQuoteDetailData } from "@/lib/api";
 import {
@@ -78,6 +78,302 @@ const formatDuration = (value: number) => {
   }
 
   return `${value} ${value === 1 ? "Hour" : "Hours"}`;
+};
+
+type PreviewBookingDay = {
+  date?: string | null;
+  event_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+type PreviewBookingSchedule = {
+  booking_type?: string | null;
+  time_zone?: string | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  location?: string | null;
+  booking_days?: PreviewBookingDay[] | null;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return null;
+};
+
+const formatPreviewTime = (value?: string | null) => {
+  const raw = getQuoteText(value);
+  if (!raw) {
+    return "";
+  }
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (!match) {
+    return raw;
+  }
+
+  let hour = Number(match[1]);
+  const minute = match[2];
+
+  if (!Number.isFinite(hour)) {
+    return raw;
+  }
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour %= 12;
+  if (hour === 0) hour = 12;
+
+  return `${hour}:${minute} ${suffix}`;
+};
+
+const formatPreviewDate = (value?: string | null) => {
+  const raw = getQuoteText(value);
+  if (!raw) {
+    return "";
+  }
+
+  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return format(new Date(Number(year), Number(month) - 1, Number(day)), "MMMM d, yyyy");
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return raw;
+  }
+
+  return format(parsed, "MMMM d, yyyy");
+};
+
+const resolvePreviewBookingSchedule = (quoteData: SalesQuoteDetailData): PreviewBookingSchedule | null => {
+  const bookingDetails = asRecord(quoteData.converted_booking_details);
+  const source = bookingDetails ?? (quoteData as Record<string, unknown>);
+  const bookingDays = Array.isArray(source.booking_days)
+    ? (source.booking_days as PreviewBookingDay[])
+    : [];
+
+  const startDate = getQuoteText(source.start_date, bookingDays[0]?.date, bookingDays[0]?.event_date);
+  const startTime = getQuoteText(source.start_time, bookingDays[0]?.start_time);
+  const endTime = getQuoteText(source.end_time, bookingDays[0]?.end_time);
+  const location = getQuoteText(source.location, quoteData.location, quoteData.address, quoteData.client_address);
+
+  const hasAnyBookingFields =
+    Boolean(source.booking_type) ||
+    Boolean(startDate) ||
+    Boolean(startTime) ||
+    Boolean(endTime) ||
+    bookingDays.length > 0;
+
+  if (!hasAnyBookingFields) {
+    return null;
+  }
+
+  return {
+    booking_type: typeof source.booking_type === "string" ? source.booking_type : null,
+    time_zone: typeof source.time_zone === "string" ? source.time_zone : null,
+    start_date: startDate || null,
+    start_time: startTime || null,
+    end_time: endTime || null,
+    location: location || null,
+    booking_days: bookingDays.length > 0 ? bookingDays : null,
+  };
+};
+
+const formatBookingScheduleLabel = (schedule: PreviewBookingSchedule) => {
+  const bookingDays = Array.isArray(schedule.booking_days)
+    ? schedule.booking_days
+        .map((day) => ({
+          date: getQuoteText(day.date, day.event_date),
+          startTime: getQuoteText(day.start_time),
+          endTime: getQuoteText(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+
+  if (schedule.booking_type === "tbd") {
+    return "Date & time TBD";
+  }
+
+  if (schedule.booking_type === "multi_day" || bookingDays.length > 1) {
+    if (!bookingDays.length) {
+      return "Multiple days";
+    }
+
+    return bookingDays
+      .map((day) => `${formatPreviewDate(day.date)} ${formatPreviewTime(day.startTime)} - ${formatPreviewTime(day.endTime)}`)
+      .join(" • ");
+  }
+
+  const startDate = schedule.start_date || bookingDays[0]?.date;
+  const startTime = schedule.start_time || bookingDays[0]?.startTime;
+  const endTime = schedule.end_time || bookingDays[0]?.endTime;
+
+  if (!startDate || !startTime || !endTime) {
+    return "Date & time not set";
+  }
+
+  return `${formatPreviewDate(startDate)} • ${formatPreviewTime(startTime)} - ${formatPreviewTime(endTime)}`;
+};
+
+const formatPreviewShortDate = (value?: string | null) => {
+  const raw = getQuoteText(value);
+  if (!raw) return "";
+
+  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return format(new Date(Number(year), Number(month) - 1, Number(day)), "MMM d");
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  return format(parsed, "MMM d");
+};
+
+const renderBookingScheduleLabel = (schedule: PreviewBookingSchedule, isDark = true) => {
+  const bookingDays = Array.isArray(schedule.booking_days)
+    ? schedule.booking_days
+        .map((day) => ({
+          date: getQuoteText(day.date, day.event_date),
+          startTime: getQuoteText(day.start_time),
+          endTime: getQuoteText(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+
+  if (schedule.booking_type === "tbd") {
+    return "Date & time TBD";
+  }
+
+  if (schedule.booking_type === "multi_day" || bookingDays.length > 1) {
+    if (!bookingDays.length) {
+      return "Multiple days";
+    }
+
+    const allSameTime = bookingDays.every(
+      (day) =>
+        day.startTime === bookingDays[0]?.startTime &&
+        day.endTime === bookingDays[0]?.endTime
+    );
+
+    if (allSameTime) {
+      return (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>{bookingDays.map((day) => formatPreviewShortDate(day.date)).join(", ")}</span>
+          <span className={isDark ? "text-white/40" : "text-black/35"}>•</span>
+          <span className={isDark ? "text-white/75" : "text-black/70"}>
+            {`${formatPreviewTime(bookingDays[0]?.startTime)} - ${formatPreviewTime(bookingDays[0]?.endTime)}`}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {bookingDays.map((day) => (
+          <div key={`${day.date}-${day.startTime}-${day.endTime}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{formatPreviewShortDate(day.date)}</span>
+            <span className={isDark ? "text-white/40" : "text-black/35"}>â€¢</span>
+            <span className={isDark ? "text-white/75" : "text-black/70"}>
+              {`${formatPreviewTime(day.startTime)} - ${formatPreviewTime(day.endTime)}`}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const startDate = schedule.start_date || bookingDays[0]?.date;
+  const startTime = schedule.start_time || bookingDays[0]?.startTime;
+  const endTime = schedule.end_time || bookingDays[0]?.endTime;
+
+  if (!startDate || !startTime || !endTime) {
+    return "Date & time not set";
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span>{formatPreviewDate(startDate)}</span>
+      <span className={isDark ? "text-white/40" : "text-black/35"}>•</span>
+      <span>{`${formatPreviewTime(startTime)} - ${formatPreviewTime(endTime)}`}</span>
+    </div>
+  );
+};
+
+const renderBookingScheduleRow = (schedule: PreviewBookingSchedule, isDark = true) => {
+  const bookingDays = Array.isArray(schedule.booking_days)
+    ? schedule.booking_days
+        .map((day) => ({
+          date: getQuoteText(day.date, day.event_date),
+          startTime: getQuoteText(day.start_time),
+          endTime: getQuoteText(day.end_time),
+        }))
+        .filter((day) => day.date && day.startTime && day.endTime)
+    : [];
+
+  if (schedule.booking_type === "tbd") {
+    return <span>Date &amp; time TBD</span>;
+  }
+
+  if (schedule.booking_type === "multi_day" || bookingDays.length > 1) {
+    if (!bookingDays.length) {
+      return <span>Multiple days</span>;
+    }
+
+    const allSameTime = bookingDays.every(
+      (day) =>
+        day.startTime === bookingDays[0]?.startTime &&
+        day.endTime === bookingDays[0]?.endTime
+    );
+
+    if (allSameTime) {
+      return (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>{bookingDays.map((day) => formatPreviewShortDate(day.date)).join(", ")}</span>
+          <span aria-hidden="true" className={isDark ? "text-white/40" : "text-black/35"}>&middot;</span>
+          <span className={isDark ? "text-white/75" : "text-black/70"}>
+            {`${formatPreviewTime(bookingDays[0]?.startTime)} - ${formatPreviewTime(bookingDays[0]?.endTime)}`}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {bookingDays.map((day) => (
+          <div key={`${day.date}-${day.startTime}-${day.endTime}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{formatPreviewShortDate(day.date)}</span>
+            <span aria-hidden="true" className={isDark ? "text-white/40" : "text-black/35"}>&middot;</span>
+            <span className={isDark ? "text-white/75" : "text-black/70"}>
+              {`${formatPreviewTime(day.startTime)} - ${formatPreviewTime(day.endTime)}`}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const startDate = schedule.start_date || bookingDays[0]?.date;
+  const startTime = schedule.start_time || bookingDays[0]?.startTime;
+  const endTime = schedule.end_time || bookingDays[0]?.endTime;
+
+  if (!startDate || !startTime || !endTime) {
+    return <span>Date &amp; time not set</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span>{formatPreviewDate(startDate)}</span>
+      <span aria-hidden="true" className={isDark ? "text-white/40" : "text-black/35"}>&middot;</span>
+      <span>{`${formatPreviewTime(startTime)} - ${formatPreviewTime(endTime)}`}</span>
+    </div>
+  );
 };
 
 const BeigeMark = () => (
@@ -278,7 +574,6 @@ export default function QuotePreviewDocument({
   if (!quoteData) {
     return null;
   }
-  const isRejected = getQuoteText(quoteData.status)?.toLowerCase() === "rejected";
   const lineItems = normalizeQuoteLineItems(quoteData);
   const serviceItems = lineItems.filter((item) => item.section === "service");
   const addonItems = lineItems.filter((item) => item.section === "addon");
@@ -324,6 +619,7 @@ export default function QuotePreviewDocument({
   const projectDescription =
     getQuoteText(quoteData.project_description, "Project description not available") ||
     "Project description not available";
+  const bookingSchedule = resolvePreviewBookingSchedule(quoteData);
   const shootTypeLabel = getQuoteDisplayShootTypeLabel(quoteData);
   const fallbackTerms = getDefaultQuoteTerms(
     getQuoteText(quoteData.valid_until, quoteData.expires_at) || null
@@ -395,6 +691,15 @@ export default function QuotePreviewDocument({
         </div>
 
         <div className={`border-t ${isDark ? "border-white/10" : "border-[#00000014]"}`} />
+
+        {bookingSchedule ? (
+          <section className="space-y-2">
+            <SectionTitle isDark={isDark}>Shoot Schedule</SectionTitle>
+            <div className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+              {renderBookingScheduleRow(bookingSchedule, isDark)}
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-4">
           <SectionTitle isDark={isDark}>Bill To</SectionTitle>
