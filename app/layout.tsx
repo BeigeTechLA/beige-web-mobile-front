@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
+import { PermissionsVersionWatcher } from "@/components/common/PermissionsVersionWatcher";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import Script from "next/script";
@@ -136,6 +137,7 @@ export default function RootLayout({
             enableSystem={false}
             // disableTransitionOnChange
           >
+            <PermissionsVersionWatcher />
             <Toaster position="top-center" richColors />
             {children}
           </ThemeProvider>

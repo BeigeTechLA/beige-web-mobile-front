@@ -1,47 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import Topbar from "@/components/sales/Topbar";
 import { InvoiceTable } from "@/components/admin/InvoiceTable";
-
-const canAccessSalesInvoice = (user: Record<string, unknown> | null) => {
-  if (!user) return false;
-
-  return Number(user.user_type_id ?? user.userTypeId) === 7;
-};
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 export default function SalesInvoicePage() {
   const { theme } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
+  const { allowed, isLoading: isPermissionLoading } = useRequireModulePermission(
+    "invoices",
+    "view",
+    "/sales/dashboard",
+  );
   const [mounted, setMounted] = useState(false);
-  const [canViewInvoice, setCanViewInvoice] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-
-    try {
-      const storedUser = localStorage.getItem("revure_user");
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const hasAccess = canAccessSalesInvoice(parsedUser);
-
-      setCanViewInvoice(hasAccess);
-
-      if (!hasAccess) {
-        router.replace("/sales/dashboard");
-      }
-    } catch (error) {
-      console.error("Failed to read sales invoice access state", error);
-      router.replace("/sales/dashboard");
-    }
-  }, [router]);
+  useEffect(() => setMounted(true), []);
 
   const isDark = !mounted || theme === "dark";
 
-  if (!mounted || !canViewInvoice) {
+  if (!mounted || isPermissionLoading || !allowed) {
     return null;
   }
 

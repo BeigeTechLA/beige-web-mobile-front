@@ -7,6 +7,7 @@ import EditBookingForm from "@/components/admin/EditBookingForm";
 import Topbar from "@/components/admin/Topbar";
 import { Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 export default function EditBookingPage() {
   const router = useRouter();
@@ -14,6 +15,11 @@ export default function EditBookingPage() {
   const params = useParams();
   const leadId = params.id as string;
   const { theme } = useTheme();
+  const { allowed, isLoading: isPermissionLoading } = useRequireModulePermission(
+    "shoots",
+    "edit",
+    `/sales/leads/${leadId}`,
+  );
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -28,10 +34,14 @@ export default function EditBookingPage() {
     skip: !leadId,
   });
 
-  if (isLeadLoading) {
+  if (isLeadLoading || isPermissionLoading || !allowed) {
     return (
       <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
-        <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>
+        {!isLeadLoading && !isPermissionLoading && !allowed ? (
+          <p>No Permission</p>
+        ) : (
+          <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>
+        )}
       </div>
     );
   }

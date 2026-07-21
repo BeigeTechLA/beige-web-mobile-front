@@ -44,33 +44,7 @@ const STATUS_STYLES: Record<string, ThemeStyles> = {
 
 export const getEffectiveMeetingStatus = (meeting?: Pick<MeetingItem, "meeting_status" | "meeting_date_time" | "meeting_end_time"> | null) => {
   if (!meeting) return "pending";
-
-  const storedStatus = normalizeStatus(meeting.meeting_status);
-  if (["cancelled", "change_request", "rescheduled"].includes(storedStatus)) {
-    return storedStatus;
-  }
-
-  const now = Date.now();
-  const start = meeting.meeting_date_time ? new Date(meeting.meeting_date_time).getTime() : NaN;
-  const end = meeting.meeting_end_time ? new Date(meeting.meeting_end_time).getTime() : NaN;
-
-  if (!Number.isNaN(end) && end <= now) {
-    return "completed";
-  }
-
-  if (!Number.isNaN(start) && !Number.isNaN(end) && start <= now && end > now) {
-    return "ongoing";
-  }
-
-  if (storedStatus === "in_progress") {
-    return "ongoing";
-  }
-
-  if (storedStatus === "confirmed") {
-    return "pending";
-  }
-
-  return storedStatus;
+  return normalizeStatus(meeting.meeting_status);
 };
 
 export const canRespondToMeeting = (

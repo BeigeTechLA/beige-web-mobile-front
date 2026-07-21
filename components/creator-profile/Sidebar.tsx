@@ -1,18 +1,34 @@
 "use client";
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Calendar, User, Wallet, Settings, X, type LucideIcon, CircleDollarSign, ChevronDown } from 'lucide-react';
-import Link from 'next/link';
-import { useAuth } from "@/lib/hooks/useAuth";
+import Link from "next/link";
 import Image from "next/image";
-import { useResolvedTheme } from "@/lib/useResolvedTheme";
-
+import {
+  LayoutDashboard,
+  Camera,
+  FolderOpen,
+  CalendarClock,
+  MessageCircle,
+  Calendar,
+  User,
+  CircleDollarSign,
+  ChevronDown,
+  Wallet,
+  Settings,
+  LogOut,
+  X,
+  type LucideIcon
+} from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
 
 interface SidebarProps {
   onClose?: () => void;
+  permissionsVersion?: number;
 }
 
 type MenuItem = {
@@ -23,14 +39,13 @@ type MenuItem = {
   children?: { label: string; href: string; isPublic?: boolean }[];
 };
 
-export default function Sidebar({ onClose }: SidebarProps) {
+export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
   const { isDark } = useResolvedTheme();
 
   const initialPath = useRef(pathname);
-
   const [isVerified, setIsVerified] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Finances"]);
 
@@ -56,7 +71,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
     router.push("/");
   }, [logout, onClose, router]);
 
-  // LOGIC TO SYNC SIDEBAR LOCKS AND CHECK STATUS
+  // Handle active validation states inside sidebar frame 
   useEffect(() => {
     const syncStatus = async () => {
       const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
@@ -150,7 +165,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   ];
 
   return (
-    <aside className={`
+    <aside key={`creator-nav-${permissionsVersion}`} className={`
       w-full lg:w-64 border-r flex flex-col justify-between py-6 lg:py-9 px-5 h-full overflow-hidden transition-colors duration-100
       ${isDark
         ? "border-zinc-800 bg-[#0A0A0A]"
@@ -231,7 +246,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
                 {/* Submenu Expansion container */}
                 {hasChildren && isExpanded && (
-                  <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
+                  <div className={`mt-1 ml-4 border-l pl-4 space-y-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
                     {item.children!.map((child) => {
                       const childActive = isChildActive(child.href);
                       const childLocked = !isVerified && !child.isPublic;

@@ -37,6 +37,7 @@ import { FileCard } from "@/components/admin/file-manager/FileCard";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -144,7 +145,7 @@ export default function SubFolderDetailsPage() {
   const nestedSlug = params.subFolder2;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const currentPhase = isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre";
-  const canUpload = true;
+  const { canCreate, canDelete } = usePermissions("file_manager");
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -423,27 +424,11 @@ export default function SubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, file.title || file.name || "file");
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: any) => {
@@ -472,22 +457,23 @@ export default function SubFolderDetailsPage() {
     );
   };
 
+  const selectAllVisibleFiles = () => {
+    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+    setSelectedFilePaths(Array.from(new Set(allVisible)));
+    setIsSelectionMode(true);
+  };
+
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to download file");
-      }
-      await new Promise(r => setTimeout(r, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download selected files");
     }
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -611,7 +597,7 @@ export default function SubFolderDetailsPage() {
     : undefined;
 
   const handleCreateRevisionVersion = async () => {
-    if (!isRevisionRootFolder || isCreatingRevisionVersion) return;
+    if (!isRevisionRootFolder || isCreatingRevisionVersion || !canCreate) return;
 
     const versionName = `Version${nextRevisionFolderVersion}`;
     const versionPath = [folderPath, versionName].filter(Boolean).join("/");
@@ -639,7 +625,7 @@ export default function SubFolderDetailsPage() {
     <button
       type="button"
       onClick={handleCreateRevisionVersion}
-      disabled={isCreatingRevisionVersion}
+      disabled={isCreatingRevisionVersion || !canCreate}
       className={`flex min-h-[202px] w-full flex-col items-center justify-center gap-5 rounded-3xl border border-dashed p-5 text-center transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
         isDark
           ? "border-[#E8D1AB]/35 bg-[#18181b] hover:border-[#E8D1AB]/60 hover:bg-[#1c1c20]"
@@ -660,19 +646,17 @@ export default function SubFolderDetailsPage() {
       <Topbar
         pathname={pathname}
         actions={
-          canUpload ? (
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsUploadModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Upload size={18} />
-              Upload Files
-            </Button>
-          ) : null
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !canCreate) return;
+              setIsUploadModalOpen(true);
+            }}
+            disabled={selectionLockActive || !canCreate}
+            className="bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Upload size={18} />
+            Upload Files
+          </Button>
         }
       />
 
@@ -736,7 +720,7 @@ export default function SubFolderDetailsPage() {
 
             <div className="p-4 lg:p-5">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
-                <div className="relative w-full lg:max-w-md lg:max-w-xl">
+                <div className="relative w-full lg:max-w-md lg:max-w-lg">
                   <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 ${isDark ? "text-white/40" : "text-black/40"}`} />
 	                  <input
 	                    type="text"
@@ -784,6 +768,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <div className="space-y-5">
@@ -827,11 +812,12 @@ export default function SubFolderDetailsPage() {
                             stage={fileCardStage}
                             onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
                             onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
-                            onDelete={!selectionLockActive ? () => {
-                              if (!canDelete) return;
+                            onDelete={() => {
+                              if (selectionLockActive || !canDelete) return;
                               setSelectedFile(file);
                               setIsDeleteModalOpen(true);
-                            } : undefined}
+                            }}
+                            deleteDisabled={selectionLockActive || !canDelete}
                             onShare={selectionLockActive ? undefined : () => {
                               setSelectedFile(file);
                               setShareResource({
@@ -857,6 +843,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -908,10 +895,12 @@ export default function SubFolderDetailsPage() {
                             });
                             setIsShareModalOpen(true);
                           }}
-                          onDelete={selectionLockActive ? undefined : () => {
+                          onDelete={() => {
+                            if (selectionLockActive || !canDelete) return;
                             setSelectedFile(file);
                             setIsDeleteModalOpen(true);
                           }}
+                          deleteDisabled={selectionLockActive || !canDelete}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                           isDark={isDark}
@@ -937,6 +926,7 @@ export default function SubFolderDetailsPage() {
                   <EmptyFileState
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
+                    actionDisabled={!canCreate}
                   />
                 ) : (
                   <>
@@ -1078,10 +1068,13 @@ export default function SubFolderDetailsPage() {
                               }}
                               onDelete={(e) => {
                                 e.stopPropagation();
+                                if (!canDelete) return;
                                 setSelectedFile(file);
                                 setIsDeleteModalOpen(true);
                               }}
-                              isDeleting={openingFileId === file.id}
+                              disabled={!canDelete}
+                              title={canDelete ? "Delete file" : "Delete permission not allowed"}
+                            isDeleting={openingFileId === file.id}
                             />
                             );
                           })}
@@ -1224,10 +1217,11 @@ export default function SubFolderDetailsPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (selectionLockActive) return;
+                                        if (!canDelete) return;
                                         setSelectedFile(file);
                                         setIsDeleteModalOpen(true);
                                       }}
-                                      disabled={selectionLockActive}
+                                      disabled={selectionLockActive || !canDelete}
                                     >
                                       {openingFileId === file.id ? <span className="text-[10px] tracking-tighter">...</span> : <Trash2 size={16} />}
                                     </button>
@@ -1313,28 +1307,37 @@ export default function SubFolderDetailsPage() {
 
         {/* Batch Action Toolbar */}
         {selectedFilePaths.length > 0 && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xl px-2 lg:px-4">
-            <div className={`border rounded-xl lg:rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 transition-colors duration-200 ${isDark ? "bg-[#171717] border-[#E8D1AB]/50" : "bg-white border-black/10"}`}>
-              <div className="flex items-center gap-3">
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[min(94vw,760px)] px-2 lg:px-4">
+            <div className={`border rounded-xl lg:rounded-2xl shadow-2xl p-3 lg:p-4 flex flex-wrap items-center justify-between gap-3 transition-colors duration-200 ${isDark ? "bg-[#171717] border-[#E8D1AB]/50" : "bg-white border-black/10"}`}>
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ">
                   {selectedFilePaths.length}
                 </div>
-                <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
+                <span className={`text-sm lg:text-base font-medium leading-tight ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
                 <Button
                   variant="ghost"
-                  className={`gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
+                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
                   onClick={() => setSelectedFilePaths([])}
                 >
                   Clear
                 </Button>
 
-                <div className={`h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+                <Button
+                  variant="ghost"
+                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
+                  onClick={selectAllVisibleFiles}
+                >
+                  <CheckSquare size={18} />
+                  Select all
+                </Button>
+
+                <div className={`hidden sm:block h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
 
                 <Button
-                  className={`gap-2 border transition-colors ${isDark
+                  className={`shrink-0 gap-2 border transition-colors ${isDark
                     ? "bg-white/10 text-white hover:bg-white/20 border-white/10"
                     : "bg-black/5 text-black hover:bg-black/10 border-black/5"
                     }`}
@@ -1345,8 +1348,13 @@ export default function SubFolderDetailsPage() {
                 </Button>
 
                 <Button
-                  className="bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag"
-                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="shrink-0 bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => {
+                    if (!canDelete) return;
+                    setIsDeleteModalOpen(true);
+                  }}
+                  disabled={!canDelete}
+                  title={canDelete ? "Delete selected" : "Delete permission not allowed"}
                 >
                   <TrashIcon size={18} />
                   <span className="hidden lg:block">Delete</span>
@@ -1355,7 +1363,7 @@ export default function SubFolderDetailsPage() {
 
               <button
                 onClick={() => setSelectedFilePaths([])}
-                className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                className={`shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
               >
                 <CloseIcon size={20} />
               </button>
@@ -1367,10 +1375,10 @@ export default function SubFolderDetailsPage() {
         <div className={`lg:hidden fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={() => {
-              if (selectionLockActive) return;
+              if (selectionLockActive || !canCreate) return;
               setIsUploadModalOpen(true);
             }}
-            disabled={selectionLockActive}
+            disabled={selectionLockActive || !canCreate}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             <Upload size={20} />

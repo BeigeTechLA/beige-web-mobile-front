@@ -2,18 +2,18 @@ import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarClock,
   ExternalLink,
   SquarePen,
   Trash2,
   RefreshCw,
   ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { ParticipantAvatarStack } from "./AvatarStack";
 import { type MeetingItem } from "@/lib/meetingsApi";
 import { canRespondToMeeting } from "@/lib/meetingStatus";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
 
 import {
   Tooltip,
@@ -33,7 +33,6 @@ export interface MeetingsStructureProps {
   currentUserId: string | number | null | undefined;
   role: RoleVariant;
   isAdminView: boolean;
-  canDeleteMeeting: boolean;
   respondingMeetingId: string | null;
   handleRespond: (meetingId: string | number, response: "accepted" | "declined") => void | Promise<void>;
   setSelectedMeeting: (meeting: MeetingItem) => void;
@@ -51,7 +50,6 @@ export interface MeetingRowProps {
   role: RoleVariant;
   currentUserId: string | number | null | undefined;
   isAdminView: boolean;
-  canDeleteMeeting: boolean;
   respondingMeetingId: string | null;
   getShootLink: (role: RoleVariant, meeting: MeetingItem) => string | null;
   getEffectiveMeetingStatus: (meeting: MeetingItem) => string;
@@ -76,7 +74,6 @@ export default function MeetingsStructure({
   currentUserId,
   role,
   isAdminView,
-  canDeleteMeeting,
   respondingMeetingId,
   handleRespond,
   setSelectedMeeting,
@@ -87,6 +84,9 @@ export default function MeetingsStructure({
   formatInvitationResponse,
   isDark
 }: MeetingsStructureProps) {
+  const permissions = useAppSelector((state) => state.auth.permissions);
+  const canDeleteMeeting = hasModulePermission(permissions, ["meetings"], "delete");
+
   return (
     <>
       {/* MOBILE ONLY VIEW */}
@@ -108,7 +108,6 @@ export default function MeetingsStructure({
               role={role}
               currentUserId={currentUserId}
               isAdminView={isAdminView}
-              canDeleteMeeting={canDeleteMeeting}
               respondingMeetingId={respondingMeetingId}
               getShootLink={getShootLink}
               getEffectiveMeetingStatus={getEffectiveMeetingStatus}
@@ -137,11 +136,11 @@ export default function MeetingsStructure({
                 : "text-[#000000] border-[#E5E5E5] bg-[#FFFCF6]"
                 }`}>
                 {/* Defined exact explicit widths on the table headers */}
-                <th className="p-5 font-medium w-[30%]">Meeting</th>
-                <th className="p-5 font-medium w-[15%]">Date & Time</th>
-                <th className="p-5 font-medium text-center w-[15%]">Participants</th>
-                <th className="p-5 font-medium text-center w-[12%]">Status</th>
-                <th className="p-5 font-medium text-right w-[28%]">Actions</th>
+                <th className="p-5 font-medium w-[27%]">Meeting</th>
+                <th className="p-5 font-medium w-[18%]">Date & Time</th>
+                <th className="p-5 font-medium text-center w-[12%]">Participants</th>
+                <th className="p-5 font-medium text-center w-[11%]">Status</th>
+                <th className="p-5 font-medium text-right w-[32%]">Actions</th>
               </tr>
             </thead>
             <tbody >
@@ -168,7 +167,8 @@ export default function MeetingsStructure({
                   isWithinResponseWindow &&
                   !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
-                const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+                const canOpenDetails = !!meeting.id;
+                const canDeleteThisMeeting = isAdminView && canDeleteMeeting;
                 const isResponding = respondingMeetingId === String(meeting.id || "");
 
                 const borderClass = isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]";
@@ -214,7 +214,7 @@ export default function MeetingsStructure({
                       <div className="flex flex-col gap-1 min-w-0">
                         <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                         {canRespond && (
-                          <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
+                          <span className="mt-1 inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-1 text-xs font-semibold leading-none text-amber-300">
                             Your response: {formatInvitationResponse(currentResponse ?? "")}
                           </span>
                         )}
@@ -237,13 +237,13 @@ export default function MeetingsStructure({
 
                     {/* COLUMN 5: Actions */}
                     <td className={`p-5 border-t text-right ${borderClass}`}>
-                      <div className="grid grid-cols-2 items-center justify-end gap-2">
+                      <div className="grid grid-cols-2 items-center justify-end gap-3">
                         {canRespond && currentResponse !== "accepted" && (
                           <Button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleRespond(meeting.id, "accepted"); }}
                             disabled={isResponding}
-                            className="bg-emerald-500 text-white hover:bg-emerald-600 text-center px-3 py-2 h-auto text-xs"
+                          className="bg-emerald-500 text-white hover:bg-emerald-600 text-center px-3 py-2 h-auto text-xs justify-center"
                           >
                             {isResponding && <RefreshCw size={12} className="animate-spin mr-1" />}
                             Accept
@@ -255,7 +255,7 @@ export default function MeetingsStructure({
                             variant="outline"
                             onClick={(e) => { e.stopPropagation(); handleRespond(meeting.id, "declined"); }}
                             disabled={isResponding}
-                            className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-center px-3 py-2 h-auto text-xs whitespace-nowrap truncate"
+                            className="border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 text-center px-3 py-2 h-auto text-xs whitespace-nowrap truncate justify-center"
                           >
                             Reject
                           </Button>
@@ -285,15 +285,25 @@ export default function MeetingsStructure({
                         )}
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); setSelectedMeeting(meeting); }}
-                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${isDark
-                            ? "border-white/20 bg-[#202020] text-white hover:bg-[#282828]"
-                            : "border-gray-200 bg-[#E5E5E5] text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                          <SquarePen className="shrink-0 w-3.5 h-3.5" />
-                          <span>{isAdminView ? "Edit/Reschedule" : "Details"}</span>
-                        </button>
+                          disabled={!canOpenDetails}
+                          onClick={(e) => {
+                            if (!canOpenDetails) return;
+                            e.stopPropagation();
+                            setSelectedMeeting(meeting);
+                          }}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap ${
+                            canOpenDetails
+                              ? isDark
+                                ? "border-white/20 bg-[#202020] text-white hover:bg-[#282828]"
+                                : "border-gray-200 bg-[#E5E5E5] text-gray-700 hover:bg-gray-200"
+                              : isDark
+                                ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                                : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                          }`}
+                          >
+                            <SquarePen className="shrink-0 w-3.5 h-3.5" />
+                            <span>{isAdminView ? "Edit/Reschedule" : "Details"}</span>
+                          </button>
                         {shootLink && (
                           <Link
                             href={shootLink}
@@ -303,16 +313,27 @@ export default function MeetingsStructure({
                             Open Shoot
                           </Link>
                         )}
-                        {canDeleteThisMeeting && (
+                        {isAdminView ? (
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setMeetingPendingDelete(meeting); }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#FFC3C3] bg-[#FFC3C3] px-3 py-2 text-xs font-medium text-[#BD1010] hover:bg-[#FFB0B0] justify-center transition-colors whitespace-nowrap truncate"
+                            disabled={!canDeleteThisMeeting}
+                            onClick={(e) => {
+                              if (!canDeleteThisMeeting) return;
+                              e.stopPropagation();
+                              setMeetingPendingDelete(meeting);
+                            }}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium justify-center transition-colors whitespace-nowrap truncate ${
+                              canDeleteThisMeeting
+                                ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFB0B0]"
+                                : isDark
+                                  ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                                  : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                            }`}
                           >
                             <Trash2 className="shrink-0 w-3.5 h-3.5" />
                             <span>Delete</span>
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -333,7 +354,6 @@ function MobileMeetingRow({
   role,
   currentUserId,
   isAdminView,
-  canDeleteMeeting,
   respondingMeetingId,
   getShootLink,
   getEffectiveMeetingStatus,
@@ -371,7 +391,10 @@ function MobileMeetingRow({
     isWithinResponseWindow &&
     !["completed", "cancelled"].includes(String(effectiveStatus || "").toLowerCase());
 
-  const canDeleteThisMeeting = canDeleteMeeting && !isClientCreatedBySelf;
+  const permissions = useAppSelector((state) => state.auth.permissions);
+  const canDeleteMeeting = hasModulePermission(permissions, ["meetings"], "delete");
+  const canOpenDetails = !!meeting.id;
+  const canDeleteThisMeeting = isAdminView && canDeleteMeeting;
   const isResponding = respondingMeetingId === String(meeting.id || "");
 
   return (
@@ -455,8 +478,8 @@ function MobileMeetingRow({
                   <div className="text-sm mt-1 flex flex-col gap-1">
                     <TruncatedDateTime value={formatDateTime(meeting.meeting_date_time)} isDark={isDark} />
                     {canRespond && (
-                      <span className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium capitalize text-amber-300 truncate">
-                        Your response: {formatInvitationResponse(currentResponse ?? "")}
+                      <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full border border-amber-400/20 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold leading-none text-amber-300">
+                        Response: {formatInvitationResponse(currentResponse ?? "")}
                       </span>
                     )}
                   </div>
@@ -521,11 +544,20 @@ function MobileMeetingRow({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedMeeting(meeting)}
-                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${isDark
-                    ? "border-white/20 bg-[#202020] text-white"
-                    : "border-gray-200 bg-[#E5E5E5] text-gray-700"
-                    }`}
+                  disabled={!canOpenDetails}
+                  onClick={() => {
+                    if (!canOpenDetails) return;
+                    setSelectedMeeting(meeting);
+                  }}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${
+                    canOpenDetails
+                      ? isDark
+                        ? "border-white/20 bg-[#202020] text-white"
+                        : "border-gray-200 bg-[#E5E5E5] text-gray-700"
+                      : isDark
+                        ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                        : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                  }`}
                 >
                   <SquarePen className="shrink-0 w-4 h-4" />
                   <span>{isAdminView ? "Edit / Reschedule" : "View Details"}</span>
@@ -538,16 +570,26 @@ function MobileMeetingRow({
                     Open Shoot
                   </Link>
                 )}
-                {canDeleteThisMeeting && (
+                {isAdminView ? (
                   <button
                     type="button"
-                    onClick={() => setMeetingPendingDelete(meeting)}
-                    className="flex items-center gap-2 rounded-lg border border-[#FFC3C3] bg-[#FFC3C3] px-4 py-2 text-xs font-medium text-[#BD1010] hover:bg-[#FFC3C3]/80 justify-center w-full"
+                    disabled={!canDeleteThisMeeting}
+                    onClick={() => {
+                      if (!canDeleteThisMeeting) return;
+                      setMeetingPendingDelete(meeting);
+                    }}
+                    className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-medium justify-center transition-colors w-full ${
+                      canDeleteThisMeeting
+                        ? "border-[#FFC3C3] bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80"
+                        : isDark
+                          ? "cursor-not-allowed border-white/10 bg-[#111111] text-white/35"
+                          : "cursor-not-allowed border-gray-200 bg-[#F2F2F2] text-gray-400"
+                    }`}
                   >
                     <Trash2 className="shrink-0 w-4 h-4" />
                     <span>Delete</span>
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </motion.div>

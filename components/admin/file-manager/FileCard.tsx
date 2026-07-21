@@ -118,6 +118,12 @@ export const FileCard = ({
   onRequestRevision,
   isSelected,
   onSelect,
+  downloadDisabled = false,
+  shareDisabled = false,
+  deleteDisabled = false,
+  uploadEditedDisabled = false,
+  approveDisabled = false,
+  requestRevisionDisabled = false,
   isDark = true
 }: {
   file: FileCardFile,
@@ -131,6 +137,12 @@ export const FileCard = ({
   onRequestRevision?: () => void,
   isSelected?: boolean,
   onSelect?: (selected: boolean) => void,
+  downloadDisabled?: boolean,
+  shareDisabled?: boolean,
+  deleteDisabled?: boolean,
+  uploadEditedDisabled?: boolean,
+  approveDisabled?: boolean,
+  requestRevisionDisabled?: boolean,
   isDark?: boolean,
   stage?: 'pre-production' | 'post-production'
 }) => {
@@ -293,61 +305,67 @@ export const FileCard = ({
                 </Button>
                 {menuOpen && (
                   <div className={`absolute bottom-full right-0 mb-2 w-48 rounded-xl border shadow-2xl z-[50] overflow-hidden ${isDark ? 'bg-[#171717] border-white/10 text-white' : 'bg-white border-zinc-200 text-black'}`}>
-                    {onDownload && (
+                    {(onDownload || downloadDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDownload(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors"
+                        disabled={downloadDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (downloadDisabled) return; setMenuOpen(false); onDownload?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Download size={16} />
                         Download
                       </button>
                     )}
-                    {onShare && (
+                    {(onShare || shareDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onShare(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors"
+                        disabled={shareDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (shareDisabled) return; setMenuOpen(false); onShare?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Share2 size={16} />
                         Share
                       </button>
                     )}
-                    {onUploadEdited && (
+                    {(onUploadEdited || uploadEditedDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onUploadEdited(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors"
+                        disabled={uploadEditedDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (uploadEditedDisabled) return; setMenuOpen(false); onUploadEdited?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Upload size={16} />
                         Upload Edited
                       </button>
                     )}
-                    {onApprove && (
+                    {(onApprove || approveDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onApprove(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#22C55E]"
+                        disabled={approveDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (approveDisabled) return; setMenuOpen(false); onApprove?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#22C55E] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Check size={16} />
                         Approve
                       </button>
                     )}
-                    {onRequestRevision && (
+                    {(onRequestRevision || requestRevisionDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onRequestRevision(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#E8D1AB]"
+                        disabled={requestRevisionDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (requestRevisionDisabled) return; setMenuOpen(false); onRequestRevision?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <RotateCcw size={16} />
                         Request Revision
                       </button>
                     )}
-                    {onDelete && (
+                    {(onDelete || deleteDisabled) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDelete(); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#F04438]"
+                        disabled={deleteDisabled}
+                        onClick={(e) => { e.stopPropagation(); if (deleteDisabled) return; setMenuOpen(false); onDelete?.(); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-white/5 transition-colors text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Trash2 size={16} />
                         Delete

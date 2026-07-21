@@ -19,6 +19,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import CreditHistoryTable, {
   type CreditHistoryRow,
 } from "@/components/affiliate/CreditHistoryTable";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
 import { adminApi, salesApi } from "@/lib/api";
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
@@ -265,6 +266,7 @@ export default function AdminFinancesPage() {
   const { theme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("finances");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("available");
@@ -596,10 +598,12 @@ export default function AdminFinancesPage() {
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
               onClick={() => setIsAddCreditModalOpen(true)}
+              disabled={!canCreate}
+              title={canCreate ? "Add Credit Points" : "Create permission not allowed"}
             >
               <Plus size={18} />
               Add Credit Points
-            </Button> 
+            </Button>
             {/* <Button
               type="button"
               className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "

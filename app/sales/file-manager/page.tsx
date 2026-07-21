@@ -26,6 +26,7 @@ import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow
 import Topbar from "@/components/admin/Topbar";
 import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   isCommonEventWorkspaceId,
@@ -73,9 +74,7 @@ interface SalesLeadsResponse {
 export default function SalesFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
-  const userRole = String((user as { role?: string; userRole?: string } | null)?.role || (user as { role?: string; userRole?: string } | null)?.userRole || "").trim().toLowerCase();
-  const isSalesAdmin = userRole === "sales_admin";
+  const { canCreate, canDelete } = usePermissions("file_manager");
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useViewMode();
@@ -131,12 +130,10 @@ export default function SalesFolderManagerPage() {
           .map((value) => String(value))
       );
 
-      const filteredWorkspaces = isSalesAdmin
-        ? workspaceData.workspaces
-        : workspaceData.workspaces.filter((workspace) =>
-            isCommonEventWorkspaceId(workspace.externalId) ||
-            assignedBookingIds.has(String(workspace.externalId))
-          );
+      const filteredWorkspaces = workspaceData.workspaces.filter((workspace) =>
+        isCommonEventWorkspaceId(workspace.externalId) ||
+        assignedBookingIds.has(String(workspace.externalId))
+      );
 
       setProjects(
         filteredWorkspaces.map((workspace) =>
@@ -216,7 +213,7 @@ const filteredFolders = useMemo(() => {
     try {
       const result = await fileManagerApi.getExternalFolderDownloadUrl(selectedFolder.id);
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "workspace"}.zip`);
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Failed to download workspace"));
@@ -224,7 +221,7 @@ const filteredFolders = useMemo(() => {
   };
 
   const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
+    if (!canDelete || !selectedFolder?.resourcePath) return;
 
     try {
       setIsDeleting(true);
@@ -387,16 +384,16 @@ const filteredFolders = useMemo(() => {
                     try {
                       const result = await fileManagerApi.getExternalFolderDownloadUrl(folder.id);
                       if (result?.url) {
-                        window.open(result.url, "_blank", "noopener,noreferrer");
+                        fileManagerApi.downloadUrl(result.url, `${folder.title || "workspace"}.zip`);
                       }
                         } catch (err: unknown) {
                           toast.error(getErrorMessage(err, "Failed to download workspace"));
                         }
                       }}
-                  onDelete={() => {
+                  onDelete={canDelete ? () => {
                     setSelectedFolder(folder);
                     setIsDeleteModalOpen(true);
-                  }}
+                  } : undefined}
                   onRename={() => toast.info("Workspace rename will be the next safe step.")}
                 />
               ))}

@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import SalesShootsTable from '@/components/sales/SalesShootsTable';
-import { ArrowUpToLine, Calendar, Search } from 'lucide-react';
+import { ArrowUpToLine } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 import {
   Select,
@@ -32,14 +33,13 @@ export default function SalesShootsPage() {
   const router = useRouter()
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canCreate } = usePermissions("shoots");
 
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
 
   // --- Filter States ---
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [range, setRange] = useState("all");
 
@@ -91,7 +91,15 @@ export default function SalesShootsPage() {
             <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button>
-            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+            <Button
+              onClick={() => {
+                if (!canCreate) return;
+                router.push("/book-a-shoot");
+              }}
+              disabled={!canCreate}
+              title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+              className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Book a Shoot
             </Button>
           </div>
@@ -125,8 +133,13 @@ export default function SalesShootsPage() {
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => router.push('/book-a-shoot')}
-            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            onClick={() => {
+              if (!canCreate) return;
+              router.push('/book-a-shoot');
+            }}
+            disabled={!canCreate}
+            title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
           >
             Book a Shoot
           </Button>

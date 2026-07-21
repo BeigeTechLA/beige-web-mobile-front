@@ -13,6 +13,15 @@ import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+
+type ProjectFulfillmentStats = {
+  fulfillment_stats?: {
+    videographer?: string;
+    photographer?: string;
+  };
+  location?: string;
+};
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -63,6 +72,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit, isLoading: isPermissionsLoading } = usePermissions("shoots");
 
   const { id: projectId } = use(params);
 
@@ -89,6 +99,11 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || isPermissionsLoading || canEdit) return;
+    router.replace(`/admin/shoots/${projectId}`);
+  }, [mounted, isPermissionsLoading, canEdit, router, projectId]);
 
   // Fetch project fulfillment stats using the new POST endpoint
   useEffect(() => {
@@ -183,6 +198,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   }, [selectedCreativeIds]);
 
   const validateSelectedCounts = (action: ConfirmAction) => {
+    if (!canEdit) return;
+
     if (selectedCreativeIds.length === 0) {
       toast.error("Please select at least one creative");
       return false;
@@ -240,6 +257,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const executeAssignment = async () => {
+    if (!canEdit) return;
+
     setIsConfirmModalOpen(false);
     try {
       const response = await assignCrew({
@@ -305,15 +324,23 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  if (!mounted || isPermissionsLoading || !canEdit) {
+    return (
+      <div className={`flex h-screen items-center justify-center ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
+        <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? "border-white" : "border-black"}`}></div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Topbar pathname={pathname}
         actions={
           <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
             <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
-              {[
-                { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts?.videographer || stats?.fulfillment_stats?.videographer?.split('/')[1] || '0' },
-                { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts?.photographer || stats?.fulfillment_stats?.photographer?.split('/')[1] || '0' }
+              {[ 
+                { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
+                { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
               ].map((btn) => (
                 <div
                   key={btn.type}

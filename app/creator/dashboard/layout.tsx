@@ -1,17 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
-import Sidebar from "@/components/creator-profile/Sidebar";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
+import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
+import {
+  canAccessPortalPath,
+  getFirstAllowedPortalPath,
+  hasModulePermission,
+  type PermissionsMap,
+} from "@/lib/permissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
+import Sidebar from "@/components/creator-profile/Sidebar";
 
 type CpStatusPayload = {
   success?: boolean;
@@ -27,10 +33,38 @@ type CpStatusResponse = CpStatusPayload & {
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const { isDark } = useResolvedTheme();
-
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const dispatch = useAppDispatch();
+  const { logout, user } = useAuth();
+  
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // Sync Permissions
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId) return;
+
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch]);
+
+  // Route Guard Checks
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("creator", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
 
   // Global CP status check for all creator pages
   useEffect(() => {
@@ -69,10 +103,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
       isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
     }`}>
+      {/* Desktop Panel View */}
       <div className="hidden lg:block h-full border-r border-transparent">
-        <Sidebar />
+        <Sidebar permissionsVersion={permissionsVersion} />
       </div>
 
+      {/* Mobile Drawer */}
       <AnimatePresence>
         {isOpen && (
           <>
@@ -89,7 +125,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
               exit={{ x: "-100%" }}
               className="fixed top-0 left-0 bottom-0 w-[280px] z-[80] lg:hidden"
             >
-              <Sidebar onClose={() => setIsOpen(false)} />
+              <Sidebar onClose={() => setIsOpen(false)} permissionsVersion={permissionsVersion} />
             </motion.div>
           </>
         )}
@@ -107,11 +143,8 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      {/* Root container handles base text and background colors */}
       <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
-        isDark 
-          ? "bg-[#0f0f0f] text-white" 
-          : "bg-[#F4F5F7] text-[#000000]"
+        isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-[#000000]"
       }`}>
         <LayoutContent>{children}</LayoutContent>
       </div>

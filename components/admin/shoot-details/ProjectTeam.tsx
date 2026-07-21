@@ -8,6 +8,7 @@ import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 import "swiper/css";
 import "swiper/css/effect-coverflow";
@@ -45,6 +46,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(!assignedMembers);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const { canEdit, canCreate } = usePermissions("shoots");
 
   useEffect(() => {
     setMounted(true);
@@ -108,6 +110,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   }
 
   const handleOpenAssignment = () => {
+    if (!canCreate) return;
     if (onRequestAssignment) {
       onRequestAssignment(() => setIsModalOpen(true));
       return;
@@ -162,10 +165,12 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
         <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30 py-10 lg:py-0">
           <button
             onClick={handleOpenAssignment}
+            disabled={!canCreate}
             className={cn(
-              "w-12 h-12 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg",
+              "w-12 h-12 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
               isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
             )}
+            title={canCreate ? "Add Post Production Team" : "Create permission not allowed"}
           >
             <Plus size={40} className={"text-black"} />
           </button>
@@ -173,7 +178,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
             "text-base font-medium leading-none",
             isDark ? "text-[#E8D1AB]" : "text-[#000]"
           )}>
-            Add Post Production Team
+            {canCreate ? "Add Post Production Team" : "Create permission not allowed"}
           </h4>
         </div>
       )}
@@ -183,10 +188,12 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
           {/* Add Button in Top Right for List View */}
           <button
             onClick={handleOpenAssignment}
+            disabled={!canCreate}
             className={cn(
-              "absolute top-6 right-6 z-30 transition-colors",
+              "absolute top-6 right-6 z-30 transition-colors disabled:cursor-not-allowed disabled:opacity-40",
               isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#E8D1AB] hover:text-black"
             )}
+            title={canCreate ? "Add Post Production Team" : "Create permission not allowed"}
           >
             <Plus size={24} />
           </button>
@@ -255,6 +262,8 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
             <Button
               className={`h-12 px-4 lg:px-7 transition-all duration-300 font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]`}
               onClick={handleOpenAssignment}
+              disabled={!canCreate}
+              title={canCreate ? "Add More Team Members" : "Create permission not allowed"}
             >
               <Plus /> Add More Team Members
             </Button>

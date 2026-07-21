@@ -13,13 +13,23 @@ interface FeaturedWorkItem {
   tags?: string[];
   image?: string;
   previews?: string[];
-  files?: File[];
+  files?: Array<File | ExistingFileItem>;
+  fileIds?: Array<string | number>;
+  removedFileIds?: Array<string | number>;
+}
+
+interface ExistingFileItem {
+  crew_files_id?: string | number;
+  crewFilesId?: string | number;
+  id?: string | number;
+  file_path?: string;
+  file?: File;
 }
 
 interface FeaturedWorkModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (item: FeaturedWorkItem) => void;
+  onAdd: (item: FeaturedWorkItem) => void | Promise<void>;
   editItem?: FeaturedWorkItem | null;
   isDark: boolean;
 }
@@ -30,7 +40,8 @@ interface PreviewItem {
 }
 
 interface StoredFileItem {
-  file: File;
+  file?: File;
+  fileId?: string | number;
   signature: string;
 }
 
@@ -47,6 +58,12 @@ const createPreviewId = () =>
 const getFileSignature = (file: File) =>
   [file.name, file.size, file.lastModified, file.type].join("__");
 
+const getExistingFileId = (file: ExistingFileItem) =>
+  file.crew_files_id ?? file.crewFilesId ?? file.id;
+
+const isFile = (value: unknown): value is File =>
+  typeof File !== "undefined" && value instanceof File;
+
 const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -54,7 +71,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
   const [tagInput, setTagInput] = useState("");
   const [imagePreviews, setImagePreviews] = useState<PreviewItem[]>([]);
   const [rawFiles, setRawFiles] = useState<StoredFileItem[]>([]);
+  const [initialFileIds, setInitialFileIds] = useState<Array<string | number>>([]);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -72,17 +91,34 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         setTitle(editItem.title || "");
         setTags(editItem.tags || []);
         const previews = editItem.previews || (editItem.image ? [editItem.image] : []);
+        const editFiles = Array.isArray(editItem.files) ? editItem.files : [];
         setImagePreviews(
           previews.map((src: string) => ({
             id: createPreviewId(),
             src,
           }))
         );
-        setRawFiles(
-          (editItem.files || []).map((file: File) => ({
-            file,
-            signature: getFileSignature(file),
-          }))
+        const storedFiles = editFiles.map((file) => {
+          if (isFile(file)) {
+            return {
+              file,
+              signature: getFileSignature(file),
+            };
+          }
+
+          const fileId = getExistingFileId(file);
+          return {
+            file: file.file,
+            fileId,
+            signature: fileId ? `existing-${fileId}` : `existing-${file.file_path || createPreviewId()}`,
+          };
+        });
+
+        setRawFiles(storedFiles);
+        setInitialFileIds(
+          storedFiles
+            .map((item) => item.fileId)
+            .filter((fileId): fileId is string | number => Boolean(fileId))
         );
       } else {
         setTitle("");
@@ -90,8 +126,10 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         setTagInput("");
         setImagePreviews([]);
         setRawFiles([]);
+        setInitialFileIds([]);
       }
       setAddTagsOpen(false);
+      setIsSaving(false);
     }
   }, [open, editItem]);
 
@@ -185,7 +223,8 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
     setTags(tags.filter((x) => x !== t));
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (isSaving) return;
     if (!title.trim()) {
       toast.error("Please enter a project title.");
       return;
@@ -197,15 +236,33 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
       return;
     }
 
-    onAdd({
-      id: editItem ? editItem.id : Date.now(),
-      title,
-      tags,
-      previews: imagePreviews.map((item) => item.src),
-      files: rawFiles.map((item) => item.file),
-    });
+    try {
+      setIsSaving(true);
+      const currentFileIds = rawFiles
+        .map((item) => item.fileId)
+        .filter((fileId): fileId is string | number => Boolean(fileId));
+      const removedFileIds = initialFileIds.filter(
+        (fileId) => !currentFileIds.map(String).includes(String(fileId))
+      );
 
-    onClose();
+      await onAdd({
+        id: editItem ? editItem.id : Date.now(),
+        title,
+        tags,
+        previews: imagePreviews.map((item) => item.src),
+        files: rawFiles
+          .map((item) => item.file || (item.fileId ? { crewFilesId: item.fileId } : null))
+          .filter((file): file is File | ExistingFileItem => Boolean(file)),
+        fileIds: currentFileIds,
+        removedFileIds,
+      });
+      onClose();
+    } catch (error) {
+      console.error("Failed to save featured work:", error);
+      toast.error("Failed to save featured work.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -235,7 +292,19 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
           <div className="px-8 py-6 overflow-auto flex-1 space-y-6">
             <div className="space-y-2">
               <label className={`text-sm font-medium ml-1 ${isDark ? "text-white/60" : "text-black/60"}`}>Project Title</label>
-              <input placeholder="e.g. Cinematic Commercial Reel 2024" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClasses} />
+              <input
+                placeholder="e.g. Cinematic Commercial Reel 2024"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={inputClasses}
+                readOnly={Boolean(editItem)}
+                disabled={Boolean(editItem)}
+              />
+              {editItem && (
+                <p className={`text-xs ${isDark ? "text-white/35" : "text-black/35"}`}>
+                  Project title is locked while editing an existing saved project.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 relative">
@@ -353,10 +422,15 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing}
+              disabled={!title || imagePreviews.length < MIN_PROJECT_IMAGES || isCompressing || isSaving}
               className={`rounded-xl h-12 px-10 font-bold disabled:opacity-50 text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#DCD1BE]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
             >
-              {isCompressing ? "Processing..." : editItem ? "Save Changes" : "Add Project"}
+              {isCompressing || isSaving ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {isCompressing ? "Processing..." : "Saving..."}
+                </span>
+              ) : editItem ? "Save Changes" : "Add Project"}
             </Button>
           </div>
 

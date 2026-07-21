@@ -85,6 +85,12 @@ export interface QuoteDraftPayload {
   location_latitude?: number | null;
   location_longitude?: number | null;
   project_description?: string;
+  pre_production_notes?: string | null;
+  pre_production_file_name?: string | null;
+  pre_production_file_type?: string | null;
+  pre_production_file_size?: number | null;
+  pre_production_file_content?: string | null;
+  clear_pre_production_file?: boolean;
   video_shoot_type?: string;
   quote_validity_days?: number;
   discount_type?: "percentage" | "fixed_amount";
@@ -134,6 +140,16 @@ export interface BuildQuoteDraftPayloadInput {
   locationLatitude?: number | null;
   locationLongitude?: number | null;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
+  clearPreProductionFile?: boolean;
   bookingSchedule?: QuoteDraftBookingSchedule | null;
   validityDays: number | "custom";
   validUntil: string;
@@ -281,6 +297,17 @@ export function buildQuoteDraftPayload(
   if (includeTax) {
     payload.tax_type = input.taxLabel.trim() || "Sales Tax";
     payload.tax_rate = normalizeNumber(input.normalizedTaxRate);
+    payload.pre_production_notes = input.preProductionNotes?.trim() || null;
+
+    if (input.preProductionFile?.content) {
+      payload.pre_production_file_name = input.preProductionFile.name;
+      payload.pre_production_file_type =
+        input.preProductionFile.type || "application/octet-stream";
+      payload.pre_production_file_size = input.preProductionFile.size;
+      payload.pre_production_file_content = input.preProductionFile.content;
+    } else if (input.clearPreProductionFile) {
+      payload.clear_pre_production_file = true;
+    }
   }
 
   if (includeTax || input.maxStep === undefined) {
@@ -407,12 +434,28 @@ export function buildQuoteStepUpdatePayload(
   }
 
   if (step === "discounts" || step === "tax") {
-    return {
+    const payload: QuoteUpdatePayload = {
       discount_type: input.discountType === "fixed" ? "fixed_amount" : "percentage",
       discount_value: input.discountEnabled ? normalizeNumber(input.discountValue) : 0,
       tax_type: input.taxLabel.trim() || "Sales Tax",
       tax_rate: normalizeNumber(input.normalizedTaxRate),
     };
+
+    if (step === "tax") {
+      payload.pre_production_notes = input.preProductionNotes?.trim() || null;
+
+      if (input.preProductionFile?.content) {
+        payload.pre_production_file_name = input.preProductionFile.name;
+        payload.pre_production_file_type =
+          input.preProductionFile.type || "application/octet-stream";
+        payload.pre_production_file_size = input.preProductionFile.size;
+        payload.pre_production_file_content = input.preProductionFile.content;
+      } else if (input.clearPreProductionFile) {
+        payload.clear_pre_production_file = true;
+      }
+    }
+
+    return payload;
   }
 
   return buildQuoteUpdatePayload(input);

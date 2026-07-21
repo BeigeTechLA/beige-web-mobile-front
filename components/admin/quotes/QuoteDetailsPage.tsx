@@ -64,6 +64,7 @@ import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentAppro
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { getInitials } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -688,6 +689,7 @@ const QuoteTopActions = ({
   versions,
   selectedVersionId,
   onVersionChange,
+  showReject = true,
 }: {
   onReject: () => void;
   onConvert: () => void;
@@ -703,6 +705,7 @@ const QuoteTopActions = ({
   versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
+  showReject?: boolean;
 }) => (
   <div className="flex items-center gap-1 lg:gap-3">
     {versions.length > 0 && (
@@ -730,6 +733,7 @@ const QuoteTopActions = ({
         </Select>
       </div>
     )}
+    {showReject && (
     <Button
       type="button"
       onClick={onReject}
@@ -739,6 +743,7 @@ const QuoteTopActions = ({
       {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
       {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
     </Button>
+    )}
     <Button
       type="button"
       onClick={onPaymentTransaction}
@@ -847,6 +852,7 @@ export default function QuoteDetailsPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
+  const { canEdit, canDelete } = usePermissions("quotes");
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1237,21 +1243,16 @@ export default function QuoteDetailsPage({
     : 0;
   const discountAmount = Math.min(rawDiscountAmount, subtotal);
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
-  const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
-  const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
-  const taxAmount = quote
-    ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
-    : 0;
-  const amountAfterTax = quote
-    ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
-    : 0;
-  const finalTotal = quote
-    ? getQuoteNumber(
-      quote.final_total,
-      quote.total_amount,
-      quote.amount_after_discount
-    ) ?? amountAfterTax
-    : 0;
+  // Tax is hidden from quote details for now.
+  // const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
+  // const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
+  // const taxAmount = quote
+  //   ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
+  //   : 0;
+  // const amountAfterTax = quote
+  //   ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
+  //   : 0;
+  const finalTotal = discountedSubtotal;
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
@@ -1345,6 +1346,7 @@ export default function QuoteDetailsPage({
     versions.length,
   ]);
   const canEditSelectedVersion =
+    canEdit &&
     isSelectedLatestUsableVersion &&
     !isSelectedVersionRejected &&
     !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
@@ -1771,6 +1773,7 @@ export default function QuoteDetailsPage({
   );
 
   const handleRejectQuote = async () => {
+    if (!canDelete) return;
     if (!resolvedQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -2162,7 +2165,8 @@ export default function QuoteDetailsPage({
       }}
       onPreview={() => setIsPreviewOpen(true)}
       previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
-      rejectDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      rejectDisabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+      showReject={canDelete}
       convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
@@ -2769,7 +2773,7 @@ export default function QuoteDetailsPage({
 
             <SectionShell
               title="Other Details"
-              actionLabel={canEditSelectedVersion ? "Edit Tax & Discounts" : undefined}
+              actionLabel={canEditSelectedVersion ? "Edit Discounts" : undefined}
               onAction={canEditSelectedVersion ? () => setPendingEditView("discounts") : undefined}
               isDark={isDark}
             >
@@ -2785,6 +2789,7 @@ export default function QuoteDetailsPage({
                   >
                     Discounts
                   </button>
+                  {/*
                   <button
                     type="button"
                     onClick={() => setOtherDetailsTab("tax")}
@@ -2795,6 +2800,7 @@ export default function QuoteDetailsPage({
                   >
                     Tax
                   </button>
+                  */}
                 </div>
 
                 {otherDetailsTab === "discounts" ? (
@@ -2846,6 +2852,7 @@ export default function QuoteDetailsPage({
                     />
                   </div>
                 ) : (
+                  /* Tax details hidden while tax is disabled.
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
                     <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
@@ -2853,6 +2860,8 @@ export default function QuoteDetailsPage({
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                   </div>
+                  */
+                  null
                 )}
 
                 <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
@@ -2885,7 +2894,8 @@ export default function QuoteDetailsPage({
               <Button
                 type="button"
                 onClick={handleRejectQuote}
-                disabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                disabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                title={canDelete ? "Reject Quote" : "Delete permission not allowed"}
                 className="h-10 rounded-lg border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90 w-full"
               >
                 {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}

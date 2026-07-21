@@ -7,7 +7,6 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { pushToDataLayer } from "@/lib/gtm";
-import { Button } from "../ui/button";
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -42,18 +41,28 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   );
 };
 
+import { useAppSelector } from '@/lib/redux/hooks';
+
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard' },
-  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview' },
-  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager' },
-  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself' },
-  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages' },
-  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots' },
-  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes' },
-  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot' },
-  { name: 'Finances', icon: DollarSign, link: '/affiliate/finances' },
-  { name: 'Profile', icon: Settings, link: '/affiliate/profile' },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/affiliate/dashboard', permissionKeys: ['dashboard'] },
+  { name: 'Affiliate Overview', icon: Users, link: '/affiliate/overview', permissionKeys: ['users'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/affiliate/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself', permissionKeys: ['shoots'] },
+  { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', permissionKeys: ['messages'] },
+  { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['shoots'] },
+  { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['quotes'] },
+  { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['shoots'] },
+  {
+    name: 'Finances',
+    icon: DollarSign,
+    permissionKeys: ['invoices'],
+    children: [
+      { name: 'Beige Credit Points', link: '/affiliate/finances' },
+      { name: 'Transactions', link: '/affiliate/finances/transactions' },
+    ],
+  },
+  { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['settings'] },
 ];
 
 type MenuItem = {
@@ -69,10 +78,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const { permissionsVersion } = useAppSelector((state) => ({
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (pathname.startsWith("/affiliate/finances")) {
+      setExpanded((prev) => (prev.includes("Finances") ? prev : [...prev, "Finances"]));
+    }
+  }, [pathname]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -154,8 +172,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`affiliate-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
+            // Role and permissions checks are disabled for client/affiliate
+            /*
+            if (item.permissionKeys && item.permissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canView) return null;
+            }
+            */
             const hasChildren = item?.children && item?.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);

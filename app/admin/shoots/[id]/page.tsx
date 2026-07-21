@@ -17,16 +17,18 @@ import { MissingFieldsModal } from "@/components/admin/MissingFieldsModal";
 import QuotePreviewModal from "@/components/quotes/QuotePreviewModal";
 import { toast } from "sonner";
 import { adminApi, salesApi, type SalesQuoteDetailData } from "@/lib/api";
-import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download } from "lucide-react";
+import { CircleX, Loader2, X, SlidersHorizontal, Eye, FileText, AlertCircle, ExternalLink, Download, MessageCirclePlus } from "lucide-react";
 import { Button } from "@/src/components/landing/ui/button";
-import { useTheme } from "next-themes";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 import { usePreviewInvoiceMutation } from "@/lib/redux/features/sales/salesApi";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useTheme } from "next-themes";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
+import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 
 type SkillOption = {
   id?: number | string;
@@ -44,6 +46,16 @@ type ProjectDetails = {
   start_time?: string;
   end_time?: string;
   event_start_time?: string;
+  event_end_time?: string;
+  booking_type?: string | null;
+  time_zone?: string | null;
+  booking_days?: Array<{
+    date?: string | null;
+    event_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    time_zone?: string | null;
+  }> | null;
   total_paid_amount?: string | number;
   total_value_amount?: string | number;
   converted_quote_amount?: string | number;
@@ -64,6 +76,7 @@ type ProjectDetails = {
   assigned_crews?: unknown[];
   assigned_post_production_members?: unknown[];
   payment_history?: PaymentHistoryItem[];
+  notes_count?: string | number | null;
   [key: string]: unknown;
 };
 
@@ -165,6 +178,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { canEdit, canDelete } = usePermissions("shoots");
   // const [activeTab, setActiveTab] = useState("Overview");
   const activeTab = searchParams.get("tab") || "Overview";
 
@@ -180,6 +194,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -199,6 +214,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const bookingId =
     project?.booking_id || project?.stream_project_booking_id || id;
   const convertedSalesQuoteId = String(project?.converted_sales_quote_id || "").trim() || null;
+  const notesCount = Number(project?.notes_count || 0);
+  const notesButtonText = notesCount > 0 ? `Notes (${notesCount})` : "Notes";
   const missingFields = Array.isArray(project?.needs_attention?.missing_fields)
     ? project.needs_attention.missing_fields
     : [];
@@ -223,6 +240,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     setPendingAssignmentAction(null);
     action?.();
   };
+
+  const handleNotesCountChange = useCallback((shootId: string, count: number) => {
+    void shootId;
+    setProject((previousProject) =>
+      previousProject ? { ...previousProject, notes_count: count } : previousProject
+    );
+  }, []);
 
   const handlePreviewConvertedQuote = async () => {
     if (!convertedSalesQuoteId) {
@@ -410,6 +434,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   if (!mounted) return null;
 
   const handleDelete = async () => {
+    if (!canEdit) return;
     if (!id) return;
 
     if (window.confirm("Are you sure you want to delete this shoot? This action cannot be undone.")) {
@@ -515,15 +540,29 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             {convertedSalesQuoteId ? (
               <Button
                 onClick={handlePreviewConvertedQuote}
-                className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed w-full"
+                className="h-12 shrink-0 whitespace-nowrap rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:opacity-50 disabled:grayscale-[0.5] disabled:cursor-not-allowed"
               >
                 <Eye size={14} />
                 Preview Quote
               </Button>
             ) : null}
             <Button
+              type="button"
+              onClick={() => setIsNotesDrawerOpen(true)}
+              variant="outline"
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                }`}
+            >
+              <MessageCirclePlus className="w-4 h-4" />
+              {notesButtonText}
+            </Button>
+            <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
+              disabled={!canEdit}
+              title={canEdit ? "Cancel Shoot" : "Edit permission not allowed"}
             >
               <CircleX /> Cancel Shoot
             </Button>
@@ -536,7 +575,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
             </Button>
-            <Button onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
+              disabled={!canEdit}
+              title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
+              className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7"
+            >
               Edit Shoot
             </Button>
           </>
@@ -577,6 +621,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             missingFields={missingFields}
             hasFormDetails={hasFormDetails}
             onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
+            onScheduleUpdated={() => fetchProjectAndSkills(false)}
           />
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
@@ -687,7 +732,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
-                    <MeetingSchedule orderId={id} />
+                    <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>
               )}
@@ -706,7 +751,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
               {activeTab === "Meetings" && (
                 <>
-                  <MeetingSchedule orderId={id} />
+                  <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   <div className={`px-5 border-t ${isDark ? "border-t-[#FFFFFF80]" : "border-t-black/40"}`}>
                     <MeetingOverviewChart />
                   </div>
@@ -782,8 +827,6 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           >
             {isViewingInvoice ? "Opening Invoice..." : "View Invoice"}
           </Button>
-
-          {/* Preview Quote Button */}
           {convertedSalesQuoteId ? (
             <Button
               onClick={handlePreviewConvertedQuote}
@@ -792,18 +835,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               <Eye size={18} /> Preview Quote
             </Button>
           ) : null}
-
-          {/* Grid Row: Cancel & Edit Operations */}
+          <Button
+            onClick={() => setIsNotesDrawerOpen(true)}
+            className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
+          >
+            <MessageCirclePlus size={18} /> {notesButtonText}
+          </Button>
           <div className="flex gap-2 w-full">
             <Button
-              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}
+              onClick={handleDelete}
+              disabled={!canEdit}
+              title={canEdit ? "Cancel Shoot" : "Edit permission not allowed"}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#FFC3C3] text-[#BD1010] hover:bg-[#FFC3C3]/80 border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#FFF0F0] text-[#D32F2F] hover:bg-[#FFE5E5] border border-[#FFC3C3]'}`}
             >
               Cancel Shoot
             </Button>
-
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
-              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
+              disabled={!canEdit}
+              title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
+              className={`w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#E8D1AB] text-black hover:bg-[#d9c5a0] border border-[#d4c3a3]'}`}
             >
               Edit Shoot
             </Button>
@@ -826,6 +877,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           quote={quotePreviewData}
           quoteId={convertedSalesQuoteId}
           isLoading={isLoadingQuotePreview}
+        />
+        <NotesDrawer
+          isOpen={isNotesDrawerOpen}
+          onClose={() => setIsNotesDrawerOpen(false)}
+          shootId={String(bookingId || id)}
+          isDark={isDark}
+          onNotesCountChange={handleNotesCountChange}
         />
       </div>
     </>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BookingDataV3 } from "./types";
@@ -13,13 +14,6 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import type { Creator } from "@/lib/types";
 import CreatorCarousel from "./components/CreatorsCarousel";
 import CreatorCard from "./components/CreatorCard";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -32,6 +26,7 @@ import "swiper/css/effect-coverflow";
 import "swiper/css/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import type { CrewRole, SelectedCrewRoles } from "./types";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Props {
   data: BookingDataV3;

@@ -58,6 +58,8 @@ import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdow
 import { ClientTypeBadge } from "@/components/generic/ClientTypeBadge";
 import Topbar from "@/components/admin/Topbar";
 import { getFormattedDateString } from "@/lib/utils";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const INITIAL_COUNT = 6;
 
@@ -123,7 +125,25 @@ const getClientPhone = (client: ClientDropdownItem | null | undefined) =>
 const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
   pickFirstClientValue(client?.client_id, client?.id, getClientDisplayName(client));
 
-export default function ClientDetailPage() {
+export default function CreateNewDealPage() {
+  const { allowed, isLoading } = useRequireModulePermission(
+    "sales_representative",
+    "create",
+    "/sales/dashboard",
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <ClientDetailPage />;
+}
+
+function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
@@ -187,7 +207,7 @@ export default function ClientDetailPage() {
   // New API State for Crew List
   const [crewList, setCrewList] = useState<any[]>([]);
   const [isLoadingCrew, setIsLoadingCrew] = useState(false);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
+  const { canEdit: canAssignSalesRep } = usePermissions("sales_representative");
   const [salesRepId, setSalesRepId] = useState<string>("");
   const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
@@ -330,20 +350,10 @@ export default function ClientDetailPage() {
     }
     setTimeOptions(options);
     setMounted(true);
-
-    try {
-      const storedUser = localStorage.getItem("revure_user");
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = parsedUser?.user_type_id ?? parsedUser?.userTypeId;
-      setIsUserTypeSeven(userTypeId === 7);
-    } catch (error) {
-      console.error("Failed to read logged in user from localStorage:", error);
-      setIsUserTypeSeven(false);
-    }
   }, []);
 
   const fetchSalesReps = useCallback(async () => {
-    if (!isUserTypeSeven) {
+    if (!canAssignSalesRep) {
       setSalesRepOptions([]);
       return;
     }
@@ -367,7 +377,7 @@ export default function ClientDetailPage() {
     } finally {
       setIsLoadingSalesReps(false);
     }
-  }, [isUserTypeSeven]);
+  }, [canAssignSalesRep]);
 
   useEffect(() => {
     fetchSalesReps();
@@ -839,7 +849,7 @@ export default function ClientDetailPage() {
   }, [formData.contentType, extraTeam]);
 
   const handleContinueClick = async () => {
-    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || (isUserTypeSeven && !salesRepId) || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
+    if (!clientName || !clientEmail || !clientPhone || !thumbtack || !intent || (canAssignSalesRep && !salesRepId) || !formData.location || formData.contentType.length === 0 || !formData.shootType || !formData.startDate || !formData.endDate) {
       toast.error("Please fill in all Booking information fields");
       return;
     }
@@ -905,7 +915,7 @@ export default function ClientDetailPage() {
         guest_email: clientEmail,
         phone: clientPhone,
         intent: intent,
-        sales_rep_id: isUserTypeSeven && salesRepId ? Number(salesRepId) : undefined,
+        sales_rep_id: canAssignSalesRep && salesRepId ? Number(salesRepId) : undefined,
         lead_source: thumbtack,
         content_type: formData.contentType.filter(t => t !== 'editing').join(','),
         shoot_type: formData.shootType,
@@ -1162,7 +1172,7 @@ export default function ClientDetailPage() {
               required
               isDark={isDark}
             />
-            {isUserTypeSeven && (
+            {canAssignSalesRep && (
               <FloatingLabelDropdown
                 label="Assign Sales Person"
                 value={salesRepId}

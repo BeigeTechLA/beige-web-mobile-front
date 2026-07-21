@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import PaymentTransactionModal from "@/components/admin/sales-representative/PaymentTransactionModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface ActionMenuProps {
   isOpen: boolean;
@@ -23,7 +24,6 @@ interface ActionMenuProps {
   client: string | number | null;
   leadId: number | string;
   basePath?: string;
-  hideDelete?: boolean;
   onDeleteSuccess?: () => void;
   onManualPaymentSuccess?: () => void;
   allowPaymentTransaction?: boolean;
@@ -36,7 +36,6 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   client,
   leadId,
   basePath,
-  hideDelete = false,
   onDeleteSuccess,
   onManualPaymentSuccess,
   allowPaymentTransaction = true,
@@ -50,6 +49,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const [deleteClientLead, { isLoading: isDeletingClientLead }] =
     useDeleteClientLeadMutation();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const { canDelete: canDeleteByPermission } = usePermissions("sales_representative");
   const numericLeadId = Number(leadId);
   const resolvedPath = basePath ? basePath : pathname;
 
@@ -59,7 +59,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
     return "lead";
   }, [resolvedPath]);
 
-  const canDelete = !hideDelete && (itemType === "lead" || itemType === "client");
+  const canDelete = canDeleteByPermission && (itemType === "lead" || itemType === "client");
   const isDeleting = isDeletingLead || isDeletingClientLead;
   if (!isOpen) return null;
 
@@ -73,6 +73,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   };
 
   const handleDelete = async () => {
+    if (!canDeleteByPermission) return;
     if (!numericLeadId) {
       toast.error("Invalid lead id");
       return;
@@ -142,29 +143,28 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         </div>
 
         <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
-        {canDelete && (
-          <>
-          {/* <div className="flex flex-col p-1.5">
-          <MenuButton
-            icon={<BookCheck size={18} />}
-            label="Manage Quote"
-            onClick={onClose}
-          />
-        </div> */}
+        <>
+        {/* <div className="flex flex-col p-1.5">
+        <MenuButton
+          icon={<BookCheck size={18} />}
+          label="Manage Quote"
+          onClick={onClose}
+        />
+      </div> */}
 
-        {/* Divider */}
-            <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
-            <div className="flex flex-col p-1.5">
-              <MenuButton
-                icon={<Trash2 size={18} />}
-                label="Delete"
-                variant="danger"
-                onClick={() => setIsDeleteModalOpen(true)}
-                isDark={isDark}
-              />
-            </div>
-          </>
-        )}
+      {/* Divider */}
+          <div className={`h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#F0F0F0]"}`} />
+          <div className="flex flex-col p-1.5">
+            <MenuButton
+              icon={<Trash2 size={18} />}
+              label="Delete"
+              variant="danger"
+              disabled={!canDelete}
+              onClick={() => setIsDeleteModalOpen(true)}
+              isDark={isDark}
+            />
+          </div>
+        </>
       </div>
 
       <DeleteConfirmationModal

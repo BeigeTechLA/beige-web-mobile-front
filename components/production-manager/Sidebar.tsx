@@ -6,15 +6,17 @@ import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
 
 const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard' },
-    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners' },
-    { name: 'Shoots', icon: Camera, link: '/production-manager/shoots' },
-    { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager' },
-    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings' },
-    { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages' },
-    { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability' },
+    { name: 'Dashboard', icon: LayoutDashboard, link: '/production-manager/dashboard', permissionKeys: ['dashboard'] },
+    { name: 'Creative Partners', icon: Users, link: '/production-manager/creative-partners', permissionKeys: ['users'] },
+    { name: 'Shoots', icon: Camera, link: '/production-manager/shoots', permissionKeys: ['shoots'] },
+    { name: 'File Manager', icon: FolderOpen, link: '/production-manager/file-manager', permissionKeys: ['file_manager'] },
+    { name: 'Meetings', icon: CalendarClock, link: '/production-manager/meetings', permissionKeys: ['meetings'] },
+    { name: 'Messages', icon: MessageCircle, link: '/production-manager/messages', permissionKeys: ['messages'] },
+    { name: 'Availability', icon: CalendarClock, link: '/production-manager/availability', permissionKeys: ['availability'] },
 ];
 
 type MenuItem = {
@@ -30,6 +32,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     const router = useRouter();
     const { user, logout } = useAuth();
     const { theme } = useTheme();
+    const { permissions, permissionsVersion } = useAppSelector((state) => ({
+        permissions: state.auth.permissions,
+        permissionsVersion: state.auth.permissionsVersion,
+    }));
     const initialPath = useRef(pathname);
     const [mounted, setMounted] = useState(false);
     const [expanded, setExpanded] = useState<string[]>([]);
@@ -110,8 +116,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`pm-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
+            if (item.permissionKeys && item.permissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canView) return null;
+            }
+
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);

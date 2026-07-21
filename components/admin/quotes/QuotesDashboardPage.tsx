@@ -63,6 +63,7 @@ import {
 } from "@/lib/quoteEdit";
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import DatePicker from "@/components/ui/Datepicker";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -179,6 +180,8 @@ type QuoteActionMenuProps = {
   onPaymentTransaction: () => void;
   onReject: () => void;
   allowEdit?: boolean;
+  allowDelete?: boolean;
+  allowDuplicate?: boolean;
   mobile?: boolean;
   disabled?: boolean;
   isDark?: boolean;
@@ -246,6 +249,8 @@ const QuoteActionMenu = ({
   onPaymentTransaction,
   onReject,
   allowEdit = true,
+  allowDelete = true,
+  allowDuplicate = true,
   mobile = false,
   disabled = false,
   isDark = true,
@@ -307,12 +312,14 @@ const QuoteActionMenu = ({
             onClick={handleAction(onViewDetails)}
             isDark={isDark}
           />
-          <QuoteActionMenuButton
-            icon={<Copy size={18} />}
-            label="Duplicate"
-            onClick={handleAction(onDuplicate)}
-            isDark={isDark}
-          />
+          {allowDuplicate && (
+            <QuoteActionMenuButton
+              icon={<Copy size={18} />}
+              label="Duplicate"
+              onClick={handleAction(onDuplicate)}
+              isDark={isDark}
+            />
+          )}
           {allowEdit && (
             <QuoteActionMenuButton
               icon={<SquarePen size={18} />}
@@ -331,13 +338,15 @@ const QuoteActionMenu = ({
           {/* Divider line using theme opacity logic */}
           <div className={`my-1 h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#000000]/10"}`} />
 
-          <QuoteActionMenuButton
-            icon={<XCircle size={18} />}
-            label="Reject Quote"
-            onClick={handleAction(onReject)}
-            variant="danger"
-            isDark={isDark}
-          />
+          {allowDelete && (
+            <QuoteActionMenuButton
+              icon={<XCircle size={18} />}
+              label="Reject Quote"
+              onClick={handleAction(onReject)}
+              variant="danger"
+              isDark={isDark}
+            />
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -1047,6 +1056,7 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
+  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")
@@ -1386,6 +1396,8 @@ export default function QuotesDashboardPage({
         window.URL.revokeObjectURL(downloadUrl);
 
         setIsExportOpen(false);
+        setExportStartDate(null);
+        setExportEndDate(null);
         toast.success("Quotes exported successfully.");
       } catch (error) {
         console.error("Export Quotes Error:", error);
@@ -1707,7 +1719,7 @@ export default function QuotesDashboardPage({
     !hasActiveFilters;
 
   return (
-    <div className={`min-h-screen overflow-hidden ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
+    <div className={`min-h-screen overflow-x-clip ${isDark ? "bg-[#0f0f0f] text-white" : "bg-[#F4F5F7] text-black"}`}>
       <TopbarComponent
         pathname={pathname}
         actions={
@@ -1723,8 +1735,20 @@ export default function QuotesDashboardPage({
               <Download size={18} className="mr-2" />
               Export
             </Button> */}
-            <Link href={createHref}>
-              <Button className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
+            <Link
+              href={canCreate ? createHref : "#"}
+              aria-disabled={!canCreate}
+              tabIndex={canCreate ? 0 : -1}
+              onClick={(event) => {
+                if (canCreate) return;
+                event.preventDefault();
+              }}
+            >
+              <Button
+                disabled={!canCreate}
+                title={canCreate ? "Create New Quote" : "Create permission not allowed"}
+                className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+              >
                 Create New Quote
               </Button>
             </Link>
@@ -1732,7 +1756,7 @@ export default function QuotesDashboardPage({
         }
       />
 
-      <div className="p-4 lg:p-10">
+      <div className="p-4 pb-8 lg:p-10">
         <div className="mb-8 flex items-start justify-between">
           <div className="max-w-1/2">
             <h1 className="mb-2 font-semibold lg:text-2xl">Quotes Module</h1>
@@ -2304,7 +2328,9 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={quote.statusKey !== "expired"}
+                                allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowDelete={canDelete}
+                                allowDuplicate={canCreate}
                                 isDark={isDark}
                               />
                             </td>
@@ -2357,7 +2383,9 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={quote.statusKey !== "expired"}
+                                        allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowDelete={canDelete}
+                                allowDuplicate={canCreate}
                                         isDark={isDark}
                                       />
                                     </div>
@@ -2432,21 +2460,18 @@ export default function QuotesDashboardPage({
             </div>
           </div>
         )}
-      </div>
 
-      {!loading && !showEmptyState && (
-        <div
-          className={`fixed bottom-0 left-0 right-0 z-[40] flex gap-2 px-6 pb-6 lg:hidden ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-            }`}
-        >
-          <Button
-            onClick={() => router.push(createHref)}
-            className="h-14 w-full rounded-md border border-white/20 bg-[#E5D5B8] text-sm font-semibold text-black shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:bg-[#d4c3a3] active:scale-[0.98]"
-          >
-            Create New Quote
-          </Button>
-        </div>
-      )}
+        {!loading && !showEmptyState && (
+          <div className="mt-6 pb-[env(safe-area-inset-bottom)] lg:hidden">
+            <Button
+              onClick={() => router.push(createHref)}
+              className="h-14 w-full rounded-md border border-white/20 bg-[#E5D5B8] text-sm font-semibold text-black shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform hover:bg-[#d4c3a3] active:scale-[0.98]"
+            >
+              Create New Quote
+            </Button>
+          </div>
+        )}
+      </div>
 
       <EditAccessModalComponent
         open={Boolean(editAccessState)}

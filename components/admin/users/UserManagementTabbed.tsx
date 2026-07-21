@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import { useTheme } from 'next-themes';
 import {
     Select,
@@ -46,6 +47,52 @@ type SortConfig = {
     key: keyof UserData;
     direction: 'asc' | 'desc';
 } | null;
+
+type UserFetchParams = {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: string;
+};
+
+type PaginationData = {
+    total_records?: number;
+    total_pages?: number;
+};
+
+type RawClient = {
+    client_id?: string | number;
+    id?: string | number;
+    name?: string;
+    email?: string;
+    is_active?: boolean | number;
+    created_at?: string;
+    phone_number?: string;
+    profile_image?: string | null;
+    referral_code?: string | null;
+    client_type?: string;
+};
+
+type CrewMemberFile = {
+    file_type?: string;
+    file_path?: string;
+};
+
+type RawCrewMember = {
+    crew_member_id?: string | number;
+    id?: string | number;
+    first_name?: string;
+    last_name?: string;
+    name?: string;
+    email?: string;
+    status?: string;
+    created_at?: string;
+    role?: {
+        role_name?: string;
+    };
+    crew_member_files?: CrewMemberFile[];
+    referral_code?: string | null;
+};
 
 const StatusBadge = ({ status }: { status: UserStatus }) => {
     const styles = {
@@ -103,7 +150,7 @@ export const UserManagementTabbed = () => {
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [limit] = useState(50);
+    const [limit] = useState(10);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
@@ -228,12 +275,9 @@ export const UserManagementTabbed = () => {
             <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E5D5B8]":" text-[#666]"}`} />;
     };
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const params: any = { page: currentPage, limit: limit };
-            if (debouncedSearch) params.search = debouncedSearch;
-
             // Filter logic based on requirements
             const isCreativeStatus = ["approved", "pending", "rejected"].includes(statusFilter);
             const isActiveFilter = statusFilter === "active";
@@ -248,14 +292,22 @@ export const UserManagementTabbed = () => {
                 activeTab === "Creative Partner" ||
                 (activeTab === "All" && !isActiveFilter);
 
+            const isCombinedAllUsers = shouldFetchClients && shouldFetchCreatives;
+            const sourceLimit = isCombinedAllUsers ? Math.ceil(limit / 2) : limit;
+            const params: UserFetchParams = { page: currentPage, limit: sourceLimit };
+            if (debouncedSearch) params.search = debouncedSearch;
+
             let allUsers: UserData[] = [];
-            let paginationData: any = null;
+            let paginationData: PaginationData | null = null;
+            let clientTotalRecords = 0;
+            let creativeTotalRecords = 0;
 
             if (shouldFetchClients) {
                 const clientsRes = await adminApi.getAdminClients(params);
                 if (clientsRes?.data) {
+                    const clientPagination = clientsRes.pagination as PaginationData | undefined;
                     const items = Array.isArray(clientsRes.data) ? clientsRes.data : (clientsRes.data.items || []);
-                    const mapped = items.map((client: any) => ({
+                    const mapped = items.map((client: RawClient) => ({
                         id: `#${client.client_id || client.id}`,
                         name: client.name || "Unknown",
                         email: client.email || "No Email",
@@ -269,7 +321,8 @@ export const UserManagementTabbed = () => {
                         clientType: client?.client_type === "registered" ? "Registered" : "Guest",
                     }));
                     allUsers = [...allUsers, ...mapped];
-                    paginationData = clientsRes.pagination;
+                    clientTotalRecords = clientPagination?.total_records || mapped.length;
+                    paginationData = clientPagination || null;
                 }
             }
 
@@ -280,10 +333,11 @@ export const UserManagementTabbed = () => {
 
                 const creativeRes = await adminApi.getCrewMembers(creativeParams);
                 if (creativeRes?.data) {
+                    const creativePagination = creativeRes.pagination as PaginationData | undefined;
                     const items = Array.isArray(creativeRes.data) ? creativeRes.data : (creativeRes.data.items || []);
-                    const mapped = items.map((member: any) => {
+                    const mapped = items.map((member: RawCrewMember) => {
                         const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.name || "Unknown";
-                        const profilePhoto = member.crew_member_files?.find((f: any) => f.file_type === 'profile_photo');
+                        const profilePhoto = getLatestProfilePhoto(member.crew_member_files);
                         return {
                             id: `#${member.crew_member_id || member.id}`,
                             name: fullName,
@@ -300,25 +354,35 @@ export const UserManagementTabbed = () => {
                         };
                     });
                     allUsers = [...allUsers, ...mapped];
-                    if (!paginationData) paginationData = creativeRes.pagination;
+                    creativeTotalRecords = creativePagination?.total_records || mapped.length;
+                    if (!paginationData) paginationData = creativePagination || null;
                 }
             }
 
-            setUsers(allUsers);
-            setTotalRecords(paginationData?.total_records || allUsers.length);
-            setTotalPages(paginationData?.total_pages || 1);
+            const combinedTotalRecords = clientTotalRecords + creativeTotalRecords;
+            const resolvedTotalRecords = isCombinedAllUsers
+                ? combinedTotalRecords || allUsers.length
+                : paginationData?.total_records || allUsers.length;
+
+            setUsers(allUsers.slice(0, limit));
+            setTotalRecords(resolvedTotalRecords);
+            setTotalPages(
+                isCombinedAllUsers
+                    ? Math.max(1, Math.ceil(resolvedTotalRecords / limit))
+                    : paginationData?.total_pages || 1
+            );
         } catch (error) {
             console.error("Fetch error:", error);
             toast.error("Failed to load users");
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, currentPage, debouncedSearch, limit, statusFilter]);
 
     useEffect(() => {
         if (!filtersInitialized) return;
         fetchUsers();
-    }, [activeTab, currentPage, debouncedSearch, statusFilter, filtersInitialized]);
+    }, [fetchUsers, filtersInitialized]);
 
     const handleRowClick = (user: UserData) => {
         const cleanId = user.id.replace('#', '');
@@ -326,9 +390,9 @@ export const UserManagementTabbed = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
             <div>
-                <h1 className={`text-lg lg:text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
+                <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>User Management</h1>
                 <p className={isDark ? "text-[#888]" : "text-[#666]"}>Manage and review all registered users in one place.</p>
             </div>
 
@@ -350,7 +414,7 @@ export const UserManagementTabbed = () => {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
                 <div className="flex items-center gap-4 w-full md:flex-1">
                     <div className="relative flex-1 max-w-md">
                         <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
@@ -396,22 +460,22 @@ export const UserManagementTabbed = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className={` text-sm font-normal border-b ${isDark ? "text-[#888] border-[#333]":"bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('id')}>
                                     <div className="flex items-center">User ID {getSortIcon('id', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('name')}>
                                     <div className="flex items-center">User Name {getSortIcon('name', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('type')}>
                                     <div className="flex items-center">Type {getSortIcon('type', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium">Contact / Role</th>
-                                <th className="py-5 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
+                                <th className="py-3 px-6 font-medium">Contact / Role</th>
+                                <th className="py-3 px-6 font-medium cursor-pointer" onClick={() => requestSort('status')}>
                                     <div className="flex items-center">Status {getSortIcon('status', isDark)}</div>
                                 </th>
-                                <th className="py-5 px-6 font-medium">Client Type</th>
-                                <th className="py-5 px-6 font-medium">Referral Code</th>
-                                <th className="py-5 px-6 font-medium text-right">Action</th>
+                                <th className="py-3 px-6 font-medium">Client Type</th>
+                                <th className="py-3 px-6 font-medium">Referral Code</th>
+                                <th className="py-3 px-6 font-medium text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -429,8 +493,8 @@ export const UserManagementTabbed = () => {
                                         onClick={() => handleRowClick(user)}
                                         className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"
                                             }`}>
-                                        <td className="py-5 px-6">{user.id}</td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6">{user.id}</td>
+                                        <td className="py-3 px-6">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold border overflow-hidden ${
                                                     isDark ? "bg-[#1A1A1A] text-[#E5D5B8] border-white/5" : "bg-[#F5F5F5] text-[#8B7E66] border-[#E3E3E3]"
@@ -443,27 +507,27 @@ export const UserManagementTabbed = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                        <td className={`py-3 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             <div className="flex items-center gap-2">
                                                 {user.type === "Client" ? <User size={14} /> : <Camera size={14} />}
                                                 {user.type}
                                             </div>
                                         </td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6">
                                             {user.type === "Client" ? user.phoneNumber : <span className={`px-2 py-0.5 rounded text-xs ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]": "bg-transparent text-[#000]"}`}>{user.role}</span>}
                                         </td>
-                                        <td className="py-5 px-6"><StatusBadge status={user.status} /></td>
-                                        <td className="py-5 px-6">
+                                        <td className="py-3 px-6"><StatusBadge status={user.status} /></td>
+                                        <td className="py-3 px-6">
                                             <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
                                         </td>
-                                        <td className={`py-5 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
+                                        <td className={`py-3 px-6 text-sm ${isDark ? "text-[#888]" : "text-[#666]"}`}>
                                             {user.referralCode ? (
                                                 <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E5D5B8]/10 text-[#E5D5B8]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>
                                             ) : (
                                                 <span className="opacity-40">—</span>
                                             )}
                                         </td>
-                                        <td className="py-5 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
+                                        <td className="py-3 px-6 text-right"><ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} /></td>
                                     </tr>
                                 ))
                             )}
@@ -472,7 +536,6 @@ export const UserManagementTabbed = () => {
                 </div>
             </div>
 
-            {/* Pagination remains the same using original totalRecords */}
             {!loading && totalPages > 1 && (
                 <div className="flex justify-between items-center p-6 border-t border-[#333333]">
                     <div className="text-sm text-[#666666]">
@@ -487,21 +550,37 @@ export const UserManagementTabbed = () => {
                             Previous
                         </button>
                         <div className="flex gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                const pageNum = i + 1;
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === pageNum
-                                            ? "bg-[#E5D5B8] text-black"
-                                            : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
+                            {(() => {
+                                const rangePages = [];
+                                const delta = 1;
+                                const left = currentPage - delta;
+                                const right = currentPage + delta + 1;
+
+                                for (let i = 1; i <= totalPages; i++) {
+                                    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+                                        rangePages.push(i);
+                                    } else if (i === left - 1 || i === right) {
+                                        rangePages.push('...');
+                                    }
+                                }
+
+                                return rangePages.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                                    page === '...' ? (
+                                        <span key={`dots-${index}`} className="px-2 py-1 text-white/30 text-xs">...</span>
+                                    ) : (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page as number)}
+                                            className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${currentPage === page
+                                                ? "bg-[#E5D5B8] text-black"
+                                                : "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                                                }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                                ));
+                            })()}
                         </div>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}

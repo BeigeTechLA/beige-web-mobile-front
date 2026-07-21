@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { Trash2, X, Globe2, ChevronDown, History, User, Copy, CheckCircle2, Link, Eye, Download, ChevronUp } from "lucide-react";
+import { Trash2, X, Globe2, ChevronDown, History, User, Copy, CheckCircle2, Link, Eye, Download, ChevronUp, UploadCloud } from "lucide-react";
 
 interface ShareResourceModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ type ShareItem = {
   shareToken: string;
   email: string;
   accessMode?: "email_only" | "anyone_with_link";
+  permission?: "view_download" | "upload_download";
   message?: string | null;
 };
 
@@ -46,6 +47,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const [activeTab, setActiveTab] = useState<"people" | "activity">("people");
   const [emailInput, setEmailInput] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  const [emailPermission, setEmailPermission] = useState<"view_download" | "upload_download">("view_download");
   const [pendingEmails, setPendingEmails] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [sharingAnyone, setSharingAnyone] = useState(false);
@@ -62,6 +64,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
     setActiveTab("people");
     setEmailInput("");
     setShareMessage("");
+    setEmailPermission("view_download");
     setPendingEmails([]);
     setLoading(false);
     setSharingAnyone(false);
@@ -91,6 +94,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           shareToken: row.shareToken,
           email: row.email,
           accessMode: row.accessMode || "email_only",
+          permission: row.permission || "view_download",
           message: row.message || null,
         }))
       );
@@ -184,6 +188,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           filepath: resource.filepath,
           email,
           accessMode: "email_only",
+          permission: emailPermission,
           message: shareMessage.trim(),
         })
       )
@@ -204,7 +209,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const handleCreateShare = async () => {
     if (!resource) return;
 
-    let emailsToShare = [...pendingEmails];
+    const emailsToShare = [...pendingEmails];
     const inlineInput = emailInput.trim().toLowerCase();
 
     if (inlineInput) {
@@ -247,6 +252,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         path: resource.path,
         filepath: resource.filepath,
         accessMode: "anyone_with_link",
+        permission: "view_download",
         message: shareMessage.trim(),
       });
       toast.success("Anyone with link enabled");
@@ -287,6 +293,9 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
   const normalizeActionLabel = (action?: string) => {
     const value = String(action || "").trim().toLowerCase();
     if (value === "view_download") return "View + Download";
+    if (value === "upload") return "Upload";
+    if (value === "upload_policy") return "Started Upload";
+    if (value === "upload_download") return "Can Upload & Download";
     if (value === "content_view") return "View";
     if (value === "download") return "Download";
     return value.replace(/_/g, " ") || "View";
@@ -299,6 +308,14 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#3b82f615] text-[#3b82f6]">
           <Download size={14} />
           <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.5)] border border-white/20" />
+        </div>
+      );
+    }
+    if (value === "upload" || value === "upload_policy") {
+      return (
+        <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-[#e8d1ab18] text-[#E8D1AB]">
+          <UploadCloud size={14} />
+          <div className="absolute -left-[25px] h-2 w-2 rounded-full bg-[#E8D1AB] shadow-[0_0_8px_rgba(232,209,171,0.5)] border border-white/20" />
         </div>
       );
     }
@@ -354,7 +371,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           Share <span className="text-[#E8D1AB]">({resource?.label || "Resource"})</span>
         </h2>
         <p className={`mt-2.5 text-xs font-medium leading-[1.4] transition-colors ${isDark ? "text-[#AAA7A7]" : "text-[#727272]"}`}>
-          Note : Recipients Must Verify their Email with and OTP each time they access shared files.
+          Recipients must verify their email with an OTP before accessing this file.
         </p>
       </div>
       <button
@@ -380,7 +397,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
             : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
             }`}>
             <legend className={`legend-reset px-1 text-xs leading-none font-medium transition-colors ${isDark ? "text-white/55" : "text-[#727272]"}`}>
-              Add or Invite by Email
+              Invite by Email
             </legend>
             <input
               type="email"
@@ -392,7 +409,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                   addCurrentEmail();
                 }
               }}
-              placeholder="name@company.com"
+              placeholder="Enter an email address"
               className={`w-full bg-transparent px-0 py-0.5 text-[14px] outline-none focus:ring-0 ${isDark ? "text-white placeholder:text-[#FFFFFF4D]" : "text-black placeholder:text-[#9F9FA9]"
                 }`}
             />
@@ -428,16 +445,49 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"
           }`}>
           <legend className={`legend-reset px-1 text-xs leading-none font-medium transition-colors ${isDark ? "text-white/55" : "text-[#727272]"}`}>
-            Message (Optional)
+            Add a Message (Optional)
           </legend>
           <Textarea
             value={shareMessage}
             onChange={(e) => setShareMessage(e.target.value)}
-            placeholder="Write a short note..."
+            placeholder="Add a note for the recipient..."
             className={`min-h-[50px] resize-none border-0 bg-transparent p-0 text-[14px] shadow-none focus-visible:ring-0 ${isDark ? "text-white placeholder:text-[#FFFFFF4D]" : "text-black placeholder:text-[#9F9FA9]"
-              }`}
+            }`}
           />
         </fieldset>
+
+        <div className="space-y-2">
+          <p className={`text-xs font-bold ${isDark ? "text-white/80" : "text-black/80"}`}>Permission</p>
+          <div className={`grid grid-cols-2 gap-2 rounded-lg border p-1 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
+            {[
+              { value: "view_download" as const, label: "Can Download", icon: Download },
+              { value: "upload_download" as const, label: "Can Upload & Download", icon: UploadCloud },
+            ].map((option) => {
+              const Icon = option.icon;
+              const active = emailPermission === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setEmailPermission(option.value)}
+                  className={`flex h-9 items-center justify-center gap-2 rounded-md text-xs font-bold transition-colors ${
+                    active
+                      ? "bg-[#E8D1AB] text-black"
+                      : isDark
+                        ? "text-white/55 hover:bg-white/10 hover:text-white"
+                        : "text-black/55 hover:bg-black/5 hover:text-black"
+                  }`}
+                >
+                  <Icon size={14} />
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className={`text-[11px] ${isDark ? "text-white/40" : "text-black/45"}`}>
+            Only invited recipients can upload files after verifying their email.
+          </p>
+        </div>
 
         <button
           type="button"
@@ -445,7 +495,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
           disabled={!emailInput.trim()}
           className="h-[32px] rounded-[6px] px-6 text-[12px] font-bold transition-all disabled:opacity-40 bg-[#E8D1AB] text-black hover:bg-[#dcb98a]"
         >
-          Add
+          Invite
         </button>
       </div>
 
@@ -459,7 +509,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
               : isDark ? "text-[#AAA7A7] hover:text-white/60" : "text-[#727272] hover:text-black"
               }`}
           >
-            People Access With
+            People with Access
           </button>
           <button
             type="button"
@@ -469,7 +519,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
               : isDark ? "text-[#E2C799]/70 hover:text-[#E2C799]" : "text-[#B38F43]/70 hover:text-[#B38F43]"
               }`}
           >
-            View Activity
+            Activity Log
           </button>
         </div>
 
@@ -499,7 +549,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                             {item.email}
                           </p>
                           <p className={`truncate text-xs ${isDark ? "text-[#AAA7A7]" : "text-[#727272]"}`}>
-                            Private access
+                            {item.permission === "upload_download" ? "Can Upload & Download" : "Can Download"}
                           </p>
                         </div>
                       </div>
@@ -538,7 +588,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
               </div>
             )}
 
-            {/* General Link Access Toggle Section */}
+            {emailPermission === "view_download" && (
             <div className={`border-t pt-4 transition-colors ${isDark ? "border-white/10" : "border-[#D7D7D7]"}`}>
               <h3 className={`text-xs sm:text-sm font-bold ${isDark ? "text-white/90" : "text-black/90"}`}>General Access</h3>
               <div className="mt-2 lg:mt-4 flex items-center justify-between gap-2 lg:gap-4">
@@ -548,7 +598,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                   </div>
                   <div className="min-w-0">
                     <p className={`text-xs sm:text-sm font-bold ${isDark ? "text-white" : "text-black"}`}>Anyone with the link</p>
-                    <p className={`text-xs whitespace-wrap font-medium ${isDark ? "text-[#AAA7A7]" : "text-[#727272]"}`}>Anyone on the Internet can view</p>
+                    <p className={`text-xs whitespace-wrap font-medium ${isDark ? "text-[#AAA7A7]" : "text-[#727272]"}`}>Anyone on the Internet can view and download</p>
                   </div>
                 </div>
                 {anyoneShare ? (
@@ -582,6 +632,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                 )}
               </div>
             </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -684,7 +735,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
       className={`h-11 rounded-lg text-sm font-bold border-0 transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#dcb98a]" : "bg-[#E8D1AB] text-black hover:bg-[#A3803A]"
         }`}
     >
-      {loading ? "Sharing..." : "Share Access"}
+      {loading ? "Sharing..." : "Save Changes"}
     </Button>
     <Button
       onClick={handleClose}
@@ -693,7 +744,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
         : "bg-[#F4F5F7] text-black border border-[#D7D7D7] hover:bg-black/5"
         }`}
     >
-      Done
+      Close
     </Button>
   </div>
 </DialogContent>

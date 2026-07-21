@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import ExternalChatView from "@/components/chat/ExternalChatView";
 import CreateChatModal from "@/components/admin/shoot-details/CreateChatModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface MessagesTabProps {
   bookingId?: string | number | null;
@@ -35,19 +36,24 @@ export default function MessagesTab({
   useEffect(() => {
     setHasChatRoom(null);
   }, [bookingId]);
+  const { canCreate } = usePermissions("messages");
 
   return (
     <>
-      {role === "admin" && hasChatRoom === false ? (
+      {role === "admin" ? (
         <div className="mb-5 flex items-center justify-end">
           <button
             type="button"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              if (!canCreate || !bookingId) return;
+              setIsCreateModalOpen(true);
+            }}
+            disabled={!canCreate || !bookingId}
+            title={canCreate ? "Create Chat Room" : "Create permission not allowed"}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isDark
                 ? "bg-[#E5D5B8] text-black hover:bg-[#d9c7a5]"
                 : "bg-black text-white hover:bg-zinc-800"
               }`}
-            disabled={!bookingId}
           >
             <MessageSquarePlus size={16} />
             Create Chat Room

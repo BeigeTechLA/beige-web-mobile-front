@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   CheckCircle2, 
   ChevronLeft, 
@@ -425,6 +425,7 @@ export const MissingFieldsModal = ({
   initialShootData
 }: MissingFieldsModalProps) => {
   const router = useRouter();
+  const pathname = usePathname();
   const [location, setLocation] = useState("");
   const [locationDetails, setLocationDetails] = useState<LocationDetails | null>(null);
   
@@ -833,6 +834,11 @@ export const MissingFieldsModal = ({
     }
 
     onClose();
+    if (pathname?.startsWith("/sales")) {
+      router.push(`/sales/shoots/${normalizedShootId}/form-details/edit`);
+      return;
+    }
+
     router.push(`/admin/shoots/${normalizedShootId}/form-details/edit`);
   };
 

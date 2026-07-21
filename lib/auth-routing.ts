@@ -5,6 +5,7 @@ type UserLike = {
 
 export const ROLE_ROUTE_PREFIXES: Record<number, string> = {
   1: "/admin",
+  8: "/admin",
   2: "/creator",
   3: "/affiliate",
   4: "/sales",
@@ -15,6 +16,7 @@ export const ROLE_ROUTE_PREFIXES: Record<number, string> = {
 
 export const ROLE_DASHBOARD_ROUTES: Record<number, string> = {
   1: "/admin/dashboard",
+  8: "/admin/dashboard",
   2: "/creator/dashboard",
   3: "/affiliate/dashboard",
   4: "/sales/dashboard",

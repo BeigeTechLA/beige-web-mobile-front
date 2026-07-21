@@ -60,6 +60,7 @@ import {
 import Topbar from "@/components/admin/Topbar";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { getFormattedDateString } from "@/lib/utils";
+import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
 const INITIAL_COUNT = 6;
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
@@ -69,7 +70,27 @@ const TEAM_ROLES = [
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
 ];
 
-export default function ClientDetailPage() {
+export default function CreateBookingPage() {
+  const params = useParams();
+  const leadId = params.id as string;
+  const { allowed, isLoading } = useRequireModulePermission(
+    "shoots",
+    "create",
+    `/admin/sales-representative/client/${leadId}`,
+  );
+
+  if (isLoading || !allowed) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-white/60">
+        {!isLoading && !allowed ? "No Permission" : null}
+      </div>
+    );
+  }
+
+  return <ClientDetailPage />;
+}
+
+function ClientDetailPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();

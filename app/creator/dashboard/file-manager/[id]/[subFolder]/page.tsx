@@ -52,6 +52,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const STATUSES = ["Linked", "Unlinked"];
@@ -87,6 +88,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
 };
 
 export default function CreatorFileManagerPhasePage() {
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("file_manager");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -334,9 +336,9 @@ export default function CreatorFileManagerPhasePage() {
     : undefined;
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
-  const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot;
-  const canDeleteFolders = isCommonEventWorkspace;
-  const canDeleteFiles = isCommonEventWorkspace || phaseSlug === "post-production";
+  const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot && canCreateByPermission;
+  const canDeleteFolders = isCommonEventWorkspace && canDeleteByPermission;
+  const canDeleteFiles = (isCommonEventWorkspace || phaseSlug === "post-production") && canDeleteByPermission;
   const getFolderActionPath = (folder?: UiFolderItem | null) => {
     if (!folder) return undefined;
     if (isCommonEventRootFolder) {
@@ -372,27 +374,11 @@ export default function CreatorFileManagerPhasePage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, String(file.title || file.name || "file"));
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
@@ -445,6 +431,7 @@ export default function CreatorFileManagerPhasePage() {
   };
 
   const canUpload =
+    canCreateByPermission &&
     !isCommonEventPreProductionRoot &&
     (isCommonEventWorkspace ||
       (phaseSlug === "post-production" && isOnOrAfterShootDay(shootDate)));
@@ -467,23 +454,15 @@ export default function CreatorFileManagerPhasePage() {
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to download file");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to download selected files");
     }
-
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -711,9 +690,40 @@ export default function CreatorFileManagerPhasePage() {
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar
+        pathname={pathname}
+        actions=
+        {canUpload || canCreateFolder ? (
+          <div className="flex items-center gap-2">
+            {canCreateFolder ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsCreateFolderModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <FolderPlus /> Create Folder
+              </Button>
+            ) : null}
+            {canUpload ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#E8D0AA] text-black hover:bg-[#D4C3A3] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Upload /> Upload Files
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      />
       <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
-        <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <Button
             onClick={() => {
               if (selectionLockActive) return;
@@ -726,7 +736,7 @@ export default function CreatorFileManagerPhasePage() {
             <span className="text-sm font-medium">Back</span>
           </Button>
 
-          {canUpload || canCreateFolder ? (
+          {/* {canUpload || canCreateFolder ? (
             <div className="flex items-center gap-2">
               {canCreateFolder ? (
                 <Button
@@ -753,7 +763,7 @@ export default function CreatorFileManagerPhasePage() {
                 </Button>
               ) : null}
             </div>
-          ) : null}
+          ) : null} */}
         </div>
 
         {loading ? (
@@ -949,7 +959,7 @@ export default function CreatorFileManagerPhasePage() {
                               path: getFolderActionPath(folder),
                             });
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                           } catch (err: unknown) {
                             toast.error(err instanceof Error ? err.message : "Failed to download folder");
@@ -1257,7 +1267,7 @@ export default function CreatorFileManagerPhasePage() {
                   path: getFolderActionPath(selectedFolder),
                 });
                 if (result?.url) {
-                  window.open(result.url, "_blank", "noopener,noreferrer");
+                  fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
                 }
               } catch (err: unknown) {
                 toast.error(err instanceof Error ? err.message : "Failed to download folder");
@@ -1338,6 +1348,19 @@ export default function CreatorFileManagerPhasePage() {
                 >
                   Clear
                 </Button>
+                <Button
+                  variant="ghost"
+                  className={`text-xs lg:text-sm h-9 lg:h-10 gap-2 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                    }`}
+                  onClick={() => {
+                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    setSelectedFilePaths(Array.from(new Set(allVisible)));
+                    setIsSelectionMode(true);
+                  }}
+                >
+                  <CheckSquare size={16} />
+                  Select all
+                </Button>
               </div>
 
               {/* Right Action Trigger Group */}
@@ -1386,6 +1409,36 @@ export default function CreatorFileManagerPhasePage() {
                 <CloseIcon size={20} />
               </button>
             </div>
+          </div>
+        ) : null}
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        {canUpload || canCreateFolder ? (
+          <div className={`lg:hidden fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+            {canCreateFolder ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsCreateFolderModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#202020] text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <FolderPlus /> Create Folder
+              </Button>
+            ) : null}
+            {canUpload ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  setIsUploadModalOpen(true);
+                }}
+                disabled={selectionLockActive}
+                className="border border-white/20 bg-[#E8D0AA] text-black hover:bg-[#D4C3A3] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Upload /> Upload Files
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>

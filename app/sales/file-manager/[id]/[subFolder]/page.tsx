@@ -39,6 +39,7 @@ import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
   getDisplayInitials,
@@ -130,6 +131,7 @@ export default function SalesFileManagerPhasePage() {
   const projectId = params.id;
   const phaseSlug = params.subFolder;
   const isPreProduction = phaseSlug !== "post-production";
+  const { canCreate, canDelete } = usePermissions("file_manager");
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -338,7 +340,7 @@ export default function SalesFileManagerPhasePage() {
         path: getSelectedFolderPath(),
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download folder");
@@ -346,6 +348,7 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
+    if (!canDelete) return;
     if (!selectedFolder?.resourcePath) return;
 
     try {
@@ -385,30 +388,15 @@ export default function SalesFileManagerPhasePage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, file.title || file.name || "file");
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download file");
     }
   };
 
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
-  };
-
   const handleDeleteFile = async (file: any) => {
+    if (!canDelete) return;
     const targetFile = file || selectedFile;
     if (!targetFile?.filepath) return;
 
@@ -452,23 +440,19 @@ export default function SalesFileManagerPhasePage() {
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to download file");
-      }
-      await new Promise(r => setTimeout(r, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download selected files");
     }
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
+    if (!canDelete) return;
     if (selectedFilePaths.length === 0) return;
 
     try {
@@ -499,30 +483,26 @@ export default function SalesFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
-            {isPreProduction ? (
-              <>
-                <Button
-                  onClick={() => {
-                    if (selectionLockActive) return;
-                    setIsUploadModalOpen(true);
-                  }}
-                  disabled={selectionLockActive}
-                  className="bg-[#202020] border border-white/20 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Upload /> Upload Files
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (selectionLockActive) return;
-                    setIsCreateFolderModalOpen(true);
-                  }}
-                  disabled={selectionLockActive}
-                  className="bg-[#E5D5B8] text-black disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Create Folder
-                </Button>
-              </>
-            ) : null}
+            <Button
+              onClick={() => {
+                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                setIsUploadModalOpen(true);
+              }}
+              disabled={selectionLockActive || !isPreProduction || !canCreate}
+              className="bg-[#202020] border border-white/20 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Upload /> Upload Files
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                setIsCreateFolderModalOpen(true);
+              }}
+              disabled={selectionLockActive || !isPreProduction || !canCreate}
+              className="bg-[#E5D5B8] text-black disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Create Folder
+            </Button>
           </>
         }
       />
@@ -705,7 +685,7 @@ export default function SalesFileManagerPhasePage() {
                               path: getPhaseRelativePath(folder.resourcePath, folder.title),
                             });
                             if (result?.url) {
-                              window.open(result.url, "_blank", "noopener,noreferrer");
+                              fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
                             } catch (err: any) {
                               toast.error(err?.message || "Failed to download folder");
@@ -807,7 +787,7 @@ export default function SalesFileManagerPhasePage() {
                                     path: getPhaseRelativePath(folder.resourcePath, folder.title),
                                   });
                                   if (result?.url) {
-                                    window.open(result.url, "_blank", "noopener,noreferrer");
+                                    fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                                   }
                                 } catch (err: any) {
                                   toast.error(err?.message || "Failed to download folder");
@@ -829,10 +809,14 @@ export default function SalesFileManagerPhasePage() {
                       <div>
                         <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                         {filteredFiles.length === 0 ? (
-                          <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
-                          />
+                            <EmptyFileState
+                              onAction={() => {
+                                if (selectionLockActive || !isPreProduction || !canCreate) return;
+                                setIsUploadModalOpen(true);
+                              }}
+                              actionLabel="Upload Files"
+                              actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
+                            />
                         ) : (
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
@@ -938,8 +922,12 @@ export default function SalesFileManagerPhasePage() {
                         <h3 className="mb-4 text-sm font-semibold text-[#E8D1AB]">Files</h3>
                         {filteredFiles.length === 0 ? (
                           <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                            onAction={() => {
+                              if (selectionLockActive || !isPreProduction || !canCreate) return;
+                              setIsUploadModalOpen(true);
+                            }}
+                            actionLabel="Upload Files"
+                            actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                           />
                         ) : (
                           <div className="space-y-4">
@@ -1052,8 +1040,12 @@ export default function SalesFileManagerPhasePage() {
               ) : viewMode === "grid" ? (
                 filteredFiles.length === 0 ? (
                           <EmptyFileState
-                            onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                            actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                            onAction={() => {
+                              if (selectionLockActive || !isPreProduction || !canCreate) return;
+                              setIsUploadModalOpen(true);
+                            }}
+                            actionLabel="Upload Files"
+                            actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                           />
                 ) : (
                   <div className="space-y-4">
@@ -1091,8 +1083,12 @@ export default function SalesFileManagerPhasePage() {
               ) : (
                 filteredFiles.length === 0 ? (
                   <EmptyFileState
-                    onAction={isPreProduction && !selectionLockActive ? () => setIsUploadModalOpen(true) : undefined}
-                    actionLabel={isPreProduction && !selectionLockActive ? "Upload Files" : undefined}
+                    onAction={() => {
+                      if (selectionLockActive || !isPreProduction || !canCreate) return;
+                      setIsUploadModalOpen(true);
+                    }}
+                    actionLabel="Upload Files"
+                    actionDisabled={selectionLockActive || !isPreProduction || !canCreate}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -1301,6 +1297,19 @@ export default function SalesFileManagerPhasePage() {
                   Clear
                 </Button>
 
+                <Button
+                  variant="ghost"
+                  className="text-white/70 hover:text-white gap-2"
+                  onClick={() => {
+                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    setSelectedFilePaths(Array.from(new Set(allVisible)));
+                    setIsSelectionMode(true);
+                  }}
+                >
+                  <CheckSquare size={18} />
+                  Select all
+                </Button>
+
                 <div className="h-6 w-[1px] bg-white/10 mx-1" />
 
                 <Button
@@ -1330,31 +1339,30 @@ export default function SalesFileManagerPhasePage() {
           </div>
         )}
 
-        {isPreProduction ? (
-          <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsUploadModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload size={20} />
-              Upload Files
-            </Button>
-            <Button
-              onClick={() => {
-                if (selectionLockActive) return;
-                setIsCreateFolderModalOpen(true);
-              }}
-              disabled={selectionLockActive}
-              className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Create Folder
-            </Button>
-          </div>
-        ) : null}
+        <div className="lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 z-[40] bg-[#0f0f0f]">
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !isPreProduction || !canCreate) return;
+              setIsUploadModalOpen(true);
+            }}
+            disabled={selectionLockActive || !isPreProduction || !canCreate}
+            className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Upload size={20} />
+            Upload Files
+          </Button>
+          <Button
+            onClick={() => {
+              if (selectionLockActive || !isPreProduction || !canCreate) return;
+              setIsCreateFolderModalOpen(true);
+            }}
+            disabled={selectionLockActive || !isPreProduction || !canCreate}
+            className="w-full bg-[#202020] text-white hover:bg-white/10 h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Create Folder
+          </Button>
+        </div>
+
       </div>
     </>
   );

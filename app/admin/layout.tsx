@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes"; // Integrated theme hook
 
 import Sidebar from "@/components/admin/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
@@ -21,7 +24,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`flex flex-1 min-h-0 overflow-hidden relative transition-colors duration-300 ${
-      isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+      isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"
     }`}>
       <div className="hidden lg:block h-full border-r border-transparent">
         <Sidebar />
@@ -57,10 +60,68 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
+  const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isResolvingInitialRoute, setIsResolvingInitialRoute] = useState(true);
+  const shouldGateInitialAdminRoute = pathname === "/admin" || pathname === "/admin/dashboard";
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted) return;
+
+    if (!shouldGateInitialAdminRoute) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    if (!userId) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsResolvingInitialRoute(true);
+
+    const resolveInitialRoute = async () => {
+      const latestPermissions =
+        permissions ?? (await fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false }));
+
+      if (isCancelled) return;
+
+      if (!canAccessPortalPath(pathname, latestPermissions)) {
+        const fallbackPath = getFirstAllowedPortalPath("admin", latestPermissions);
+        if (fallbackPath && fallbackPath !== pathname) {
+          router.replace(fallbackPath);
+          return;
+        }
+      }
+
+      setIsResolvingInitialRoute(false);
+    };
+
+    void resolveInitialRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, mounted, dispatch, pathname, permissions, router, shouldGateInitialAdminRoute]);
+
+  useEffect(() => {
+    if (!mounted || !permissions) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("admin", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -69,10 +130,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Root container handles base text and background colors */}
       <div className={`flex flex-col h-screen overflow-hidden transition-colors duration-300 ${
         isDark 
-          ? "bg-[#0f0f0f] text-white" 
+          ? "bg-[#101010] text-white" 
           : "bg-[#F4F5F7] text-[#000000]"
       }`}>
-        <LayoutContent>{children}</LayoutContent>
+        {isResolvingInitialRoute && shouldGateInitialAdminRoute ? null : (
+          <LayoutContent>{children}</LayoutContent>
+        )}
       </div>
     </SidebarProvider>
   );

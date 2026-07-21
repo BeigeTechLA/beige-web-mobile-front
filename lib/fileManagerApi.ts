@@ -108,6 +108,7 @@ interface ExternalShareCreateResponse {
     shareToken: string;
     shareUrl: string;
     message?: string | null;
+    permission?: "view_download" | "upload_download";
   };
 }
 interface ExternalShareListItem {
@@ -115,6 +116,7 @@ interface ExternalShareListItem {
   shareToken: string;
   email: string;
   accessMode?: "email_only" | "anyone_with_link";
+  permission?: "view_download" | "upload_download";
   message?: string | null;
   resourceType: "workspace" | "folder" | "file";
   phase?: string;
@@ -362,7 +364,18 @@ const normalizeExternalLinkUrl = (rawUrl?: string): string => {
       parsed.hostname === "127.0.0.1" ||
       parsed.hostname === "::1";
 
-    if (!isLocalHost) return rawUrl;
+    if (!isLocalHost) {
+      if (
+        typeof window !== "undefined" &&
+        window.location.protocol === "https:" &&
+        parsed.protocol === "http:"
+      ) {
+        parsed.protocol = "https:";
+        return parsed.toString();
+      }
+
+      return rawUrl;
+    }
 
     const origin = getApiOriginForExternalLinks();
     if (!origin) return rawUrl;
@@ -370,6 +383,42 @@ const normalizeExternalLinkUrl = (rawUrl?: string): string => {
     return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return rawUrl;
+  }
+};
+
+const getFilenameFromDisposition = (value?: string | null) => {
+  const disposition = String(value || "");
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+  return filenameMatch?.[1] || "";
+};
+
+const triggerBrowserDownload = (url: string, filename?: string) => {
+  if (typeof document === "undefined" || !url) return;
+  const link = document.createElement("a");
+  link.href = url;
+  link.rel = "noopener noreferrer";
+  if (filename) link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  if (typeof window === "undefined") return;
+  const objectUrl = window.URL.createObjectURL(blob);
+  try {
+    triggerBrowserDownload(objectUrl, filename);
+  } finally {
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
   }
 };
 
@@ -934,6 +983,10 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  downloadUrl(url: string, filename?: string) {
+    triggerBrowserDownload(url, filename);
+  },
+
   async getExternalFolderDownloadUrl(
     externalId: string | number,
     options?: { phase?: string; path?: string }
@@ -950,6 +1003,26 @@ export const fileManagerApi = {
       response.data.url = normalizeExternalLinkUrl(response.data.url);
     }
     return response.data;
+  },
+
+  async downloadExternalSelectedFiles(filepaths: string[], filename = "selected-files.zip") {
+    const normalizedFilepaths = Array.from(
+      new Set(filepaths.map((item) => String(item || "").trim()).filter(Boolean))
+    );
+
+    if (!normalizedFilepaths.length) {
+      throw new Error("Select at least one file to download");
+    }
+
+    const response = await apiClient.getInstance().post("external-file-manager/selected-download", {
+      filepaths: normalizedFilepaths,
+      filename,
+    }, {
+      responseType: "blob",
+    });
+
+    const responseFilename = getFilenameFromDisposition(response.headers?.["content-disposition"]);
+    downloadBlob(response.data, responseFilename || filename);
   },
 
   async deleteExternalEntry(filepath: string) {
@@ -1034,6 +1107,7 @@ export const fileManagerApi = {
     externalId: string;
     email?: string;
     accessMode?: "email_only" | "anyone_with_link";
+    permission?: "view_download" | "upload_download";
     message?: string;
     phase?: string;
     path?: string;
@@ -1055,7 +1129,14 @@ export const fileManagerApi = {
   },
 
   async verifyExternalShareOtp(shareToken: string, email: string, otp: string) {
-    const response = await apiClient.post<{ success: boolean; data?: { accessToken: string } }>(
+    const response = await apiClient.post<{
+      success: boolean;
+      data?: {
+        accessToken: string;
+        permission?: "view_download" | "upload_download";
+        accessMode?: "email_only" | "anyone_with_link";
+      };
+    }>(
       "external-file-manager/share/verify-otp",
       { shareToken, email, otp }
     );
@@ -1144,6 +1225,93 @@ export const fileManagerApi = {
     const query = params.toString() ? `?${params.toString()}` : "";
     const response = await apiClient.getInstance().get(
       `external-file-manager/share/${shareToken}/view-url${query}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedUploadPolicy(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      fileName: string;
+      fileContentType: string;
+      fileSize: number;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/upload-policy`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async getSharedUploadPoliciesBatch(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      items: Array<{
+        fileName: string;
+        filepath?: string;
+        fileContentType: string;
+        fileSize: number;
+        phase?: string;
+        path?: string;
+      }>;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/upload-policies/batch`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async notifySharedFileUploaded(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      filepath: string;
+      fileContentType: string;
+      fileSize: number;
+      fileName: string;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/file-uploaded`,
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  async notifySharedFilesUploadedBatch(
+    shareToken: string,
+    accessToken: string,
+    payload: {
+      items: Array<{
+        filepath: string;
+        fileContentType: string;
+        fileSize: number;
+        fileName: string;
+        phase?: string;
+        path?: string;
+      }>;
+      phase?: string;
+      path?: string;
+    }
+  ) {
+    const response = await apiClient.getInstance().post(
+      `external-file-manager/share/${shareToken}/files-uploaded/batch`,
+      payload,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;

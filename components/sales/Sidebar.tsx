@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { isSalesRouteAllowedWhileInactive } from "@/lib/sales-status";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -47,20 +49,22 @@ const salesMenuItems: SalesMenuItem[] = [
     name: 'Sales',
     icon: LayoutDashboard,
     link: '/sales/dashboard',
+    permissionKeys: ['dashboard'],
     children: [
-      { name: 'Dashboard', link: '/sales/dashboard', visibleForUserTypes: [7] },
-      { name: 'Sales People', link: '/sales/sales-people', visibleForUserTypes: [7] },
+      { name: 'Dashboard', link: '/sales/dashboard' },
+      //{ name: 'Sales People', link: '/sales/sales-people' },
     ],
   },
-  { name: 'Availability', icon: Calendar, link: '/sales/availability', visibleForUserTypes: [5] },
-  { name: 'Shoots', icon: Camera, link: '/sales/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/sales/messages' },
+  { name: 'Availability', icon: Calendar, link: '/sales/availability', permissionKeys: ['availability'] },
+  { name: 'Shoots', icon: Camera, link: '/sales/shoots', permissionKeys: ['shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/sales/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/sales/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/sales/messages', permissionKeys: ['messages'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/sales/quotes',
+    permissionKeys: ['quotes'],
     children: [
       { name: 'All Quotes', link: '/sales/quotes' },
       { name: 'Change Request', link: '/sales/quotes/change-requests' },
@@ -70,7 +74,7 @@ const salesMenuItems: SalesMenuItem[] = [
 
 
 
-  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', visibleForUserTypes: [7] },
+  { name: 'Invoices', icon: Receipt, link: '/sales/invoice', permissionKeys: ['invoices'] },
 ];
 
 type SalesMenuItem = {
@@ -78,33 +82,12 @@ type SalesMenuItem = {
   icon: LucideIcon;
   link?: string;
   isDisabled?: boolean;
-  visibleForUserTypes?: number[];
+  permissionKeys?: string[];
   children?: {
     name: string;
     link: string;
     isDisabled?: boolean;
-    visibleForUserTypes?: number[];
   }[];
-};
-
-// const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-//   if (!user) return false;
-
-//   const userTypeId = user.user_type_id ?? user.userTypeId;
-//   const roleValue = user.role ?? user.userRole;
-//   const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-//   return userTypeId === 7 && normalizedRole === "sales_admin";
-// };
-
-const isSalesAdminInvoiceUser = (user: Record<string, unknown> | null | undefined) => {
-  if (!user) return false;
-
-  const userTypeId = user.user_type_id ?? user.userTypeId;
-  const roleValue = user.role ?? user.userRole;
-  const normalizedRole = String(roleValue ?? "").trim().toLowerCase();
-
-  return userTypeId === 7 && normalizedRole === "sales_admin";
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -117,12 +100,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
 
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
-  const [quotesExpanded, setQuotesExpanded] = useState(false);
-  const [localUserTypeId, setLocalUserTypeId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string[]>([]);
 
   useEffect(() => {
@@ -131,13 +116,9 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     try {
       const storedUser = localStorage.getItem("revure_user");
       const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const normalizedUserTypeId = Number(
-        parsedUser?.user_type_id ?? parsedUser?.userTypeId ?? user?.user_type_id ?? user?.userTypeId
-      );
-
-      setLocalUserTypeId(Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null);
+      void parsedUser;
     } catch {
-      setLocalUserTypeId(null);
+      // Ignore local storage parse errors and fall back to Redux state.
     }
   }, [user]);
 
@@ -150,30 +131,19 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
-  const normalizedUserTypeId = Number(user?.user_type_id ?? user?.userTypeId ?? localUserTypeId);
-  const currentUserTypeId = Number.isFinite(normalizedUserTypeId) ? normalizedUserTypeId : null;
-  const isSalesAdmin = isSalesAdminInvoiceUser(user as Record<string, unknown> | null | undefined);
   const visibleSalesMenuItems = salesMenuItems.filter((item) => {
-    if (!item.visibleForUserTypes?.length) {
-      return true;
+    if (item.permissionKeys && item.permissionKeys.length > 0) {
+      const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+      if (!canView) return false;
     }
-
-    return currentUserTypeId != null && item.visibleForUserTypes.includes(currentUserTypeId);
+    return true;
   });
 
   useEffect(() => {
-    if (currentUserTypeId !== 7) {
-      return;
-    }
-
     if (pathname === "/sales/dashboard" || pathname?.startsWith("/sales/sales-people")) {
       setExpanded((prev) => (prev.includes("Sales") ? prev : [...prev, "Sales"]));
     }
-
-    if (pathname?.startsWith("/sales/quotes")) {
-      setQuotesExpanded(true);
-    }
-  }, [currentUserTypeId, pathname]);
+  }, [pathname]);
 
   const getVisibleChildren = (item: SalesMenuItem) => {
     if (!item.children?.length) {
@@ -181,11 +151,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     }
 
     return item.children.filter((child) => {
-      if (!child.visibleForUserTypes?.length) {
-        return true;
+      if (child.link === "/sales/sales-people") {
+        return hasModulePermission(permissions, ["sales_representative"], "view");
       }
-
-      return currentUserTypeId != null && child.visibleForUserTypes.includes(currentUserTypeId);
+      return true;
     });
   };
 
@@ -231,6 +200,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 
     if (parentName === "Sales" && link === "/sales/dashboard") {
       return pathname === "/sales/dashboard";
+    }
+
+    if (link === "/sales/quotes") {
+      return pathname === link;
     }
 
     return isActiveLink(link);
@@ -283,10 +256,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`sales-nav-${permissionsVersion}`}>
           {visibleSalesMenuItems.map((item) => {
             const visibleChildren = getVisibleChildren(item);
-            const hasChildren = currentUserTypeId === 7 && visibleChildren.length > 0;
+            const hasChildren = visibleChildren.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
             const isDisabled =
@@ -323,24 +296,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                       <span className="font-medium">{item.name}</span>
                     </div>
                   </div>
-                ) : item.name === 'Quotes' && item.children && user?.user_type_id === 7 ? (
-
-                  <button
-                    onClick={() => setQuotesExpanded((p) => !p)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium ${active
-                      ? "bg-[#E5D5B8] text-[#171717]"
-                      : isDark ? "text-[#676767] hover:text-white" : "text-[#676767] hover:text-[#101010]"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={20} />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform duration-200 ${quotesExpanded ? "rotate-180" : ""}`}
-                    />
-                  </button>
                 ) : (
                   <button
                     onClick={() => handleNavigation(item.link || '#')}
@@ -378,26 +333,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   </div>
                 )}
 
-                {item.name === 'Quotes' && item.children && quotesExpanded && user?.user_type_id === 7 && (
-                  <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
-                    {item.children.map((child) => {
-                      if ((child.name === 'Master Pricing' || child.name === 'Change Request') && !isSalesAdmin) return null;
-
-                      return (
-                        <button
-                          key={child.name}
-                          onClick={() => handleNavigation(child.link)}
-                          className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${pathname === child.link
-                            ? isDark ? "text-white font-medium" : "text-[#101010] font-bold"
-                            : isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]"
-                            }`}
-                        >
-                          {child.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             );
           })}

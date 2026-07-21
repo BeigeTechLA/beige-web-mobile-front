@@ -23,6 +23,10 @@ import {
 } from "@/lib/quoteSummary";
 import { getLatestQuotePaymentChangeBlockMessage } from "@/lib/quotePaymentApproval";
 import { downloadQuotePdf } from "@/lib/quotePdf";
+import {
+  buildQuotePreProductionFileHref,
+  getQuotePreProductionFile,
+} from "@/lib/quotePreProduction";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SignatureModal from "@/components/signature/SignatureModal";
@@ -302,6 +306,47 @@ const buildQuoteStatePatch = (value: unknown): Partial<SalesQuoteDetailData> => 
 };
 
 const hasQuoteStatePatch = (patch: Partial<SalesQuoteDetailData>) => Object.keys(patch).length > 0;
+
+const mergeQuoteBookingSchedule = (
+  ...quotes: Array<SalesQuoteDetailData | null | undefined>
+): SalesQuoteDetailData => {
+  const merged: SalesQuoteDetailData = {};
+  const mergedBookingDetails: Record<string, unknown> = {};
+
+  quotes.forEach((quote) => {
+    if (!quote || typeof quote !== "object") {
+      return;
+    }
+
+    Object.assign(merged, quote);
+
+    const bookingDetails = asRecord(quote.converted_booking_details);
+    const source = bookingDetails ?? asRecord(quote);
+    if (!source) {
+      return;
+    }
+
+    ["booking_type", "time_zone", "start_date", "start_time", "end_time", "location"].forEach((key) => {
+      const value = source[key];
+      if (typeof value === "string" && value.trim()) {
+        mergedBookingDetails[key] = value;
+      }
+    });
+
+    if (Array.isArray(source.booking_days) && source.booking_days.length > 0) {
+      mergedBookingDetails.booking_days = source.booking_days;
+    }
+  });
+
+  if (Object.keys(mergedBookingDetails).length > 0) {
+    merged.converted_booking_details = {
+      ...(asRecord(merged.converted_booking_details) || {}),
+      ...mergedBookingDetails,
+    } as SalesQuoteDetailData["converted_booking_details"];
+  }
+
+  return merged;
+};
 
 const resolveLatestPreviewLink = (value: unknown) => {
   const latestUrl = findFirstStringField(value, [
@@ -600,7 +645,7 @@ export default function QuotePreviewPageShell({
             if (fullResponse?.success !== false && fullResponse?.data) {
               const unwrappedFull = unwrapSalesQuoteDetail(fullResponse.data);
               if (unwrappedFull) {
-                finalQuoteDetail = unwrappedFull;
+                finalQuoteDetail = mergeQuoteBookingSchedule(initialQuoteDetail, unwrappedFull);
               }
             }
           } catch (fullErr) {
@@ -745,22 +790,14 @@ export default function QuotePreviewPageShell({
               return current;
             }
 
-            return {
-              ...current,
-              ...publicQuote,
-              ...authenticatedQuote,
-              ...publicPatch,
-              ...authenticatedPatch,
-              ...signaturePatch,
-              converted_booking_details: {
-                ...(current.converted_booking_details || {}),
-                ...(publicQuote?.converted_booking_details || {}),
-                ...(authenticatedQuote?.converted_booking_details || {}),
-                ...(publicPatch.converted_booking_details || {}),
-                ...(authenticatedPatch.converted_booking_details || {}),
-                ...(signaturePatch.converted_booking_details || {}),
-              },
-            };
+            return mergeQuoteBookingSchedule(
+              current,
+              publicQuote,
+              authenticatedQuote,
+              publicPatch as SalesQuoteDetailData,
+              authenticatedPatch as SalesQuoteDetailData,
+              signaturePatch as SalesQuoteDetailData,
+            );
           });
         }
       } catch (error) {
@@ -795,6 +832,8 @@ export default function QuotePreviewPageShell({
   }, [quote]);
   const quoteSent = isQuoteAlreadySent(quote);
   const isQuoteExpired = isQuoteValidityExpired(quote);
+  const preProductionFile = getQuotePreProductionFile(quote);
+  const preProductionFileHref = buildQuotePreProductionFileHref(preProductionFile);
   const canShowShareActions = quoteDetailMode !== "public" && !isQuoteExpired;
   const canSendQuote =
     canShowShareActions && showActionButtons && !loading && Boolean(resolvedQuoteId);
@@ -1002,6 +1041,26 @@ export default function QuotePreviewPageShell({
     }
   };
 
+  const handleDownloadPreProductionFile = () => {
+    if (!preProductionFileHref || !preProductionFile) {
+      toast.error("Pre-production file is unavailable.");
+      return;
+    }
+
+    if (/^https?:\/\//i.test(preProductionFileHref)) {
+      window.open(preProductionFileHref, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = preProductionFileHref;
+    link.download = preProductionFile.name || "pre-production-file";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   const handleContinueToPayment = () => {
     if (!isQuoteSigned) {
       toast.error("Please sign the quote before continuing to payment.");
@@ -1059,6 +1118,18 @@ export default function QuotePreviewPageShell({
         >
           {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
           {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+        </ActionButton>
+      ) : null}
+      {preProductionFileHref ? (
+        <ActionButton
+          onClick={handleDownloadPreProductionFile}
+          className={`h-11 rounded-xl px-4 ${isDark
+            ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+            : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+            }`}
+        >
+          <Download size={18} className="mr-2" />
+          Pre-production File
         </ActionButton>
       ) : null}
       {canShowShareActions && (
@@ -1145,6 +1216,18 @@ export default function QuotePreviewPageShell({
               >
                 {isDownloadingPdf ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Download size={18} className="mr-2" />}
                 {isDownloadingPdf ? "Downloading..." : "Download Quote"}
+              </ActionButton>
+            ) : null}
+            {preProductionFileHref ? (
+              <ActionButton
+                onClick={handleDownloadPreProductionFile}
+                className={`h-11 rounded-xl ${isDark
+                  ? "border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]"
+                  : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"
+                  }`}
+              >
+                <Download size={18} className="mr-2" />
+                Pre-production File
               </ActionButton>
             ) : null}
             {canShowShareActions && (

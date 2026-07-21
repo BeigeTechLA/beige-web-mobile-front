@@ -73,7 +73,28 @@ export interface QuoteSummarySnapshot {
   clientEmail: string;
   clientPhone: string;
   clientAddress: string;
+  bookingSchedule?: {
+    booking_type: "single_day" | "multi_day" | "tbd";
+    time_zone: string;
+    start_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
   validUntil: string;
   quoteValidityDays: number;
   shootTypeLabel: string;
@@ -101,7 +122,28 @@ export interface BuildQuoteSummaryInput {
   emailId: string;
   phoneNumber: string;
   address: string;
+  bookingSchedule?: {
+    booking_type: "single_day" | "multi_day" | "tbd";
+    time_zone: string;
+    start_date?: string;
+    start_time?: string;
+    end_time?: string;
+    booking_days?: Array<{
+      date: string;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: {
+    name: string;
+    type: string;
+    size: number;
+    content?: string;
+    path?: string;
+    url?: string;
+  } | null;
   validityDays: number | "custom";
   validUntil: string;
   discountEnabled: boolean;
@@ -131,6 +173,8 @@ export interface QuoteValidationInput {
   phoneNumber: string;
   address: string;
   projectDescription: string;
+  preProductionNotes?: string;
+  preProductionFile?: unknown;
   validUntil: string;
   selectedServices: string[];
 }
@@ -166,6 +210,8 @@ export const hasQuoteSummaryContent = (input: {
       hasText(input.phoneNumber) ||
       hasText(input.address) ||
       hasText(input.projectDescription) ||
+      hasText(input.preProductionNotes || "") ||
+      Boolean(input.preProductionFile) ||
       hasText(input.validUntil) ||
       hasText(input.selectedShootType) ||
       input.selectedServices.length > 0 ||
@@ -455,7 +501,30 @@ export const buildQuoteSummarySnapshot = (
     clientEmail: input.emailId.trim() || input.selectedClient?.email?.trim() || "",
     clientPhone: input.phoneNumber.trim() || input.selectedClient?.phone?.trim() || "",
     clientAddress: input.address.trim(),
+    bookingSchedule: input.bookingSchedule
+      ? {
+          booking_type: input.bookingSchedule.booking_type,
+          time_zone: input.bookingSchedule.time_zone,
+          ...(input.bookingSchedule.start_date ? { start_date: input.bookingSchedule.start_date } : {}),
+          ...(input.bookingSchedule.start_time ? { start_time: input.bookingSchedule.start_time } : {}),
+          ...(input.bookingSchedule.end_time ? { end_time: input.bookingSchedule.end_time } : {}),
+          ...(Array.isArray(input.bookingSchedule.booking_days)
+            ? { booking_days: input.bookingSchedule.booking_days }
+            : {}),
+        }
+      : null,
     projectDescription: input.projectDescription.trim(),
+    preProductionNotes: input.preProductionNotes?.trim() || "",
+    preProductionFile: input.preProductionFile
+      ? {
+          name: input.preProductionFile.name,
+          type: input.preProductionFile.type || "application/octet-stream",
+          size: input.preProductionFile.size,
+          content: input.preProductionFile.content,
+          path: input.preProductionFile.path,
+          url: input.preProductionFile.url,
+        }
+      : null,
     validUntil: input.validUntil,
     quoteValidityDays,
     shootTypeLabel,
@@ -637,7 +706,26 @@ export const buildPreviewQuoteFromSummary = (
     client_email: snapshot.clientEmail,
     client_phone: snapshot.clientPhone,
     client_address: snapshot.clientAddress,
+    converted_booking_details: snapshot.bookingSchedule
+      ? {
+          booking_type: snapshot.bookingSchedule.booking_type,
+          time_zone: snapshot.bookingSchedule.time_zone,
+          ...(snapshot.bookingSchedule.start_date ? { start_date: snapshot.bookingSchedule.start_date } : {}),
+          ...(snapshot.bookingSchedule.start_time ? { start_time: snapshot.bookingSchedule.start_time } : {}),
+          ...(snapshot.bookingSchedule.end_time ? { end_time: snapshot.bookingSchedule.end_time } : {}),
+          ...(Array.isArray(snapshot.bookingSchedule.booking_days)
+            ? { booking_days: snapshot.bookingSchedule.booking_days }
+            : {}),
+        }
+      : null,
     project_description: snapshot.projectDescription,
+    pre_production_notes: snapshot.preProductionNotes || null,
+    pre_production_file_name: snapshot.preProductionFile?.name || null,
+    pre_production_file_type: snapshot.preProductionFile?.type || null,
+    pre_production_file_size: snapshot.preProductionFile?.size || null,
+    pre_production_file_content: snapshot.preProductionFile?.content || null,
+    pre_production_file_path: snapshot.preProductionFile?.path || null,
+    pre_production_file_url: snapshot.preProductionFile?.url || null,
     video_shoot_type: snapshot.shootTypeLabel,
     quote_validity_days: snapshot.quoteValidityDays,
     valid_until: snapshot.validUntil,

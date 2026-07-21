@@ -62,6 +62,7 @@ interface CompensationModalProps {
   rowContext: ShootCPRow | null;
   details?: CpCompensationDetails | null;
   loading?: boolean;
+  canEditActions?: boolean;
   onModifyClick: (creatorEarningIds?: number[]) => void;
   onApproveClick: (creatorEarningIds?: number[]) => void;
   onRejectClick: (creatorEarningIds?: number[]) => void;
@@ -74,6 +75,7 @@ export default function CompensationModal({
   rowContext,
   details,
   loading = false,
+  canEditActions = true,
   onModifyClick,
   onApproveClick,
   onRejectClick,
@@ -316,7 +318,7 @@ export default function CompensationModal({
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        disabled={isRejected}
+                        disabled={!canEditActions || isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
                         className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
                       />
@@ -412,7 +414,7 @@ export default function CompensationModal({
                         )}
 
                         {/* Context Action Button Panel inside individual active items */}
-                        {!creator.hasPendingAdvance && isChecked && isPendingApproval && (
+                        {!creator.hasPendingAdvance && isChecked && isPendingApproval && canEditActions && (
                           <div className="flex flex-col gap-3">
                             <button
                               onClick={() => onApproveClick([Number(creator.id)])}
@@ -438,7 +440,7 @@ export default function CompensationModal({
                             </div>
                           </div>
                         )}
-                        {isChecked && canRecordPayment && (
+                        {isChecked && canRecordPayment && canEditActions && (
                           <button
                             onClick={() => onPaymentClick?.(Number(creator.id))}
                             className="h-12 min-w-[180px] px-5 rounded-lg inline-flex items-center justify-center gap-2 bg-[#9810FA] hover:bg-[#9810FA]/90 text-white font-semibold text-sm whitespace-nowrap"
@@ -482,6 +484,12 @@ export default function CompensationModal({
             </div>
           </div>
 
+          {!canEditActions && (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs lg:text-sm text-white/70">
+              You have view-only access for CP compensation. Edit actions are hidden.
+            </div>
+          )}
+
           {/* Audit Ledger Traces Trail */}
           <div className="flex-1 space-y-2 lg:space-y-4 bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
             <h3 className="lg:text-lg text-white text-semibold capitalize">
@@ -511,27 +519,31 @@ export default function CompensationModal({
         </div>
 
         {/* Persistent Base Sticky Double Action Control Drawer */}
-        {hasPendingApproval && (
+        {hasPendingApproval && canEditActions && (
           <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
             <button
                 onClick={() => onApproveClick(getSelectedCreatorIds())}
-                className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                disabled={!canEditActions}
+                className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                 <CheckCircle2 size={16} /> Approve All
               </button>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
               <button
                 onClick={() => onApproveClick(getSelectedCreatorIds())}
-                className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
+                disabled={!canEditActions}
+                className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                 <CheckCircle2 size={16} /> Approve All
               </button>
               <button
                 onClick={() => onModifyClick(getSelectedCreatorIds())}
-                className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm">
+                disabled={!canEditActions}
+                className="h-12 rounded-lg  flex items-center justify-center gap-1.5 bg-[#155DFC] hover:bg-[#155DFC]/90 text-white font-semibold text-sm disabled:cursor-not-allowed disabled:opacity-50">
                 <Edit3 size={16} /> Modify
               </button>
               <button
                 onClick={() => onRejectClick(getSelectedCreatorIds())}
-                className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm">
+                disabled={!canEditActions}
+                className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm disabled:cursor-not-allowed disabled:opacity-50">
                 <XCircle size={16} /> Reject All
               </button>
             </div>

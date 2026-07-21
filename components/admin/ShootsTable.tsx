@@ -24,6 +24,7 @@ import yellowAnimation from "@/public/animations/Yellow.json";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import {
@@ -129,6 +130,18 @@ const isMeetingGapStatusFilter = (value: string) =>
   value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
 const isFileGapStatusFilter = (value: string) =>
   value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
+
+type PaymentFilter = "all" | "pending" | "paid";
+
+const isPaymentFilter = (value: string): value is PaymentFilter =>
+  value === "all" || value === "pending" || value === "paid";
+
+const matchesPaymentFilter = (shoot: ShootRecord, paymentFilter: PaymentFilter) => {
+  if (paymentFilter === "all") return true;
+  if (paymentFilter === "pending") return shoot.rawPending > 0;
+
+  return shoot.rawPending <= 0 && shoot.rawPaid > 0;
+};
 
 const normalizeStatusKey = (value: string) =>
   String(value || "")
@@ -238,6 +251,8 @@ interface ShootsTableProps {
   setCategoryFilter: (v: string) => void;
   statusFilter: string;
   setStatusFilter: (v: string) => void;
+  paymentFilter?: PaymentFilter;
+  setPaymentFilter?: (v: PaymentFilter) => void;
   productionFilter?: string;
   setProductionFilter?: (v: string) => void;
   range: string;
@@ -261,6 +276,8 @@ export const ShootsTable = ({
   setCategoryFilter,
   statusFilter,
   setStatusFilter,
+  paymentFilter,
+  setPaymentFilter,
   productionFilter = "all",
   setProductionFilter,
   range,
@@ -290,6 +307,7 @@ export const ShootsTable = ({
   const dragAutoScrollDirectionRef = React.useRef<"up" | "down" | null>(null);
   const latestFetchIdRef = React.useRef(0);
   const { theme, resolvedTheme } = useTheme();
+  const { canDelete } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -310,10 +328,13 @@ export const ShootsTable = ({
 
   // Filtering states
   const [internalCpAssignmentFilter, setInternalCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [internalPaymentFilter, setInternalPaymentFilter] = useState<PaymentFilter>("all");
   const activeViewMode = viewMode ?? internalViewMode;
   const setActiveViewMode = setViewMode ?? setInternalViewMode;
   const activeCpAssignmentFilter = cpAssignmentFilter ?? internalCpAssignmentFilter;
   const setActiveCpAssignmentFilter = setCpAssignmentFilter ?? setInternalCpAssignmentFilter;
+  const activePaymentFilter = paymentFilter ?? internalPaymentFilter;
+  const setActivePaymentFilter = setPaymentFilter ?? setInternalPaymentFilter;
   const shouldRenderHeaderControls = showHeaderControls && (showHeaderFilters || showViewToggle);
 
   // --- SORTING STATE ---
@@ -476,6 +497,10 @@ export const ShootsTable = ({
     }
     setCurrentPage(1);
   }, [debouncedSearchQuery, filtersReady]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activePaymentFilter]);
 
   useEffect(() => {
     if (!hasRestoredCurrentPage) return;
@@ -706,6 +731,7 @@ export const ShootsTable = ({
         shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
         (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
       if (!matchesSearch) return false;
+      if (!matchesPaymentFilter(shoot, activePaymentFilter)) return false;
 
       if (statusFilter === "all") return true;
 
@@ -760,7 +786,7 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, meetingGapBookingIds, range]);
+  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, activePaymentFilter, meetingGapBookingIds, range]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -920,6 +946,7 @@ export const ShootsTable = ({
   };
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    if (!canDelete) return;
     e.stopPropagation();
     setShootToDelete(id);
     setIsDeleteModalOpen(true);
@@ -1011,7 +1038,7 @@ export const ShootsTable = ({
   };
 
   const confirmDelete = async () => {
-    if (!shootToDelete) return;
+    if (!canDelete || !shootToDelete) return;
 
     const cleanId = shootToDelete.replace('#', '');
     setIsDeleting(true);
@@ -1089,6 +1116,23 @@ export const ShootsTable = ({
                           {option.label}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={activePaymentFilter}
+                    onValueChange={(v) => {
+                      if (!isPaymentFilter(v)) return;
+                      setActivePaymentFilter(v);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className={`w-[140px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={range} onValueChange={(v) => { setRange(v); setCurrentPage(1); }}>
@@ -1178,22 +1222,18 @@ export const ShootsTable = ({
                     const isCurrentMenuOpen = openCardActionId === shoot.id;
 
                     return (
-                      /* CHANGED: Added relative positioning and dynamic z-index to the parent wrapper row */
                       <div
                         key={idx}
                         className={`relative block w-full !overflow-visible ${isCurrentMenuOpen ? "z-[100]" : "z-10"}`}
                       >
-                        {/* Only passing the values the child component actually needs */}
                         <MobileShootRow
                           shoot={shoot}
                           openCardActionId={openCardActionId}
                           setOpenCardActionId={setOpenCardActionId}
                         />
 
-                        {/* Context Floating Action Menu - COMPLETELY PRESERVED STYLES AND HANDLERS */}
                         {isCurrentMenuOpen && (
                           <div
-                            /* FIX 2: Anchor the menu directly below the expanded row contents layout */
                             className={`absolute right-5 bottom-4 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"
                               }`}
                             onClick={(e) => e.stopPropagation()}
@@ -1241,12 +1281,13 @@ export const ShootsTable = ({
                             </button>
                             <button
                               type="button"
+                              disabled={!canDelete}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenCardActionId(null);
                                 handleDeleteClick(e, shoot.id);
                               }}
-                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
                                 }`}
                             >
                               <Trash2 size={16} />
@@ -1433,12 +1474,13 @@ export const ShootsTable = ({
 
                                       <button
                                         type="button"
+                                        disabled={!canDelete}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setOpenCardActionId(null);
                                           handleDeleteClick(e, shoot.id);
                                         }}
-                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
                                           }`}
                                       >
                                         <Trash2 size={16} />
@@ -1508,7 +1550,6 @@ export const ShootsTable = ({
                                       Missing Info
                                     </span>
 
-                                    {/* 2. THE TOOLTIP */}
                                     <AnimatePresence>
                                       {hoveredShootId === `grid-${shoot.id}` && (
                                         <motion.div
@@ -1752,10 +1793,10 @@ export const ShootsTable = ({
                                     setOpenCardActionId(null);
                                     handleRowClick(shoot.id);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
-                                    }`}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                 >
-                                  <ChevronRight size={16} />                                  Open details
+                                  <ChevronRight size={16} />
+                                  Open details
                                 </button>
 
                                 <button
@@ -1778,7 +1819,7 @@ export const ShootsTable = ({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenCardActionId(null);
-                                    setChatOpen(shoot.id); // Triggers the Notes Drawer
+                                    setChatOpen(shoot.id);
                                   }}
                                   className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
                                 >
@@ -1788,13 +1829,13 @@ export const ShootsTable = ({
 
                                 <button
                                   type="button"
+                                  disabled={!canDelete}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenCardActionId(null);
                                     handleDeleteClick(e, shoot.id);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"
-                                    }`}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"}`}
                                 >
                                   <Trash2 size={16} />
                                   Delete
@@ -1843,12 +1884,12 @@ export const ShootsTable = ({
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
               {/* Pagination Entries Info */}
-              <div className={`hidden lg:block text-sm truncate max-w-xs shrink ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
+              <div className={`hidden lg:block shrink-0 whitespace-nowrap text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
                 {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
               </div>
 
               {/* Pagination Controls Wrapper */}
-              <div className="flex gap-2 items-center justify-center sm:justify-end w-full max-w-full min-w-0 overflow-hidden">
+              <div className="flex gap-2 items-center justify-center sm:justify-end w-full sm:w-auto max-w-full min-w-0 overflow-hidden">
 
                 {/* Previous Button: Text on desktop, Icon on mobile */}
                 <button

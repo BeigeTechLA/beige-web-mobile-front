@@ -11,6 +11,9 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import { SalesStatusProvider, useSalesStatus } from '@/context/SalesStatusContext';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { isSalesRouteAllowedWhileInactive } from '@/lib/sales-status';
+import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
+import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,15 +21,26 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOpen, setIsOpen } = useSidebar();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const hasShownInactiveRedirectRef = React.useRef(false);
+  const shouldGateInitialSalesRoute = pathname === "/sales" || pathname === "/sales/dashboard";
   const {
     isManagedUser,
     isSalesAvailable,
     isLoading: isSalesStatusLoading,
   } = useSalesStatus();
+  
+  const hasShownInactiveRedirectRef = React.useRef(false);
+  const dispatch = useAppDispatch();
+  const { user, permissions, permissionsVersion } = useAppSelector((state) => state.auth);
 
   // Prevent hydration mismatch
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted || !userId || shouldGateInitialSalesRoute) return;
+
+    void fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false });
+  }, [user?.id, mounted, dispatch, shouldGateInitialSalesRoute]);
 
   // Default to dark logic as per instructions
   const isDark = !mounted || theme === "dark";
@@ -50,6 +64,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
     router.replace("/sales/dashboard");
   }, [router, shouldBlockCurrentRoute]);
+
+  useEffect(() => {
+    if (!mounted || !permissions || shouldBlockCurrentRoute) return;
+
+    if (!canAccessPortalPath(pathname, permissions)) {
+      const fallbackPath = getFirstAllowedPortalPath("sales", permissions);
+      if (fallbackPath && fallbackPath !== pathname) {
+        router.replace(fallbackPath);
+      }
+    }
+  }, [mounted, pathname, permissions, permissionsVersion, router, shouldBlockCurrentRoute]);
 
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
@@ -97,8 +122,55 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export default function SalesLayout({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isResolvingInitialRoute, setIsResolvingInitialRoute] = useState(true);
+  const pathname = usePathname();
+  const shouldGateInitialSalesRoute = pathname === "/sales" || pathname === "/sales/dashboard";
+  const dispatch = useAppDispatch();
+  const { user, permissions } = useAppSelector((state) => state.auth);
+  const router = useRouter();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!mounted) return;
+
+    if (!shouldGateInitialSalesRoute) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    if (!userId) {
+      setIsResolvingInitialRoute(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsResolvingInitialRoute(true);
+
+    const resolveInitialRoute = async () => {
+      const latestPermissions =
+        permissions ?? (await fetchAndCommitUserPermissions(dispatch, userId, { broadcast: false }));
+
+      if (isCancelled) return;
+
+      if (!canAccessPortalPath(pathname, latestPermissions)) {
+        const fallbackPath = getFirstAllowedPortalPath("sales", latestPermissions);
+        if (fallbackPath && fallbackPath !== pathname) {
+          router.replace(fallbackPath);
+          return;
+        }
+      }
+
+      setIsResolvingInitialRoute(false);
+    };
+
+    void resolveInitialRoute();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, mounted, dispatch, pathname, permissions, router, shouldGateInitialSalesRoute]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -111,7 +183,7 @@ export default function SalesLayout({ children }: { children: React.ReactNode })
             ? "bg-[#0f0f0f] text-white" 
             : "bg-[#F4F5F7] text-[#000000]"
         }`}>
-          <LayoutContent>{children}</LayoutContent>
+          {isResolvingInitialRoute && shouldGateInitialSalesRoute ? null : <LayoutContent>{children}</LayoutContent>}
         </div>
       </SalesStatusProvider>
     </SidebarProvider>

@@ -21,6 +21,7 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -44,6 +45,7 @@ export default function SalesFolderDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
+  const { canCreate, canDelete } = usePermissions("file_manager");
 
   const loadWorkspace = async () => {
     try {
@@ -128,7 +130,7 @@ export default function SalesFolderDetailsPage() {
         phase: getSelectedFolderPhase(),
       });
       if (result?.url) {
-        window.open(result.url, "_blank", "noopener,noreferrer");
+        fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to download folder");
@@ -136,7 +138,7 @@ export default function SalesFolderDetailsPage() {
   };
 
   const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
+    if (!canDelete || !selectedFolder?.resourcePath) return;
 
     try {
       setIsDeleting(true);
@@ -159,8 +161,9 @@ export default function SalesFolderDetailsPage() {
         pathname={pathname}
         actions={
           <Button
+            disabled={!canCreate}
             onClick={() => setIsUploadModalOpen(true)}
-            className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
+            className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-40 "
           >
             <Upload /> Upload Files
           </Button>
@@ -291,16 +294,16 @@ export default function SalesFolderDetailsPage() {
                             phase: folder.title.toLowerCase().includes("post") ? "post" : "pre",
                           });
                           if (result?.url) {
-                            window.open(result.url, "_blank", "noopener,noreferrer");
+                            fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                           }
                         } catch (err: any) {
                           toast.error(err?.message || "Failed to download folder");
                         }
                       }}
-                      onDelete={() => {
+                      onDelete={canDelete ? () => {
                         setSelectedFolder(folder);
                         setIsDeleteModalOpen(true);
-                      }}
+                      } : undefined}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -374,7 +377,7 @@ export default function SalesFolderDetailsPage() {
             anchor={menuAnchor}
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
-            onDelete={() => setIsDeleteModalOpen(true)}
+            onDelete={canDelete ? () => setIsDeleteModalOpen(true) : undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
           />
         )}

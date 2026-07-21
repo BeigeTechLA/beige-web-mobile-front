@@ -27,6 +27,7 @@ import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type SectionKey = "service" | "addon" | "logistics";
 
@@ -134,10 +135,12 @@ interface ItemRowProps {
   onSave: (id: string, name: string, rate: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isProtected: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   isDark?: boolean;
 }
 
-function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }: ItemRowProps) {
+function ItemRow({ item, section, onSave, onDelete, isProtected, canEdit, canDelete, isDark = true }: ItemRowProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.label);
   const [price, setPrice] = useState(item.price.toFixed(2));
@@ -150,6 +153,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
   }, [editing]);
 
   const handleSave = async () => {
+    if (!canEdit) return;
     const trimmedName = name.trim();
     if (!trimmedName) return;
     setSaving(true);
@@ -165,6 +169,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
   };
 
   const handleDelete = async () => {
+    if (!canDelete) return;
     setDeleting(true);
     await onDelete(item.id);
     setDeleting(false);
@@ -269,7 +274,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !name.trim()}
+                disabled={saving || !name.trim() || !canEdit}
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all disabled:opacity-50 ${isDark
                   ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
                   : "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
@@ -282,6 +287,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
             <>
               <button
                 onClick={() => setEditing(true)}
+                disabled={!canEdit}
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all ${isDark
                   ? "bg-[#161616] text-white/55 hover:text-[#E8D1AB] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
                   : "bg-zinc-100 text-zinc-600 hover:text-zinc-900 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
@@ -292,7 +298,7 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, isDark = true }
               {!isProtected ? (
                 <button
                   onClick={handleDelete}
-                  disabled={deleting}
+                  disabled={deleting || !canDelete}
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all disabled:opacity-50 ${isDark
                     ? "bg-[#161616] text-white/55 hover:text-[#EF4444] sm:border-transparent sm:bg-transparent sm:text-white/30 sm:opacity-0 sm:group-hover:border-white/10 sm:group-hover:bg-[#1B1B1B] sm:group-hover:opacity-100"
                     : "bg-white text-zinc-600 hover:text-red-600 sm:border-transparent sm:bg-transparent sm:text-zinc-400 sm:opacity-0 sm:group-hover:border-zinc-200 sm:group-hover:bg-zinc-100 sm:group-hover:opacity-100"
@@ -336,10 +342,11 @@ interface AddItemFormProps {
   section: SectionKey;
   onAdd: (name: string, rate: number) => Promise<void>;
   onClose: () => void;
+  canCreate: boolean;
   isDark?: boolean;
 }
 
-function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProps) {
+function AddItemForm({ section, onAdd, onClose, canCreate, isDark = true }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -350,6 +357,7 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
   }, []);
 
   const handleAdd = async () => {
+    if (!canCreate) return;
     if (!name.trim() || !price) return;
     setSaving(true);
     await onAdd(name.trim(), parseFloat(price) || 0);
@@ -385,6 +393,7 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
         <Input
           ref={nameRef}
           value={name}
+          disabled={!canCreate}
           onChange={(e) => setName(e.target.value.slice(0, 80))}
           onKeyDown={handleKeyDown}
           placeholder={`Enter ${meta.label.slice(0, -1).toLowerCase()} name...`}
@@ -401,6 +410,7 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
         <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? "text-white/40" : "text-zinc-400"}`}>$</span>
         <Input
           value={price}
+          disabled={!canCreate}
           onChange={(e) => setPrice(sanitizeCurrencyInput(e.target.value))}
           onKeyDown={handleKeyDown}
           placeholder="0.00"
@@ -423,7 +433,7 @@ function AddItemForm({ section, onAdd, onClose, isDark = true }: AddItemFormProp
 
         <button
           onClick={handleAdd}
-          disabled={saving || !name.trim() || !price}
+          disabled={saving || !name.trim() || !price || !canCreate}
           className={`flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${isDark
               ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]"
               : "border-[#0DC752] bg-[#0DC752] text-black hover:bg-[#0DC752]/80"
@@ -445,6 +455,9 @@ interface PricingSectionProps {
   onAdd: (section: SectionKey, name: string, rate: number) => Promise<void>;
   searchQuery: string;
   defaultExpanded?: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   isDark?: boolean;
 }
 
@@ -456,6 +469,9 @@ function PricingSection({
   onAdd,
   searchQuery,
   defaultExpanded = true,
+  canCreate,
+  canEdit,
+  canDelete,
   isDark = true
 }: PricingSectionProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -500,15 +516,17 @@ function PricingSection({
             </span>
           ) : null}
 
-          <Button
-            onClick={() => {
-              setExpanded(true);
-              setShowAddForm((prev) => !prev);
-            }}
-            className={`h-10 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-sm font-semibold transition-all ${showAddForm
-              ? isDark
-                ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
-                : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
+        <Button
+          onClick={() => {
+            if (!canCreate) return;
+            setExpanded(true);
+            setShowAddForm((prev) => !prev);
+          }}
+          disabled={!canCreate}
+          className={`h-10 shrink-0 whitespace-nowrap gap-1.5 rounded-lg px-3 text-sm font-semibold transition-all ${showAddForm
+            ? isDark
+              ? "border border-white/10 bg-[#24201A] text-[#E8D1AB] hover:bg-[#2B261F]"
+              : "border border-zinc-200 bg-zinc-100 text-zinc-800 hover:bg-zinc-200"
               : isDark
                 ? "border border-[#E5D5B8] bg-[#E5D5B8] text-black hover:bg-[#d9c8a6]"
                 : "border border-black bg-black text-white hover:bg-zinc-900"
@@ -532,16 +550,17 @@ function PricingSection({
           <hr className={` my-4 lg:my-6 ${isDark ? "border-white/10" : "border-black/10"}`} />
           <div className="flex flex-col gap-3 animate-in fade-in duration-200">
             {showAddForm ? (
-              <AddItemForm
-                section={section}
-                onAdd={async (name, rate) => {
-                  await onAdd(section, name, rate);
-                  setShowAddForm(false);
-                }}
-                onClose={() => setShowAddForm(false)}
-                isDark={isDark}
-              />
-            ) : null}
+                <AddItemForm
+                  section={section}
+                  onAdd={async (name, rate) => {
+                    await onAdd(section, name, rate);
+                    setShowAddForm(false);
+                  }}
+                  onClose={() => setShowAddForm(false)}
+                  canCreate={canCreate}
+                  isDark={isDark}
+                />
+              ) : null}
 
             {filtered.length === 0 && !showAddForm ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -565,6 +584,8 @@ function PricingSection({
                   onDelete={onDelete}
                   isDark={isDark}
                   isProtected={section === "service" && isProtectedService(item.label)}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               ))
             )}
@@ -578,6 +599,7 @@ function PricingSection({
 export default function QuotePricingPage() {
   const pathname = usePathname();
   const { theme } = useTheme();
+  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<CatalogData>({
     service: [],
@@ -636,6 +658,10 @@ export default function QuotePricingPage() {
 
   const handleSave = useCallback(
     async (id: string, name: string, rate: number) => {
+      if (!canEdit) {
+        toast.error("You do not have permission to edit pricing items");
+        return;
+      }
       const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
       if (!section) return;
 
@@ -665,11 +691,15 @@ export default function QuotePricingPage() {
         toast.error("Failed to update item");
       }
     },
-    [data]
+    [canEdit, data]
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
+      if (!canDelete) {
+        toast.error("You do not have permission to delete pricing items");
+        return;
+      }
       const section = SECTION_KEYS.find((key) => data[key].some((item) => item.id === id));
       const item = section ? data[section].find((entry) => entry.id === id) : null;
 
@@ -694,10 +724,14 @@ export default function QuotePricingPage() {
         toast.error("Failed to delete item");
       }
     },
-    [data]
+    [canDelete, data]
   );
 
   const handleAdd = useCallback(async (section: SectionKey, name: string, rate: number) => {
+    if (!canCreate) {
+      toast.error("You do not have permission to add pricing items");
+      return;
+    }
     const meta = SECTION_META[section];
 
     try {
@@ -728,7 +762,7 @@ export default function QuotePricingPage() {
     } catch {
       toast.error("Failed to add item");
     }
-  }, []);
+  }, [canCreate]);
 
   const totalItems = Object.values(data).flat().length;
   const visibleSections: SectionKey[] = activeTab === "all" ? SECTION_KEYS : [activeTab];
@@ -859,6 +893,9 @@ export default function QuotePricingPage() {
                 onDelete={handleDelete}
                 onAdd={handleAdd}
                 searchQuery={search}
+                canCreate={canCreate}
+                canEdit={canEdit}
+                canDelete={canDelete}
                 defaultExpanded={activeTab !== "all" || section === "service"}
                 isDark={isDark}
               />

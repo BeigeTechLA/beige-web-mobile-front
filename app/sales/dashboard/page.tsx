@@ -24,6 +24,7 @@ import UsersTable from "@/components/sales/UsersTable";
 import LeadsTable from "@/components/sales/BookingLeadsTable";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import Topbar from "@/components/admin/Topbar";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   Dialog,
   DialogContent,
@@ -145,9 +146,6 @@ const OVERVIEW_PERIOD_MAP: Record<string, string> = {
   "Month": "30days",
   "Week": "7days",
 };
-
-const canUseSalesDashboardRepFilters = (userTypeId: number | null) =>
-  userTypeId === 5 || userTypeId === 7;
 
 const isMetricStat = (value: unknown): value is DashboardMetricStat =>
   !!value && typeof value === "object" && ("value" in value || "change_percent" in value);
@@ -376,9 +374,9 @@ export default function SalesLeadsPage() {
   const { theme, resolvedTheme } = useTheme();
   const { user, token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
+  const { canCreate, canDelete, canEdit } = usePermissions("sales_representative");
   const hasRestoredFiltersRef = useRef(false);
-  const [isUserTypeSeven, setIsUserTypeSeven] = useState(false);
-  const [canManageSalesDashboardFilters, setCanManageSalesDashboardFilters] = useState(false);
+  const canManageSalesDashboardFilters = canEdit;
 
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -475,18 +473,6 @@ export default function SalesLeadsPage() {
     setMounted(true);
 
     try {
-      const storedUser = localStorage.getItem("revure_user");
-      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
-      const userTypeId = Number(
-        parsedUser?.user_type_id ?? parsedUser?.userTypeId
-      );
-      const canManageFilters = canUseSalesDashboardRepFilters(
-        Number.isFinite(userTypeId) ? userTypeId : null
-      );
-
-      setIsUserTypeSeven(userTypeId === 7);
-      setCanManageSalesDashboardFilters(canManageFilters);
-
       const savedFilters = window.sessionStorage.getItem(SALES_DASHBOARD_FILTERS_KEY);
       if (!savedFilters) {
         hasRestoredFiltersRef.current = true;
@@ -506,7 +492,7 @@ export default function SalesLeadsPage() {
         setLeadsViewMode(parsedFilters.leadsViewMode);
       }
 
-      if (canManageFilters) {
+      if (canManageSalesDashboardFilters) {
         if (parsedFilters.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.assignedRepIdFilter));
         if (parsedFilters.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsedFilters.clientAssignedRepIdFilter));
       }
@@ -960,6 +946,7 @@ export default function SalesLeadsPage() {
   };
 
   const handleCreateNewLead = () => {
+    if (!canCreate) return;
     if (isAvailabilityToggleVisible && isAvailabilityLoading) {
       toast.error("Please wait until your status is loaded.");
       return;
@@ -1048,6 +1035,8 @@ export default function SalesLeadsPage() {
             </Button> */}
             <Button
               onClick={handleCreateNewLead}
+              disabled={!canCreate}
+              title={canCreate ? "Create New Lead" : "Create permission not allowed"}
               className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
                 }`}
             >
@@ -1358,7 +1347,7 @@ export default function SalesLeadsPage() {
                 <td className={`py-5 px-6 border-b text-[14px] transition-colors ${isDark ? "border-[#222] text-[#E0E0E0]" : "border-[#E5E5E5] text-[#333]"}`}>
                   <div className="space-y-1 min-w-0">
                     <p>{user.phoneNumber}</p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1451,7 +1440,7 @@ export default function SalesLeadsPage() {
                     <p className={`text-sm ${isDark ? "text-[#B9B9B9]" : "text-[#555555]"}`}>
                       {user.phoneNumber || "N/A"}
                     </p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1484,7 +1473,7 @@ export default function SalesLeadsPage() {
                   <p className={`text-[10px] uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Contact Info</p>
                   <div className="space-y-1">
                     <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{user.phoneNumber}</p>
-                    {isUserTypeSeven && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
+                    {canEdit && (user.assignedSalesRepName || user.assignedSalesRepEmail) && (
                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-black/50"}`}>
                         {user.assignedSalesRepName || "Unassigned"}
                         {user.assignedSalesRepEmail ? ` • ${user.assignedSalesRepEmail}` : ""}
@@ -1504,7 +1493,6 @@ export default function SalesLeadsPage() {
             isOpen={true}
             onClose={() => setMenuAnchor(null)}
             anchor={menuAnchor}
-            hideDelete={!isUserTypeSeven}
             onDeleteSuccess={() => {
               refetchLeads();
               fetchDashboardOverview();
@@ -1536,6 +1524,8 @@ export default function SalesLeadsPage() {
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={handleCreateNewLead}
+            disabled={!canCreate}
+            title={canCreate ? "Create New Lead" : "Create permission not allowed"}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             Create New Lead

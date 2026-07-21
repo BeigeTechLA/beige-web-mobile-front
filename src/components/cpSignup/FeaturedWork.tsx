@@ -13,23 +13,32 @@ import 'swiper/css';
 import 'swiper/css/pagination'
 
 export type FeaturedWorkItem = {
-  id: number;
+  id: string | number;
   title: string;
   tags?: string[];
   image?: string;
   previews?: string[];
-  files?: File[];
+  files?: Array<
+    File | {
+      crewFilesId?: string | number;
+      file_path?: string;
+      title?: string;
+      tag?: string;
+      file?: File;
+    }
+  >;
 };
 
 type FeaturedWorkProps = {
   value?: FeaturedWorkItem[];
-  onChange?: (items: FeaturedWorkItem[]) => void;
+  onChange?: (items: FeaturedWorkItem[]) => void | Promise<void>;
   darkTheme?: boolean;
+  onDeleteItem?: (item: FeaturedWorkItem) => Promise<void> | void;
 };
 
 const MAX_PROJECTS = 5;
 
-const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
+const FeaturedWork = ({ value = [], onChange, onDeleteItem, darkTheme = true }: FeaturedWorkProps) => {
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
   const [editingItem, setEditingItem] = useState<FeaturedWorkItem | null>(null);
@@ -52,22 +61,33 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
     setOpenModal(true);
   };
 
-  const handleAddOrUpdate = (item: FeaturedWorkItem) => {
-    let next;
-    if (editingItem) {
-      next = items.map((it) => (it.id === item.id ? item : it));
-    } else {
-      next = [...items, item];
-    }
+  const handleAddOrUpdate = async (item: FeaturedWorkItem) => {
+    const shouldReplace = editingItem && String(editingItem.id) === String(item.id);
+    const next = shouldReplace
+      ? items.map((it) => (String(it.id) === String(item.id) ? item : it))
+      : [...items, item];
     setItems(next);
-    onChange && onChange(next);
+    if (onChange) {
+      await onChange(next);
+    }
     setEditingItem(null);
   };
 
-  const handleRemove = (id: number) => {
+  const handleRemove = (id: string | number) => {
     const next = items.filter((it) => it.id !== id);
     setItems(next);
     onChange && onChange(next);
+  };
+
+  const handleDelete = async (item: FeaturedWorkItem) => {
+    try {
+      await onDeleteItem?.(item);
+      handleRemove(item.id);
+      toast.info("Featured work removed");
+    } catch (error) {
+      console.error("Failed to remove featured work:", error);
+      toast.error("Failed to remove featured work.");
+    }
   };
 
   return (
@@ -170,13 +190,13 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
                   )}
 
                   {/* Action buttons */}
-                  <div className="absolute top-3 right-3 flex gap-2 z-50">
+                  <div className={`absolute top-4 right-4 flex gap-3 z-50 transition-opacity ${openModal ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEdit(it);
                       }}
-                      className="bg-black/60 hover:bg-[#E8D1AB] hover:text-black text-white rounded-full p-2 transition-colors backdrop-blur-sm"
+                      className="bg-black/60 hover:bg-[#E8D1AB] hover:text-black text-white rounded-full p-2.5 transition-colors backdrop-blur-sm shadow-lg"
                       aria-label="Edit"
                     >
                       <Pencil size={16} />
@@ -184,9 +204,9 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleRemove(it.id);
+                        void handleDelete(it);
                       }}
-                      className="bg-black/60 hover:bg-red-500 text-white rounded-full p-2 transition-colors backdrop-blur-sm"
+                      className="bg-black/60 hover:bg-red-500 text-white rounded-full p-2.5 transition-colors backdrop-blur-sm shadow-lg"
                       aria-label="Remove"
                     >
                       <X size={16} />
@@ -225,6 +245,7 @@ const FeaturedWork = ({ value = [], onChange }: FeaturedWorkProps) => {
           setEditingItem(null);
         }}
         onAdd={handleAddOrUpdate}
+        isDark={darkTheme}
       />
     </div>
   );

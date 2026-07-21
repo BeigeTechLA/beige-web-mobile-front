@@ -91,7 +91,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     <header className={`
       border-b transition-colors duration-300
       ${isDark
-        ? "border-zinc-800 bg-[#0f0f0f] shadow-none"
+        ? "border-[#3A3A3A] bg-[#171717] shadow-none"
         : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
       }
     `}>
@@ -166,14 +166,14 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
       {/* ==========================================
           DESKTOP VIEW
           ========================================== */}
-      <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
+      <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4 min-w-0">
         {/* Left: Title */}
         <div className="flex items-center gap-6 shrink-0">
           {renderBreadcrumbs(false)}
         </div>
 
         {/* Right: Desktop Actions */}
-        < div className="flex items-center gap-3 shrink-0" >
+        <div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar">
           {actions}
 
           {
@@ -188,8 +188,8 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             )
           }
 
-        </div >
-      </div >
+        </div>
+      </div>
     </header >
   );
 }

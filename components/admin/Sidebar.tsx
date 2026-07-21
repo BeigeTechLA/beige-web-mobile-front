@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, X, type LucideIcon, Receipt, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission, isSuperAdminUser } from '@/lib/permissions';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -57,22 +59,23 @@ const CustomStudiosIcon = ({ size = 24 }) => (
 );
 
 const menuItems = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard' },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots' },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager' },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings' },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages' },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability' },
+  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
+  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
+  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
+  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
+  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
   {
     name: 'Sales Representative',
     icon: CircleDollarSign,
     link: '/admin/sales-representative',
+    permissionKeys: ['sales_representative'],
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
-  { name: 'Finances', icon: DollarSign, 
+  { name: 'Finances', icon: DollarSign, permissionKeys: ['finances'],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
       // { name: 'Transactions', link: '/admin/finances/transactions' },
@@ -85,23 +88,26 @@ const menuItems = [
   {
     name: 'Users',
     icon: Users,
+    permissionKeys: ['users'],
     children: [
       { name: 'All Users', link: '/admin/users/all' },
       { name: 'Clients', link: '/admin/users/clients' },
       { name: 'Creative Partners', link: '/admin/users/creative-partners' },
     ]
   },
+  { name: 'Roles & Permissions', icon: Settings, link: '/admin/roles-permissions', permissionKeys: ['roles_permissions'] },
   {
     name: 'Quotes',
     icon: CustomQuotesIcon,
     link: '/admin/quotes',
+    permissionKeys: ['quotes'],
     children: [
       { name: 'All Quotes', link: '/admin/quotes' },
       { name: 'Quote Approvals', link: '/admin/quotes/change-requests' },
       { name: 'Master Pricing', link: '/admin/quotes/pricing' },
     ],
   },
-  { name: 'Invoices', icon: Receipt, link: '/admin/invoice' },
+  { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
 ];
 
@@ -113,6 +119,7 @@ type MenuItem = {
   link?: string;
   children?: { name: string; link: string; isDisabled?: boolean }[];
   isDisabled?: boolean;
+  permissionKeys?: string[];
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -120,7 +127,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-
+  const { permissions, permissionsVersion } = useAppSelector((state) => ({
+    permissions: state.auth.permissions,
+    permissionsVersion: state.auth.permissionsVersion,
+  }));
   const initialPath = useRef(pathname);
 
   const [mounted, setMounted] = useState(false);
@@ -157,6 +167,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
+  const userRoleLabel =
+    user?.user_type_id === 8 || user?.userTypeId === 8
+      ? "Super Admin"
+      : "Admin";
 
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
@@ -202,6 +216,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         pathname?.startsWith("/admin/sales-representative/") &&
         !pathname?.startsWith("/admin/sales-representative/sales-people")
       );
+    }
+
+    if (link === "/admin/quotes") {
+      return pathname === link;
     }
 
     return isActiveLink(link);
@@ -251,8 +269,20 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
-        <nav className="space-y-2">
+        <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
+            if (item.name === "Roles & Permissions" && !isSuperAdminUser(user)) {
+              return null;
+            }
+
+            if (item.name === "Users") {
+            const canViewUsers = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canViewUsers) return null;
+            } else if (item.permissionKeys && item.permissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+              if (!canView) return null;
+            }
+
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.name);
             const active = isParentActive(item);
@@ -335,7 +365,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             {user?.name?.[0] || "A"}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{user?.name || "Admin"}</p>
+            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{userRoleLabel}</p>
+            <p className={`text-xs truncate ${isDark ? "text-white/45" : "text-[#101010]/45"}`}>{user?.name || "Admin"}</p>
             <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
           </div>
         </div>

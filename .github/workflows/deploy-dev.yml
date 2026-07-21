@@ -1,12 +1,10 @@
 name: Deploy Frontend Dev
 
 on:
+  push:
+    branches:
+      - development
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch to deploy (do not use staging or main)
-        required: true
-        default: development
 
 concurrency:
   group: deploy-dev

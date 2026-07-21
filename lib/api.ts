@@ -76,6 +76,111 @@ api.interceptors.request.use(
   }
 );
 
+export type GetRolesParams = {
+  search?: string;
+  sort_by?: string;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+};
+
+export type AdminRoleRecord = {
+  role_id: number;
+  name: string;
+  description: string | null;
+  is_system: number;
+  is_active: number;
+  created_by: number | null;
+  updated_by: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  total_users: number;
+};
+
+export type GetUsersWithRolesParams = {
+  search?: string;
+  status?: string | number;
+  role_id?: string | number;
+  sort_by?: string;
+  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+};
+
+export type AdminUserRoleRecord = {
+  user_id: number;
+  name: string;
+  email: string;
+  role_id: number | null;
+  role_name: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+  is_active: number;
+  status_label: 'Active' | 'In-Active';
+  archive_history?: ArchiveHistoryRecord[];
+  last_archive_event?: ArchiveHistoryRecord | null;
+  deleted_by_name?: string | null;
+  deleted_at?: string | null;
+  restored_by_name?: string | null;
+  restored_at?: string | null;
+};
+
+export type ArchiveHistoryRecord = {
+  history_id: number;
+  target_type: string;
+  target_id: number;
+  user_id: number | null;
+  action: string;
+  reason: string | null;
+  performed_by_user_id: number | null;
+  performed_by_name: string | null;
+  performed_by_role: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata?: unknown;
+  created_at: string | null;
+};
+
+export type PermissionModuleRecord = {
+  module_key: string;
+  actions: string[];
+};
+
+export type UserPermissionActions = {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+};
+
+export type UserPermissionsMap = Record<string, UserPermissionActions>;
+
+export type RoleDetailsResponse = {
+  role: AdminRoleRecord;
+  permissions: Record<string, Record<string, boolean>>;
+};
+
+export type UserRoleDetailsResponse = {
+  user: {
+    user_id: number;
+    name: string;
+    email: string;
+    user_type: number | null;
+    user_type_name: string | null;
+    is_active: number;
+    status_label: 'Active' | 'In-Active';
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  role: {
+    role_id: number | null;
+    name: string | null;
+    description?: string | null;
+    is_active?: number;
+    created_at?: string | null;
+    updated_at?: string | null;
+  };
+  display_role: string | null;
+  archive_history?: ArchiveHistoryRecord[];
+  permissions: Record<string, Record<string, boolean>>;
+};
+
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
@@ -536,6 +641,13 @@ export interface SalesQuoteDetailData {
   address?: string;
   location?: string;
   project_description?: string;
+  pre_production_notes?: string | null;
+  pre_production_file_name?: string | null;
+  pre_production_file_type?: string | null;
+  pre_production_file_size?: number | string | null;
+  pre_production_file_content?: string | null;
+  pre_production_file_path?: string | null;
+  pre_production_file_url?: string | null;
   video_shoot_type?: string;
   quote_validity_days?: number | string;
   quote_status?: string;
@@ -747,7 +859,7 @@ export interface SalesLeadUpdateBookingScheduleResponse {
 }
 
 export type AdminShootUpdateDateLocationSingleDayPayload = {
-  location: string;
+  location?: string;
   latitude?: number | null;
   longitude?: number | null;
   booking_type: "single_day";
@@ -758,7 +870,7 @@ export type AdminShootUpdateDateLocationSingleDayPayload = {
 };
 
 export type AdminShootUpdateDateLocationMultiDayPayload = {
-  location: string;
+  location?: string;
   latitude?: number | null;
   longitude?: number | null;
   booking_type: "multi_day";
@@ -770,9 +882,18 @@ export type AdminShootUpdateDateLocationMultiDayPayload = {
   }>;
 };
 
+export type AdminShootUpdateDateLocationTbdPayload = {
+  location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  booking_type: "tbd";
+  time_zone: string;
+};
+
 export type AdminShootUpdateDateLocationPayload =
   | AdminShootUpdateDateLocationSingleDayPayload
-  | AdminShootUpdateDateLocationMultiDayPayload;
+  | AdminShootUpdateDateLocationMultiDayPayload
+  | AdminShootUpdateDateLocationTbdPayload;
 
 export interface AdminShootUpdateDateLocationResponse {
   success: boolean;
@@ -1464,7 +1585,7 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
 
     // 2. Append metadata
     if (metadata.title) formData.append("title", metadata.title);
-    if (metadata.tag) formData.append("tag", metadata.tag);
+    if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
 
     const response = await api.post(`creator/profile/files/${fileType}`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -1538,6 +1659,25 @@ export const DeleteProfileFile = async (crewFilesId: string | number, payload: a
     };
   }
 };
+
+export interface RolePermissions {
+  [module: string]: string[];
+}
+
+export interface AdminRole {
+  id: number;
+  name: string;
+  description: string;
+  permissions: RolePermissions;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description: string;
+  permissions: RolePermissions;
+}
 
 // ==================== Creator Earnings Dashboard ====================
 export const getCreatorEarningsDashboard = async () => {
@@ -2177,6 +2317,122 @@ export const adminApi = {
       };
     }
   },
+  updateCrewMemberProfile: async (id: string | number, payload: Record<string, unknown>) => {
+    try {
+      const response = await api.put(`admin/crew-member/${id}/profile`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Crew Member Profile Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update crew member profile',
+      };
+    }
+  },
+  updateCrewMemberProfilePhoto: async (id: string | number, file: File | Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append("files[]", file, file instanceof File ? file.name : "profile-photo.jpg");
+
+      const response = await api.post(`admin/crew-member/${id}/profile/files/profile_photo`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Update Crew Member Profile Photo Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to update crew member profile photo",
+      };
+    }
+  },
+  deleteCrewMemberProfileFile: async (id: string | number, crewFilesId: string | number, payload: Record<string, unknown> = {}) => {
+    try {
+      const response = await api.delete(`admin/crew-member/${id}/profile-file/${crewFilesId}`, {
+        data: payload,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Delete Crew Member Profile File Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to delete crew member profile file",
+      };
+    }
+  },
+  uploadCrewMemberProfileFiles: async (
+    id: string | number,
+    fileType:
+      | "resume"
+      | "certifications"
+      | "certificates"
+      | "portfolio"
+      | "recent_work"
+      | "featured_work"
+      | "featurework"
+      | "feature_work",
+    files: File | File[],
+    metadata: { title?: string; tag?: string } = {}
+  ) => {
+    try {
+      const formData = new FormData();
+      if (Array.isArray(files)) {
+        files.forEach((file) => formData.append("files[]", file));
+      } else {
+        formData.append("files[]", files);
+      }
+
+      if (metadata.title) formData.append("title", metadata.title);
+      if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
+
+      const response = await api.post(`admin/crew-member/${id}/profile/files/${fileType}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Upload Crew Member Profile Files Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || `Failed to upload crew member ${fileType}`,
+      };
+    }
+  },
+  addCrewMemberPortfolioLinks: async (id: string | number, portfolioLinks: Array<{ url: string; title: string; platform: string }>) => {
+    try {
+      const response = await api.post(`admin/crew-member/${id}/profile/portfolio-links`, {
+        portfolio_links: portfolioLinks,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("Add Crew Member Portfolio Links Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to add portfolio links",
+      };
+    }
+  },
+  updateCrewMemberPortfolioLink: async (
+    id: string | number,
+    crewFileId: string | number,
+    payload: { url: string; title: string; platform: string }
+  ) => {
+    try {
+      const response = await api.put(`admin/crew-member/${id}/profile/portfolio-links/${crewFileId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error("Update Crew Member Portfolio Link Error:", error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to update portfolio link",
+      };
+    }
+  },
   getSkills: async () => {
     try {
       const response = await api.get('admin/skills');
@@ -2661,6 +2917,225 @@ export const adminApi = {
       };
     }
   },
+  getRoles: async (params: GetRolesParams = {}) => {
+    try {
+      const response = await api.get('admin/roles', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Roles Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch roles',
+      };
+    }
+  },
+
+  getUsersWithRoles: async (params: GetUsersWithRolesParams = {}) => {
+    try {
+      const response = await api.get('admin/users/roles', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Users With Roles Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch users with roles',
+      };
+    }
+  },
+
+  getRoleById: async (id: number | string) => {
+    try {
+      const response = await api.get(`admin/roles/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Role By ID Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch role details',
+      };
+    }
+  },
+
+  getUserRoleDetails: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/role-details`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Role Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch user role details',
+      };
+    }
+  },
+
+  getPermissionModules: async (params: { scope?: string } = {}) => {
+    try {
+      const response = await api.get('admin/permissions/modules', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Permission Modules Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch permission modules',
+      };
+    }
+  },
+
+  getUserPermissions: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/permissions`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch user permissions',
+      };
+    }
+  },
+
+  assignRoleToUser: async (payload: { user_id: number | string; role_id: number | string }) => {
+    try {
+      const response = await api.post('admin/users/assign-role', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign Role To User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign role',
+      };
+    }
+  },
+
+  assignUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+    try {
+      const response = await api.post('admin/users/permissions/assign', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Assign User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to assign user permissions',
+      };
+    }
+  },
+
+  updateUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+    try {
+      const response = await api.put('admin/users/permissions/update', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update User Permissions Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update user permissions',
+      };
+    }
+  },
+
+  deleteUserPermission: async (
+    userId: number | string,
+    moduleKey: string,
+    actionKey: string,
+  ) => {
+    try {
+      const response = await api.delete(
+        `admin/users/${userId}/permissions/${moduleKey}/${actionKey}`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete User Permission Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete user permission',
+      };
+    }
+  },
+
+  deleteUser: async (userId: number | string) => {
+    try {
+      const response = await api.delete(`admin/delete-user/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete user',
+      };
+    }
+  },
+
+  restoreUser: async (userId: number | string, reason = "Restored from roles and permissions") => {
+    try {
+      const response = await api.post(`admin/restore-user/${userId}`, { reason });
+      return response.data;
+    } catch (error: any) {
+      console.error('Restore User Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to restore user',
+      };
+    }
+  },
+
+  createRole: async (payload: CreateRolePayload) => {
+    try {
+      const response = await api.post('admin/roles/create', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Create Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to create role',
+      };
+    }
+  },
+
+  updateRole: async (id: number | string, payload: Partial<CreateRolePayload>) => {
+    try {
+      const response = await api.put('admin/roles/update', {
+        role_id: id,
+        ...payload,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update role',
+      };
+    }
+  },
+
+  deleteRole: async (id: number | string) => {
+    try {
+      const response = await api.delete(`admin/roles/delete/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Role Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete role',
+      };
+    }
+  },
+
   updateShootDateLocation: async (
     shootId: string | number,
     payload: AdminShootUpdateDateLocationPayload
@@ -2682,7 +3157,7 @@ export const adminApi = {
   },
   updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
     try {
-      const response = await api.post("admin/shoots/update-onboarding-form", payload);
+      const response = await api.post('admin/shoots/update-onboarding-form', payload);
       return response.data;
     } catch (error: any) {
       console.error('Update Shoot Onboarding Form Error:', error.response?.data || error.message);

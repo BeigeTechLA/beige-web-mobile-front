@@ -1,14 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
-
 import { ShootsTable } from '@/components/admin/ShootsTable';
+
 import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
-import { useRouter, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import DottedDivider from '@/components/admin/DottedDivider';
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Select,
   SelectContent,
@@ -54,11 +55,18 @@ const RANGE_FILTER_OPTIONS = new Set([
   "in_1_year",
   "custom",
 ]);
+const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
+type PaymentFilter = "all" | "pending" | "paid";
+
+const isPaymentFilter = (value: string): value is PaymentFilter =>
+  PAYMENT_FILTER_OPTIONS.has(value);
 
 export default function ShootsPage() {
   const router = useRouter()
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  const { canCreate } = usePermissions("shoots");
 
   useEffect(() => setMounted(true), []);
   const pathname = usePathname();
@@ -68,6 +76,7 @@ export default function ShootsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
@@ -92,6 +101,9 @@ export default function ShootsPage() {
       if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
       if (typeof parsed.categoryFilter === "string") setCategoryFilter(parsed.categoryFilter);
       if (typeof parsed.statusFilter === "string") setStatusFilter(parsed.statusFilter);
+      if (typeof parsed.paymentFilter === "string") {
+        setPaymentFilter(isPaymentFilter(parsed.paymentFilter) ? parsed.paymentFilter : "all");
+      }
       if (typeof parsed.productionFilter === "string") setProductionFilter(parsed.productionFilter);
       if (typeof parsed.range === "string") {
         setRange(RANGE_FILTER_OPTIONS.has(parsed.range) ? parsed.range : "all");
@@ -124,6 +136,7 @@ export default function ShootsPage() {
           searchQuery,
           categoryFilter,
           statusFilter,
+          paymentFilter,
           productionFilter,
           range,
           cpAssignmentFilter,
@@ -139,6 +152,7 @@ export default function ShootsPage() {
     searchQuery,
     categoryFilter,
     statusFilter,
+    paymentFilter,
     productionFilter,
     range,
     cpAssignmentFilter,
@@ -151,6 +165,7 @@ export default function ShootsPage() {
     setSearchQuery("");
     setCategoryFilter("all");
     setStatusFilter("all");
+    setPaymentFilter("all");
     setProductionFilter("all");
     setRange("all");
     setCpAssignmentFilter("all");
@@ -251,6 +266,8 @@ export default function ShootsPage() {
         window.URL.revokeObjectURL(downloadUrl);
 
         setIsExportOpen(false);
+        setExportStartDate(null);
+        setExportEndDate(null);
         toast.success("Shoots exported successfully.");
       } catch (error) {
         console.error("Export Shoots Error:", error);
@@ -276,7 +293,12 @@ export default function ShootsPage() {
             {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button> */}
-            <Button onClick={() => router.push("/book-a-shoot")} className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7">
+            <Button
+              onClick={() => router.push("/book-a-shoot")}
+              disabled={!canCreate}
+              title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+              className="bg-[#E8D1AB] text-black h-12 px-4 lg:px-7"
+            >
               Book a Shoot
             </Button>
           </div>
@@ -379,6 +401,22 @@ export default function ShootsPage() {
                     {FILTER_STATUS_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={paymentFilter}
+                  onValueChange={(value) => {
+                    if (isPaymentFilter(value)) setPaymentFilter(value);
+                  }}
+                >
+                  <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectValue placeholder="Payment" />
+                  </SelectTrigger>
+                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -648,6 +686,8 @@ export default function ShootsPage() {
           setCategoryFilter={setCategoryFilter}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          paymentFilter={paymentFilter}
+          setPaymentFilter={setPaymentFilter}
           productionFilter={productionFilter}
           setProductionFilter={setProductionFilter}
           range={range}
@@ -665,6 +705,8 @@ export default function ShootsPage() {
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             onClick={() => router.push('/book-a-shoot')}
+            disabled={!canCreate}
+            title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             Book a Shoot

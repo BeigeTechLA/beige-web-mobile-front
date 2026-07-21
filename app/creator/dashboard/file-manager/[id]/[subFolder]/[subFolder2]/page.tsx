@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
+
 import {
   ArrowLeft,
   CalendarClock,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const FILES_PAGE_SIZE = 20;
@@ -78,6 +80,7 @@ const getFileMeta = (contentType?: string, title?: string) => {
 };
 
 export default function CreatorSubFolderDetailsPage() {
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions("file_manager");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -351,27 +354,11 @@ export default function CreatorSubFolderDetailsPage() {
     try {
       const result = await fileManagerApi.getExternalFileDownloadUrl(file.filepath);
       if (result?.url) {
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        fileManagerApi.downloadUrl(result.url, String(file.title || file.name || "file"));
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download file");
     }
-  };
-
-  const triggerBatchFileDownload = (url: string) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    window.setTimeout(() => {
-      iframe.remove();
-    }, 5000);
   };
 
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
@@ -707,23 +694,15 @@ export default function CreatorSubFolderDetailsPage() {
 
   const handleBatchDownload = async () => {
     if (selectedFilePaths.length === 0) return;
-    toast.info(`Starting download for ${selectedFilePaths.length} files...`);
-
-    for (const path of selectedFilePaths) {
-      try {
-        const result = await fileManagerApi.getExternalFileDownloadUrl(path);
-        if (result?.url) {
-          triggerBatchFileDownload(result.url);
-        }
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to download file");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
+      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
+      toast.success("Download started");
+      setSelectedFilePaths([]);
+      setIsSelectionMode(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to download selected files");
     }
-
-    setSelectedFilePaths([]);
-    setIsSelectionMode(false);
   };
 
   const handleBatchDelete = async () => {
@@ -931,11 +910,41 @@ export default function CreatorSubFolderDetailsPage() {
       ) : null}
     </div>
   );
+
   return (
     <>
-      <Topbar pathname={pathname} />
-      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
-        <div className="mb-5 flex items-center justify-between">
+      <Topbar
+        pathname={pathname}
+        actions=
+        {canUpload ? (
+          <div className="flex items-center gap-2">
+            {isCommonEventWorkspace ? (
+              <Button
+                onClick={() => setIsCreateFolderModalOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
+              >
+                <FolderPlus size={18} />
+                Create Folder
+              </Button>
+            ) : null}
+            {showHeaderUploadButton ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
+                }}
+                disabled={selectionLockActive}
+                className="flex items-center gap-2 rounded-lg bg-[#E8D0AA] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+              >
+                <Upload size={18} />
+                {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      />
+      <div className="overflow-x-hidden overflow-y-auto p-4 pb-24 lg:px-10 lg:py-9">
+        <div className="flex items-center justify-between">
           <Button
             onClick={() => router.back()}
             className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}
@@ -944,7 +953,7 @@ export default function CreatorSubFolderDetailsPage() {
             <span className="text-sm font-medium">Back</span>
           </Button>
 
-          {canUpload ? (
+          {/* {canUpload ? (
             <div className="flex items-center gap-2">
               {isCommonEventWorkspace ? (
                 <Button
@@ -969,7 +978,7 @@ export default function CreatorSubFolderDetailsPage() {
                 </Button>
               ) : null}
             </div>
-          ) : null}
+          ) : null} */}
         </div>
 
         {loading ? (
@@ -1406,6 +1415,19 @@ export default function CreatorSubFolderDetailsPage() {
                 >
                   Clear
                 </Button>
+                <Button
+                  variant="ghost"
+                  className={`text-xs lg:text-sm h-9 lg:h-10 gap-2 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                    }`}
+                  onClick={() => {
+                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    setSelectedFilePaths(Array.from(new Set(allVisible)));
+                    setIsSelectionMode(true);
+                  }}
+                >
+                  <CheckSquare size={16} />
+                  Select all
+                </Button>
               </div>
 
               {/* Right Action Trigger Group */}
@@ -1454,6 +1476,34 @@ export default function CreatorSubFolderDetailsPage() {
                 <CloseIcon size={20} />
               </button>
             </div>
+          </div>
+        ) : null}
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        {canUpload ? (
+          <div className={`lg:hidden w-full fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+            {isCommonEventWorkspace ? (
+              <Button
+                onClick={() => setIsCreateFolderModalOpen(true)}
+                className="flex items-center gap-2 w-full rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
+              >
+                <FolderPlus size={18} />
+                Create Folder
+              </Button>
+            ) : null}
+            {showHeaderUploadButton ? (
+              <Button
+                onClick={() => {
+                  if (selectionLockActive) return;
+                  openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
+                }}
+                disabled={selectionLockActive}
+                className="flex items-center gap-2 w-full rounded-lg bg-[#E8D0AA] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+              >
+                <Upload size={18} />
+                {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>

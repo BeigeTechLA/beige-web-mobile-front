@@ -117,7 +117,7 @@ export function LoginForm() {
       }
 
       // Logic for conditional redirection
-      if (userTypeId === 1) {
+      if (userTypeId === 1 || userTypeId === 8) {
         router.push('/admin/dashboard')
       } else if (userTypeId === 2) {
         router.push('/creator/dashboard')

@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
 import DeleteMeetingConfirmModal from "@/components/meetings/DeleteMeetingConfirmModal";
+import EditMeetingModal from "@/components/meetings/EditMeetingModal";
 import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
 import { meetingsApi, type MeetingItem, type MeetingParticipantRef } from "@/lib/meetingsApi";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { canRespondToMeeting, formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
@@ -27,6 +29,7 @@ type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 interface MeetingsSchedulePanelProps {
   role?: RoleVariant;
   orderId?: string | number | null;
+  createPermissionModuleKey?: string;
 }
 
 const resolveId = (value: unknown) => {
@@ -144,7 +147,7 @@ const MemberStack = ({ meeting, isDark = true }: { meeting: MeetingItem; isDark:
   );
 };
 
-export default function MeetingsSchedulePanel({ orderId, role = "admin" }: MeetingsSchedulePanelProps) {
+export default function MeetingsSchedulePanel({ orderId, role = "admin", createPermissionModuleKey = "meetings" }: MeetingsSchedulePanelProps) {
   const { user } = useAuth();
   const params = useParams<Record<string, string | string[] | undefined>>();
   const paramOrderId =
@@ -167,6 +170,7 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +186,10 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");
   }, [user]);
+  const { canCreate: canCreateByPermission, canDelete: canDeleteByPermission } = usePermissions(createPermissionModuleKey);
+  const canCreateMeeting = canCreateByPermission;
+  const canDeleteMeeting = canDeleteByPermission;
+
   const loadMeetings = useCallback(async () => {
     if (!resolvedOrderId) {
       setMeetings([]);
@@ -283,7 +291,15 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
             </div>
 
 
-            <Button onClick={() => setIsModalOpen(true)} className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"}`}>
+            <Button
+              onClick={() => {
+                if (!canCreateMeeting) return;
+                setIsModalOpen(true);
+              }}
+              disabled={!canCreateMeeting}
+              title={canCreateMeeting ? "Create New Meeting" : "Create permission not allowed"}
+              className={`h-13 lg:h-12 ${isDark ? "bg-white text-black hover:bg-zinc-200" : "bg-black hover:bg-black/80 text-[#E8D1AB]"} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
               Create New Meeting
             </Button>
           </div>
@@ -520,6 +536,20 @@ export default function MeetingsSchedulePanel({ orderId, role = "admin" }: Meeti
       <MeetingDetailsModal
         open={!!selectedMeeting}
         onClose={() => setSelectedMeeting(null)}
+        meeting={selectedMeeting}
+        role={role}
+        currentUserId={currentUserId}
+        currentUserEmail={currentUserEmail}
+        onUpdated={loadMeetings}
+        onEdit={() => setIsEditModalOpen(true)}
+      />
+
+      <EditMeetingModal
+        open={isEditModalOpen}
+        onClose={() => {
+          setSelectedMeeting(null)
+          setIsEditModalOpen(false)
+        }}
         meeting={selectedMeeting}
         role={role}
         currentUserId={currentUserId}

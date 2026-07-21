@@ -16,6 +16,10 @@ const UploadResumePortfolio = ({
   setPortfolio,
   bgColour = "bg-[#101010]",
   buttonBgColour = "bg-white/5 hover:bg-white/10",
+  onResumeUpload,
+  onPortfolioUpload,
+  onDeleteResume,
+  onDeletePortfolio,
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -66,10 +70,24 @@ const UploadResumePortfolio = ({
       const processedFiles = await Promise.all(uploadPromises);
 
       if (type === "resume") {
-        setResume(processedFiles[0]);
+        if (onResumeUpload) {
+          const uploadedResume = await onResumeUpload(processedFiles[0], files[0]);
+          setResume(uploadedResume || processedFiles[0]);
+        } else {
+          setResume(processedFiles[0]);
+        }
         toast.success("Resume uploaded successfully");
       } else {
-        setPortfolio((prev) => [...(prev || []), ...processedFiles]);
+        if (onPortfolioUpload) {
+          const uploadedPortfolio = await onPortfolioUpload(processedFiles, files);
+          if (Array.isArray(uploadedPortfolio) && uploadedPortfolio.length > 0) {
+            setPortfolio((prev) => [...(prev || []), ...uploadedPortfolio]);
+          } else {
+            setPortfolio((prev) => [...(prev || []), ...processedFiles]);
+          }
+        } else {
+          setPortfolio((prev) => [...(prev || []), ...processedFiles]);
+        }
         toast.success(`${processedFiles.length} portfolio file(s) added`);
       }
 
@@ -134,7 +152,16 @@ const UploadResumePortfolio = ({
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => openFileInNewTab(resume.url)} className="p-2 hover:bg-white/10 rounded-lg text-white/60"><Eye size={18} /></button>
-                <button type="button" onClick={() => setResume(null)} className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500"><Trash2 size={18} /></button>
+                <button type="button" onClick={async () => {
+                  try {
+                    await onDeleteResume?.(resume);
+                    setResume(null);
+                    toast.info("Resume removed");
+                  } catch (error) {
+                    console.error("Failed to delete resume:", error);
+                    toast.error("Failed to remove resume.");
+                  }
+                }} className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500"><Trash2 size={18} /></button>
               </div>
             </div>
           )}
@@ -159,7 +186,15 @@ const UploadResumePortfolio = ({
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => openFileInNewTab(item.url)} className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white"><Eye size={18} /></button>
-                  <button type="button" onClick={() => removePortfolioItem(item.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500"><Trash2 size={18} /></button>
+                  <button type="button" onClick={async () => {
+                    try {
+                      await onDeletePortfolio?.(item);
+                      removePortfolioItem(item.id);
+                    } catch (error) {
+                      console.error("Failed to delete portfolio file:", error);
+                      toast.error("Failed to remove portfolio file.");
+                    }
+                  }} className="p-2 hover:bg-red-500/10 rounded-lg text-white/40 hover:text-red-500"><Trash2 size={18} /></button>
                 </div>
               </div>
             ))}

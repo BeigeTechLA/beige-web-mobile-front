@@ -24,6 +24,9 @@ export const MobileFileRow = ({
   onDownload,
   onShare,
   onDelete,
+  downloadDisabled = false,
+  shareDisabled = false,
+  deleteDisabled = false,
   isDeleting
 }: {
   file: MobileFileRowFile;
@@ -35,6 +38,9 @@ export const MobileFileRow = ({
   onDownload: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onShare: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  downloadDisabled?: boolean;
+  shareDisabled?: boolean;
+  deleteDisabled?: boolean;
   isDeleting: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -126,22 +132,25 @@ export const MobileFileRow = ({
                 </button>
 
                 <div className={`flex items-center gap-1.5 ${isDark ? "text-white/60" : "text-black/60"}`}>
-                  <button
-                    className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}
-                    onClick={onDownload}
-                  >
-                    <Download size={16} />
-                  </button>
-                  <button
-                    className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-[#E8D1AB]" : "hover:bg-black/5 text-black/40 hover:text-[#B38F43]"}`}
-                    onClick={onShare}
-                  >
-                    <Share2 size={16} />
-                  </button>
-                  <button
-                    className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-[#F04438]" : "hover:bg-black/5 text-black/40 hover:text-[#F04438]"}`}
-                    onClick={onDelete}
-                  >
+                <button
+                  disabled={downloadDisabled}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}
+                  onClick={onDownload}
+                >
+                  <Download size={16} />
+                </button>
+                <button
+                  disabled={shareDisabled}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-[#E8D1AB]" : "hover:bg-black/5 text-black/40 hover:text-[#B38F43]"}`}
+                  onClick={onShare}
+                >
+                  <Share2 size={16} />
+                </button>
+                <button
+                  disabled={deleteDisabled}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/60 hover:text-[#F04438]" : "hover:bg-black/5 text-black/40 hover:text-[#F04438]"}`}
+                  onClick={onDelete}
+                >
                     {isDeleting ? <span className="text-[10px] tracking-tighter">...</span> : <Trash2 size={16} />}
                   </button>
                 </div>

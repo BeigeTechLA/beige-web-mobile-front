@@ -9,6 +9,7 @@ interface EmptyFileStateProps {
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  actionDisabled?: boolean;
   isDark?: boolean;
 }
 
@@ -17,6 +18,7 @@ export default function EmptyFileState({
   description = "No files have been uploaded for this project yet.",
   actionLabel,
   onAction,
+  actionDisabled = false,
   isDark = true,
 }: EmptyFileStateProps) {
   return (
@@ -43,10 +45,11 @@ export default function EmptyFileState({
       {actionLabel && onAction ? (
         <Button
           onClick={onAction}
+          disabled={actionDisabled}
           className={`mt-6 h-11 rounded-xl px-6 text-sm font-semibold transition-colors ${isDark
             ? "bg-[#E8D1AB] text-black hover:bg-[#d4c3a3]"
             : "bg-black text-[#E8D1AB] hover:bg-zinc-800"
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-40`}
         >
           {actionLabel}
         </Button>
