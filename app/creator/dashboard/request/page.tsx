@@ -40,7 +40,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, getAcceptedShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -141,13 +141,11 @@ export default function RequestsShootsPage() {
       }
 
       const commonPayload = { crew_member_id };
-      const [pendingRes, upcomingRes, acceptedRes] = await Promise.all([
+      const [pendingRes, upcomingRes] = await Promise.all([
         getPendingProjects(commonPayload),
         GetUpcomingShoots(commonPayload),
-        getAcceptedShoots(commonPayload),
       ]);
 
-      const allProjects: any[] = [];
       const pendingFiltered =
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: any) => {
@@ -155,35 +153,22 @@ export default function RequestsShootsPage() {
             return isUpcomingDate(dateStr);
           })
           : [];
-      if (pendingFiltered.length > 0) {
-        allProjects.push(
-          ...pendingFiltered.map((p: any) => ({
-            ...p,
-            status: "Pending",
-            project_id: p.project_id || p.id,
-          }))
-        );
-      }
-      const upcomingFiltered =
-        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
-          ? upcomingRes.data.filter((p: any) => {
-            const dateStr = p.event_date || p.shoot_date;
-            return isUpcomingDate(dateStr);
-          })
-          : [];
-      if (upcomingFiltered.length > 0) {
-        allProjects.push(
-          ...upcomingFiltered.map((p: any) => ({
-            ...p,
-            status: "Confirmed",
-            project_id: p.project_id || p.id,
-          }))
-        );
-      }
-      setProjects(allProjects);
+      setProjects(
+        pendingFiltered.map((p: any) => ({
+          ...p,
+          status: "Pending",
+          project_id: p.project_id || p.id,
+        }))
+      );
 
-      if (acceptedRes && acceptedRes.error === false && Array.isArray(acceptedRes.data)) {
-        const acceptedProjects = acceptedRes.data.map((p: any) => ({
+      const acceptedSource =
+        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
+          ? upcomingRes.data
+          : [];
+      const upcomingAccepted = acceptedSource;
+
+      if (upcomingAccepted.length > 0) {
+        const acceptedProjects = upcomingAccepted.map((p: any) => ({
           ...p,
           status: p.is_completed ? "Completed" : "Confirmed",
           project_id: p.project_id || p.id,
@@ -280,10 +265,24 @@ export default function RequestsShootsPage() {
 
       if (response && response.error === false) {
         toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
+        const acceptedItem = acceptShootEvent;
         setAcceptShootEvent(null);
         setDeclineShootEvent(null);
         setDeclineReason("Schedule conflict");
         setDeclineComments("");
+        if (accept && acceptedItem) {
+          setProjects((current) => current.filter((item) => item.project_id !== projectId));
+          setShoots((current) => {
+            const nextShoot = {
+              ...acceptedItem,
+              status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
+              project_id: acceptedItem.project_id || acceptedItem.id,
+            };
+            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
+            return [nextShoot, ...withoutDuplicate];
+          });
+          handleTabChange("shoots");
+        }
         await fetchData();
       } else {
         toast.error(response?.message || "Failed to update project status");

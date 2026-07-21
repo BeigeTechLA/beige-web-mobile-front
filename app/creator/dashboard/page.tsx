@@ -152,7 +152,7 @@ function ShootStatusGaugeCard({
   const displayData = chartData.length > 0 ? chartData : [{ name: "No Shoots", value: 1, fill: isDark ? "#141414" : "#F5F5F5" }];
 
   return (
-    <div className={`w-full rounded-2xl border lg:h-[392px] flex flex-col transition-all duration-300 ${
+    <div className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
       isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-black"
     }`}>
       <div className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
@@ -176,15 +176,15 @@ function ShootStatusGaugeCard({
         )}
       </div>
 
-      <div className="p-4 lg:p-10 flex flex-col lg:flex-row items-center justify-between gap-2 flex-1">
-        <div className="relative w-full h-[200px] lg:h-[250px] flex items-center justify-center">
+      <div className="p-4 lg:p-8 xl:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 flex-1 overflow-visible">
+        <div className="relative w-full max-w-[390px] h-[220px] lg:h-[250px] flex items-center justify-center overflow-visible">
           <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart
               cx="50%"
-              cy="80%"
-              innerRadius="60%"
-              outerRadius="130%"
-              barSize={40}
+              cy="82%"
+              innerRadius="58%"
+              outerRadius="104%"
+              barSize={38}
               data={displayData}
               startAngle={0}
               endAngle={180}
@@ -209,8 +209,8 @@ function ShootStatusGaugeCard({
               isDark ? "bg-white/20" : "bg-black/10"
             }`}
             style={{
-              top: "80%",
-              width: "67%",
+              top: "82%",
+              width: "76%",
             }}
           >
             <div className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
