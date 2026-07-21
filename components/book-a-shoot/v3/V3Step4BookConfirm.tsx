@@ -61,6 +61,21 @@ import { EffectCoverflow } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 
+const DEFAULT_IMAGE = "/images/projects/interior.png";
+
+const resolveImageSrc = (candidate?: string | null) => {
+  const value = typeof candidate === "string" ? candidate.trim() : "";
+
+  if (!value) return DEFAULT_IMAGE;
+  if (value.startsWith("/")) return value;
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    return DEFAULT_IMAGE;
+  }
+};
+
 // DummyData: Remove post integration
 const dummyCrewData = [
   {
@@ -1279,7 +1294,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                         <div className="flex flex-col md:flex-row gap-4 md:items-start">
                           <div className="relative w-full md:w-[180px] h-[120px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
                             <Image
-                              src={studio.image}
+                              src={resolveImageSrc(studio.image)}
                               alt={studio.name}
                               fill
                               className="object-cover"

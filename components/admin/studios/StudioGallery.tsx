@@ -2,8 +2,15 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { SquareCheck, X } from "lucide-react";
+
+const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
+
+const resolveStudioMediaUrl = (value: string) => {
+  if (/^https?:\/\//i.test(value)) return value;
+  if (!S3_PREFIX) return value;
+  return `${S3_PREFIX}/${value.replace(/^\/+/, "")}`;
+};
 
 interface StudioGalleryProps {
   items: string[];
@@ -12,6 +19,15 @@ interface StudioGalleryProps {
 }
 
 export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: StudioGalleryProps) => {
+  const validItems = items.map(resolveStudioMediaUrl).filter((item) => {
+    try {
+      const parsed = new URL(item);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  });
+
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const progress = useMotionValue(0);
   const smoothProgress = useSpring(progress, { damping: 30, stiffness: 200 });
@@ -69,12 +85,12 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
         style={{ touchAction: "pan-y" }}
       >
         <div className="relative w-full h-full flex items-center justify-center [transform-style:preserve-3d]">
-          {items.map((item, i) => (
+          {validItems.map((item, i) => (
             <Card
               key={i}
               item={item}
               index={i}
-              total={items.length}
+              total={validItems.length}
               progress={smoothProgress}
               onSelect={() => setSelectedImage(item)}
               windowWidth={windowWidth}
@@ -104,7 +120,7 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
               className="relative w-full max-w-6xl h-[85vh] rounded-[20px] overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <Image src={selectedImage} alt="Preview" fill className="object-contain" priority />
+              <img src={selectedImage} alt="Preview" className="h-full w-full object-contain" />
             </motion.div>
           </motion.div>
         )}
@@ -169,12 +185,10 @@ const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
       className="absolute rounded-[20px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] cursor-pointer group w-[250px] h-[300px] md:w-[320px] md:h-[450px] xl:w-[500px] lg:h-[650px]"
     >
       <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-105">
-        <Image
-          src={item}
+              <img
+          src={resolveStudioMediaUrl(item)}
           alt=""
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 250px, (max-width: 1024px) 340px, 432px"
+          className="h-full w-full object-cover"
         />
       </div>
       {/* <div className="absolute inset-0 z-20 bg-gradient-to-b from-transparent via-transparent to-black/30" /> */}

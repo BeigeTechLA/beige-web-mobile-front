@@ -12,6 +12,21 @@ import {
   hybridShootTypes,
 } from "@/app/data/shootData";
 
+const DEFAULT_STUDIO_IMAGE = "/images/projects/interior.png";
+
+const resolveImageSrc = (candidate?: string | null) => {
+  const value = typeof candidate === "string" ? candidate.trim() : "";
+
+  if (!value) return DEFAULT_STUDIO_IMAGE;
+  if (value.startsWith("/")) return value;
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    return DEFAULT_STUDIO_IMAGE;
+  }
+};
+
 interface Props {
   data: BookingDataV3;
   updateData: (data: Partial<BookingDataV3>) => void;
@@ -78,7 +93,7 @@ export const V3Step3CrewMatching: React.FC<Props> = ({ data, updateData, onNext,
               <div className="p-4 flex gap-4 items-center">
                 <div className="w-[100px] h-[100px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative shrink-0">
                   <Image
-                 src={data.selectedStudioImage || shootTypeDetails?.image || "/images/projects/interior.png"}
+                    src={resolveImageSrc(data.selectedStudioImage || shootTypeDetails?.image)}
                     alt={shootTypeDetails?.title || "Shoot Type"}
                     fill
                     className="object-cover rounded-lg"

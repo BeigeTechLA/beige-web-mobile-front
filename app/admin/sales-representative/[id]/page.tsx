@@ -208,6 +208,16 @@ const normalizeTimeKey = (value?: string | null) => String(value || "").slice(0,
 
 const formatTimeForApi = (value: string) => `${value}:00`;
 
+const resolveStudioImageUrl = (image?: string | null) => {
+  const rawImage = String(image || "").trim();
+  if (!rawImage) return "";
+  if (/^https?:\/\//i.test(rawImage)) return rawImage;
+
+  const normalizedPrefix = String(S3_PREFIX || "").replace(/\/+$/, "");
+  const normalizedPath = rawImage.replace(/^\/+/, "");
+  return normalizedPrefix ? `${normalizedPrefix}/${normalizedPath}` : rawImage;
+};
+
 const QUOTE_LINE_ITEM_CATEGORY_LABELS: Record<string, string> = {
   service: "Services",
   addon: "Add-ons",
@@ -273,6 +283,26 @@ type BookingDayLike = {
   event_date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+};
+
+type StudioBookingItemLike = {
+  studioId?: string | null;
+  name?: string | null;
+  location?: string | null;
+  image?: string | null;
+  pricingMode?: string | null;
+  pricingLabel?: string | null;
+  quantity?: number | string | null;
+  unitPrice?: number | string | null;
+  cleaningFee?: number | string | null;
+  totalPrice?: number | string | null;
+  priceLabel?: string | null;
+  selectedDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  timeZone?: string | null;
+  studioBookingType?: string | null;
+  bookingDays?: Array<Record<string, unknown>>;
 };
 
 type HoverTooltipProps = {
@@ -865,6 +895,36 @@ export default function LeadDetailPage() {
     : "Not set";
   const location = booking?.event_location || "Not specified";
   const shootType = booking?.shoot_type || booking?.event_type || "Not specified";
+  const studioItems = useMemo(() => {
+    const breakdownItems = Array.isArray(lead?.pricing_breakdown?.studio_items)
+      ? (lead?.pricing_breakdown?.studio_items as StudioBookingItemLike[])
+      : [];
+    if (breakdownItems.length > 0) return breakdownItems;
+
+    const rawDescription = String(booking?.description || "");
+    const marker = "[BEIGE_STUDIO_META]";
+    const markerIndex = rawDescription.indexOf(marker);
+    if (markerIndex === -1) return [];
+
+    const jsonPayload = rawDescription.slice(markerIndex + marker.length).trim();
+    if (!jsonPayload) return [];
+
+    try {
+      const parsed = JSON.parse(jsonPayload);
+      return Array.isArray(parsed) ? (parsed as StudioBookingItemLike[]) : [];
+    } catch {
+      return [];
+    }
+  }, [booking?.description, lead?.pricing_breakdown?.studio_items]);
+  const primaryStudio = studioItems[0] || null;
+  const studioImageUrl = resolveStudioImageUrl(primaryStudio?.image);
+  const studioLineItemName =
+    primaryStudio?.name ||
+    booking?.primary_quote?.line_items?.find((item) => {
+      const itemName = String(item?.item_name || item?.name || "").toLowerCase();
+      return itemName.includes("studio");
+    })?.item_name ||
+    "Studio";
 
   // Pricing from breakdown
   const convertedQuoteTotal = isQuoteConvertedLead
@@ -2023,6 +2083,66 @@ export default function LeadDetailPage() {
                     <p className={`text-xs lg:text-base font-medium max-w-md ${isDark ? "text-white" : "text-black"}`}>{location}</p>
                   </div>
                 </div>
+                {primaryStudio && (
+                  <div className={`rounded-2xl border px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-[#3D3D3D] bg-white/[0.02]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+                    <div className="flex items-start gap-4">
+                      {studioImageUrl ? (
+                        <div className="relative h-14 w-14 lg:h-16 lg:w-16 shrink-0 overflow-hidden rounded-xl">
+                          <Image
+                            src={studioImageUrl}
+                            alt={studioLineItemName}
+                            fill
+                            sizes="64px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`flex h-14 w-14 lg:h-16 lg:w-16 shrink-0 items-center justify-center rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
+                          <MapPin size={18} />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-[#71717B] font-medium mb-1">Studio Item</p>
+                        <p className={`text-xs lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          {studioLineItemName}
+                        </p>
+                        {primaryStudio.location && (
+                          <p className={`text-[11px] lg:text-sm mt-1 ${isDark ? "text-[#A1A1AA]" : "text-[#666666]"}`}>
+                            {primaryStudio.location}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {primaryStudio.selectedDate && (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] lg:text-xs font-medium ${isDark ? "bg-white/5 text-white/75" : "bg-black/5 text-black/70"}`}>
+                              <Calendar size={12} />
+                              {primaryStudio.selectedDate}
+                            </span>
+                          )}
+                          {(primaryStudio.startTime || primaryStudio.endTime) && (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] lg:text-xs font-medium ${isDark ? "bg-white/5 text-white/75" : "bg-black/5 text-black/70"}`}>
+                              <Clock size={12} />
+                              {primaryStudio.startTime && primaryStudio.endTime
+                                ? `${primaryStudio.startTime} - ${primaryStudio.endTime}`
+                                : primaryStudio.startTime || primaryStudio.endTime}
+                            </span>
+                          )}
+                          {primaryStudio.priceLabel && (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] lg:text-xs font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#FFF4DB] text-[#7A5B14]"}`}>
+                              {primaryStudio.priceLabel}
+                            </span>
+                          )}
+                        </div>
+                        {typeof primaryStudio.quantity === "number" && (
+                          <p className={`mt-3 text-[11px] lg:text-xs ${isDark ? "text-[#A1A1AA]" : "text-[#666666]"}`}>
+                            Qty: {primaryStudio.quantity}
+                            {primaryStudio.unitPrice ? ` • ${formatCurrencyValue(primaryStudio.unitPrice)} each` : ""}
+                            {primaryStudio.totalPrice ? ` • Total ${formatCurrencyValue(primaryStudio.totalPrice)}` : ""}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-4">
                   <div className={`p-3 rounded-lg lg:rounded-xl ${isDark ? "bg-white/5 text-[#8E8E8E]" : "bg-black/5 text-[#666666]"}`}>
                     <Camera size={20} />

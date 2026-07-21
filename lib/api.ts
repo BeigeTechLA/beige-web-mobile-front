@@ -62,6 +62,70 @@ export interface StudioCatalogResponse {
   };
 }
 
+export interface AdminStudioListItem {
+  studio_id: number;
+  studio_name: string;
+  status: string;
+  hourly_rate: number | null;
+  overtime_rate: number | null;
+  minimum_booking_hours: number | null;
+  buffer_time_minutes: number | null;
+  supported_shoot_types: string[];
+  cover_media?: {
+    studio_media_id?: number;
+    media_type?: string;
+    url?: string;
+    thumbnail_url?: string | null;
+    sort_order?: number;
+    is_cover?: boolean;
+  } | null;
+  gallery_preview?: Array<{
+    studio_media_id?: number;
+    media_type?: string;
+    url?: string;
+    thumbnail_url?: string | null;
+    sort_order?: number;
+    is_cover?: boolean;
+  }>;
+}
+
+export interface AdminStudioDetail {
+  studio_id: number;
+  studio_name: string;
+  brand_name?: string | null;
+  status: string;
+  hourly_rate?: number | null;
+  overtime_rate?: number | null;
+  minimum_booking_hours?: number | null;
+  buffer_time_minutes?: number | null;
+  supported_shoot_types?: string[] | null;
+  description?: string | null;
+  location?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  images?: string[];
+  media?: Array<{
+    studio_media_id?: number;
+    media_type?: string;
+    url?: string;
+    thumbnail_url?: string | null;
+    sort_order?: number;
+    is_cover?: boolean;
+  }>;
+  operating_hours?: Array<Record<string, unknown>>;
+  availability?: Array<Record<string, unknown>>;
+  reviews?: Array<Record<string, unknown>>;
+  review_summary?: {
+    total_reviews: number;
+    average_rating: number | null;
+    cleanliness_rating: number | null;
+    communication_rating: number | null;
+    check_in_rating: number | null;
+  };
+  [key: string]: unknown;
+}
+
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
@@ -233,6 +297,39 @@ export const studioCatalogApi = {
     const response = await publicApi.get(`/studios/catalog/${slug}`);
     const payload = response.data;
     return payload.data || payload;
+  },
+};
+
+export type StudioMediaUploadResponse = {
+  success?: boolean;
+  data?: Array<{ url: string } | string>;
+  message?: string;
+  [key: string]: unknown;
+};
+
+export const studioAdminApi = {
+  uploadMedia: async (files: File[] | File) => {
+    const formData = new FormData();
+    const uploadFiles = Array.isArray(files) ? files : [files];
+
+    uploadFiles.forEach((file) => {
+      formData.append("studio_media", file);
+    });
+
+    const response = await api.post<StudioMediaUploadResponse>(
+      "/admin/studios/media/upload",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+
+    return response;
+  },
+
+  createStudio: async (payload: Record<string, unknown>) => {
+    const response = await api.post("/admin/studios", payload);
+    return response;
   },
 };
 
@@ -2076,6 +2173,59 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch studio dashboard',
+      };
+    }
+  },
+  getStudios: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/admin/studios', { params });
+      return response.data as {
+        success: boolean;
+        data: AdminStudioListItem[];
+        pagination?: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+          hasNextPage: boolean;
+          hasPreviousPage: boolean;
+        };
+      };
+    } catch (error: any) {
+      console.error('Get Studios Error:', error);
+      return {
+        success: false,
+        data: [],
+        pagination: {
+          page: 1,
+          limit: params.limit || 10,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+        error: error.response?.data?.message || 'Failed to fetch studios',
+      };
+    }
+  },
+  getStudioById: async (studioId: string | number) => {
+    try {
+      const response = await api.get(`/admin/studios/${studioId}`);
+      return response.data as {
+        success: boolean;
+        data: AdminStudioDetail;
+      };
+    } catch (error: any) {
+      console.error('Get Studio By ID Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio details',
       };
     }
   },

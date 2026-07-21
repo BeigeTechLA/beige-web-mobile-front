@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 import { usePathname, useRouter } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -12,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 
 import Topbar from "@/components/admin/Topbar";
+import { studioAdminApi } from "@/lib/api";
 
 import TermsConditions from "@/components/admin/studios/add-studio/TermsConditions";
 import SpaceDetailsForm from "@/components/admin/studios/add-studio/SpaceDetailsForm";
@@ -72,6 +72,23 @@ export default function AdminStudiosDetailsPage() {
   const router = useRouter();
 
   const [view, setView] = useState<keyof typeof VIEW_CONFIG>("address");
+  const [mediaFiles, setMediaFiles] = useState<
+    Array<{ id: string; file?: File; url: string; type: "image" | "video"; status: "selected" | "uploaded" | "uploading" }>
+  >([
+    {
+      id: "existing-1",
+      url: "https://images.unsplash.com/photo-1497366216548-37526070297c",
+      type: "image",
+      status: "uploaded",
+    },
+    {
+      id: "existing-2",
+      url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2",
+      type: "image",
+      status: "uploaded",
+    },
+  ]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Extract current view details
   const currentView = VIEW_CONFIG[view];
@@ -150,8 +167,167 @@ export default function AdminStudiosDetailsPage() {
     } else if (view === 'budget') {
       setView('terms');
     } else {
-      // router.back();
-      console.log("Studio Saved! Implement your save logic here.");
+      void handleSaveStudio();
+    }
+  };
+
+  const studioPayload = {
+    studio_name: "Sunset Creative Studio",
+    brand_name: "Beige",
+    description: "A bright production-ready studio space suitable for photography, video shoots, product shoots, and podcast recording.",
+    supported_shoot_types: ["Photography", "Product Shoot", "Videography", "Podcast"],
+    suggested_type: "Creative production studio",
+    square_feet: 1200,
+    height: "12 ft",
+    width: "30 ft",
+    length: "40 ft",
+    main_floor_number: "2",
+    overnight_stays_allowed: true,
+    security_recording_enabled: true,
+    security_recording_description: "Security cameras are installed in shared/common areas only. Recording devices in bathrooms or dressing rooms are prohibited.",
+    address: {
+      country: "United States",
+      line1: "845 S Los Angeles St, Suite 302",
+      line2: "",
+      city: "Los Angeles",
+      state: "CA",
+      zipCode: "90014",
+      latitude: 34.0401,
+      longitude: -118.2542,
+      timezone: "America/Los_Angeles",
+    },
+    hourly_rate: 85,
+    overtime_rate: 100,
+    minimum_booking_hours: 2,
+    buffer_time_minutes: 30,
+    parking_options: ["Free Onsite Parking", "Paid Onsite Parking", "Free Street Parking"],
+    parking_description: "Free parking available for up to 10 vehicles. Valet service available on weekends.",
+    access_features: ["Elevator", "Stairs", "Street Level"],
+    facility_features: {
+      general: ["Wifi", "Kitchen", "Restroom", "Air conditioning"],
+      photography: ["Natural light", "Backdrop", "Lighting kit"],
+      videography: ["Sound treated", "Green screen"],
+      podcast: ["Podcast table", "Microphones"],
+      product: ["Product table", "White backdrop"],
+    },
+    amenities: ["Wifi", "Kitchen", "Free washer", "Dryer", "Security cameras", "Garden view"],
+    activities: ["Production", "Event", "Recreation", "Meetings"],
+    space_basics: { guests: 25, bedrooms: 1, beds: 1, bathrooms: 1 },
+    description_tags: ["Peaceful", "Podcast Friendly", "Spacious", "Natural Lighting", "Luxury"],
+    wifi_name: "Beige Studio WiFi",
+    wifi_password: "studio-password",
+    preferred_age: "18+",
+    pricing_settings: {
+      categories: [
+        {
+          name: "Production",
+          hourly_price: 85,
+          min_hours: 2,
+          max_people_allowed: 25,
+          included_types: ["Photo Shoot", "Video Shoot", "Product Shoot"],
+        },
+      ],
+      equipment: [
+        {
+          name: "Green Screen",
+          cost: 50,
+        },
+      ],
+    },
+    house_rules: {
+      smoking_and_drugs_allowed: false,
+      alcohol_allowed: true,
+      cooking_allowed: true,
+      electricity_usage_allowed: true,
+      external_food_allowed: false,
+      pets_allowed: false,
+      custom_rules: ["No loud music after 9 PM."],
+    },
+    policies: {
+      cancellation_and_refund: {
+        cancellation_window_refunded: true,
+        host_studio_cancellations: true,
+      },
+      safety: {
+        user_responsibility: true,
+        conduct_and_compliance: true,
+        trust_and_protection: true,
+      },
+      cleanliness: {
+        studio_expectation: true,
+        guest_responsibility: true,
+      },
+      additional: {
+        damage_liability: true,
+        health_and_safety: true,
+        good_neighbor_policy: true,
+      },
+    },
+    media: [],
+    operating_hours: [
+      { day_of_week: 0, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
+      { day_of_week: 1, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
+    ],
+  };
+
+  const handleSaveStudio = async () => {
+    const selectedFiles = mediaFiles.filter((file) => file.file);
+
+    if (selectedFiles.length > 0) {
+      try {
+        setIsSaving(true);
+        toast.loading("Uploading studio media...", { id: "studio-save" });
+
+        const uploadResponse = await studioAdminApi.uploadMedia(selectedFiles.map((file) => file.file as File));
+        const uploaded = (uploadResponse as any)?.data?.data ?? (uploadResponse as any)?.data ?? [];
+        const uploadedUrls = Array.isArray(uploaded)
+          ? uploaded.map((item) => (typeof item === "string" ? item : item?.url)).filter(Boolean)
+          : [];
+
+        const nextUploadedUrls = [...uploadedUrls];
+        setMediaFiles((current) =>
+          current.map((file) =>
+            file.file
+              ? {
+                  ...file,
+                  url: nextUploadedUrls.shift() || file.url,
+                  status: "uploaded",
+                }
+              : file
+          )
+        );
+
+        const payload = {
+          ...studioPayload,
+          media: [
+            ...mediaFiles.filter((file) => !file.file && !file.url.startsWith("blob:")).map((file) => ({ url: file.url })),
+            ...uploadedUrls.map((url) => ({ url })),
+          ],
+        };
+
+        await studioAdminApi.createStudio(payload);
+        toast.success("Studio created successfully", { id: "studio-save" });
+        router.push("/admin/studio-management");
+      } catch (error) {
+        console.error("Failed to save studio:", error);
+        toast.error("Failed to save studio. Please try again.", { id: "studio-save" });
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      toast.loading("Creating studio...", { id: "studio-save" });
+      await studioAdminApi.createStudio(studioPayload);
+      toast.success("Studio created successfully", { id: "studio-save" });
+      router.push("/admin/studio-management");
+    } catch (error) {
+      console.error("Failed to save studio:", error);
+      toast.error("Failed to save studio. Please try again.", { id: "studio-save" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -223,7 +399,12 @@ export default function AdminStudiosDetailsPage() {
           </div>
           {/* Dynamic Component Rendering */}
           <div className="mt-3 lg:mt-6">
-            {currentView.component}
+            {view === "media"
+              ? React.cloneElement(currentView.component as React.ReactElement, {
+                  files: mediaFiles,
+                  onFilesChange: setMediaFiles,
+                })
+              : currentView.component}
           </div>
 
           {/* Footer Actions */}
@@ -237,7 +418,7 @@ export default function AdminStudiosDetailsPage() {
             </Button>
             <Button
               className={`bg-[#E8D1AB] text-[#101010] h-[62px] min-w-[166px] rounded-xl text-xl font-bold transition-all shadow-md`}
-              // disabled={!canPrimaryAction || isCreatingQuoteDraft}
+              disabled={isSaving}
               onClick={handleContinue}
             >
               {view === "terms" ? "Save studio" : "Continue"}
