@@ -33,13 +33,12 @@ export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, on
   const countBadge = card.members.find((member) => member.isCountBadge);
 
   return (
-    <div className={`group flex min-h-[224px] w-full max-w-[367px] flex-col overflow-hidden rounded-[24px] border px-4 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition-all duration-300 sm:px-5 sm:py-5 lg:px-6 lg:py-5 ${
-      isDark
-        ? "border-white/10 bg-[#161616] hover:border-white/15 hover:shadow-[0_20px_38px_rgba(0,0,0,0.34)]"
+    <div className={`group flex w-full flex-col gap-5 overflow-hidden rounded-2xl border px-4 py-4 shadow-[0_14px_28px_rgba(0,0,0,0.28)] transition-all duration-300 sm:px-5 sm:py-5 lg:px-6 lg:py-5 ${isDark
+        ? "border-[#3D3D3D] bg-[#171717] hover:border-white/35 hover:shadow-[0_20px_38px_rgba(0,0,0,0.34)]"
         : "border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)] hover:border-[#D8D8D8] hover:shadow-[0_16px_30px_rgba(16,16,16,0.12)]"
-    }`}>
+      }`}>
       <div className="flex items-start justify-between gap-4">
-        <span className={`pt-1 text-[13px] font-medium sm:text-[14px] ${isDark ? "text-white/45" : "text-[#101010]"}`}>
+        <span className={`pt-1 text-sm font-medium ${isDark ? "text-white/60" : "text-[#101010]"}`}>
           {card.usersLabel}
         </span>
 
@@ -51,8 +50,8 @@ export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, on
               <div
                 key={member.id}
                 className={[
-                  "relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border text-[11px] font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:h-11 sm:w-11 sm:text-[12px]",
-                  isDark ? "border-[#1a1a1a] bg-[#f4e6c7] text-[#111111]" : "border-white bg-[#EDEDED] text-[#101010]",
+                  "relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border text-xs font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:h-11 sm:w-11 sm:text-xs",
+                  isDark ? "border-[#1a1a1a] bg-[#f4e6c7] text-black" : "border-white bg-[#EDEDED] text-[#101010]",
                   index === 0 ? "" : "-ml-1 sm:-ml-2",
                 ].join(" ")}
                 style={{ zIndex: fallbackBadges.length - index }}
@@ -74,9 +73,8 @@ export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, on
 
           {countBadge && (
             <div
-              className={`relative -ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border text-[15px] font-medium shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:-ml-2 sm:h-11 sm:w-11 sm:text-[16px] ${
-                isDark ? "border-[#1a1a1a] bg-[#E9D4A9] text-[#111111]" : "border-white bg-[#E5D5B8] text-[#101010]"
-              }`}
+              className={`relative -ml-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border text-base font-medium shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 sm:-ml-2 sm:h-11 sm:w-11 sm:text-[16px] ${isDark ? "border-[#1a1a1a] bg-[#E9D4A9] text-[#111111]" : "border-white bg-[#E8D1AB] text-[#101010]"
+                }`}
               style={{ zIndex: 0 }}
             >
               <span className="relative z-10">
@@ -89,50 +87,47 @@ export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, on
         </div>
       </div>
 
-      <div className="mt-5 max-w-[520px] sm:mt-6">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <h3 className={`text-[18px] font-semibold tracking-tight sm:text-[19px] lg:text-[20px] ${isDark ? "text-white" : "text-[#101010]"}`}>
+          <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
             {card.name}
           </h3>
           {card.roleId === 8 ? (
-            <span className={`inline-flex h-6 items-center rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-              isDark ? "border-[#E5D5B8]/20 bg-[#E5D5B8]/10 text-[#E5D5B8]" : "border-[#C9A96E]/20 bg-[#C9A96E]/10 text-[#8E6A2A]"
-            }`}>
+            <span className={`inline-flex h-6 items-center rounded-full border px-3 text-xs font-semibold uppercase ${isDark ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-[#E8D1AB]" : "border-[#C9A96E]/20 bg-[#C9A96E]/10 text-[#8E6A2A]"
+              }`}>
               Super Admin
             </span>
           ) : null}
         </div>
-        <p className={`mt-2 max-w-[560px] text-[12px] leading-snug line-clamp-2 sm:text-[13px] lg:text-[13px] ${isDark ? "text-white/55" : "text-[#32323299]"}`}>
+        <p className={`text-xs line-clamp-2 ${isDark ? "text-white/70" : "text-[#32323299]"}`}>
           {card.description}
         </p>
       </div>
 
-      <div className="mt-auto flex items-end justify-between pt-5">
+      <div className="flex items-end justify-between">
         <button
           type="button"
           onClick={() => onEdit?.(card.id)}
           disabled={editDisabled}
           title={editDisabled ? "Edit permission not allowed" : "Edit role"}
-          className={`text-[13px] font-medium underline underline-offset-4 transition disabled:cursor-not-allowed disabled:opacity-35 ${
-            isDark
-              ? "text-[#E5D5B8] decoration-[#E5D5B8]/35 hover:text-[#f1e3c7] hover:decoration-[#E5D5B8]"
+          className={`text-sm font-medium underline underline-offset-4 transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark
+              ? "text-[#E8D1AB] decoration-[#E8D1AB]/35 hover:text-[#f1e3c7] hover:decoration-[#E8D1AB]"
               : "text-[#8E6A2A] decoration-[#8E6A2A]/30 hover:text-[#6f531f] hover:decoration-[#8E6A2A]"
-          }`}
+            }`}
         >
           Edit Role
         </button>
         <button
           type="button"
           onClick={() => onViewUsers?.(card.id)}
-          className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:scale-110 active:scale-95 ${
-            isDark
-              ? "border-white/10 bg-[#2a2a2a]"
+          className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:scale-110 active:scale-95 ${isDark
+              ? "border-white/40 bg-white/20"
               : "border-[#E3E3E3] bg-white"
-          }`}
+            }`}
         >
           <ArrowUpRight
-            size={15}
-            strokeWidth={2.25}
+            size={14}
+            strokeWidth={2}
           />
         </button>
       </div>
