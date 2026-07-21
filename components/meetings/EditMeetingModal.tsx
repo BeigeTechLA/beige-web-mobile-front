@@ -316,6 +316,7 @@ export default function EditMeetingModal({
       setSearch("");
       setSelectedUsers([]);
       setAddRole("cp");
+      setShowAdditionalMembersView(false); 
     }
   }, [open]);
 
@@ -335,7 +336,7 @@ export default function EditMeetingModal({
   };
 
   const handleAddParticipants = async () => {
-    if (!canManageParticipants) return;
+    if (!canManageParticipants || isCompleted || isCancelled) return;
     if (!meetingData.id || selectedUsers.length === 0) {
       toast.error("Select at least one participant");
       return;
@@ -360,7 +361,7 @@ export default function EditMeetingModal({
   };
 
   const handleRemoveParticipant = async (userId: string, participantRole: string) => {
-    if (!canManageParticipants) return;
+    if (!canManageParticipants|| isCompleted || isCancelled) return;
     if (!meetingData.id || !userId) return;
 
     const roleMap: Record<string, "cp" | "admin" | "participant" | "client"> = {
@@ -625,8 +626,12 @@ export default function EditMeetingModal({
                     <p className={`text-sm lg:text-base font-medium  ${isDark ? "text-white" : "text-black"}`}>Participants ({participants.length.toString().padStart(2, '0')})</p>
                     <button
                       type="button"
+                      disabled={isCompleted || isCancelled} 
                       onClick={() => setShowAdditionalMembersView(true)}
-                      className="text-[#E8D1AB] flex gap-2 items-center"
+                     className={cn(
+                      "text-[#E8D1AB] flex gap-2 items-center transition-opacity",
+                      (isCompleted || isCancelled) && "opacity-50 cursor-not-allowed"
+                    )}
                     >
                       <Plus size={24} />
                       <span className="underline underline-offset-2 text-sm font-semibold">Add Participants </span>
@@ -640,7 +645,7 @@ export default function EditMeetingModal({
                         email: participant?.email || "",
                       });
                       const statusClass = STATUS_CLASS[response] || STATUS_CLASS.pending;
-                      const removable = canManageParticipants && !isCompleted;
+                      const removable = canManageParticipants && !isCompleted && !isCancelled;
                       const isCurrentUserParticipant =
                         !!currentUserId && String(participant?.id || "") === String(currentUserId);
 
@@ -878,7 +883,7 @@ export default function EditMeetingModal({
                 <Button
                   type="button"
                   onClick={handleAddParticipants}
-                  disabled={!canManageParticipants || submitting || selectedUsers.length === 0}
+                  disabled={!canManageParticipants || submitting || selectedUsers.length === 0 || isCompleted || isCancelled}
                   className="flex-1 bg-[#E8D1AB] text-black hover:bg-[#d9c5a0]"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : "Add Participants"}
