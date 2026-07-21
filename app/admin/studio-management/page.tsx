@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { format } from "date-fns";
 
 import {
   eachDayOfInterval,
@@ -55,6 +56,28 @@ import { EarningsTable } from "@/components/admin/studios/EarningsTable";
 import OverviewChart from "@/components/admin/studios/OverviewChart";
 import OverallBookingsStack from "@/components/admin/studios/OverallBookings";
 import StudioListing from "@/components/admin/studios/StudioListing";
+import { adminApi } from "@/lib/api";
+
+type StudioDashboardResponse = {
+  success: boolean;
+  data?: {
+    summary?: {
+      total_revenue?: number;
+      total_bookings?: number;
+      average_booking_value?: number;
+      overtime_revenue?: number;
+      platform_fees?: number;
+      net_earnings?: number;
+    };
+    chart?: Array<{ period?: string; total_revenue?: number; net_earnings?: number; bookings?: number }>;
+    bookings?: {
+      upcoming?: any[];
+      completed?: any[];
+      cancelled?: any[];
+    };
+    earnings_ledger?: any[];
+  } | null;
+};
 
 export default function AdminStudiosPage() {
   const { isDark } = useResolvedTheme();
@@ -65,6 +88,35 @@ export default function AdminStudiosPage() {
   const [activeTab, setActiveTab] = useState<string>("Operations");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dashboard, setDashboard] = useState<StudioDashboardResponse["data"]>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+  const dashboardMonth = useMemo(() => {
+    const source = selectedDate || new Date();
+    return format(source, "yyyy-MM");
+  }, [selectedDate]);
+
+  useEffect(() => {
+    let active = true;
+    const loadDashboard = async () => {
+      setIsDashboardLoading(true);
+      const response = (await adminApi.getStudioDashboard(dashboardMonth)) as StudioDashboardResponse;
+      if (!active) return;
+      setDashboard(response?.data || null);
+      setIsDashboardLoading(false);
+    };
+
+    loadDashboard().catch(() => {
+      if (active) {
+        setDashboard(null);
+        setIsDashboardLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [dashboardMonth]);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -155,9 +207,9 @@ export default function AdminStudiosPage() {
           {
             activeTab === "Operations" ? (
               <div className="space-y-3 lg:space-y-5">
-                <OverviewChart isDark={isDark} />
-                <OverallBookingsStack isDark={isDark} />
-                <EarningsTable isDark={isDark} />
+                <OverviewChart isDark={isDark} loading={isDashboardLoading} dashboard={dashboard} externalSelectedDate={selectedDate} />
+                <OverallBookingsStack isDark={isDark} cards={dashboard?.bookings ? [...(dashboard.bookings.upcoming || []), ...(dashboard.bookings.completed || []), ...(dashboard.bookings.cancelled || [])] : []} />
+                <EarningsTable isDark={isDark} records={dashboard?.earnings_ledger || []} />
               </div>
             ) : activeTab === "My Studios" ? (
               <>
@@ -165,7 +217,7 @@ export default function AdminStudiosPage() {
               </>
             ) : (
               <>
-                <StudioRequestsTable isDark={isDark} />
+                <StudioRequestsTable isDark={isDark} searchQuery={searchQuery} selectedDate={selectedDate} />
               </>
             )
           }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowUpRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { adminApi } from '@/lib/api';
 
 const CustomDollarIcon = ({ size = 16 }) => (
   <img
@@ -47,71 +46,30 @@ const CustomClockIcon = ({ size = 16 }) => (
   />
 );
 
-const placeholderChartData = [
-  {
-    "name": "Nov",
-    "revenue": 20,
-    "bookings": 30,
-    "avg": 10,
-    "overtime": 9,
-  },
-  {
-    "name": "Dec",
-    "revenue": 10,
-    "bookings": 11,
-    "avg": 6,
-    "overtime": 3,
-  },
-  {
-    "name": "Jan",
-    "revenue": 30,
-    "bookings": 0,
-    "avg": 30,
-    "overtime": 6,
-  },
-  {
-    "name": "Feb",
-    "revenue": 35,
-    "bookings": 20,
-    "avg": 35,
-    "overtime": 26,
-  },
-  {
-    "name": "Mar",
-    "revenue": 85,
-    "bookings": 50,
-    "avg": 85,
-    "overtime": 26,
-  },
-  {
-    "name": "Apr",
-    "revenue": 34,
-    "bookings": 16,
-    "avg": 28,
-    "overtime": 8,
-  }
-]
-
-const initialMetrics = [
-  { id: 'revenue', label: 'Total Revenue', value: '$1,322.50', growth: 3, icon: CustomDollarIcon },
-  { id: 'bookings', label: 'Total Bookings', value: '02', growth: 3, icon: CustomCalendarIcon },
-  { id: 'avg', label: 'Avg. Booking Value', value: '$662.50', growth: 4, icon: CustomGraphIcon },
-  { id: 'overtime', label: 'Overtime Revenue', value: '663', growth: 2, icon: CustomClockIcon },
-];
+const placeholderChartData = [];
 
 interface OverviewChartProps {
   externalSelectedDate?: Date | null;
   isDark?: boolean;
+  dashboard?: {
+    summary?: {
+      total_revenue?: number;
+      total_bookings?: number;
+      average_booking_value?: number;
+      overtime_revenue?: number;
+      platform_fees?: number;
+      net_earnings?: number;
+    };
+    chart?: Array<{ period?: string; total_revenue?: number; net_earnings?: number; bookings?: number }>;
+  } | null;
+  loading?: boolean;
 }
 
-export default function OverviewChart({ externalSelectedDate, isDark = true }: OverviewChartProps) {
+export default function OverviewChart({ externalSelectedDate, isDark = true, dashboard, loading = false }: OverviewChartProps) {
   const router = useRouter();
   const [activeMetric, setActiveMetric] = useState('revenue');
-  const [metrics, setMetrics] = useState<any[]>(initialMetrics);
-  const [isLoading, setIsLoading] = useState(false);
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [range, setRange] = useState('all');
-  const [chartData, setChartData] = useState<any[]>(placeholderChartData);
 
   // 1. Sync the Select UI when the external date changes
   useEffect(() => {
@@ -121,6 +79,26 @@ export default function OverviewChart({ externalSelectedDate, isDark = true }: O
       setRange('all');
     }
   }, [externalSelectedDate]);
+
+  const chartData = useMemo(() => {
+    return (dashboard?.chart || []).map((item) => ({
+      name: item.period ? format(new Date(`${item.period}-01`), 'MMM') : 'N/A',
+      revenue: item.total_revenue || 0,
+      bookings: item.bookings || 0,
+      avg: item.bookings ? Number(((item.total_revenue || 0) / item.bookings).toFixed(2)) : 0,
+      overtime: 0,
+    }));
+  }, [dashboard]);
+
+  const metrics = useMemo(() => {
+    const summary = dashboard?.summary || {};
+    return [
+      { id: 'revenue', label: 'Total Revenue', value: `$${Number(summary.total_revenue || 0).toFixed(2)}`, growth: 0, icon: CustomDollarIcon },
+      { id: 'bookings', label: 'Total Bookings', value: String(summary.total_bookings || 0).padStart(2, '0'), growth: 0, icon: CustomCalendarIcon },
+      { id: 'avg', label: 'Avg. Booking Value', value: `$${Number(summary.average_booking_value || 0).toFixed(2)}`, growth: 0, icon: CustomGraphIcon },
+      { id: 'overtime', label: 'Overtime Revenue', value: `$${Number(summary.overtime_revenue || 0).toFixed(2)}`, growth: 0, icon: CustomClockIcon },
+    ];
+  }, [dashboard]);
 
 
   const getGrowthLabel = () => {
@@ -200,12 +178,12 @@ export default function OverviewChart({ externalSelectedDate, isDark = true }: O
               </div>
 
               <div className="text-[26px] font-bold mb-2">
-                {isLoading ? <div className={`h-8 w-12 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : m.value}
+                {loading ? <div className={`h-8 w-12 animate-pulse rounded ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : m.value}
               </div>
 
               <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-[#171717]' : (isDark ? 'text-white/70' : 'text-zinc-500')}`}>
                 <span className={`font-bold ${m.growth >= 0 ? (isActive ? 'text-[#047726]' : 'text-[#0DAE3D]') : 'text-red-500'}`}>
-                  {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
+              {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
                 </span>
                 {getGrowthLabel()}
               </div>
@@ -228,7 +206,7 @@ export default function OverviewChart({ externalSelectedDate, isDark = true }: O
 
       {/* Chart Section */}
       <div className="h-[310px] lg:h-[350px] w-full relative">
-        {isChartLoading && (
+        {(isChartLoading || loading) && (
           <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
             <div className="h-8 w-8 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
           </div>

@@ -21,7 +21,7 @@ export interface BookingCard {
 
 type Props = {
   isDark?: boolean;
-  cards?: BookingCard[];
+  cards?: Array<any>;
 };
 
 const DUMMY_CARDS: BookingCard[] = [
@@ -111,7 +111,25 @@ function clamp(n: number, min: number, max: number) {
 }
 
 export default function OverallBookingsStack({ isDark = true, cards }: Props) {
-  const data = useMemo(() => (cards?.length ? cards : DUMMY_CARDS), [cards]);
+  const data = useMemo<BookingCard[]>(() => {
+    if (!cards?.length) return DUMMY_CARDS;
+
+    return cards.map((booking, index) => ({
+      id: String(booking.studio_booking_id || booking.id || index),
+      status: booking.status === 'completed' ? 'Completed' : ['cancelled', 'rejected'].includes(booking.status) ? 'Cancelled' : 'Upcoming',
+      studioName: booking.studio_name || booking.space_name || 'Studio',
+      amount: Number(booking.base_amount || booking.net_amount || 0),
+      timeLabel: booking.start_time && booking.duration_hours
+        ? `${booking.start_time} (${booking.duration_hours}hrs Duration)`
+        : booking.start_time || 'TBD',
+      dateLabel: booking.booking_date ? formatDateLabel(booking.booking_date) : 'TBD',
+      projectName: booking.project_name || booking.source || 'Studio Booking',
+      crewLabel: `Crew: ${booking.metadata?.crew_count || booking.cast_and_crew_count || 0}`,
+      contactName: booking.contact_name || booking.customer_name || booking.user_name || 'Customer',
+      contactEmail: booking.contact_email || booking.email || '',
+      imageUrl: booking.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+    }));
+  }, [cards]);
   const [activeTab, setActiveTab] = useState<BookingStatus>("Upcoming");
   const [range, setRange] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
@@ -324,6 +342,17 @@ export default function OverallBookingsStack({ isDark = true, cards }: Props) {
   );
 }
 
+function formatDateLabel(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
+
 function CardUI({ isDark, card }: { isDark: boolean; card: BookingCard }) {
   return (
     <div
@@ -388,4 +417,3 @@ function CardUI({ isDark, card }: { isDark: boolean; card: BookingCard }) {
     </div>
   );
 }
-

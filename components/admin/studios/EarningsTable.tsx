@@ -100,10 +100,10 @@ export const earningsData: EarningsRecord[] = [
   },
 ];
 
-export const EarningsTable = ({ isDark }: { isDark: boolean }) => {
+export const EarningsTable = ({ isDark, records }: { isDark: boolean; records?: Array<any> }) => {
   const router = useRouter();
 
-  const [studios, setShoots] = useState<EarningsRecord[]>(earningsData);
+  const [studios, setShoots] = useState<EarningsRecord[]>(records?.length ? records.map(normalizeRecord) : earningsData);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -119,6 +119,10 @@ export const EarningsTable = ({ isDark }: { isDark: boolean }) => {
   const [status, setStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setShoots(records?.length ? records.map(normalizeRecord) : earningsData);
+  }, [records]);
 
   const totalPages = Math.ceil(studios.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -403,3 +407,17 @@ export const EarningsTable = ({ isDark }: { isDark: boolean }) => {
     </div>
   );
 };
+
+function normalizeRecord(record: any): EarningsRecord {
+  return {
+    id: String(record.studio_booking_id || record.id || record.booking_id || Math.random()),
+    customerName: record.customerName || record.customer_name || record.user_name || record.studio_name || 'Customer',
+    bookingId: record.bookingId || record.booking_id || `BK-${String(record.studio_booking_id || record.id || '').replace(/\D/g, '') || '0000'}`,
+    hours: record.hours || `${record.duration_hours || 0}h`,
+    baseRevenue: Number(record.baseRevenue || record.base_revenue || record.base_amount || 0),
+    overtime: Number(record.overtime || record.overtime_amount || 0),
+    platformFee: Number(record.platformFee || record.platform_fee || 0),
+    netEarning: Number(record.netEarning || record.net_earnings || record.net_amount || 0),
+    date: String(record.date || record.booking_date || new Date().toISOString().slice(0, 10)),
+  };
+}

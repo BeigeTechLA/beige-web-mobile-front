@@ -1921,6 +1921,59 @@ export const adminApi = {
       };
     }
   },
+  getStudioDashboard: async (month?: string, studioId?: string | number) => {
+    try {
+      const response = await api.get('/admin/studios/dashboard', {
+        params: {
+          ...(month ? { month } : {}),
+          ...(studioId ? { studio_id: studioId } : {}),
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Dashboard Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio dashboard',
+      };
+    }
+  },
+  getStudioRequests: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    studio_id?: string | number;
+    month?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/admin/studios/requests', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Studio Requests Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch studio requests',
+      };
+    }
+  },
+  approveStudioRequest: async (studioBookingId: string | number, action: 'approve' | 'decline' | 'confirmed' | 'rejected' = 'approve') => {
+    try {
+      const response = await api.patch(`/admin/studios/requests/${studioBookingId}/status`, {
+        action,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Approve Studio Request Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio request status',
+      };
+    }
+  },
   getWeeklyRevenue: async () => {
     try {
       const response = await api.get('admin/dashboard/revenue/weekly');
