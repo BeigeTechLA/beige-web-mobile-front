@@ -25,7 +25,6 @@ interface DisputeMetricCardsProps {
   rangeValue?: string;
   rangeOptions?: string[];
   onRangeChange?: (value: string) => void;
-  isLoading?: boolean;
 }
 
 export default function DisputeMetricCards({
@@ -35,7 +34,6 @@ export default function DisputeMetricCards({
   rangeValue = "Month",
   rangeOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"],
   onRangeChange,
-  isLoading = false,
 }: DisputeMetricCardsProps) {
   const { isDark } = useResolvedTheme();
 

@@ -24,7 +24,7 @@ const publicApi = axios.create({
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('revure_token');
+    const token = Cookies.get('revure_token') || (typeof window !== 'undefined' ? window.localStorage.getItem('revure_token') : null);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -1733,6 +1733,64 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch credit points dashboard',
+      };
+    }
+  },
+  getDisputesDashboard: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    category?: string;
+    raised_by_type?: string;
+    client_user_id?: string | number;
+    creator_id?: string | number;
+    booking_id?: string | number;
+    invoice_send_history_id?: string | number;
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_dir?: string;
+    order?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('finance/admin/disputes/dashboard', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Disputes Dashboard Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch disputes dashboard',
+      };
+    }
+  },
+  getDisputesList: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    raised_by_type?: string;
+    date_from?: string;
+    date_to?: string;
+    sort_by?: string;
+    sort_dir?: string;
+    order?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('finance/admin/disputes', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Disputes List Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch disputes list',
       };
     }
   },
