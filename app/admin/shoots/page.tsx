@@ -412,10 +412,10 @@ export default function ShootsPage() {
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Shoots Management</h1>
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Track and manage your photography and videography project</p>
           </div>
-          <SortDateButton
+          {/* <SortDateButton
             selectedDate={selectedDate}
             onDateChange={handleDateSort}
-          />
+          /> */}
         </div>
         {/* Search Bar */}
         <div className="flex flex-col gap-3">
