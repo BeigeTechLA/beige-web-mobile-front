@@ -1943,6 +1943,96 @@ export const adminApi = {
         error: error.response?.data?.message || 'Failed to delete shoot note',
       };
     }
+  }, getSalesRepresentativeLeadNotes: async (leadId: string | number) => {
+    try {
+      const response = await api.get(`admin/sales-representative/${leadId}/notes`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Sales Representative Lead Notes Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || 'Failed to fetch sales representative lead notes',
+      };
+    }
+  },
+  addSalesRepresentativeLeadNote: async (leadId: string | number, payload: { note: string; attachments?: File[] }) => {
+    try {
+      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const requestPayload = hasFiles
+        ? (() => {
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
+        : { note: payload.note };
+      const response = await api.post(
+        `admin/sales-representative/${leadId}/notes`,
+        requestPayload,
+        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Add Sales Representative Lead Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to add sales representative lead note',
+      };
+    }
+  },
+  replyToSalesRepresentativeLeadNote: async (leadId: string | number, noteId: string | number, payload: { note: string; attachments?: File[] }) => {
+    try {
+      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const requestPayload = hasFiles
+        ? (() => {
+          const formData = new FormData();
+          formData.append('note', payload.note || '');
+          payload.attachments?.forEach((file) => formData.append('attachments', file));
+          return formData;
+        })()
+        : { note: payload.note };
+      const response = await api.post(
+        `admin/sales-representative/${leadId}/notes/${noteId}/replies`,
+        requestPayload,
+        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Reply Sales Representative Lead Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to reply on sales representative lead note',
+      };
+    }
+  },
+  reactToSalesRepresentativeLeadNote: async (leadId: string | number, noteId: string | number, payload: { reaction: string }) => {
+    try {
+      const response = await api.post(`admin/sales-representative/${leadId}/notes/${noteId}/reactions`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('React Sales Representative Lead Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to react on sales representative lead note',
+      };
+    }
+  },
+  deleteSalesRepresentativeLeadNote: async (leadId: string | number, noteId: string | number) => {
+    try {
+      const response = await api.delete(`admin/sales-representative/${leadId}/notes/${noteId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete Sales Representative Lead Note Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to delete sales representative lead note',
+      };
+    }
   },
   getCrewForShoot: async (params: {
     project_id: number | string,

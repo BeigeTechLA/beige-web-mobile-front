@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -25,7 +25,8 @@ import {
   Pencil,
   Edit2,
   ArrowUpToLine,
-  Loader2
+  Loader2,
+  MessageCirclePlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +79,7 @@ import {
 } from "@/lib/quoteDetail";
 import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -353,6 +355,8 @@ export default function LeadDetailPage() {
   const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
   const [manualPaymentNotes, setManualPaymentNotes] = useState("");
   const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [notesCountOverride, setNotesCountOverride] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -417,6 +421,16 @@ export default function LeadDetailPage() {
 
   const lead = leadData;
   const booking = lead?.booking;
+  const bookingRecord = booking as Record<string, unknown> | undefined;
+  const leadNotesRecord = lead as Record<string, unknown> | undefined;
+  const notesLeadId = String(lead?.id || leadId || "").trim();
+  const resolvedNotesCount =
+    notesCountOverride ??
+    Number(leadNotesRecord?.notes_count ?? bookingRecord?.notes_count ?? 0);
+  const notesButtonText = resolvedNotesCount > 0 ? `Add Notes (${resolvedNotesCount})` : "Add Notes";
+  const handleNotesCountChange = useCallback((_shootId: string, count: number) => {
+    setNotesCountOverride(count);
+  }, []);
   const primaryQuote = booking?.primary_quote;
   const projectedQuote = lead?.projected_quote;
   const leadRecord = lead as unknown as Record<string, unknown> | null;
@@ -1905,26 +1919,39 @@ export default function LeadDetailPage() {
                 <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Booking Summary
                 </h2>
-                {!isQuoteConvertedLead && (
-                  <div className="group relative inline-flex">
-                    <Button
-                      onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
-                      disabled={isClosedLostLead || !canEditShoots}
-                      className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
-                      title={
-                        isClosedLostLead
-                          ? "Booking edits are disabled for Closed - Lost leads"
-                          : !canEditShoots
-                            ? "Edit permission not allowed"
-                            : undefined
-                      }
-                    >
-                      Edit Details
-                    </Button>
-                  </div>
-                )}
-                {isQuoteConvertedLead && (
-                  <div className="group relative inline-flex">
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => setIsNotesDrawerOpen(true)}
+                    disabled={!notesLeadId}
+                    className={`h-10 w-fit rounded-lg px-4 py-2 text-[14px] font-semibold leading-5 transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isDark
+                      ? "bg-white text-[#101010] hover:bg-white/90"
+                      : "bg-white text-[#101010] hover:bg-[#F5F5F5]"
+                      }`}
+                  >
+                    <MessageCirclePlus size={16} />
+                    {notesButtonText}
+                  </Button>
+                  {!isQuoteConvertedLead && (
+                    <div className="group relative inline-flex">
+                      <Button
+                        onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
+                        disabled={isClosedLostLead || !canEditShoots}
+                        className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
+                        title={
+                          isClosedLostLead
+                            ? "Booking edits are disabled for Closed - Lost leads"
+                            : !canEditShoots
+                              ? "Edit permission not allowed"
+                              : undefined
+                        }
+                      >
+                        Edit Details
+                      </Button>
+                    </div>
+                  )}
+                  {isQuoteConvertedLead && (
+                    <div className="group relative inline-flex">
                     <Button
                       onClick={() => setIsConvertedBookingEditModalOpen(true)}
                       disabled={isClosedLostLead || !canEditShoots || !convertedBookingInitialValues || isUpdatingConvertedBooking}
@@ -1936,11 +1963,12 @@ export default function LeadDetailPage() {
                             ? "Edit permission not allowed"
                             : undefined
                       }
-                    >
-                      Edit Details
-                    </Button>
-                  </div>
-                )}
+                      >
+                        Edit Details
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
               <hr className={`my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`} />
 
@@ -3047,6 +3075,14 @@ export default function LeadDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+      <NotesDrawer
+        isOpen={isNotesDrawerOpen}
+        onClose={() => setIsNotesDrawerOpen(false)}
+        shootId={notesLeadId}
+        isDark={isDark}
+        onNotesCountChange={handleNotesCountChange}
+        notesApi="salesRepresentative"
+      />
     </>
   );
 }

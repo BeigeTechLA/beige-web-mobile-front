@@ -322,12 +322,14 @@ export default function NotesDrawer({
   shootId,
   isDark = true,
   onNotesCountChange,
+  notesApi = "shoot",
 }: {
   isOpen: boolean;
   onClose: () => void;
   shootId?: string;
   isDark?: boolean;
   onNotesCountChange?: (shootId: string, count: number) => void;
+  notesApi?: "shoot" | "salesRepresentative";
 }) {
   const authUserId = useAppSelector((state) => state.auth.user?.id);
   const [notes, setNotes] = useState<NoteUiItem[]>([]);
@@ -350,6 +352,25 @@ export default function NotesDrawer({
   const bookingId = String(shootId || "").replace("#", "");
   const isApiBusy = isSubmitting || isActionLoading;
   const currentUserId = normalizeId(authUserId) || storedCurrentUserId;
+  const notesApiClient = useMemo(() => {
+    if (notesApi === "salesRepresentative") {
+      return {
+        getNotes: adminApi.getSalesRepresentativeLeadNotes,
+        addNote: adminApi.addSalesRepresentativeLeadNote,
+        replyToNote: adminApi.replyToSalesRepresentativeLeadNote,
+        reactToNote: adminApi.reactToSalesRepresentativeLeadNote,
+        deleteNote: adminApi.deleteSalesRepresentativeLeadNote,
+      };
+    }
+
+    return {
+      getNotes: adminApi.getShootNotes,
+      addNote: adminApi.addShootNote,
+      replyToNote: adminApi.replyToShootNote,
+      reactToNote: adminApi.reactToShootNote,
+      deleteNote: adminApi.deleteShootNote,
+    };
+  }, [notesApi]);
 
   useEffect(() => {
     setStoredCurrentUserId(getStoredCurrentUserId());
@@ -386,7 +407,7 @@ export default function NotesDrawer({
   const fetchNotes = async ({ silent = false }: { silent?: boolean } = {}) => {
     if (!bookingId) return;
     if (!silent) setLoadingNotes(true);
-    const response = await adminApi.getShootNotes(bookingId);
+    const response = await notesApiClient.getNotes(bookingId);
     if (!response?.success) {
       if (isEmptyNotesResponse(response)) {
         setNotes([]);
@@ -515,8 +536,8 @@ export default function NotesDrawer({
     setIsSubmitting(true);
     try {
       const response = replyingToId
-        ? await adminApi.replyToShootNote(bookingId, replyingToId, { note: payloadNote, attachments: selectedAttachments })
-        : await adminApi.addShootNote(bookingId, { note: payloadNote, attachments: selectedAttachments });
+        ? await notesApiClient.replyToNote(bookingId, replyingToId, { note: payloadNote, attachments: selectedAttachments })
+        : await notesApiClient.addNote(bookingId, { note: payloadNote, attachments: selectedAttachments });
 
       if (!response?.success) {
         toast.error(response?.error || (replyingToId ? "Failed to add reply" : "Failed to add note"));
@@ -561,7 +582,7 @@ export default function NotesDrawer({
     setShowReactionPickerId(null);
 
     try {
-      const response = await adminApi.reactToShootNote(bookingId, messageId, { reaction });
+      const response = await notesApiClient.reactToNote(bookingId, messageId, { reaction });
       if (!response?.success) {
         throw new Error(response?.error || "Reaction not supported by backend");
       }
@@ -590,7 +611,7 @@ export default function NotesDrawer({
 
     setIsActionLoading(true);
     try {
-      const response = await adminApi.deleteShootNote(bookingId, noteId);
+      const response = await notesApiClient.deleteNote(bookingId, noteId);
       if (!response?.success) {
         toast.error(response?.error || "Failed to delete note");
         return;
