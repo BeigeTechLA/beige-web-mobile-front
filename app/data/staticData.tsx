@@ -10,7 +10,7 @@ export const roleOptions = [
   // { value: "7", label: "Production Manager" },
   // { value: "8", label: "Graphics Designer" },
   { value: "1", label: "Videographer" },
-  { value: "2", label: "Photographers" },
+  { value: "2", label: "Photographer" },
   { value: "3", label: "Editor" },
 ];
 
@@ -227,4 +227,10 @@ export const platformNames = {
   4: "Twitter",
   5: "LinkedIn",
   6: "Custom RTMP",
+};
+
+export const standardToCustomRoleMap: Record<string, string> = {
+  "1": "Videography",
+  "2": "Photography",
+  "3": "Editing",
 };

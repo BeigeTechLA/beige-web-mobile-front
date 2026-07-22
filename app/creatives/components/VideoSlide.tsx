@@ -80,7 +80,7 @@ export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) 
         }`}>
 
         <div className="z-[100] w-full text-center mb-6 md:mb-10">
-          <h2 className="text-center text-lg md:text-[56px] font-medium text-gradient-white">
+          <h2 className="text-center text-3xl md:text-[56px] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block">
             Video Portfolio
           </h2>
         </div>
