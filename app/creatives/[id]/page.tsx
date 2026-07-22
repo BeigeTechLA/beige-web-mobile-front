@@ -6,8 +6,8 @@ import { useSelector } from "react-redux";
 import { motion, useScroll, useTransform } from "framer-motion";
 
 import type { Swiper as SwiperType } from "swiper";
-
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
+// import { antonio } from "@/app/layout";
+import { ArrowLeft, ArrowUpRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -195,6 +195,23 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
     return { dynamicCategories: categories, dynamicPortfolioImages: images };
   }, [profile?.files, activeProject]);
 
+  interface CertificateItem {
+    url: string;
+    title: string;
+  }
+
+  const dynamicCertificates = useMemo<CertificateItem[]>(() => {
+    if (!profile?.files) return [];
+
+    const filenames = profile?.certifications || []
+    return profile.files
+      .filter((file: any) => file.file_type === "certifications")
+      .map((file: any, index: number) => ({
+        url: file.file_path,
+        title: filenames.length > 0 ? filenames[index] : (file.title || "") // Falls back to empty string if title is missing
+      }));
+  }, [profile?.files]);
+
   const handleBack = () => {
     router.back();
   };
@@ -227,10 +244,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
   }
 
   const profileImg = profile.profile_photo ? `${S3_PREFIX}${profile.profile_photo}` : '/images/crew/CREW(9).png';
-
-  console.log(profile);
-  console.log(profileRoleLabels, customServicesArray);
-
 
   return (
     <div className={isModalView ? "pt-6 pb-20" : "container pt-20 lg:pt-30 pb-20 mx-auto "}>
@@ -306,7 +319,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           {/* SECTION 1: HERO CONTAINER */}
           <section className="relative flex items-center justify-center z-10 lg:pb-20 lg:min-h-[700px]">
             {/* Desktop View: Completely Unchanged Layout & Sizes */}
-            <div className="hidden md:grid font-antonio w-full grid-cols-3 items-center justify-between gap-4 pointer-events-none select-none relative z-10">
+            <div className={`hidden md:grid font-[family-name:var(--font-antonio)] w-full grid-cols-3 items-center justify-between gap-4 pointer-events-none select-none relative z-10`}>
               <div className="text-left">
                 <span className="text-xl lg:text-6xl uppercase text-white block mb-4 lg:mb-8">
                   {profile?.firstName} {profile?.lastName?.charAt(0)}
@@ -327,7 +340,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
             </div>
 
             {/* Mobile View: Custom sequence stack without the sub-description bio text */}
-            <div className="flex md:hidden flex-col items-center text-center w-full font-antonio relative z-10 px-4 pt-4">
+            <div className={`flex md:hidden flex-col items-center text-center w-full font-[family-name:var(--font-antonio)] relative z-10 px-4 pt-4`}>
               <span className="text-2xl uppercase tracking-wider text-white/80 font-light mb-2">
                 {profile?.firstName} {profile?.lastName}
               </span>
@@ -478,14 +491,90 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           </div>
         </section>
 
-        <CenteredSeparator />
+        {/* Certificates */}
+        {
+          dynamicCertificates.length > 0 && (
+            <>
+              <CenteredSeparator />
+              <section className="mt-14 lg:my-20 overflow-hidden">
+                <div className="mx-auto relative overflow-hidden px-5 lg:px-0">
+                  <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
+                    <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight">
+                      Creators Certificate & Rewards
+                    </h2>
+                  </div>
+
+                  {/* Infinite Marquee Track Container */}
+                  <div className="relative w-full overflow-hidden border-y border-white/70 flex [mask-image:linear-gradient(to_right,transparent,white_15%,white_85%,transparent)]">
+                    <motion.div
+                      className="flex whitespace-nowrap min-w-full shrink-0 items-center justify-around gap-0"
+                      animate={{ x: [0, "-50%"] }}
+                      transition={{
+                        ease: "linear",
+                        duration: 25,
+                        repeat: Infinity,
+                      }}
+                    >
+                      {/* Duplicating array elements creates a perfectly loopable seamless seam */}
+                      {[...dynamicCertificates, ...dynamicCertificates].map((certificate: CertificateItem, index: number) => {
+                        const isPDF = certificate.url.toLowerCase().endsWith('.pdf');
+                        const fileUrl = `${S3_PREFIX}${certificate.url}`;
+
+                        return (
+                          <React.Fragment key={`certificate_wrapper_${index}`}>
+                            <div
+                              className="flex items-center justify-center shrink-0 w-[280px] md:w-[360px] h-30 md:h-[220px] relative px-6 md:px-12 group"
+                            >
+                              {/* Content Display Zone */}
+                              <div className="relative w-20 h-20 lg:w-32 lg:h-32 flex items-center justify-center rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
+                                {isPDF ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-900 border border-white/5 text-white/20 rounded-xl">
+                                    <div className="w-12 h-16 bg-[#FF453A] rounded flex items-center justify-center relative">
+                                      <span className="text-white font-bold text-xs uppercase">Pdf</span>
+                                      <div className="absolute top-0 right-0 w-4 h-4 bg-[#D93025] rounded-bl"></div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={fileUrl}
+                                    alt={certificate.title || `Certificate ${index + 1}`}
+                                    className="w-full h-full object-contain filter brightness-95 group-hover:brightness-110 transition-all duration-300"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Floating Text Title */}
+                              {certificate.title && (
+                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <p className="text-[10px] md:text-xs font-medium text-white/70 tracking-wide bg-black/80 px-2 py-0.5 rounded-md backdrop-blur-sm whitespace-normal max-w-[200px]">
+                                    {certificate.title || "Certificate " + index+1}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Custom Vertical Gradient SVG Divider */}
+                            <VerticalSeparatorDesktop />
+                          </React.Fragment>
+                        );
+                      })}
+                    </motion.div>
+                  </div>
+                </div>
+              </section>
+            </>
+          )
+        }
 
         {/* Video Portfolio Section */}
         {dynamicVideos.length > 0 && (
-          <section id="video-portfolio" className="relative w-full">
-            <StackedVideoScroll videos={dynamicVideos} />
+          <>
             <CenteredSeparator />
-          </section>
+            <section id="video-portfolio" className="relative w-full">
+              <StackedVideoScroll videos={dynamicVideos} />
+              <CenteredSeparator />
+            </section>
+          </>
         )}
 
       </div>
@@ -514,3 +603,33 @@ export default function CreatorProfilePage() {
     </Suspense>
   );
 }
+
+
+const VerticalSeparatorDesktop = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 2 120"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`w-[2px] h-[120px] ${className}`}
+    aria-hidden
+  >
+    <defs>
+      <linearGradient
+        id="desktopSeparatorGradient"
+        x1="1" y1="0"
+        x2="1" y2="120"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop offset="0%" stopColor="white" stopOpacity="0" />
+        <stop offset="50%" stopColor="white" stopOpacity="0.7" />
+        <stop offset="100%" stopColor="white" stopOpacity="0" />
+      </linearGradient>
+    </defs>
+
+    <line
+      x1="1" y1="0"
+      x2="1" y2="120"
+      stroke="url(#desktopSeparatorGradient)"
+      strokeWidth="1"
+    />
+  </svg>
+);
