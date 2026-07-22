@@ -1382,7 +1382,7 @@ export default function QuoteDetailsPage({
     canEdit &&
     isSelectedLatestUsableVersion &&
     !isSelectedVersionRejected &&
-    !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+    !["rejected", "cancelled"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);

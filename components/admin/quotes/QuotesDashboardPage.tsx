@@ -2335,7 +2335,7 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
                                 isDark={isDark}
@@ -2390,7 +2390,7 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={canEdit && quote.statusKey !== "expired"}
+                                        allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
                                         isDark={isDark}
