@@ -12,10 +12,8 @@ export default function AffiliateTransactionsPage() {
   const pathname = usePathname();
   const topbarPathname = pathname.replace(/^\/affiliate/, "") || pathname;
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
-  const [initialShootId, setInitialShootId] = useState<string | null>(null);
 
-  const openDisputeModal = (bookingId?: string) => {
-    setInitialShootId(bookingId || null);
+  const openDisputeModal = () => {
     setIsDisputeModalOpen(true);
   };
 
@@ -38,9 +36,7 @@ export default function AffiliateTransactionsPage() {
         isOpen={isDisputeModalOpen}
         onClose={() => {
           setIsDisputeModalOpen(false);
-          setInitialShootId(null);
         }}
-        initialShootId={initialShootId}
       />
     </>
   );

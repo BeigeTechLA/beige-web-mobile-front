@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Cookies from "js-cookie";
 import Image from "next/image";
 import { FileText, Plus, UploadCloud, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { Button } from "@/src/components/landing/ui/button";
+import { affiliateApi } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -32,10 +34,14 @@ type AffiliateDisputeSuccessDetails = {
   status: string;
 };
 
+type BookingOption = {
+  value: string;
+  label: string;
+};
+
 type AffiliateRaiseDisputeModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  initialShootId?: string | null;
 };
 
 const DEFAULT_FORM_STATE: DisputeFormState = {
@@ -44,28 +50,44 @@ const DEFAULT_FORM_STATE: DisputeFormState = {
   description: "",
 };
 
-const SHOOT_OPTIONS = ["BK-001", "BK-002", "BK-003", "BK-004", "BK-005"];
-const DISPUTE_TYPES = ["Payment Issue", "Invoice Mismatch", "Refund Request", "Service Concern"];
+const DISPUTE_TYPE_OPTIONS = [
+  { value: "quality", label: "Quality Issue" },
+  { value: "payment_delay", label: "Payment Delay" },
+  { value: "wrong_deliverables", label: "Wrong Deliverables" },
+  { value: "refund", label: "Refund Request" },
+  { value: "payout_issues", label: "Payout Issue" },
+  { value: "other", label: "Other" },
+];
+const DISPUTE_CATEGORY_LABELS: Record<string, string> = {
+  quality: "Quality Issue",
+  payment_delay: "Payment Delay",
+  wrong_deliverables: "Wrong Deliverables",
+  refund: "Refund Request",
+  payout_issues: "Payout Issue",
+  other: "Other",
+};
 
 export default function AffiliateRaiseDisputeModal({
   isOpen,
   onClose,
-  initialShootId,
 }: AffiliateRaiseDisputeModalProps) {
   const { isDark } = useResolvedTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [form, setForm] = useState<DisputeFormState>(DEFAULT_FORM_STATE);
   const [files, setFiles] = useState<AttachedFile[]>([]);
+  const [bookingOptions, setBookingOptions] = useState<BookingOption[]>([]);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState<AffiliateDisputeSuccessDetails | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const previewUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
       setForm((current) => ({
         ...DEFAULT_FORM_STATE,
-        shootId: initialShootId || current.shootId || SHOOT_OPTIONS[0],
+        shootId: "",
       }));
       return;
     }
@@ -81,7 +103,62 @@ export default function AffiliateRaiseDisputeModal({
       return [];
     });
     setIsDragging(false);
-  }, [isOpen, initialShootId]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadBookingOptions = async () => {
+      if (!isOpen) return;
+      const token = Cookies.get("revure_token");
+      if (!token) {
+        if (!active) return;
+        setBookingOptions([]);
+        setIsLoadingBookings(false);
+        return;
+      }
+
+      setIsLoadingBookings(true);
+
+      try {
+        const response = await affiliateApi.getMyShoots(token, { range: "all", limit: 100 });
+        const projects = Array.isArray(response?.data?.projects) ? response.data.projects : [];
+        const seen = new Set<string>();
+
+        const nextOptions = projects
+          .map((row) => {
+            const project = row?.project || row;
+            const bookingId = String(project.stream_project_booking_id || "").trim();
+            if (!bookingId) return null;
+            const value = bookingId;
+            if (seen.has(value)) return null;
+            seen.add(value);
+
+            const title = String(project.project_name || project.shoot_type || "Booking").trim();
+            return {
+              value,
+              label: `#${value}${title ? ` - ${title}` : ""}`,
+            };
+          })
+          .filter((option): option is BookingOption => Boolean(option));
+
+        if (!active) return;
+        setBookingOptions(nextOptions);
+      } catch (error) {
+        console.error("Failed to load affiliate booking options:", error);
+        if (!active) return;
+        setBookingOptions([]);
+      } finally {
+        if (active) setIsLoadingBookings(false);
+      }
+    };
+
+    void loadBookingOptions();
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const previewUrls = previewUrlsRef.current;
@@ -130,18 +207,44 @@ export default function AffiliateRaiseDisputeModal({
     });
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const bookingId = form.shootId || initialShootId || SHOOT_OPTIONS[0];
-    const disputeNumber = String(Math.floor(700 + Math.random() * 300)).padStart(3, "0");
+    const bookingId = String(form.shootId || "").trim();
+    const category = form.disputeType || "other";
+    const subject = DISPUTE_CATEGORY_LABELS[category] || "Booking dispute";
 
-    setSuccessDetails({
-      disputeId: `DIS-${disputeNumber}`,
-      bookingId,
-      status: "Dispute - Open",
+    if (!bookingId || !form.description.trim() || !form.disputeType) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("booking_id", bookingId);
+    formData.append("category", category);
+    formData.append("subject", subject);
+    formData.append("description", form.description.trim());
+    files.forEach((item) => {
+      formData.append("attachments", item.file);
     });
-    setIsSuccessOpen(true);
-    onClose();
+
+    try {
+      setIsSubmitting(true);
+      const response = await affiliateApi.createDispute(formData);
+      const dispute = response?.data?.data || {};
+      const status = String(dispute.status || "open").toLowerCase();
+      const statusLabel = status === "open" ? "Dispute - Open" : status === "in_review" ? "Under Review" : status === "resolved" ? "Resolved" : String(dispute.status || "Dispute - Open");
+
+      setSuccessDetails({
+        disputeId: String(dispute.dispute_code || dispute.finance_dispute_id || `DIS-${bookingId}`),
+        bookingId: String(dispute.booking_id || bookingId),
+        status: statusLabel,
+      });
+      setIsSuccessOpen(true);
+      onClose();
+    } catch (error) {
+      console.error("Failed to submit dispute:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDragState = (event: React.DragEvent<HTMLDivElement>) => {
@@ -202,14 +305,20 @@ export default function AffiliateRaiseDisputeModal({
                     onValueChange={(value) => setForm((prev) => ({ ...prev, shootId: value }))}
                   >
                     <SelectTrigger className={`h-auto border-0 bg-transparent px-0 py-1 shadow-none focus:ring-0 ${isDark ? "text-white" : "text-black"}`}>
-                      <SelectValue placeholder="Select a shoot" />
+                      <SelectValue placeholder={isLoadingBookings ? "Loading shoots..." : "Select a shoot"} />
                     </SelectTrigger>
                     <SelectContent className={isDark ? "border-[#333] bg-[#111] text-white" : "border-[#E5E5E5] bg-white text-black"}>
-                      {SHOOT_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
+                      {bookingOptions.length > 0 ? (
+                        bookingOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="BK-000" disabled>
+                          No shoots available
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </fieldset>
@@ -226,9 +335,9 @@ export default function AffiliateRaiseDisputeModal({
                       <SelectValue placeholder="Choose type" />
                     </SelectTrigger>
                     <SelectContent className={isDark ? "border-[#333] bg-[#111] text-white" : "border-[#E5E5E5] bg-white text-black"}>
-                      {DISPUTE_TYPES.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
+                      {DISPUTE_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -326,10 +435,11 @@ export default function AffiliateRaiseDisputeModal({
               <div className="p-[18px] pt-0">
                 <Button
                   type="submit"
+                  disabled={isSubmitting}
                   className="h-12 w-full rounded-lg bg-[#E8D1AB] text-black hover:bg-[#d9c08a]"
                 >
                   <Plus size={16} className="mr-2" />
-                  Save & Update
+                  {isSubmitting ? "Saving..." : "Save & Update"}
                 </Button>
               </div>
             </form>

@@ -897,6 +897,49 @@ export const affiliateApi = {
     return response.data.data;
   },
 
+  // Get affiliate transaction history
+  getTransactions: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    transaction_type?: string;
+    payment_method?: string;
+    date_from?: string;
+    date_to?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('/affiliates/transactions', {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get Affiliate Transactions Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to fetch affiliate transactions',
+      };
+    }
+  },
+
+  // Submit affiliate dispute
+  createDispute: async (formData: FormData) => {
+    try {
+      const response = await api.post('/affiliates/disputes', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Create Affiliate Dispute Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to submit dispute',
+      };
+    }
+  },
+
   // Update payout details (requires auth)
   updatePayoutDetails: async (
     token: string,
@@ -1008,7 +1051,7 @@ export const affiliateApi = {
     }
   },
   // Get my shoots (affiliate dashboard)
-  getMyShoots: async (token: string, params: { status?: string; range?: string; date_on?: string; search?: string } = {}) => {
+  getMyShoots: async (token: string, params: { status?: string; range?: string; date_on?: string; search?: string; limit?: number; page?: number; event_type?: string; start_date?: string; end_date?: string } = {}) => {
     try {
       const response = await api.get('/client/get-my-shoots', {
         headers: { Authorization: `Bearer ${token}` },

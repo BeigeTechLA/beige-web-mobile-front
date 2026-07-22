@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +19,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import AffiliateDisputeDetailsModal, {
   type AffiliateDisputeDetailsRecord,
 } from "@/components/affiliate/AffiliateDisputeDetailsModal";
+import { affiliateApi } from "@/lib/api";
 import {
   Select,
   SelectContent,
@@ -51,247 +52,6 @@ type AffiliateTransactionsHistoryProps = {
   onRaiseDispute?: (bookingId?: string) => void;
 };
 
-const paymentRows: PaymentRow[] = [
-  {
-    id: "bk-001-1",
-    bookingId: "BK-001",
-    shootType: "Wedding Videography",
-    totalAmount: "$2,500",
-    breakdown: {
-      baseCost: "$2,000.00",
-      addOns: "$300.00",
-      taxes: "$250.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-2",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,200.00",
-      addOns: "$500.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Dispute Open",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-3",
-    bookingId: "BK-001",
-    shootType: "Music Video",
-    totalAmount: "$4,000",
-    breakdown: {
-      baseCost: "$3,300.00",
-      addOns: "$400.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-4",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,150.00",
-      addOns: "$650.00",
-      taxes: "$300.00",
-      discounts: "-$100.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Refunded",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-5",
-    bookingId: "BK-001",
-    shootType: "Corporate Photography",
-    totalAmount: "$12,000",
-    breakdown: {
-      baseCost: "$10,900.00",
-      addOns: "$850.00",
-      taxes: "$350.00",
-      discounts: "-$100.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "In-Progress",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-6",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,200.00",
-      addOns: "$400.00",
-      taxes: "$450.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Resolved",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-7",
-    bookingId: "BK-001",
-    shootType: "Music Video",
-    totalAmount: "$10,000",
-    breakdown: {
-      baseCost: "$8,900.00",
-      addOns: "$1,000.00",
-      taxes: "$150.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-1",
-    bookingId: "BK-002",
-    shootType: "Event Coverage",
-    totalAmount: "$6,500",
-    breakdown: {
-      baseCost: "$5,500.00",
-      addOns: "$600.00",
-      taxes: "$450.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-02T09:10:00",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-2",
-    bookingId: "BK-002",
-    shootType: "Brand Film",
-    totalAmount: "$14,200",
-    breakdown: {
-      baseCost: "$12,500.00",
-      addOns: "$1,000.00",
-      taxes: "$750.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "03 Invoices",
-    rawDateTime: "2026-05-02T09:10:00",
-    paymentMethod: "Bank Transfer",
-    status: "Pending",
-    actionType: "view",
-  },
-  {
-    id: "bk-002-3",
-    bookingId: "BK-003",
-    shootType: "Product Shoot",
-    totalAmount: "$3,750",
-    breakdown: {
-      baseCost: "$3,100.00",
-      addOns: "$400.00",
-      taxes: "$300.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-06T14:45:00",
-    paymentMethod: "Stripe",
-    status: "Resolved",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-4",
-    bookingId: "BK-003",
-    shootType: "Corporate Headshots",
-    totalAmount: "$2,100",
-    breakdown: {
-      baseCost: "$1,800.00",
-      addOns: "$200.00",
-      taxes: "$150.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-06T14:45:00",
-    paymentMethod: "Manual",
-    status: "Refunded",
-    actionType: "menu",
-  },
-  {
-    id: "bk-003-1",
-    bookingId: "BK-004",
-    shootType: "Fashion Shoot",
-    totalAmount: "$9,000",
-    breakdown: {
-      baseCost: "$7,800.00",
-      addOns: "$900.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-05-10T12:20:00",
-    paymentMethod: "Stripe",
-    status: "Dispute Open",
-    actionType: "view",
-  },
-  {
-    id: "bk-003-2",
-    bookingId: "BK-004",
-    shootType: "Podcast Shoot",
-    totalAmount: "$4,800",
-    breakdown: {
-      baseCost: "$4,000.00",
-      addOns: "$500.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-10T12:20:00",
-    paymentMethod: "Bank Transfer",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-003-3",
-    bookingId: "BK-005",
-    shootType: "Music Video",
-    totalAmount: "$11,500",
-    breakdown: {
-      baseCost: "$10,000.00",
-      addOns: "$1,000.00",
-      taxes: "$550.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-05-14T16:05:00",
-    paymentMethod: "Stripe",
-    status: "In-Progress",
-    actionType: "view",
-  },
-];
-
 const statusStyles: Record<PaymentStatus, string> = {
   Paid: "bg-[#DDF9E7] text-[#178B4A] border-[#DDF9E7]",
   "Dispute Open": "bg-[#FCE8E4] text-[#D6453D] border-[#FCE8E4]",
@@ -311,6 +71,105 @@ const formatDate = (value: string) => {
   return {
     date: format(parsed, "MMMM d, yyyy"),
     time: format(parsed, "h:mm a"),
+  };
+};
+
+const formatCurrency = (amount: number | string | null | undefined) => {
+  const parsed = Number(amount);
+  if (!Number.isFinite(parsed)) return "$0.00";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(parsed);
+};
+
+const formatPaymentMethod = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "Manual";
+  if (normalized === "bank_transfer" || normalized === "bank transfer") return "Bank Transfer";
+  if (normalized === "stripe") return "Stripe";
+  if (normalized === "manual") return "Manual";
+  return normalized.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+};
+
+const formatStatusLabel = (value?: string | null): PaymentStatus => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "paid" || normalized === "succeeded" || normalized === "success") return "Paid";
+  if (normalized === "pending" || normalized === "processing") return "Pending";
+  if (normalized === "refunded") return "Refunded";
+  if (normalized === "void" || normalized === "cancelled" || normalized === "canceled") return "Refunded";
+  if (normalized === "dispute_open" || normalized === "under_review") return "Dispute Open";
+  if (normalized === "resolved") return "Resolved";
+  if (normalized === "in_progress") return "In-Progress";
+  return "Pending";
+};
+
+const formatInvoiceLabel = (count?: number | null) => {
+  const safeCount = Math.max(Number(count || 0), 0);
+  return `${String(safeCount || 1).padStart(2, "0")} Invoices`;
+};
+
+const buildRangeParams = (monthFilter: string) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (monthFilter === "Last 30 Days") {
+    const from = new Date(today);
+    from.setDate(today.getDate() - 29);
+    return {
+      date_from: from.toISOString(),
+      date_to: now.toISOString(),
+    };
+  }
+
+  if (monthFilter === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    return {
+      date_from: new Date(now.getFullYear(), quarterStartMonth, 1).toISOString(),
+      date_to: now.toISOString(),
+    };
+  }
+
+  if (monthFilter === "This Year") {
+    return {
+      date_from: new Date(now.getFullYear(), 0, 1).toISOString(),
+      date_to: now.toISOString(),
+    };
+  }
+
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  return {
+    date_from: monthStart.toISOString(),
+    date_to: now.toISOString(),
+  };
+};
+
+const mapTransactionToRow = (transaction: Record<string, any>, index: number): PaymentRow => {
+  const bookingId = transaction.booking_id ?? transaction.shoot_id ?? transaction.bookingId ?? transaction.shootId ?? null;
+  const bookingLabel = bookingId ? `BK-${String(bookingId).padStart(3, "0")}` : `TX-${String(index + 1).padStart(3, "0")}`;
+  const transactionDate = transaction.transaction_date || transaction.created_at || transaction.updated_at || null;
+  const parsedDate = transactionDate ? new Date(transactionDate) : new Date();
+  const safeDateTime = Number.isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
+  const status = formatStatusLabel(transaction.status);
+
+  return {
+    id: String(transaction.finance_transaction_id ?? transaction.transaction_id ?? `${bookingLabel}-${index}`),
+    bookingId: bookingLabel,
+    shootType: transaction.shoot_type || transaction.project_name || "Transaction",
+    totalAmount: formatCurrency(transaction.total_amount ?? transaction.gross_amount ?? 0),
+    breakdown: {
+      baseCost: formatCurrency(transaction.gross_amount ?? transaction.total_amount ?? 0),
+      addOns: formatCurrency(transaction.metadata?.add_ons_amount ?? 0),
+      taxes: formatCurrency(transaction.metadata?.tax_amount ?? 0),
+      discounts: formatCurrency(-(Number(transaction.metadata?.discount_amount ?? 0))),
+    },
+    invoiceLabel: formatInvoiceLabel(transaction.invoices_count ?? transaction.metadata?.invoices_count ?? 0),
+    rawDateTime: safeDateTime,
+    paymentMethod: formatPaymentMethod(transaction.payment_method),
+    status,
+    actionType: status === "Dispute Open" ? "view" : "menu",
   };
 };
 
@@ -426,33 +285,78 @@ export default function AffiliateTransactionsHistory({
   const [selectedRow, setSelectedRow] = useState<PaymentRow | null>(null);
   const [selectedDispute, setSelectedDispute] = useState<AffiliateDisputeDetailsRecord | null>(null);
   const [openMenuState, setOpenMenuState] = useState<{ rowId: string; direction: "up" | "down" } | null>(null);
+  const [paymentRows, setPaymentRows] = useState<PaymentRow[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
   const itemsPerPage = 10;
 
-  const filteredRows = useMemo(() => {
-    return paymentRows.filter((row) => {
-      const matchesStatus = statusFilter === "All" || row.status === statusFilter;
-      const matchesType = typeFilter === "All" || row.paymentMethod === typeFilter;
-      return matchesStatus && matchesType && matchesSearch(row, searchValue);
-    });
-  }, [searchValue, statusFilter, typeFilter]);
+  useEffect(() => {
+    let active = true;
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage));
+    const loadTransactions = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchValue.trim() || undefined,
+          status: statusFilter !== "All" ? statusFilter.toLowerCase().replace(/[\s-]+/g, "_") : undefined,
+          payment_method: typeFilter !== "All" ? typeFilter.toLowerCase() : undefined,
+          ...buildRangeParams(monthFilter),
+        };
+
+        if (selectedDate) {
+          const start = new Date(selectedDate);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(selectedDate);
+          end.setHours(23, 59, 59, 999);
+          params.date_from = start.toISOString();
+          params.date_to = end.toISOString();
+        }
+
+        const response = await affiliateApi.getTransactions(params);
+        const rows = Array.isArray(response?.data?.rows) ? response.data.rows : [];
+
+        if (!active) return;
+
+        setPaymentRows(rows.map((row, index) => mapTransactionToRow(row as Record<string, any>, index)));
+        setTotalRows(Number(response?.data?.pagination?.total || rows.length || 0));
+        setTotalPages(Math.max(Number(response?.data?.pagination?.total_pages || 1), 1));
+      } catch (error) {
+        console.error("Failed to fetch finance transactions:", error);
+        if (!active) return;
+        setPaymentRows([]);
+        setTotalRows(0);
+        setTotalPages(1);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadTransactions();
+
+    return () => {
+      active = false;
+    };
+  }, [currentPage, itemsPerPage, monthFilter, searchValue, selectedDate, statusFilter, typeFilter]);
+
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * itemsPerPage;
-  const paginatedRows = filteredRows.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedRows = paymentRows;
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
-  }, [searchValue, statusFilter, monthFilter, typeFilter]);
+  }, [searchValue, statusFilter, monthFilter, typeFilter, selectedDate]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = () => setOpenMenuState(null);
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
@@ -615,7 +519,17 @@ export default function AffiliateTransactionsHistory({
               </tr>
             </thead>
             <tbody>
-                {paginatedRows.map((row) => {
+              {paginatedRows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className={`px-4 py-10 text-center text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}
+                  >
+                    No records found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedRows.map((row) => {
                   const { date, time } = formatDate(row.rawDateTime);
 
                 return (
@@ -727,129 +641,136 @@ export default function AffiliateTransactionsHistory({
                     </td>
                   </tr>
                 );
-              })}
+                })
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="lg:hidden">
-          {paginatedRows.map((row) => {
-            const { date, time } = formatDate(row.rawDateTime);
-            return (
-              <div key={row.id} className={`border-b p-4 ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.shootType}</p>
-                    <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-[#666]"}`}>{row.bookingId}</p>
-                  </div>
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
-                    {row.status}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Amount</p>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRow(row)}
-                        className={`mt-1 font-medium underline decoration-white/30 underline-offset-4 transition-opacity hover:opacity-80 ${isDark ? "text-white" : "text-[#111]"}`}
-                      >
-                        {row.totalAmount}
-                      </button>
+          {paginatedRows.length === 0 ? (
+            <div className={`border-b p-6 text-center text-sm ${isDark ? "border-[#222222] text-white/55" : "border-[#F0F0F0] text-[#777]"}`}>
+              No records found.
+            </div>
+          ) : (
+            paginatedRows.map((row) => {
+              const { date, time } = formatDate(row.rawDateTime);
+              return (
+                <div key={row.id} className={`border-b p-4 ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.shootType}</p>
+                      <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-[#666]"}`}>{row.bookingId}</p>
                     </div>
-                  <div className="text-right">
-                    <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Invoices</p>
-                    <p className={`mt-1 font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.invoiceLabel}</p>
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
+                      {row.status}
+                    </span>
                   </div>
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Date</p>
-                    <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Time</p>
-                    <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{time}</p>
-                  </div>
-                  <div>
-                    <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Method</p>
-                    <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{row.paymentMethod}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Action</p>
-                    <div className="relative mt-1 flex justify-end">
-                      {row.actionType === "view" ? (
+ 
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Amount</p>
                         <button
                           type="button"
-                          onClick={(event) => openDisputeDetails(event, row)}
-                          className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/70 hover:bg-white/5" : "text-[#444] hover:bg-black/5"}`}
-                          aria-label={`View dispute details for ${row.bookingId}`}
+                          onClick={() => setSelectedRow(row)}
+                          className={`mt-1 font-medium underline decoration-white/30 underline-offset-4 transition-opacity hover:opacity-80 ${isDark ? "text-white" : "text-[#111]"}`}
                         >
-                          <Eye size={18} />
+                          {row.totalAmount}
                         </button>
-                      ) : (
-                        <>
+                      </div>
+                    <div className="text-right">
+                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Invoices</p>
+                      <p className={`mt-1 font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.invoiceLabel}</p>
+                    </div>
+                    <div>
+                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Date</p>
+                      <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Time</p>
+                      <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{time}</p>
+                    </div>
+                    <div>
+                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Method</p>
+                      <p className={`mt-1 ${isDark ? "text-white/75" : "text-[#171717]"}`}>{row.paymentMethod}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Action</p>
+                      <div className="relative mt-1 flex justify-end">
+                        {row.actionType === "view" ? (
                           <button
                             type="button"
-                            onClick={(event) => openRowMenu(event, row.id)}
+                            onClick={(event) => openDisputeDetails(event, row)}
                             className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/70 hover:bg-white/5" : "text-[#444] hover:bg-black/5"}`}
-                            aria-label={`Open actions for ${row.bookingId}`}
+                            aria-label={`View dispute details for ${row.bookingId}`}
                           >
-                            <MoreVertical size={18} />
+                            <Eye size={18} />
                           </button>
-
-                          {openMenuState?.rowId === row.id && (
-                            <div
-                              className={`absolute right-0 z-20 w-[210px] overflow-hidden rounded-[16px] border shadow-[0_14px_24px_rgba(0,0,0,0.32)] ${openMenuState.direction === "up" ? "bottom-10" : "top-10"} ${isDark ? "border-white/15 bg-[#101010]" : "border-black/10 bg-[#111]"}`}
-                              onClick={(event) => event.stopPropagation()}
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(event) => openRowMenu(event, row.id)}
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/70 hover:bg-white/5" : "text-[#444] hover:bg-black/5"}`}
+                              aria-label={`Open actions for ${row.bookingId}`}
                             >
-                              <button
-                                type="button"
-                                onClick={(event) => handleMenuAction(event, row, "details")}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                              <MoreVertical size={18} />
+                            </button>
+
+                            {openMenuState?.rowId === row.id && (
+                              <div
+                                className={`absolute right-0 z-20 w-[210px] overflow-hidden rounded-[16px] border shadow-[0_14px_24px_rgba(0,0,0,0.32)] ${openMenuState.direction === "up" ? "bottom-10" : "top-10"} ${isDark ? "border-white/15 bg-[#101010]" : "border-black/10 bg-[#111]"}`}
+                                onClick={(event) => event.stopPropagation()}
                               >
-                                <FileText size={16} className="shrink-0" />
-                                <span className="font-medium">View Details</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(event) => handleMenuAction(event, row, "invoice")}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
-                              >
-                                <FileText size={16} className="shrink-0" />
-                                <span className="font-medium">View Invoice</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(event) => handleMenuAction(event, row, "download")}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
-                              >
-                                <Download size={16} className="shrink-0" />
-                                <span className="font-medium">Download Invoice</span>
-                              </button>
-                              <div className="h-px bg-white/10" />
-                              <button
-                                type="button"
-                                onClick={(event) => handleMenuAction(event, row, "dispute")}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
-                              >
-                                <AlertCircle size={16} className="shrink-0" />
-                                <span className="font-medium">Raise Dispute</span>
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "details")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                                >
+                                  <FileText size={16} className="shrink-0" />
+                                  <span className="font-medium">View Details</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "invoice")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                                >
+                                  <FileText size={16} className="shrink-0" />
+                                  <span className="font-medium">View Invoice</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "download")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                                >
+                                  <Download size={16} className="shrink-0" />
+                                  <span className="font-medium">Download Invoice</span>
+                                </button>
+                                <div className="h-px bg-white/10" />
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "dispute")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
+                                >
+                                  <AlertCircle size={16} className="shrink-0" />
+                                  <span className="font-medium">Raise Dispute</span>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         <div className={`flex flex-col gap-4 border-t p-4 lg:flex-row lg:items-center lg:justify-between lg:p-6 ${isDark ? "border-[#262626]" : "border-[#E8E8E8]"}`}>
           <p className={`text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
-            Showing {filteredRows.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredRows.length)} of {filteredRows.length}
+            Showing {paymentRows.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + paymentRows.length, totalRows || paymentRows.length)} of {totalRows}
           </p>
 
           <div className="flex items-center justify-between gap-2 lg:justify-end">
