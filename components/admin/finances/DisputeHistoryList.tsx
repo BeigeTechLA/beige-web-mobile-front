@@ -38,6 +38,12 @@ interface DisputeHistoryListProps {
   onMonthChange: (value: string) => void;
   typeValue: string;
   onTypeChange: (value: string) => void;
+  showTypeFilter?: boolean;
+  currentPage?: number;
+  totalPages?: number;
+  totalItems?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
   onViewDetails?: (item: DisputeHistoryItem) => void;
   itemsPerPage?: number;
 }
@@ -79,24 +85,41 @@ export default function DisputeHistoryList({
   onMonthChange,
   typeValue,
   onTypeChange,
+  showTypeFilter = true,
+  currentPage,
+  totalPages: totalPagesProp,
+  totalItems,
+  pageSize,
+  onPageChange,
   onViewDetails,
   itemsPerPage = 3,
 }: DisputeHistoryListProps) {
   const { isDark } = useResolvedTheme();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
+  const isServerPaginated = typeof onPageChange === "function";
 
   useEffect(() => {
-    setCurrentPage(1);
+    setInternalPage(1);
   }, [items, searchValue, statusValue, monthValue, typeValue]);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * itemsPerPage;
-  const visibleItems = useMemo(
-    () => items.slice(startIndex, startIndex + itemsPerPage),
-    [items, startIndex, itemsPerPage]
+  const totalPages = Math.max(
+    1,
+    totalPagesProp ?? Math.ceil(items.length / itemsPerPage)
   );
-  const paginationItems = buildPaginationItems(safePage, totalPages);
+  const activePage = isServerPaginated
+    ? Math.min(Math.max(currentPage || 1, 1), totalPages)
+    : Math.min(internalPage, totalPages);
+  const startIndex = (activePage - 1) * itemsPerPage;
+  const visibleItems = useMemo(
+    () => (isServerPaginated ? items : items.slice(startIndex, startIndex + itemsPerPage)),
+    [isServerPaginated, items, startIndex, itemsPerPage]
+  );
+  const paginationItems = buildPaginationItems(activePage, totalPages);
+  const displayedTotalItems = totalItems ?? items.length;
+  const startItem = displayedTotalItems === 0 ? 0 : isServerPaginated ? (activePage - 1) * (pageSize || items.length || itemsPerPage) + 1 : startIndex + 1;
+  const endItem = isServerPaginated
+    ? Math.min(startItem + items.length - 1, displayedTotalItems)
+    : Math.min(startIndex + itemsPerPage, items.length);
 
   return (
     <section
@@ -136,16 +159,18 @@ export default function DisputeHistoryList({
               </SelectContent>
             </Select>
 
-            <Select value={typeValue} onValueChange={onTypeChange}>
-              <SelectTrigger className={`w-[90px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
-                <SelectItem value="All">All</SelectItem>
-                <SelectItem value="Client">Client</SelectItem>
-                <SelectItem value="Creator">Creator</SelectItem>
-              </SelectContent>
-            </Select>
+            {showTypeFilter && (
+              <Select value={typeValue} onValueChange={onTypeChange}>
+                <SelectTrigger className={`w-[90px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Client">Client</SelectItem>
+                  <SelectItem value="Creator">Creator</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -254,12 +279,19 @@ export default function DisputeHistoryList({
       {!loading && items.length > 0 && (
         <div className={`flex justify-center lg:justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
           <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-            Page {startIndex + 1} to {Math.min(startIndex + itemsPerPage, items.length)}
+            Page {startItem} to {endItem}
           </div>
           <div className="flex gap-2 items-center">
             <button
-              onClick={() => setCurrentPage(safePage - 1)}
-              disabled={safePage === 1}
+              onClick={() => {
+                const nextPage = Math.max(activePage - 1, 1);
+                if (isServerPaginated) {
+                  onPageChange?.(nextPage);
+                } else {
+                  setInternalPage(nextPage);
+                }
+              }}
+              disabled={activePage === 1}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
                 }`}
             >
@@ -275,8 +307,14 @@ export default function DisputeHistoryList({
                 ) : (
                   <button
                     key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safePage === page
+                    onClick={() => {
+                      if (isServerPaginated) {
+                        onPageChange?.(page);
+                      } else {
+                        setInternalPage(page);
+                      }
+                    }}
+                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${activePage === page
                       ? isDark
                         ? "bg-[#E5D5B8] text-black"
                         : "bg-[#E8D1AB] text-black"
@@ -291,8 +329,15 @@ export default function DisputeHistoryList({
               )}
             </div>
             <button
-              onClick={() => setCurrentPage(safePage + 1)}
-              disabled={safePage === totalPages}
+              onClick={() => {
+                const nextPage = Math.min(activePage + 1, totalPages);
+                if (isServerPaginated) {
+                  onPageChange?.(nextPage);
+                } else {
+                  setInternalPage(nextPage);
+                }
+              }}
+              disabled={activePage === totalPages}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
             >
               <span className="hidden lg:block">Next</span>
