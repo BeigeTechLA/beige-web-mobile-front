@@ -15,6 +15,7 @@ export type DisputeStatus = "Open" | "In Review" | "Resolved";
 
 export type DisputeHistoryItem = {
   id: string;
+  disputeApiId?: string | number;
   shootId: string;
   invoiceId: string;
   category: string;

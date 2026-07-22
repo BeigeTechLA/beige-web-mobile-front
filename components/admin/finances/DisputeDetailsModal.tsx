@@ -35,6 +35,20 @@ type DisputeComment = {
   at: string;
 };
 
+type DisputeAttachment = {
+  id: string | number;
+  fileName: string;
+  fileUrl: string;
+};
+
+type DisputePayoutHold = {
+  id: string | number;
+  creatorName: string;
+  holdAmount: string;
+  status: string;
+  reason: string;
+};
+
 export type DisputeDetailsRecord = DisputeHistoryItem & {
   createdAt: string;
   payoutNote: string;
@@ -91,8 +105,6 @@ function DetailCard({
     ? className
     : (isDark ? "bg-[#1F1F1F] border-white/10 text-white" : "bg-[#F5F5F5] border-black/10 text-black");
 
-  console.log(finalContainerClass)
-
   // If no explicit valueClassName is passed, apply default weight and color
   const finalValueClass = valueClassName
     ? valueClassName
@@ -117,6 +129,8 @@ export default function DisputeDetailsModal({
   onOpenResolve
 }: DisputeDetailsModalProps) {
   const { isDark } = useResolvedTheme();
+  const timeline = dispute?.timeline ?? [];
+  const internalComments = dispute?.internalComments ?? [];
 
   if (!isOpen || !dispute) return null;
 
@@ -215,11 +229,11 @@ export default function DisputeDetailsModal({
             <div>
               <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Timeline</p>
               <div className="space-y-4">
-                {dispute.timeline.map((event, index) => {
+                {timeline.map((event, index) => {
                   const style = timelineStyles[event.tone];
                   return (
-                    <div key={`${event.title}-${event.at}`} className="relative flex gap-3">
-                      {index < dispute.timeline.length - 1 ? (
+                    <div key={`${event.title}-${event.at}-${index}`} className="relative flex gap-3">
+                      {index < timeline.length - 1 ? (
                         <div className={`absolute left-[11px] top-6 h-[calc(100%+6px)] w-px ${isDark ? "bg-white/10" : "bg-black/10"}`} />
                       ) : null}
                       <div className={`relative z-10 mt-0.5 flex h-[22px] w-[22px] items-center justify-center rounded-full border ${style.ring} ${style.iconColor}`}>
@@ -238,18 +252,24 @@ export default function DisputeDetailsModal({
             </div>
 
             <div>
-              <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Comments ({dispute.internalComments.length})</p>
-              <div className="space-y-3">
-                {dispute.internalComments.map((comment) => (
-                  <div key={`${comment.author}-${comment.at}`} className={`rounded-lg ${isDark ? "bg-[#1F1F1F] " : "bg-[#F4F5F7]"} px-4 py-3`}>
-                    <div className="mb-2 flex items-center justify-between gap-3 text-base">
-                      <p className={`${isDark ? "text-white" : "text-black"}`}>{comment.author}</p>
-                      <p className={`text-sm ${isDark ? "text-[#A0A0A0]":"text-black/50"}`}>{comment.at}</p>
+              <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Comments ({internalComments.length})</p>
+              {internalComments.length > 0 ? (
+                <div className="space-y-3">
+                  {internalComments.map((comment) => (
+                    <div key={`${comment.author}-${comment.at}`} className={`rounded-lg ${isDark ? "bg-[#1F1F1F] " : "bg-[#F4F5F7]"} px-4 py-3`}>
+                      <div className="mb-2 flex items-center justify-between gap-3 text-base">
+                        <p className={`${isDark ? "text-white" : "text-black"}`}>{comment.author}</p>
+                        <p className={`text-sm ${isDark ? "text-[#A0A0A0]":"text-black/50"}`}>{comment.at}</p>
+                      </div>
+                      <p className={isDark ? "text-[#A0A0A0]":"text-black/50"}>{comment.message}</p>
                     </div>
-                    <p className={isDark ? "text-[#A0A0A0]":"text-black/50"}>{comment.message}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? "bg-[#1F1F1F] text-[#A0A0A0]" : "bg-[#F4F5F7] text-black/50"}`}>
+                  No comments yet
+                </div>
+              )}
             </div>
           </div>
         </div>

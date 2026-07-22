@@ -223,6 +223,7 @@ const formatRaisedRole = (value?: string | null) => {
 
 const formatDisputeRow = (row: DisputeListRowApi, index: number): DisputeHistoryItem => {
   const disputeId = String(row.dispute_code || row.dispute_id || `DIS-${index + 1}`).trim();
+  const disputeApiId = row.dispute_id ?? row.finance_dispute_id ?? null;
   const bookingId = row.booking_id ? String(row.booking_id) : "";
   const shootId = row.shoot_id || (bookingId ? `SH-${bookingId}` : "N/A");
   const invoiceId = row.invoice_id || (row.invoice_send_history_id ? `INV-${row.invoice_send_history_id}` : "N/A");
@@ -231,6 +232,7 @@ const formatDisputeRow = (row: DisputeListRowApi, index: number): DisputeHistory
 
   return {
     id: disputeId,
+    disputeApiId,
     shootId,
     invoiceId,
     category: String(row.issue_type || row.category || "Other").replace(/_/g, " "),
@@ -283,6 +285,139 @@ const buildDisputeDetails = (item: DisputeHistoryItem): DisputeDetailsRecord => 
   };
 };
 
+const mapApiDisputeDetails = (
+  detail: Record<string, unknown>,
+  fallback: DisputeHistoryItem
+): DisputeDetailsRecord => {
+  const timelineRows = getArray(detail.timeline);
+  const commentRows = getArray(detail.internal_comments);
+  const attachmentRows = getArray(detail.attachments);
+  const payoutHoldRows = getArray(detail.payout_holds);
+  const resolution = asRecord(detail.resolution);
+  const project = asRecord(detail.project);
+  const invoice = asRecord(detail.invoice);
+  const raisedBy = asRecord(detail.raised_by);
+  const client = asRecord(detail.client);
+  const creator = asRecord(detail.creator);
+  const actions = asRecord(detail.actions);
+  const disputedAmount = Number(
+    detail.disputed_amount ?? fallback.disputedAmount.replace(/[^0-9.-]/g, "") ?? 0
+  );
+  const payoutHoldAmount = Number(
+    detail.payout_hold_amount ??
+      detail.impacted_payout_amount ??
+      fallback.payoutHold.replace(/[^0-9.-]/g, "") ??
+      0
+  );
+
+  return {
+    ...fallback,
+    id: String(detail.dispute_code || detail.dispute_id || fallback.id),
+    shootId: String(
+      detail.shoot_id ||
+        (project?.id ? `SH-${project.id}` : "") ||
+        (detail.booking_id ? `SH-${detail.booking_id}` : "") ||
+        fallback.shootId
+    ),
+    invoiceId: String(
+      detail.invoice_id ||
+        (invoice?.invoice_number ? invoice.invoice_number : "") ||
+        (invoice?.id ? `INV-${invoice.id}` : "") ||
+        (detail.invoice_send_history_id ? `INV-${detail.invoice_send_history_id}` : "") ||
+        fallback.invoiceId
+    ),
+    category: String(detail.issue_type || detail.category || fallback.category).replace(/_/g, " "),
+    description: String(detail.description || detail.subject || fallback.description),
+    raisedBy: String(raisedBy?.name || fallback.raisedBy),
+    raisedRole: formatRaisedRole(String(raisedBy?.type || fallback.raisedRole)),
+    raisedDate: formatDateLabel(String(detail.created_at || fallback.raisedDate)),
+    disputedAmount: currencyFormatter.format(Number.isFinite(disputedAmount) ? disputedAmount : 0),
+    payoutHold: currencyFormatter.format(Number.isFinite(payoutHoldAmount) ? payoutHoldAmount : 0),
+    status: formatDisputeStatus(String(detail.status || fallback.status)),
+    createdAt: formatDateLabel(String(detail.created_at || fallback.raisedDate)),
+    payoutNote:
+      resolution?.released_at || resolution?.resolved_at
+        ? "Released after resolution"
+        : "On hold until resolved",
+    project: project
+      ? {
+          id: project.id ?? detail.booking_id ?? null,
+          name: String(project.name || ""),
+          guestEmail: String(project.guest_email || client?.email || ""),
+        }
+      : null,
+    invoice: invoice
+      ? {
+          id: invoice.id ?? detail.invoice_send_history_id ?? null,
+          invoiceNumber: String(invoice.invoice_number || ""),
+          invoiceUrl: invoice.invoice_url ? String(invoice.invoice_url) : null,
+          invoicePdf: invoice.invoice_pdf ? String(invoice.invoice_pdf) : null,
+          paymentStatus: invoice.payment_status ? String(invoice.payment_status) : null,
+        }
+      : null,
+    resolution: resolution
+      ? {
+          type: resolution.type ? String(resolution.type) : null,
+          notes: resolution.notes ? String(resolution.notes) : null,
+          resolvedAt: resolution.resolved_at ? String(resolution.resolved_at) : null,
+          resolvedBy: resolution.resolved_by ? String(asRecord(resolution.resolved_by)?.name || "") : null,
+        }
+      : null,
+    actions: actions
+      ? {
+          canUpdate: Boolean(actions.can_update),
+          canAddComment: Boolean(actions.can_add_comment),
+          canHoldPayout: Boolean(actions.can_hold_payout),
+          canResolve: Boolean(actions.can_resolve),
+          canReject: Boolean(actions.can_reject),
+          canEscalate: Boolean(actions.can_escalate),
+        }
+      : null,
+    attachments: attachmentRows.map((attachment, index) => ({
+      id: attachment.id ?? attachment.finance_dispute_attachment_id ?? index,
+      fileName: String(attachment.file_name || attachment.name || "Attachment"),
+      fileUrl: String(attachment.file_url || attachment.url || attachment.file_path || ""),
+    })),
+    payoutHolds: payoutHoldRows.map((hold, index) => ({
+      id: hold.id ?? hold.finance_dispute_payout_hold_id ?? index,
+      creatorName: String(hold.creator_name || hold.creator?.name || creator?.name || "Unknown"),
+      holdAmount: currencyFormatter.format(Number(hold.hold_amount ?? hold.amount ?? 0)),
+      status: String(hold.status || "hold"),
+      reason: String(hold.reason || ""),
+    })),
+    timeline: timelineRows.length
+      ? timelineRows.map((event) => {
+          const createdBy = asRecord(event.created_by);
+          const performedBy = asRecord(event.performed_by);
+
+          return {
+            title: String(event.title || event.activity || "Update"),
+            by: String(event.by || createdBy?.name || performedBy?.name || "Support Team"),
+            at: formatDateLabel(String(event.at || event.created_at || "")),
+            tone:
+              String(event.tone || "").toLowerCase() === "resolved"
+                ? "resolved"
+                : String(event.tone || "").toLowerCase() === "review"
+                  ? "review"
+                  : "warning",
+          };
+        })
+      : fallback.timeline,
+    internalComments: commentRows.length
+      ? commentRows.map((comment) => {
+          const createdBy = asRecord(comment.created_by);
+          const createdByCreator = asRecord(comment.created_by_creator);
+
+          return {
+            author: String(createdBy?.name || createdByCreator?.name || comment.author || "Support Team"),
+            message: String(comment.body || comment.message || ""),
+            at: formatDateLabel(String(comment.created_at || comment.at || "")),
+          };
+        })
+      : fallback.internalComments,
+  };
+};
+
 const extractDisputeListPayload = (response: DisputeListResponse | null | undefined) => {
   const responseData = asRecord(response?.data);
   const root = responseData && asRecord(responseData.data) ? asRecord(responseData.data) : responseData;
@@ -332,6 +467,23 @@ export default function AdminDisputesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dashboardOverview, setDashboardOverview] = useState<DisputeDashboardOverview>(defaultDashboardOverview);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  const handleViewDisputeDetails = async (item: DisputeHistoryItem) => {
+    setSelectedDispute(buildDisputeDetails(item));
+
+    try {
+      const disputeId = item.disputeApiId ?? item.id;
+      const response = await adminApi.getDisputeDetails(disputeId);
+      const responseData = asRecord(response?.data);
+      const detailRoot = responseData && asRecord(responseData.data) ? asRecord(responseData.data) : responseData;
+
+      if (detailRoot) {
+        setSelectedDispute(mapApiDisputeDetails(detailRoot, item));
+      }
+    } catch (error) {
+      console.error("Failed to fetch dispute details:", error);
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -591,9 +743,7 @@ export default function AdminDisputesPage() {
           totalItems={listPagination.total}
           pageSize={listPagination.limit}
           onPageChange={setCurrentPage}
-          onViewDetails={(item) =>
-            setSelectedDispute(buildDisputeDetails(item))
-          }
+          onViewDetails={handleViewDisputeDetails}
         />
 
         {/* --- FLOATING MOBILE BUTTON --- */}

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Eye,
   FileText,
   MoreVertical,
@@ -11,8 +12,10 @@ import {
   AlertCircle,
   Search,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { buildBeigeInvoiceUrl } from "@/lib/invoiceUrl";
 
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -32,6 +35,7 @@ type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Prog
 
 type PaymentRow = {
   id: string;
+  bookingIdValue: number | null;
   bookingId: string;
   shootType: string;
   totalAmount: string;
@@ -42,10 +46,25 @@ type PaymentRow = {
     discounts: string;
   };
   invoiceLabel: string;
+  invoices: InvoiceDocument[];
+  latestInvoice: InvoiceDocument | null;
+  receiptUrl: string | null;
+  receiptDownloadUrl: string | null;
   rawDateTime: string;
   paymentMethod: string;
   status: PaymentStatus;
   actionType: "menu" | "view";
+};
+
+type InvoiceDocument = {
+  invoice_send_history_id: number | string | null;
+  invoice_number: string | null;
+  invoice_url: string | null;
+  invoice_pdf: string | null;
+  receipt_url: string | null;
+  receipt_download_url: string | null;
+  payment_status: string | null;
+  sent_at: string | null;
 };
 
 type AffiliateTransactionsHistoryProps = {
@@ -108,7 +127,79 @@ const formatStatusLabel = (value?: string | null): PaymentStatus => {
 
 const formatInvoiceLabel = (count?: number | null) => {
   const safeCount = Math.max(Number(count || 0), 0);
-  return `${String(safeCount || 1).padStart(2, "0")} Invoices`;
+  const suffix = safeCount === 1 ? "Invoice" : "Invoices";
+  return `${String(safeCount).padStart(2, "0")} ${suffix}`;
+};
+
+const formatInvoiceDocumentLabel = (invoice: InvoiceDocument, index: number) => {
+  const invoiceNumber = String(invoice.invoice_number || "").trim();
+  if (invoiceNumber) return invoiceNumber;
+  return `Invoice ${index + 1}`;
+};
+
+const normalizeInvoiceDocument = (invoice?: Record<string, any> | null): InvoiceDocument | null => {
+  if (!invoice) return null;
+
+  const invoiceNumber = String(invoice.invoice_number || invoice.invoice_id || "").trim() || null;
+  const receiptUrl = String(invoice.receipt_url || invoice.invoice_url || "").trim() || null;
+  const receiptDownloadUrl = String(invoice.receipt_download_url || invoice.invoice_pdf || "").trim() || null;
+
+  if (!invoiceNumber && !receiptUrl && !receiptDownloadUrl) return null;
+
+  return {
+    invoice_send_history_id: invoice.invoice_send_history_id ?? invoice.finance_invoice_payment_id ?? invoice.id ?? null,
+    invoice_number: invoiceNumber,
+    invoice_url: receiptUrl,
+    invoice_pdf: receiptDownloadUrl,
+    receipt_url: receiptUrl,
+    receipt_download_url: receiptDownloadUrl,
+    payment_status: invoice.payment_status || invoice.status || null,
+    sent_at: invoice.sent_at || invoice.created_at || invoice.transaction_date || null,
+  };
+};
+
+const resolveInvoiceDocumentUrl = (
+  invoice: InvoiceDocument | null,
+  bookingIdValue: number | null,
+  download = false
+) => {
+  if (typeof window === "undefined") return null;
+
+  const rawUrl = String(
+    download
+      ? invoice?.receipt_download_url || invoice?.invoice_pdf || invoice?.receipt_url || invoice?.invoice_url || ""
+      : invoice?.receipt_url || invoice?.invoice_url || invoice?.invoice_pdf || ""
+  ).trim();
+  if (!rawUrl && !bookingIdValue) return null;
+
+  if (rawUrl) {
+    const parsedUrl = new URL(rawUrl, window.location.origin);
+    const invoicePdfPathMatch = parsedUrl.pathname.match(/\/sales\/invoice-pdf\/([^/]+)$/);
+
+    if (invoicePdfPathMatch) {
+      const proxiedUrl = new URL(
+        `/beige_invoice/${encodeURIComponent(invoicePdfPathMatch[1])}`,
+        window.location.origin
+      );
+      parsedUrl.searchParams.forEach((value, key) => {
+        if (key === "download") return;
+        proxiedUrl.searchParams.set(key, value);
+      });
+      proxiedUrl.searchParams.set("t", String(Date.now()));
+      return `${proxiedUrl.pathname}${proxiedUrl.search}`;
+    }
+
+    if (parsedUrl.origin === window.location.origin && parsedUrl.pathname.startsWith("/beige_invoice/")) {
+      parsedUrl.searchParams.set("t", String(Date.now()));
+      return `${parsedUrl.pathname}${parsedUrl.search}`;
+    }
+
+    return rawUrl;
+  }
+
+  return bookingIdValue
+    ? buildBeigeInvoiceUrl(bookingIdValue, { manual: true, cacheBust: true })
+    : null;
 };
 
 const buildRangeParams = (monthFilter: string) => {
@@ -147,15 +238,39 @@ const buildRangeParams = (monthFilter: string) => {
 };
 
 const mapTransactionToRow = (transaction: Record<string, any>, index: number): PaymentRow => {
-  const bookingId = transaction.booking_id ?? transaction.shoot_id ?? transaction.bookingId ?? transaction.shootId ?? null;
-  const bookingLabel = bookingId ? `BK-${String(bookingId).padStart(3, "0")}` : `TX-${String(index + 1).padStart(3, "0")}`;
+  const bookingIdValue = Number(transaction.booking_id ?? transaction.shoot_id ?? transaction.bookingId ?? transaction.shootId ?? 0) || null;
+  const bookingLabel = bookingIdValue ? `BK-${String(bookingIdValue).padStart(3, "0")}` : `TX-${String(index + 1).padStart(3, "0")}`;
   const transactionDate = transaction.transaction_date || transaction.created_at || transaction.updated_at || null;
   const parsedDate = transactionDate ? new Date(transactionDate) : new Date();
   const safeDateTime = Number.isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString();
   const status = formatStatusLabel(transaction.status);
+  const backendInvoices = Array.isArray(transaction.invoices) ? transaction.invoices : [];
+  const normalizedInvoices = backendInvoices
+    .map((invoice) => normalizeInvoiceDocument(invoice))
+    .filter((invoice): invoice is InvoiceDocument => Boolean(invoice));
+  const latestInvoice =
+    normalizeInvoiceDocument(transaction.latest_invoice) ||
+    normalizedInvoices[0] ||
+    normalizeInvoiceDocument({
+      invoice_send_history_id: transaction.invoice_send_history_id ?? null,
+      invoice_number: transaction.invoice_number || null,
+      invoice_url: transaction.receipt_url || transaction.invoice_url || null,
+      invoice_pdf: transaction.receipt_download_url || transaction.invoice_pdf || null,
+      receipt_url: transaction.receipt_url || transaction.invoice_url || null,
+      receipt_download_url: transaction.receipt_download_url || transaction.invoice_pdf || null,
+      payment_status: transaction.payment_status || transaction.status || null,
+      sent_at: transaction.sent_at || transaction.transaction_date || transaction.created_at || null,
+    });
+  const invoices = normalizedInvoices.length > 0 ? normalizedInvoices : latestInvoice ? [latestInvoice] : [];
+  const invoiceCount = Math.max(
+    Number(transaction.invoices_count || 0),
+    invoices.length,
+    latestInvoice ? 1 : 0
+  );
 
   return {
     id: String(transaction.finance_transaction_id ?? transaction.transaction_id ?? `${bookingLabel}-${index}`),
+    bookingIdValue,
     bookingId: bookingLabel,
     shootType: transaction.shoot_type || transaction.project_name || "Transaction",
     totalAmount: formatCurrency(transaction.total_amount ?? transaction.gross_amount ?? 0),
@@ -165,7 +280,11 @@ const mapTransactionToRow = (transaction: Record<string, any>, index: number): P
       taxes: formatCurrency(transaction.metadata?.tax_amount ?? 0),
       discounts: formatCurrency(-(Number(transaction.metadata?.discount_amount ?? 0))),
     },
-    invoiceLabel: formatInvoiceLabel(transaction.invoices_count ?? transaction.metadata?.invoices_count ?? 0),
+    invoiceLabel: formatInvoiceLabel(invoiceCount || transaction.metadata?.invoices_count || 0),
+    invoices,
+    latestInvoice,
+    receiptUrl: latestInvoice?.receipt_url || null,
+    receiptDownloadUrl: latestInvoice?.receipt_download_url || null,
     rawDateTime: safeDateTime,
     paymentMethod: formatPaymentMethod(transaction.payment_method),
     status,
@@ -285,6 +404,7 @@ export default function AffiliateTransactionsHistory({
   const [selectedRow, setSelectedRow] = useState<PaymentRow | null>(null);
   const [selectedDispute, setSelectedDispute] = useState<AffiliateDisputeDetailsRecord | null>(null);
   const [openMenuState, setOpenMenuState] = useState<{ rowId: string; direction: "up" | "down" } | null>(null);
+  const [openInvoiceState, setOpenInvoiceState] = useState<{ rowId: string; direction: "up" | "down" } | null>(null);
   const [paymentRows, setPaymentRows] = useState<PaymentRow[]>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -320,7 +440,11 @@ export default function AffiliateTransactionsHistory({
 
         if (!active) return;
 
-        setPaymentRows(rows.map((row, index) => mapTransactionToRow(row as Record<string, any>, index)));
+        setPaymentRows(
+          rows.map((row, index) => {
+            return mapTransactionToRow(row as Record<string, any>, index);
+          })
+        );
         setTotalRows(Number(response?.data?.pagination?.total || rows.length || 0));
         setTotalPages(Math.max(Number(response?.data?.pagination?.total_pages || 1), 1));
       } catch (error) {
@@ -357,13 +481,18 @@ export default function AffiliateTransactionsHistory({
   }, [currentPage, totalPages]);
 
   useEffect(() => {
-    const handleClickOutside = () => setOpenMenuState(null);
+    const handleClickOutside = () => closeMenus();
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
   const closeBreakdown = () => setSelectedRow(null);
   const closeDispute = () => setSelectedDispute(null);
+
+  const closeMenus = () => {
+    setOpenMenuState(null);
+    setOpenInvoiceState(null);
+  };
 
   const openRowMenu = (event: React.MouseEvent, rowId: string) => {
     event.stopPropagation();
@@ -372,6 +501,7 @@ export default function AffiliateTransactionsHistory({
     const viewportPadding = 12;
     const shouldOpenUp = rect.bottom + menuHeight + viewportPadding > window.innerHeight;
 
+    setOpenInvoiceState(null);
     setOpenMenuState((current) =>
       current?.rowId === rowId
         ? null
@@ -379,9 +509,46 @@ export default function AffiliateTransactionsHistory({
     );
   };
 
+  const openInvoiceMenu = (event: React.MouseEvent, rowId: string) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuHeight = 240;
+    const viewportPadding = 12;
+    const shouldOpenUp = rect.bottom + menuHeight + viewportPadding > window.innerHeight;
+
+    setOpenMenuState(null);
+    setOpenInvoiceState((current) =>
+      current?.rowId === rowId
+        ? null
+        : { rowId, direction: shouldOpenUp ? "up" : "down" }
+    );
+  };
+
+  const handleInvoiceDocumentView = (row: PaymentRow, invoice: InvoiceDocument | null) => {
+    const resolvedUrl = resolveInvoiceDocumentUrl(invoice, row.bookingIdValue);
+    if (!resolvedUrl) return;
+    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleInvoiceDocumentDownload = (row: PaymentRow, invoice: InvoiceDocument | null) => {
+    const resolvedUrl = resolveInvoiceDocumentUrl(invoice, row.bookingIdValue, true);
+    if (!resolvedUrl) return;
+
+    const downloadName = String(invoice?.invoice_number || row.bookingId || "invoice").replace(/[^\w.-]+/g, "_");
+    const link = document.createElement("a");
+    link.href = resolvedUrl;
+    link.download = `${downloadName}.pdf`;
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const getInvoiceDocuments = (row: PaymentRow) => row.invoices.length > 0 ? row.invoices : row.latestInvoice ? [row.latestInvoice] : [];
+
   const handleMenuAction = (event: React.MouseEvent, row: PaymentRow, action: "details" | "invoice" | "download" | "dispute") => {
     event.stopPropagation();
-    setOpenMenuState(null);
+    closeMenus();
 
     if (action === "details") {
       setSelectedDispute(buildDisputeRecord(row));
@@ -393,8 +560,17 @@ export default function AffiliateTransactionsHistory({
       return;
     }
 
-    // Static UI only: these actions intentionally do not navigate anywhere yet.
-    console.log(`${action} clicked for ${row.id}`);
+    const invoice = getInvoiceDocuments(row)[0] || null;
+    if (!invoice) return;
+
+    if (action === "invoice") {
+      handleInvoiceDocumentView(row, invoice);
+      return;
+    }
+
+    if (action === "download") {
+      handleInvoiceDocumentDownload(row, invoice);
+    }
   };
 
   const openDisputeDetails = (event: React.MouseEvent, row: PaymentRow) => {
@@ -519,7 +695,16 @@ export default function AffiliateTransactionsHistory({
               </tr>
             </thead>
             <tbody>
-              {paginatedRows.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className={`px-4 py-14 text-center ${isDark ? "text-white/65" : "text-[#777]"}`}>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
+                      <span className="text-sm">Loading transactions...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -541,7 +726,11 @@ export default function AffiliateTransactionsHistory({
                       {row.bookingId}
                     </td>
                     <td className={`px-4 py-5 text-sm ${isDark ? "text-white/85" : "text-[#171717]"}`}>
-                      {row.shootType}
+                      <div className="min-w-0 overflow-hidden">
+                        <span className="block truncate" title={row.shootType} aria-label={row.shootType}>
+                          {row.shootType}
+                        </span>
+                      </div>
                     </td>
                     <td className={`px-4 py-5 text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`}>
                       <button
@@ -553,9 +742,84 @@ export default function AffiliateTransactionsHistory({
                       </button>
                     </td>
                     <td className={`px-4 py-5 text-sm ${isDark ? "text-white/75" : "text-[#444]"}`}>
-                      <span className={`inline-flex rounded-full px-3 py-2 text-xs font-medium ${isDark ? "bg-[#2D2A25] text-[#D3B98A]" : "bg-[#F4F0E7] text-[#8B6B36]"}`}>
-                        {row.invoiceLabel}
-                      </span>
+                      <div className="relative inline-flex">
+                        <button
+                          type="button"
+                          onClick={(event) => openInvoiceMenu(event, row.id)}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${isDark ? "bg-[#2D2A25] text-[#D3B98A] hover:bg-[#3a3328]" : "bg-[#F4F0E7] text-[#8B6B36] hover:bg-[#ece3cf]"}`}
+                          aria-label={`Open invoices for ${row.bookingId}`}
+                        >
+                          <span>{row.invoiceLabel}</span>
+                          <ChevronDown size={12} className={`transition-transform ${openInvoiceState?.rowId === row.id ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {openInvoiceState?.rowId === row.id && (
+                          <div
+                            className={`absolute left-0 top-11 z-30 w-[292px] overflow-hidden rounded-[16px] border shadow-[0_14px_24px_rgba(0,0,0,0.32)] ${isDark ? "border-white/15 bg-[#101010]" : "border-black/10 bg-white"}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className={`flex items-center justify-between border-b px-3 py-2 text-xs font-medium ${isDark ? "border-white/10 text-white/70" : "border-black/10 text-black/60"}`}>
+                              <span>Available Invoices</span>
+                              <span>{row.invoiceLabel}</span>
+                            </div>
+
+                            <div className="max-h-[280px] overflow-y-auto">
+                              {getInvoiceDocuments(row).length > 0 ? (
+                                getInvoiceDocuments(row).map((invoice, index) => {
+                                  const sentDate = invoice.sent_at ? formatDate(invoice.sent_at) : null;
+                                  return (
+                                    <div
+                                      key={`${invoice.invoice_send_history_id || invoice.invoice_number || index}`}
+                                      className={`flex items-center justify-between gap-3 px-3 py-2.5 ${isDark ? "border-white/10 hover:bg-white/5" : "border-black/5 hover:bg-black/5"} border-b last:border-b-0`}
+                                    >
+                                      <div className="min-w-0">
+                                        <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                          {formatInvoiceDocumentLabel(invoice, index)}
+                                        </p>
+                                        <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                          {sentDate?.date || invoice.payment_status || "Invoice"}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            closeMenus();
+                                            handleInvoiceDocumentView(row, invoice);
+                                          }}
+                                          className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/80 hover:bg-white/10" : "text-black hover:bg-black/10"}`}
+                                          aria-label={`View ${formatInvoiceDocumentLabel(invoice, index)}`}
+                                          title="View invoice"
+                                        >
+                                          <ExternalLink size={15} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            closeMenus();
+                                            handleInvoiceDocumentDownload(row, invoice);
+                                          }}
+                                          className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/80 hover:bg-white/10" : "text-black hover:bg-black/10"}`}
+                                          aria-label={`Download ${formatInvoiceDocumentLabel(invoice, index)}`}
+                                          title="Download invoice"
+                                        >
+                                          <Download size={15} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className={`px-3 py-4 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                                  No invoices available
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className={`px-4 py-5 text-sm ${isDark ? "text-white/85" : "text-[#171717]"}`}>
                       <div className="leading-tight">
@@ -648,7 +912,14 @@ export default function AffiliateTransactionsHistory({
         </div>
 
         <div className="lg:hidden">
-          {paginatedRows.length === 0 ? (
+          {loading ? (
+            <div className={`border-b p-6 text-center text-sm ${isDark ? "border-[#222222] text-white/65" : "border-[#F0F0F0] text-[#777]"}`}>
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
+                <span>Loading transactions...</span>
+              </div>
+            </div>
+          ) : paginatedRows.length === 0 ? (
             <div className={`border-b p-6 text-center text-sm ${isDark ? "border-[#222222] text-white/55" : "border-[#F0F0F0] text-[#777]"}`}>
               No records found.
             </div>
@@ -659,7 +930,9 @@ export default function AffiliateTransactionsHistory({
                 <div key={row.id} className={`border-b p-4 ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.shootType}</p>
+                      <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`} title={row.shootType} aria-label={row.shootType}>
+                        {row.shootType}
+                      </p>
                       <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-[#666]"}`}>{row.bookingId}</p>
                     </div>
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
@@ -680,7 +953,84 @@ export default function AffiliateTransactionsHistory({
                       </div>
                     <div className="text-right">
                       <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Invoices</p>
-                      <p className={`mt-1 font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.invoiceLabel}</p>
+                      <div className="relative mt-1 inline-flex">
+                        <button
+                          type="button"
+                          onClick={(event) => openInvoiceMenu(event, row.id)}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${isDark ? "bg-[#2D2A25] text-[#D3B98A] hover:bg-[#3a3328]" : "bg-[#F4F0E7] text-[#8B6B36] hover:bg-[#ece3cf]"}`}
+                          aria-label={`Open invoices for ${row.bookingId}`}
+                        >
+                          <span>{row.invoiceLabel}</span>
+                          <ChevronDown size={12} className={`transition-transform ${openInvoiceState?.rowId === row.id ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {openInvoiceState?.rowId === row.id && (
+                          <div
+                            className={`absolute right-0 top-11 z-30 w-[292px] overflow-hidden rounded-[16px] border shadow-[0_14px_24px_rgba(0,0,0,0.32)] ${isDark ? "border-white/15 bg-[#101010]" : "border-black/10 bg-white"}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className={`flex items-center justify-between border-b px-3 py-2 text-xs font-medium ${isDark ? "border-white/10 text-white/70" : "border-black/10 text-black/60"}`}>
+                              <span>Available Invoices</span>
+                              <span>{getInvoiceDocuments(row).length}</span>
+                            </div>
+
+                            <div className="max-h-[280px] overflow-y-auto">
+                              {getInvoiceDocuments(row).length > 0 ? (
+                                getInvoiceDocuments(row).map((invoice, index) => {
+                                  const sentDate = invoice.sent_at ? formatDate(invoice.sent_at) : null;
+                                  return (
+                                    <div
+                                      key={`${invoice.invoice_send_history_id || invoice.invoice_number || index}`}
+                                      className={`flex items-center justify-between gap-3 px-3 py-2.5 ${isDark ? "border-white/10 hover:bg-white/5" : "border-black/5 hover:bg-black/5"} border-b last:border-b-0`}
+                                    >
+                                      <div className="min-w-0">
+                                        <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                          {formatInvoiceDocumentLabel(invoice, index)}
+                                        </p>
+                                        <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                          {sentDate?.date || invoice.payment_status || "Invoice"}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            closeMenus();
+                                            handleInvoiceDocumentView(row, invoice);
+                                          }}
+                                          className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/80 hover:bg-white/10" : "text-black hover:bg-black/10"}`}
+                                          aria-label={`View ${formatInvoiceDocumentLabel(invoice, index)}`}
+                                          title="View invoice"
+                                        >
+                                          <ExternalLink size={15} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            closeMenus();
+                                            handleInvoiceDocumentDownload(row, invoice);
+                                          }}
+                                          className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${isDark ? "text-white/80 hover:bg-white/10" : "text-black hover:bg-black/10"}`}
+                                          aria-label={`Download ${formatInvoiceDocumentLabel(invoice, index)}`}
+                                          title="Download invoice"
+                                        >
+                                          <Download size={15} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className={`px-3 py-4 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                                  No invoices available
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Date</p>

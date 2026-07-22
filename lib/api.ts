@@ -926,7 +926,7 @@ export const affiliateApi = {
   // Submit affiliate dispute
   createDispute: async (formData: FormData) => {
     try {
-      const response = await api.post('/affiliates/disputes', formData, {
+      const response = await api.post('/finance/client/disputes', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
@@ -1834,6 +1834,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch disputes list',
+      };
+    }
+  },
+  getDisputeDetails: async (disputeId: string | number) => {
+    try {
+      const response = await api.get(`finance/admin/disputes/${disputeId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Dispute Details Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch dispute details',
       };
     }
   },
