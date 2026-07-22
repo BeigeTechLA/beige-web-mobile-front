@@ -892,6 +892,7 @@ export default function QuotePreviewPageShell({
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
     (!isZeroOutstanding || isPaymentPending);
+  const showMobilePaymentCta = showActionButtons && canContinueToPayment;
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -1204,7 +1205,7 @@ export default function QuotePreviewPageShell({
         breadcrumbOverrides={breadcrumbOverrides}
       />
 
-      <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
+      <div className={`px-4 pt-6 lg:px-9 lg:pb-14 lg:pt-8 ${showMobilePaymentCta ? "pb-28" : "pb-10"}`}>
         {showActionButtons ? (
           <div className="mb-6 flex flex-col gap-2 lg:hidden">
             {quote ? (
@@ -1267,14 +1268,6 @@ export default function QuotePreviewPageShell({
                   Sign Quote
                 </ActionButton>
             ) : null}
-            {canContinueToPayment && (
-              <ActionButton
-                onClick={handleContinueToPayment}
-                className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
-              >
-                Continue to Payment
-              </ActionButton>
-            )}
             {canShowShareActions && (
               <ActionButton
                 onClick={() => { void handleSendQuote(); }}
@@ -1383,6 +1376,22 @@ export default function QuotePreviewPageShell({
           </div>
         )}
       </div>
+
+      {showMobilePaymentCta ? (
+        <div
+          className={`fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden ${isDark
+            ? "border-white/10 bg-[#0f0f0f]/95 shadow-[0_-12px_28px_rgba(0,0,0,0.35)] backdrop-blur"
+            : "border-[#DFDDDD] bg-white/95 shadow-[0_-12px_28px_rgba(0,0,0,0.12)] backdrop-blur"
+            }`}
+        >
+          <ActionButton
+            onClick={handleContinueToPayment}
+            className="mx-auto h-12 w-full max-w-[430px] rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+          >
+            Continue to Payment
+          </ActionButton>
+        </div>
+      ) : null}
 
       {/* FIXED: Placed at root layout level so it is always mounted across mobile & desktop viewports */}
       <ServiceAgreementModal
