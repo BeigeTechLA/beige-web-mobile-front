@@ -249,7 +249,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
     <div className={isModalView ? "pt-6 pb-20" : "container pt-20 lg:pt-30 pb-20 mx-auto "}>
       <Button
         onClick={handleBack}
-        className="text-white/60 hover:text-white transition-colors z-30 p-0"
+        className="text-white/60 hover:text-white transition-colors z-30 p-5 lg:p-0"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back
