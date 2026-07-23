@@ -2,7 +2,19 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Download, FileSpreadsheet, Loader2, Layers, Tag, ListPlus, Percent, Database } from "lucide-react";
+import {
+  Camera,
+  CircleDollarSign,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Layers,
+  ListPlus,
+  Percent,
+  Tag,
+  Tags,
+  Database,
+} from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
@@ -12,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import apiClient from "@/lib/apiClient";
 
 const DEFAULT_REPORT_FILENAME = "Quotes_SelfServe_Analysis.xlsx";
+const DEFAULT_SHOOTS_REPORT_FILENAME = "Shoots_Report.xlsx";
 
 const REPORT_SECTIONS = [
   { label: "Services", icon: Layers },
@@ -19,6 +32,12 @@ const REPORT_SECTIONS = [
   { label: "Custom Line Items", icon: ListPlus },
   { label: "Discounts", icon: Percent },
   { label: "Master Data", icon: Database },
+];
+
+const SHOOTS_REPORT_SECTIONS = [
+  { label: "Shoot Details", icon: Camera },
+  { label: "Category", icon: Tags },
+  { label: "Amount", icon: CircleDollarSign },
 ];
 
 const getFilenameFromContentDisposition = (contentDisposition?: string) => {
@@ -39,6 +58,8 @@ export default function QuotesAnalysisReportPage() {
   const [mounted, setMounted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isGeneratingShoots, setIsGeneratingShoots] = useState(false);
+  const [shootsErrorMessage, setShootsErrorMessage] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -96,6 +117,50 @@ export default function QuotesAnalysisReportPage() {
     }
   };
 
+  const handleGenerateShootsReport = async () => {
+    setIsGeneratingShoots(true);
+    setShootsErrorMessage(null);
+
+    try {
+      const response = await apiClient.getInstance().post("/generate-shoots-report", undefined, {
+        responseType: "blob",
+      });
+
+      const contentType =
+        response.headers["content-type"] ||
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      const blob = new Blob([response.data], { type: contentType });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const filename =
+        getFilenameFromContentDisposition(response.headers["content-disposition"]) ||
+        DEFAULT_SHOOTS_REPORT_FILENAME;
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Shoots report download started");
+    } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : (error as { status?: number })?.status;
+      const message =
+        status === 403
+          ? "You don't have access to this report."
+          : error instanceof Error
+            ? error.message
+            : "Failed to generate shoots report.";
+
+      setShootsErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setIsGeneratingShoots(false);
+    }
+  };
+
   return (
     <>
       <Topbar
@@ -119,88 +184,167 @@ export default function QuotesAnalysisReportPage() {
             className={`max-w-3xl text-xs transition-colors duration-100 lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"
               }`}
           >
-            Generate and download the full quotes analysis report (Services, Add-ons, Custom Line Items, Discounts,
-            and Master Data) as an Excel file.
+            Generate and download analysis reports as Excel files.
           </p>
         </div>
 
-        <section
-          className={`max-w-2xl rounded-lg border p-5 transition-all duration-300 hover:shadow-[0_10px_30px_0_rgba(0,0,0,0.18)] hover:border-[#E5D5B8]/60 lg:p-6 ${panelClasses} ${isGenerating ? "border-[#E5D5B8]/70" : ""
-            }`}
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isDark
-                    ? "bg-gradient-to-br from-[#E5D5B8]/25 to-[#E5D5B8]/5 text-[#E5D5B8]"
-                    : "bg-gradient-to-br from-[#F4F0E8] to-[#EDE6D8] text-[#171717]"
-                  }`}
-              >
-                <FileSpreadsheet size={22} />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold">Excel report</h2>
-                <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-[#00000099]"}`}>
-                  The file will download automatically when it is ready.
-                </p>
+        <div className="flex flex-col gap-6">
+          <section
+            className={`max-w-2xl rounded-lg border p-5 transition-all duration-300 hover:shadow-[0_10px_30px_0_rgba(0,0,0,0.18)] hover:border-[#E5D5B8]/60 lg:p-6 ${panelClasses} ${isGenerating ? "border-[#E5D5B8]/70" : ""
+              }`}
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isDark
+                      ? "bg-gradient-to-br from-[#E5D5B8]/25 to-[#E5D5B8]/5 text-[#E5D5B8]"
+                      : "bg-gradient-to-br from-[#F4F0E8] to-[#EDE6D8] text-[#171717]"
+                    }`}
+                >
+                  <FileSpreadsheet size={22} />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold">Excel report</h2>
+                  <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-[#00000099]"}`}>
+                    The file will download automatically when it is ready.
+                  </p>
 
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {REPORT_SECTIONS.map(({ label, icon: Icon }) => (
-                    <span
-                      key={label}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ${isDark
-                          ? "border-white/10 bg-white/5 text-white/70"
-                          : "border-[#00000014] bg-[#00000005] text-[#00000099]"
-                        }`}
-                    >
-                      <Icon size={12} />
-                      {label}
-                    </span>
-                  ))}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {REPORT_SECTIONS.map(({ label, icon: Icon }) => (
+                      <span
+                        key={label}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ${isDark
+                            ? "border-white/10 bg-white/5 text-white/70"
+                            : "border-[#00000014] bg-[#00000005] text-[#00000099]"
+                          }`}
+                      >
+                        <Icon size={12} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              <Button
+                type="button"
+                onClick={handleGenerateReport}
+                disabled={isGenerating}
+                className="h-11 w-full shrink-0 bg-[#E5D5B8] px-5 font-semibold text-black transition-all duration-200 hover:bg-[#d4c3a3] disabled:opacity-80 sm:w-auto"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    Generate Report
+                  </>
+                )}
+              </Button>
             </div>
 
-            <Button
-              type="button"
-              onClick={handleGenerateReport}
-              disabled={isGenerating}
-              className="h-11 w-full shrink-0 bg-[#E5D5B8] px-5 font-semibold text-black transition-all duration-200 hover:bg-[#d4c3a3] disabled:opacity-80 sm:w-auto"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="animate-spin" size={18} />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download size={18} />
-                  Generate Report
-                </>
-              )}
-            </Button>
-          </div>
+            {isGenerating && (
+              <div className={`mt-5 h-1 w-full overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-black/10"}`}>
+                <div className="h-full w-1/3 animate-[loading-bar_1.1s_ease-in-out_infinite] rounded-full bg-[#E5D5B8]" />
+              </div>
+            )}
 
-          {isGenerating && (
-            <div className={`mt-5 h-1 w-full overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-black/10"}`}>
-              <div className="h-full w-1/3 animate-[loading-bar_1.1s_ease-in-out_infinite] rounded-full bg-[#E5D5B8]" />
+            {errorMessage && (
+              <div
+                className={`mt-5 rounded-md border px-4 py-3 text-sm ${isDark ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                role="alert"
+              >
+                {errorMessage}
+              </div>
+            )}
+
+            <p className={`mt-5 text-xs ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+              Reports reflect live data at the time of generation.
+            </p>
+          </section>
+
+          <section
+            className={`max-w-2xl rounded-lg border p-5 transition-all duration-300 hover:shadow-[0_10px_30px_0_rgba(0,0,0,0.18)] hover:border-[#E5D5B8]/60 lg:p-6 ${panelClasses} ${isGeneratingShoots ? "border-[#E5D5B8]/70" : ""
+              }`}
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isDark
+                      ? "bg-gradient-to-br from-[#E5D5B8]/25 to-[#E5D5B8]/5 text-[#E5D5B8]"
+                      : "bg-gradient-to-br from-[#F4F0E8] to-[#EDE6D8] text-[#171717]"
+                    }`}
+                >
+                  <FileSpreadsheet size={22} />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold">Excel report</h2>
+                  <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-[#00000099]"}`}>
+                    The file will download automatically when it is ready.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {SHOOTS_REPORT_SECTIONS.map(({ label, icon: Icon }) => (
+                      <span
+                        key={label}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ${isDark
+                            ? "border-white/10 bg-white/5 text-white/70"
+                            : "border-[#00000014] bg-[#00000005] text-[#00000099]"
+                          }`}
+                      >
+                        <Icon size={12} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleGenerateShootsReport}
+                disabled={isGeneratingShoots}
+                className="h-11 w-full shrink-0 bg-[#E5D5B8] px-5 font-semibold text-black transition-all duration-200 hover:bg-[#d4c3a3] disabled:opacity-80 sm:w-auto"
+              >
+                {isGeneratingShoots ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    Generate Report
+                  </>
+                )}
+              </Button>
             </div>
-          )}
 
-          {errorMessage && (
-            <div
-              className={`mt-5 rounded-md border px-4 py-3 text-sm ${isDark ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
-                }`}
-              role="alert"
-            >
-              {errorMessage}
-            </div>
-          )}
+            {isGeneratingShoots && (
+              <div className={`mt-5 h-1 w-full overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-black/10"}`}>
+                <div className="h-full w-1/3 animate-[loading-bar_1.1s_ease-in-out_infinite] rounded-full bg-[#E5D5B8]" />
+              </div>
+            )}
 
-          <p className={`mt-5 text-xs ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
-            Reports reflect live data at the time of generation.
-          </p>
-        </section>
+            {shootsErrorMessage && (
+              <div
+                className={`mt-5 rounded-md border px-4 py-3 text-sm ${isDark ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                role="alert"
+              >
+                {shootsErrorMessage}
+              </div>
+            )}
+
+            <p className={`mt-5 text-xs ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
+              Reports reflect live data at the time of generation.
+            </p>
+          </section>
+        </div>
       </div>
 
       <style jsx global>{`
