@@ -168,57 +168,52 @@ export default function SelectCreativesPage() {
   };
 
   return (
-    <>
-      <Topbar pathname={pathname}
-        actions={
-          <>
-            <div className="flex gap-3">
-              <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
-                ? "bg-[#1A1A1A] border-white/10 text-white/70"
-                : "bg-gray-50 border-[#D8D8D8] text-black/70"
-                }`}>
-                <Video size={16} />
-                <span>Videographer(s) : {selectionCounts.videographer.toString()}/{reqCounts.videographer.toString()}</span>
+    /* Full viewport screen container preventing global page bouncing */
+    <div className="h-screen w-full flex flex-col overflow-hidden select-none">
+
+      {/* --- FIXED SECTION CONTAINER (TOP STICKY TRACK) --- */}
+      <div className="flex-shrink-0 z-50">
+        <Topbar pathname={pathname}
+          actions={
+            <>
+              <div className="flex gap-3">
+                <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
+                  ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                  : "bg-gray-50 border-[#D8D8D8] text-black/70"
+                  }`}>
+                  <Video size={16} />
+                  <span>Videographer(s) : {selectionCounts.videographer.toString()}/{reqCounts.videographer.toString()}</span>
+                </div>
+                <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
+                  ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                  : "bg-gray-50 border-[#D8D8D8] text-black/70"
+                  }`}>
+                  <Camera size={16} />
+                  <span>Photographers(s) : {selectionCounts.photographer.toString()}/{reqCounts.photographer.toString()}</span>
+                </div>
               </div>
-              <div className={`h-12 flex items-center gap-2 border px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${isDark
-                ? "bg-[#1A1A1A] border-white/10 text-white/70"
-                : "bg-gray-50 border-[#D8D8D8] text-black/70"
-                }`}>
-                <Camera size={16} />
-                <span>Photographers(s) : {selectionCounts.photographer.toString()}/{reqCounts.photographer.toString()}</span>
-              </div>
-            </div>
 
-            <Button
-              onClick={handleAssign}
-              disabled={isLoading || selectedCreativeIds.length === 0}
-              className={`h-12 px-4 lg:px-7 font-semibold transition-all ${isDark
-                ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
-                : "bg-[#E5D5B8] text-black hover:bg-[#D9C19A] shadow-sm"
-                } disabled:opacity-50`}
-            >
-              {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-            </Button>
-          </>
-        }
-      />
+              <Button
+                onClick={handleAssign}
+                disabled={isLoading || selectedCreativeIds.length === 0}
+                className={`h-12 px-4 lg:px-7 font-semibold transition-all ${isDark
+                  ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+                  : "bg-[#E5D5B8] text-black hover:bg-[#D9C19A] shadow-sm"
+                  } disabled:opacity-50`}
+              >
+                {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
+              </Button>
+            </>
+          }
+        />
+      </div>
 
-      <AssignmentConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={executeAssignment}
-        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
-        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
-        isDark={isDark}
-      />
-
-      <div className={`overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "text-white" : "text-black"
-        }`}>
+      {/* --- INDEPENDENT SCROLL ZONE CONTAINER --- */}
+      <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar p-4 pb-40 lg:px-10 lg:py-9 font-sans transition-colors duration-300 ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         {/* Back Button */}
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent ${isDark ? "text-white/70 hover:text-white" : "text-black hover:text-black/80"
-            }`}
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white/70 hover:text-white" : "text-black hover:text-black/80"}`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -235,7 +230,48 @@ export default function SelectCreativesPage() {
           statsSource="lead"
           isDark={isDark}
         />
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-black" : "bg-[#F4F5F7]"}`}>
+          <div className="flex gap-3">
+            <div className={`h-8 flex items-center gap-2 border px-3 py-2 rounded-lg text-xs transition-colors duration-300 ${isDark
+              ? "bg-[#1A1A1A] border-white/10 text-white/70"
+              : "bg-gray-50 border-[#D8D8D8] text-black/70"
+              }`}>
+              <Video size={16} />
+              <span>Videographer(s) : {selectionCounts.videographer.toString()}/{reqCounts.videographer.toString()}</span>
+            </div>
+            <div className={`h-8 flex items-center gap-2 border px-3 py-2 rounded-lg text-xs transition-colors duration-300 ${isDark
+              ? "bg-[#1A1A1A] border-white/10 text-white/70"
+              : "bg-gray-50 border-[#D8D8D8] text-black/70"
+              }`}>
+              <Camera size={16} />
+              <span>Photographers(s) : {selectionCounts.photographer.toString()}/{reqCounts.photographer.toString()}</span>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleAssign}
+            disabled={isLoading || selectedCreativeIds.length === 0}
+            className={`h-12 px-4 lg:px-7 font-semibold transition-all ${isDark
+              ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+              : "bg-[#E5D5B8] text-black hover:bg-[#D9C19A] shadow-sm"
+              } disabled:opacity-50`}
+          >
+            {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
+          </Button>
+        </div>
+
+        {/* Layout decoupled portals & modals */}
+        <AssignmentConfirmationModal
+          isOpen={isConfirmModalOpen}
+          onClose={() => setIsConfirmModalOpen(false)}
+          onConfirm={executeAssignment}
+          videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
+          photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+          isDark={isDark}
+        />
       </div>
-    </>
+    </div>
   );
 }
