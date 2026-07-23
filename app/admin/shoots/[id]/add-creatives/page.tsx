@@ -333,102 +333,101 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <>
-      <Topbar pathname={pathname}
-        actions={
-          <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
+    /* Complete screen viewport container forcing headers to stay pinned while content scrolls */
+    <div className="h-screen w-full flex flex-col overflow-hidden select-none">
+
+      {/* --- FIXED SECTION CONTAINER (TOP STICKY TRACK) --- */}
+      <div className="flex-shrink-0 z-50">
+        <Topbar
+          pathname={pathname}
+          actions={
             <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
-              {[ 
-                { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
-                { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
-              ].map((btn) => (
-                <div
-                  key={btn.type}
-                  onClick={() => setRoleType(btn.type)}
-                  className={`h-12 flex items-center justify-center lg:justify-start gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-all duration-300 ${roleType === btn.type
-                    ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                    : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-[#F0F0F0] border-[#E3E3E3] text-black')
-                    }`}
+              <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
+                {[
+                  { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
+                  { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+                ].map((btn) => (
+                  <div
+                    key={btn.type}
+                    onClick={() => setRoleType(btn.type)}
+                    className={`h-12 flex items-center justify-center lg:justify-start gap-2 border px-4 py-2 rounded-lg text-sm cursor-pointer transition-all duration-300 ${roleType === btn.type
+                      ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                      : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-[#F0F0F0] border-[#E3E3E3] text-black')
+                      }`}
+                  >
+                    <btn.icon size={16} />
+                    <span>{btn.label} : {btn.count}/{btn.target}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={handleAssign}
+                disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
+                className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
+              >
+                {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Conditional Message Banner Block */}
+        {(cpCompensationLocked || cpCompensationHasPending) && (
+          <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
+            <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
+              {cpCompensationLocked
+                ? "CP compensation is approved for this shoot. Adding more CPs is locked."
+                : "This shoot has pending CP compensation. Add CPs through compensation so payout records stay updated."}
+            </p>
+          </div>
+        )}
+
+        {/* Pinned Creative Counter Action Tray Bar */}
+        {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
+          <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
+            <div className="w-full flex flex-col lg:flex-row justify-between items-start lg:items-center mb-3">
+              {/* Left Side: Count */}
+              <div className="flex flex-row items-start lg:items-center">
+                <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB]">
+                  {selectedCreativeIds.length} Creative{selectedCreativeIds.length !== 1 ? 's' : ''} Selected
+                </span>
+              </div>
+
+              {/* Right Side: Actions */}
+              <div className="flex flex-row justify-between items-center gap-2">
+                {/* Clear Selection Button */}
+                <button
+                  onClick={() => setSelectedCreativeIds([])}
+                  className="w-[132px] p-0 lg:pt-[5px] lg:pb-[7px] lg:px-4 flex items-center justify-start lg:justify-center rounded-lg bg-transparent hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  <btn.icon size={16} />
-                  <span>{btn.label} : {btn.count}/{btn.target}</span>
-                </div>
-              ))}
-            </div>
+                  <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-white underline text-center">
+                    Clear Selection
+                  </span>
+                </button>
 
-            <Button
-              onClick={handleAssign}
-              disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
-              className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
-            >
-              {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-            </Button>
-          </div>
-        }
-      />
-
-      <AssignmentConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={confirmAction === "compensation" ? openCompensationDrawer : executeAssignment}
-        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
-        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
-      />
-
-      {(cpCompensationLocked || cpCompensationHasPending) && (
-        <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
-          <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
-            {cpCompensationLocked
-              ? "CP compensation is approved for this shoot. Adding more CPs is locked."
-              : "This shoot has pending CP compensation. Add CPs through compensation so payout records stay updated."}
-          </p>
-        </div>
-      )}
-
-      {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
-        <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
-          <div className="w-full flex flex-row justify-between items-center mb-3">
-            {/* Left Side: Count */}
-            <div className="flex flex-row items-center">
-              <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB]">
-                {selectedCreativeIds.length} Creative{selectedCreativeIds.length !== 1 ? 's' : ''} Selected
-              </span>
-            </div>
-
-            {/* Right Side: Actions */}
-            <div className="flex flex-row items-center gap-2">
-              {/* Clear Selection Button */}
-              <button
-                onClick={() => setSelectedCreativeIds([])}
-                className="w-[132px] pt-[5px] pb-[7px] px-4 flex items-center justify-center rounded-lg bg-transparent hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-white underline text-center">
-                  Clear Selection
-                </span>
-              </button>
-
-              {/* Continue to Compensation Button */}
-              <button
-                onClick={() => { handleContinueToCompensation(); }}
-                disabled={cpCompensationLocked}
-                className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
-              >
-                <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
-                <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB] underline text-center">
-                  Continue to Compensation
-                </span>
-              </button>
+                {/* Continue to Compensation Button */}
+                <button
+                  onClick={() => { handleContinueToCompensation(); }}
+                  disabled={cpCompensationLocked}
+                  className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
+                >
+                  <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
+                  <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB] underline text-center">
+                    Continue to Compensation
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-
-      <div className={`min-h-screen overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
+      {/* --- INDEPENDENT SCROLL ZONE CONTAINER --- */}
+      <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar p-4 pb-35 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"
-            }`}
+          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"}`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
@@ -455,7 +454,46 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             onSubmit={handleCompensationSubmit}
           />
         )}
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-black" : "bg-[#F4F5F7]"}`}>
+          <div className="flex gap-2 w-full">
+            {[
+              { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
+              { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+            ].map((btn) => (
+              <div
+                key={btn.type}
+                onClick={() => setRoleType(btn.type)}
+                className={`flex-1 h-8 flex items-center justify-center gap-2 border px-3 py-2 rounded-md text-xs cursor-pointer transition-all duration-300 ${roleType === btn.type
+                  ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                  : (isDark ? 'bg-[#1A1A1A] border-white/10 text-white/70' : 'bg-[#F0F0F0] border-[#E3E3E3] text-black')
+                  }`}
+              >
+                <btn.icon size={16} />
+                <span>{btn.label} : {btn.count}/{btn.target}</span>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleAssign}
+            disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
+            className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
+          >
+            {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
+          </Button>
+        </div>
       </div>
-    </>
+
+      {/* Modals outside the flow rules container layout */}
+      <AssignmentConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmAction === "compensation" ? openCompensationDrawer : executeAssignment}
+        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
+        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
+      />
+    </div>
   );
 }
