@@ -121,30 +121,36 @@ const getCompensationBreakdown = (
   const editingRaw = roundMoney(parseAmount(form.editing || "0"));
   const travelRaw = roundMoney(parseAmount(form.travel || "0"));
   const bonusRaw = roundMoney(parseAmount(form.bonus || "0"));
+  const baseRaw = roundMoney(parseAmount(form.baseTarget || form.base || "0"));
 
   let remainingBudget = roundMoney(budgetLimit);
-  let base = 0;
-  let editing = 0;
-  let travel = 0;
-  let bonus = 0;
 
   if (compensationMethod === "manual") {
-    editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
+    const base = roundMoney(Math.min(Math.max(baseRaw, 0), remainingBudget));
+    remainingBudget = roundMoney(Math.max(remainingBudget - base, 0));
+    const editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
     remainingBudget = roundMoney(Math.max(remainingBudget - editing, 0));
-    travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
+    const travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
     remainingBudget = roundMoney(Math.max(remainingBudget - travel, 0));
-    bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
-    remainingBudget = roundMoney(Math.max(remainingBudget - bonus, 0));
-    base = roundMoney(remainingBudget);
-  } else {
-    editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
-    remainingBudget = roundMoney(Math.max(remainingBudget - editing, 0));
-    travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
-    remainingBudget = roundMoney(Math.max(remainingBudget - travel, 0));
-    bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
-    remainingBudget = roundMoney(Math.max(remainingBudget - bonus, 0));
-    base = roundMoney(remainingBudget);
+    const bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
+
+    return {
+      base,
+      editing,
+      travel,
+      bonus,
+      total: base + editing + travel + bonus,
+      budgetLimit,
+    };
   }
+
+  const editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
+  remainingBudget = roundMoney(Math.max(remainingBudget - editing, 0));
+  const travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
+  remainingBudget = roundMoney(Math.max(remainingBudget - travel, 0));
+  const bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
+  remainingBudget = roundMoney(Math.max(remainingBudget - bonus, 0));
+  const base = roundMoney(remainingBudget);
 
   return {
     base,
@@ -387,26 +393,32 @@ export default function AddCompensationModal({
             rateType: nextRateType,
           };
           const nextHours = draft.hours || "1";
+          const hourCount = Math.max(parseAmount(nextHours), 1);
           const shouldAutoCalculateHourlyRate =
             nextRateType === "hourly" &&
             (compensationMethod !== "manual" || field === "hours" || field === "baseTarget" || field === "rateType");
           const budgetLimit = compensationMethod === "manual"
             ? Number(currentShoot?.shoot_amount || 0)
             : getCreatorTargetAmount(draft, nextRateType);
-          const baseCandidate = compensationMethod === "manual"
-            ? parseAmount(field === "baseTarget" ? nextValue : existing.baseTarget || existing.base || "0")
-            : budgetLimit;
+          const maxHourlyRate = budgetLimit / hourCount || 0;
           const editingCandidate = parseAmount(draft.editing || "0");
           const travelCandidate = parseAmount(draft.travel || "0");
           const bonusCandidate = parseAmount(draft.bonus || "0");
 
           let remainingBudget = roundMoney(Math.max(budgetLimit, 0));
           let nextBaseAmount = 0;
+          let nextBaseTarget = compensationMethod === "manual" && !isManualHourly
+            ? String(nextBaseAmount)
+            : isManualHourly
+            ? (existing.baseTarget || "0")
+            : nextRateType === "hourly"
+            ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
+            : (existing.baseTarget || "0");
           let nextEditingAmount = editingCandidate;
           let nextTravelAmount = travelCandidate;
           let nextBonusAmount = bonusCandidate;
 
-          if (compensationMethod === "manual") {
+          if (compensationMethod !== "manual") {
             nextEditingAmount = roundMoney(Math.min(Math.max(editingCandidate, 0), remainingBudget));
             remainingBudget = roundMoney(Math.max(remainingBudget - nextEditingAmount, 0));
             nextTravelAmount = roundMoney(Math.min(Math.max(travelCandidate, 0), remainingBudget));
@@ -415,30 +427,73 @@ export default function AddCompensationModal({
             remainingBudget = roundMoney(Math.max(remainingBudget - nextBonusAmount, 0));
             nextBaseAmount = roundMoney(remainingBudget);
           } else {
-            nextEditingAmount = roundMoney(Math.min(Math.max(editingCandidate, 0), remainingBudget));
+            nextBaseAmount = roundMoney(
+              Math.min(
+                Math.max(field === "base" ? parseAmount(nextValue) : parseAmount(existing.base || existing.baseTarget || "0"), 0),
+                budgetLimit
+              )
+            );
+            remainingBudget = roundMoney(Math.max(budgetLimit - nextBaseAmount, 0));
+            nextEditingAmount = roundMoney(
+              Math.min(
+                Math.max(field === "editing" ? parseAmount(nextValue) : editingCandidate, 0),
+                remainingBudget
+              )
+            );
             remainingBudget = roundMoney(Math.max(remainingBudget - nextEditingAmount, 0));
-            nextTravelAmount = roundMoney(Math.min(Math.max(travelCandidate, 0), remainingBudget));
+            nextTravelAmount = roundMoney(
+              Math.min(
+                Math.max(field === "travel" ? parseAmount(nextValue) : travelCandidate, 0),
+                remainingBudget
+              )
+            );
             remainingBudget = roundMoney(Math.max(remainingBudget - nextTravelAmount, 0));
-            nextBonusAmount = roundMoney(Math.min(Math.max(bonusCandidate, 0), remainingBudget));
-            remainingBudget = roundMoney(Math.max(remainingBudget - nextBonusAmount, 0));
-            nextBaseAmount = roundMoney(remainingBudget);
+            nextBonusAmount = roundMoney(
+              Math.min(
+                Math.max(field === "bonus" ? parseAmount(nextValue) : bonusCandidate, 0),
+                remainingBudget
+              )
+            );
           }
 
-          const nextBase = compensationMethod === "manual" && field === "baseTarget"
+          if (isManualHourly) {
+            const nextHourlyRateValue = field === "hourlyRate"
+              ? parseAmount(nextValue)
+              : parseAmount(existing.hourlyRate || "0");
+            const cappedHourlyCommittedTotal = roundMoney(
+              Math.min(Math.max(nextHourlyRateValue * hourCount, 0), budgetLimit)
+            );
+            nextBaseAmount = cappedHourlyCommittedTotal;
+            nextBaseTarget = String(cappedHourlyCommittedTotal);
+            remainingBudget = roundMoney(Math.max(budgetLimit - cappedHourlyCommittedTotal, 0));
+            nextEditingAmount = roundMoney(
+              Math.min(Math.max(field === "editing" ? parseAmount(nextValue) : editingCandidate, 0), remainingBudget)
+            );
+            remainingBudget = roundMoney(Math.max(remainingBudget - nextEditingAmount, 0));
+            nextTravelAmount = roundMoney(
+              Math.min(Math.max(field === "travel" ? parseAmount(nextValue) : travelCandidate, 0), remainingBudget)
+            );
+            remainingBudget = roundMoney(Math.max(remainingBudget - nextTravelAmount, 0));
+            nextBonusAmount = roundMoney(
+              Math.min(Math.max(field === "bonus" ? parseAmount(nextValue) : bonusCandidate, 0), remainingBudget)
+            );
+          }
+
+          const nextBase = compensationMethod === "manual" && field === "base"
             ? getAmountDisplayValue(nextValue, nextBaseAmount)
             : String(nextBaseAmount);
-          const nextBaseTarget = isManualHourly
-            ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
-            : compensationMethod === "manual"
-            ? (field === "baseTarget" ? nextBase : (existing.baseTarget || "0"))
-            : nextRateType === "hourly"
-            ? String(existing.baseTarget || getCreatorFormDefaults().baseTarget)
-            : (existing.baseTarget || "0");
+          if (compensationMethod === "manual" && !isManualHourly) {
+            nextBaseTarget = String(nextBaseAmount);
+          } else if (isManualHourly && field === "baseTarget") {
+            nextBaseTarget = nextBase;
+          } else if (!isManualHourly && nextRateType === "hourly") {
+            nextBaseTarget = String(existing.baseTarget || getCreatorFormDefaults().baseTarget);
+          }
 
           return {
             ...draft,
             hourlyCommittedTotal: isManualHourly
-              ? (existing.hourlyCommittedTotal || "")
+              ? String(nextBaseAmount)
               : nextRateType === "hourly"
                 ? (existing.baseTarget || getCreatorFormDefaults().baseTarget)
                 : (existing.hourlyCommittedTotal || ""),
@@ -452,7 +507,7 @@ export default function AddCompensationModal({
             hourlyRate:
               isManualHourly
                 ? (field === "hourlyRate"
-                    ? nextValue
+                    ? (parseAmount(nextValue) > maxHourlyRate ? String(roundMoney(maxHourlyRate)) : nextValue)
                     : shouldAutoCalculateHourlyRate
                       ? getHourlyRateForAmount(nextBase, nextHours)
                       : (existing.hourlyRate || ""))
@@ -820,10 +875,13 @@ export default function AddCompensationModal({
                                   onBlur={() => {
                                     if (compensationMethod === "manual" && form.hourlyRate !== "") {
                                       const parsedHourlyRate = Number(form.hourlyRate);
+                                      const maxHourlyRateValue = shootAmount / Math.max(parseAmount(form.hours || "1"), 1) || 0;
                                       updateCreatorForm(
                                         creatorId,
                                         "hourlyRate",
-                                        Number.isFinite(parsedHourlyRate) ? roundMoney(parsedHourlyRate).toFixed(2) : ""
+                                        Number.isFinite(parsedHourlyRate)
+                                          ? roundMoney(Math.min(parsedHourlyRate, maxHourlyRateValue)).toFixed(2)
+                                          : ""
                                       );
                                     }
                                   }}
@@ -872,16 +930,20 @@ export default function AddCompensationModal({
                                 value={form.base}
                                 onChange={(event) => {
                                   if (compensationMethod === "manual") {
-                                    updateCreatorForm(creatorId, "baseTarget", normalizeMoneyInput(event.target.value));
+                                    const normalizedValue = normalizeMoneyInput(event.target.value);
+                                    const cappedValue = Math.min(parseAmount(normalizedValue), shootAmount);
+                                    updateCreatorForm(creatorId, "base", String(cappedValue));
                                   }
                                 }}
-                                readOnly
-                                aria-readonly
+                                readOnly={compensationMethod !== "manual"}
+                                aria-readonly={compensationMethod !== "manual"}
                                 inputMode="decimal"
-                                className={`h-11 lg:h-16 w-full cursor-not-allowed border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white/90" : "text-black/90"}`}
+                                className={`h-11 lg:h-16 w-full ${compensationMethod !== "manual" ? "cursor-not-allowed" : "cursor-text"} border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white/90" : "text-black/90"}`}
                               />
                               <p className={`mt-1 text-[11px] lg:text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                Auto-adjusted from editing, travel, and bonus payouts.
+                                {compensationMethod === "manual"
+                                  ? "Enter any amount. This will not be auto-adjusted."
+                                  : "Auto-adjusted from editing, travel, and bonus payouts."}
                               </p>
                             </div>
                           )}

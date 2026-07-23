@@ -386,8 +386,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       )}
 
       {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
-        <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
-          <div className="w-full flex flex-row justify-between items-center mb-3">
+        <div className="sticky top-0 z-50 w-full flex flex-col items-start pt-3 px-6 bg-[#171511] border-b-[0.5px] border-[#E8D1AB]">
+            <div className="w-full flex flex-row justify-between items-center mb-3">
             {/* Left Side: Count */}
             <div className="flex flex-row items-center">
               <span className="font-['Instrument_Sans'] font-medium text-sm leading-5 text-[#E8D1AB]">
