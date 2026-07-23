@@ -3689,7 +3689,7 @@ export const salesApi = {
   },
   convertQuoteToBooking: async (
     quoteId: number | string,
-    payload: SalesQuoteConvertToBookingPayload
+    payload: SalesQuoteConvertToBookingPayload = {} as SalesQuoteConvertToBookingPayload
   ) => {
     try {
       const response = await api.post<SalesQuoteConvertToBookingResponse>(

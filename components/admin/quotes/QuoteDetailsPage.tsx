@@ -1660,6 +1660,10 @@ export default function QuoteDetailsPage({
       hasInvoiceablePaymentContext
     );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
+  const canConvertToBookingFromDetails =
+    !isConvertedToBooking &&
+    !isSelectedVersionRejected &&
+    !["expired", "rejected", "cancelled"].includes(normalizedQuoteStatus);
   const shouldUseReceiptActions = hasFullPayment;
   const conversionMessage = isConvertedToBooking
     ? hasFullPayment
@@ -1846,13 +1850,56 @@ export default function QuoteDetailsPage({
       return;
     }
 
-    setConvertModalInitialDataOverride(
-      buildConvertModalInitialData(
-        (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null
-      )
-    );
-    setConvertIntent("convert_only");
-    setIsConvertModalOpen(true);
+    setIsConverting(true);
+    try {
+      const response = await salesApi.convertQuoteToBooking(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking"
+        );
+      }
+
+      const bookingId = response?.data?.booking_id;
+      const alreadyConverted = Boolean(response?.data?.already_converted);
+      const nextBookingId =
+        bookingId !== undefined && bookingId !== null && String(bookingId).trim()
+          ? String(bookingId)
+          : null;
+
+      if (nextBookingId) {
+        setConvertedBookingIdOverride(nextBookingId);
+      }
+      setIsConvertedOverride(true);
+      setQuote((current) =>
+        current
+          ? {
+              ...current,
+              ...(nextBookingId ? { booking_id: nextBookingId } : {}),
+              converted_booking_details: current.converted_booking_details || null,
+            }
+          : current
+      );
+
+      if (nextBookingId) {
+        await syncConvertedQuoteState(nextBookingId);
+      } else {
+        await refreshQuotePrimaryContext();
+      }
+
+      toast.success(
+        alreadyConverted
+          ? "Quote is already converted to booking."
+          : "Quote converted to booking successfully."
+      );
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(error instanceof Error ? error.message : "Failed to convert quote to booking");
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   const handleViewInvoice = async () => {
@@ -2234,6 +2281,19 @@ export default function QuoteDetailsPage({
 
           {!isQuoteDetailsLoading && quote && (
             <div className="flex lg:flex-wrap items-center gap-3">
+              {canConvertToBookingFromDetails && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleConvertQuoteToBooking();
+                  }}
+                  disabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                  className="h-11 rounded-xl bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 w-full lg:w-auto"
+                >
+                  {isConverting ? <Loader2 size={18} className="animate-spin" /> : <ArrowUpToLine size={18} />}
+                  {isConverting ? "Converting..." : "Convert to Booking"}
+                </Button>
+              )}
               {canViewInvoiceFromDetails && (
                 <Button
                   type="button"
