@@ -709,32 +709,26 @@ const ServiceLineCard = ({
 
 const QuoteTopActions = ({
   onReject,
-  onConvert,
   onPaymentTransaction,
   onPreview,
   previewDisabled,
   rejectDisabled,
-  convertDisabled,
   paymentDisabled,
   isRejecting,
   isRejected,
-  isConverting,
   versions,
   selectedVersionId,
   onVersionChange,
   showReject = true,
 }: {
   onReject: () => void;
-  onConvert: () => void;
   onPaymentTransaction: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
-  convertDisabled: boolean;
   paymentDisabled: boolean;
   isRejecting: boolean;
   isRejected: boolean;
-  isConverting: boolean;
   versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
@@ -1846,13 +1840,42 @@ export default function QuoteDetailsPage({
       return;
     }
 
-    setConvertModalInitialDataOverride(
-      buildConvertModalInitialData(
-        (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null
-      )
-    );
-    setConvertIntent("convert_only");
-    setIsConvertModalOpen(true);
+    if (isConvertedToBooking) {
+      toast.success(`Already converted to booking${convertedBookingId ? ` #${convertedBookingId}` : ""}`);
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to convert quote to booking"
+        );
+      }
+
+      const invoiceBookingId =
+        response.data?.booking_id !== undefined &&
+        response.data?.booking_id !== null &&
+        String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+
+      if (!invoiceBookingId) {
+        throw new Error("Failed to convert quote to booking");
+      }
+
+      await syncConvertedQuoteState(invoiceBookingId);
+      toast.success(`Converted to booking #${invoiceBookingId}`);
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking"
+      );
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   const handleViewInvoice = async () => {
@@ -2190,9 +2213,6 @@ export default function QuoteDetailsPage({
       onReject={() => {
         void handleRejectQuote();
       }}
-      onConvert={() => {
-        void handleConvertQuoteToBooking();
-      }}
       onPaymentTransaction={() => {
         void handlePaymentTransactionAction();
       }}
@@ -2200,10 +2220,8 @@ export default function QuoteDetailsPage({
       previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       rejectDisabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       showReject={canDelete}
-      convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
-      isConverting={isConverting}
       isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       versions={versions}
       selectedVersionId={selectedVersionId}
@@ -2234,6 +2252,20 @@ export default function QuoteDetailsPage({
 
           {!isQuoteDetailsLoading && quote && (
             <div className="flex lg:flex-wrap items-center gap-3">
+              {!isConvertedToBooking && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleConvertQuoteToBooking();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                  variant="outline"
+                  className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
+                >
+                  {isConverting ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                  {isConverting ? "Opening..." : "Convert to Booking"}
+                </Button>
+              )}
               {canViewInvoiceFromDetails && (
                 <Button
                   type="button"
