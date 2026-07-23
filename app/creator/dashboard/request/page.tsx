@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Grid3X3,
   List,
-  MoreVertical,
   ChevronRight,
   Pencil,
   Trash2,
@@ -30,7 +29,6 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -51,6 +49,35 @@ import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
+type ProjectItem = {
+  id?: number | string;
+  project_id?: number | string;
+  project_name?: string;
+  title?: string;
+  event_date?: string;
+  shoot_date?: string;
+  start_time?: string;
+  end_time?: string;
+  event_location?: string;
+  location?: string;
+  guest_email?: string;
+  budget?: number | string;
+  is_completed?: boolean | number | string;
+  status?: "Pending" | "Confirmed" | "Completed" | "Rejected" | "Declined";
+  project?: {
+    is_completed?: boolean | number | string;
+    event_date?: string;
+    shoot_date?: string;
+  };
+};
+
+type DashboardStats = {
+  pendingRequests: number;
+  confirmedRequests: number;
+  completedShoots: number;
+  declinedRequests: number;
+};
+
 export default function RequestsShootsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -64,8 +91,8 @@ export default function RequestsShootsPage() {
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
   const [projectDetailsData, setProjectDetailsData] = useState(null);
-  const [acceptShootEvent, setAcceptShootEvent] = useState<any>(null);
-  const [declineShootEvent, setDeclineShootEvent] = useState<any>(null);
+  const [acceptShootEvent, setAcceptShootEvent] = useState<ProjectItem | null>(null);
+  const [declineShootEvent, setDeclineShootEvent] = useState<ProjectItem | null>(null);
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -75,16 +102,11 @@ export default function RequestsShootsPage() {
 
   // Business Logic States
   const [crewMemberId, setCrewMemberId] = useState<string | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [shoots, setShoots] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [shoots, setShoots] = useState<ProjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [computedStats, setComputedStats] = useState<{
-    pendingRequests: number;
-    confirmedRequests: number;
-    completedShoots: number;
-    declinedRequests: number;
-  } | null>(null);
+  const [computedStats, setComputedStats] = useState<DashboardStats | null>(null);
 
   const { isDark } = useResolvedTheme()
 
@@ -136,6 +158,8 @@ export default function RequestsShootsPage() {
         crew_member_id: crew_member_id
       };
       const statsResponse = await getStatusCount(statsPayload);
+      const statsData =
+        statsResponse && statsResponse.error === false ? statsResponse.data : null;
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);
       }
@@ -146,15 +170,12 @@ export default function RequestsShootsPage() {
         GetUpcomingShoots(commonPayload),
       ]);
 
-      const pendingFiltered =
+      const pendingRequests: ProjectItem[] =
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
-          ? pendingRes.data.filter((p: any) => {
-            const dateStr = p.event_date || p.shoot_date;
-            return isUpcomingDate(dateStr);
-          })
+          ? pendingRes.data.filter((p: ProjectItem) => isUpcomingShoot(p))
           : [];
       setProjects(
-        pendingFiltered.map((p: any) => ({
+        pendingRequests.map((p) => ({
           ...p,
           status: "Pending",
           project_id: p.project_id || p.id,
@@ -163,32 +184,32 @@ export default function RequestsShootsPage() {
 
       const acceptedSource =
         upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
-          ? upcomingRes.data
+          ? upcomingRes.data as ProjectItem[]
           : [];
       const upcomingAccepted = acceptedSource;
 
       if (upcomingAccepted.length > 0) {
-        const acceptedProjects = upcomingAccepted.map((p: any) => ({
+        const acceptedProjects = upcomingAccepted.map((p) => ({
           ...p,
-          status: p.is_completed ? "Completed" : "Confirmed",
+          status: isCompletedFlag(p) ? "Completed" : "Confirmed",
           project_id: p.project_id || p.id,
         }));
         setShoots(acceptedProjects);
-        const completedCount = acceptedProjects.filter((p: any) => isCompletedFlag(p)).length;
-        const confirmedCount = acceptedProjects.filter((p: any) => !isCompletedFlag(p)).length;
+        const completedCount = acceptedProjects.filter((p) => isCompletedFlag(p)).length;
+        const confirmedCount = acceptedProjects.length;
         setComputedStats({
-          pendingRequests: pendingFiltered.length,
+          pendingRequests: pendingRequests.length,
           confirmedRequests: confirmedCount,
           completedShoots: completedCount,
-          declinedRequests: dashboardStats?.declinedRequests || 0,
+          declinedRequests: statsData?.declinedRequests || 0,
         });
       } else {
         setShoots([]);
         setComputedStats({
-          pendingRequests: pendingFiltered.length,
+          pendingRequests: pendingRequests.length,
           confirmedRequests: 0,
           completedShoots: 0,
-          declinedRequests: dashboardStats?.declinedRequests || 0,
+          declinedRequests: statsData?.declinedRequests || 0,
         });
       }
     } catch (error) {
@@ -205,7 +226,7 @@ export default function RequestsShootsPage() {
     try {
       const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
       if (parsed && parsed.address) addressStr = parsed.address;
-    } catch (e) { }
+    } catch { }
 
     const parts = addressStr.split(',').map(p => p.trim());
     if (parts.length >= 3) {
@@ -234,18 +255,39 @@ export default function RequestsShootsPage() {
   };
 
 
-  const isUpcomingDate = (dateStr?: string) => {
-    if (!dateStr) return true;
+  const isCompletedFlag = (item: ProjectItem) => {
+    const flag = item?.is_completed ?? item?.project?.is_completed;
+    if (flag === true || flag === 1 || flag === "1") return true;
+
+    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    if (!dateStr) return false;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const d = new Date(`${dateStr}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return true;
-    return d.getTime() >= today.getTime();
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const shootDate = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
+
+    if (Number.isNaN(shootDate.getTime())) return false;
+    shootDate.setHours(0, 0, 0, 0);
+    return shootDate.getTime() < today.getTime();
   };
 
-  const isCompletedFlag = (item: any) => {
-    const flag = item?.is_completed ?? item?.project?.is_completed;
-    return flag === true || flag === 1 || flag === "1";
+  const isUpcomingShoot = (item: ProjectItem) => {
+    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    if (!dateStr) return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const shootDate = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
+
+    if (Number.isNaN(shootDate.getTime())) return true;
+    shootDate.setHours(0, 0, 0, 0);
+    return shootDate.getTime() >= today.getTime();
   };
 
   /* ---------------- ACTIONS ---------------- */
@@ -302,7 +344,7 @@ export default function RequestsShootsPage() {
       } else {
         toast.error(res?.message || "Failed to load project details");
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to load project details");
     }
   };

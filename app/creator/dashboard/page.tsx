@@ -41,8 +41,9 @@ import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl/m
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 import {
-  RadialBarChart,
-  RadialBar,
+  PieChart,
+  Pie,
+  Cell,
   ResponsiveContainer,
 } from "recharts";
 import {
@@ -83,18 +84,49 @@ const formatDisplayLocation = (location?: string) => {
   return addressStr;
 };
 
+const getShootDateValue = (dateStr?: string) => {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+const getItemDate = (item: any) =>
+  item?.project?.event_date || item?.event_date || item?.project?.shoot_date || item?.shoot_date;
+
 const isUpcomingDate = (dateStr?: string) => {
-  if (!dateStr) return true;
+  const value = getShootDateValue(dateStr);
+  if (value === null) return true;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return true;
-  return d.getTime() >= today.getTime();
+  return value >= today.getTime();
+};
+
+const isFutureDate = (dateStr?: string) => {
+  const value = getShootDateValue(dateStr);
+  if (value === null) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return value > today.getTime();
+};
+
+const isTodayDate = (dateStr?: string) => {
+  const value = getShootDateValue(dateStr);
+  if (value === null) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return value === today.getTime();
 };
 
 const isCompletedFlag = (item: any) => {
   const flag = item?.is_completed ?? item?.project?.is_completed;
-  return flag === true || flag === 1;
+  if (flag === true || flag === 1 || flag === "1") return true;
+  const value = getShootDateValue(getItemDate(item));
+  if (value === null) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return value < today.getTime();
 };
 
 const CHART_COLORS = {
@@ -133,35 +165,67 @@ type DonutSlice = {
 function ShootStatusGaugeCard({
   title = "Shoot Status",
   slices,
+  totalValue,
   rightControl,
   isDark = true,
 }: {
   title?: string;
   slices: DonutSlice[];
+  totalValue?: number;
   rightControl?: React.ReactNode;
   isDark?: boolean;
 }) {
   const chartData = slices
-    .filter((item) => item.value > 0)
+    .filter((item) => Number(item.value) > 0)
     .map((item) => ({
       name: item.label,
-      value: item.value,
+      value: Number(item.value) || 0,
       fill: item.colorHex,
     }));
-  const total = slices.reduce((sum, item) => sum + item.value, 0);
-  const displayData = chartData.length > 0 ? chartData : [{ name: "No Shoots", value: 1, fill: isDark ? "#141414" : "#F5F5F5" }];
+
+  const calculatedTotal = slices.reduce(
+    (sum, item) => sum + (Number(item.value) || 0),
+    0
+  );
+
+  const displayTotal = totalValue ?? calculatedTotal;
+  const hasChartData = chartData.length > 0;
+  const displayData = hasChartData
+    ? chartData
+    : [
+        {
+          name: "No Shoots",
+          value: 1,
+          fill: isDark ? "#242424" : "#EAEAEA",
+        },
+      ];
 
   return (
-    <div className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
-      isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-black"
-    }`}>
-      <div className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
-        isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-      }`}>
+    <div
+      className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
+        isDark
+          ? "bg-[#171717] border-[#3D3D3D] text-white"
+          : "bg-white border-[#E5E5E5] text-black"
+      }`}
+    >
+      <div
+        className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
+          isDark
+            ? "bg-[#101010] border-b-[#3D3D3D]"
+            : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+        }`}
+      >
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-          <h3 className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#000000]"}`}>{title}</h3>
+          <h3
+            className={`text-sm lg:text-base ${
+              isDark ? "text-white" : "text-[#000000]"
+            }`}
+          >
+            {title}
+          </h3>
         </div>
+
         {rightControl || (
           <button
             type="button"
@@ -176,52 +240,83 @@ function ShootStatusGaugeCard({
         )}
       </div>
 
-      <div className="p-4 lg:p-8 xl:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 flex-1 overflow-visible">
-        <div className="relative w-full max-w-[390px] h-[220px] lg:h-[250px] flex items-center justify-center overflow-visible">
+      <div className="p-4 lg:p-8 xl:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 flex-1">
+        <div className="relative w-full max-w-[390px] h-[220px] lg:h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              cx="50%"
-              cy="82%"
-              innerRadius="58%"
-              outerRadius="104%"
-              barSize={38}
-              data={displayData}
-              startAngle={0}
-              endAngle={180}
-            >
-              <RadialBar
-                cornerRadius={0}
-                background={{ fill: isDark ? "#141414" : "#F5F5F5" }}
+            <PieChart>
+              <Pie
+                data={[{ value: 1 }]}
                 dataKey="value"
-              />
-            </RadialBarChart>
+                cx="50%"
+                cy="82%"
+                startAngle={180}
+                endAngle={0}
+                innerRadius="58%"
+                outerRadius="88%"
+                stroke="none"
+                isAnimationActive={false}
+              >
+                <Cell fill={isDark ? "#242424" : "#EAEAEA"} />
+              </Pie>
+
+              <Pie
+                data={displayData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="82%"
+                startAngle={180}
+                endAngle={0}
+                innerRadius="58%"
+                outerRadius="88%"
+                paddingAngle={hasChartData && chartData.length > 1 ? 1 : 0}
+                stroke={isDark ? "#171717" : "#FFFFFF"}
+                strokeWidth={2}
+                isAnimationActive={hasChartData}
+                animationDuration={700}
+              >
+                {displayData.map((entry, index) => (
+                  <Cell key={`${entry.name}-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+            </PieChart>
           </ResponsiveContainer>
 
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className={`lg:text-[26px] font-bold tracking-tight translate-y-[130%] ${
-              isDark ? "text-[#E8D1AB]" : "text-[#000]"
-            }`}>
-              {total.toLocaleString()}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none"
+            style={{ top: "60%" }}
+          >
+            <span
+              className={`text-[28px] font-bold tracking-tight ${
+                isDark ? "text-[#E8D1AB]" : "text-black"
+              }`}
+            >
+              {displayTotal.toLocaleString()}
             </span>
           </div>
+
           <div
             className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${
               isDark ? "bg-white/20" : "bg-black/10"
             }`}
-            style={{
-              top: "82%",
-              width: "76%",
-            }}
+            style={{ top: "82%", width: "76%" }}
           >
-            <div className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
-              isDark ? "bg-[#E8D1AB] border-[#101010]" : "bg-[#000] border-white"
-            }`} />
+            <div
+              className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
+                isDark
+                  ? "bg-[#E8D1AB] border-[#101010]"
+                  : "bg-black border-white"
+              }`}
+            />
           </div>
         </div>
 
         <div className="flex flex-col gap-4 w-full lg:w-auto min-w-[240px]">
           {slices.map((item) => (
-            <div key={item.label} className="flex items-center justify-between lg:justify-start gap-6 group">
+            <div
+              key={item.label}
+              className="flex items-center justify-between lg:justify-start gap-6 group"
+            >
               <div
                 className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${
                   isDark ? "text-white" : "text-[#333]"
@@ -231,11 +326,16 @@ function ShootStatusGaugeCard({
                   backgroundColor: "transparent",
                 }}
               >
-                {item.value.toLocaleString()}
+                {(Number(item.value) || 0).toLocaleString()}
               </div>
-              <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
-                isDark ? "text-white/40 group-hover:text-white/70" : "text-[#666] group-hover:text-black"
-              }`}>
+
+              <span
+                className={`text-sm font-medium whitespace-nowrap transition-colors ${
+                  isDark
+                    ? "text-white/40 group-hover:text-white/70"
+                    : "text-[#666] group-hover:text-black"
+                }`}
+              >
                 {item.label}
               </span>
             </div>
@@ -273,11 +373,19 @@ export default function CreatorDashboardPage() {
 
   // Detailed Stats State
   const [creatorStats, setCreatorStats] = useState({
+    overallShoots: 0,
+    successfulShoots: 0,
+    activeShoots: 0,
     completedShoots: 0,
     pendingShoots: 0,
     rejectedShoots: 0,
     shootRequests: 0,
-    photographyShoots: 0
+    photographyShoots: 0,
+    videographyShoots: 0,
+    photoRejectedShoots: 0,
+    photoShootRequests: 0,
+    videoRejectedShoots: 0,
+    videoShootRequests: 0,
   });
 
   const [allShoots, setAllShoots] = useState<any[]>([]);
@@ -449,24 +557,19 @@ export default function CreatorDashboardPage() {
         if (response && !response.error) {
           const fetchedAllShoots = response.data.data.allShoots || [];
           const fetchedPending = response.data.data.pendingRequests || [];
-          const upcomingPending = fetchedPending.filter((item: any) => {
-            const dateStr =
-              item?.project?.event_date ||
-              item?.event_date ||
-              item?.project?.shoot_date ||
-              item?.shoot_date;
-            return isUpcomingDate(dateStr) && !isCompletedFlag(item);
-          });
+          const acceptedToday = fetchedAllShoots.filter((item: any) => isTodayDate(getItemDate(item)) && !isCompletedFlag(item));
+          const acceptedUpcoming = fetchedAllShoots.filter((item: any) => isFutureDate(getItemDate(item)) && !isCompletedFlag(item));
+          const upcomingPending = fetchedPending.filter((item: any) => isUpcomingDate(getItemDate(item)) && !isCompletedFlag(item));
 
-          setAllShoots(fetchedAllShoots);
+          setAllShoots(acceptedToday);
           setPendingRequests(upcomingPending);
           setDashboardStats((prev) => ({
             ...prev,
-            pendingRequests: upcomingPending.length,
+            upcomingShoots: acceptedUpcoming.length,
           }));
 
           const newMarkers: any[] = [];
-          const getMarkers = async (list: any[], markerType: 'active' | 'pending') => {
+          const getMarkers = async (list: any[], markerType: 'active' | 'upcoming' | 'pending') => {
             for (const item of list) {
               const loc = item.project?.event_location || item.display_location;
               if (loc && loc !== "Location TBD") {
@@ -478,7 +581,8 @@ export default function CreatorDashboardPage() {
             }
           }
 
-          await getMarkers(fetchedAllShoots, 'active');
+          await getMarkers(acceptedToday, 'active');
+          await getMarkers(acceptedUpcoming, 'upcoming');
           await getMarkers(upcomingPending, 'pending');
 
           setMapMarkers(newMarkers);
@@ -629,68 +733,110 @@ export default function CreatorDashboardPage() {
     });
   }, [mapMarkers, mapSearch, mapStatusFilter]);
 
-  // Donut Chart Slices (Updated to Gold Theme)
-  const shootStatusSlices: DonutSlice[] = [
-    {
-      label: "Successful Shoots",
-      value: creatorStats.completedShoots,
-      colorHex: CHART_COLORS.purple,
-      bulletClass: "bg-[#A879FF]"
-    },
-    {
-      label: "Pending Shoots",
-      value: creatorStats.pendingShoots,
-      colorHex: CHART_COLORS.blue,
-      bulletClass: "bg-[#36C1FF]"
-    },
-    {
-      label: "Rejected Shoots",
-      value: creatorStats.rejectedShoots,
-      colorHex: CHART_COLORS.orange,
-      bulletClass: "bg-[#FFC13F]"
-    },
-    {
-      label: "Shoot Requests",
-      value: creatorStats.shootRequests,
-      colorHex: CHART_COLORS.green,
-      bulletClass: "bg-[#2ED499]"
-    },
-  ];
-
-  const shootCategorySlices: DonutSlice[] = useMemo(() => {
-    const slices = [
+  // Donut Chart Slices
+  const shootStatusSlices: DonutSlice[] = useMemo(
+    () => [
       {
-        label: "Photography Shoots",
-        value: creatorStats.photographyShoots,
+        label: "Successful Shoots",
+        value: creatorStats.successfulShoots,
         colorHex: CHART_COLORS.purple,
-        bulletClass: "bg-[#A879FF]"
+        bulletClass: "bg-[#A879FF]",
       },
       {
-        label: "Videography Shoots",
-        value: Math.max(0, creatorStats.completedShoots - creatorStats.photographyShoots),
+        label: "Pending Shoots",
+        value: creatorStats.pendingShoots,
         colorHex: CHART_COLORS.blue,
-        bulletClass: "bg-[#36C1FF]"
+        bulletClass: "bg-[#36C1FF]",
       },
       {
         label: "Rejected Shoots",
         value: creatorStats.rejectedShoots,
         colorHex: CHART_COLORS.orange,
-        bulletClass: "bg-[#FFC13F]"
+        bulletClass: "bg-[#FFC13F]",
       },
       {
         label: "Shoot Requests",
         value: creatorStats.shootRequests,
         colorHex: CHART_COLORS.green,
-        bulletClass: "bg-[#2ED499]"
+        bulletClass: "bg-[#2ED499]",
+      },
+    ],
+    [creatorStats]
+  );
+
+  const shootCategorySlices: DonutSlice[] = useMemo(() => {
+    if (categoryTypeFilter === "photography") {
+      return [
+        {
+          label: "Photography Shoots",
+          value: creatorStats.photographyShoots,
+          colorHex: CHART_COLORS.purple,
+          bulletClass: "bg-[#A879FF]",
+        },
+        {
+          label: "Rejected Shoots",
+          value: creatorStats.photoRejectedShoots,
+          colorHex: CHART_COLORS.orange,
+          bulletClass: "bg-[#FFC13F]",
+        },
+        {
+          label: "Shoot Requests",
+          value: creatorStats.photoShootRequests,
+          colorHex: CHART_COLORS.green,
+          bulletClass: "bg-[#2ED499]",
+        },
+      ];
+    }
+
+    if (categoryTypeFilter === "videography") {
+      return [
+        {
+          label: "Videography Shoots",
+          value: creatorStats.videographyShoots,
+          colorHex: CHART_COLORS.blue,
+          bulletClass: "bg-[#36C1FF]",
+        },
+        {
+          label: "Rejected Shoots",
+          value: creatorStats.videoRejectedShoots,
+          colorHex: CHART_COLORS.orange,
+          bulletClass: "bg-[#FFC13F]",
+        },
+        {
+          label: "Shoot Requests",
+          value: creatorStats.videoShootRequests,
+          colorHex: CHART_COLORS.green,
+          bulletClass: "bg-[#2ED499]",
+        },
+      ];
+    }
+
+    return [
+      {
+        label: "Photography Shoots",
+        value: creatorStats.photographyShoots,
+        colorHex: CHART_COLORS.purple,
+        bulletClass: "bg-[#A879FF]",
+      },
+      {
+        label: "Videography Shoots",
+        value: creatorStats.videographyShoots,
+        colorHex: CHART_COLORS.blue,
+        bulletClass: "bg-[#36C1FF]",
+      },
+      {
+        label: "Rejected Shoots",
+        value: creatorStats.rejectedShoots,
+        colorHex: CHART_COLORS.orange,
+        bulletClass: "bg-[#FFC13F]",
+      },
+      {
+        label: "Shoot Requests",
+        value: creatorStats.shootRequests,
+        colorHex: CHART_COLORS.green,
+        bulletClass: "bg-[#2ED499]",
       },
     ];
-
-    if (categoryTypeFilter === "photography")
-      return slices.filter(s => s.label.includes("Photography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-    if (categoryTypeFilter === "videography")
-      return slices.filter(s => s.label.includes("Videography") || s.label.includes("Rejected") || s.label.includes("Requests"));
-
-    return slices;
   }, [creatorStats, categoryTypeFilter]);
 
   if (verificationStatus === null) return null;
@@ -770,7 +916,7 @@ export default function CreatorDashboardPage() {
             activeMetricCard={activeMetricCard}
             setActiveMetricCard={setActiveMetricCard}
             isDark={isDark}
-            onClick={() => setMapStatusFilter("active")}
+            onClick={() => setMapStatusFilter("upcoming")}
           />
           <MetricCard
             id="pending"
@@ -833,6 +979,7 @@ export default function CreatorDashboardPage() {
                   }`}>
                   <SelectItem value="all">All events</SelectItem>
                   <SelectItem value="active">Active shoots</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
                   <SelectItem value="pending">Requests</SelectItem>
                 </SelectContent>
               </Select>
@@ -843,7 +990,7 @@ export default function CreatorDashboardPage() {
               {...viewState}
               onMove={(evt) => setViewState(evt.viewState)}
               style={{ width: "100%", height: "100%" }}
-              mapStyle="mapbox://styles/mapbox/streets-v12"
+              mapStyle="mapbox://styles/mapbox/dark-v11"
               mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
             >
               <NavigationControl position="top-right" showCompass={false} />
@@ -866,36 +1013,17 @@ export default function CreatorDashboardPage() {
                     onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
                     className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
                       ? 'bg-[#E8D1AB] border-black text-black'
-                      : 'bg-yellow-500 border-black text-black'
+                      : marker.type === 'upcoming'
+                        ? 'bg-blue-400 border-black text-black'
+                        : 'bg-yellow-500 border-black text-black'
                       }`}
                   >
-                    {marker.type === 'active' ? <Camera size={14} /> : <Clock size={14} />}
+                    {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
                   </div>
                 </Marker>
               ))}
             </Map>
 
-            {/* Map Floating Legend */}
-            <div className={`absolute bottom-4 left-4 border p-4 rounded-xl shadow-2xl w-56 transition-all ${isDark
-              ? "bg-[#0B0F14]/95 border-white/10"
-              : "bg-[#FFFDF9]/95 border-[#E5E5E5]"
-              }`}>
-              <h4 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? "text-white/40" : "text-black/40"
-                }`}>
-                Status Legend
-              </h4>
-              <div className="space-y-2.5">
-                <LegendItem color="bg-[#E8D1AB]" label="Active Shoots" count={allShoots.length} isDark={isDark} />
-                <LegendItem color="bg-yellow-500" label="Pending Requests" count={pendingRequests.length} isDark={isDark} />
-                <LegendItem color="bg-blue-400" label="Upcoming" count={dashboardStats.upcomingShoots} isDark={isDark} />
-                <LegendItem
-                  color={isDark ? "bg-white/20" : "bg-black/15"}
-                  label="Equipment"
-                  count={dashboardStats.equipmentRequests}
-                  isDark={isDark}
-                />
-              </div>
-            </div>
             </div>
           </div>
 
@@ -1058,6 +1186,7 @@ export default function CreatorDashboardPage() {
           <div>
             <ShootStatusGaugeCard
               slices={shootStatusSlices}
+              totalValue={creatorStats.overallShoots}
               isDark={isDark}
             />
           </div>
@@ -1086,6 +1215,7 @@ export default function CreatorDashboardPage() {
                 </div>
               }
               slices={shootCategorySlices}
+              totalValue={creatorStats.overallShoots}
               isDark={isDark}
             />
           </div>
@@ -1400,34 +1530,5 @@ function MetricCard({
         }`}
       />
     </button>
-  );
-}
-
-/**
- * LegendItem for Map Status
- */
-function LegendItem({ color, label, count, isDark = true }: { color: string; label: string; count: number; isDark?: boolean }) {
-  return (
-    <div className="flex items-center justify-between group">
-      <div className="flex items-center gap-3">
-        {/* Color Pill Indicator */}
-        <span className={`w-2 h-2 rounded-full ${color} transition-shadow ${isDark ? "shadow-[0_0_8px_rgba(0,0,0,0.5)]" : "shadow-[0_1px_3px_rgba(0,0,0,0.15)]"
-          }`} />
-
-        {/* Label Text */}
-        <span className={`text-xs transition-colors ${isDark
-          ? "text-white/50 group-hover:text-white/80"
-          : "text-black/60 group-hover:text-black/90 font-medium"
-          }`}>
-          {label}
-        </span>
-      </div>
-
-      {/* Count Badge */}
-      <span className={`text-xs font-mono font-bold transition-colors ${isDark ? "text-white/80" : "text-black/80"
-        }`}>
-        {count}
-      </span>
-    </div>
   );
 }

@@ -121,6 +121,41 @@ const formatTimeForDisplay = (value) => {
   return format(date, "h:mm a");
 };
 
+const timeToMinutes = (value) => {
+  const time = formatTimeForApi(value);
+
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return hours * 60 + minutes;
+};
+
+const addMinutesToTime = (value, minutesToAdd = 60) => {
+  const time = formatTimeForApi(value);
+
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  date.setMinutes(date.getMinutes() + minutesToAdd);
+
+  return date;
+};
+
+const hasMinimumOneHourGap = (startValue, endValue) => {
+  const startMinutes = timeToMinutes(startValue);
+  const endMinutes = timeToMinutes(endValue);
+
+  if (startMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  return endMinutes - startMinutes >= 60;
+};
+
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAllDay, setIsAllDay] = useState(false);
@@ -282,10 +317,15 @@ export default function AvailabilityPage() {
     const endTime = formatTimeForApi(formData.endTime);
     const hasTimeRange = Boolean(startTime && endTime);
 
-    if (!isAllDay && !hasTimeRange) {
-      toast.error("Please select both start and end time");
-      return;
-    }
+    if (
+  !isAllDay &&
+  !hasMinimumOneHourGap(formData.startTime, formData.endTime)
+) {
+  toast.error(
+    "End time must be at least 1 hour after the start time"
+  );
+  return;
+}
 
     const payload = {
       crew_member_id: crewMemberId,
@@ -403,13 +443,61 @@ export default function AvailabilityPage() {
   };
 
   const handleTimeChange = (time, field) => {
-    setIsAllDay(false);
-    setFormData((prevData) => ({
+  setIsAllDay(false);
+
+  setFormData((prevData) => {
+    if (field === "startTime") {
+      const minimumEndTime = addMinutesToTime(time, 60);
+
+      const currentEndMinutes = timeToMinutes(prevData.endTime);
+      const minimumEndMinutes = timeToMinutes(minimumEndTime);
+
+      /*
+       * If the existing end time becomes invalid after changing start time,
+       * automatically reset it to one hour after the new start time.
+       */
+      const shouldUpdateEndTime =
+        time &&
+        (
+          currentEndMinutes === null ||
+          minimumEndMinutes === null ||
+          currentEndMinutes < minimumEndMinutes
+        );
+
+      return {
+        ...prevData,
+        startTime: time,
+        endTime: shouldUpdateEndTime
+          ? minimumEndTime
+          : prevData.endTime,
+      };
+    }
+
+    if (field === "endTime") {
+      if (
+        prevData.startTime &&
+        time &&
+        !hasMinimumOneHourGap(prevData.startTime, time)
+      ) {
+        toast.error(
+          "End time must be at least 1 hour after the start time"
+        );
+
+        return prevData;
+      }
+
+      return {
+        ...prevData,
+        endTime: time,
+      };
+    }
+
+    return {
       ...prevData,
       [field]: time,
-    }));
-  };
-
+    };
+  });
+};
   const handleMonthChange = (direction) => {
     if (direction === "prev") {
       setCurrentMonth((prevMonth) => (prevMonth === 1 ? 12 : prevMonth - 1));
@@ -786,12 +874,16 @@ export default function AvailabilityPage() {
                         End Time
                       </label>
                       <TimePicker
-                        label=""
-                        value={formData.endTime}
-                        onChange={(time) => handleTimeChange(time, "endTime")}
-                        minTime={formData.startTime || undefined}
-                        isDark={isDark}
-                      />
+  label=""
+  value={formData.endTime}
+  onChange={(time) => handleTimeChange(time, "endTime")}
+  minTime={
+    formData.startTime
+      ? addMinutesToTime(formData.startTime, 60)
+      : undefined
+  }
+  isDark={isDark}
+/>
                     </div>
                   </div>
                 )}
