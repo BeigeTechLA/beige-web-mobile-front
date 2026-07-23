@@ -19,6 +19,7 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { toast } from "sonner"; // Using sonner for the high-end look of the first code
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -36,9 +37,14 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
-import Map, { Marker } from "react-map-gl/mapbox";
+import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl/mapbox";
 import 'mapbox-gl/dist/mapbox-gl.css';
 
+import {
+  RadialBarChart,
+  RadialBar,
+  ResponsiveContainer,
+} from "recharts";
 import {
   GetCreatorDashboardCount,
   getCrewAvailability,
@@ -124,108 +130,122 @@ type DonutSlice = {
   subLabel?: string;
 };
 
-function makeConicGradient(slices: DonutSlice[]) {
-  const total = slices.reduce((a, b) => a + b.value, 0) || 1;
-  let start = 0;
-  const parts: string[] = [];
-
-  for (const s of slices) {
-    const deg = (s.value / total) * 360;
-    const end = start + deg;
-    parts.push(`${s.colorHex} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`);
-    start = end;
-  }
-
-  if (start < 360 && slices.length) {
-    parts.push(`${slices[slices.length - 1].colorHex} ${start.toFixed(2)}deg 360deg`);
-  }
-  return `conic-gradient(${parts.join(", ")})`;
-}
-
-/**
- * DonutChartCard - Updated with Luxury Theme
- */
-function DonutChartCard({
-  title,
-  subtitle,
-  rightFilter,
+function ShootStatusGaugeCard({
+  title = "Shoot Status",
   slices,
-  isDark = true // Added theme prop
+  rightControl,
+  isDark = true,
 }: {
-  title: string;
-  subtitle?: string;
-  rightFilter?: React.ReactNode;
+  title?: string;
   slices: DonutSlice[];
+  rightControl?: React.ReactNode;
   isDark?: boolean;
 }) {
-  const gradient = useMemo(() => makeConicGradient(slices), [slices]);
-  const total = slices.reduce((a, b) => a + b.value, 0) || 0;
+  const chartData = slices
+    .filter((item) => item.value > 0)
+    .map((item) => ({
+      name: item.label,
+      value: item.value,
+      fill: item.colorHex,
+    }));
+  const total = slices.reduce((sum, item) => sum + item.value, 0);
+  const displayData = chartData.length > 0 ? chartData : [{ name: "No Shoots", value: 1, fill: isDark ? "#141414" : "#F5F5F5" }];
 
   return (
-    <div className={`rounded-2xl p-6 transition-all ${isDark
-      ? "bg-[#0B0B0B] border-white/5 hover:border-white/10"
-      : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/40 shadow-sm"
+    <div className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
+      isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-black"
+    }`}>
+      <div className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
+        isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E5E5E5]"
       }`}>
-      <div className="flex items-center justify-between mb-4 lg:mb-8">
         <div className="flex items-center gap-2">
-          {/* Vertical brand gold accent line */}
-          <div className="w-1 h-5 bg-[#E8D1AB] rounded-full" />
-          <h3 className={`font-medium lg:text-lg ${isDark ? "text-white/90" : "text-black/90"}`}>
-            {title}
-          </h3>
+          <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+          <h3 className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#000000]"}`}>{title}</h3>
         </div>
-        {rightFilter}
+        {rightControl || (
+          <button
+            type="button"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border ${
+              isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                : "bg-white border-[#E5E5E5] text-[#333]"
+            }`}
+          >
+            All Time
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8 items-center">
-        {/* Donut Chart Graphics Wrapper */}
-        <div className="flex items-center justify-center relative">
-          <div className="relative w-44 h-44 rounded-full" style={{ background: gradient }}>
-            {/* Inner Hollow Cutout Mask matching the backdrop background */}
-            <div className={`absolute inset-[35px] rounded-full transition-colors ${isDark ? "bg-[#0B0B0B]" : "bg-[#FFFCF6]"
-              }`} />
+      <div className="p-4 lg:p-8 xl:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 flex-1 overflow-visible">
+        <div className="relative w-full max-w-[390px] h-[220px] lg:h-[250px] flex items-center justify-center overflow-visible">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart
+              cx="50%"
+              cy="82%"
+              innerRadius="58%"
+              outerRadius="104%"
+              barSize={38}
+              data={displayData}
+              startAngle={0}
+              endAngle={180}
+            >
+              <RadialBar
+                cornerRadius={0}
+                background={{ fill: isDark ? "#141414" : "#F5F5F5" }}
+                dataKey="value"
+              />
+            </RadialBarChart>
+          </ResponsiveContainer>
 
-            {/* Inner Center Text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-                {total.toLocaleString()}
-              </span>
-            </div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className={`lg:text-[26px] font-bold tracking-tight translate-y-[130%] ${
+              isDark ? "text-[#E8D1AB]" : "text-[#000]"
+            }`}>
+              {total.toLocaleString()}
+            </span>
+          </div>
+          <div
+            className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${
+              isDark ? "bg-white/20" : "bg-black/10"
+            }`}
+            style={{
+              top: "82%",
+              width: "76%",
+            }}
+          >
+            <div className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
+              isDark ? "bg-[#E8D1AB] border-[#101010]" : "bg-[#000] border-white"
+            }`} />
           </div>
         </div>
 
-        {/* Legend List */}
-        <div className="space-y-2 lg:space-y-4">
-          {slices.map((s) => {
-            return (
-              <div key={s.label} className="flex items-center justify-between group">
-                <div className="flex items-center gap-4">
-                  {/* Circle with number inside */}
-                  <div
-                    className="w-10 h-7 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors"
-                    style={{
-                      borderColor: s.colorHex,
-                      color: isDark ? "white" : "#000000",
-                      backgroundColor: `${s.colorHex}15`
-                    }}
-                  >
-                    {s.value}
-                  </div>
-                  <p className={`text-xs font-medium transition-colors ${isDark
-                    ? "text-white/50 group-hover:text-white"
-                    : "text-black/60 group-hover:text-black font-medium"
-                    }`}>
-                    {s.label}
-                  </p>
-                </div>
+        <div className="flex flex-col gap-4 w-full lg:w-auto min-w-[240px]">
+          {slices.map((item) => (
+            <div key={item.label} className="flex items-center justify-between lg:justify-start gap-6 group">
+              <div
+                className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${
+                  isDark ? "text-white" : "text-[#333]"
+                }`}
+                style={{
+                  borderColor: item.colorHex,
+                  backgroundColor: "transparent",
+                }}
+              >
+                {item.value.toLocaleString()}
               </div>
-            );
-          })}
+              <span className={`text-sm font-medium whitespace-nowrap transition-colors ${
+                isDark ? "text-white/40 group-hover:text-white/70" : "text-[#666] group-hover:text-black"
+              }`}>
+                {item.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
+
 // ----------------------
 // MAIN PAGE COMPONENT
 // ----------------------
@@ -267,6 +287,7 @@ export default function CreatorDashboardPage() {
   const [mapSearch, setMapSearch] = useState("");
   const [mapStatusFilter, setMapStatusFilter] = useState("all");
   const [categoryTypeFilter, setCategoryTypeFilter] = useState<"all" | "photography" | "videography">("all");
+  const [activeMetricCard, setActiveMetricCard] = useState<"completed" | "upcoming" | "pending">("completed");
 
   const [date, setDate] = useState(new Date());
   const [acceptShootEvent, setAcceptShootEvent] = useState<any>(null);
@@ -686,16 +707,16 @@ export default function CreatorDashboardPage() {
       <Topbar pathname={pathname} />
 
       <div
-        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+        className="overflow-hidden pb-30 p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-5"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div>
-            <h1 className={`text-lg lg:text-3xl lg:leading-[32px] font-bold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
+            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
               }`}>Welcome back, {user?.name || "Partner"}</h1>
-            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Performance overview and shoot schedule</p>
+            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Performance overview and shoot schedule</p>
           </div>
         </div>
 
@@ -730,42 +751,60 @@ export default function CreatorDashboardPage() {
           hoverBorder="hover:border-white/20"
         />
       </div> */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard
+        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-2xl border p-4 transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#E3E3E3]"}`}>
+          <MetricCard
+            id="completed"
             label="Completed Shoots"
             value={dashboardStats.completedShoots}
-            icon={<Camera />}
-            iconColor={isDark ? "text-[#E8D1AB]" : "text-[#c48b29]"}
-            hoverBorder="hover:border-[#E8D1AB]/30"
+            icon={Camera}
+            activeMetricCard={activeMetricCard}
+            setActiveMetricCard={setActiveMetricCard}
             isDark={isDark}
+            onClick={() => setMapStatusFilter("active")}
           />
-          <StatCard
+          <MetricCard
+            id="upcoming"
             label="Upcoming Shoots"
             value={dashboardStats.upcomingShoots}
-            icon={<CalendarIcon />}
-            // iconColor="text-blue-400"
-            iconColor={isDark ? "text-blue-400" : "text-blue-800"}
-            hoverBorder="hover:border-blue-400/30"
+            icon={CalendarIcon}
+            activeMetricCard={activeMetricCard}
+            setActiveMetricCard={setActiveMetricCard}
             isDark={isDark}
+            onClick={() => setMapStatusFilter("active")}
           />
-          <StatCard
+          <MetricCard
+            id="pending"
             label="Pending Requests"
             value={dashboardStats.pendingRequests}
-            icon={<Clock />}
-            iconColor={isDark ? "text-yellow-500" : "text-yellow-800"}
-            hoverBorder="hover:border-yellow-500/30"
+            icon={Clock}
+            activeMetricCard={activeMetricCard}
+            setActiveMetricCard={setActiveMetricCard}
             isDark={isDark}
+            onClick={() => setMapStatusFilter("pending")}
           />
         </div>
 
         {/* Main Content Grid: Map & Calendar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Map Section */}
-          <div className={`lg:col-span-2 rounded-lg lg:rounded-xl overflow-hidden relative min-h-[500px] transition-all ${isDark
-            ? "bg-[#111] border border-white/5"
-            : "bg-[#FFFCF6] border border-[#E5E5E5] shadow-sm"
+          <div className={`lg:col-span-2 rounded-2xl border overflow-hidden flex flex-col min-h-[560px] transition-all duration-300 ${isDark
+            ? "bg-[#171717] border-[#3D3D3D] text-white"
+            : "bg-white border-[#E5E5E5] text-black shadow-sm"
             }`}>
+            <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+              ? "bg-[#101010] border-b-[#3D3D3D]"
+              : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+              }`}>
+              <div className="flex items-center gap-2">
+                <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Map</h3>
+              </div>
+              <div className={`text-xs ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
+                {filteredMarkers.length} events
+              </div>
+            </div>
+            <div className="relative flex-1 min-h-[500px]">
             {/* Map Controls */}
             <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
               <div className="relative">
@@ -804,9 +843,23 @@ export default function CreatorDashboardPage() {
               {...viewState}
               onMove={(evt) => setViewState(evt.viewState)}
               style={{ width: "100%", height: "100%" }}
-              mapStyle="mapbox://styles/mapbox/dark-v11"
+              mapStyle="mapbox://styles/mapbox/streets-v12"
               mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
             >
+              <NavigationControl position="top-right" showCompass={false} />
+              <GeolocateControl
+                position="top-right"
+                trackUserLocation={true}
+                showUserLocation={true}
+                onGeolocate={(e: any) => {
+                  setViewState((prev) => ({
+                    ...prev,
+                    latitude: e.coords.latitude,
+                    longitude: e.coords.longitude,
+                    zoom: 14,
+                  }));
+                }}
+              />
               {filteredMarkers.map((marker, idx) => (
                 <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
                   <div
@@ -843,19 +896,26 @@ export default function CreatorDashboardPage() {
                 />
               </div>
             </div>
+            </div>
           </div>
 
           {/* Availability Calendar */}
-          <div className={`rounded-xl p-6 flex flex-col transition-all ${isDark
-            ? "bg-[#111] border border-white/5"
-            : "bg-white border border-[#E5E5E5] shadow-sm"
+          <div className={`rounded-2xl border flex flex-col transition-all duration-300 ${isDark
+            ? "bg-[#171717] border-[#3D3D3D] text-white"
+            : "bg-white border-[#E5E5E5] text-black shadow-sm"
             }`}>
             {/* Header Section */}
-            <div className="flex items-center justify-between mb-6">
-              <h3 className={`font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
-                <CalendarIcon size={18} className="text-[#E8D1AB]" />
-                Availability
-              </h3>
+            <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+              ? "bg-[#101010] border-b-[#3D3D3D]"
+              : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+              }`}>
+              <div className="flex items-center gap-2">
+                <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+                <h3 className={`text-sm lg:text-base font-medium flex items-center gap-2 ${isDark ? "text-white" : "text-[#000000]"}`}>
+                  <CalendarIcon size={18} className="text-[#E8D1AB]" />
+                  Availability
+                </h3>
+              </div>
               <div className="flex gap-1">
                 <button
                   onClick={handlePreviousMonth}
@@ -873,6 +933,7 @@ export default function CreatorDashboardPage() {
                 </button>
               </div>
             </div>
+            <div className="p-5 flex-1 flex flex-col">
 
             {/* Current Month Banner */}
             <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
@@ -988,42 +1049,46 @@ export default function CreatorDashboardPage() {
                 Go to Availability
               </Button>
             </div>
+            </div>
           </div>
         </div>
 
-        {/* Donut Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          <DonutChartCard
-            title="Shoot Status"
-            subtitle="Pipeline performance metrics"
-            slices={shootStatusSlices}
-            isDark={isDark}
-          />
-          <DonutChartCard
-            title="Shoot Categories"
-            subtitle="Distribution of media types"
-            rightFilter={
-              <div className={`flex p-1 rounded-lg border transition-all ${isDark
-                ? "bg-[#0B0F14] border-white/5"
-                : "bg-[#FFFCF6] border-[#E5E5E5]"
-                }`}>
-                <button
-                  onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
-                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
-                >
-                  Photo
-                </button>
-                <button
-                  onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
-                  className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
-                >
-                  Video
-                </button>
-              </div>
-            }
-            slices={shootCategorySlices}
-            isDark={isDark}
-          />
+        {/* Admin-style Analytics Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-5 lg:pb-0">
+          <div>
+            <ShootStatusGaugeCard
+              slices={shootStatusSlices}
+              isDark={isDark}
+            />
+          </div>
+          <div>
+            <ShootStatusGaugeCard
+              title="Shoot Categories"
+              rightControl={
+                <div className={`flex p-1 rounded-lg border transition-all ${isDark
+                  ? "bg-[#0B0F14] border-white/5"
+                  : "bg-[#FFFCF6] border-[#E5E5E5]"
+                  }`}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                  >
+                    Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                  >
+                    Video
+                  </button>
+                </div>
+              }
+              slices={shootCategorySlices}
+              isDark={isDark}
+            />
+          </div>
         </div>
 
         {/* --- MODALS --- */}
@@ -1276,27 +1341,65 @@ export default function CreatorDashboardPage() {
 // SHARED UI COMPONENTS
 // ----------------------
 
-/**
- * StatCard - Large Value with Subtle Top-Right Icon
- */
-function StatCard({ label, value, icon, iconColor, hoverBorder, isDark }: any) {
+function MetricCard({
+  id,
+  label,
+  value,
+  icon: Icon,
+  activeMetricCard,
+  setActiveMetricCard,
+  isDark,
+  onClick,
+}: {
+  id: "completed" | "upcoming" | "pending";
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  activeMetricCard: "completed" | "upcoming" | "pending";
+  setActiveMetricCard: (id: "completed" | "upcoming" | "pending") => void;
+  isDark: boolean;
+  onClick: () => void;
+}) {
+  const isActive = activeMetricCard === id;
+
   return (
-    <div className={`rounded-lg lg:rounded-xl p-4 lg:p-6 relative overflow-hidden group ${hoverBorder} transition-all duration-300 min-h-[120px] flex flex-col justify-center ${isDark
-      ? "bg-[#111] border-white/5"
-      : "bg-white border-[#E5E5E5] shadow-sm"
-      }`}>
-      <div className="absolute top-2 right-2 lg:top-0 lg:right-0 p-3 lg:p-4 opacity-10 group-hover:opacity-20 group-hover:scale-110 transition-all duration-300">
-        {React.cloneElement(icon, {
-          // Responsive size logic
-          size: "100%",
-          className: `${iconColor} w-8 h-8 lg:w-12 lg:h-12`
-        })}
+    <button
+      type="button"
+      onClick={() => {
+        setActiveMetricCard(id);
+        onClick();
+      }}
+      className={`relative group text-left cursor-pointer rounded-lg p-4 border transition-all duration-200 min-h-[150px] ${
+        isActive
+          ? "bg-[#ECD7B4] text-[#171717] border-transparent"
+          : isDark
+            ? "bg-[#101010] text-white border-transparent hover:border-white/30"
+            : "bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]"
+      }`}
+    >
+      <div className="flex justify-between items-start mb-7">
+        <span className={`text-sm font-medium ${isActive ? "text-black/70" : isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+          {label}
+        </span>
+        <div className={`p-2 rounded-full ${isActive ? "bg-[#171717] text-[#E8D1AB]" : isDark ? "bg-[#2C2C2C] text-white/60" : "bg-white text-[#E8D1AB]"}`}>
+          <Icon size={20} />
+        </div>
       </div>
-      <div className="relative z-10">
-        <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>{label}</p>
-        <p className={`text-2xl lg:text-4xl font-bold ${isDark ? "text-white" : "text-black"}`}>{value}</p>
+
+      <div className="text-[26px] font-bold mb-2">{value}</div>
+
+      <div className={`text-xs flex gap-1 items-center ${isActive ? "text-[#171717]" : isDark ? "text-white/70" : "text-zinc-500"}`}>
+        <span className={`font-bold ${isActive ? "text-[#047726]" : "text-[#0DAE3D]"}`}>+0%</span>
+        all time
       </div>
-    </div>
+
+      <ArrowUpRight
+        size={14}
+        className={`absolute bottom-4 right-4 transition-colors ${
+          isActive ? "text-black/60" : isDark ? "text-zinc-500 group-hover:text-white/80" : "text-zinc-400 group-hover:text-black"
+        }`}
+      />
+    </button>
   );
 }
 
