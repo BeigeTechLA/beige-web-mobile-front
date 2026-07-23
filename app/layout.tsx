@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Sans, Antonio } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
 import { PermissionsVersionWatcher } from "@/components/common/PermissionsVersionWatcher";
@@ -19,6 +19,11 @@ const geistMono = Geist_Mono({
 
 const instrumentSans = Instrument_Sans({
   variable: "--font-instrument-sans",
+  subsets: ["latin"],
+});
+
+const antonio = Antonio({
+  variable: "--font-antonio",
   subsets: ["latin"],
 });
 
@@ -47,12 +52,8 @@ export const metadata: Metadata = {
   publisher: "BeigeAI",
   applicationName: "BeigeAI",
   icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png" },
-    ],
-    apple: [
-      { url: "/icon.png", type: "image/png" },
-    ],
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/icon.png", type: "image/png" }],
     shortcut: ["/icon.png"],
   },
   manifest: "/manifest.json",
@@ -118,7 +119,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${antonio.variable} antialiased`}
       >
         {/* GTM NoScript Fallback */}
         <noscript>

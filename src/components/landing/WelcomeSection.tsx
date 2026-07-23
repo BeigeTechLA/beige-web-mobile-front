@@ -26,7 +26,7 @@ export const WelcomeSection = () => {
             className="w-full lg:w-2/5 flex flex-col max-w-4xl text-center justify-center items-center flex-grow lg:pt-8"
           >
             {/* Heading */}
-            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white tracking-tight text-center lg:text-left">
+            <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight text-center lg:text-left">
               Welcome to Beige AI
             </h2>
 
