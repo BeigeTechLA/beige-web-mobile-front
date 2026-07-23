@@ -1319,7 +1319,7 @@ export default function QuotePreviewPageShell({
                   : "border border-[#D8B36B] bg-[#FFF7E8] text-[#5A3B07]"
                   }`}
               >
-                Quote validity has expired. You can still review the proposal details, but signing is no longer available. Please contact your sales representative to renew or update the quote.
+                This quote has expired. Please contact your sales representative to renew it and complete your signing and payment.
               </div>
             ) : null}
             <div ref={quotePreviewPrintRef}>
