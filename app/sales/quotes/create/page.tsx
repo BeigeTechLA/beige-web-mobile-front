@@ -25,6 +25,9 @@ import {
   Eye,
   Loader2,
   Mail,
+  FileText,
+  Upload,
+  X,
 } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -125,6 +128,15 @@ type CatalogEditItem = {
   type: CatalogEditType;
   label: string;
   price: number;
+};
+
+type PreProductionFileDraft = {
+  name: string;
+  type: string;
+  size: number;
+  content?: string;
+  path?: string;
+  url?: string;
 };
 
 const getCatalogEditItemLabel = (type: CatalogEditType) => {
@@ -1315,6 +1327,10 @@ function CreateQuotePageContent() {
   const [showCustomTax, setShowCustomTax] = useState<boolean>(false);
   const [taxRate, setTaxRate] = useState<number | string>(0);
   const [taxType, setTaxType] = useState("");
+  const [preProductionNotes, setPreProductionNotes] = useState("");
+  const [preProductionFile, setPreProductionFile] =
+    useState<PreProductionFileDraft | null>(null);
+  const [clearPreProductionFile, setClearPreProductionFile] = useState(false);
 
   // Configuration for each selected service
   const [serviceConfigs, setServiceConfigs] = useState<
@@ -1912,6 +1928,9 @@ function CreateQuotePageContent() {
         setSelectedTax(isPresetTaxRate ? hydratedTaxRate : -1);
         setShowCustomTax(!isPresetTaxRate);
         setTaxType(hydratedState.taxType);
+        setPreProductionNotes(hydratedState.preProductionNotes);
+        setPreProductionFile(hydratedState.preProductionFile);
+        setClearPreProductionFile(false);
         setServices(hydratedState.services);
         setSelectedServices(hydratedState.selectedServices);
         setServiceConfigs(hydratedState.serviceConfigs);
@@ -3262,9 +3281,9 @@ function CreateQuotePageContent() {
       : normalizedDiscountValue;
   const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
   const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
-  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
-  const totalAfterTax = discountedSubtotal + taxAmount;
+  const normalizedTaxRate = 0;
+  const taxAmount = 0;
+  const totalAfterTax = discountedSubtotal;
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
@@ -3362,6 +3381,44 @@ function CreateQuotePageContent() {
     view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
   const showReviewChangesAction = isEditMode && isFullEditFlow && view === "tax";
+  const maxPreProductionFileSizeBytes = 10 * 1024 * 1024;
+  const handlePreProductionFileChange = (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (file.size > maxPreProductionFileSizeBytes) {
+      toast.error("Pre-production file must be 10MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const content = result.replace(/^data:.*;base64,/, "").trim();
+
+      if (!content) {
+        toast.error("Unable to read the selected file.");
+        return;
+      }
+
+      setPreProductionFile({
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        content,
+      });
+      setClearPreProductionFile(false);
+    };
+    reader.onerror = () => {
+      toast.error("Unable to read the selected file.");
+    };
+    reader.readAsDataURL(file);
+  };
+  const handleRemovePreProductionFile = () => {
+    setPreProductionFile(null);
+    setClearPreProductionFile(true);
+  };
   const convertBookingActionLabel = isConvertedToBooking
     ? "Converted to Booking"
     : "Convert to Booking";
@@ -3375,6 +3432,9 @@ function CreateQuotePageContent() {
       phoneNumber,
       address,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
+      clearPreProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -3409,6 +3469,9 @@ function CreateQuotePageContent() {
       phoneNumber,
       address,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
+      clearPreProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -3444,6 +3507,9 @@ function CreateQuotePageContent() {
         phoneNumber,
         address,
         projectDescription,
+        preProductionNotes,
+        preProductionFile,
+        clearPreProductionFile,
         validityDays,
         validUntil,
         discountEnabled,
@@ -3479,6 +3545,8 @@ function CreateQuotePageContent() {
       phoneNumber,
       address,
       projectDescription,
+      preProductionNotes,
+      preProductionFile,
       validityDays,
       validUntil,
       discountEnabled,
@@ -7186,186 +7254,177 @@ function CreateQuotePageContent() {
             </div>
           ) : view === "tax" ? (
             <div>
-              <div className="p-4 pt-5 lg:p-8">
-                <h2 className="text-base lg:text-xl font-medium text-white mb-1">
-                  Tax
-                </h2>
-                <p className="text-sm text-[#A1A1AA]">
-                  Configure tax rate and type for this quotation
-                </p>
-              </div>
-              <hr className="border-t border-[#3D3D3D]" />
-
-              <div className="p-4 lg:p-8">
-                <h3
-                  className={`text-base lg:text-lg font-medium tracking-tight text-white`}
-                >
-                  Common Tax Rates
-                </h3>
-
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-3 lg:mt-6 ">
-                  <button
-                    onClick={() => {
-                      setSelectedTax(0);
-                      setShowCustomTax(false);
-                      setTaxRate(0);
-                    }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
-                      }`}
-                  >
-                    <div>
-                      <p
-                        className={`${(selectedTax === 0 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
-                        0 %
-                      </p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedTax(5);
-                      setTaxRate(5);
-                      setShowCustomTax(false);
-                    }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner" : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"}
-                      `}
-                  >
-                    <div>
-                      <p
-                        className={`${(selectedTax === 5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
-                        5 %
-                      </p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedTax(8.5);
-                      setTaxRate(8.5);
-                      setShowCustomTax(false);
-                    }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
-                      }`}
-                  >
-                    <div>
-                      <p
-                        className={`${(selectedTax === 8.5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}
-                      >
-                        8.5 %
-                      </p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedTax(10);
-                      setTaxRate(10);
-                      setShowCustomTax(false);
-                    }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
-                      }`}
-                  >
-                    <div>
-                      <p className={`${(selectedTax === 10 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
-                        10 %
-                      </p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCustomTax(true);
-                      setSelectedTax(-1);
-                    }}
-                    className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${showCustomTax
-                      ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
-                      : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
-                      }`}
-                  >
-                    <div>
-                      <p className={`${showCustomTax ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
-                        Add Custom Tax Rate
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {
-                showCustomTax &&
+              {false ? (
                 <>
-                  <hr className="border-t border-[#3D3D3D]" />
-                  <div className="w-full p-4 lg:p-8">
-                    <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
-                      Custom Tax Rate
+                  <div className="p-4 pt-5 lg:p-8">
+                    <h2 className="text-base lg:text-xl font-medium text-white mb-1">
+                      Tax
                     </h2>
-                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
-                      <div className="w-full relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
-                            Tax Rate (%)
-                          </span>
+                    <p className="text-sm text-[#A1A1AA]">
+                      Configure tax rate and type for this quotation
+                    </p>
+                  </div>
+                  <hr className="border-t border-[#3D3D3D]" />
+                  <div className="p-4 lg:p-8">
+                    <h3 className="text-base lg:text-lg font-medium tracking-tight text-white">
+                      Common Tax Rates
+                    </h3>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-3 lg:mt-6 ">
+                      <button
+                        onClick={() => {
+                          setSelectedTax(0);
+                          setShowCustomTax(false);
+                          setTaxRate(0);
+                        }}
+                        className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 0
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div>
+                          <p className={`${(selectedTax === 0 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                            0 %
+                          </p>
                         </div>
-                        <Input
-                          placeholder="0.00"
-                          value={taxRate === 0 || taxRate === "" ? "" : String(taxRate)}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                              setTaxRate(val as any);
-
-                              const numericTax = parseFloat(val);
-                              if (!isNaN(numericTax)) {
-                                const presets = [0, 5, 8.5, 10];
-                                if (presets.includes(numericTax) && !val.endsWith(".")) {
-                                  setSelectedTax(numericTax as any);
-                                  setShowCustomTax(false);
-                                } else {
-                                  setSelectedTax(-1);
-                                  setShowCustomTax(true);
-                                }
-                              }
-                            }
-                          }}
-                          // Clean up the value when the user clicks away
-                          onBlur={() => {
-                            setTaxRate(parseFloat(taxRate.toString()) || 0);
-                          }}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                        />
-                      </div>
-                      <div className="w-full relative">
-                        <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
-                          <span className="text-xs text-[#8A8A8A] font-normal">
-                            Tax Type
-                          </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedTax(5);
+                          setTaxRate(5);
+                          setShowCustomTax(false);
+                        }}
+                        className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 5
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div>
+                          <p className={`${(selectedTax === 5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                            5 %
+                          </p>
                         </div>
-                        <Input
-                          placeholder="Sales Tax"
-                          value={taxType}
-                          onChange={(e) => setTaxType(e.target.value)}
-                          className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
-                        />
-                      </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedTax(8.5);
+                          setTaxRate(8.5);
+                          setShowCustomTax(false);
+                        }}
+                        className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 8.5
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div>
+                          <p className={`${(selectedTax === 8.5 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                            8.5 %
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedTax(10);
+                          setTaxRate(10);
+                          setShowCustomTax(false);
+                        }}
+                        className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${selectedTax === 10
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div>
+                          <p className={`${(selectedTax === 10 && !showCustomTax) ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                            10 %
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCustomTax(true);
+                          setSelectedTax(-1);
+                        }}
+                        className={`flex-1 flex items-center justify-center lg:justify-start gap-4 p-3 lg:p-4 rounded-xl border transition-all duration-300 text-left ${showCustomTax
+                          ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB] shadow-inner"
+                          : "bg-transparent border-[#FFFFFF80] text-[#9F9FA9] hover:border-white/80"
+                          }`}
+                      >
+                        <div>
+                          <p className={`${showCustomTax ? "text-[#E8D1AB]" : "text-white"} font-semibold text-sm lg:text-base `}>
+                            Add Custom Tax Rate
+                          </p>
+                        </div>
+                      </button>
                     </div>
                   </div>
+
+                  {showCustomTax && (
+                    <>
+                      <hr className="border-t border-[#3D3D3D]" />
+                      <div className="w-full p-4 lg:p-8">
+                        <h2 className="text-base lg:text-lg font-medium text-white mb-4 lg:mb-6">
+                          Custom Tax Rate
+                        </h2>
+                        <div className="flex flex-col lg:flex-row gap-6 lg:gap-3 w-full">
+                          <div className="w-full relative">
+                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                              <span className="text-xs text-[#8A8A8A] font-normal">
+                                Tax Rate (%)
+                              </span>
+                            </div>
+                            <Input
+                              placeholder="0.00"
+                              value={taxRate === 0 || taxRate === "" ? "" : String(taxRate)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                                  setTaxRate(val as any);
+
+                                  const numericTax = parseFloat(val);
+                                  if (!isNaN(numericTax)) {
+                                    const presets = [0, 5, 8.5, 10];
+                                    if (presets.includes(numericTax) && !val.endsWith(".")) {
+                                      setSelectedTax(numericTax as any);
+                                      setShowCustomTax(false);
+                                    } else {
+                                      setSelectedTax(-1);
+                                      setShowCustomTax(true);
+                                    }
+                                  }
+                                }
+                              }}
+                              onBlur={() => {
+                                setTaxRate(parseFloat(taxRate.toString()) || 0);
+                              }}
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
+                          </div>
+                          <div className="w-full relative">
+                            <div className="absolute -top-3 left-4 z-10 px-3 bg-[#171717]">
+                              <span className="text-xs text-[#8A8A8A] font-normal">
+                                Tax Type
+                              </span>
+                            </div>
+                            <Input
+                              placeholder="Sales Tax"
+                              value={taxType}
+                              onChange={(e) => setTaxType(e.target.value)}
+                              className="h-15 lg:h-21 bg-transparent border-[#4A4A4A] rounded-xl focus:border-[#A78857] pl-7 text-base text-white placeholder:text-[#666666]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
-              }
+              ) : null}
 
               <hr className="border-t border-[#3D3D3D]" />
               <div className="p-4 lg:p-8">
-                <h3
-                  className={`text-base lg:text-lg font-medium tracking-tight text-white mb-3 lg:mb-6`}
-                >
-                  Tax Calculation
+                <h3 className={`text-base lg:text-lg font-medium tracking-tight mb-3 lg:mb-6 ${isDark ? "text-white" : "text-black"}`}>
+                  Pricing Summary
                 </h3>
 
-                <div className="bg-[#282727] rounded-xl p-4 lg:p-6 ">
+                <div className={`rounded-xl p-4 lg:p-6 border ${isDark ? "bg-[#282727] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                   <div className="flex justify-between items-center ">
                     <span className="text-sm lg:text-base text-[#9F9FA9]">
                       Subtotal
@@ -7390,21 +7449,25 @@ function CreateQuotePageContent() {
                       {formatCurrency(discountedSubtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
-                    <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
-                      {formatCurrency(taxAmount)}
-                    </span>
-                  </div>
+                  {false ? (
+                    <>
+                      <div className="flex justify-between items-center ">
+                        <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                        <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
+                          {formatCurrency(taxAmount)}
+                        </span>
+                      </div>
 
-                  <div className="flex justify-between items-center mt-2 mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">
-                      Amount After Tax
-                    </span>
-                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                      {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
+                      <div className="flex justify-between items-center mt-2 mb-2">
+                        <span className="text-sm lg:text-base text-white font-medium">
+                          Amount After Tax
+                        </span>
+                        <span className="text-sm lg:text-base text-white font-medium tracking-tight">
+                          {formatCurrency(totalAfterTax)}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
                   {showQuoteRevisionSummary ? (
                     <>
                       <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
@@ -7458,6 +7521,85 @@ function CreateQuotePageContent() {
                     </span>
                   </div>
 
+                </div>
+              </div>
+
+              <hr className="border-t border-[#3D3D3D]" />
+
+              <div className="p-4 lg:p-8">
+                <h3 className="text-base lg:text-lg font-medium tracking-tight text-white">
+                  Pre-production Details
+                </h3>
+                <p className="mt-1 text-sm text-[#A1A1AA]">
+                  Share additional information or upload relevant files related to pre-production that will be included with the client&apos;s quote.
+                </p>
+
+                <div className="mt-5 rounded-xl border border-[#3D3D3D] bg-[#282727] p-4 lg:p-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="relative">
+                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#282727]">
+                        <span className="text-xs font-normal text-[#A1A1AA]">
+                          Pre-production Notes
+                        </span>
+                      </div>
+                      <Textarea
+                        value={preProductionNotes}
+                        onChange={(event) => setPreProductionNotes(event.target.value)}
+                        placeholder="Add pre-production notes"
+                        className="min-h-[154px] resize-none rounded-xl border-[#4A4A4A] bg-[#171717] px-5 py-5 text-sm text-white placeholder:text-[#65656D] focus:border-[#A78857] lg:text-base"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <div className="absolute -top-3 left-4 z-10 px-3 bg-[#282727]">
+                        <span className="text-xs font-normal text-[#A1A1AA]">
+                          Pre-production File
+                        </span>
+                      </div>
+
+                      {preProductionFile ? (
+                        <div className="flex min-h-[154px] items-center justify-between gap-3 rounded-xl border border-[#4A4A4A] bg-[#171717] px-4 py-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E8D1AB]/10 text-[#E8D1AB]">
+                              <FileText size={20} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-white">
+                                {preProductionFile.name}
+                              </p>
+                              <p className="mt-1 text-xs text-[#A1A1AA]">
+                                {(preProductionFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemovePreProductionFile}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-white hover:bg-white/10"
+                            aria-label="Remove pre-production file"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex min-h-[154px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#4A4A4A] bg-[#171717] px-4 text-center text-[#CFCFD3] transition-colors hover:border-[#E8D1AB]">
+                          <Upload size={24} className="text-[#E8D1AB]" />
+                          <span className="mt-3 text-sm font-medium">Choose File</span>
+                          <span className="mt-1 text-xs text-[#8A8A8A]">
+                            Optional, max 10MB
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(event) => {
+                              handlePreProductionFileChange(event.target.files?.[0] ?? null);
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -8145,8 +8287,8 @@ function CreateQuotePageContent() {
                 Review Changes
               </Button>
             ) : (
-              <Button
-                className={`${canPrimaryAction
+            <Button
+              className={`${canPrimaryAction
                   ? view === "tax"
                     ? "bg-white text-[#1B1B1B]"
                     : "bg-[#E8D1AB] text-[#101010]"
