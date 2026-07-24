@@ -132,6 +132,7 @@ const mapTransactionDetail = (transaction: FinanceTransactionApiRow): Transactio
     status: normalizeStatus(transaction.status),
     amount: formatCurrency(transaction.total_amount, transaction.currency || "USD"),
     feeNote: buildFeeNote(transaction),
+    receiptUrl: transaction.receipt_url || transaction.receipt_download_url || null,
   };
 };
 
@@ -157,6 +158,7 @@ const mapTransactionRow = (transaction: FinanceTransactionApiRow, index = 0): Tr
     status: normalizeStatus(transaction.status),
     initials: buildInitials(clientName),
     avatarColor: getAvatarColor(clientName || transactionId),
+    receiptUrl: transaction.receipt_url || transaction.receipt_download_url || null,
     transactionCount: 1,
     transactionDetails: [mapTransactionDetail(transaction)],
   };
@@ -195,6 +197,7 @@ const mapShootRow = (shoot: FinanceShootApiRow, index = 0): TransactionRow => {
     status: normalizeStatus(shoot.status || shoot.payment_status || primaryTransaction?.status),
     initials: buildInitials(clientName),
     avatarColor: getAvatarColor(clientName || String(bookingId || index)),
+    receiptUrl: primaryTransaction?.receipt_url || primaryTransaction?.receipt_download_url || null,
     transactionCount: transactions.length,
     transactionDetails: transactions.map(mapTransactionDetail),
   };
