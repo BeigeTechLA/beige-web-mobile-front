@@ -380,6 +380,34 @@ setPastShoots([]);
     }
   }
 
+  // Parse equipment
+  let equipmentNames: string[] = [];
+
+  if (Array.isArray(partner.equipment_details)) {
+    equipmentNames = partner.equipment_details
+      .map((item: any) => item?.equipment_name)
+      .filter(Boolean);
+  } else if (Array.isArray(partner.equipment_names)) {
+    equipmentNames = partner.equipment_names.filter(Boolean);
+  } else if (partner.equipment_names) {
+    try {
+      const parsedEquipmentNames =
+        typeof partner.equipment_names === "string"
+          ? JSON.parse(partner.equipment_names)
+          : partner.equipment_names;
+
+      equipmentNames = Array.isArray(parsedEquipmentNames)
+        ? parsedEquipmentNames.filter(Boolean)
+        : [];
+    } catch (error) {
+      console.error("Error parsing equipment names:", error);
+      equipmentNames = [];
+    }
+  }
+
+  // Remove duplicate equipment names while preserving order
+  equipmentNames = [...new Set(equipmentNames)];
+
   // Parse availability
   let availabilityDays: string[] = [];
   if (partner.availability) {
@@ -870,6 +898,36 @@ setPastShoots([]);
                 ))
               ) : (
                 <span className={`text-sm italic ${isDark ? "text-[#666]" : "text-[#020202]"}`}>No skills listed.</span>
+              )}
+            </div>
+          </div>
+
+          {/* Equipment */}
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
+            <h2 className={SECTION_TITLE_STYLE}>
+              Equipment <span className={isDark ? "text-[#E5D5B8]" : "text-[#000000]"}>({equipmentNames.length})</span>
+            </h2>
+
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
+            <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
+              {equipmentNames.length > 0 ? (
+                equipmentNames.map((equipmentName, index) => (
+                  <div
+                    key={`${equipmentName}-${index}`}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${
+                      isDark
+                        ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]"
+                        : "bg-gray-50 border-[#0000004D] text-[#020202]"
+                    }`}
+                  >
+                    <span>{equipmentName}</span>
+                  </div>
+                ))
+              ) : (
+                <span className={`text-sm italic ${isDark ? "text-[#666]" : "text-[#020202]"}`}>
+                  No equipment listed.
+                </span>
               )}
             </div>
           </div>
