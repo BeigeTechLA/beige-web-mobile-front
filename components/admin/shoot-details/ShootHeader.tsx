@@ -712,14 +712,6 @@ export default function ShootHeader({
         <span className="text-sm font-medium">Back</span>
       </button>
 
-      <button
-        onClick={() => router.back()}
-        className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
-      >
-        <ArrowLeft size={20} />
-        <span className="text-sm font-medium">Back</span>
-      </button>
-
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">

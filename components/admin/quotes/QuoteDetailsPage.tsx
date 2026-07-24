@@ -761,15 +761,15 @@ const QuoteTopActions = ({
       </div>
     )}
     {showReject && (
-    <Button
-      type="button"
-      onClick={onReject}
-      disabled={rejectDisabled}
-      className="hidden lg:flex h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
-    >
-      {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-      {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
-    </Button>
+      <Button
+        type="button"
+        onClick={onReject}
+        disabled={rejectDisabled}
+        className="hidden lg:flex h-11 rounded-xl border border-[#FCA5A5]/20 bg-[#FECACA] px-4 text-[#DC2626] hover:bg-[#FECACA]/90"
+      >
+        {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+        {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
+      </Button>
     )}
     <Button
       type="button"
@@ -1857,8 +1857,8 @@ export default function QuoteDetailsPage({
 
       const invoiceBookingId =
         response.data?.booking_id !== undefined &&
-        response.data?.booking_id !== null &&
-        String(response.data.booking_id).trim()
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
           ? String(response.data.booking_id)
           : convertedBookingId;
 
@@ -1928,10 +1928,10 @@ export default function QuoteDetailsPage({
         Boolean(invoiceBookingId);
       const inlineDocumentUrl = shouldUseInlineBeigeDocument && invoiceBookingId
         ? buildBeigeInvoiceUrl(invoiceBookingId, {
-            manual: isManualDocument && !isPaidDocument,
-            receipt: isManualDocument && isPaidDocument,
-            cacheBust: true,
-          })
+          manual: isManualDocument && !isPaidDocument,
+          receipt: isManualDocument && isPaidDocument,
+          cacheBust: true,
+        })
         : null;
       if (!hostedInvoiceUrl && !invoicePdfUrl && !receiptUrl) {
         throw new Error("Invoice preview URL is not available");
@@ -1939,9 +1939,9 @@ export default function QuoteDetailsPage({
 
       const viewerUrl = inlineDocumentUrl
         ? `/pdf-viewer?${new URLSearchParams({
-            url: inlineDocumentUrl,
-            title: isPaidDocument ? "Receipt" : "Invoice",
-          }).toString()}`
+          url: inlineDocumentUrl,
+          title: isPaidDocument ? "Receipt" : "Invoice",
+        }).toString()}`
         : null;
       const openUrl =
         viewerUrl ||
@@ -2233,7 +2233,9 @@ export default function QuoteDetailsPage({
 
   return (
     <div className={`quote-editor-theme min-h-screen ${isDark ? "quote-editor-theme-dark bg-[#0f0f0f] text-white" : "quote-editor-theme-light bg-[#F4F5F7] text-black"}`}>
-      <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
+      <div className="sticky top-0 z-50 w-full">
+        <TopbarComponent pathname={pathname} actions={topbarActions} breadcrumbOverrides={breadcrumbOverrides} />
+      </div>
 
       <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
         <div className="mb-6 flex flex-col gap-4 lg:hidden">
@@ -2378,26 +2380,26 @@ export default function QuoteDetailsPage({
                       <p className="mt-2 text-xs lg:text-sm text-[#7E7E85]">Quote Number: {quoteNumber}</p>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] lg:text-xs text-[#7E7E85]">
                         {createdByName && (
-                            <p>
-                              Created by: <span className="text-white/80 font-medium">{String(createdByName)}</span>
-                            </p>
-                          )}
+                          <p>
+                            Created by: <span className="text-white/80 font-medium">{String(createdByName)}</span>
+                          </p>
+                        )}
                         {updatedByName && Number(selectedVersionNumber) > 1 && (
-                            <div className="flex items-center gap-2">
-                              <span className="hidden lg:inline text-[#4B4B4F]">|</span>
-                              <p>
-                                Updated by: <span className="text-white/80 font-medium">{String(updatedByName)}</span>
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => setIsChangeDetailsModalOpen(true)}
-                                className="flex items-center gap-1 rounded-md bg-[#E8D1AB]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#E8D1AB] transition-colors hover:bg-[#E8D1AB]/20"
-                              >
-                                <Eye size={12} />
-                                View Details
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="hidden lg:inline text-[#4B4B4F]">|</span>
+                            <p>
+                              Updated by: <span className="text-white/80 font-medium">{String(updatedByName)}</span>
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setIsChangeDetailsModalOpen(true)}
+                              className="flex items-center gap-1 rounded-md bg-[#E8D1AB]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#E8D1AB] transition-colors hover:bg-[#E8D1AB]/20"
+                            >
+                              <Eye size={12} />
+                              View Details
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2687,8 +2689,8 @@ export default function QuoteDetailsPage({
                                     {String(entry.data.payment_mode || "").toLowerCase() === "net30"
                                       ? "Net 30 initiated"
                                       : entry.data.payment_type === "partial"
-                                      ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
-                                      : "Full payment marked"}{" "}
+                                        ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
+                                        : "Full payment marked"}{" "}
                                     via {paidMode}
                                   </p>
                                   <p className="mt-1 text-white/45">
@@ -3032,7 +3034,7 @@ export default function QuoteDetailsPage({
             : "Convert to Booking"
         }
       />
-       <QuoteChangeDetailsModal
+      <QuoteChangeDetailsModal
         open={isChangeDetailsModalOpen}
         onClose={() => setIsChangeDetailsModalOpen(false)}
         activity={currentVersionActivity}
@@ -3041,148 +3043,148 @@ export default function QuoteDetailsPage({
     </div>
   );
 }
-    const QuoteChangeDetailsModal = ({
-      open,
-      onClose,
-      activity,
-      versionNumber
-    }: {
-      open: boolean;
-      onClose: () => void;
-      activity: QuoteActivityLike | null;
-      versionNumber: string | number | null;
-    }) => {
-      if (!activity) return null;
+const QuoteChangeDetailsModal = ({
+  open,
+  onClose,
+  activity,
+  versionNumber
+}: {
+  open: boolean;
+  onClose: () => void;
+  activity: QuoteActivityLike | null;
+  versionNumber: string | number | null;
+}) => {
+  if (!activity) return null;
 
-      const metadata = activity.metadata as QuoteChangeDetailsMetadata | null | undefined;
-      const audit = metadata?.audit;
-      const changeSummary = metadata?.change_summary;
-      
-      const changedFields = audit?.changed_fields || [];
-      const addedItems = audit?.line_items?.added || [];
-      const removedItems = audit?.line_items?.removed || [];
-      const updatedItems = audit?.line_items?.updated || [];
-      const summaryLines = changeSummary?.summary_lines || [];
+  const metadata = activity.metadata as QuoteChangeDetailsMetadata | null | undefined;
+  const audit = metadata?.audit;
+  const changeSummary = metadata?.change_summary;
 
-      return (
-        <Dialog open={open} onOpenChange={onClose}>
-          <DialogContent className="max-w-2xl border-[#2B2B2B] bg-[#171717] text-white">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">
-                Version {versionNumber} - Change Details
-              </DialogTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-[#8F8F95]">
-                  {activity.message} by <span className="text-white font-medium">{activity.performed_by?.name}</span>
-                </p>
-                <span className="text-[#8F8F95] text-sm">•</span>
-                <p className="text-sm text-[#8F8F95]">{formatQuoteDate(activity.created_at)}</p>
+  const changedFields = audit?.changed_fields || [];
+  const addedItems = audit?.line_items?.added || [];
+  const removedItems = audit?.line_items?.removed || [];
+  const updatedItems = audit?.line_items?.updated || [];
+  const summaryLines = changeSummary?.summary_lines || [];
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl border-[#2B2B2B] bg-[#171717] text-white">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">
+            Version {versionNumber} - Change Details
+          </DialogTitle>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-sm text-[#8F8F95]">
+              {activity.message} by <span className="text-white font-medium">{activity.performed_by?.name}</span>
+            </p>
+            <span className="text-[#8F8F95] text-sm">•</span>
+            <p className="text-sm text-[#8F8F95]">{formatQuoteDate(activity.created_at)}</p>
+          </div>
+        </DialogHeader>
+
+        <div className="mt-4 max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+          {/* 1. High Level Summary (summary_lines from JSON) */}
+          {summaryLines.length > 0 && (
+            <div className="rounded-lg bg-[#E8D1AB]/5 p-4 border border-[#E8D1AB]/10">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] mb-2">Change Summary</h4>
+              <ul className="space-y-1.5">
+                {summaryLines.map((line: string, i: number) => (
+                  <li key={i} className="text-sm text-white/90 flex items-start gap-2">
+                    <span className="text-[#E8D1AB] mt-1.5 h-1 w-1 rounded-full bg-[#E8D1AB] shrink-0" />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 2. Main Field Updates (Tax, Total, Subtotal) */}
+          {changedFields.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">General Updates</h4>
+              <div className="overflow-hidden rounded-xl border border-[#2B2B2B] bg-[#111111]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white/5 text-[#8F8F95]">
+                    <tr>
+                      <th className="px-4 py-2.5 font-medium">Field</th>
+                      <th className="px-4 py-2.5 font-medium">Previous</th>
+                      <th className="px-4 py-2.5 font-medium">New Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2B2B2B]">
+                    {changedFields.map((field, idx) => (
+                      <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-4 py-3 font-medium text-white/70">{field.label}</td>
+                        <td className="px-4 py-3 text-[#FCA5A5] line-through opacity-70">{field.display_previous || "Empty"}</td>
+                        <td className="px-4 py-3 text-emerald-400 font-semibold">{field.display_new}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </DialogHeader>
-
-            <div className="mt-4 max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
-              {/* 1. High Level Summary (summary_lines from JSON) */}
-              {summaryLines.length > 0 && (
-                <div className="rounded-lg bg-[#E8D1AB]/5 p-4 border border-[#E8D1AB]/10">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#E8D1AB] mb-2">Change Summary</h4>
-                  <ul className="space-y-1.5">
-                    {summaryLines.map((line: string, i: number) => (
-                      <li key={i} className="text-sm text-white/90 flex items-start gap-2">
-                        <span className="text-[#E8D1AB] mt-1.5 h-1 w-1 rounded-full bg-[#E8D1AB] shrink-0" />
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* 2. Main Field Updates (Tax, Total, Subtotal) */}
-              {changedFields.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">General Updates</h4>
-                  <div className="overflow-hidden rounded-xl border border-[#2B2B2B] bg-[#111111]">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-white/5 text-[#8F8F95]">
-                        <tr>
-                          <th className="px-4 py-2.5 font-medium">Field</th>
-                          <th className="px-4 py-2.5 font-medium">Previous</th>
-                          <th className="px-4 py-2.5 font-medium">New Value</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#2B2B2B]">
-                        {changedFields.map((field, idx) => (
-                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="px-4 py-3 font-medium text-white/70">{field.label}</td>
-                            <td className="px-4 py-3 text-[#FCA5A5] line-through opacity-70">{field.display_previous || "Empty"}</td>
-                            <td className="px-4 py-3 text-emerald-400 font-semibold">{field.display_new}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Line Item Changes (Added, Removed, and Updated) */}
-              {(addedItems.length > 0 || removedItems.length > 0 || updatedItems.length > 0) && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">Line Item Details</h4>
-                  <div className="space-y-2">
-                    {/* Items Added */}
-                    {addedItems.map((item, idx) => (
-                      <div key={`add-${idx}`} className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[12px] text-black font-bold">+</span>
-                          <div>
-                            <p className="text-sm font-medium text-white">{item.item_name}</p>
-                            <p className="text-[10px] text-emerald-400/70 uppercase">{item.section_type}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
-                      </div>
-                    ))}
-
-                    {/* Items Removed */}
-                    {removedItems.map((item, idx) => (
-                      <div key={`rem-${idx}`} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[12px] text-black font-bold">-</span>
-                          <div>
-                            <p className="text-sm font-medium text-white/60 line-through">{item.item_name}</p>
-                            <p className="text-[10px] text-red-400/70 uppercase">{item.section_type}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
-                      </div>
-                    ))}
-
-                    {/* Items Updated (e.g., Sort Order or Price changes) */}
-                    {updatedItems.map((item, idx) => (
-                      <div key={`upd-${idx}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[12px] text-black font-bold">~</span>
-                          <p className="text-sm font-medium text-white">{item.identity?.item_name}</p>
-                        </div>
-                        <div className="pl-9 space-y-1">
-                          {(item.changes || []).map((c, i) => (
-                            <p key={i} className="text-xs text-[#8F8F95]">
-                              {c.label}: <span className="line-through text-red-400/50">{c.display_previous}</span> → <span className="text-blue-400">{c.display_new}</span>
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
+          )}
 
-            <div className="mt-6 flex justify-end border-t border-[#2B2B2B] pt-4">
-              <Button onClick={onClose} className="h-10 rounded-xl bg-[#E8D1AB] px-8 text-black font-semibold hover:bg-[#E8D1AB]/90">
-                Close
-              </Button>
+          {/* 3. Line Item Changes (Added, Removed, and Updated) */}
+          {(addedItems.length > 0 || removedItems.length > 0 || updatedItems.length > 0) && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">Line Item Details</h4>
+              <div className="space-y-2">
+                {/* Items Added */}
+                {addedItems.map((item, idx) => (
+                  <div key={`add-${idx}`} className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[12px] text-black font-bold">+</span>
+                      <div>
+                        <p className="text-sm font-medium text-white">{item.item_name}</p>
+                        <p className="text-[10px] text-emerald-400/70 uppercase">{item.section_type}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
+                  </div>
+                ))}
+
+                {/* Items Removed */}
+                {removedItems.map((item, idx) => (
+                  <div key={`rem-${idx}`} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[12px] text-black font-bold">-</span>
+                      <div>
+                        <p className="text-sm font-medium text-white/60 line-through">{item.item_name}</p>
+                        <p className="text-[10px] text-red-400/70 uppercase">{item.section_type}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
+                  </div>
+                ))}
+
+                {/* Items Updated (e.g., Sort Order or Price changes) */}
+                {updatedItems.map((item, idx) => (
+                  <div key={`upd-${idx}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[12px] text-black font-bold">~</span>
+                      <p className="text-sm font-medium text-white">{item.identity?.item_name}</p>
+                    </div>
+                    <div className="pl-9 space-y-1">
+                      {(item.changes || []).map((c, i) => (
+                        <p key={i} className="text-xs text-[#8F8F95]">
+                          {c.label}: <span className="line-through text-red-400/50">{c.display_previous}</span> → <span className="text-blue-400">{c.display_new}</span>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      );
-    };
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end border-t border-[#2B2B2B] pt-4">
+          <Button onClick={onClose} className="h-10 rounded-xl bg-[#E8D1AB] px-8 text-black font-semibold hover:bg-[#E8D1AB]/90">
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
