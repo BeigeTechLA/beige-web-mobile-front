@@ -94,7 +94,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1)); // Default to Jan 2026 for demo
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
@@ -302,7 +302,7 @@ setPastShoots([]);
       Object.values(availabilityDetails).forEach((status: any) => {
         if (status.projectAssigned) {
           bookedShoots += 1;
-        } else if (status.available) {
+        } else if (status.available || status.customAvailabilityStatus === 1) {
           availableDays += 1;
         } else if (status.available === false) {
           timeOff += 1;
@@ -1188,7 +1188,7 @@ setPastShoots([]);
                   <div className="flex items-center gap-2">
                     <button
                       className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
-                      onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
+                    onClick={() => setCurrentMonth(new Date())}
                     >
                       Today
                     </button>
@@ -1215,12 +1215,13 @@ setPastShoots([]);
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const dayAvailability = getAvailabilityForDay(day);
                     const hasShoot = isShootDay(day);
-                    const isAvailable = Boolean(dayAvailability?.available || dayAvailability?.customAvailabilityStatus === 1);
-                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && !isAvailable);
+                    const availabilityValue = dayAvailability?.available;
+                    const isAvailable = Boolean(availabilityValue === true || dayAvailability?.customAvailabilityStatus === 1);
+                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && availabilityValue === false);
                     const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
                     const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
                     const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
-                    const isTodayDate = isSameDay(day, new Date(2026, 0, 16)); // Mocking "Today" as Jan 16 for demo visual match
+                    const isTodayDate = isSameDay(day, new Date());
 
                     // Determine border classes
                     const isLastRow = dayIdx >= calendarDays.length - 7;
