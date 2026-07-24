@@ -23,6 +23,11 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -33,6 +38,7 @@ export default function CreatorFolderDetailsPage() {
   const projectId = params.id;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -61,6 +67,20 @@ export default function CreatorFolderDetailsPage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm]);
 
   const loadWorkspace = useCallback(async () => {
     try {

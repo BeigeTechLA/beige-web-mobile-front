@@ -22,6 +22,11 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 
@@ -30,6 +35,7 @@ export default function SalesFolderDetailsPage() {
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -46,6 +52,20 @@ export default function SalesFolderDetailsPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const { canCreate, canDelete } = usePermissions("file_manager");
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm]);
 
   const loadWorkspace = async () => {
     try {
