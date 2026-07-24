@@ -46,6 +46,7 @@ import { MobileWorkspaceRow } from "./file-manager/AffiliateMobileRow";
 interface WorkspaceCard {
   externalId: string;
   title: string;
+  rawName?: string;
   fileCount: number;
   lastOpened: string;
   userInitials: string;
@@ -194,6 +195,7 @@ export default function AffiliateFileManager() {
             fileCount: Number(workspace.fileCount || 0),
             lastOpened: workspace.updatedAt || workspace.createdAt || "",
             userInitials: getInitials(displayName),
+            rawName: workspace.folderName,
             category: inferWorkspaceCategory(
               workspace.folderName
             ),
@@ -997,7 +999,8 @@ export default function AffiliateFileManager() {
   );
   const uploadPath = useMemo(() => {
     if (!selectedWorkspace || !canUploadInSelectedPhase) return undefined;
-    const basePath = `${selectedWorkspace.title}/Pre-Production`;
+    const workspaceFolderName = selectedWorkspace.rawName || selectedWorkspace.title;
+    const basePath = `${workspaceFolderName}/Pre-Production`;
     return selectedPath ? `${basePath}/${selectedPath}` : basePath;
   }, [canUploadInSelectedPhase, selectedPath, selectedWorkspace]);
 
@@ -1507,6 +1510,23 @@ export default function AffiliateFileManager() {
 
        {filteredFiles.length > 0 ? (
   <div className="flex flex-wrap justify-end gap-2">
+    {canUploadInSelectedPhase ? (
+      <Button
+        onClick={() => {
+          if (selectionLockActive) return;
+          setIsUploadModalOpen(true);
+        }}
+        disabled={selectionLockActive}
+        className={`gap-2 h-10 px-4 rounded-lg border transition-all ${isDark
+          ? "border-white/20 bg-[#202020] text-white hover:bg-white/10"
+          : "border-black/15 bg-white text-black hover:bg-zinc-50 shadow-sm"
+          } disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        <Upload size={18} />
+        <span>Upload Files</span>
+      </Button>
+    ) : null}
+
     {isSelectionMode ? (
       canApproveSelectedFiles ? (
         <Button
