@@ -1420,12 +1420,8 @@ export const AddAvailability = async (payload: any) => {
     });
     return response;
   } catch (error) {
-    console.error('Get Crew Availability Error:', error);
-    return {
-      success: false,
-      data: null,
-      error: 'Failed to fetch crew availability',
-    };
+    console.error('Add Availability Error:', error);
+    throw error;
   }
 };
 
