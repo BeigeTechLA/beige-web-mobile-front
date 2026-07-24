@@ -45,7 +45,8 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUSES = ["Linked", "Unlinked"];
-const PAGE_SIZE = 24;
+const LIST_PAGE_SIZE = 10;
+const BOARD_PAGE_SIZE = 24;
 const PAGINATION_WINDOW = 1;
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
 
@@ -129,7 +130,7 @@ export default function AdminFolderManagerPage() {
   const [boardPage, setBoardPage] = useState(1);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: PAGE_SIZE,
+    limit: LIST_PAGE_SIZE,
     total: 0,
     totalPages: 1,
     hasNextPage: false,
@@ -137,7 +138,7 @@ export default function AdminFolderManagerPage() {
   });
   const [boardPagination, setBoardPagination] = useState({
     page: 1,
-    limit: PAGE_SIZE,
+    limit: BOARD_PAGE_SIZE,
     total: 0,
     totalPages: 1,
     hasNextPage: false,
@@ -208,7 +209,7 @@ export default function AdminFolderManagerPage() {
 
       const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
         page,
-        limit: PAGE_SIZE,
+        limit: LIST_PAGE_SIZE,
         search: searchQuery,
         workspaceType:
           selectedTab === "Common events"
@@ -252,7 +253,7 @@ export default function AdminFolderManagerPage() {
 
         const { workspaces, pagination: serverPagination } = await fileManagerApi.listExternalWorkspacesPaginated({
           page,
-          limit: PAGE_SIZE,
+          limit: BOARD_PAGE_SIZE,
           search: searchQuery,
         });
 
@@ -353,7 +354,7 @@ export default function AdminFolderManagerPage() {
         while (hasNextPage) {
           const { workspaces, pagination: pageMeta } = await fileManagerApi.listExternalWorkspacesPaginated({
             page,
-            limit: PAGE_SIZE,
+            limit: BOARD_PAGE_SIZE,
             search: searchQuery,
           });
 

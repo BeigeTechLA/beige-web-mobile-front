@@ -520,7 +520,7 @@ export default function AdminRoleEditDetailsRoute() {
           <div className="flex items-center gap-3">
             {/* <button
               onClick={() => setIsDeleteModalOpen(true)}
-              className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
+              className="inline-flex h-12 items-center justify-center rounded-lg border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95"
             >
               {deleteLabel}
             </button> */}
@@ -534,7 +534,7 @@ export default function AdminRoleEditDetailsRoute() {
                     ? "Delete permission not allowed"
                     : deleteLabel
               }
-              className="inline-flex h-12 items-center justify-center rounded-[12px] border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-12 items-center justify-center rounded-lg border border-[#F04438]/20 bg-[#F04438]/10 px-6 text-[15px] font-bold text-[#F04438] transition-all hover:bg-[#F04438]/15 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {deleteLabel}
             </button>
@@ -542,7 +542,7 @@ export default function AdminRoleEditDetailsRoute() {
               onClick={() => setIsUpdateModalOpen(true)}
               disabled={!canEditPage}
               title={mode === "role" ? "Edit Role" : "Change Role"}
-              className="inline-flex h-12 items-center justify-center rounded-[12px] bg-[#E5D5B8] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-12 items-center justify-center rounded-lg bg-[#E8D1AB] px-8 text-[15px] font-bold text-black transition-all hover:bg-[#d6c29b] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {mode === "role" ? "Edit Role" : "Change Role"}
             </button>
@@ -565,6 +565,9 @@ export default function AdminRoleEditDetailsRoute() {
         onOpenModal={() => setIsUpdateModalOpen(true)}
         onPrimaryAction={mode === "role" ? handlePrimaryAction : handleUpdateUserPermissions}
         onInvalidAccessAttempt={handleInvalidAccessAttempt}
+        mode={mode}
+        canEditPage={canEditPage}
+        setIsUpdateModalOpen={setIsUpdateModalOpen}
       />
 
       {error ? (

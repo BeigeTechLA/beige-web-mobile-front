@@ -871,6 +871,10 @@ export default function QuotePreviewPageShell({
     ["pending", "unpaid", "payment_pending", "partially_paid", "partial_paid", "requires_payment"].includes(paymentStatus);
   const hasValidPublicQuotePreview =
     quoteDetailMode === "public" && !loading && Boolean(quote) && !errorMessage;
+  const isExpiredUnsignedPublicQuote =
+    hasValidPublicQuotePreview && isQuoteExpired && !isQuoteSigned;
+  const canSignQuote =
+    hasValidPublicQuotePreview && !isQuoteSigned && !isQuoteExpired;
   const latestVersionApprovalPending =
     errorReasonCode === QUOTE_PREVIEW_APPROVAL_PENDING_REASON ||
     (errorReasonCode === QUOTE_PREVIEW_SUPERSEDED_REASON &&
@@ -888,6 +892,7 @@ export default function QuotePreviewPageShell({
     isPublicPaymentAllowedStatus &&
     !isMarkedFullyPaid &&
     (!isZeroOutstanding || isPaymentPending);
+  const showMobilePaymentCta = showActionButtons && canContinueToPayment;
 
   useEffect(() => {
     if (!paymentStorageKey || typeof window === "undefined") {
@@ -1147,7 +1152,7 @@ export default function QuotePreviewPageShell({
           {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
         </ActionButton>
       )}
-      {hasValidPublicQuotePreview && !isQuoteSigned && (
+      {canSignQuote && (
         <ActionButton
           onClick={() => {
             if (!acceptServiceAgreement) {
@@ -1200,7 +1205,7 @@ export default function QuotePreviewPageShell({
         breadcrumbOverrides={breadcrumbOverrides}
       />
 
-      <div className="px-4 pb-10 pt-6 lg:px-9 lg:pb-14 lg:pt-8">
+      <div className={`px-4 pt-6 lg:px-9 lg:pb-14 lg:pt-8 ${showMobilePaymentCta ? "pb-28" : "pb-10"}`}>
         {showActionButtons ? (
           <div className="mb-6 flex flex-col gap-2 lg:hidden">
             {quote ? (
@@ -1245,8 +1250,7 @@ export default function QuotePreviewPageShell({
                 {isPreparingLink ? "Preparing..." : copied ? "Copied" : "Copy Link"}
               </ActionButton>
             )}
-            {hasValidPublicQuotePreview && (
-              !isQuoteSigned ? (
+            {canSignQuote ? (
                 <ActionButton
                   onClick={() => {
                     if (!acceptServiceAgreement) {
@@ -1263,16 +1267,7 @@ export default function QuotePreviewPageShell({
                 >
                   Sign Quote
                 </ActionButton>
-              ) : null
-            )}
-            {canContinueToPayment && (
-              <ActionButton
-                onClick={handleContinueToPayment}
-                className="h-11 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
-              >
-                Continue to Payment
-              </ActionButton>
-            )}
+            ) : null}
             {canShowShareActions && (
               <ActionButton
                 onClick={() => { void handleSendQuote(); }}
@@ -1316,18 +1311,30 @@ export default function QuotePreviewPageShell({
             Loading quote preview...
           </div>
         ) : quote ? (
-          <div ref={quotePreviewPrintRef}>
-            <QuotePreviewDocument
-              quote={quote}
-              quoteId={queryQuoteId ?? queryQuoteKey}
-              showServiceAgreementAcceptance={quoteDetailMode === "public"}
-              acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
-              onAcceptServiceAgreementChange={setAcceptServiceAgreement}
-              onOpenServiceAgreement={() => {
-                setIsServiceAgreementOpen(true);
-              }}
-            />
-          </div>
+          <>
+            {isExpiredUnsignedPublicQuote ? (
+              <div
+                className={`mb-5 rounded-[16px] px-5 py-4 text-sm leading-6 ${isDark
+                  ? "border border-[#E5D5B8]/25 bg-[#2A241A] text-[#F2E4CA]"
+                  : "border border-[#D8B36B] bg-[#FFF7E8] text-[#5A3B07]"
+                  }`}
+              >
+                This quote has expired. Please contact your sales representative to renew it and complete your signing and payment.
+              </div>
+            ) : null}
+            <div ref={quotePreviewPrintRef}>
+              <QuotePreviewDocument
+                quote={quote}
+                quoteId={queryQuoteId ?? queryQuoteKey}
+                showServiceAgreementAcceptance={quoteDetailMode === "public" && !isExpiredUnsignedPublicQuote}
+                acceptServiceAgreement={isQuoteSigned ? true : acceptServiceAgreement}
+                onAcceptServiceAgreementChange={setAcceptServiceAgreement}
+                onOpenServiceAgreement={() => {
+                  setIsServiceAgreementOpen(true);
+                }}
+              />
+            </div>
+          </>
         ) : (
           <div
             className={`flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-[24px] px-6 text-center ${isDark
@@ -1369,6 +1376,22 @@ export default function QuotePreviewPageShell({
           </div>
         )}
       </div>
+
+      {showMobilePaymentCta ? (
+        <div
+          className={`fixed inset-x-0 bottom-0 z-40 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden ${isDark
+            ? "border-white/10 bg-[#0f0f0f]/95 shadow-[0_-12px_28px_rgba(0,0,0,0.35)] backdrop-blur"
+            : "border-[#DFDDDD] bg-white/95 shadow-[0_-12px_28px_rgba(0,0,0,0.12)] backdrop-blur"
+            }`}
+        >
+          <ActionButton
+            onClick={handleContinueToPayment}
+            className="mx-auto h-12 w-full max-w-[430px] rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#E5D5B8]/90"
+          >
+            Continue to Payment
+          </ActionButton>
+        </div>
+      ) : null}
 
       {/* FIXED: Placed at root layout level so it is always mounted across mobile & desktop viewports */}
       <ServiceAgreementModal

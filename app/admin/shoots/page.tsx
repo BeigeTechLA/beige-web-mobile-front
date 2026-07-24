@@ -3,11 +3,10 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from '@/components/admin/ShootsTable';
 
-import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download } from 'lucide-react';
+import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download, Pencil, X } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import Topbar from "@/components/admin/Topbar";
-import DottedDivider from '@/components/admin/DottedDivider';
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useRouter, usePathname } from 'next/navigation';
 import {
@@ -46,7 +45,11 @@ const FILTER_STATUS_OPTIONS = [
 ] as const;
 const RANGE_FILTER_OPTIONS = new Set([
   "all",
+  "today",
   "upcoming",
+  "last_7_days",    
+  "last_15_days",   
+  "last_1_month", 
   "next_7_days",
   "next_15_days",
   "in_1_month",
@@ -73,6 +76,11 @@ export default function ShootsPage() {
 
   // --- Filter States ---
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [customRangeStartDate, setCustomRangeStartDate] = useState<Date | null>(null);
+  const [customRangeEndDate, setCustomRangeEndDate] = useState<Date | null>(null);
+  const [draftCustomRangeStartDate, setDraftCustomRangeStartDate] = useState<Date | null>(null);
+  const [draftCustomRangeEndDate, setDraftCustomRangeEndDate] = useState<Date | null>(null);
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -120,6 +128,18 @@ export default function ShootsPage() {
           setSelectedDate(parsedDate);
         }
       }
+      if (typeof parsed.customRangeStartDate === "string") {
+        const parsedStartDate = new Date(parsed.customRangeStartDate);
+        if (!Number.isNaN(parsedStartDate.getTime())) {
+          setCustomRangeStartDate(parsedStartDate);
+        }
+      }
+      if (typeof parsed.customRangeEndDate === "string") {
+        const parsedEndDate = new Date(parsed.customRangeEndDate);
+        if (!Number.isNaN(parsedEndDate.getTime())) {
+          setCustomRangeEndDate(parsedEndDate);
+        }
+      }
     } catch (error) {
       console.error("Failed to restore shoots filters:", error);
     } finally {
@@ -142,6 +162,8 @@ export default function ShootsPage() {
           cpAssignmentFilter,
           viewMode,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
+          customRangeStartDate: customRangeStartDate ? customRangeStartDate.toISOString() : null,
+          customRangeEndDate: customRangeEndDate ? customRangeEndDate.toISOString() : null,
         })
       );
     } catch (error) {
@@ -158,10 +180,17 @@ export default function ShootsPage() {
     cpAssignmentFilter,
     viewMode,
     selectedDate,
+    customRangeStartDate,
+    customRangeEndDate,
   ]);
 
   const resetAllFilters = () => {
     setSelectedDate(null);
+    setCustomRangeStartDate(null);
+    setCustomRangeEndDate(null);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+    setIsCustomRangeOpen(false);
     setSearchQuery("");
     setCategoryFilter("all");
     setStatusFilter("all");
@@ -185,6 +214,68 @@ export default function ShootsPage() {
       console.log("unfiltered");
     }
   };
+
+  const openCustomRangeDialog = () => {
+    setDraftCustomRangeStartDate(customRangeStartDate);
+    setDraftCustomRangeEndDate(customRangeEndDate);
+    setIsCustomRangeOpen(true);
+  };
+
+  const handleRangeChange = (value: string) => {
+    if (value === "custom") {
+      setRange("custom");
+      openCustomRangeDialog();
+      return;
+    }
+
+    setRange(value);
+    setCustomRangeStartDate(null);
+    setCustomRangeEndDate(null);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+    setIsCustomRangeOpen(false);
+  };
+
+  const handleCustomRangeApply = () => {
+    if (!draftCustomRangeStartDate || !draftCustomRangeEndDate) {
+      toast.error("Select both start and end dates for the custom range.");
+      return;
+    }
+
+    if (startOfDay(draftCustomRangeStartDate) > startOfDay(draftCustomRangeEndDate)) {
+      toast.error("Start date cannot be after end date.");
+      return;
+    }
+
+    setCustomRangeStartDate(startOfDay(draftCustomRangeStartDate));
+    setCustomRangeEndDate(startOfDay(draftCustomRangeEndDate));
+    setRange("custom");
+    setIsCustomRangeOpen(false);
+  };
+
+  const handleCustomRangeCancel = () => {
+    setIsCustomRangeOpen(false);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+
+    if (!customRangeStartDate && !customRangeEndDate) {
+      setRange("all");
+    }
+  };
+
+  const clearCustomRange = () => {
+    setIsCustomRangeOpen(false);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+    setCustomRangeStartDate(null);
+    setCustomRangeEndDate(null);
+    setRange("all");
+  };
+
+  const currentCustomRangeLabel =
+    range === "custom" && customRangeStartDate && customRangeEndDate
+      ? `${formatDateFns(startOfDay(customRangeStartDate), "MMM dd, yyyy")} - ${formatDateFns(startOfDay(customRangeEndDate), "MMM dd, yyyy")}`
+      : "";
 
       const handleExportShoots = async () => {
       if (isExporting) {
@@ -229,13 +320,22 @@ export default function ShootsPage() {
       setIsExporting(true);
 
       try {
+        const customRangeStart = customRangeStartDate ? startOfDay(customRangeStartDate) : null;
+        const customRangeEnd = customRangeEndDate ? startOfDay(customRangeEndDate) : null;
+
         const blob = await adminApi.exportShootsCsv({
           ...(formattedStartDate ? { start_date: formattedStartDate } : {}),
           ...(formattedEndDate ? { end_date: formattedEndDate } : {}),
           ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
           ...(statusFilter !== "all" ? { status: statusFilter } : {}),
           ...(range !== "all" ? { range } : {}),
-          ...(range === "custom" && selectedDate
+          ...(range === "custom" && customRangeStart
+            ? { start_date: formatDateFns(customRangeStart, "yyyy-MM-dd") }
+            : {}),
+          ...(range === "custom" && customRangeEnd
+            ? { end_date: formatDateFns(customRangeEnd, "yyyy-MM-dd") }
+            : {}),
+          ...(range === "custom" && !customRangeStart && !customRangeEnd && selectedDate
             ? { date_on: formatDateFns(startOfDay(selectedDate), "yyyy-MM-dd") }
             : {}),
           ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
@@ -312,10 +412,10 @@ export default function ShootsPage() {
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Shoots Management</h1>
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Track and manage your photography and videography project</p>
           </div>
-          <SortDateButton
+          {/* <SortDateButton
             selectedDate={selectedDate}
             onDateChange={handleDateSort}
-          />
+          /> */}
         </div>
         {/* Search Bar */}
         <div className="flex flex-col gap-3">
@@ -439,19 +539,41 @@ export default function ShootsPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={range} onValueChange={setRange}>
+                <Select value={range} onValueChange={handleRangeChange}>
                   <SelectTrigger className={`w-[110px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                     <SelectValue placeholder="Range" />
                   </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                  <SelectContent
+                    className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
+                    viewportClassName="!h-auto max-h-56 overflow-y-auto"
+                  >
                     <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="upcoming">Upcoming</SelectItem>
                     <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                     <SelectItem value="next_15_days">Next 15 Days</SelectItem>
                     <SelectItem value="in_1_month">In 1 Month</SelectItem>
+                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                    <SelectItem value="last_15_days">Last 15 Days</SelectItem>
+                    <SelectItem value="last_1_month">Last 1 Month</SelectItem>
                     <SelectItem value="in_2_months">In 2 Months</SelectItem>
                     <SelectItem value="in_6_months">In 6 Months</SelectItem>
                     <SelectItem value="in_1_year">In 1 Year</SelectItem>
+                    <SelectItem
+                      value="custom"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setRange("custom");
+                        openCustomRangeDialog();
+                      }}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        setRange("custom");
+                        openCustomRangeDialog();
+                      }}
+                    >
+                      Custom Range
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
@@ -676,9 +798,127 @@ export default function ShootsPage() {
           }
         </div>
 
+        {isCustomRangeOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4 py-6"
+            onClick={handleCustomRangeCancel}
+          >
+            <div
+              className={`w-full max-w-2xl rounded-2xl border p-5 shadow-2xl ${isDark ? "border-[#3A3A3A] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Custom Range</h3>
+                  <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-black/55"}`}>
+                    Choose a start and end date to filter shoots.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <DatePicker
+                  label="Start Date"
+                  value={draftCustomRangeStartDate}
+                  onChange={(date) => {
+                    const nextStartDate = date ? startOfDay(date) : null;
+                    setDraftCustomRangeStartDate(nextStartDate);
+
+                    if (
+                      nextStartDate &&
+                      draftCustomRangeEndDate &&
+                      nextStartDate > startOfDay(draftCustomRangeEndDate)
+                    ) {
+                      setDraftCustomRangeEndDate(nextStartDate);
+                    }
+                  }}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                />
+
+                <DatePicker
+                  label="End Date"
+                  value={draftCustomRangeEndDate}
+                  onChange={(date) => {
+                    const nextEndDate = date ? startOfDay(date) : null;
+                    setDraftCustomRangeEndDate(nextEndDate);
+
+                    if (
+                      nextEndDate &&
+                      draftCustomRangeStartDate &&
+                      nextEndDate < startOfDay(draftCustomRangeStartDate)
+                    ) {
+                      setDraftCustomRangeStartDate(nextEndDate);
+                    }
+                  }}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                />
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeCancel}
+                  className={isDark ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5" : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeApply}
+                  className="bg-[#E8D1AB] text-black hover:bg-[#d4c3a3]"
+                >
+                  Apply Range
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentCustomRangeLabel && (
+          <div className={`mb-3 flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#3A3A3A] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+            <div className="flex items-center gap-2">
+              <span className={`font-semibold uppercase tracking-wide ${isDark ? "text-[#E8D1AB]" : "text-[#B38B4D]"}`}>
+                Saved Range
+              </span>
+              <span>{currentCustomRangeLabel}</span>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <Button
+                type="button"
+                onClick={openCustomRangeDialog}
+                aria-label="Edit custom range"
+                title="Edit custom range"
+                className={`h-8 w-8 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
+              >
+                <Pencil size={15} />
+              </Button>
+
+              <Button
+                type="button"
+                onClick={clearCustomRange}
+                aria-label="Clear custom range"
+                title="Clear custom range"
+                className={`h-8 px-3 rounded-lg flex items-center gap-1.5 text-xs font-medium ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
+              >
+                <X size={15} />
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* <DottedDivider className="my-0" />  */}
         <ShootsTable
           externalSelectedDate={selectedDate}
+          customRangeStartDate={customRangeStartDate}
+          customRangeEndDate={customRangeEndDate}
+          isCustomRangeOpen={isCustomRangeOpen}
           filtersReady={hasRestoredFilters}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}

@@ -108,6 +108,7 @@ type DisplayQuoteRow = {
   bookingStatus: string;
   quoteNumber: string;
   client: string;
+  clientEmail: string;
   location: string;
   initials: string;
   color: string;
@@ -1010,6 +1011,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     leadId,
     bookingStatus,
     client,
+    clientEmail: getText(quote.client_email, quote.guest_email),
     location,
     initials: getInitials(client),
     color: AVATAR_COLORS[index % AVATAR_COLORS.length],
@@ -2289,8 +2291,13 @@ export default function QuotesDashboardPage({
                                 <div className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}>
                                   {quote.initials}
                                 </div>
-                                <div className="relative z-20">
+                                <div className="relative z-20 min-w-0">
                                   <div className="lg:font-medium">{quote.client}</div>
+                                  {quote.clientEmail ? (
+                                    <div className={`mt-1 truncate text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                                      {quote.clientEmail}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </td>
@@ -2328,7 +2335,7 @@ export default function QuotesDashboardPage({
                                 onReject={() => {
                                   void handleRejectQuote(quote.id, quote.statusKey);
                                 }}
-                                allowEdit={canEdit && quote.statusKey !== "expired"}
+                                allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
                                 isDark={isDark}
@@ -2383,7 +2390,7 @@ export default function QuotesDashboardPage({
                                         onReject={() => {
                                           void handleRejectQuote(quote.id, quote.statusKey);
                                         }}
-                                        allowEdit={canEdit && quote.statusKey !== "expired"}
+                                        allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
                                         isDark={isDark}

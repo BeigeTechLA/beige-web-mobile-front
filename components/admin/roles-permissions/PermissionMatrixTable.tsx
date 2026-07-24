@@ -119,20 +119,16 @@ export function PermissionMatrixTable({
 
   return (
     <div
-      className={`overflow-hidden rounded-[32px] ${
-        isDark ? "border border-[#333] bg-[#111]" : "border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"
+      className={`overflow-hidden rounded-2xl ${
+        isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"
       } ${className}`}
     >
-      <div className="overflow-x-auto">
-        <table className="min-w-[1100px] w-full">
+      <div className="overflow-x-auto no-scrollbar">
+        <table className="w-full border-separate border-spacing-0">
           <thead>
-            <tr
-              className={`text-left text-[14px] font-semibold uppercase tracking-wider ${
-                isDark ? "text-[#D9C8A3]/60" : "text-[#32323299]"
-              }`}
-            >
+            <tr className={`text-left text-sm font-medium capitalize ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#32323299]"}`}>
               {showSelectionColumn ? (
-                <th className="px-6 py-5">
+                <th className={`w-px whitespace-nowrap p-4 lg:p-5 rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={allSelected}
@@ -148,15 +144,19 @@ export function PermissionMatrixTable({
                   </div>
                 </th>
               ) : (
-                <th className="px-6 py-8 font-semibold">Access To</th>
+                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
+                  Access To
+                </th>
               )}
               {showSelectionColumn ? (
-                <th className="px-6 py-8 font-semibold">Access To</th>
+                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
+                  Access To
+                </th>
               ) : null}
               {accessColumns.map((column) => (
                 <th
                   key={column.key}
-                  className="px-6 py-8 text-center font-semibold"
+                  className={`w-px whitespace-nowrap py-4 px-2 last:p-4 lg:p-5 text-center font-medium last:rounded-r-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}
                 >
                   {column.label}
                 </th>
@@ -168,12 +168,12 @@ export function PermissionMatrixTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                className={`group transition-colors ${
+                className={`px-2 lg:px-0 group transition-colors ${
                   isDark ? "text-white hover:bg-white/[0.02]" : "text-[#101010] hover:bg-black/[0.015]"
                 }`}
               >
                 {showSelectionColumn ? (
-                  <td className="px-6 py-6">
+                  <td className="w-px whitespace-nowrap p-4 lg:p-6">
                     <Checkbox
                       checked={row.selected}
                       onCheckedChange={(value) =>
@@ -190,7 +190,7 @@ export function PermissionMatrixTable({
                 ) : null}
 
                 <td
-                  className={`px-6 py-8 text-[16px] font-medium transition-colors ${
+                  className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 text-sm lg:text-base font-medium transition-colors ${
                     isDark ? "group-hover:text-[#E5D5B8]" : "group-hover:text-[#8E6A2A]"
                   }`}
                 >
@@ -198,7 +198,7 @@ export function PermissionMatrixTable({
                 </td>
 
                 {accessColumns.map((column) => (
-                  <td key={column.key} className="px-6 py-8 text-center">
+                  <td key={column.key} className="w-px whitespace-nowrap py-4 px-2 lg:p-5 text-center">
                     <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
                       {(!row.allowedActions || row.allowedActions.includes(column.key)) ? (
                         <Checkbox

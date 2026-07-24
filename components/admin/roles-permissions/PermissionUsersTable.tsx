@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, History, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, History, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -22,7 +22,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
-  sortOrder?: "asc" | "desc"; 
+  sortOrder?: "asc" | "desc";
   isDark?: boolean;
   isLoading?: boolean;
   error?: string;
@@ -78,9 +78,9 @@ function StatusPill({ status }: { status: PermissionStatus }) {
 
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[13px] font-semibold ${active
-          ? "bg-[#28C76F1A] text-[#28C76F]" // Light green background with dark green text (Vuexy Style)
-          : "bg-[#EA54551A] text-[#EA5455]" // Light red background with dark red text (Vuexy Style)
+      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs lg:text-base font-medium ${active
+        ? "bg-[#D4FFE4] text-[#16A34A]" // Light green background with dark green text (Vuexy Style)
+        : "bg-[#FEF3F2] text-[#B42318]" // Light red background with dark red text (Vuexy Style)
         }`}
     >
       {displayStatus}
@@ -97,7 +97,7 @@ const formatDateParts = (value: string) => {
   }
 
   return {
-    date: format(date, "d, MMMM yyyy"), 
+    date: format(date, "d, MMMM yyyy"),
     time: format(date, "h:mm a"),
   };
 };
@@ -191,6 +191,9 @@ export function PermissionUsersTable({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
 
+  // Accordion state tracking for mobile card rows
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearchQuery(searchQuery.trim());
@@ -201,8 +204,8 @@ export function PermissionUsersTable({
 
   const queryParams = useMemo(() => {
     const params: Record<string, string | number> = {
-      sort_by: "created_at", 
-      order: sortOrder,      
+      sort_by: "created_at",
+      order: sortOrder,
     };
 
     if (roleId != null && String(roleId).trim()) {
@@ -217,17 +220,17 @@ export function PermissionUsersTable({
     if (statusFilter === "in-active") params.status = 0;
 
     if (monthFilter !== "all") {
-    const numericValue = parseInt(monthFilter, 10);
-    
-    if (!isNaN(numericValue)) {
-      params.month = numericValue;
-    } else {
-      const monthValue = monthToNumber[monthFilter.toLowerCase()];
-      if (monthValue) {
-        params.month = monthValue;
+      const numericValue = parseInt(monthFilter, 10);
+
+      if (!isNaN(numericValue)) {
+        params.month = numericValue;
+      } else {
+        const monthValue = monthToNumber[monthFilter.toLowerCase()];
+        if (monthValue) {
+          params.month = monthValue;
+        }
       }
     }
-  }
 
     if (roleFilter !== "all") {
       const selectedRole = users.find(
@@ -239,7 +242,7 @@ export function PermissionUsersTable({
     }
 
     return params;
-  }, [debouncedSearchQuery, monthFilter, roleFilter, roleId, users, statusFilter,sortOrder]);
+  }, [debouncedSearchQuery, monthFilter, roleFilter, roleId, users, statusFilter, sortOrder]);
 
   useEffect(() => {
     let mounted = true;
@@ -387,366 +390,518 @@ export function PermissionUsersTable({
   const showError = error || serverError;
 
   const shellClass = isDark
-    ? "overflow-hidden rounded-[32px] border border-[#333] bg-[#111111]"
-    : "overflow-hidden rounded-[32px] border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]";
+    ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
+    : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]";
   const titleTextClass = isDark ? "text-white" : "text-[#101010]";
-  const borderToneClass = isDark ? "border-white/10" : "border-[#E3E3E3]";
+  const borderToneClass = isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-[#FFFCF6]";
   const selectTriggerClass = isDark
-    ? "border-white/10 bg-[#1c1c1c] text-white/50 hover:bg-[#252525]"
+    ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4] hover:bg-[#252525]"
     : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]";
   const selectContentClass = isDark
-    ? "border-white/10 bg-[#171717] text-white"
+    ? "border-[#807E7E] bg-[#171717] text-white"
     : "border-[#E3E3E3] bg-white text-[#323232]";
   const searchClass = isDark
-    ? "border-white/10 bg-[#171717] text-white placeholder:text-white/30 focus:ring-[#E5D5B8]/50"
+    ? "border-white/20 bg-[#202020] text-white placeholder:text-[#727272] focus:ring-[#E8D1AB]/50"
     : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#32323266] focus:ring-[#C9A96E]/40";
   const rowClass = isDark
-    ? "group border-b border-[#222] text-white transition-colors hover:bg-white/[0.02]"
-    : "group border-b border-[#E5E5E5] text-[#323232] transition-colors hover:bg-black/[0.015]";
+    ? "group text-white transition-colors hover:bg-[#202020]"
+    : "group text-[#323232] transition-colors hover:bg-black/[0.015]";
   const paginatorSurface = isDark
-    ? "border-white/10 bg-[#171717] text-white/60 hover:bg-white/[0.06] hover:text-white"
+    ? "border-white/10 bg-[#171717] text-[#6D6D6D] hover:bg-white/[0.06] hover:text-white"
     : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/[0.03] hover:text-[#101010]";
 
   return (
     <>
-    <div className={shellClass}>
-      <div className="px-6 py-6">
-        {/* Table Header Section: Title and Right-aligned Filters */}
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-7 w-[3px] rounded-full bg-[#E5D5B8]" />
-            <h2 className={`text-[20px] font-semibold transition-colors duration-300 ${titleTextClass}`}>All Users</h2>
+      <div className={shellClass}>
+        <div className={`p-5 ${isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}`}>
+          {/* Table Header Section: Title and Right-aligned Filters */}
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-[26px] w-[3px] rounded-full bg-[#E8D1AB]" />
+              <h2 className={`text-base  transition-colors duration-300 ${titleTextClass}`}>All Users</h2>
             </div>
 
-          {/* Horizontal row of pill-shaped filters as per Vuexy/Figma */}
-          <div className="ml-auto flex flex-row items-center gap-2 sm:gap-3 md:ml-0">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className={`h-10 min-w-[90px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className={selectContentClass}>
-                <SelectItem value="all">Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="in-active">Archived</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Horizontal row of pill-shaped filters as per Vuexy/Figma */}
+            <div className="lg:ml-auto flex flex-row items-center gap-2 sm:gap-3 lg:ml-0">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[90px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="all">Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="in-active">Archived</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className={`h-10 min-w-[90px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent className={selectContentClass}>
-                <SelectItem value="all">Month</SelectItem>
-                <SelectItem value="1">Jan</SelectItem>
-                <SelectItem value="2">Feb</SelectItem>
-                <SelectItem value="3">Mar</SelectItem>
-                <SelectItem value="4">Apr</SelectItem>
-                <SelectItem value="5">May</SelectItem>
-                <SelectItem value="6">Jun</SelectItem>
-                <SelectItem value="7">Jul</SelectItem>
-                <SelectItem value="8">Aug</SelectItem>
-                <SelectItem value="9">Sep</SelectItem>
-                <SelectItem value="10">Oct</SelectItem>
-                <SelectItem value="11">Nov</SelectItem>
-                <SelectItem value="12">Dec</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[90px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="all">Month</SelectItem>
+                  <SelectItem value="1">Jan</SelectItem>
+                  <SelectItem value="2">Feb</SelectItem>
+                  <SelectItem value="3">Mar</SelectItem>
+                  <SelectItem value="4">Apr</SelectItem>
+                  <SelectItem value="5">May</SelectItem>
+                  <SelectItem value="6">Jun</SelectItem>
+                  <SelectItem value="7">Jul</SelectItem>
+                  <SelectItem value="8">Aug</SelectItem>
+                  <SelectItem value="9">Sep</SelectItem>
+                  <SelectItem value="10">Oct</SelectItem>
+                  <SelectItem value="11">Nov</SelectItem>
+                  <SelectItem value="12">Dec</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className={`h-10 min-w-[70px] rounded-full px-4 text-[13px] font-medium transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent className={selectContentClass}>
-                <SelectItem value="all">All</SelectItem>
-                {roleOptions.map((role) => (
-                  <SelectItem key={role} value={role.toLowerCase()}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[70px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="all">All</SelectItem>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role} value={role.toLowerCase()}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Search Bar Section */}
+          <div className="relative mt-3 lg:mt-5">
+            <Search
+              className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`}
+              size={18}
+            />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search"
+              className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${searchClass}`}
+            />
           </div>
         </div>
 
-        {/* Search Bar Section */}
-        <div className="relative mt-6">
-          <Search
-            className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`}
-            size={18}
-          />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search"
-            className={`h-12 w-full rounded-2xl border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${searchClass}`}
-          />
-        </div>
-      </div>
+        {/* LOADING & ERROR BOUNDS FOR BOTH MOBILE AND DESKTOP VIEWS */}
+        {showLoading && (
+          <div className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
+            Loading users...
+          </div>
+        )}
 
-      <div className="w-full">
-        <table className="w-full table-fixed">
-          <thead>
-            <tr className={`border-b text-left text-[14px] font-semibold ${isDark ? "border-white/5 bg-white/[0.02] text-[#D9C8A3]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-              {/* <th className="w-[5%] px-4 py-4">
+        {!showLoading && !!showError && (
+          <div className="px-4 py-10 text-center text-red-300/80">
+            {showError}
+          </div>
+        )}
+
+        {!showLoading && !showError && filteredUsers.length === 0 && (
+          <div className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
+            No users found.
+          </div>
+        )}
+
+        {!showLoading && !showError && filteredUsers.length > 0 && (
+          <>
+            {/* DESKTOP TABLE VIEW (≥ 1024px) */}
+            <div className="hidden lg:block w-full">
+              <table className={`w-full table-fixed border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+                <thead>
+                  <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+                    {/* <th className="w-[5%] px-4 py-4">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(value) => toggleAll(value === true)}
-                  className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                  className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
                 />
               </th> */}
-              <th className="w-[25%] px-4 py-4">Names</th>
-              <th className="w-[16%] px-4 py-4">Roles</th>
-              <th className="w-[14%] px-4 py-4">Created</th>
-              <th className="w-[14%] px-4 py-4">Updated</th>
-              <th className="w-[11%] px-4 py-4">Status</th>
-              <th className="w-[15%] px-4 py-4 text-right">Action</th>
-            </tr>
-          </thead>
+                    <th className="w-[25%] px-4 py-4 rounded-bl-xl">Names</th>
+                    <th className="w-[16%] px-4 py-4">Roles</th>
+                    <th className="w-[14%] px-4 py-4">Created</th>
+                    <th className="w-[14%] px-4 py-4">Updated</th>
+                    <th className="w-[11%] px-4 py-4">Status</th>
+                    <th className="w-[15%] px-4 py-4 text-right rounded-br-xl">Action</th>
+                  </tr>
+                </thead>
 
-          <tbody>
-            {showLoading && (
-              <tr>
-                <td colSpan={7} className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
-                  Loading users...
-                </td>
-              </tr>
-            )}
-
-            {!showLoading && !!showError && (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-red-300/80">
-                  {showError}
-                </td>
-              </tr>
-            )}
-
-            {!showLoading && !showError && filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan={7} className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
-                  No users found.
-                </td>
-              </tr>
-            )}
-
-            {!showLoading &&
-              !showError &&
-              paginatedUsers.map((user) => (
-              <tr
-                key={user.id}
-                className={`${rowClass} last:border-b-0 ${
-                  canOpenUser && user.status === "Active" ? "cursor-pointer" : "cursor-default"
-                }`}
-                onClick={() => {
-                  if (user.status !== "Active") return;
-                  onRowClick?.(user);
-                }}
-              >
-                {/* <td className="px-4 py-5">
-                  <Checkbox
-                    checked={selectedRows.includes(user.id)}
-                    onCheckedChange={(value) => toggleOne(user.id, value === true)}
-                    onClick={(event) => event.stopPropagation()}
-                    className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
-                  />
-                </td> */}
-
-                <td className="px-4 py-5">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[15px] font-bold ${user.badgeTone}`}
-                    >
-                      {user.badge}
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`truncate text-[15px] font-bold transition-colors ${isDark ? "text-white group-hover:text-[#E5D5B8]" : "text-[#101010] group-hover:text-[#8E6A2A]"}`}>
-                        {user.name}
-                      </p>
-                      <p className={`mt-1 truncate text-[12px] ${isDark ? "text-white/40" : "text-[#32323266]"}`}>{user.subtitle}</p>
-                      {user.status !== "Active" && user.deleted_by_name ? (
-                        <p className="mt-1 truncate text-[12px] text-[#EA5455]/80">
-                          Deleted by {user.deleted_by_name}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </td>
-
-                {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
-                <td className="px-4 py-5">
-                  <div className={`flex items-center gap-2 truncate text-[14px] font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>
-                    <span className="truncate">{user.role}</span>
-                  </div>
-                </td>
-
-                <td className={`px-4 py-5 text-[14px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
-                  <div className="flex flex-col leading-tight">
-                    <span>{formatDateParts(user.created).date}</span>
-                    <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
-                  </div>
-                </td>
-
-                <td className={`px-4 py-5 text-[14px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
-                  <div className="flex flex-col leading-tight">
-                    <span>{formatDateParts(user.updated).date}</span>
-                    <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
-                  </div>
-                </td>
-
-                <td className="px-4 py-5">
-                  <StatusPill status={user.status} />
-                </td>
-
-                <td className="px-4 py-5">
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      title="View user history"
-                      className={`flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E5D5B8]/10 hover:text-[#E5D5B8]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E5D5B8]/10 hover:text-[#8E6A2A]"}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setHistoryUser(user);
-                      }}
-                    >
-                      <History size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!onEdit || user.status !== "Active"}
-                      title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
+                <tbody>
+                  {paginatedUsers.map((user) => (
+                    <tr
+                      key={user.id}
+                      className={`${rowClass} last:border-b-0 ${canOpenUser && user.status === "Active" ? "cursor-pointer" : "cursor-default"}`}
+                      onClick={() => {
                         if (user.status !== "Active") return;
-                        onEdit?.(user);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    {user.status !== "Active" ? (
-                      <button
-                        type="button"
-                        disabled={!onRestore}
-                        title="Restore user"
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-[#28C76F]/10 hover:text-[#28C76F]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#28C76F]/10 hover:text-[#28C76F]"}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onRestore?.(user);
-                        }}
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!onDelete}
-                        title="Delete user"
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-red-500/10 hover:text-red-400" : "bg-black/[0.04] text-[#32323299] hover:bg-red-500/10 hover:text-red-500"}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete?.(user);
-                        }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={!canOpenUser || user.status !== "Active"}
-                      title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (user.status !== "Active") return;
-                        if (onEdit) {
-                          onEdit(user);
-                          return;
-                        }
                         onRowClick?.(user);
                       }}
                     >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      {/* <td className="px-4 py-5">
+                        <Checkbox
+                          checked={selectedRows.includes(user.id)}
+                          onCheckedChange={(value) => toggleOne(user.id, value === true)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                        />
+                      </td> */}
+                      <td className="px-4 py-5">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-bold ${user.badgeTone}`}
+                          >
+                            {user.badge}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`truncate text-base font-bold transition-colors ${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-[#101010] group-hover:text-[#8E6A2A]"}`}>
+                              {user.name}
+                            </p>
+                            <p className={`mt-1 truncate text-[12px] ${isDark ? "text-white/40" : "text-[#32323266]"}`}>{user.subtitle}</p>
+                            {user.status !== "Active" && user.deleted_by_name ? (
+                              <p className="mt-1 truncate text-[12px] text-[#EA5455]/80">
+                                Deleted by {user.deleted_by_name}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </td>
 
-      {!isLoading && !error && filteredUsers.length > 0 ? (
-        <div className={`flex flex-col gap-4 border-t px-6 py-5 md:flex-row md:items-center md:justify-between ${borderToneClass}`}>
-          <p className={`text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
-            Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
-            {filteredUsers.length} users
-          </p>
+                      {/* Roles column: Plain text with chevron as per Figma design (No background pill) */}
+                      <td className="px-4 py-5">
+                        <div className={`flex items-center gap-2 truncate text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>
+                          <span className="truncate">{user.role}</span>
+                        </div>
+                      </td>
 
-          {totalPages > 1 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={safeCurrentPage === 1}
-                className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
-              >
-                Previous
-              </button>
+                      <td className={`px-4 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
+                        <div className="flex flex-col leading-tight">
+                          <span>{formatDateParts(user.created).date}</span>
+                          <span className="text-[12px] text-white/35">{formatDateParts(user.created).time}</span>
+                        </div>
+                      </td>
 
-              {paginationItems.map((item, index) =>
-                item === "..." ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="flex h-10 w-10 items-center justify-center text-sm text-white/30"
-                  >
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setCurrentPage(item)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-semibold transition ${
-                      safeCurrentPage === item
-                        ? "border-[#E5D5B8] bg-[#E5D5B8] text-[#111111]"
-                        : paginatorSurface
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
+                      <td className={`px-4 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
+                        <div className="flex flex-col leading-tight">
+                          <span>{formatDateParts(user.updated).date}</span>
+                          <span className="text-[12px] text-white/35">{formatDateParts(user.updated).time}</span>
+                        </div>
+                      </td>
 
-              <button
-                type="button"
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                disabled={safeCurrentPage === totalPages}
-                className={`inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
-              >
-                Next
-              </button>
+                      <td className="px-4 py-5">
+                        <StatusPill status={user.status} />
+                      </td>
+
+                      <td className="px-4 py-5">
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            title="View user history"
+                            className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E8D1AB]/10 hover:text-[#E8D1AB]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E8D1AB]/10 hover:text-[#8E6A2A]"}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setHistoryUser(user);
+                            }}
+                          >
+                            <History size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!onEdit || user.status !== "Active"}
+                            title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                            className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (user.status !== "Active") return;
+                              onEdit?.(user);
+                            }}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          {user.status !== "Active" ? (
+                            <button
+                              type="button"
+                              disabled={!onRestore}
+                              title="Restore user"
+                              className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-[#28C76F]/10 hover:text-[#28C76F]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#28C76F]/10 hover:text-[#28C76F]"}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRestore?.(user);
+                              }}
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!onDelete}
+                              title="Delete user"
+                              className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-red-500/10 hover:text-red-400" : "bg-black/[0.04] text-[#32323299] hover:bg-red-500/10 hover:text-red-500"}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDelete?.(user);
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!canOpenUser || user.status !== "Active"}
+                            title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                            className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (user.status !== "Active") return;
+                              if (onEdit) {
+                                onEdit(user);
+                                return;
+                              }
+                              onRowClick?.(user);
+                            }}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : null}
-        </div>
+
+            {/* MOBILE LIST ACCORDION VIEW (< 1024px) */}
+            <div className={`block lg:hidden w-full `}>
+              <div className={`flex justify-between p-5 rounded-b-xl border-y text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+                <p>Name</p>
+                <p>Status</p>
+              </div>
+              {paginatedUsers.map((user) => {
+                const isExpanded = expandedRowId === user.id;
+                return (
+                  <div
+                    key={user.id}
+                    className={`p-5 transition-colors ${isDark ? "text-white" : "text-[#323232]"} ${isExpanded ? (isDark ? "bg-[#202020]" : "bg-[#F9F9F9]") : "bg-transparent"}`}
+                  >
+                    {/* Primary Row Header: User details, status & expand trigger */}
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedRowId(isExpanded ? null : user.id)}
+                    >
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform duration-200 border ${isDark ? "border-[#777674] text-[#777674]" : "border-[32323299] text-[#32323299]"} ${isExpanded ? "rotate-180 border-[#E8D1AB]" : "rotate-0"}`}
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium ${user.badgeTone}`}>
+                            {user.badge}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`truncate text-sm ${isDark ? "text-white" : "text-[#101010]"}`}>
+                              {user.name}
+                            </p>
+                            {/* <p className={`truncate text-xs ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                              {user.subtitle}
+                            </p> */}
+                          </div>
+                        </div>
+                      </div>
+
+                      <StatusPill status={user.status} />
+                    </div>
+
+                    {/* Expandable Panel Detail Segment */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 space-y-4 min-w-0">
+                        <div className="grid grid-cols-2 gap-y-4 text-xs">
+                          {/* Left Grid: Field Key labels */}
+                          <div className={`space-y-1`}>
+                            <p className={`text-xs font-medium`}>Role</p>
+                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
+                              {user.role}
+                            </p>
+                          </div>
+                          <div className={`space-y-1 text-right`}>
+                            <p className={`text-xs font-medium`}>Email Id</p>
+                            <p className={`text-sm truncate ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.subtitle}</p>
+                          </div>
+                          <div className={`space-y-1`}>
+                            <p className={`text-xs font-medium`}>Created</p>
+                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
+                              {formatDateParts(user.created).date}
+                              <br />
+                              {formatDateParts(user.created).time}
+                            </p>
+                          </div>
+                          <div className={`space-y-1 text-right`}>
+                            <p className={`text-xs font-medium`}>Updated</p>
+                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
+                              {formatDateParts(user.updated).date}
+                              <br />
+                              {formatDateParts(user.updated).time}
+                            </p>
+                          </div>
+                          <div className={`space-y-1`}>
+                            <p className={`text-xs font-medium`}>Action</p>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                title="View user history"
+                                className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setHistoryUser(user);
+                                }}
+                              >
+                                <History size={20} />
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={!onEdit || user.status !== "Active"}
+                                title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                                className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (user.status !== "Active") return;
+                                  onEdit?.(user);
+                                }}
+                              >
+                                <Pencil size={20} />
+                              </button>
+
+                              {user.status !== "Active" ? (
+                                <button
+                                  type="button"
+                                  disabled={!onRestore}
+                                  className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRestore?.(user);
+                                  }}
+                                >
+                                  <RotateCcw size={20} />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={!onDelete}
+                                  className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onDelete?.(user);
+                                  }}
+                                >
+                                  <Trash2 size={20} />
+                                </button>
+
+                              )}
+                              <button
+                                type="button"
+                                disabled={!canOpenUser || user.status !== "Active"}
+                                title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                                className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (user.status !== "Active") return;
+                                  if (onEdit) {
+                                    onEdit(user);
+                                    return;
+                                  }
+                                  onRowClick?.(user);
+                                }}
+                              >
+                                <ChevronRight size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {!isLoading && !error && filteredUsers.length > 0 ? (
+          <div className={`flex flex-col gap-4 border-t px-6 py-5 lg:flex-row lg:items-center lg:justify-between ${borderToneClass}`}>
+            <p className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+              Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
+              {filteredUsers.length} users
+            </p>
+
+            {totalPages > 1 ? (
+              <div className="flex flex-wrap gap-2 items-center justify-center md:justify-end w-full max-w-full min-w-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className={`inline-flex items-center justify-center rounded-lg border p-2  text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {paginationItems.map((item, index) =>
+                  item === "..." ? (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="flex h-10 w-10 items-center justify-center text-sm text-white/30"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setCurrentPage(item)}
+                      className={`flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm font-medium transition ${safeCurrentPage === item
+                        ? "border-[#E8D1AB] bg-[#E8D1AB] text-[#111111]"
+                        : paginatorSurface
+                        }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className={`inline-flex items-center justify-center rounded-lg border p-2  text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
+                >
+                 <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {successModal ? (
+        <ActionSuccessModal
+          isOpen={successModal.isOpen}
+          onSubmit={successModal.onSubmit}
+          isSubmitting={successModal.isSubmitting}
+          title={successModal.title}
+          subtext={successModal.subtext}
+          buttonText={successModal.buttonText ?? "Done"}
+        />
       ) : null}
-    </div>
-    {successModal ? (
-      <ActionSuccessModal
-        isOpen={successModal.isOpen}
-        onSubmit={successModal.onSubmit}
-        isSubmitting={successModal.isSubmitting}
-        title={successModal.title}
-        subtext={successModal.subtext}
-        buttonText={successModal.buttonText ?? "Done"}
-      />
-    ) : null}
       {historyUser ? (
         <div className={`fixed inset-0 z-50 ${isDark ? "bg-black/60 backdrop-blur-sm" : "bg-black/30 backdrop-blur-[2px]"}`} onClick={() => setHistoryUser(null)}>
           <aside
-            className={`ml-auto flex h-full w-full max-w-full md:max-w-[50%] flex-col border-l shadow-[0_24px_80px_rgba(0,0,0,0.65)] ${
-              isDark
-                ? "border-white/[0.07] bg-[#0d0d0d] text-white"
-                : "border-[#E3E3E3] bg-white text-[#323232]"
-            }`}
+            className={`ml-auto flex h-full w-full max-w-full lg:max-w-[50%] flex-col border-l shadow-[0_24px_80px_rgba(0,0,0,0.65)] ${isDark
+              ? "border-white/[0.07] bg-[#0d0d0d] text-white"
+              : "border-[#E3E3E3] bg-white text-[#323232]"
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -755,9 +910,8 @@ export function PermissionUsersTable({
               <button
                 type="button"
                 onClick={() => setHistoryUser(null)}
-                className={`flex h-[38px] w-[38px] items-center justify-center rounded-full transition ${
-                  isDark ? "bg-white/[0.09] text-white/55 hover:bg-white/15 hover:text-white" : "bg-[#F0F0F0] text-[#32323299] hover:bg-[#E8E8E8] hover:text-[#101010]"
-                }`}
+                className={`flex h-[38px] w-[38px] items-center justify-center rounded-full transition ${isDark ? "bg-white/[0.09] text-white/55 hover:bg-white/15 hover:text-white" : "bg-[#F0F0F0] text-[#32323299] hover:bg-[#E8E8E8] hover:text-[#101010]"
+                  }`}
                 aria-label="Close"
               >
                 <X size={14} strokeWidth={2} />
@@ -800,7 +954,7 @@ export function PermissionUsersTable({
 
                           {restored && restoredTime && (
                             <div className="relative mt-4">
-                              
+
                               <svg
                                 aria-hidden="true"
                                 className="pointer-events-none absolute -left-[59px] top-[-58px] z-0 h-[90px] w-[165px]"
@@ -818,8 +972,8 @@ export function PermissionUsersTable({
                                 />
                               </svg>
 
-                                <div className={`relative z-10 ml-[32px] flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 ${isDark ? "border-white/[0.07] bg-[#131313]" : "border-[#E3E3E3] bg-white"}`}>
-                                  <div className={`h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[8px] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.04]"}`}>
+                              <div className={`relative z-10 ml-[32px] flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 ${isDark ? "border-white/[0.07] bg-[#131313]" : "border-[#E3E3E3] bg-white"}`}>
+                                <div className={`h-[34px] w-[34px] shrink-0 overflow-hidden rounded-[8px] ${isDark ? "bg-white/[0.08]" : "bg-black/[0.04]"}`}>
                                   {restored.avatarUrl
                                     ? <img src={restored.avatarUrl} alt={restoredBy} className="h-full w-full object-cover" />
                                     : <div className={`flex h-full w-full items-center justify-center text-[10px] font-bold ${isDark ? "text-white/50" : "text-[#32323280]"}`}>{restoredBy.slice(0, 2).toUpperCase()}</div>
@@ -856,4 +1010,3 @@ export function PermissionUsersTable({
     </>
   );
 }
-  

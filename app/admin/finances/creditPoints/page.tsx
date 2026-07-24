@@ -280,7 +280,7 @@ export default function AdminFinancesPage() {
   const [historyTotalRecords, setHistoryTotalRecords] = useState(0);
   const [historyTotalPages, setHistoryTotalPages] = useState(0);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
-  const historyPageSize = 20;
+  const historyPageSize = 10;
   const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
   const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);

@@ -26,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { endOfDay, format, parseISO, startOfDay } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -242,6 +242,9 @@ const extractPhoneNumber = (project: any) => {
 
 interface ShootsTableProps {
   externalSelectedDate?: Date | null;
+  customRangeStartDate?: Date | null;
+  customRangeEndDate?: Date | null;
+  isCustomRangeOpen?: boolean;
   detailBasePath?: string;
   enablePriceSort?: boolean;
   filtersReady?: boolean;
@@ -268,6 +271,9 @@ interface ShootsTableProps {
 
 export const ShootsTable = ({
   externalSelectedDate,
+  customRangeStartDate,
+  customRangeEndDate,
+  isCustomRangeOpen,
   detailBasePath = "/admin/shoots",
   enablePriceSort = true,
   searchQuery,
@@ -480,12 +486,12 @@ export const ShootsTable = ({
 
   // Sync external date with range
   useEffect(() => {
-    if (externalSelectedDate) {
+    if (customRangeStartDate || customRangeEndDate || externalSelectedDate || isCustomRangeOpen) {
       setRange("custom");
     } else if (range === "custom") {
       setRange("all");
     }
-  }, [externalSelectedDate]);
+  }, [customRangeStartDate, customRangeEndDate, externalSelectedDate, isCustomRangeOpen, range]);
 
   const fetchRangeMode = range === "custom" ? "custom" : "all";
 
@@ -517,6 +523,12 @@ export const ShootsTable = ({
     const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
+      const hasCustomRangeSelection = Boolean(customRangeStartDate || customRangeEndDate || externalSelectedDate);
+      if (isCustomDateRange && !hasCustomRangeSelection) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const params: any = { range: fetchRangeMode };
@@ -530,8 +542,18 @@ export const ShootsTable = ({
           params.category = categoryFilter;
         }
 
-        if (externalSelectedDate && isCustomDateRange) {
-          params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+        if (isCustomDateRange) {
+          if (customRangeStartDate) {
+            params.start_date = format(customRangeStartDate, 'yyyy-MM-dd');
+          }
+
+          if (customRangeEndDate) {
+            params.end_date = format(customRangeEndDate, 'yyyy-MM-dd');
+          }
+
+          if (!customRangeStartDate && !customRangeEndDate && externalSelectedDate) {
+            params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+          }
         }
 
         if (activeCpAssignmentFilter !== "all") {
@@ -631,7 +653,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate, customRangeStartDate, customRangeEndDate]);
 
   useEffect(() => {
     if (!isMeetingGapStatusFilter(productionFilter)) {
@@ -696,17 +718,37 @@ export const ShootsTable = ({
   const processedShoots = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
     const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
     const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
     const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
+    const last7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).getTime();
+    const last15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15).getTime();
+    const last1Month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).getTime();
     const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
     const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
     const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
 
     const matchesRange = (shoot: ShootRecord) => {
-      if (range === "all" || range === "custom") return true;
       if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
 
+      if (range === "all") return true;
+      if (range === "custom") {
+        if (customRangeStartDate && customRangeEndDate) {
+          const start = startOfDay(customRangeStartDate).getTime();
+          const end = endOfDay(customRangeEndDate).getTime();
+          return shoot.rawDate >= start && shoot.rawDate <= end;
+        }
+
+        if (externalSelectedDate) {
+          const selectedDate = startOfDay(externalSelectedDate).getTime();
+          return shoot.rawDate >= selectedDate && shoot.rawDate < startOfTomorrow;
+        }
+
+        return true;
+      }
+
+      if (range === "today") return shoot.rawDate >= startOfToday && shoot.rawDate < startOfTomorrow;
       if (range === "upcoming") return shoot.rawDate >= startOfToday;
       if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
       if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
@@ -714,6 +756,9 @@ export const ShootsTable = ({
       if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
       if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
       if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
+      if (range === "last_7_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last7Days;
+      if (range === "last_15_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last15Days;
+      if (range === "last_1_month") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last1Month;
 
       return true;
     };
@@ -733,23 +778,27 @@ export const ShootsTable = ({
       if (!matchesSearch) return false;
       if (!matchesPaymentFilter(shoot, activePaymentFilter)) return false;
 
-      if (statusFilter === "all") return true;
-
       if (isMeetingGapStatusFilter(productionFilter)) {
         const bookingId = String(shoot.id || "").replace("#", "").trim();
         if (!bookingId) return false;
         if (productionFilter === "post_production_meeting_not_done" && !isPostProductionEligibleStatus(shoot.status)) {
           return false;
         }
-        return meetingGapBookingIds.has(bookingId);
+        if (!meetingGapBookingIds.has(bookingId)) {
+          return false;
+        }
       }
 
       if (isProductionGapStatusFilter(productionFilter)) {
         // Production gap filters are resolved by backend via `production_filter`.
-        return true;
+        // Keep allowing the row through so other filters can still narrow it down.
       }
 
-      return timelineStatusKeyFromLabel(shoot.status) === statusFilter;
+      if (statusFilter !== "all" && timelineStatusKeyFromLabel(shoot.status) !== statusFilter) {
+        return false;
+      }
+
+      return true;
     });
 
     if (activeCpAssignmentFilter !== "all") {
@@ -786,7 +835,20 @@ export const ShootsTable = ({
     }
 
     return result;
-  }, [shoots, debouncedSearchQuery, sortConfig, statusFilter, productionFilter, activeCpAssignmentFilter, activePaymentFilter, meetingGapBookingIds, range]);
+  }, [
+    shoots,
+    debouncedSearchQuery,
+    sortConfig,
+    statusFilter,
+    productionFilter,
+    activeCpAssignmentFilter,
+    activePaymentFilter,
+    meetingGapBookingIds,
+    range,
+    customRangeStartDate,
+    customRangeEndDate,
+    externalSelectedDate,
+  ]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -1139,9 +1201,16 @@ export const ShootsTable = ({
                     <SelectTrigger className={`w-[170px] rounded-lg h-10 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Range" />
                     </SelectTrigger>
-                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectContent
+                    className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
+                    viewportClassName="!h-auto max-h-56 overflow-y-auto"
+                  >
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                      <SelectItem value="last_15_days">Last 15 Days</SelectItem>
+                      <SelectItem value="last_1_month">Last 1 Month</SelectItem>
                       <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                       <SelectItem value="next_15_days">Next 15 Days</SelectItem>
                       <SelectItem value="in_1_month">In 1 Month</SelectItem>

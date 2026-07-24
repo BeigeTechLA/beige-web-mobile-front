@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { CalendarClock, ExternalLink, Eye, Loader2, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, Eye, Loader2, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import CreateMeetingModal from "@/components/meetings/CreateMeetingModal";
@@ -87,6 +87,39 @@ const getShootLink = (role: RoleVariant, meeting: MeetingItem) => {
   return null;
 };
 
+const MEETINGS_PAGE_SIZE = 10;
+
+type PaginationItem = number | "...";
+
+const buildPaginationItems = (currentPage: number, totalPages: number): PaginationItem[] => {
+  if (totalPages <= 1) return [1];
+
+  const items: PaginationItem[] = [];
+  const delta = 1;
+  const left = Math.max(2, currentPage - delta);
+  const right = Math.min(totalPages - 1, currentPage + delta);
+
+  items.push(1);
+
+  if (left > 2) {
+    items.push("...");
+  }
+
+  for (let page = left; page <= right; page += 1) {
+    items.push(page);
+  }
+
+  if (right < totalPages - 1) {
+    items.push("...");
+  }
+
+  if (totalPages > 1) {
+    items.push(totalPages);
+  }
+
+  return items;
+};
+
 export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewProps) {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<MeetingItem[]>([]);
@@ -99,8 +132,39 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [search, setSearch] = useState("");
   const [respondingMeetingId, setRespondingMeetingId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: MEETINGS_PAGE_SIZE,
+    totalPages: 0,
+    totalResults: 0,
+  });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  const selectedDateQuery = useMemo(() => {
+    if (!selectedDate) return "";
+
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, [selectedDate]);
+
+  const handleSearchChange = (value: string) => {
+    setCurrentPage(1);
+    setSearch(value);
+  };
 
   const handleDateSort = (date: Date | null) => {
+    setCurrentPage(1);
     setSelectedDate(date);
   };
 
@@ -124,49 +188,66 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const loadMeetings = useCallback(async () => {
     setLoading(true);
     setError("");
+
     try {
-      const response =
-        isAdminView
-          ? await meetingsApi.listAll({ limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
-          : currentUserId
-            ? await meetingsApi.listByUser(currentUserId, { limit: 100, page: 1, sortBy: "meeting_date_time:desc" })
-            : { results: [] };
+      const params: Record<string, unknown> = {
+        limit: MEETINGS_PAGE_SIZE,
+        page: currentPage,
+        sortBy: "meeting_date_time:desc",
+      };
+
+      if (debouncedSearch) {
+        params.search = debouncedSearch;
+      }
+
+      if (selectedDateQuery) {
+        params.meetingDate = selectedDateQuery;
+      }
+
+      const response = isAdminView
+        ? await meetingsApi.listAll(params)
+        : currentUserId
+          ? await meetingsApi.listByUser(currentUserId, params)
+          : { results: [] };
+
+      const nextTotalPages = Number(response?.totalPages || 0);
+      if (nextTotalPages > 0 && currentPage > nextTotalPages) {
+        setCurrentPage(nextTotalPages);
+        return;
+      }
 
       setMeetings(response?.results || []);
+      setPagination({
+        page: Number(response?.page || currentPage),
+        limit: Number(response?.limit || MEETINGS_PAGE_SIZE),
+        totalPages: nextTotalPages,
+        totalResults: Number(response?.totalResults || 0),
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load meetings");
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, isAdminView]);
+  }, [currentPage, currentUserId, debouncedSearch, isAdminView, selectedDateQuery]);
 
   useEffect(() => {
     loadMeetings();
   }, [loadMeetings]);
 
-  const filteredMeetings = useMemo(() => {
-    let result = meetings;
+  const filteredMeetings = useMemo(() => meetings, [meetings]);
 
-    if (selectedDate) {
-      const targetDate = selectedDate.toDateString();
-      result = result.filter((m) =>
-        m.meeting_date_time ? new Date(m.meeting_date_time).toDateString() === targetDate : false
-      );
+  const totalPages = Math.max(1, Number(pagination.totalPages || 0));
+  const safeCurrentPage = Math.min(Math.max(Number(pagination.page || currentPage), 1), totalPages);
+  const paginationItems = useMemo(() => buildPaginationItems(safeCurrentPage, totalPages), [safeCurrentPage, totalPages]);
+  const showingFrom = pagination.totalResults > 0 ? ((safeCurrentPage - 1) * pagination.limit) + 1 : 0;
+  const showingTo = Math.min(safeCurrentPage * pagination.limit, pagination.totalResults);
+
+  const handlePageChange = (page: number) => {
+    const nextPage = Math.min(Math.max(page, 1), totalPages);
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
     }
-    const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return result;
-
-    return result.filter((meeting) =>
-      [
-        meeting.meeting_title,
-        meeting.order?.name,
-        meeting.description,
-        ...(meeting.participants || []).map((participant) => participant.name || participant.email),
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalizedSearch))
-    );
-  }, [meetings, search, selectedDate]);
+  };
 
   const handleRespond = useCallback(
     async (meetingId: string | number, response: "accepted" | "declined") => {
@@ -213,7 +294,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             <Search size={16} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-white/35" : "text-[#171717B2]"}`} />
             <Input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               placeholder="Search meetings, shoots, or members"
               className={`pl-10 text-xs lg:text-sm transition-colors ${isDark
                 ? "border-white/10 bg-[#141414] text-white placeholder:text-white/30 focus:border-white/20"
@@ -264,7 +345,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       ) : filteredMeetings.length === 0 ? (
         <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
           <div className={`py-16 text-center text-xs lg:text-sm ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
-            {search.trim() ? "No meetings match your search." : <EmptyMeetingState />}
+            {search.trim() || selectedDate ? "No meetings match your filters." : <EmptyMeetingState />}
           </div>
         </div>
       ) : (
@@ -288,6 +369,71 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
             formatInvitationResponse={formatInvitationResponse}
             isDark={isDark}
           />
+
+          {pagination.totalResults > 0 ? (
+            <div className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 transition-colors lg:flex-row lg:items-center lg:justify-between ${isDark ? "border-[#3D3D3D] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
+              <div className={`text-xs lg:text-sm ${isDark ? "text-white/60" : "text-[#171717B2]"}`}>
+                Showing {showingFrom} to {showingTo} of {pagination.totalResults} meetings
+              </div>
+
+              {totalPages > 1 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handlePageChange(safeCurrentPage - 1)}
+                    disabled={safeCurrentPage === 1}
+                    className={`gap-1 border ${isDark
+                      ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+                      : "border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E8E8E8]"
+                    }`}
+                  >
+                    <ChevronLeft size={16} />
+                    Prev
+                  </Button>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {paginationItems.map((item, index) =>
+                      item === "..." ? (
+                        <span key={`ellipsis-${index}`} className={`px-2 text-sm ${isDark ? "text-white/40" : "text-[#171717B2]"}`}>
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={item}
+                          type="button"
+                          variant="outline"
+                          onClick={() => handlePageChange(item)}
+                          className={`h-9 min-w-9 px-3 ${safeCurrentPage === item
+                            ? "border-[#E8D1AB] bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]"
+                            : isDark
+                              ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+                              : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F3F3F3]"
+                          }`}
+                        >
+                          {item}
+                        </Button>
+                      )
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handlePageChange(safeCurrentPage + 1)}
+                    disabled={safeCurrentPage === totalPages}
+                    className={`gap-1 border ${isDark
+                      ? "border-white/10 bg-[#1A1A1A] text-white hover:bg-[#222222]"
+                      : "border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E8E8E8]"
+                    }`}
+                  >
+                    Next
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
       {/* </div> */}

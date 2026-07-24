@@ -2571,6 +2571,7 @@ function CreateQuotePageContent() {
         ) : (
           (filteredClients || []).map((client) => {
             const clientId = getClientIdentifier(client);
+            const clientEmail = getClientEmail(client);
             const isSelectedClient =
               getClientIdentifier(selectedClient) === clientId;
 
@@ -2605,16 +2606,30 @@ function CreateQuotePageContent() {
                     <div className="w-2.5 h-2.5 bg-[#101010] rounded-sm" />
                   )}
                 </div>
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="truncate font-semibold text-lg">
-                    {getClientDisplayName(client)}
-                  </span>
-                  <ClientTypeBadge
-                    clientType={client.client_type}
-                    userId={client.user_id}
-                    isDark={isDark}
-                    isSelected={isSelectedClient}
-                  />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-semibold text-lg">
+                      {getClientDisplayName(client)}
+                    </span>
+                    <ClientTypeBadge
+                      clientType={client.client_type}
+                      userId={client.user_id}
+                      isDark={isDark}
+                      isSelected={isSelectedClient}
+                    />
+                  </div>
+                  {clientEmail ? (
+                    <div
+                      className={`mt-1 truncate text-sm ${isSelectedClient
+                        ? "text-[#171717]/65"
+                        : isDark
+                          ? "text-[#FFFFFF70] group-hover:text-[#171717]/65"
+                          : "text-[#6B6B6B] group-hover:text-[#171717]/65"
+                        }`}
+                    >
+                      {clientEmail}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );

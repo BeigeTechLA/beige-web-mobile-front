@@ -83,7 +83,7 @@ export default function AdminRolesPermissionsRoute() {
         }
       />
 
-      <RolesPermissionsPage searchQuery={searchQuery} />
+      <RolesPermissionsPage searchQuery={searchQuery} canCreateUser={canCreateUser} />
       </>
     </PermissionGuard>
   );

@@ -86,6 +86,7 @@ type OtherDetailsTab = "discounts" | "tax";
 type QuoteConvertIntent = "convert_only" | "send_invoice" | "view_invoice";
 
 type QuoteActivityLike = {
+  activity_id?: number | string;
   activity_type?: string;
   message?: string;
   activity_data?: unknown;
@@ -100,6 +101,36 @@ type QuoteActivityLike = {
     name?: string;
     [key: string]: unknown;
   } | null;
+};
+
+type QuoteChangeField = {
+  label?: string;
+  display_previous?: string | number | null;
+  display_new?: string | number | null;
+};
+
+type QuoteChangeLineItem = {
+  item_name?: string;
+  section_type?: string;
+  line_total?: string | number | null;
+  identity?: {
+    item_name?: string;
+  } | null;
+  changes?: QuoteChangeField[];
+};
+
+type QuoteChangeDetailsMetadata = NonNullable<QuoteActivityLike["metadata"]> & {
+  audit?: {
+    changed_fields?: QuoteChangeField[];
+    line_items?: {
+      added?: QuoteChangeLineItem[];
+      removed?: QuoteChangeLineItem[];
+      updated?: QuoteChangeLineItem[];
+    };
+  };
+  change_summary?: {
+    summary_lines?: string[];
+  };
 };
 
 type QuoteConvertedBookingDayLike = {
@@ -264,19 +295,21 @@ const mergeVersionQuoteWithPrimaryContext = (
 
   const incomingLeadId = incoming?.lead_id;
   const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
-   const incomingActivities = Array.isArray(incoming?.activities) && incoming.activities.length > 0 
-    ? incoming.activities 
+  const incomingActivities = Array.isArray(incoming?.activities) && incoming.activities.length > 0
+    ? incoming.activities
     : current.activities;
 
   return {
     ...incoming,
     quote_status: current.quote_status ?? incoming.quote_status,
     status: current.status ?? incoming.status,
+    quote_validity_days: current.quote_validity_days ?? incoming.quote_validity_days,
+    valid_until: current.valid_until ?? incoming.valid_until,
+    expires_at: current.expires_at ?? incoming.expires_at,
     lead_id:
       incomingLeadId !== undefined && incomingLeadId !== null && String(incomingLeadId).trim()
         ? incomingLeadId
         : current.lead_id,
-      activities: incomingActivities,
     booking_id:
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
@@ -676,32 +709,26 @@ const ServiceLineCard = ({
 
 const QuoteTopActions = ({
   onReject,
-  onConvert,
   onPaymentTransaction,
   onPreview,
   previewDisabled,
   rejectDisabled,
-  convertDisabled,
   paymentDisabled,
   isRejecting,
   isRejected,
-  isConverting,
   versions,
   selectedVersionId,
   onVersionChange,
   showReject = true,
 }: {
   onReject: () => void;
-  onConvert: () => void;
   onPaymentTransaction: () => void;
   onPreview: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
-  convertDisabled: boolean;
   paymentDisabled: boolean;
   isRejecting: boolean;
   isRejected: boolean;
-  isConverting: boolean;
   versions: QuoteVersionMeta[];
   selectedVersionId: string | null;
   onVersionChange: (val: string) => void;
@@ -1280,18 +1307,18 @@ export default function QuoteDetailsPage({
   }, [selectedVersionId, versions]);
 
   const currentVersionActivity = useMemo(() => {
-  const activityId = (selectedVersionMeta as any)?.source_activity_id;
-  if (!activityId) return null;
+    const activityId = selectedVersionMeta?.source_activity_id;
+    if (!activityId) return null;
 
-  const activities = (quote?.activities as any[]) || [];
-  return activities.find(a => Number(a.activity_id) === Number(activityId));
-}, [selectedVersionMeta, quote?.activities]);
+    const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
+    return activities.find((activity) => Number(activity.activity_id) === Number(activityId)) || null;
+  }, [selectedVersionMeta, quote?.activities]);
 
   const createdByName = useMemo(() => {
-    const activities = (quote?.activities as any[]) || [];
-    const createActivity = activities.find(a => a.activity_type === 'created');
+    const activities = (quote?.activities as QuoteActivityLike[] | undefined) || [];
+    const createActivity = activities.find((activity) => activity.activity_type === "created");
     return createActivity?.performed_by?.name || null;
-  }, [quote?.activities]); // Depends on activities
+  }, [quote?.activities]);
 
   const updatedByName = useMemo(() => {
     return currentVersionActivity?.performed_by?.name || null;
@@ -1349,7 +1376,7 @@ export default function QuoteDetailsPage({
     canEdit &&
     isSelectedLatestUsableVersion &&
     !isSelectedVersionRejected &&
-    !["rejected", "cancelled", "expired"].includes(normalizedQuoteStatus);
+    !["rejected", "cancelled"].includes(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -1813,13 +1840,42 @@ export default function QuoteDetailsPage({
       return;
     }
 
-    setConvertModalInitialDataOverride(
-      buildConvertModalInitialData(
-        (quote?.converted_booking_details as QuoteConvertedBookingDetailsLike | undefined) ?? null
-      )
-    );
-    setConvertIntent("convert_only");
-    setIsConvertModalOpen(true);
+    if (isConvertedToBooking) {
+      toast.success(`Already converted to booking${convertedBookingId ? ` #${convertedBookingId}` : ""}`);
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedQuoteId);
+
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string" ? response.error : "Failed to convert quote to booking"
+        );
+      }
+
+      const invoiceBookingId =
+        response.data?.booking_id !== undefined &&
+        response.data?.booking_id !== null &&
+        String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+
+      if (!invoiceBookingId) {
+        throw new Error("Failed to convert quote to booking");
+      }
+
+      await syncConvertedQuoteState(invoiceBookingId);
+      toast.success(`Converted to booking #${invoiceBookingId}`);
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking"
+      );
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   const handleViewInvoice = async () => {
@@ -2157,9 +2213,6 @@ export default function QuoteDetailsPage({
       onReject={() => {
         void handleRejectQuote();
       }}
-      onConvert={() => {
-        void handleConvertQuoteToBooking();
-      }}
       onPaymentTransaction={() => {
         void handlePaymentTransactionAction();
       }}
@@ -2167,10 +2220,8 @@ export default function QuoteDetailsPage({
       previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       rejectDisabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       showReject={canDelete}
-      convertDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       paymentDisabled={!quote || isQuoteDetailsLoading || isRejecting || isConverting || isSubmittingManualPayment || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       isRejecting={isRejecting}
-      isConverting={isConverting}
       isRejected={isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       versions={versions}
       selectedVersionId={selectedVersionId}
@@ -2201,6 +2252,20 @@ export default function QuoteDetailsPage({
 
           {!isQuoteDetailsLoading && quote && (
             <div className="flex lg:flex-wrap items-center gap-3">
+              {!isConvertedToBooking && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void handleConvertQuoteToBooking();
+                  }}
+                  disabled={isViewingInvoice || isSendingInvoice || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
+                  variant="outline"
+                  className={`h-11 rounded-xl border px-5 w-full lg:w-auto ${isDark ? "border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323]" : "border-[#0000004D] bg-white text-black hover:bg-[#F4F5F7]"}`}
+                >
+                  {isConverting ? <Loader2 size={18} className="animate-spin" /> : <Eye size={18} />}
+                  {isConverting ? "Opening..." : "Convert to Booking"}
+                </Button>
+              )}
               {canViewInvoiceFromDetails && (
                 <Button
                   type="button"
@@ -2984,19 +3049,19 @@ export default function QuoteDetailsPage({
     }: {
       open: boolean;
       onClose: () => void;
-      activity: any;
+      activity: QuoteActivityLike | null;
       versionNumber: string | number | null;
     }) => {
       if (!activity) return null;
 
-      // Accessing data based on your JSON structure
-      const audit = activity.metadata?.audit;
-      const changeSummary = activity.metadata?.change_summary;
+      const metadata = activity.metadata as QuoteChangeDetailsMetadata | null | undefined;
+      const audit = metadata?.audit;
+      const changeSummary = metadata?.change_summary;
       
       const changedFields = audit?.changed_fields || [];
       const addedItems = audit?.line_items?.added || [];
       const removedItems = audit?.line_items?.removed || [];
-      const updatedItems = audit?.line_items?.updated || []; // New: handling item modifications
+      const updatedItems = audit?.line_items?.updated || [];
       const summaryLines = changeSummary?.summary_lines || [];
 
       return (
@@ -3045,7 +3110,7 @@ export default function QuoteDetailsPage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2B2B2B]">
-                        {changedFields.map((field: any, idx: number) => (
+                        {changedFields.map((field, idx) => (
                           <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
                             <td className="px-4 py-3 font-medium text-white/70">{field.label}</td>
                             <td className="px-4 py-3 text-[#FCA5A5] line-through opacity-70">{field.display_previous || "Empty"}</td>
@@ -3064,7 +3129,7 @@ export default function QuoteDetailsPage({
                   <h4 className="text-xs font-bold uppercase tracking-widest text-[#8F8F95]">Line Item Details</h4>
                   <div className="space-y-2">
                     {/* Items Added */}
-                    {addedItems.map((item: any, idx: number) => (
+                    {addedItems.map((item, idx) => (
                       <div key={`add-${idx}`} className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
                         <div className="flex items-center gap-3">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[12px] text-black font-bold">+</span>
@@ -3073,12 +3138,12 @@ export default function QuoteDetailsPage({
                             <p className="text-[10px] text-emerald-400/70 uppercase">{item.section_type}</p>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(item.line_total)}</span>
+                        <span className="text-sm font-bold text-emerald-400">{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
                       </div>
                     ))}
 
                     {/* Items Removed */}
-                    {removedItems.map((item: any, idx: number) => (
+                    {removedItems.map((item, idx) => (
                       <div key={`rem-${idx}`} className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 p-3">
                         <div className="flex items-center gap-3">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[12px] text-black font-bold">-</span>
@@ -3087,19 +3152,19 @@ export default function QuoteDetailsPage({
                             <p className="text-[10px] text-red-400/70 uppercase">{item.section_type}</p>
                           </div>
                         </div>
-                        <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(item.line_total)}</span>
+                        <span className="text-sm font-bold text-red-400">-{formatQuoteCurrency(getQuoteNumber(item.line_total) ?? 0)}</span>
                       </div>
                     ))}
 
                     {/* Items Updated (e.g., Sort Order or Price changes) */}
-                    {updatedItems.map((item: any, idx: number) => (
+                    {updatedItems.map((item, idx) => (
                       <div key={`upd-${idx}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
                         <div className="flex items-center gap-3 mb-2">
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[12px] text-black font-bold">~</span>
                           <p className="text-sm font-medium text-white">{item.identity?.item_name}</p>
                         </div>
                         <div className="pl-9 space-y-1">
-                          {item.changes.map((c: any, i: number) => (
+                          {(item.changes || []).map((c, i) => (
                             <p key={i} className="text-xs text-[#8F8F95]">
                               {c.label}: <span className="line-through text-red-400/50">{c.display_previous}</span> → <span className="text-blue-400">{c.display_new}</span>
                             </p>
