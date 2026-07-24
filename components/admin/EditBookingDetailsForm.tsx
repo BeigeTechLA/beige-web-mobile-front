@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { set, format, differenceInHours, addDays, eachDayOfInterval, endOfMonth, endOfWeek, isSameDay, isSameMonth, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Check, ChevronDown, ChevronLeft, ChevronRight, X, Calendar } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, Check, ChevronDown, ChevronLeft, ChevronRight, X, Calendar, Search, MapPinHouse } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
@@ -49,6 +49,35 @@ import { FloatingLabelDropdown } from "@/components/generic/FloatingLabelDropdow
 import { useUpdateLeadBookingMutation } from "@/lib/redux/features/sales/salesApi";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import { getFormattedDateString } from "@/lib/utils";
+import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
+import StudioCard from "@/components/book-a-shoot/v3/components/StudioCard";
+import {
+  buildHourlyStudioSelection,
+  normalizeSelectedStudios,
+  removeSelectedStudio,
+  upsertSelectedStudio,
+} from "@/components/book-a-shoot/v3/studioData";
+
+const STUDIO_BOOKING_TYPES = [
+  { key: "production", value: "Production" },
+  { key: "audio", value: "Audio" },
+  { key: "event", value: "Event" }
+];
+
+const LOAD_MORE_COUNT = 3;
+const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
+
+const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
+  slug: studio.slug || studio.id,
+  image: studio.image || "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  name: studio.name,
+  description: studio.propertyType ? `(${studio.propertyType})` : "",
+  location: studio.location || PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || 0,
+  rating: Number(studio.rating || 5),
+  reviews: studio.reviews || 0,
+  tags: studio.tags?.length ? studio.tags : ["Studio", "Available"],
+});
 
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
@@ -85,7 +114,13 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const calendarRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<BookingDataV3>(initialDataV3);
-  const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+  
+  const withStudioOption = (types: any[]) => {
+    const nonStudioTypes = types.filter((type) => type.key !== "studio" && type.key !== "coachella");
+    return [{ key: "studio", title: "Studio" }, ...nonStudioTypes];
+  };
+  
+  const [availableShootTypes, setAvailableShootTypes] = useState(withStudioOption(newshootTypes));
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [photoEditNote, setPhotoEditNote] = useState<string>("");
@@ -107,6 +142,26 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const dragStartScrollLeft = useRef(0);
 
   const [updateLeadBooking, { isLoading: isUpdating }] = useUpdateLeadBookingMutation();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(formData.bookingFor || "");
+  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [visibleStudioCount, setVisibleStudioCount] = useState(3); // INITIAL_COUNT = 3
+
+  const selectedStudios = useMemo(
+    () =>
+      normalizeSelectedStudios({
+        selectedStudios: formData.selectedStudios,
+        selectedStudioIds: formData.selectedStudioIds,
+      }),
+    [formData.selectedStudios, formData.selectedStudioIds],
+  );
+
+  const selectedStudioIds = useMemo(
+    () => selectedStudios.map((studio) => studio.studioId),
+    [selectedStudios],
+  );
 
   const normalizeArrayField = (value: unknown): string[] => {
     if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
@@ -278,6 +333,29 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           normalizedBookingDays.length > 1 ||
           (Boolean(b.is_multiple_day_shoot) && normalizedBookingDays.length > 0);
 
+        let studioUpdate = {};
+        if (initialBookingData?.pricing_breakdown?.studio_items && initialBookingData.pricing_breakdown.studio_items.length > 0) {
+           const s = initialBookingData.pricing_breakdown.studio_items[0];
+           studioUpdate = {
+             selectedStudios: [{
+               studioId: s.studio_id,
+               name: s.name,
+               location: s.location,
+               image: s.image,
+               pricingMode: s.pricing_mode,
+               priceValue: s.unit_price,
+               priceLabel: s.price_label,
+               selectedDate: s.selected_date,
+               startTime: s.start_time,
+               endTime: s.end_time,
+             }],
+             selectedStudioIds: [s.studio_id],
+             selectedStudioName: s.name,
+             selectedStudioImage: s.image,
+             bookingFor: s.studio_booking_for || "production",
+           };
+        }
+
         return {
           ...prev,
           bookingId: b.stream_project_booking_id || b.id,
@@ -296,9 +374,10 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
             [],
           fullName: initialBookingData.client_name || initialBookingData.user?.name || b.project_name || "",
           email: initialBookingData.guest_email || initialBookingData.user?.email || b.guest_email || "",
-          phone: initialBookingData.user?.phone_number || "",
+          phone: initialBookingData.user?.phone_number || initialBookingData.phone || "",
           bookingType: isMultiDayBooking ? "multi_day" : "single_day",
-          bookingDays: normalizedBookingDays
+          bookingDays: normalizedBookingDays,
+          ...studioUpdate
         }
       });
 
@@ -431,7 +510,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
     }
   }, [formData.shootType]);
 
-  const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
+  const toggleContentType = (type: "videographer" | "photographer" | "editing" | "studio") => {
     const current = [...formData.contentType];
     const isCurrentlySelected = current.includes(type);
     const nextContentType = isCurrentlySelected ? current.filter((t) => t !== type) : [...current, type];
@@ -442,6 +521,10 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
       let update: Partial<BookingDataV3> = { contentType: nextContentType };
       if (!nextContentType.includes("videographer")) update.videoEditTypes = [];
       if (!nextContentType.includes("photographer")) update.photoEditTypes = [];
+      if (!nextContentType.includes("studio")) {
+        update.selectedStudios = [];
+        update.selectedStudioIds = [];
+      }
       updateData(update);
     }
     if (nextContentType.length > 0) scrollToRef(shootTypeRef);
@@ -560,6 +643,47 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
     });
   };
 
+  useEffect(() => {
+    const fetchStudios = async () => {
+      setStudioLoading(true);
+      try {
+        const response = await studioCatalogApi.list({
+          search: searchQuery,
+          limit: 100,
+        });
+        const mappedData = (response.data || response.studios || response || []).map(mapCatalogStudio);
+        setStudioData(mappedData);
+      } catch (error) {
+        console.error("Failed to fetch studios:", error);
+      } finally {
+        setStudioLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchStudios, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleStudioToggle = (studio: any) => {
+    const isSelected = selectedStudioIds.includes(studio.slug);
+
+    if (isSelected) {
+      updateData({
+        selectedStudios: [],
+        selectedStudioIds: [],
+        selectedStudioName: undefined,
+        selectedStudioImage: undefined,
+      });
+    } else {
+      const selection = buildHourlyStudioSelection(studio, undefined);
+      updateData({
+        selectedStudios: [selection],
+        selectedStudioIds: [studio.slug],
+        selectedStudioName: studio.name,
+        selectedStudioImage: studio.image,
+      });
+    }
+  };
+
   const handleUpdate = async () => {
     if (!formData.shootType || (bookingType === "single_day" && (!formData.startDate || !formData.endDate)) || (bookingType === "multi_day" && selectedDates.length === 0) || !formData.location) {
       toast.error("Please fill in all required fields");
@@ -618,6 +742,102 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
         ...d,
         time_zone: d.time_zone || d.timeZone || browserTimeZone
       }));
+    }
+
+    if (formData.contentType.includes("studio") && selectedStudios.length > 0) {
+      const studio = selectedStudios[0];
+      payload.studio_booking_for = bookingFor || "production";
+      
+      let studioStartDate = formData.startDate ? getLocalDatePart(formData.startDate) : "";
+      let studioStartTime = formData.startDate ? getLocalTimePart(formData.startDate) : "09:00:00";
+      let studioEndTime = formData.endDate ? getLocalTimePart(formData.endDate) : "17:00:00";
+      let studioDurationHours = 8;
+      
+      if (bookingType === "single_day") {
+          const start = parseDate(formData.startDate);
+          const end = parseDate(formData.endDate);
+          if (start && end) {
+              studioDurationHours = differenceInHours(end, start);
+          }
+      } else if (bookingType === "multi_day" && payload.booking_days.length > 0) {
+          const firstDay = payload.booking_days[0];
+          studioStartDate = firstDay.date;
+          studioStartTime = firstDay.start_time;
+          studioEndTime = firstDay.end_time;
+          
+          let totalHrs = 0;
+          payload.booking_days.forEach((day: any) => {
+              if (day.start_time && day.end_time) {
+                 const [sh, sm] = day.start_time.split(":").map(Number);
+                 const [eh, em] = day.end_time.split(":").map(Number);
+                 if (!isNaN(sh) && !isNaN(eh)) {
+                     totalHrs += (eh + em/60) - (sh + sm/60);
+                 }
+              }
+          });
+          studioDurationHours = totalHrs;
+      }
+      
+      if (studio.selectedDate) {
+        studioStartDate = typeof studio.selectedDate === "string" ? studio.selectedDate.split("T")[0] : getLocalDatePart(studio.selectedDate.toISOString());
+      }
+      if (studio.startTime) {
+        studioStartTime = studio.startTime;
+      }
+      if (studio.endTime) {
+        studioEndTime = studio.endTime;
+      }
+      
+      if (studioStartTime && studioEndTime) {
+         const [sh, sm] = studioStartTime.split(":").map(Number);
+         const [eh, em] = studioEndTime.split(":").map(Number);
+         if (!isNaN(sh) && !isNaN(eh)) {
+           studioDurationHours = (eh + em/60) - (sh + sm/60);
+         }
+      }
+      
+      let unitPrice = studio.priceValue || 0;
+      if (unitPrice === 0 && studio.priceLabel) {
+          const match = studio.priceLabel.match(/\d+/);
+          if (match) {
+              unitPrice = parseInt(match[0], 10);
+          }
+      }
+      
+      const quantity = Math.max(0, studioDurationHours);
+      const studioTotal = unitPrice * quantity;
+      
+      payload.studio_total = studioTotal;
+
+      const pricingCategory = bookingFor || "production";
+      const pricingLabel = pricingCategory === "production" ? "Production" : pricingCategory === "audio" ? "Audio" : "Event";
+
+      payload.studio_items = [
+        {
+          studio_id: studio.studioId,
+          name: studio.name,
+          location: studio.location,
+          image: studio.image,
+          pricing_mode: studio.pricingMode || "hourly",
+          pricing_category: pricingCategory,
+          pricing_label: pricingLabel,
+          unit_price: unitPrice,
+          quantity: quantity,
+          total: studioTotal,
+          price_label: studio.priceLabel || `$${unitPrice}/hour`,
+          selected_date: studioStartDate,
+          start_time: studioStartTime,
+          end_time: studioEndTime,
+          time_zone: browserTimeZone,
+          studio_booking_type: bookingType,
+          studio_booking_for: bookingFor || "production",
+          booking_days: payload.booking_days || [],
+          cast_and_crew_count: payload.crew_size,
+          update_studio_datetime: true,
+          lat: payload.location_latitude,
+          lng: payload.location_longitude
+        }
+      ];
     }
 
     try {
@@ -716,6 +936,12 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
             onChange={() => toggleContentType("photographer")}
             isDark={isDark}
           />
+          <ContentTypeCheckbox
+            label="Studios" icon={<MapPinHouse size={20} />}
+            checked={formData.contentType.includes("studio")}
+            onChange={() => toggleContentType("studio")}
+            isDark={isDark}
+          />
         </div>
       </div>
 
@@ -732,6 +958,104 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           isDark={isDark}
         />
       </div>
+
+      {formData.contentType.includes("studio") && (
+        <div className="my-8 lg:my-12">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>Studios</h3>
+          </div>
+
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div className={`flex flex-col lg:flex-row lg:items-center gap-4 ${isDark ? "text-white/80" : "text-black/80"}`}>
+              <div className="flex items-center gap-2">
+                <span className="font-medium whitespace-nowrap">Booking for:</span>
+                <div className="flex gap-2">
+                  {STUDIO_BOOKING_TYPES.map((type) => (
+                    <button
+                      key={type.key}
+                      onClick={() => setBookingFor(type.key)}
+                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                        bookingFor === type.key
+                          ? isDark
+                            ? "bg-white text-black border-transparent"
+                            : "bg-black text-white border-transparent"
+                          : isDark
+                          ? "border-white/20 text-white hover:border-white/50"
+                          : "border-black/20 text-black hover:border-black/50"
+                      }`}
+                    >
+                      {type.value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative w-full lg:w-[320px]">
+              <Search size={20} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/40" : "text-black/40"}`} />
+              <input
+                type="text"
+                placeholder="Search studios..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full h-[52px] pl-11 pr-4 rounded-xl border outline-none transition-colors ${
+                  isDark
+                    ? "bg-[#1A1A1A] border-white/10 text-white placeholder:text-white/40 focus:border-[#E8D1AB]"
+                    : "bg-white border-black/10 text-black placeholder:text-black/40 focus:border-black/30"
+                }`}
+              />
+            </div>
+          </div>
+
+          {studioLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className={`h-[400px] rounded-2xl animate-pulse ${isDark ? "bg-white/5" : "bg-black/5"}`} />
+              ))}
+            </div>
+          ) : studioData.length === 0 ? (
+            <div className={`text-center py-12 border-2 border-dashed rounded-2xl ${isDark ? "border-white/10" : "border-black/10"}`}>
+              <p className={`text-lg ${isDark ? "text-white/60" : "text-black/60"}`}>No studios found matching your criteria</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-8">
+                {studioData.slice(0, visibleStudioCount).map((studio) => {
+                  const isSelected = selectedStudioIds.includes(studio.slug);
+                  return (
+                    <div key={studio.slug} className="relative">
+                      <StudioCard
+                        studio={studio}
+                        isSelected={isSelected}
+                        onSelect={() => handleStudioToggle(studio)}
+                        isDark={isDark}
+                      />
+                      {isSelected && (
+                        <div className="absolute top-4 right-4 bg-black text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg z-10 flex items-center gap-1.5">
+                          <Check size={14} /> Selected
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {visibleStudioCount < studioData.length && (
+                <button
+                  onClick={() => setVisibleStudioCount((prev) => Math.min(prev + LOAD_MORE_COUNT, studioData.length))}
+                  className={`px-8 py-3 rounded-xl border font-medium transition-colors ${
+                    isDark
+                      ? "border-white/20 text-white hover:bg-white/5"
+                      : "border-black/20 text-black hover:bg-black/5"
+                  }`}
+                >
+                  Load More Studios
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div ref={bookingTypeRef} className={`pt-6 lg:pt-15 border-t ${isDark ? "border-white/10" : "border-black/5"}`}>
         <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>Select Booking Type</h3>
