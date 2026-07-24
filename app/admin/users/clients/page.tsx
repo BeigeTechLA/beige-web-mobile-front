@@ -17,7 +17,6 @@ export default function ClientsPage() {
   const { canCreate } = usePermissions("shoots");
 
   useEffect(() => setMounted(true), []);
-
   const isDark = !mounted || theme === "dark";
 
   return (
@@ -41,8 +40,20 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+      <div className="overflow-hidden p-4 pb-30 lg:px-10 lg:py-9 space-y-4 lg:space-y-8">
         <ClientsTable />
+
+        {/* --- FLOATING MOBILE BUTTON --- */}
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => router.push("/book-a-shoot")}
+            disabled={!canCreate}
+            title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
+            className="bg-[#E8D1AB] text-sm font-medium text-black h-14 px-4 lg:px-7 w-full"
+          >
+            Book a Shoot
+          </Button>
+        </div>
       </div>
     </>
   );

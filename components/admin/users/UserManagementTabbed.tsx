@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronRight, Search, User, Camera, ArrowUpDown, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronDown } from "lucide-react";
+import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Loader2, ChevronLeft, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -422,10 +422,7 @@ export const UserManagementTabbed = () => {
       <div className="flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-4 w-full md:flex-1">
           <div className="relative flex-1 w-full">
-            <Search
-              className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`}
-              size={18}
-            />
+            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`} size={18} />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -592,8 +589,6 @@ export const UserManagementTabbed = () => {
           ) : (
             sortedUsers.map((user, idx) => {
               const isExpanded = expandedRowId === user.id;
-              console.log(user);
-
               return (
                 <div
                   key={user.id || idx}
@@ -626,80 +621,79 @@ export const UserManagementTabbed = () => {
                   </div>
 
                   {/* Expandable Details Frame Grid */}
-                  {
-                    isExpanded && (
-                      <div className="pt-4 space-y-4 min-w-0">
-                        {/* Upper Section Grid for Standard 2-Column Fields */}
-                        <div className="grid grid-cols-2 gap-y-4 text-xs">
-                          <div className="space-y-1">
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>User ID</p>
-                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.id}</p>
-                          </div>
-
-                          {/* Conditional Column Check: Type */}
-                          {activeTab === "All" && (
-                            <div className="space-y-1 text-right">
-                              <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Type</p>
-                              <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.type}</p>
-                            </div>
-                          )}
-
-                          <div className={`space-y-1 ${activeTab === "All" ? "" : "text-right"}`}>
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>
-                              {activeTab !== "Creative Partner" ? "Contact / Role" : "Role"}
-                            </p>
-                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
-                              {user.type === "Client" ? user.phoneNumber : user.role}
-                            </p>
-                          </div>
-
-                          {/* Conditional Column Check: Client Type */}
-                          {activeTab !== "Creative Partner" && (
-                            <div className={`space-y-1 ${activeTab === "All" ? "text-right" : ""}`}>
-                              <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Client Type</p>
-                              <div className={`flex mt-0.5 ${activeTab === "All" ? "justify-end" : ""}`}>
-                                <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
-                              </div>
-                            </div>
-                          )}
+                  {isExpanded && (
+                    <div className="pt-4 space-y-4 min-w-0">
+                      {/* Upper Section Grid for Standard 2-Column Fields */}
+                      <div className="grid grid-cols-2 gap-y-4 text-xs">
+                        <div className="space-y-1">
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>User ID</p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.id}</p>
                         </div>
 
-                        {/* Email Breakout Zone (Rendered dynamically outside of the grids to prevent column misalignments) */}
+                        {/* Conditional Column Check: Type */}
                         {activeTab === "All" && (
-                          <div className="space-y-1 text-xs">
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Email</p>
-                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.email}</p>
-                          </div>
-                        )}
-
-                        {activeTab !== "All" && (
-                          <div className="space-y-1 text-xs">
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Email</p>
-                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.email}</p>
-                          </div>
-                        )}
-
-                        {/* Lower Section Grid for Bottom Fields */}
-                        <div className="grid grid-cols-2 gap-y-4 text-xs">
-                          <div className={`space-y-1`}>
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Referral Code</p>
-                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
-                              {user.referralCode || "—"}
-                            </p>
-                          </div>
                           <div className="space-y-1 text-right">
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Action</p>
-                            <button
-                              type="button"
-                              onClick={() => handleRowClick(user)}
-                              className={`inline-flex items-center gap-1 text-xs font-semibold underline mt-1 ${isDark ? "text-[#E8D1AB]" : "text-[#8E6A2A]"}`}
-                            >
-                              Open Details <ChevronRight size={14} />
-                            </button>
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Type</p>
+                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.type}</p>
                           </div>
+                        )}
+
+                        <div className={`space-y-1 ${activeTab === "All" ? "" : "text-right"}`}>
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            {activeTab !== "Creative Partner" ? "Contact / Role" : "Role"}
+                          </p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
+                            {user.type === "Client" ? user.phoneNumber : user.role}
+                          </p>
+                        </div>
+
+                        {/* Conditional Column Check: Client Type */}
+                        {activeTab !== "Creative Partner" && (
+                          <div className={`space-y-1 ${activeTab === "All" ? "text-right" : ""}`}>
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Client Type</p>
+                            <div className={`flex mt-0.5 ${activeTab === "All" ? "justify-end" : ""}`}>
+                              <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Email Breakout Zone (Rendered dynamically outside of the grids to prevent column misalignments) */}
+                      {activeTab === "All" && (
+                        <div className="space-y-1 text-xs">
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Email</p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.email}</p>
+                        </div>
+                      )}
+
+                      {activeTab !== "All" && (
+                        <div className="space-y-1 text-xs">
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Email</p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{user.email}</p>
+                        </div>
+                      )}
+
+                      {/* Lower Section Grid for Bottom Fields */}
+                      <div className="grid grid-cols-2 gap-y-4 text-xs">
+                        <div className={`space-y-1`}>
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Referral Code</p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>
+                            {user.referralCode || "—"}
+                          </p>
+                        </div>
+                        <div className="space-y-1 text-right">
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Action</p>
+                          <button
+                            type="button"
+                            onClick={() => handleRowClick(user)}
+                            className={`inline-flex items-center gap-1 text-xs font-semibold underline mt-1 ${isDark ? "text-[#E8D1AB]" : "text-[#8E6A2A]"}`}
+                          >
+                            Open Details <ChevronRight size={14} />
+                          </button>
                         </div>
                       </div>
-                    )
+                    </div>
+                  )
                   }
                 </div>
               );

@@ -12,6 +12,7 @@ import {
   Loader2,
   Download,
   ArrowUpToLine,
+  ChevronLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -216,6 +217,9 @@ export const CreativePartnersTable = () => {
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Accordion state tracking for mobile card rows
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const [exportStartDate, setExportStartDate] =
     useState<Date | null>(null);
@@ -524,393 +528,387 @@ export const CreativePartnersTable = () => {
     }
   };
   const handleExportCreativePartners = async () => {
-  if (isExporting) return;
+    if (isExporting) return;
 
-  setIsExporting(true);
+    setIsExporting(true);
 
-  try {
-    const exportLocation = locationQuery.trim();
-    const startDate = exportStartDate;
-    const endDate = exportEndDate;
+    try {
+      const exportLocation = locationQuery.trim();
+      const startDate = exportStartDate;
+      const endDate = exportEndDate;
 
-    if (Boolean(startDate) !== Boolean(endDate)) {
-      throw new Error(
-        "Select both dates or leave both blank to export all records."
-      );
-    }
-
-    const exportParams: {
-      start_date?: string;
-      end_date?: string;
-      status?: string;
-      search?: string;
-      location?: string;
-    } = {
-      status:
-        statusFilter !== "all"
-          ? statusFilter
-          : undefined,
-      search:
-        normalizedSearch || undefined,
-      location:
-        exportLocation || undefined,
-    };
-
-    let fileName = "creative-partners-all-records.csv";
-
-    if (startDate && endDate) {
-      const normalizedStartDate = startOfDay(startDate);
-      const normalizedEndDate = startOfDay(endDate);
-      const today = startOfDay(new Date());
-
-      if (
-        normalizedStartDate > today ||
-        normalizedEndDate > today
-      ) {
-        throw new Error("Future dates are not allowed.");
-      }
-
-      if (normalizedStartDate > normalizedEndDate) {
+      if (Boolean(startDate) !== Boolean(endDate)) {
         throw new Error(
-          "Start date cannot be after end date."
+          "Select both dates or leave both blank to export all records."
         );
       }
 
-      const formattedStartDate = format(
-        normalizedStartDate,
-        "yyyy-MM-dd"
+      const exportParams: {
+        start_date?: string;
+        end_date?: string;
+        status?: string;
+        search?: string;
+        location?: string;
+      } = {
+        status:
+          statusFilter !== "all"
+            ? statusFilter
+            : undefined,
+        search:
+          normalizedSearch || undefined,
+        location:
+          exportLocation || undefined,
+      };
+
+      let fileName = "creative-partners-all-records.csv";
+
+      if (startDate && endDate) {
+        const normalizedStartDate = startOfDay(startDate);
+        const normalizedEndDate = startOfDay(endDate);
+        const today = startOfDay(new Date());
+
+        if (
+          normalizedStartDate > today ||
+          normalizedEndDate > today
+        ) {
+          throw new Error("Future dates are not allowed.");
+        }
+
+        if (normalizedStartDate > normalizedEndDate) {
+          throw new Error(
+            "Start date cannot be after end date."
+          );
+        }
+
+        const formattedStartDate = format(
+          normalizedStartDate,
+          "yyyy-MM-dd"
+        );
+
+        const formattedEndDate = format(
+          normalizedEndDate,
+          "yyyy-MM-dd"
+        );
+
+        exportParams.start_date = formattedStartDate;
+        exportParams.end_date = formattedEndDate;
+        fileName = `creative-partners-${formattedStartDate}-to-${formattedEndDate}.csv`;
+      }
+
+      const blob =
+        await adminApi.exportCrewMembersCsv(exportParams);
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error(
+          "Invalid or empty export response."
+        );
+      }
+
+      const downloadUrl =
+        window.URL.createObjectURL(blob);
+
+      const downloadLink =
+        document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setIsExportOpen(false);
+      setExportStartDate(null);
+      setExportEndDate(null);
+
+      toast.success(
+        "Creative partners exported successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Export Creative Partners Error:",
+        error
       );
 
-      const formattedEndDate = format(
-        normalizedEndDate,
-        "yyyy-MM-dd"
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to export creative partners."
       );
-
-      exportParams.start_date = formattedStartDate;
-      exportParams.end_date = formattedEndDate;
-      fileName = `creative-partners-${formattedStartDate}-to-${formattedEndDate}.csv`;
+    } finally {
+      setIsExporting(false);
     }
-
-    const blob =
-      await adminApi.exportCrewMembersCsv(exportParams);
-
-    if (!(blob instanceof Blob) || blob.size === 0) {
-      throw new Error(
-        "Invalid or empty export response."
-      );
-    }
-
-    const downloadUrl =
-      window.URL.createObjectURL(blob);
-
-    const downloadLink =
-      document.createElement("a");
-
-    downloadLink.href = downloadUrl;
-    downloadLink.download = fileName;
-
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-
-    window.URL.revokeObjectURL(downloadUrl);
-
-    setIsExportOpen(false);
-    setExportStartDate(null);
-    setExportEndDate(null);
-
-    toast.success(
-      "Creative partners exported successfully."
-    );
-  } catch (error) {
-    console.error(
-      "Export Creative Partners Error:",
-      error
-    );
-
-    toast.error(
-      error instanceof Error
-        ? error.message
-        : "Failed to export creative partners."
-    );
-  } finally {
-    setIsExporting(false);
-  }
-};
-
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Header */}
       <div>
-        <h1 className={`text-lg lg:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
-        <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>Manage and review all onboarded creative professionals in one place.</p>
+        <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
+        <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>
+          Manage and review all onboarded creative professionals in one place.
+        </p>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         {/* Search & Status Filter */}
-        <div className="flex flex-wrap items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-md min-w-[240px]">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+        <div className="flex-1 flex items-center gap-2 lg:gap-4 flex-1">
+          <div className="relative flex-1 max-w-2xl min-w-[240px]">
+            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`} size={18} />
             <input
               type="text"
               placeholder="Search ..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
-              className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
-                }`} />
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${isDark
+                ? "border-white/20 bg-[#202020] text-white placeholder:text-[#727272] focus:ring-[#E8D1AB]/50"
+                : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#32323266] focus:ring-[#C9A96E]/40"}`}
+            />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className={`w-[180px] rounded-lg h-[46px] capitalize transition-colors ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
-              }`}>
+            <SelectTrigger className={`w-[180px] rounded-lg h-12 capitalize transition-colors ${isDark ? "border-white/20 bg-[#202020] text-[#C4C4C4] hover:bg-[#252525]" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"}`}>
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
-            <SelectContent className={isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}>
+            <SelectContent className={isDark ? "border-white/20 bg-[#202020] text-white" : "border-[#E3E3E3] bg-white text-[#323232]"}>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Move this to parent page */}
           <Popover
-              open={isExportOpen}
-              onOpenChange={(open) => {
-                if (!isExporting) {
-                  setIsExportOpen(open);
-                }
-              }}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  disabled={isExporting}
-                  aria-label="Export creative partners"
-                  title="Export creative partners"
-                  className={`h-[46px] px-4 rounded-lg flex items-center justify-center gap-2 ${
-                    isDark
-                      ? "bg-[#111] border border-[#333] text-white hover:bg-[#1A1A1A]"
-                      : "bg-white border border-[#E3E3E3] text-[#323232] hover:bg-[#F7F7F7]"
+            open={isExportOpen}
+            onOpenChange={(open) => {
+              if (!isExporting) {
+                setIsExportOpen(open);
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                disabled={isExporting}
+                aria-label="Export creative partners"
+                title="Export creative partners"
+                className={`h-12 px-4 rounded-lg flex items-center justify-center gap-2 ${isDark
+                  ? "bg-[#111] border border-[#333] text-white hover:bg-[#1A1A1A]"
+                  : "bg-white border border-[#E3E3E3] text-[#323232] hover:bg-[#F7F7F7]"
                   }`}
-                >
-                  {isExporting ? (
-                    <Loader2
-                      size={18}
-                      className="animate-spin"
-                    />
-                  ) : (
-                    <ArrowUpToLine size={18} />
-                  )}
-
-                  <span className="hidden lg:inline">
-                    {isExporting
-                      ? "Exporting..."
-                      : "Export"}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-
-              <PopoverContent
-                align="end"
-                sideOffset={10}
-                className={`w-[340px] rounded-2xl border p-5 ${
-                  isDark
-                    ? "border-[#333] bg-[#111] text-white"
-                    : "border-[#E3E3E3] bg-white text-[#323232]"
-                }`}
               >
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="text-sm font-semibold">
-                      Export Creative Partners
-                    </h3>
-
-                    <p
-                      className={`mt-1 text-xs ${
-                        isDark
-                          ? "text-white/55"
-                          : "text-black/55"
-                      }`}
-                    >
-                      Leave both dates blank to download all creative partners, or pick a range to filter the export.
-                    </p>
-                  </div>
-
-                  <DatePicker
-                    label="Start Date"
-                    value={exportStartDate}
-                    onChange={(date) => {
-                      if (!date) {
-                        setExportStartDate(null);
-                        return;
-                      }
-
-                      const normalizedDate =
-                        startOfDay(date);
-
-                      const today =
-                        startOfDay(new Date());
-
-                      if (normalizedDate > today) {
-                        return;
-                      }
-
-                      setExportStartDate(
-                        normalizedDate
-                      );
-
-                      if (
-                        exportEndDate &&
-                        normalizedDate >
-                          startOfDay(exportEndDate)
-                      ) {
-                        setExportEndDate(
-                          normalizedDate
-                        );
-                      }
-                    }}
-                    maxDate={
-                      exportEndDate
-                        ? startOfDay(exportEndDate)
-                        : startOfDay(new Date())
-                    }
-                    disabled={isExporting}
-                    isDark={isDark}
-                    disablePortal
-                    format="MM/dd/yyyy"
-                    sx={{ height: "42px" }}
+                {isExporting ? (
+                  <Loader2
+                    size={18}
+                    className="animate-spin"
                   />
+                ) : (
+                  <ArrowUpToLine size={18} />
+                )}
 
-                  <DatePicker
-                    label="End Date"
-                    value={exportEndDate}
-                    onChange={(date) => {
-                      if (!date) {
-                        setExportEndDate(null);
-                        return;
-                      }
+                <span className="hidden lg:inline">
+                  {isExporting
+                    ? "Exporting..."
+                    : "Export"}
+                </span>
+              </Button>
+            </PopoverTrigger>
 
-                      const normalizedDate =
-                        startOfDay(date);
+            <PopoverContent
+              align="end"
+              sideOffset={10}
+              className={`w-[340px] rounded-2xl border p-5 ${isDark
+                ? "border-[#333] bg-[#111] text-white"
+                : "border-[#E3E3E3] bg-white text-[#323232]"
+                }`}
+            >
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold">
+                    Export Creative Partners
+                  </h3>
 
-                      const today =
-                        startOfDay(new Date());
+                  <p
+                    className={`mt-1 text-xs ${isDark
+                      ? "text-white/55"
+                      : "text-black/55"
+                      }`}
+                  >
+                    Leave both dates blank to download all creative partners, or pick a range to filter the export.
+                  </p>
+                </div>
 
-                      if (normalizedDate > today) {
-                        return;
-                      }
+                <DatePicker
+                  label="Start Date"
+                  value={exportStartDate}
+                  onChange={(date) => {
+                    if (!date) {
+                      setExportStartDate(null);
+                      return;
+                    }
 
-                      if (
-                        exportStartDate &&
-                        normalizedDate <
-                          startOfDay(exportStartDate)
-                      ) {
-                        return;
-                      }
+                    const normalizedDate =
+                      startOfDay(date);
 
+                    const today =
+                      startOfDay(new Date());
+
+                    if (normalizedDate > today) {
+                      return;
+                    }
+
+                    setExportStartDate(
+                      normalizedDate
+                    );
+
+                    if (
+                      exportEndDate &&
+                      normalizedDate >
+                      startOfDay(exportEndDate)
+                    ) {
                       setExportEndDate(
                         normalizedDate
                       );
-                    }}
-                    minDate={
-                      exportStartDate
-                        ? startOfDay(exportStartDate)
-                        : undefined
                     }
-                    maxDate={startOfDay(new Date())}
+                  }}
+                  maxDate={
+                    exportEndDate
+                      ? startOfDay(exportEndDate)
+                      : startOfDay(new Date())
+                  }
+                  disabled={isExporting}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                  sx={{ height: "42px" }}
+                />
+
+                <DatePicker
+                  label="End Date"
+                  value={exportEndDate}
+                  onChange={(date) => {
+                    if (!date) {
+                      setExportEndDate(null);
+                      return;
+                    }
+
+                    const normalizedDate =
+                      startOfDay(date);
+
+                    const today =
+                      startOfDay(new Date());
+
+                    if (normalizedDate > today) {
+                      return;
+                    }
+
+                    if (
+                      exportStartDate &&
+                      normalizedDate <
+                      startOfDay(exportStartDate)
+                    ) {
+                      return;
+                    }
+
+                    setExportEndDate(
+                      normalizedDate
+                    );
+                  }}
+                  minDate={
+                    exportStartDate
+                      ? startOfDay(exportStartDate)
+                      : undefined
+                  }
+                  maxDate={startOfDay(new Date())}
+                  disabled={isExporting}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                  sx={{ height: "42px" }}
+                />
+
+                {(exportStartDate || exportEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportStartDate(null);
+                      setExportEndDate(null);
+                    }}
                     disabled={isExporting}
-                    isDark={isDark}
-                    disablePortal
-                    format="MM/dd/yyyy"
-                    sx={{ height: "42px" }}
-                  />
-
-                  {(exportStartDate || exportEndDate) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExportStartDate(null);
-                        setExportEndDate(null);
-                      }}
-                      disabled={isExporting}
-                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${
-                        isDark
-                          ? "text-white/70 hover:text-white"
-                          : "text-black/60 hover:text-black"
+                    className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark
+                      ? "text-white/70 hover:text-white"
+                      : "text-black/60 hover:text-black"
                       }`}
-                    >
-                      Reset dates
-                    </button>
-                  )}
+                  >
+                    Reset dates
+                  </button>
+                )}
 
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button
-                      type="button"
-                      disabled={isExporting}
-                      onClick={() =>
-                        setIsExportOpen(false)
-                      }
-                      className={
-                        isDark
-                          ? "border border-[#333] bg-transparent text-white hover:bg-white/5"
-                          : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
-                      }
-                    >
-                      Cancel
-                    </Button>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    disabled={isExporting}
+                    onClick={() =>
+                      setIsExportOpen(false)
+                    }
+                    className={
+                      isDark
+                        ? "border border-[#333] bg-transparent text-white hover:bg-white/5"
+                        : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                    }
+                  >
+                    Cancel
+                  </Button>
 
-                    <Button
-                      type="button"
-                      disabled={
-                        isExporting
-                      }
-                      onClick={() => {
-                        void handleExportCreativePartners();
-                      }}
-                      className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
-                    >
-                      {isExporting ? (
-                        <>
-                          <Loader2
-                            size={16}
-                            className="mr-2 animate-spin"
-                          />
-                          Exporting...
-                        </>
-                      ) : (
-                        <>
-                          <Download
-                            size={16}
-                            className="mr-2"
-                          />
-                          Download CSV
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    disabled={
+                      isExporting
+                    }
+                    onClick={() => {
+                      void handleExportCreativePartners();
+                    }}
+                    className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2
+                          size={16}
+                          className="mr-2 animate-spin"
+                        />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download
+                          size={16}
+                          className="mr-2"
+                        />
+                        Download CSV
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </PopoverContent>
-            </Popover>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="relative w-full lg:w-[280px]">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"}`} size={18} />
+        <div className="flex-1 flex flex-wrap items-center justify-end gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDark ? "text-white/30" : "text-[#32323266]"}`} size={18} />
             <input
               type="text"
               placeholder="Search by location..."
               value={locationQuery}
-              onChange={(e) => {
-                setLocationQuery(e.target.value);
-              }}
-              className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors h-[46px] ${
-                isDark
-                  ? "bg-[#111] border-[#333] text-white"
-                  : "bg-white border-[#E3E3E3] text-[#323232]"
-              }`}
+              onChange={(e) => setLocationQuery(e.target.value)}
+              className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${isDark
+                ? "border-white/20 bg-[#202020] text-white placeholder:text-[#727272] focus:ring-[#E8D1AB]/50"
+                : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#32323266] focus:ring-[#C9A96E]/40"}`}
             />
           </div>
           {/* <button className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border border-[#333] text-white rounded-lg hover:bg-[#222] transition-colors">
@@ -936,263 +934,280 @@ export const CreativePartnersTable = () => {
       </div>
 
       {/* Table */}
-      <div className={`w-full rounded-2xl border overflow-hidden transition-colors ${isDark ? "bg-[#111] border-[#333]" : "bg-white border-[#E3E3E3] shadow-sm"}`}>
+      <div className={isDark
+        ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
+        : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"}>
         {/* --- DESKTOP TABLE VIEW --- */}
-        <div className="hidden lg:block w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className={`text-sm font-medium border-b cursor-pointer leading-none tracking-normal ${isDark ? "text-[#888] border-[#333]" : "bg-[#FFFCF6] text-[#000] border-[#E5E5E5]"}`}>
-                <th className="py-5 px-6 font-medium">User ID</th>
-                <th className="py-5 px-6 font-medium">
-                  <div className="flex flex-col">
-                    <span>Creative Name / Email Id</span>
-                  </div>
-                </th>
-                <th className="py-5 px-6 font-medium">Roles</th>
-                <th className="py-5 px-6 font-medium">Location</th>
-                <th className="py-5 px-6 font-medium">Status</th>
-                <th className="py-5 px-6 font-medium text-right">Action</th>
-              </tr>
-            </thead>
-            {loading && (
-              <tbody>
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-[#888]">
-                    <Loader2 className="animate-spin mx-auto" size={24} />
-                  </td>
+        <div className="hidden lg:block w-full overflow-x-auto no-scrollbar">
+          <div className="w-full overflow-x-auto no-scrollbar">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+                  <th className="p-5 font-medium rounded-bl-xl">User ID</th>
+                  <th className="p-5 font-medium">Creative Name</th>
+                  <th className="p-5 font-medium">Email</th>
+                  <th className="p-5 font-medium">Roles</th>
+                  <th className="p-5 font-medium">Location</th>
+                  <th className="p-5 font-medium text-center">Status</th>
+                  <th className="p-5 font-medium text-right rounded-br-xl">Action</th>
                 </tr>
-              </tbody>
-            )}
-            {!loading && users.length === 0 && (
+              </thead>
               <tbody>
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-[#888]">
-                    No creative partners found.
-                  </td>
-                </tr>
-              </tbody>
-            )}
-            {!loading && users.length > 0 && (
-              <tbody>
-                {users.map((user, idx) => (
-                  <tr
-                    key={idx}
-                    onClick={(e) => handleRowClick(user.id, e)}
-                    className={`border-b cursor-pointer transition-colors ${isDark ? "border-[#222] hover:bg-white/[0.02] text-[#E0E0E0]" : "border-[#F0F0F0] hover:bg-black/[0.01] text-[#000]"}`}>
-                    <td className="py-5 px-6">{user.id}</td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-3">
-                        {/* Avatar: Show image if available, otherwise show initials */}
-                        <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm relative">
-                          {user.imageUrl ? (
-                            <img
-                              src={user.imageUrl}
-                              alt={user.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to initials if image fails to load
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                if (target.parentElement) {
-                                  target.parentElement.textContent = user.initials;
-                                }
-                              }}
-                            />
-                          ) : (
-                            user.initials
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                      <Loader2 className="animate-spin mx-auto" size={24} />
+                    </td>
+                  </tr>
+                ) : (!loading && users.length === 0) ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                      No creative partners found.
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user, idx) => (
+                    <tr
+                      key={user.id || idx}
+                      onClick={(e) => handleRowClick(user.id, e)}
+                      className={`${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
+                    >
+                      <td className="py-3 px-6 truncate">{user.id}</td>
+                      <td className="py-3 px-6">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Avatar: Show image if available, otherwise show initials */}
+                          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold border overflow-hidden ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
+                            {user.imageUrl ? (
+                              <img
+                                src={user.imageUrl}
+                                alt={user.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  if (target.parentElement) {
+                                    target.parentElement.textContent = user.initials;
+                                  }
+                                }}
+                              />
+                            ) : (
+                              user.initials
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="capitalize font-medium truncate">{user.name}</p>
+                            {/* <p className={`mt-1 truncate text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>{user.email}</p> */}
+                            <p className={`mt-1 truncate text-xs ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                              {user.joinDate}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-6 truncate">{user.email}</td>
+                      <td className="py-3 px-6">{user.role}</td>
+                      <td className="py-3 px-6 whitespace-nowrap">{user.location}</td>
+                      <td className="py-3 px-6 text-center">
+                        <StatusBadge status={user.status} />
+                      </td>
+                      <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                          {user.status === 'Approved' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={!canDelete}
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40 p-1"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleRowClick(user.id, e)}
+                                className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </>
+                          )}
+                          {user.status === 'Pending' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={!canDelete}
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40 p-1"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={(e) => handleApprove(user.id, e)}
+                                className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canEdit}
+                                onClick={(e) => handleDecline(user.id, e)}
+                                className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleRowClick(user.id, e)}
+                                className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </>
+                          )}
+                          {user.status === 'Rejected' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={!canDelete}
+                                onClick={(e) => handleDeleteClick(user.id, e)}
+                                className="text-[#E0E0E0] hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleRowClick(user.id, e)}
+                                className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </>
                           )}
                         </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
+        <div className="block lg:hidden w-full">
+          <div className={`flex justify-between p-5 rounded-b-xl border-y text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+            <p>Name</p>
+            <p>Status</p>
+          </div>
+          {loading ? (
+            <div className="py-20 text-center">
+              <Loader2 className={`animate-spin inline ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} />
+            </div>
+          ) : users.length === 0 ? (
+            <div className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
+              No users found for the selected filters.
+            </div>
+          ) : (
+            users.map((user) => {
+              const isExpanded = expandedRows.has(user.id);
+              // console.log(user);
+
+              return (
+                <div
+                  key={user.id}
+                  className={`p-5 transition-colors ${isDark ? "text-white" : "text-[#323232]"} ${isExpanded ? (isDark ? "bg-[#202020]" : "bg-[#F9F9F9]") : "bg-transparent"}`}
+                >
+                  <div
+                    className={`flex items-center justify-between gap-2 cursor-pointer transition-colors ${isDark ? "active:bg-white/5" : "active:bg-gray-100"}`}
+                    onClick={(e) => handleRowClick(user.id, e)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={(e) => toggleRow(user.id, e)}
+                        className={`p-1 rounded-full  transition-transform duration-200 border ${isExpanded ? (isDark ? 'rotate-180 border-[#E8D1AB]' : 'rotate-180 border-[#000000]') : 'border-[#777674]'}`}
+                      >
+                        <ChevronDown size={16} className={`${isExpanded ? (isDark ? 'text-[#E8D1AB]' : 'text-[#000]') : 'text-[#777674]'}`} />
+                      </button>
+                    </div>
+
+                    <div className="w-full flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm">
+                          {user.imageUrl ? (
+                            <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
+                          ) : user.initials}
+                        </div>
                         <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-sm mt-0.5 break-all`}>{user.email}</p>
+                          <p className={`font-medium text-sm ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
                           <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>
                             {user.joinDate}
                           </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="py-5 px-6">{user.role}</td>
-                    <td className="py-5 px-6">{user.location}</td>
-                    <td className="py-5 px-6">
-                      <StatusBadge status={user.status} />
-                    </td>
-                    <td className="py-5 px-6 text-center">
-                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                        {user.status === 'Approved' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={!canDelete}
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
-                              <ChevronRight size={20} />
-                            </button>
-                          </>
-                        )}
-                        {user.status === 'Pending' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={!canDelete}
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!canEdit}
-                              onClick={(e) => handleApprove(user.id, e)}
-                              className="px-3 py-1 bg-[#F0FFF4] text-[#22C55E] text-xs font-semibold rounded hover:bg-[#dcfce4] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!canEdit}
-                              onClick={(e) => handleDecline(user.id, e)}
-                              className="px-3 py-1 text-[#EF4444] text-xs font-semibold hover:bg-[#FFEBEB] rounded transition-colors underline decoration-1 underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              Decline
-                            </button>
-                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
-                              <ChevronRight size={20} />
-                            </button>
-                          </>
-                        )}
-                        {user.status === 'Rejected' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={!canDelete}
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="text-[#E0E0E0] hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                            <button className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors`}>
-                              <ChevronRight size={20} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            )}
-          </table>
-        </div>
-
-        {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
-        <div className={`lg:hidden divide-y ${isDark ? "divide-[#333]" : "divide-gray-200"}`}>
-          {loading && <div className={`py-10 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>Loading partners...  </div>}
-          {!loading && users.length === 0 && (
-            <div className={`py-10 text-center ${isDark ? "text-[#888]" : "text-gray-500"}`}>
-              No partners found.
-            </div>
-          )}
-
-          {!loading && users.map((user) => {
-            const isExpanded = expandedRows.has(user.id);
-            return (
-              <div key={user.id} className={`transition-colors ${isDark ? "bg-[#111]" : "bg-white"}`}>
-                <div
-                  className={`flex items-center gap-2 p-4 cursor-pointer transition-colors ${isDark ? "active:bg-white/5" : "active:bg-gray-100"}`}
-                  onClick={(e) => handleRowClick(user.id, e)}
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={(e) => toggleRow(user.id, e)}
-                      className={`p-1 rounded-full  transition-transform duration-200 border ${isExpanded ? (isDark ? 'rotate-180 border-[#E8D1AB]' : 'rotate-180 border-[#000000]') : 'border-[#777674]'}`}
-                    >
-                      <ChevronDown size={16} className={`${isExpanded ? (isDark ? 'text-[#E8D1AB]' : 'text-[#000]') : 'text-[#777674]'}`} />
-                    </button>
-                  </div>
-
-                  <div className="w-full flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#F5F5F5] overflow-hidden flex items-center justify-center text-black font-semibold text-sm">
-                        {user.imageUrl ? (
-                          <img src={user.imageUrl} alt={user.name} className="w-full h-full object-cover" />
-                        ) : user.initials}
-                      </div>
-                      <div>
-                        <p className={`font-medium text-sm ${isDark ? "text-[#E0E0E0]" : "text-black"}`}>{user.name}</p>
-                        <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-[10px] mt-0.5 uppercase tracking-wider font-bold`}>
-                          {user.joinDate}
-                        </p>
-                        <p className={`${isDark ? "text-[#666]" : "text-[#999]"} text-xs mt-0.5 break-all`}>{user.email}</p>
-                      </div>
+                      <StatusBadge status={user.status} mobile />
                     </div>
-                    <StatusBadge status={user.status} mobile />
                   </div>
-                </div>
 
-                {/* Expandable Content */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className={`overflow-hidden border-t ${isDark ? "bg-white/[0.02] border-[#222]" : "bg-gray-50 border-gray-100"}`}>
-                      <div className="p-4 space-y-4">
+                  {/* Expandable Content */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="pt-4 space-y-4 min-w-0">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>User ID</p>
-                            <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.id}</p>
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>User ID</p>
+                            <p className={`text-sm break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.id}</p>
                           </div>
                           <div className="text-right">
-                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Role</p>
-                            <p className={`text-xs ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.role}</p>
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Role</p>
+                            <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.role}</p>
                           </div>
-                          {/* <div >
-                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Email ID</p>
-                            <p className={`text-xs break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.email}</p>
-                          </div> */}
-                          <div>
-                            <p className={`text-xs ${isDark ? "text-[#F5F5F5]" : "text-gray-500"}`}>Location</p>
-                            <p className={`text-xs break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
+                          <div >
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Email ID</p>
+                            <p className={`text-sm break-all ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.email}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Location</p>
+                            <p className={`text-sm break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
                           </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              disabled={!canDelete}
-                              onClick={(e) => handleDeleteClick(user.id, e)}
-                              className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors border border-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                          <div className="flex  gap-2">
                             {user.status === 'Pending' && (
                               <>
                                 <button
                                   type="button"
                                   disabled={!canEdit}
-                                  onClick={(e) => handleDecline(user.id, e)}
-                                  className="px-4 py-2 text-[#EF4444] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                                  onClick={(e) => handleApprove(user.id, e)}
+                                  className="px-3 py-2 bg-[#EBFFF0] text-[#16A34A] text-xs font-semibold rounded-lg transition-colors border border-[#EBFFF0] disabled:cursor-not-allowed disabled:opacity-40"
                                 >
-                                  Decline
+                                  Approve
                                 </button>
                                 <button
                                   type="button"
                                   disabled={!canEdit}
-                                  onClick={(e) => handleApprove(user.id, e)}
-                                  className="px-4 py-2 bg-[#22C55E]/10 text-[#22C55E] text-xs font-semibold rounded-lg hover:bg-[#22C55E]/20 transition-colors border border-[#22C55E]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                  onClick={(e) => handleDecline(user.id, e)}
+                                  className=" py-2 text-[#F98A84] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                                 >
-                                  Approve
+                                  Decline
                                 </button>
                               </>
                             )}
+                            <button
+                              type="button"
+                              disabled={!canDelete}
+                              onClick={(e) => handleDeleteClick(user.id, e)}
+                              className=" py-2 text-[#F98A84] text-xs font-semibold hover:bg-[#EF4444]/10 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+
                           </div>
                           <button
                             onClick={(e) => handleRowClick(user.id, e)}
@@ -1201,61 +1216,66 @@ export const CreativePartnersTable = () => {
                             <ChevronRight size={30} />
                           </button>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
+          )}
         </div>
-      </div>
 
-      {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className={`flex justify-between items-center p-6 border-t transition-colors ${isDark ? "border-[#333333]" : "border-gray-200"}`}>
-          <div className={`hidden lg:block text-sm font-medium ${isDark ? "text-[#666666]" : "text-gray-500"}`}>
-            Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
-          </div>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isDark
-                ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm"
-                }`}
-            >
-              Previous
-            </button>
-            <div className="flex gap-1">
+        {/* Shared Footer Pagination Wrapper Zone */}
+        {!loading && totalPages > 1 && (
+          <div className={`flex flex-col gap-4 border-t px-6 py-3 lg:flex-row lg:items-center lg:justify-between ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-[#FFFCF6]"}`}>
+            <p className={`hidden lg:block text-sm whitespace-nowrap ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+              Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
+            </p>
+
+            <div className="flex flex-wrap gap-2 items-center justify-center md:justify-end w-full max-w-full min-w-0 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className={`inline-flex items-center justify-center rounded-lg border p-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark
+                  ? "border-white/10 bg-[#171717] text-[#6D6D6D] hover:bg-white/[0.06] hover:text-white"
+                  : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/[0.03] hover:text-[#101010]"}`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
               {(() => {
-                const range = [];
+                const rangePages = [];
                 const delta = 1;
                 const left = currentPage - delta;
                 const right = currentPage + delta + 1;
 
                 for (let i = 1; i <= totalPages; i++) {
                   if (i === 1 || i === totalPages || (i >= left && i < right)) {
-                    range.push(i);
+                    rangePages.push(i);
                   } else if (i === left - 1 || i === right) {
-                    range.push('...');
+                    rangePages.push('...');
                   }
                 }
 
-                return range.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
+                return rangePages.filter((val, index, arr) => val !== '...' || arr[index - 1] !== '...').map((page, index) => (
                   page === '...' ? (
-                    <span key={`dots-${index}`} className={`px-2 py-1 text-xs self-center ${isDark ? "text-white/30" : "text-gray-400"
-                      }`}>...</span>
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="flex h-10 w-10 items-center justify-center text-sm text-white/30"
+                    >
+                      ...
+                    </span>
                   ) : (
                     <button
                       key={page}
+                      type="button"
                       onClick={() => setCurrentPage(page as number)}
-                      className={`w-9 h-9 flex items-center justify-center text-sm font-bold rounded-lg transition-all ${currentPage === page
-                        ? "bg-[#E5D5B8] text-black shadow-lg"
+                      className={`flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm font-medium transition ${currentPage === page
+                        ? "border-[#E8D1AB] bg-[#E8D1AB] text-[#111111]"
                         : (isDark
-                          ? "bg-transparent text-white/60 hover:bg-white/5 hover:text-white"
-                          : "bg-transparent text-gray-500 hover:bg-gray-100 hover:text-black")
+                          ? "border-white/10 bg-[#171717] text-[#6D6D6D] hover:bg-white/[0.06] hover:text-white"
+                          : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/[0.03] hover:text-[#101010]")
                         }`}
                     >
                       {page}
@@ -1263,20 +1283,21 @@ export const CreativePartnersTable = () => {
                   )
                 ));
               })()}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                className={`inline-flex items-center justify-center rounded-lg border p-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark
+                  ? "border-white/10 bg-[#171717] text-[#6D6D6D] hover:bg-white/[0.06] hover:text-white"
+                  : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/[0.03] hover:text-[#101010]"}`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isDark
-                ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-black shadow-sm"
-                }`}
-            >
-              Next
-            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Delete Modal */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
@@ -1337,6 +1358,6 @@ export const CreativePartnersTable = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 };
