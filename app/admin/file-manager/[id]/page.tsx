@@ -29,6 +29,11 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
@@ -40,6 +45,7 @@ export default function AdminFolderDetailsPage() {
   const projectId = params.id;
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const { canDelete } = usePermissions("file_manager");
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -68,6 +74,20 @@ export default function AdminFolderDetailsPage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm]);
 
   const loadWorkspace = async () => {
     try {

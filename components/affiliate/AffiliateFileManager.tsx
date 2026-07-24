@@ -16,6 +16,8 @@ import {
   List,
   Loader2,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Search,
   Send,
   Upload,
@@ -84,6 +86,8 @@ interface FaceMatchItem {
 }
 
 const FILES_PAGE_SIZE = 20;
+const ROOT_PAGE_SIZE = 10;
+const PAGINATION_WINDOW = 1;
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -129,6 +133,32 @@ const formatRelativeTime = (value?: string) => {
   return date.toLocaleDateString();
 };
 
+const getPageItems = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 1) return [1];
+
+  const items: Array<number | "ellipsis"> = [1];
+  const start = Math.max(2, currentPage - PAGINATION_WINDOW);
+  const end = Math.min(totalPages - 1, currentPage + PAGINATION_WINDOW);
+
+  if (start > 2) {
+    items.push("ellipsis");
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+
+  if (end < totalPages - 1) {
+    items.push("ellipsis");
+  }
+
+  if (totalPages > 1) {
+    items.push(totalPages);
+  }
+
+  return items;
+};
+
 export default function AffiliateFileManager() {
   const { canCreate } = usePermissions("file_manager");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -136,6 +166,7 @@ export default function AffiliateFileManager() {
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState("");
   const [viewMode, setViewMode] = useViewMode();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -173,15 +204,30 @@ export default function AffiliateFileManager() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const lastRootFilterKeyRef = useRef("");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: ROOT_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
 
   const { isDark } = useResolvedTheme()
 
-  const loadRoot = async () => {
+  const loadRoot = useCallback(async (page: number, searchQuery: string, tab: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const externalWorkspaces = await fileManagerApi.listExternalWorkspaces();
+      const { workspaces: externalWorkspaces, pagination: serverPagination } =
+        await fileManagerApi.listExternalWorkspacesPaginated({
+          page,
+          limit: ROOT_PAGE_SIZE,
+          search: searchQuery,
+          workspaceType: tab === "Common events" ? "common-events" : undefined,
+        });
 
       const mapped = externalWorkspaces
         .map((workspace) => {
@@ -206,12 +252,16 @@ export default function AffiliateFileManager() {
         });
 
       setWorkspaces(mapped);
+      setPagination(serverPagination);
+      if (serverPagination.page !== page) {
+        setCurrentPage(serverPagination.page);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to load your file manager"));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const loadPhase = async (
     workspace: WorkspaceCard,
@@ -322,8 +372,14 @@ export default function AffiliateFileManager() {
   };
 
   useEffect(() => {
-    loadRoot();
-  }, []);
+    const timer = window.setTimeout(() => {
+      loadRoot(currentPage, searchTerm, selectedTab);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [currentPage, loadRoot, searchTerm, selectedTab]);
 
   useEffect(() => {
     if (selectedWorkspace && selectedPhase) {
@@ -926,6 +982,17 @@ export default function AffiliateFileManager() {
     return items;
   }, [workspaces, searchTerm, selectedTab, status]);
 
+  const totalRootPages = Math.max(1, pagination.totalPages || 1);
+  const pagedWorkspaces = filteredWorkspaces;
+
+  useEffect(() => {
+    const nextKey = `${selectedTab}__${searchTerm.trim()}__${status}`;
+    if (lastRootFilterKeyRef.current && lastRootFilterKeyRef.current !== nextKey) {
+      setCurrentPage(1);
+    }
+    lastRootFilterKeyRef.current = nextKey;
+  }, [searchTerm, selectedTab, status]);
+
   const filteredFolders = useMemo(
     () =>
       phaseFolders.filter((folder) =>
@@ -1050,7 +1117,7 @@ export default function AffiliateFileManager() {
                 </tr>
               </thead>
               <tbody className={`${isDark ? "bg-[#171717]" : "bg-white"} transition-colors duration-200`}>
-                {filteredWorkspaces.map((workspace) => (
+                {pagedWorkspaces.map((workspace) => (
                   <tr
                     key={workspace.externalId}
                     className={`items-center cursor-pointer transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
@@ -1090,7 +1157,7 @@ export default function AffiliateFileManager() {
           </div>
 
           <div className="lg:hidden space-y-3">
-            {filteredWorkspaces.map((workspace) => (
+            {pagedWorkspaces.map((workspace) => (
               <MobileWorkspaceRow
                 key={workspace.externalId}
                 workspace={workspace}
@@ -1106,7 +1173,7 @@ export default function AffiliateFileManager() {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-        {filteredWorkspaces.map((workspace) => (
+        {pagedWorkspaces.map((workspace) => (
 
           <button
             key={workspace.externalId}
@@ -1986,7 +2053,67 @@ export default function AffiliateFileManager() {
       {selectedWorkspace ? (
         selectedPhase ? renderPhaseBrowser() : renderWorkspacePhases()
       ) : (
-        renderRoot()
+        <>
+          {renderRoot()}
+          {!loading && !error && totalRootPages > 1 ? (
+            <div className="w-full mt-6 flex items-center justify-center">
+              <div className={`flex flex-wrap items-center justify-center lg:gap-2 rounded-2xl border transition-colors duration-200 p-2 max-w-full ${isDark ? "border-white/10 bg-[#0E0E0E]" : "border-[#D7D7D7] bg-white"}`}>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={!pagination.hasPreviousPage}
+                  className={`h-10 w-10 lg:h-12 lg:min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${isDark
+                    ? "border-white/10 bg-[#131313] text-white/55 hover:border-white/20 hover:text-white"
+                    : "border-[#D7D7D7] bg-white text-[#727272] hover:border-black/20 hover:text-black"
+                    }`}
+                >
+                  <span className="hidden lg:block px-4">Previous</span>
+                  <ChevronLeft size={16} className="lg:hidden" />
+                </button>
+
+                {getPageItems(pagination.page, pagination.totalPages).map((item, index) =>
+                  item === "ellipsis" ? (
+                    <span
+                      key={`affiliate-root-ellipsis-${index}`}
+                      className={`px-1 lg:px-2 text-lg transition-colors ${isDark ? "text-white/50" : "text-[#727272]/60"}`}
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={`affiliate-root-page-${item}`}
+                      type="button"
+                      onClick={() => setCurrentPage(item)}
+                      className={`h-10 w-10 lg:h-12 lg:min-w-12 rounded-xl px-2 lg:px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center ${item === pagination.page
+                        ? isDark
+                          ? "bg-[#E5D5B8] text-black shadow-sm"
+                          : "bg-[#E8D1AB] text-black shadow-sm"
+                        : isDark
+                          ? "text-[#8CA2C5] hover:text-white"
+                          : "text-[#727272] hover:text-black"
+                        }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className={`h-10 w-10 lg:h-12 lg:min-w-[112px] rounded-xl border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${isDark
+                    ? "border-white/10 bg-[#131313] text-[#8CA2C5] hover:border-white/20 hover:text-white"
+                    : "border-[#D7D7D7] bg-white text-[#727272] hover:border-black/20 hover:text-black"
+                    }`}
+                >
+                  <span className="hidden lg:block px-4">Next</span>
+                  <ChevronRight size={16} className="lg:hidden" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
 
       {selectedFilePaths.length > 0 ? (
