@@ -1957,8 +1957,8 @@ export default function ProfilePage() {
               <button
                 onClick={() => setPlayingVideo(null)}
                 className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
-                    ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
-                    : "bg-black/5 border-black/10 text-black hover:bg-black/10"
+                  ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                  : "bg-black/5 border-black/10 text-black hover:bg-black/10"
                   }`}
               >
                 <X size={20} className="lg:w-6 lg:h-6" />
