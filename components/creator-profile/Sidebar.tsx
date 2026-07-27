@@ -39,11 +39,21 @@ type MenuItem = {
   children?: { label: string; href: string; isPublic?: boolean }[];
 };
 
+const capitalizeName = (value: unknown) => {
+  if (value == null) return "";
+
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
+};
+
 export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
   const { isDark } = useResolvedTheme();
+  const displayName = capitalizeName(user?.name) || "Creator";
 
   const initialPath = useRef(pathname);
   const [isVerified, setIsVerified] = useState(false);
@@ -294,10 +304,10 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
       <div className={`pt-6 border-t flex-shrink-0 transition-colors ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-zinc-200 bg-white"}`}>
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0">
-            {user?.name?.[0] || "A"}
+            {displayName[0] || "A"}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{user?.name || "Creator"}</p>
+            <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{displayName}</p>
             <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
           </div>
         </div>

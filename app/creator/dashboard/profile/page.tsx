@@ -161,6 +161,15 @@ const normalizeFeaturedWorkTag = (value: unknown) => {
 
 const getRoleLabel = (roleData: any) => formatCreatorRoles(roleData);
 
+const capitalizeName = (value: unknown) => {
+  if (value == null) return "";
+
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
+};
+
 const SectionHeader = ({ title, onEdit, isEditing, isDark }: { title: string, onEdit?: () => void, isEditing?: boolean, isDark?: boolean }) => (
   <div className="flex items-center justify-between mb-4 lg:mb-8">
     <h2 className={`text-lg lg:text-xl font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
@@ -1056,13 +1065,13 @@ export default function ProfilePage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h1 className={`text-lg lg:text-2xl font-bold ${isDark ? "text-white" : "text-zinc-900"}`}>
-                        {profile.first_name} {profile.last_name}
+                        {capitalizeName(profile.first_name)} {capitalizeName(profile.last_name)}
                       </h1>
-                      {profile.is_available === 1 && (
+                      {/* {profile.is_available === 1 && (
                         <span className="px-3 py-0.5 bg-green-500/10 border border-green-500/20 text-green-500 text-xs rounded-full flex items-center gap-1">
                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available
                         </span>
-                      )}
+                      )} */}
                     </div>
                     <p className={`text-sm max-w-md truncate ${isDark ? "text-white/60" : "text-zinc-600"}`}>
                       {profile.bio || "No bio added yet"}
@@ -1248,8 +1257,8 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-20">
-                      <InfoField label="First Name" value={profile.first_name} isDark={isDark} />
-                      <InfoField label="Last Name" value={profile.last_name} isDark={isDark} />
+                      <InfoField label="First Name" value={capitalizeName(profile.first_name)} isDark={isDark} />
+                      <InfoField label="Last Name" value={capitalizeName(profile.last_name)} isDark={isDark} />
                       <InfoField label="Email Address" value={profile.email} isDark={isDark} />
                       <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" isDark={isDark} />
                       <InfoField label="Location" value={profile.location} isDark={isDark} />
