@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Grid3X3,
   List,
-  MoreVertical,
   ChevronRight,
   Pencil,
   Trash2,
@@ -30,7 +29,6 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,7 +38,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, getAcceptedShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -50,6 +48,35 @@ import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+
+type ProjectItem = {
+  id?: number | string;
+  project_id?: number | string;
+  project_name?: string;
+  title?: string;
+  event_date?: string;
+  shoot_date?: string;
+  start_time?: string;
+  end_time?: string;
+  event_location?: string;
+  location?: string;
+  guest_email?: string;
+  budget?: number | string;
+  is_completed?: boolean | number | string;
+  status?: "Pending" | "Confirmed" | "Completed" | "Rejected" | "Declined";
+  project?: {
+    is_completed?: boolean | number | string;
+    event_date?: string;
+    shoot_date?: string;
+  };
+};
+
+type DashboardStats = {
+  pendingRequests: number;
+  confirmedRequests: number;
+  completedShoots: number;
+  declinedRequests: number;
+};
 
 export default function RequestsShootsPage() {
   const router = useRouter();
@@ -64,8 +91,8 @@ export default function RequestsShootsPage() {
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
   const [projectDetailsData, setProjectDetailsData] = useState(null);
-  const [acceptShootEvent, setAcceptShootEvent] = useState<any>(null);
-  const [declineShootEvent, setDeclineShootEvent] = useState<any>(null);
+  const [acceptShootEvent, setAcceptShootEvent] = useState<ProjectItem | null>(null);
+  const [declineShootEvent, setDeclineShootEvent] = useState<ProjectItem | null>(null);
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -75,16 +102,11 @@ export default function RequestsShootsPage() {
 
   // Business Logic States
   const [crewMemberId, setCrewMemberId] = useState<string | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [shoots, setShoots] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [shoots, setShoots] = useState<ProjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [computedStats, setComputedStats] = useState<{
-    pendingRequests: number;
-    confirmedRequests: number;
-    completedShoots: number;
-    declinedRequests: number;
-  } | null>(null);
+  const [computedStats, setComputedStats] = useState<DashboardStats | null>(null);
 
   const { isDark } = useResolvedTheme()
 
@@ -136,74 +158,58 @@ export default function RequestsShootsPage() {
         crew_member_id: crew_member_id
       };
       const statsResponse = await getStatusCount(statsPayload);
+      const statsData =
+        statsResponse && statsResponse.error === false ? statsResponse.data : null;
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);
       }
 
       const commonPayload = { crew_member_id };
-      const [pendingRes, upcomingRes, acceptedRes] = await Promise.all([
+      const [pendingRes, upcomingRes] = await Promise.all([
         getPendingProjects(commonPayload),
         GetUpcomingShoots(commonPayload),
-        getAcceptedShoots(commonPayload),
       ]);
 
-      const allProjects: any[] = [];
-      const pendingFiltered =
+      const pendingRequests: ProjectItem[] =
         pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
-          ? pendingRes.data.filter((p: any) => {
-            const dateStr = p.event_date || p.shoot_date;
-            return isUpcomingDate(dateStr);
-          })
+          ? pendingRes.data.filter((p: ProjectItem) => isUpcomingShoot(p))
           : [];
-      if (pendingFiltered.length > 0) {
-        allProjects.push(
-          ...pendingFiltered.map((p: any) => ({
-            ...p,
-            status: "Pending",
-            project_id: p.project_id || p.id,
-          }))
-        );
-      }
-      const upcomingFiltered =
-        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
-          ? upcomingRes.data.filter((p: any) => {
-            const dateStr = p.event_date || p.shoot_date;
-            return isUpcomingDate(dateStr);
-          })
-          : [];
-      if (upcomingFiltered.length > 0) {
-        allProjects.push(
-          ...upcomingFiltered.map((p: any) => ({
-            ...p,
-            status: "Confirmed",
-            project_id: p.project_id || p.id,
-          }))
-        );
-      }
-      setProjects(allProjects);
-
-      if (acceptedRes && acceptedRes.error === false && Array.isArray(acceptedRes.data)) {
-        const acceptedProjects = acceptedRes.data.map((p: any) => ({
+      setProjects(
+        pendingRequests.map((p) => ({
           ...p,
-          status: p.is_completed ? "Completed" : "Confirmed",
+          status: "Pending",
+          project_id: p.project_id || p.id,
+        }))
+      );
+
+      const acceptedSource =
+        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
+          ? upcomingRes.data as ProjectItem[]
+          : [];
+      const upcomingAccepted = acceptedSource;
+
+      if (upcomingAccepted.length > 0) {
+        const acceptedProjects = upcomingAccepted.map((p) => ({
+          ...p,
+          status: isCompletedFlag(p) ? "Completed" : "Confirmed",
           project_id: p.project_id || p.id,
         }));
         setShoots(acceptedProjects);
-        const completedCount = acceptedProjects.filter((p: any) => isCompletedFlag(p)).length;
-        const confirmedCount = acceptedProjects.filter((p: any) => !isCompletedFlag(p)).length;
+        const completedCount = acceptedProjects.filter((p) => isCompletedFlag(p)).length;
+        const confirmedCount = acceptedProjects.length;
         setComputedStats({
-          pendingRequests: pendingFiltered.length,
+          pendingRequests: pendingRequests.length,
           confirmedRequests: confirmedCount,
           completedShoots: completedCount,
-          declinedRequests: dashboardStats?.declinedRequests || 0,
+          declinedRequests: statsData?.declinedRequests || 0,
         });
       } else {
         setShoots([]);
         setComputedStats({
-          pendingRequests: pendingFiltered.length,
+          pendingRequests: pendingRequests.length,
           confirmedRequests: 0,
           completedShoots: 0,
-          declinedRequests: dashboardStats?.declinedRequests || 0,
+          declinedRequests: statsData?.declinedRequests || 0,
         });
       }
     } catch (error) {
@@ -220,7 +226,7 @@ export default function RequestsShootsPage() {
     try {
       const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
       if (parsed && parsed.address) addressStr = parsed.address;
-    } catch (e) { }
+    } catch { }
 
     const parts = addressStr.split(',').map(p => p.trim());
     if (parts.length >= 3) {
@@ -249,18 +255,39 @@ export default function RequestsShootsPage() {
   };
 
 
-  const isUpcomingDate = (dateStr?: string) => {
-    if (!dateStr) return true;
+  const isCompletedFlag = (item: ProjectItem) => {
+    const flag = item?.is_completed ?? item?.project?.is_completed;
+    if (flag === true || flag === 1 || flag === "1") return true;
+
+    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    if (!dateStr) return false;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const d = new Date(`${dateStr}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return true;
-    return d.getTime() >= today.getTime();
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const shootDate = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
+
+    if (Number.isNaN(shootDate.getTime())) return false;
+    shootDate.setHours(0, 0, 0, 0);
+    return shootDate.getTime() < today.getTime();
   };
 
-  const isCompletedFlag = (item: any) => {
-    const flag = item?.is_completed ?? item?.project?.is_completed;
-    return flag === true || flag === 1 || flag === "1";
+  const isUpcomingShoot = (item: ProjectItem) => {
+    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    if (!dateStr) return true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const shootDate = dateOnlyMatch
+      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      : new Date(dateStr);
+
+    if (Number.isNaN(shootDate.getTime())) return true;
+    shootDate.setHours(0, 0, 0, 0);
+    return shootDate.getTime() >= today.getTime();
   };
 
   /* ---------------- ACTIONS ---------------- */
@@ -280,10 +307,24 @@ export default function RequestsShootsPage() {
 
       if (response && response.error === false) {
         toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
+        const acceptedItem = acceptShootEvent;
         setAcceptShootEvent(null);
         setDeclineShootEvent(null);
         setDeclineReason("Schedule conflict");
         setDeclineComments("");
+        if (accept && acceptedItem) {
+          setProjects((current) => current.filter((item) => item.project_id !== projectId));
+          setShoots((current) => {
+            const nextShoot = {
+              ...acceptedItem,
+              status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
+              project_id: acceptedItem.project_id || acceptedItem.id,
+            };
+            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
+            return [nextShoot, ...withoutDuplicate];
+          });
+          handleTabChange("shoots");
+        }
         await fetchData();
       } else {
         toast.error(response?.message || "Failed to update project status");
@@ -303,7 +344,7 @@ export default function RequestsShootsPage() {
       } else {
         toast.error(res?.message || "Failed to load project details");
       }
-    } catch (e) {
+    } catch {
       toast.error("Failed to load project details");
     }
   };
@@ -579,7 +620,7 @@ export default function RequestsShootsPage() {
                         {item.status}
                       </span>
                       <span className={`text-xs italic ${isDark ? "text-white/20" : "text-black/30"}`}>
-                        Recently updated
+                        {/* Recently updated */}
                       </span>
                     </div>
 

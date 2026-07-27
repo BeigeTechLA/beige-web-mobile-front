@@ -47,6 +47,11 @@ import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const FILES_PAGE_SIZE = 20;
 const getFileExtension = (title?: string) => {
@@ -93,6 +98,7 @@ export default function CreatorSubFolderDetailsPage() {
   const isCommonEventRootFolder = isCommonEventWorkspace && !isPhaseRoute;
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -121,6 +127,22 @@ export default function CreatorSubFolderDetailsPage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedUploadVersion, setSelectedUploadVersion] = useState<number | null>(null);
   const [isCreatingRevisionVersion, setIsCreatingRevisionVersion] = useState(false);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+    setVisibleFileCount(savedState.visibleFileCount);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+        visibleFileCount,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm, visibleFileCount]);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;

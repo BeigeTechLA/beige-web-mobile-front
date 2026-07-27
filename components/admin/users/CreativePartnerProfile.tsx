@@ -94,7 +94,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1)); // Default to Jan 2026 for demo
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
@@ -302,7 +302,7 @@ setPastShoots([]);
       Object.values(availabilityDetails).forEach((status: any) => {
         if (status.projectAssigned) {
           bookedShoots += 1;
-        } else if (status.available) {
+        } else if (status.available || status.customAvailabilityStatus === 1) {
           availableDays += 1;
         } else if (status.available === false) {
           timeOff += 1;
@@ -379,6 +379,34 @@ setPastShoots([]);
       }
     }
   }
+
+  // Parse equipment
+  let equipmentNames: string[] = [];
+
+  if (Array.isArray(partner.equipment_details)) {
+    equipmentNames = partner.equipment_details
+      .map((item: any) => item?.equipment_name)
+      .filter(Boolean);
+  } else if (Array.isArray(partner.equipment_names)) {
+    equipmentNames = partner.equipment_names.filter(Boolean);
+  } else if (partner.equipment_names) {
+    try {
+      const parsedEquipmentNames =
+        typeof partner.equipment_names === "string"
+          ? JSON.parse(partner.equipment_names)
+          : partner.equipment_names;
+
+      equipmentNames = Array.isArray(parsedEquipmentNames)
+        ? parsedEquipmentNames.filter(Boolean)
+        : [];
+    } catch (error) {
+      console.error("Error parsing equipment names:", error);
+      equipmentNames = [];
+    }
+  }
+
+  // Remove duplicate equipment names while preserving order
+  equipmentNames = [...new Set(equipmentNames)];
 
   // Parse availability
   let availabilityDays: string[] = [];
@@ -873,6 +901,36 @@ setPastShoots([]);
               )}
             </div>
           </div>
+
+          {/* Equipment */}
+          <div className={`transition-colors duration-200 border rounded-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-[#FFF] border-[#F4F5F7] shadow-sm"}`}>
+            <h2 className={SECTION_TITLE_STYLE}>
+              Equipment <span className={isDark ? "text-[#E5D5B8]" : "text-[#000000]"}>({equipmentNames.length})</span>
+            </h2>
+
+            <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+
+            <div className="px-5 pb-5 lg:px-8 lg:pb-8 flex flex-wrap gap-2 lg:gap-3">
+              {equipmentNames.length > 0 ? (
+                equipmentNames.map((equipmentName, index) => (
+                  <div
+                    key={`${equipmentName}-${index}`}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${
+                      isDark
+                        ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]"
+                        : "bg-gray-50 border-[#0000004D] text-[#020202]"
+                    }`}
+                  >
+                    <span>{equipmentName}</span>
+                  </div>
+                ))
+              ) : (
+                <span className={`text-sm italic ${isDark ? "text-[#666]" : "text-[#020202]"}`}>
+                  No equipment listed.
+                </span>
+              )}
+            </div>
+          </div>
         </>
       )}
 
@@ -1130,7 +1188,7 @@ setPastShoots([]);
                   <div className="flex items-center gap-2">
                     <button
                       className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
-                      onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
+                    onClick={() => setCurrentMonth(new Date())}
                     >
                       Today
                     </button>
@@ -1157,12 +1215,13 @@ setPastShoots([]);
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const dayAvailability = getAvailabilityForDay(day);
                     const hasShoot = isShootDay(day);
-                    const isAvailable = Boolean(dayAvailability?.available || dayAvailability?.customAvailabilityStatus === 1);
-                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && !isAvailable);
+                    const availabilityValue = dayAvailability?.available;
+                    const isAvailable = Boolean(availabilityValue === true || dayAvailability?.customAvailabilityStatus === 1);
+                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && availabilityValue === false);
                     const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
                     const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
                     const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
-                    const isTodayDate = isSameDay(day, new Date(2026, 0, 16)); // Mocking "Today" as Jan 16 for demo visual match
+                    const isTodayDate = isSameDay(day, new Date());
 
                     // Determine border classes
                     const isLastRow = dayIdx >= calendarDays.length - 7;

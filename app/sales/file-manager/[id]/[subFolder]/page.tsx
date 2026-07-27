@@ -49,6 +49,11 @@ import {
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -127,6 +132,7 @@ const getPhaseRelativePath = (resourcePath?: string, fallbackName?: string) => {
 export default function SalesFileManagerPhasePage() {
   const router = useRouter();
   const pathname = usePathname();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const params = useParams<{ id: string; subFolder: string }>();
   const projectId = params.id;
   const phaseSlug = params.subFolder;
@@ -164,6 +170,22 @@ export default function SalesFileManagerPhasePage() {
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+    setVisibleFileCount(savedState.visibleFileCount);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+        visibleFileCount,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm, visibleFileCount]);
 
   const loadPhase = async () => {
     try {

@@ -6,8 +6,6 @@ import {
   ChevronRight,
   Info,
   X,
-  AlertTriangle,
-  CheckCircle2,
   Calendar,
   MapPin,
   Clock,
@@ -15,6 +13,7 @@ import {
   Mic,
   Plus,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -34,7 +33,7 @@ import { getCrewAvailability, GetUpcomingShoots, getProjectDetails, AddAvailabil
 import DatePicker from "@/components/ui/Datepicker";
 import TimePicker from "@/components/ui/Timepicker";
 import { format } from "date-fns";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 
@@ -121,8 +120,44 @@ const formatTimeForDisplay = (value) => {
   return format(date, "h:mm a");
 };
 
+const timeToMinutes = (value) => {
+  const time = formatTimeForApi(value);
+
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return hours * 60 + minutes;
+};
+
+const addMinutesToTime = (value, minutesToAdd = 60) => {
+  const time = formatTimeForApi(value);
+
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  date.setMinutes(date.getMinutes() + minutesToAdd);
+
+  return date;
+};
+
+const hasMinimumOneHourGap = (startValue, endValue) => {
+  const startMinutes = timeToMinutes(startValue);
+  const endMinutes = timeToMinutes(endValue);
+
+  if (startMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  return endMinutes - startMinutes >= 60;
+};
+
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAllDay, setIsAllDay] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -250,8 +285,8 @@ export default function AvailabilityPage() {
             bookedShoots += 1;
           }
           if (
-            !availabilityStatus.available &&
-            !availabilityStatus.projectAssigned
+            availabilityStatus.available === false &&
+            availabilityStatus.projectAssigned !== true
           ) {
             timeOff += 1;
           }
@@ -264,8 +299,30 @@ export default function AvailabilityPage() {
     getSummaryData();
   }, [availability]);
 
+  const showAvailabilityConflictToast = (message, conflicts = []) => {
+    const firstConflict = conflicts[0];
+    const conflictDate = parseLocalDate(firstConflict?.date);
+    const formattedConflictDate = conflictDate
+      ? format(conflictDate, "MMM d, yyyy")
+      : firstConflict?.date;
+    const additionalConflictCount = Math.max(conflicts.length - 1, 0);
+    const conflictDescription = firstConflict
+      ? `${firstConflict.project_name || "An assigned shoot"} is already scheduled${formattedConflictDate ? ` on ${formattedConflictDate}` : ""}.${additionalConflictCount > 0
+        ? ` ${additionalConflictCount} more assigned ${additionalConflictCount === 1 ? "shoot also conflicts" : "shoots also conflict"}.`
+        : ""
+      }`
+      : message;
+
+    toast.error("Availability Conflict", {
+      description: conflictDescription,
+      duration: 6000,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
 
     if (typeof window === "undefined") return;
     const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
@@ -282,8 +339,13 @@ export default function AvailabilityPage() {
     const endTime = formatTimeForApi(formData.endTime);
     const hasTimeRange = Boolean(startTime && endTime);
 
-    if (!isAllDay && !hasTimeRange) {
-      toast.error("Please select both start and end time");
+    if (
+      !isAllDay &&
+      !hasMinimumOneHourGap(formData.startTime, formData.endTime)
+    ) {
+      toast.error(
+        "End time must be at least 1 hour after the start time"
+      );
       return;
     }
 
@@ -319,43 +381,15 @@ export default function AvailabilityPage() {
       }
     }
 
+    setIsSubmitting(true);
+
     try {
       await AddAvailability(payload);
       setIsModalOpen(false);
 
-      toast.custom(
-        (t) => (
-          <div
-            className={`${t.visible ? "animate-enter" : "animate-leave"
-              } max-w-lg w-full bg-[#111] border border-[#E8D1AB]/40 shadow-lg rounded-xl pointer-events-auto flex relative overflow-hidden`}
-          >
-            <div className="flex-1 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <div className="w-10 h-10 rounded-full bg-[#E8D1AB]/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-6 w-6 text-[#E8D1AB]" />
-                  </div>
-                </div>
-                <div className="ml-3 flex-1 pr-6">
-                  <p className="text-base font-bold text-white">
-                    Availability Updated
-                  </p>
-                  <p className="mt-1 text-sm text-white/60 leading-relaxed">
-                    Your schedule has been successfully updated.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        ),
-        { position: "bottom-right" }
-      );
+      toast.success("Availability Updated", {
+        description: "Your schedule has been successfully updated.",
+      });
 
       const response = await getCrewAvailability({
         crew_member_id: crewMemberId,
@@ -366,9 +400,23 @@ export default function AvailabilityPage() {
       if (response?.data?.data?.availability) {
         setAvailability(response.data.data.availability);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding availability:", error);
-      toast.error("Update Failed");
+      const errorData = error?.response?.data;
+
+      if (error?.response?.status === 409 || errorData?.data?.conflicts?.length) {
+        showAvailabilityConflictToast(
+          errorData?.message,
+          errorData?.data?.conflicts || []
+        );
+      } else {
+        toast.error(
+          errorData?.message ||
+          "Something went wrong while updating availability"
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -404,12 +452,60 @@ export default function AvailabilityPage() {
 
   const handleTimeChange = (time, field) => {
     setIsAllDay(false);
-    setFormData((prevData) => ({
-      ...prevData,
-      [field]: time,
-    }));
-  };
 
+    setFormData((prevData) => {
+      if (field === "startTime") {
+        const minimumEndTime = addMinutesToTime(time, 60);
+
+        const currentEndMinutes = timeToMinutes(prevData.endTime);
+        const minimumEndMinutes = timeToMinutes(minimumEndTime);
+
+        /*
+         * If the existing end time becomes invalid after changing start time,
+         * automatically reset it to one hour after the new start time.
+         */
+        const shouldUpdateEndTime =
+          time &&
+          (
+            currentEndMinutes === null ||
+            minimumEndMinutes === null ||
+            currentEndMinutes < minimumEndMinutes
+          );
+
+        return {
+          ...prevData,
+          startTime: time,
+          endTime: shouldUpdateEndTime
+            ? minimumEndTime
+            : prevData.endTime,
+        };
+      }
+
+      if (field === "endTime") {
+        if (
+          prevData.startTime &&
+          time &&
+          !hasMinimumOneHourGap(prevData.startTime, time)
+        ) {
+          toast.error(
+            "End time must be at least 1 hour after the start time"
+          );
+
+          return prevData;
+        }
+
+        return {
+          ...prevData,
+          endTime: time,
+        };
+      }
+
+      return {
+        ...prevData,
+        [field]: time,
+      };
+    });
+  };
   const handleMonthChange = (direction) => {
     if (direction === "prev") {
       setCurrentMonth((prevMonth) => (prevMonth === 1 ? 12 : prevMonth - 1));
@@ -452,8 +548,16 @@ export default function AvailabilityPage() {
         }-${i < 10 ? "0" + i : i}`;
       const availabilityStatus = availability[dateString];
 
-      const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
-      const isAssigned = availabilityStatus?.projectAssigned;
+      const availabilityValue = availabilityStatus?.available;
+
+      const isAvailable = availabilityValue === true;
+      const isNotAvailable = availabilityValue === false;
+      const isNeutral =
+        availabilityValue === null ||
+        availabilityValue === undefined;
+
+      const isAssigned =
+        availabilityStatus?.projectAssigned === true;
       const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
       const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
       const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
@@ -472,10 +576,24 @@ export default function AvailabilityPage() {
       const borderColor = isDark ? "border-white/5" : "border-[#E5E5E5]";
 
       const handleDateClick = () => {
-        if (!isPastDate) {
-          setSelectedDate(dateString);
-          handleModalOpen();
+        if (isAssigned) {
+          showAvailabilityConflictToast(
+            "Availability cannot be changed because you have an assigned shoot on this date.",
+            [
+              {
+                project_id: availabilityStatus?.projectDetails?.project_id,
+                project_name: availabilityStatus?.projectDetails?.project_name,
+                date: dateString,
+              },
+            ]
+          );
+          return;
         }
+
+        if (isPastDate) return;
+
+        setSelectedDate(dateString);
+        handleModalOpen();
       };
 
       const handleDateHover = (e) => {
@@ -528,7 +646,8 @@ export default function AvailabilityPage() {
                   <span className="hidden lg:block">Available</span>
                 </div>
               )}
-              {!isAvailable && !isAssigned && (
+
+              {isNotAvailable && !isAssigned && (
                 <div className="flex items-center gap-1 text-red-400/75">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
                   <span className="hidden lg:block">Not Available</span>
@@ -789,7 +908,11 @@ export default function AvailabilityPage() {
                         label=""
                         value={formData.endTime}
                         onChange={(time) => handleTimeChange(time, "endTime")}
-                        minTime={formData.startTime || undefined}
+                        minTime={
+                          formData.startTime
+                            ? addMinutesToTime(formData.startTime, 60)
+                            : undefined
+                        }
                         isDark={isDark}
                       />
                     </div>
@@ -920,6 +1043,7 @@ export default function AvailabilityPage() {
                   <Button
                     type="button"
                     onClick={handleModalClose}
+                    disabled={isSubmitting}
                     variant="ghost"
                     className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
                   >
@@ -927,9 +1051,18 @@ export default function AvailabilityPage() {
                   </Button>
                   <Button
                     type="submit"
-                    className={`font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
+                    disabled={isSubmitting}
+                    aria-busy={isSubmitting}
+                    className={`min-w-[150px] font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
                   >
-                    Save Changes
+                    {isSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving...
+                      </span>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </div>
               </form>
@@ -941,8 +1074,8 @@ export default function AvailabilityPage() {
         {hoveredProject && (
           <div
             className={`fixed z-50 w-[420px] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 border transition-colors ${isDark
-                ? "bg-[#111111] border-[#E8D1AB]/30 text-white"
-                : "bg-white border-[#cbb38b]/40 text-black"
+              ? "bg-[#111111] border-[#E8D1AB]/30 text-white"
+              : "bg-white border-[#cbb38b]/40 text-black"
               }`}
             style={{
               top: hoverPosition.y,
@@ -953,8 +1086,8 @@ export default function AvailabilityPage() {
             {/* Header */}
             <div className={`p-6 border-b ${isDark ? "border-white/10" : "border-black/5"}`}>
               <span className={`inline-block mb-3 px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${isDark
-                  ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border-[#E8D1AB]/20"
-                  : "bg-[#cbb38b]/15 text-[#cbb38b] border-[#cbb38b]/30"
+                ? "bg-[#E8D1AB]/10 text-[#E8D1AB] border-[#E8D1AB]/20"
+                : "bg-[#cbb38b]/15 text-[#cbb38b] border-[#cbb38b]/30"
                 }`}>
                 Active Project
               </span>
@@ -983,8 +1116,8 @@ export default function AvailabilityPage() {
 
             {/* Middle Section */}
             <div className={`grid grid-cols-2 divide-x border-b ${isDark
-                ? "divide-white/10 border-white/10 bg-white/[0.01]"
-                : "divide-black/5 border-black/5 bg-black/[0.01]"
+              ? "divide-white/10 border-white/10 bg-white/[0.01]"
+              : "divide-black/5 border-black/5 bg-black/[0.01]"
               }`}>
               {/* Streaming */}
               <div className="p-5">
@@ -1062,7 +1195,7 @@ function EventDot({ color, label, isDark = true }: { color: string; label: strin
   return (
     <div className="flex items-center gap-1.5">
       <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
-      <span className={`truncate text-[10px] font-medium ${isDark ? "text-white/60":"text-black/60"}`}>{label}</span>
+      <span className={`truncate text-[10px] font-medium ${isDark ? "text-white/60" : "text-black/60"}`}>{label}</span>
     </div>
   );
 }

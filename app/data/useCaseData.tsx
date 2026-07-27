@@ -509,7 +509,7 @@ export const WEDDING_IMAGES = [
 /** Video Section */
 export const SHORT_FILMS_VIDEO = [
   {
-    title: "The Relatives: A Safe Place for Runaway Youth – Providing Hope and Protection",
+    title: "The Relatives: A Safe Place for Runaway Youth - Providing Hope and Protection",
     description: "",
     video: "1067901829",
   },
@@ -888,7 +888,7 @@ export const KEYNOTE_VIDEOS = [
     video: "1076467651",
   },
   {
-    title: "Andy Walters – Highlights from an Inspiring Speaking Event",
+    title: "Andy Walters - Highlights from an Inspiring Speaking Event",
     description: "",
     video: "1054294262",
   },
@@ -906,5 +906,43 @@ export const KEYNOTE_VIDEOS = [
     title: "Darryl Thomas Motivational Speech",
     description: "",
     video: "1006821258",
+  },
+];
+
+export const REAL_ESTATE_VIDEOS = [
+  {
+    title: "Residential & Mixed-Use Development - Grand Opening & Showcase",
+    description: "",
+    video: "862211287",
+  },
+  {
+    title: "Luxury Residential Property - Cinematic Feature",
+    description: "",
+    video: "815620318",
+  },
+  {
+    title: "Destination Property - Location-Driven Storytelling",
+    description: "",
+    video: "1009533355",
+  },
+  {
+    title: "Residential Rental Property - Walkthrough Video",
+    description: "",
+    video: "1011381677",
+  },
+  {
+    title: "Real Estate Brand Content - Web & Digital Highlights - 1",
+    description: "",
+    video: "923892622",
+  },
+  {
+    title: "Real Estate Brand Content - Web & Digital Highlights - 2",
+    description: "",
+    video: "923895623",
+  },
+  {
+    title: "Agent & Property Branding - Editorial-Style Video",
+    description: "",
+    video: "1009532673",
   },
 ];

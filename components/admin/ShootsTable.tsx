@@ -730,9 +730,9 @@ export const ShootsTable = ({
     const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
 
     const matchesRange = (shoot: ShootRecord) => {
+      if (range === "all") return true;
       if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
 
-      if (range === "all") return true;
       if (range === "custom") {
         if (customRangeStartDate && customRangeEndDate) {
           const start = startOfDay(customRangeStartDate).getTime();
