@@ -40,8 +40,12 @@ import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/u
 import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl/mapbox";
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-import { ResponsiveContainer, RadialBarChart, RadialBar, Cell } from 'recharts';
-
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from "recharts";
 import {
   GetCreatorDashboardCount,
   getCrewAvailability,
@@ -186,36 +190,37 @@ function ShootStatusGaugeCard({
 
   const displayTotal = totalValue ?? calculatedTotal;
   const hasChartData = chartData.length > 0;
-
   const displayData = hasChartData
     ? chartData
     : [
-      {
-        name: "No Shoots",
-        value: 1,
-        fill: isDark ? "#242424" : "#EAEAEA",
-      },
-    ];
+        {
+          name: "No Shoots",
+          value: 1,
+          fill: isDark ? "#242424" : "#EAEAEA",
+        },
+      ];
 
   return (
     <div
-      className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${isDark
-        ? "bg-[#171717] border-[#3D3D3D] text-white"
-        : "bg-white border-[#E5E5E5] text-black"
-        }`}
+      className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
+        isDark
+          ? "bg-[#171717] border-[#3D3D3D] text-white"
+          : "bg-white border-[#E5E5E5] text-black"
+      }`}
     >
-      {/* Header - Preserved */}
       <div
-        className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${isDark
-          ? "bg-[#101010] border-b-[#3D3D3D]"
-          : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-          }`}
+        className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
+          isDark
+            ? "bg-[#101010] border-b-[#3D3D3D]"
+            : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+        }`}
       >
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3
-            className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#000000]"
-              }`}
+            className={`text-sm lg:text-base ${
+              isDark ? "text-white" : "text-[#000000]"
+            }`}
           >
             {title}
           </h3>
@@ -224,70 +229,88 @@ function ShootStatusGaugeCard({
         {rightControl || (
           <button
             type="button"
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border ${isDark
-              ? "bg-[#1A1A1A] border-white/10 text-white/70"
-              : "bg-white border-[#E5E5E5] text-[#333]"
-              }`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border ${
+              isDark
+                ? "bg-[#1A1A1A] border-white/10 text-white/70"
+                : "bg-white border-[#E5E5E5] text-[#333]"
+            }`}
           >
             All Time
           </button>
         )}
       </div>
 
-      {/* Content Area */}
       <div className="p-4 lg:p-8 xl:p-10 flex flex-col lg:flex-row items-center justify-between gap-6 flex-1">
-
-        {/* Gauge Section */}
         <div className="relative w-full max-w-[390px] h-[220px] lg:h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart
-              cx="50%"
-              cy="82%"
-              startAngle={0}
-              endAngle={180}
-              innerRadius="58%"
-              outerRadius="88%"
-              barSize={36}
-              data={displayData}
-            >
-              <RadialBar
+            <PieChart>
+              <Pie
+                data={[{ value: 1 }]}
                 dataKey="value"
-                cornerRadius={0}
-                background={{ fill: isDark ? "#242424" : "#EAEAEA" }}
+                cx="50%"
+                cy="82%"
+                startAngle={180}
+                endAngle={0}
+                innerRadius="58%"
+                outerRadius="88%"
+                stroke="none"
+                isAnimationActive={false}
+              >
+                <Cell fill={isDark ? "#242424" : "#EAEAEA"} />
+              </Pie>
+
+              <Pie
+                data={displayData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="82%"
+                startAngle={180}
+                endAngle={0}
+                innerRadius="58%"
+                outerRadius="88%"
+                paddingAngle={hasChartData && chartData.length > 1 ? 1 : 0}
+                stroke={isDark ? "#171717" : "#FFFFFF"}
+                strokeWidth={2}
                 isAnimationActive={hasChartData}
                 animationDuration={700}
               >
                 {displayData.map((entry, index) => (
                   <Cell key={`${entry.name}-${index}`} fill={entry.fill} />
                 ))}
-              </RadialBar>
-            </RadialBarChart>
+              </Pie>
+            </PieChart>
           </ResponsiveContainer>
 
-          {/* Center Value */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className={`lg:text-[26px] font-bold tracking-tight translate-y-[130%] ${isDark ? "text-[#E8D1AB]" : "text-[#000]"
-              }`}>
+          <div
+            className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none"
+            style={{ top: "60%" }}
+          >
+            <span
+              className={`text-[28px] font-bold tracking-tight ${
+                isDark ? "text-[#E8D1AB]" : "text-black"
+              }`}
+            >
               {displayTotal.toLocaleString()}
             </span>
           </div>
 
-          {/* Bottom Pivot / Needle */}
           <div
-            className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${isDark ? "bg-white/20" : "bg-black/10"
-              }`}
+            className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${
+              isDark ? "bg-white/20" : "bg-black/10"
+            }`}
             style={{ top: "82%", width: "76%" }}
           >
             <div
-              className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${isDark
-                ? "bg-[#E8D1AB] border-[#101010]"
-                : "bg-black border-white"
-                }`}
+              className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
+                isDark
+                  ? "bg-[#E8D1AB] border-[#101010]"
+                  : "bg-black border-white"
+              }`}
             />
           </div>
         </div>
 
-        {/* Legend Panel - Preserved */}
         <div className="flex flex-col gap-4 w-full lg:w-auto min-w-[240px]">
           {slices.map((item) => (
             <div
@@ -295,8 +318,9 @@ function ShootStatusGaugeCard({
               className="flex items-center justify-between lg:justify-start gap-6 group"
             >
               <div
-                className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${isDark ? "text-white" : "text-[#333]"
-                  }`}
+                className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${
+                  isDark ? "text-white" : "text-[#333]"
+                }`}
                 style={{
                   borderColor: item.colorHex,
                   backgroundColor: "transparent",
@@ -306,10 +330,11 @@ function ShootStatusGaugeCard({
               </div>
 
               <span
-                className={`text-sm font-medium whitespace-nowrap transition-colors ${isDark
-                  ? "text-white/40 group-hover:text-white/70"
-                  : "text-[#666] group-hover:text-black"
-                  }`}
+                className={`text-sm font-medium whitespace-nowrap transition-colors ${
+                  isDark
+                    ? "text-white/40 group-hover:text-white/70"
+                    : "text-[#666] group-hover:text-black"
+                }`}
               >
                 {item.label}
               </span>
@@ -926,78 +951,78 @@ export default function CreatorDashboardPage() {
               </div>
             </div>
             <div className="relative flex-1 min-h-[500px]">
-              {/* Map Controls */}
-              <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-                  <input
-                    type="text"
-                    placeholder="Search events..."
-                    value={mapSearch}
-                    onChange={(e) => setMapSearch(e.target.value)}
-                    className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
-                      ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
-                      : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
-                      }`}
-                  />
-                </div>
-
-                {/* Filter Select Dropdown Trigger */}
-                <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
-                  <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
-                    ? "bg-[#0B0F14]/90 border-white/10 text-white"
-                    : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
-                    }`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
-                    }`}>
-                    <SelectItem value="all">All events</SelectItem>
-                    <SelectItem value="active">Active shoots</SelectItem>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                    <SelectItem value="pending">Requests</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Map Controls */}
+            <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
+              <div className="relative">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={mapSearch}
+                  onChange={(e) => setMapSearch(e.target.value)}
+                  className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
+                    ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
+                    : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
+                    }`}
+                />
               </div>
 
-              {/* Mapbox Layer Element */}
-              <Map
-                {...viewState}
-                onMove={(evt) => setViewState(evt.viewState)}
-                style={{ width: "100%", height: "100%" }}
-                mapStyle="mapbox://styles/mapbox/dark-v11"
-                mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
-              >
-                <NavigationControl position="top-right" showCompass={false} />
-                <GeolocateControl
-                  position="top-right"
-                  trackUserLocation={true}
-                  showUserLocation={true}
-                  onGeolocate={(e: any) => {
-                    setViewState((prev) => ({
-                      ...prev,
-                      latitude: e.coords.latitude,
-                      longitude: e.coords.longitude,
-                      zoom: 14,
-                    }));
-                  }}
-                />
-                {filteredMarkers.map((marker, idx) => (
-                  <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
-                    <div
-                      onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                      className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
-                        ? 'bg-[#E8D1AB] border-black text-black'
-                        : marker.type === 'upcoming'
-                          ? 'bg-blue-400 border-black text-black'
-                          : 'bg-yellow-500 border-black text-black'
-                        }`}
-                    >
-                      {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
-                    </div>
-                  </Marker>
-                ))}
-              </Map>
+              {/* Filter Select Dropdown Trigger */}
+              <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
+                <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
+                  ? "bg-[#0B0F14]/90 border-white/10 text-white"
+                  : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
+                  }`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
+                  }`}>
+                  <SelectItem value="all">All events</SelectItem>
+                  <SelectItem value="active">Active shoots</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="pending">Requests</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Mapbox Layer Element */}
+            <Map
+              {...viewState}
+              onMove={(evt) => setViewState(evt.viewState)}
+              style={{ width: "100%", height: "100%" }}
+              mapStyle="mapbox://styles/mapbox/dark-v11"
+              mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
+            >
+              <NavigationControl position="top-right" showCompass={false} />
+              <GeolocateControl
+                position="top-right"
+                trackUserLocation={true}
+                showUserLocation={true}
+                onGeolocate={(e: any) => {
+                  setViewState((prev) => ({
+                    ...prev,
+                    latitude: e.coords.latitude,
+                    longitude: e.coords.longitude,
+                    zoom: 14,
+                  }));
+                }}
+              />
+              {filteredMarkers.map((marker, idx) => (
+                <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
+                  <div
+                    onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
+                    className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
+                      ? 'bg-[#E8D1AB] border-black text-black'
+                      : marker.type === 'upcoming'
+                        ? 'bg-blue-400 border-black text-black'
+                        : 'bg-yellow-500 border-black text-black'
+                      }`}
+                  >
+                    {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
+                  </div>
+                </Marker>
+              ))}
+            </Map>
 
             </div>
           </div>
@@ -1038,120 +1063,120 @@ export default function CreatorDashboardPage() {
             </div>
             <div className="p-5 flex-1 flex flex-col">
 
-              {/* Current Month Banner */}
-              <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
-                {date.toLocaleString("default", { month: "long", year: "numeric" })}
-              </div>
+            {/* Current Month Banner */}
+            <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
+              {date.toLocaleString("default", { month: "long", year: "numeric" })}
+            </div>
 
-              {/* Weekday Abbreviations Row */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-                  <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
-                    {d.slice(0, 1)}
-                  </div>
-                ))}
-              </div>
+            {/* Weekday Abbreviations Row */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
+                  {d.slice(0, 1)}
+                </div>
+              ))}
+            </div>
 
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-1.5">
-                {(() => {
-                  const year = date.getFullYear();
-                  const month = date.getMonth();
-                  const firstDay = new Date(year, month, 1).getDay();
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  const today = new Date(); today.setHours(0, 0, 0, 0);
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {(() => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date(); today.setHours(0, 0, 0, 0);
 
-                  const days = [];
-                  for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
+                const days = [];
+                for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
 
-                  for (let d = 1; d <= daysInMonth; d++) {
-                    const curDate = new Date(year, month, d);
-                    const isToday = curDate.getTime() === today.getTime();
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const dayData = (availability as any)?.[dateStr];
+                for (let d = 1; d <= daysInMonth; d++) {
+                  const curDate = new Date(year, month, d);
+                  const isToday = curDate.getTime() === today.getTime();
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                  const dayData = (availability as any)?.[dateStr];
 
-                    // Base Dynamic Styles for standard days
-                    let style = isDark
-                      ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
-                      : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
+                  // Base Dynamic Styles for standard days
+                  let style = isDark
+                    ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
+                    : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
 
-                    // Condition 1: Available (unassigned)
-                    if (dayData && dayData.available === true && !dayData.projectAssigned) {
-                      style = isDark
-                        ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
-                        : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
-                    }
-
-                    // Condition 2: Explicitly Unavailable
-                    if (dayData && dayData.available === false && !dayData.projectAssigned) {
-                      style = isDark
-                        ? "border-red-600/40 bg-black text-[#E8D1AB]"
-                        : "border-red-200 bg-red-50 text-black";
-                    }
-
-                    // Condition 3: Project Assigned
-                    if (dayData?.projectAssigned === true) {
-                      style = isDark
-                        ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                        : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
-                    }
-
-                    // Condition 4: Today (highest override)
-                    if (isToday) {
-                      style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
-                    }
-
-                    days.push(
-                      <button
-                        key={d}
-                        onClick={() => {
-                          if (dayData?.projectDetails) {
-                            setProjectDetailsData({ project: dayData.projectDetails });
-                            setProjectDetailsOpen(true);
-                          } else {
-                            toast(`Date selected: ${dateStr}`);
-                          }
-                        }}
-                        className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
-                      >
-                        {d}
-                        {dayData?.projectAssigned === true && !isToday && (
-                          <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
-                            }`} />
-                        )}
-                      </button>
-                    );
+                  // Condition 1: Available (unassigned)
+                  if (dayData && dayData.available === true && !dayData.projectAssigned) {
+                    style = isDark
+                      ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
                   }
-                  return days;
-                })()}
-              </div>
 
-              {/* Legend & Action Footer */}
-              <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
-                <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
-                    <span>Shoot Assigned</span>
-                  </div>
-                  <span className="font-mono">Active</span>
+                  // Condition 2: Explicitly Unavailable
+                  if (dayData && dayData.available === false && !dayData.projectAssigned) {
+                    style = isDark
+                      ? "border-red-600/40 bg-black text-[#E8D1AB]"
+                      : "border-red-200 bg-red-50 text-black";
+                  }
+
+                  // Condition 3: Project Assigned
+                  if (dayData?.projectAssigned === true) {
+                    style = isDark
+                      ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                      : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
+                  }
+
+                  // Condition 4: Today (highest override)
+                  if (isToday) {
+                    style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
+                  }
+
+                  days.push(
+                    <button
+                      key={d}
+                      onClick={() => {
+                        if (dayData?.projectDetails) {
+                          setProjectDetailsData({ project: dayData.projectDetails });
+                          setProjectDetailsOpen(true);
+                        } else {
+                          toast(`Date selected: ${dateStr}`);
+                        }
+                      }}
+                      className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
+                    >
+                      {d}
+                      {dayData?.projectAssigned === true && !isToday && (
+                        <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
+                          }`} />
+                      )}
+                    </button>
+                  );
+                }
+                return days;
+              })()}
+            </div>
+
+            {/* Legend & Action Footer */}
+            <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                <div className="flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
+                  <span>Shoot Assigned</span>
                 </div>
-                <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
-                    <span>Unavailable</span>
-                  </div>
-                  <span className="font-mono">Blocked</span>
-                </div>
-                <Button
-                  onClick={() => router.push("/creator/dashboard/availability")}
-                  className={`w-full mt-6 border transition-colors ${isDark
-                    ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
-                    : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
-                    }`}
-                >
-                  Go to Availability
-                </Button>
+                <span className="font-mono">Active</span>
               </div>
+              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                <div className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
+                  <span>Unavailable</span>
+                </div>
+                <span className="font-mono">Blocked</span>
+              </div>
+              <Button
+                onClick={() => router.push("/creator/dashboard/availability")}
+                className={`w-full mt-6 border transition-colors ${isDark
+                  ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
+                  : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
+                  }`}
+              >
+                Go to Availability
+              </Button>
+            </div>
             </div>
           </div>
         </div>
@@ -1474,12 +1499,13 @@ function MetricCard({
         setActiveMetricCard(id);
         onClick();
       }}
-      className={`relative group text-left cursor-pointer rounded-lg p-4 border transition-all duration-200 min-h-[150px] ${isActive
-        ? "bg-[#ECD7B4] text-[#171717] border-transparent"
-        : isDark
-          ? "bg-[#101010] text-white border-transparent hover:border-white/30"
-          : "bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]"
-        }`}
+      className={`relative group text-left cursor-pointer rounded-lg p-4 border transition-all duration-200 min-h-[150px] ${
+        isActive
+          ? "bg-[#ECD7B4] text-[#171717] border-transparent"
+          : isDark
+            ? "bg-[#101010] text-white border-transparent hover:border-white/30"
+            : "bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]"
+      }`}
     >
       <div className="flex justify-between items-start mb-7">
         <span className={`text-sm font-medium ${isActive ? "text-black/70" : isDark ? "text-zinc-400" : "text-zinc-500"}`}>
@@ -1499,8 +1525,9 @@ function MetricCard({
 
       <ArrowUpRight
         size={14}
-        className={`absolute bottom-4 right-4 transition-colors ${isActive ? "text-black/60" : isDark ? "text-zinc-500 group-hover:text-white/80" : "text-zinc-400 group-hover:text-black"
-          }`}
+        className={`absolute bottom-4 right-4 transition-colors ${
+          isActive ? "text-black/60" : isDark ? "text-zinc-500 group-hover:text-white/80" : "text-zinc-400 group-hover:text-black"
+        }`}
       />
     </button>
   );
