@@ -620,7 +620,7 @@ export default function RequestsShootsPage() {
                         {item.status}
                       </span>
                       <span className={`text-xs italic ${isDark ? "text-white/20" : "text-black/30"}`}>
-                        Recently updated
+                        {/* Recently updated */}
                       </span>
                     </div>
 

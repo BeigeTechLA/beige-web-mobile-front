@@ -54,6 +54,11 @@ import { getProject } from "@/lib/api";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -104,6 +109,7 @@ export default function CreatorFileManagerPhasePage() {
     [phaseSlug, searchParams]
   );
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -140,6 +146,22 @@ export default function CreatorFileManagerPhasePage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+    setVisibleFileCount(savedState.visibleFileCount);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+        visibleFileCount,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm, visibleFileCount]);
 
   const isOnOrAfterShootDay = useCallback((date?: string | null) => {
     if (!date) return false;

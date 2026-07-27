@@ -491,7 +491,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-     const hostedInvoiceUrl = response.data?.invoiceUrl || null;
+      const hostedInvoiceUrl = response.data?.invoiceUrl || null;
       const invoicePdfUrl = response.data?.invoicePdf || null;
       const brandedPdfUrl = buildBeigeInvoiceUrl(numericBookingId, {
         manual: true,
@@ -589,12 +589,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
       <div className="flex flex-col lg:flex-row w-full h-[calc(100dvh-64px)] overflow-hidden relative">
         {/* Main Content (Left Scroll Window) */}
-        <div className="flex-1 min-h-0 w-full p-4 pb-[260px] lg:p-10 lg:pb-10 overflow-y-auto no-scrollbar">
+        <div className="flex-1 min-h-0 w-full p-4 pt-0 pb-[260px] lg:px-10 lg:pb-10 overflow-y-auto no-scrollbar">
 
           {hasMissingFields ? (
             <div
-              className={`-mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
-                ? "border-[#4E4128] bg-[#E8D1AB1A] text-[#E6D8B6]"
+              className={`sticky top-0 z-60 -mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
+                ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
                 : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
                 }`}
             >
@@ -613,16 +613,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             </div>
           ) : null}
 
-          <ShootHeader
-            activeTab={activeTab}
-            project={project}
-            projectId={id}
-            convertedSalesQuoteId={convertedSalesQuoteId}
-            missingFields={missingFields}
-            hasFormDetails={hasFormDetails}
-            onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
-            onScheduleUpdated={() => fetchProjectAndSkills(false)}
-          />
+          <div className="pt-4 lg:pt-10">
+            <ShootHeader
+              activeTab={activeTab}
+              project={project}
+              projectId={id}
+              convertedSalesQuoteId={convertedSalesQuoteId}
+              missingFields={missingFields}
+              hasFormDetails={hasFormDetails}
+              onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
+              onScheduleUpdated={() => fetchProjectAndSkills(false)}
+            />
+          </div>
+
           <Button
             className={`lg:hidden w-full h-14 rounded-md font-semibold text-sm flex items-center justify-center gap-2 border mb-3 transition-all ${isDark
               ? "bg-[#202020] text-white border-white/20 hover:bg-[#202020]/50 shadow-[0_8px_30px_rgb(0,0,0,0.2)]"

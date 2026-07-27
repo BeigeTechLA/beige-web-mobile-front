@@ -33,6 +33,7 @@ export type TransactionDetailRow = {
   status: TransactionStatus;
   amount: string;
   feeNote: string;
+  receiptUrl?: string | null;
 };
 
 export type TransactionRow = {
@@ -48,6 +49,7 @@ export type TransactionRow = {
   initials: string;
   avatarColor: string;
   avatarImage?: string;
+  receiptUrl?: string | null;
   invoiceIds?: string[];
   transactionCount?: number;
   transactionDetails?: TransactionDetailRow[];
@@ -173,6 +175,22 @@ export default function TransactionsTable({
     setExpandedRowId((current) => (current === id ? null : id));
   };
 
+  const openReceiptInNewTab = (row: TransactionRow) => {
+    const receiptUrl = String(row.receiptUrl || "").trim();
+    if (!receiptUrl) return false;
+
+    window.open(receiptUrl, "_blank", "noopener,noreferrer");
+    return true;
+  };
+
+  const openDetailReceiptInNewTab = (transaction: TransactionDetailRow) => {
+    const receiptUrl = String(transaction.receiptUrl || "").trim();
+    if (!receiptUrl) return false;
+
+    window.open(receiptUrl, "_blank", "noopener,noreferrer");
+    return true;
+  };
+
   const DetailPanelContent = ({ row }: { row: TransactionRow }) => (
     <div className={`p-5 lg:px-5 lg:py-6 ${isDark ? "bg-[#0A0A0A]" : "bg-[#FAFAFA]"}`}>
       <div className="mb-4 flex items-center gap-2">
@@ -189,8 +207,16 @@ export default function TransactionsTable({
           return (
             <div key={transaction.id}>
               <div
-
-                className={`hidden lg:flex items-center justify-between rounded-lg border p-4 ${isDark ? "border-[#262626] bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetailReceiptInNewTab(transaction)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openDetailReceiptInNewTab(transaction);
+                  }
+                }}
+                className={`hidden lg:flex items-center justify-between rounded-lg border p-4 transition-colors ${transaction.receiptUrl ? "cursor-pointer" : "cursor-default"} ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
               >
                 <div className="flex min-w-0 items-start gap-4">
                   <div className="min-w-0">
@@ -229,7 +255,16 @@ export default function TransactionsTable({
                 </div>
               </div>
               <div
-                className={`lg:hidden rounded-lg border ${isDark ? "border-[#262626] bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetailReceiptInNewTab(transaction)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openDetailReceiptInNewTab(transaction);
+                  }
+                }}
+                className={`lg:hidden rounded-lg border transition-colors ${transaction.receiptUrl ? "cursor-pointer" : "cursor-default"} ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
               >
                 <div className={`p-4 flex justify-between items-start border-b ${isDark ? "border-[#3D3D3D]" : "border-white/30"}`}>
                   <div className="min-w-0">
@@ -404,10 +439,17 @@ export default function TransactionsTable({
                   const isExpanded = expandedRowId === row.id;
 
                   return [
-                    <tr
+                  <tr
                       key={row.id}
-                      onClick={() => isShootIdView && toggleRow(row.id)}
-                      className={`border-b transition-colors ${isShootIdView ? "cursor-pointer" : ""} ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
+                      onClick={() => {
+                        if (isShootIdView) {
+                          toggleRow(row.id);
+                          return;
+                        }
+
+                        openReceiptInNewTab(row);
+                      }}
+                      className={`border-b transition-colors ${isShootIdView || row.receiptUrl ? "cursor-pointer" : ""} ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F5F5F5] hover:bg-zinc-50"}`}
                     >
                       <td className={`p-5 truncate ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                         {isShootIdView ? (
@@ -469,8 +511,12 @@ export default function TransactionsTable({
                         <div className="flex min-h-[44px] items-center justify-end">
                           <button
                             type="button"
-                            onClick={(event) => action?.(row, event)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              action?.(row, event);
+                            }}
                             className={isDark ? "text-white" : "text-[#171717]"}
+                            title="More actions"
                           >
                             <MoreVertical size={30} />
                           </button>
@@ -587,8 +633,12 @@ export default function TransactionsTable({
                         <span className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Actions</span>
                         <button
                           type="button"
-                          onClick={(event) => action?.(row, event)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            action?.(row, event);
+                          }}
                           className={`p-1 ${isDark ? "text-white hover:text-white/70" : "text-black/70 hover:text-black"}`}
+                          title="More actions"
                         >
                           <MoreVertical size={24} />
                         </button>

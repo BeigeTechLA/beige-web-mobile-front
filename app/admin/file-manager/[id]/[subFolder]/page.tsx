@@ -52,6 +52,11 @@ import {
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const FILES_PAGE_SIZE = 20;
@@ -157,6 +162,7 @@ export default function AdminFileManagerPhasePage() {
   const isPreProduction = phaseSlug !== "post-production";
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const { canCreate, canDelete } = usePermissions("file_manager");
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -197,6 +203,22 @@ export default function AdminFileManagerPhasePage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+    setVisibleFileCount(savedState.visibleFileCount);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+        visibleFileCount,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm, visibleFileCount]);
 
   const loadPhase = async () => {
     try {
