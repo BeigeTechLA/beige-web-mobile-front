@@ -67,17 +67,66 @@ const STUDIO_BOOKING_TYPES = [
 const LOAD_MORE_COUNT = 3;
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
-const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
-  slug: studio.slug || studio.id,
-  image: studio.image || "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
-  name: studio.name,
-  description: studio.propertyType ? `(${studio.propertyType})` : "",
-  location: studio.location || PUBLIC_STUDIO_LOCATION,
-  price: studio.priceValue || 0,
-  rating: Number(studio.rating || 5),
-  reviews: studio.reviews || 0,
-  tags: studio.tags?.length ? studio.tags : ["Studio", "Available"],
-});
+const normalizeStudioTags = (studio: Record<string, any>) => {
+  const candidates = [
+    studio.tags,
+    studio.bestFor,
+    studio.highlights,
+    studio.amenities,
+    studio.supportedShootTypes,
+    studio.supported_shoot_types,
+    studio.propertyType ? [studio.propertyType] : [],
+    studio.spaceType ? [studio.spaceType] : [],
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const values = Array.isArray(candidate) ? candidate : [candidate];
+    const cleaned = values.map((tag) => String(tag).trim()).filter(Boolean);
+    if (cleaned.length) return cleaned;
+  }
+
+  return [];
+};
+
+const resolveStudioImage = (image?: string | null) => {
+  if (!image) return "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
+  if (/^https?:\/\//i.test(image)) return image;
+  return `https://d2jhn32fsulyac.cloudfront.net/assets/studio/${image}`;
+};
+
+const mapCatalogStudio = (studio: StudioCatalogListItem & Record<string, any>) => studio;
+
+const getStudioDisplayData = (studio: StudioCatalogListItem & Record<string, any>) => {
+  const tags = normalizeStudioTags(studio);
+  const location =
+    studio.location ||
+    studio.address ||
+    [studio.city, studio.state, studio.country].filter(Boolean).join(", ") ||
+    PUBLIC_STUDIO_LOCATION;
+  const priceValue = Number(studio.priceValue || studio.hourly_rate || studio.hourlyRate || 0);
+  const ratingValue = Number(studio.rating || studio.average_rating || 0);
+  const reviewsValue = Number(studio.reviews || studio.review_count || 0);
+
+  return {
+    slug: studio.slug || studio.id || studio.studio_id?.toString?.() || "",
+    image: resolveStudioImage(
+      studio.image ||
+      studio.cover_image ||
+      studio.cover_media?.thumbnail_url ||
+      studio.cover_media?.url ||
+      null
+    ),
+    name: studio.name || studio.studio_name || studio.space_name || "Studio",
+    description: studio.propertyType || studio.brand_name ? `(${studio.propertyType || studio.brand_name})` : "",
+    location,
+    price: priceValue,
+    priceLabel: studio.priceLabel || (priceValue ? `From $${priceValue}/Hr` : "From $/Hr"),
+    rating: ratingValue > 0 ? ratingValue : 5,
+    reviews: reviewsValue,
+    tags: tags.length ? tags.slice(0, 3) : ["Studio", "Available"],
+  };
+};
 
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
@@ -145,7 +194,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
 
   const [searchQuery, setSearchQuery] = useState("");
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(formData.bookingFor || "");
-  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioData, setStudioData] = useState<StudioCatalogListItem[]>([]);
   const [studioLoading, setStudioLoading] = useState(false);
   const [visibleStudioCount, setVisibleStudioCount] = useState(3); // INITIAL_COUNT = 3
 
@@ -651,8 +700,17 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           search: searchQuery,
           limit: 100,
         });
-        const mappedData = (response.data || response.studios || response || []).map(mapCatalogStudio);
-        setStudioData(mappedData);
+        const raw = (response as any)?.data;
+        const rawStudios = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+            ? raw.data
+            : Array.isArray((response as any)?.studios)
+              ? (response as any).studios
+              : Array.isArray(response)
+                ? response
+                : [];
+        setStudioData(rawStudios.map(mapCatalogStudio));
       } catch (error) {
         console.error("Failed to fetch studios:", error);
       } finally {
@@ -674,7 +732,18 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
         selectedStudioImage: undefined,
       });
     } else {
-      const selection = buildHourlyStudioSelection(studio, undefined);
+      const startDate = formData.startDate ? parseDate(formData.startDate) : selectedShootDate;
+      const endDate = formData.endDate ? parseDate(formData.endDate) : selectedShootDate;
+      const startTime = startDate ? format(startDate, "HH:mm") : "09:00";
+      const endTime = endDate ? format(endDate, "HH:mm") : "17:00";
+      const selectedDate = startDate ? format(startDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+
+      const selection = buildHourlyStudioSelection(studio, {
+        selectedDate,
+        startTime,
+        endTime,
+        pricingKey: studio.pricingOptions?.[0]?.key,
+      });
       updateData({
         selectedStudios: [selection],
         selectedStudioIds: [studio.slug],
@@ -1021,13 +1090,23 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
             <div className="flex flex-col items-center">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-8">
                 {studioData.slice(0, visibleStudioCount).map((studio) => {
-                  const isSelected = selectedStudioIds.includes(studio.slug);
+                  const display = getStudioDisplayData(studio as StudioCatalogListItem & Record<string, any>);
+                  const isSelected = selectedStudioIds.includes(display.slug);
                   return (
-                    <div key={studio.slug} className="relative">
+                    <div key={display.slug} className="relative">
                       <StudioCard
-                        studio={studio}
+                        slug={display.slug}
+                        image={display.image}
+                        name={display.name}
+                        description={display.description}
+                        location={display.location}
+                        price={display.price}
+                        priceLabel={display.priceLabel}
+                        rating={display.rating}
+                        reviews={display.reviews}
+                        tags={display.tags}
                         isSelected={isSelected}
-                        onSelect={() => handleStudioToggle(studio)}
+                        onToggle={() => handleStudioToggle(studio)}
                         isDark={isDark}
                       />
                       {isSelected && (
@@ -1068,26 +1147,40 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
               setMultiDayTimes({});
               updateData({ bookingType: "single_day", bookingDays: [] });
             }}
-            className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${bookingType === "single_day" ? "bg-[#E8D1AB] text-black border-transparent" : isDark
-              ? "bg-[#101010] border-white/10 text-[#A9A9A9] hover:border-white/20"
-              : "bg-transparent border-[#0000004D] text-[#2C2C2C] hover:border-[#000000]/50"
+            className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "single_day"
+              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+              : isDark
+                ? "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                : "bg-transparent border-[#0000004D] hover:border-[#000000]/50 text-[#2C2C2C]"
               }`}
           >
             <span className="font-medium text-sm lg:text-lg pr-2">Single Day</span>
-            <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full border ${bookingType === "single_day" ? "bg-black border-transparent" : isDark ? "border border-white/20" : "border border-[#0000004D]"}`}>{bookingType === "single_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
+            <div
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "single_day" ? "bg-black" : isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]"
+                }`}
+            >
+              {bookingType === "single_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+            </div>
           </button>
           <button
             onClick={() => {
               setBookingType("multi_day");
               updateData({ bookingType: "multi_day" });
             }}
-            className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all ${bookingType === "multi_day" ? "bg-[#E8D1AB] text-black border-transparent" : isDark
-              ? "bg-[#101010] border-white/10 text-[#A9A9A9] hover:border-white/20"
-              : "bg-transparent border-[#0000004D] text-[#2C2C2C] hover:border-[#000000]/50"
+            className={`h-14 lg:h-[82px] w-fit lg:w-[300px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${bookingType === "multi_day"
+              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+              : isDark
+                ? "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                : "bg-transparent border-[#0000004D] hover:border-[#000000]/50 text-[#2C2C2C]"
               }`}
           >
             <span className="font-medium text-sm lg:text-lg pr-2">Multiple Days</span>
-            <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full border ${bookingType === "multi_day" ? "bg-black border-transparent" : isDark ? "border border-white/20" : "border border-[#0000004D]"}`}>{bookingType === "multi_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB] m-auto mt-1.5" />}</div>
+            <div
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${bookingType === "multi_day" ? "bg-black" : isDark ? "border border-[#E5E5E5]" : "border border-[#0000004D]"
+                }`}
+            >
+              {bookingType === "multi_day" && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+            </div>
           </button>
         </div>
       </div>
