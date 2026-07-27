@@ -37,6 +37,11 @@ import {
 import type { SalesLead } from "@/types/sales";
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const getErrorMessage = (error: unknown, fallback: string) =>
@@ -74,6 +79,7 @@ interface SalesLeadsResponse {
 export default function SalesFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const { canCreate, canDelete } = usePermissions("file_manager");
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,10 +102,38 @@ export default function SalesFolderManagerPage() {
     hasNextPage: false,
     hasPreviousPage: false,
   });
+  const [routeStateReady, setRouteStateReady] = useState(false);
+  const hasSkippedInitialFilterResetRef = React.useRef(false);
 
   useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSelectedTab(savedState.selectedTab);
+    setSearchTerm(savedState.searchTerm);
+    setCurrentPage(savedState.currentPage);
+    setRouteStateReady(true);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    setFileManagerRouteState(
+      {
+        selectedTab,
+        searchTerm,
+        currentPage,
+      },
+      routeStateKey
+    );
+  }, [currentPage, routeStateKey, routeStateReady, searchTerm, selectedTab]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    if (!hasSkippedInitialFilterResetRef.current) {
+      hasSkippedInitialFilterResetRef.current = true;
+      return;
+    }
+
     setCurrentPage(1);
-  }, [searchTerm, selectedTab, status]);
+  }, [searchTerm, selectedTab, status, routeStateReady]);
 
   const tabs = [
     { name: "All Files", icon: FolderOpen },

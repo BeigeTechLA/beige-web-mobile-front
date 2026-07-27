@@ -10,6 +10,8 @@ import { Separator } from "./Separator";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getDashboardPathForUser } from "@/lib/auth-routing";
 
+const realEstateImg = "/images/misc/RealEstate.svg";
+
 const portfolioConfig = {
   photos: {
     label: "Photos",
@@ -80,7 +82,6 @@ const portfolioConfig = {
         label: "Private Events",
         icon: <PartyPopper size={24} />,
         subSectors: []
-        // subSectors: ["Barmitvahs", "Birthday Parties", "Quinceaneras"]
       },
       {
         id: "music-videos",
@@ -122,6 +123,12 @@ const portfolioConfig = {
         id: "keynote",
         label: "Keynotes",
         icon: <MicVocal size={24} />,
+        subSectors: []
+      },
+      {
+        id: "real-estate",
+        label: "Real Estate",
+        icon: realEstateImg,
         subSectors: []
       },
     ]
@@ -188,11 +195,10 @@ export const Navbar = () => {
       setIsScrolled(window.scrollY > 50);
 
       const sections = ["about", "usecases"];
-      const scrollPosition = window.scrollY + 200; // Increased offset for better "trigger" feel
+      const scrollPosition = window.scrollY + 200;
 
       let currentHash = "";
 
-      // If we are near the very top, force Home to be active
       if (window.scrollY < 150) {
         setActiveHash("");
       } else {
@@ -219,7 +225,6 @@ export const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     document.addEventListener("mousedown", handleClickOutside);
 
-    // Run handleScroll once on mount to catch current position
     handleScroll();
 
     return () => {
@@ -238,7 +243,6 @@ export const Navbar = () => {
     setMobileOpen(false);
 
     if (href.startsWith("#")) {
-      // 1. Set active state immediately for instant visual feedback
       setActiveHash(href);
 
       if (pathname !== "/") {
@@ -246,7 +250,6 @@ export const Navbar = () => {
       } else {
         const element = document.querySelector(href);
         if (element) {
-          // 2. Calculate position with an offset (e.g., 100px) so the fixed navbar doesn't overlap the section heading
           const navbarOffset = 100;
           const elementPosition = element.getBoundingClientRect().top + window.scrollY;
           const offsetPosition = elementPosition - navbarOffset;
@@ -313,21 +316,36 @@ export const Navbar = () => {
     router.push("/");
   };
 
-  // const goToDashboard = () => {
-  //   setMobileOpen(false);
-  //   setShowProfileDropdown(false);
-  //   if (localUser?.user_type_id === 1) router.push("/admin/dashboard");
-  //   else if (localUser?.user_type_id === 2) router.push("/creator/dashboard/request");
-  //   else if (localUser?.user_type_id === 3) router.push("/affiliate/dashboard");
-  //   else if (localUser?.user_type_id === 4) router.push("/sales/dashboard");
-  // };
-
   const goToDashboard = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
 
     const dashboardPath = getDashboardPathForUser(localUser);
     router.push(dashboardPath);
+  };
+
+  // Helper function dynamically rendering Lucide Icons or an Image masked element inheriting parent color text
+  const renderIcon = (icon: React.ReactNode | string, size: number = 24) => {
+    if (typeof icon === "string") {
+      return (
+        <div
+          className="bg-current transition-colors duration-200"
+          style={{
+            width: size,
+            height: size,
+            maskImage: `url(${icon})`,
+            WebkitMaskImage: `url(${icon})`,
+            maskSize: "contain",
+            WebkitMaskSize: "contain",
+            maskRepeat: "no-repeat",
+            WebkitMaskRepeat: "no-repeat",
+            maskPosition: "center",
+            WebkitMaskPosition: "center"
+          }}
+        />
+      );
+    }
+    return icon;
   };
 
   return (
@@ -360,17 +378,11 @@ export const Navbar = () => {
               ref={portfolioRef}
             >
               {navLinks.map((link) => {
-                // 1. Check if the specific link is active (via pathname or activeHash)
                 const isRouteActive = isActive(link.href);
-
-                // 2. Special case for Home: Only highlight "/" if there is no active hash (we are at the top)
                 const isHomeActive = link.href === "/" && pathname === "/" && activeHash === "";
-
-                // 3. Special case for Portfolio/Use Cases
                 const isPortfolioActive =
                   link.hasDropdown && (showPortfolioMenu || pathname.startsWith("/usecases"));
 
-                // Final 'active' determination
                 const active = (link.href === "/" ? isHomeActive : isRouteActive) || isPortfolioActive;
 
                 return (
@@ -417,7 +429,7 @@ export const Navbar = () => {
                             <div
                               className={`p-2 rounded-full ${activeCategory === cat ? "bg-black/10" : "bg-white/10"}`}
                             >
-                              {portfolioConfig[cat].icon}
+                              {renderIcon(portfolioConfig[cat].icon, 24)}
                             </div>
                             {portfolioConfig[cat].label}
                           </div>
@@ -437,65 +449,7 @@ export const Navbar = () => {
                     <div className="w-2/3 flex-1 flex flex-col">
                       {portfolioConfig[activeCategory]?.sectors?.length > 0 ? (
                         <>
-                          {/* TOP SECTION: Two-Column Grid for Primary Sectors with subsectors */}
-                          {/* <div className="grid grid-cols-2 gap-x-12 pt-8">
-                            {portfolioConfig[activeCategory].sectors.slice(0, 2).map((sector, index) => (
-          <button
-            key={sector.id}
-            onMouseEnter={() => setActiveSector(sector.id)}
-            onClick={() =>
-              handlePortfolioSelect(activeCategory, sector.id)
-            }
-            className={`flex items-center justify-between transition-colors px-10 ${
-              index == 1 ? "pl-0" : ""
-            } ${
-              activeSector === sector.id ? "text-white " : "text-white/40"
-            }`}
-          >
-            <div className="flex items-center gap-4 text-xl font-medium ">
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                {sector.icon}
-              </div>
-              {sector.label}
-            </div>
-            {sector.subSectors?.length > 0 && <ChevronRight size={20} />}
-          </button>
-        ))}
-    </div>
-
-    {/* DYNAMIC MIDDLE ROW: Sub-sectors (Only if they exist for active sector) */}
-                          {/* <AnimatePresence mode="wait">
-                            {portfolioConfig[activeCategory].sectors.find(s => s.id === activeSector)?.subSectors.length ? (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="bg-white/[0.04] border-y border-y-white/10 overflow-hidden mt-6"
-                              >
-                                <div className="flex flex-wrap gap-12 px-10 py-6">
-                                  {portfolioConfig[activeCategory].sectors
-                                    .find((s) => s.id === activeSector)
-                                    ?.subSectors?.map((sub) => (
-                                      <button
-                                        key={sub}
-                                        onClick={() =>
-                                          handlePortfolioSelect(activeCategory, activeSector, sub)
-                                        }
-                                        className="text-left text-[#B8ACAC] hover:text-white text-xl font-light transition-colors py-1"
-                                      >
-                                        {sub}
-                                      </button>
-                                    ))}
-                                </div>
-                              </motion.div>
-                            ) : (
-                              <div className="mt-6" />
-                            )}
-                          </AnimatePresence> */}
-
-                          {/* BOTTOM SECTION: Remaining Sectors in 2-Col Grid */}
                           <div className="grid grid-cols-2 p-5 xl:p-10 gap-6 xl:gap-x-12 gap-y-6">
-                            {/* {portfolioConfig[activeCategory].sectors.slice(2).map((sector) => ( */}
                             {portfolioConfig[activeCategory].sectors.map((sector) => (
                               <button
                                 key={sector.id}
@@ -509,7 +463,7 @@ export const Navbar = () => {
                                   }`}
                               >
                                 <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                                  {sector.icon}
+                                  {renderIcon(sector.icon, 24)}
                                 </div>
                                 <span className="xl:text-lg font-medium">{sector.label}</span>
                               </button>
@@ -517,10 +471,9 @@ export const Navbar = () => {
                           </div>
                         </>
                       ) : (
-                        /* EMPTY STATE: If a category literally has no sectors array */
                         <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-4">
                           <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
-                            {portfolioConfig[activeCategory].icon}
+                            {renderIcon(portfolioConfig[activeCategory].icon, 24)}
                           </div>
                           <p className="text-xl font-medium">Coming Soon</p>
                         </div>
@@ -532,9 +485,8 @@ export const Navbar = () => {
             </div>
           </div>
 
-          {/* Right Side Auth (Existing logic) */}
+          {/* Right Side Auth */}
           <div className="hidden md:flex items-center gap-4">
-            {/* {showCartIcon && <CartIcon />} */}
             {!localUser ? (
               <button
                 onClick={handleLogin}
@@ -595,7 +547,6 @@ export const Navbar = () => {
 
           {/* Mobile Menu Trigger */}
           <div className="md:hidden flex items-center gap-3">
-            {/* {showCartIcon && <CartIcon className="scale-90" />} */}
             <button
               className="text-white p-2"
               onClick={() => setMobileOpen(true)}
@@ -643,7 +594,6 @@ export const Navbar = () => {
               <div className="flex flex-col gap-6 p-5 overflow-y-auto">
                 {navLinks.map((link) => {
                   const isRouteActive = isActive(link.href);
-                  // UseCases is "active" if the dropdown is open
                   const isPortfolioActive =
                     link.hasDropdown &&
                     (showPortfolioMenu || pathname.startsWith("/usecases"));
@@ -687,7 +637,7 @@ export const Navbar = () => {
                                 className="text-[#B8ACAC] text-lg font-semibold flex items-center justify-between py-2"
                               >
                                 <span className="flex items-center gap-2">
-                                  {portfolioConfig[cat].icon}{" "}
+                                  {renderIcon(portfolioConfig[cat].icon, 20)}{" "}
                                   {portfolioConfig[cat].label}
                                 </span>
                                 <ChevronDown
@@ -708,7 +658,6 @@ export const Navbar = () => {
                                         key={sector.id}
                                         className="flex flex-col gap-2"
                                       >
-                                        {/* Made the Sector Label clickable if there are no subsectors */}
                                         <div className="flex justify-between items-center pr-4">
                                           <button
                                             onClick={() =>
@@ -721,49 +670,7 @@ export const Navbar = () => {
                                           >
                                             {sector.label}
                                           </button>
-                                          {/* {sector.subSectors.length === 0 && (
-                                        <button
-                                          onClick={() => handlePortfolioSelect(cat, sector.id)}
-                                          className="text-[#E8D1AB] text-xs font-medium"
-                                        >
-                                          View All
-                                        </button>
-                                      )} */}
                                         </div>
-
-                                        {/* <div className="flex flex-wrap gap-2">
-                                          If there are subsectors, show them as pills (old design)
-                                          {sector.subSectors.length > 0 ? (
-                                            sector.subSectors.map((sub) => (
-                                              <button
-                                                key={sub}
-                                                onClick={() =>
-                                                  handlePortfolioSelect(
-                                                    cat,
-                                                    sector.id,
-                                                    sub,
-                                                  )
-                                                }
-                                                className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm active:bg-white/20"
-                                              >
-                                                {sub}
-                                              </button>
-                                            ))
-                                          ) : (
-                                            If no subsectors, provide a subtle pill to ensure the user can still click the sector
-                                            <button
-                                              onClick={() =>
-                                                handlePortfolioSelect(
-                                                  cat,
-                                                  sector.id,
-                                                )
-                                              }
-                                              className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-white/70 text-sm"
-                                            >
-                                              Explore {sector.label}
-                                            </button>
-                                          )}
-                                        </div> */}
                                       </div>
                                     ),
                                   )}

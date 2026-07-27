@@ -94,7 +94,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 0, 1)); // Default to Jan 2026 for demo
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
@@ -110,7 +110,8 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [shootTab, setShootTab] = useState<"current" | "past">("current");
   const [shootSearchQuery, setShootSearchQuery] = useState("");
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
-  const [pastShoots, setPastShoots] = useState<any[]>([]);  const [shootsLoading, setShootsLoading] = useState(true);
+  const [pastShoots, setPastShoots] = useState<any[]>([]);
+  const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -202,34 +203,34 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
 
         const upcomingData = Array.isArray(responseData?.upcoming)
           ? responseData.upcoming.map((item: any) => ({
-          ...item.project,
-          assignment_id: item.assignment_id,
-          project_id: item.project_id,
-          assignment_status: item.status,
-          crew_accept: item.crew_accept,
-          assigned_status: item.assigned_status,
-          assigned_date: item.assigned_date,
-        }))
-      : [];
+            ...item.project,
+            assignment_id: item.assignment_id,
+            project_id: item.project_id,
+            assignment_status: item.status,
+            crew_accept: item.crew_accept,
+            assigned_status: item.assigned_status,
+            assigned_date: item.assigned_date,
+          }))
+          : [];
 
-  const pastData = Array.isArray(responseData?.past)
-    ? responseData.past.map((item: any) => ({
-        ...item.project,
-        assignment_id: item.assignment_id,
-        project_id: item.project_id,
-        assignment_status: item.status,
-        crew_accept: item.crew_accept,
-        assigned_status: item.assigned_status,
-        assigned_date: item.assigned_date,
-      }))
-    : [];
+        const pastData = Array.isArray(responseData?.past)
+          ? responseData.past.map((item: any) => ({
+            ...item.project,
+            assignment_id: item.assignment_id,
+            project_id: item.project_id,
+            assignment_status: item.status,
+            crew_accept: item.crew_accept,
+            assigned_status: item.assigned_status,
+            assigned_date: item.assigned_date,
+          }))
+          : [];
 
-setUpcomingShoots(upcomingData);
-setPastShoots(pastData);
+        setUpcomingShoots(upcomingData);
+        setPastShoots(pastData);
       } catch (error) {
         console.error("Error fetching assigned projects:", error);
-setUpcomingShoots([]);
-setPastShoots([]);
+        setUpcomingShoots([]);
+        setPastShoots([]);
       } finally {
         setShootsLoading(false);
       }
@@ -302,7 +303,7 @@ setPastShoots([]);
       Object.values(availabilityDetails).forEach((status: any) => {
         if (status.projectAssigned) {
           bookedShoots += 1;
-        } else if (status.available) {
+        } else if (status.available || status.customAvailabilityStatus === 1) {
           availableDays += 1;
         } else if (status.available === false) {
           timeOff += 1;
@@ -417,16 +418,16 @@ setPastShoots([]);
       console.error("Error parsing availability:", e);
     }
   }
-   const assignedProjects =
+  const assignedProjects =
     shootTab === "current"
       ? upcomingShoots
       : pastShoots;
-//  const shootColumns = assignedProjects.length > 0
-//     ? Object.keys(assignedProjects[0]).filter((key) => {
-//       const value = assignedProjects[0][key];
-//       return typeof value !== "object" || value === null;
-//     })
-//     : [];
+  //  const shootColumns = assignedProjects.length > 0
+  //     ? Object.keys(assignedProjects[0]).filter((key) => {
+  //       const value = assignedProjects[0][key];
+  //       return typeof value !== "object" || value === null;
+  //     })
+  //     : [];
 
   // const formatShootCellValue = (value: any) => {
   //   if (value === null || value === undefined || value === "") return "N/A";
@@ -436,7 +437,7 @@ setPastShoots([]);
   //   return String(value);
   // };
 
-    const formatShootDate = (date?: string | null) => {
+  const formatShootDate = (date?: string | null) => {
     if (!date) return "N/A";
 
     try {
@@ -444,19 +445,19 @@ setPastShoots([]);
         new Date(`${date}T00:00:00`),
         "do MMM, yyyy"
       );
-      } catch {
-        return date;
-      }
-    };
+    } catch {
+      return date;
+    }
+  };
 
-    const formatShootType = (type?: string | null) => {
-      if (!type) return "N/A";
+  const formatShootType = (type?: string | null) => {
+    if (!type) return "N/A";
 
-      return type
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (character) =>
-          character.toUpperCase()
-        );
+    return type
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (character) =>
+        character.toUpperCase()
+      );
   };
 
   const formatShootColumnLabel = (key: string) =>
@@ -571,57 +572,57 @@ setPastShoots([]);
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
 
   const formatAssignmentStatus = (status?: string | null) => {
-  if (!status) return "N/A";
+    if (!status) return "N/A";
 
-  return status
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) =>
-      character.toUpperCase()
-    );
+    return status
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (character) =>
+        character.toUpperCase()
+      );
   };
 
   const getAssignmentStatusStyle = (status?: string | null) => {
-  switch (status?.toLowerCase()) {
-    case "accepted":
-      return "bg-[#D1FAE5] text-[#059669]";
+    switch (status?.toLowerCase()) {
+      case "accepted":
+        return "bg-[#D1FAE5] text-[#059669]";
 
-    case "rejected":
-    case "declined":
-      return "bg-[#FEE2E2] text-[#DC2626]";
+      case "rejected":
+      case "declined":
+        return "bg-[#FEE2E2] text-[#DC2626]";
 
-    case "pending":
-      return "bg-[#FEF3C7] text-[#D97706]";
+      case "pending":
+        return "bg-[#FEF3C7] text-[#D97706]";
 
-    case "selected":
-      return "bg-[#DBEAFE] text-[#2563EB]";
+      case "selected":
+        return "bg-[#DBEAFE] text-[#2563EB]";
 
-    default:
-      return isDark
-        ? "bg-[#353535] text-[#BDBDBD]"
-        : "bg-gray-200 text-gray-600";
-  }
+      default:
+        return isDark
+          ? "bg-[#353535] text-[#BDBDBD]"
+          : "bg-gray-200 text-gray-600";
+    }
   };
   const normalizedShootSearchQuery = shootSearchQuery.trim().toLowerCase();
   const filteredAssignedProjects = normalizedShootSearchQuery
     ? assignedProjects.filter((shoot) => {
-        const projectId = shoot.project_id || shoot.stream_project_booking_id;
-        const searchableText = [
-          projectId ? `#${projectId}` : "",
-          projectId,
-          shoot.project_name,
-          formatShootType(shoot.shoot_type || shoot.event_type),
-          shoot.event_date,
-          formatShootDate(shoot.event_date),
-          formatAssignmentStatus(shoot.assignment_status),
-          formatAssignmentStatus(shoot.assigned_status),
-          shoot.crew_accept,
-        ]
-          .filter((value) => value !== null && value !== undefined)
-          .join(" ")
-          .toLowerCase();
+      const projectId = shoot.project_id || shoot.stream_project_booking_id;
+      const searchableText = [
+        projectId ? `#${projectId}` : "",
+        projectId,
+        shoot.project_name,
+        formatShootType(shoot.shoot_type || shoot.event_type),
+        shoot.event_date,
+        formatShootDate(shoot.event_date),
+        formatAssignmentStatus(shoot.assignment_status),
+        formatAssignmentStatus(shoot.assigned_status),
+        shoot.crew_accept,
+      ]
+        .filter((value) => value !== null && value !== undefined)
+        .join(" ")
+        .toLowerCase();
 
-        return searchableText.includes(normalizedShootSearchQuery);
-      })
+      return searchableText.includes(normalizedShootSearchQuery);
+    })
     : assignedProjects;
 
   return (
@@ -641,11 +642,10 @@ setPastShoots([]);
             <button
               type="button"
               onClick={() => router.push(`/admin/users/creative-partners/${id}/edit`)}
-              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
-                isDark
-                  ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
-                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
-              }`}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
+                ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                }`}
             >
               <span>Edit Profile</span>
             </button>
@@ -655,11 +655,10 @@ setPastShoots([]);
                 void handleGenerateLink();
               }}
               disabled={isGeneratingLink}
-              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${
-                isDark
-                  ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
-                  : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
-              }`}
+              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
+                ? "bg-[#E5D5B8] border-[#E5D5B8] text-black hover:bg-[#d4c3a3] disabled:opacity-70"
+                : "bg-black border-black text-white hover:bg-black/80 disabled:opacity-70"
+                }`}
             >
               {isGeneratingLink ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -915,11 +914,10 @@ setPastShoots([]);
                 equipmentNames.map((equipmentName, index) => (
                   <div
                     key={`${equipmentName}-${index}`}
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${
-                      isDark
-                        ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]"
-                        : "bg-gray-50 border-[#0000004D] text-[#020202]"
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-xs lg:text-sm transition-all ${isDark
+                      ? "bg-[#1A1A1A] border-[#333] text-[#E0E0E0]"
+                      : "bg-gray-50 border-[#0000004D] text-[#020202]"
+                      }`}
                   >
                     <span>{equipmentName}</span>
                   </div>
@@ -1188,7 +1186,7 @@ setPastShoots([]);
                   <div className="flex items-center gap-2">
                     <button
                       className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
-                      onClick={() => setCurrentMonth(new Date(2026, 0, 1))}
+                      onClick={() => setCurrentMonth(new Date())}
                     >
                       Today
                     </button>
@@ -1215,12 +1213,13 @@ setPastShoots([]);
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const dayAvailability = getAvailabilityForDay(day);
                     const hasShoot = isShootDay(day);
-                    const isAvailable = Boolean(dayAvailability?.available || dayAvailability?.customAvailabilityStatus === 1);
-                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && !isAvailable);
+                    const availabilityValue = dayAvailability?.available;
+                    const isAvailable = Boolean(availabilityValue === true || dayAvailability?.customAvailabilityStatus === 1);
+                    const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && availabilityValue === false);
                     const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
                     const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
                     const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
-                    const isTodayDate = isSameDay(day, new Date(2026, 0, 16)); // Mocking "Today" as Jan 16 for demo visual match
+                    const isTodayDate = isSameDay(day, new Date());
 
                     // Determine border classes
                     const isLastRow = dayIdx >= calendarDays.length - 7;
@@ -1242,11 +1241,11 @@ setPastShoots([]);
                         {(hasShoot || isAvailable || isUnavailable || hasTimeRange) && (
                           <div className="space-y-1">
                             {hasShoot && (
-                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
-                              }`}>
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
-                              <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
-                            </div>
+                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded border w-fit ${isDark ? "bg-[#1E293B] border-[#334155]" : "bg-blue-50 border-blue-100"
+                                }`}>
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]"></div>
+                                <span className={`text-[10px] font-bold leading-none ${isDark ? "text-[#93C5FD]" : "text-blue-700"}`}>Shoot</span>
+                              </div>
                             )}
                             {!hasShoot && isAvailable && (
                               <div className="flex items-center gap-1.5 text-green-500/75">
@@ -1330,15 +1329,15 @@ setPastShoots([]);
                     <span className="text-[#999] text-sm">Booked Shoots</span>
                     <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{stats?.total_projects || stats?.accepted_projects || '0'}</span>
                   </div>
-                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
+                  {/* <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Rating</span>
                     <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{partner.rating || "N/A"}</span>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
               {/* Share Availability */}
-              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+              {/* <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
                 }`}>
                 <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
                 <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
@@ -1347,7 +1346,7 @@ setPastShoots([]);
                   <Copy size={18} />
                   <span>Copy Link</span>
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* {!hideActions && (
@@ -1377,83 +1376,75 @@ setPastShoots([]);
       {/* TAB CONTENT: Shoots */}
       {activeTab === "Shoots" && (
         <div
-          className={`overflow-hidden rounded-3xl border transition-colors duration-200 ${
-            isDark
-              ? "border-[#333] bg-[#101010]"
-              : "border-gray-200 bg-white shadow-sm"
-          }`}>
-                <div
-          className={`flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-center lg:justify-between ${
-            isDark ? "border-[#333]" : "border-gray-200"
-          }`}
-        >
+          className={`overflow-hidden rounded-3xl border transition-colors duration-200 ${isDark
+            ? "border-[#333] bg-[#101010]"
+            : "border-gray-200 bg-white shadow-sm"
+            }`}>
           <div
-            className={`inline-flex rounded-2xl border p-1 ${
-              isDark
+            className={`flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-center lg:justify-between ${isDark ? "border-[#333]" : "border-gray-200"
+              }`}
+          >
+            <div
+              className={`inline-flex rounded-2xl border p-1 ${isDark
                 ? "border-[#333333] bg-[#101010]"
                 : "border-[#E5E5E5] bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShootTab("current")}
-              className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${
-                shootTab === "current"
+                }`}
+            >
+              <button
+                type="button"
+                onClick={() => setShootTab("current")}
+                className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${shootTab === "current"
                   ? isDark
                     ? "bg-[#E5D5B8] text-black"
                     : "bg-black text-white"
                   : isDark
                     ? "text-[#8A8A8A] hover:text-white"
                     : "text-[#666666] hover:text-black"
-              }`}
-            >
-              Current Shoots
-            </button>
+                  }`}
+              >
+                Current Shoots
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setShootTab("past")}
-              className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${
-                shootTab === "past"
+              <button
+                type="button"
+                onClick={() => setShootTab("past")}
+                className={`min-w-[140px] rounded-xl px-5 py-3 text-sm font-medium transition-all ${shootTab === "past"
                   ? isDark
                     ? "bg-[#E5D5B8] text-black"
                     : "bg-black text-white"
                   : isDark
                     ? "text-[#8A8A8A] hover:text-white"
                     : "text-[#666666] hover:text-black"
-              }`}
-            >
-              Past Shoots
-            </button>
-          </div>
-          <div
-            className={`relative w-full rounded-xl border transition-colors lg:max-w-[320px] ${
-              isDark
+                  }`}
+              >
+                Past Shoots
+              </button>
+            </div>
+            <div
+              className={`relative w-full rounded-xl border transition-colors lg:max-w-[320px] ${isDark
                 ? "border-[#333333] bg-[#171717]"
                 : "border-[#E5E5E5] bg-white"
-            }`}
-          >
-            <Search
-              size={16}
-              className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${
-                isDark ? "text-[#777]" : "text-gray-400"
-              }`}
-            />
-            <input
-              type="search"
-              value={shootSearchQuery}
-              onChange={(event) => setShootSearchQuery(event.target.value)}
-              placeholder="Search shoots"
-              className={`h-12 w-full rounded-xl bg-transparent pl-10 pr-4 text-sm outline-none transition-colors ${
-                isDark
+                }`}
+            >
+              <Search
+                size={16}
+                className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#777]" : "text-gray-400"
+                  }`}
+              />
+              <input
+                type="search"
+                value={shootSearchQuery}
+                onChange={(event) => setShootSearchQuery(event.target.value)}
+                placeholder="Search shoots"
+                className={`h-12 w-full rounded-xl bg-transparent pl-10 pr-4 text-sm outline-none transition-colors ${isDark
                   ? "text-white placeholder:text-[#777]"
                   : "text-black placeholder:text-gray-400"
-              }`}
-            />
+                  }`}
+              />
+            </div>
           </div>
-        </div>
           {shootsLoading ? (
-           <div className="flex items-center justify-center py-20">
+            <div className="flex items-center justify-center py-20">
               <Loader2
                 className="animate-spin text-[#BFA780]"
                 size={40}
@@ -1461,17 +1452,15 @@ setPastShoots([]);
             </div>
           ) : assignedProjects.length === 0 ? (
             <div
-              className={`px-6 py-12 text-center ${
-                isDark ? "text-[#888]" : "text-gray-500"
-              }`}
+              className={`px-6 py-12 text-center ${isDark ? "text-[#888]" : "text-gray-500"
+                }`}
             >
               No shoots assigned to this creative partner.
             </div>
           ) : filteredAssignedProjects.length === 0 ? (
             <div
-              className={`px-6 py-12 text-center ${
-                isDark ? "text-[#888]" : "text-gray-500"
-              }`}
+              className={`px-6 py-12 text-center ${isDark ? "text-[#888]" : "text-gray-500"
+                }`}
             >
               No shoots match your search.
             </div>
@@ -1482,11 +1471,10 @@ setPastShoots([]);
                 <table className="w-full border-collapse">
                   <thead>
                     <tr
-                      className={`border-b text-left text-x ${
-                        isDark
-                          ? "border-[#292929] bg-[#1E1E1E] text-[#E8D1AB]"
-                          : "border-gray-200 bg-gray-50 text-black"
-                      }`}
+                      className={`border-b text-left text-x ${isDark
+                        ? "border-[#292929] bg-[#1E1E1E] text-[#E8D1AB]"
+                        : "border-gray-200 bg-gray-50 text-black"
+                        }`}
                     >
                       <th className="px-4 py-4 font-medium">
                         Shoot ID
@@ -1517,80 +1505,78 @@ setPastShoots([]);
                         shoot.stream_project_booking_id;
 
                       return (
-                      <tr
-                        key={shoot.assignment_id || projectId || index}
-                        onClick={(event) => {
-                          if (!projectId) return;
+                        <tr
+                          key={shoot.assignment_id || projectId || index}
+                          onClick={(event) => {
+                            if (!projectId) return;
 
-                          // Avoid duplicate navigation when clicking the Link.
-                          if ((event.target as HTMLElement).closest("a")) return;
+                            // Avoid duplicate navigation when clicking the Link.
+                            if ((event.target as HTMLElement).closest("a")) return;
 
-                          router.push(`/admin/shoots/${projectId}`);
-                        }}
-                        className={`border-b text-sm last:border-b-0 transition-colors ${
-                          projectId ? "cursor-pointer" : "cursor-default"
-                        } ${
-                          isDark
-                            ? "border-[#242424] text-white hover:bg-white/5"
-                            : "border-gray-100 text-black hover:bg-gray-50"
-                        }`}
-                      >
-                        <td className="p-0">
-                          <Link
-                            href={`/admin/shoots/${projectId}`}
-                            className="block px-4 py-4"
-                          >
-                            #{projectId || "N/A"}
-                          </Link>
-                        </td>
-
-                        <td className="p-0">
-                          <Link
-                            href={`/admin/shoots/${projectId}`}
-                            className="block px-4 py-4"
-                          >
-                            {shoot.project_name || "N/A"}
-                          </Link>
-                        </td>
-
-                        <td className="p-0">
-                          <Link
-                            href={`/admin/shoots/${projectId}`}
-                            className="block px-4 py-4"
-                          >
-                            {formatShootType(shoot.shoot_type || shoot.event_type)}
-                          </Link>
-                        </td>
-
-                        <td className="p-0">
-                          <Link
-                            href={`/admin/shoots/${projectId}`}
-                            className="block px-4 py-4"
-                          >
-                            {formatShootDate(shoot.event_date)}
-                          </Link>
-                        </td>
-
-                        <td className="p-0">
-                          <Link
-                            href={`/admin/shoots/${projectId}`}
-                            className="block px-4 py-4"
-                          >
-                            <span
-                              className={`inline-flex min-w-[90px] items-center justify-center rounded-full px-4 py-1.5 text-xs font-medium ${getAssignmentStatusStyle(
-                                shoot.assignment_status
-                              )}`}
+                            router.push(`/admin/shoots/${projectId}`);
+                          }}
+                          className={`border-b text-sm last:border-b-0 transition-colors ${projectId ? "cursor-pointer" : "cursor-default"
+                            } ${isDark
+                              ? "border-[#242424] text-white hover:bg-white/5"
+                              : "border-gray-100 text-black hover:bg-gray-50"
+                            }`}
+                        >
+                          <td className="p-0">
+                            <Link
+                              href={`/admin/shoots/${projectId}`}
+                              className="block px-4 py-4"
                             >
-                              {formatAssignmentStatus(shoot.assignment_status)}
-                            </span>
-                          </Link>
-                        </td>
-                      </tr>
+                              #{projectId || "N/A"}
+                            </Link>
+                          </td>
+
+                          <td className="p-0">
+                            <Link
+                              href={`/admin/shoots/${projectId}`}
+                              className="block px-4 py-4"
+                            >
+                              {shoot.project_name || "N/A"}
+                            </Link>
+                          </td>
+
+                          <td className="p-0">
+                            <Link
+                              href={`/admin/shoots/${projectId}`}
+                              className="block px-4 py-4"
+                            >
+                              {formatShootType(shoot.shoot_type || shoot.event_type)}
+                            </Link>
+                          </td>
+
+                          <td className="p-0">
+                            <Link
+                              href={`/admin/shoots/${projectId}`}
+                              className="block px-4 py-4"
+                            >
+                              {formatShootDate(shoot.event_date)}
+                            </Link>
+                          </td>
+
+                          <td className="p-0">
+                            <Link
+                              href={`/admin/shoots/${projectId}`}
+                              className="block px-4 py-4"
+                            >
+                              <span
+                                className={`inline-flex min-w-[90px] items-center justify-center rounded-full px-4 py-1.5 text-xs font-medium ${getAssignmentStatusStyle(
+                                  shoot.assignment_status
+                                )}`}
+                              >
+                                {formatAssignmentStatus(shoot.assignment_status)}
+                              </span>
+                            </Link>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
                 </table>
-            </div>
+              </div>
 
               {/* Mobile View */}
               <div className="space-y-3 p-3 lg:hidden">
@@ -1606,30 +1592,27 @@ setPastShoots([]);
                         projectId ||
                         index
                       }
-                      className={`rounded-xl border p-4 ${
-                        isDark
-                          ? "border-white/5 bg-[#171717]"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
+                      className={`rounded-xl border p-4 ${isDark
+                        ? "border-white/5 bg-[#171717]"
+                        : "border-gray-200 bg-gray-50"
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p
-                            className={`truncate text-sm font-medium ${
-                              isDark
-                                ? "text-white"
-                                : "text-black"
-                            }`}
+                            className={`truncate text-sm font-medium ${isDark
+                              ? "text-white"
+                              : "text-black"
+                              }`}
                           >
                             {shoot.project_name || "N/A"}
                           </p>
 
                           <p
-                            className={`mt-1 text-xs ${
-                              isDark
-                                ? "text-white/40"
-                                : "text-gray-500"
-                            }`}
+                            className={`mt-1 text-xs ${isDark
+                              ? "text-white/40"
+                              : "text-gray-500"
+                              }`}
                           >
                             #{projectId || "N/A"}
                           </p>
@@ -1647,19 +1630,17 @@ setPastShoots([]);
                       </div>
 
                       <div
-                        className={`mt-4 grid grid-cols-2 gap-3 text-xs ${
-                          isDark
-                            ? "text-[#BDBDBD]"
-                            : "text-gray-600"
-                        }`}
+                        className={`mt-4 grid grid-cols-2 gap-3 text-xs ${isDark
+                          ? "text-[#BDBDBD]"
+                          : "text-gray-600"
+                          }`}
                       >
                         <div>
                           <p
-                            className={`mb-1 ${
-                              isDark
-                                ? "text-white/40"
-                                : "text-gray-400"
-                            }`}
+                            className={`mb-1 ${isDark
+                              ? "text-white/40"
+                              : "text-gray-400"
+                              }`}
                           >
                             Shoot Type
                           </p>
@@ -1667,18 +1648,17 @@ setPastShoots([]);
                           <p>
                             {formatShootType(
                               shoot.shoot_type ||
-                                shoot.event_type
+                              shoot.event_type
                             )}
                           </p>
                         </div>
 
                         <div>
                           <p
-                            className={`mb-1 ${
-                              isDark
-                                ? "text-white/40"
-                                : "text-gray-400"
-                            }`}
+                            className={`mb-1 ${isDark
+                              ? "text-white/40"
+                              : "text-gray-400"
+                              }`}
                           >
                             Shoot Date
                           </p>
@@ -1688,12 +1668,12 @@ setPastShoots([]);
                               shoot.event_date
                             )}
                           </p>
-                  </div>
-                </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-          </div>
             </>
           )}
         </div>
@@ -1922,8 +1902,8 @@ setPastShoots([]);
             <button
               onClick={() => setPlayingVideo(null)}
               className={`p-3 lg:p-4 border rounded-full transition-all active:scale-90 shadow-lg pointer-events-auto ${isDark
-                  ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
-                  : "bg-black/5 border-black/10 text-black hover:bg-black/20"
+                ? "bg-white/5 border-white/10 text-white hover:bg-white/20"
+                : "bg-black/5 border-black/10 text-black hover:bg-black/20"
                 }`}
             >
               <X size={20} className="lg:w-6 lg:h-6" />

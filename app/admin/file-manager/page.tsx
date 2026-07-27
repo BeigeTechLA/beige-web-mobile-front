@@ -43,6 +43,7 @@ import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { getFileManagerRouteState, getFileManagerRouteStateKey, setFileManagerRouteState } from "@/lib/fileManagerRouteState";
 
 const STATUSES = ["Linked", "Unlinked"];
 const LIST_PAGE_SIZE = 10;
@@ -103,6 +104,7 @@ const isVisibilityExpiredFolder = (folder: UiFolderItem) =>
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const [selectedTab, setSelectedTab] = useState("All folders");
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm.trim(), 350);
@@ -158,6 +160,26 @@ export default function AdminFolderManagerPage() {
   const projectsRequestRef = useRef(0);
   const boardProjectsRequestRef = useRef(0);
   const boardTotalsRequestRef = useRef(0);
+  const [routeStateReady, setRouteStateReady] = useState(false);
+  const hasSkippedInitialFilterResetRef = useRef(false);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSelectedTab(savedState.selectedTab);
+    setSearchTerm(savedState.searchTerm);
+    setCurrentPage(savedState.currentPage);
+    setRouteStateReady(true);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+
+    setFileManagerRouteState({
+      selectedTab,
+      searchTerm,
+      currentPage,
+    }, routeStateKey);
+  }, [currentPage, routeStateKey, routeStateReady, searchTerm, selectedTab]);
 
   const getUpdatedTimestamp = (value?: string) => {
     if (!value) return 0;
@@ -291,11 +313,18 @@ export default function AdminFolderManagerPage() {
   );
 
   useEffect(() => {
+    if (!routeStateReady) return;
+    if (!hasSkippedInitialFilterResetRef.current) {
+      hasSkippedInitialFilterResetRef.current = true;
+      return;
+    }
+
     setCurrentPage(1);
     setBoardPage(1);
-  }, [debouncedSearchTerm, selectedTab]);
+  }, [debouncedSearchTerm, routeStateReady, selectedTab]);
 
   useEffect(() => {
+    if (!routeStateReady) return;
     let mounted = true;
 
     const load = async () => {
@@ -307,9 +336,10 @@ export default function AdminFolderManagerPage() {
     return () => {
       mounted = false;
     };
-  }, [currentPage, debouncedSearchTerm, selectedTab]);
+  }, [currentPage, debouncedSearchTerm, routeStateReady, selectedTab]);
 
   useEffect(() => {
+    if (!routeStateReady) return;
     if (viewMode !== "board") return;
     let mounted = true;
 
@@ -323,7 +353,7 @@ export default function AdminFolderManagerPage() {
     return () => {
       mounted = false;
     };
-  }, [viewMode, debouncedSearchTerm, loadBoardProjects]);
+  }, [viewMode, debouncedSearchTerm, loadBoardProjects, routeStateReady]);
 
   const handleLoadMoreBoardProjects = useCallback(async () => {
     if (viewMode !== "board") return;
@@ -408,9 +438,10 @@ export default function AdminFolderManagerPage() {
   };
 
   useEffect(() => {
+    if (!routeStateReady) return;
     if (viewMode !== "board") return;
     loadBoardColumnTotals(debouncedSearchTerm);
-  }, [viewMode, debouncedSearchTerm, status, selectedDate, loadBoardColumnTotals]);
+  }, [viewMode, debouncedSearchTerm, status, selectedDate, loadBoardColumnTotals, routeStateReady]);
 
   const filteredFolders = useMemo(() => {
     const source = viewMode === "board" ? boardProjects : projects;

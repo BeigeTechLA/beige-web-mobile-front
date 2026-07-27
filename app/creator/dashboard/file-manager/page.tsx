@@ -34,10 +34,16 @@ import {
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 export default function CreatorFileManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useViewMode();
@@ -62,6 +68,39 @@ export default function CreatorFileManagerPage() {
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [routeStateReady, setRouteStateReady] = useState(false);
+  const hasSkippedInitialFilterResetRef = React.useRef(false);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSelectedTab(savedState.selectedTab);
+    setSearchTerm(savedState.searchTerm);
+    setCurrentPage(savedState.currentPage);
+    setRouteStateReady(true);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    setFileManagerRouteState(
+      {
+        selectedTab,
+        searchTerm,
+        currentPage,
+      },
+      routeStateKey
+    );
+  }, [currentPage, routeStateKey, routeStateReady, searchTerm, selectedTab]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    if (!hasSkippedInitialFilterResetRef.current) {
+      hasSkippedInitialFilterResetRef.current = true;
+      return;
+    }
+
+    setCurrentPage(1);
+  }, [routeStateReady, searchTerm, selectedTab]);
 
   const tabs = [
     { name: "All Files", icon: FolderOpen },

@@ -259,9 +259,15 @@ export default function AvailabilityDetailsPage() {
         }-${i < 10 ? "0" + i : i}`;
       const availabilityStatus = availability[dateString];
 
-      const isAvailable = availabilityStatus?.available || availabilityStatus?.projectAssigned;
-      const isAssigned = availabilityStatus?.projectAssigned;
+      const availabilityValue = availabilityStatus?.available;
 
+      const isAvailable = availabilityValue === true;
+      const isNotAvailable = availabilityValue === false;
+
+      const isAssigned = availabilityStatus?.projectAssigned;
+      const startTimeDisplay = availabilityStatus?.start_time || availabilityStatus?.projectDetails?.start_time;
+      const endTimeDisplay = availabilityStatus?.end_time || availabilityStatus?.projectDetails?.end_time;
+      const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
       const isPastDate = dateString < todayDateString;
       const isToday = dateString === todayDateString;
 
@@ -319,6 +325,21 @@ export default function AvailabilityDetailsPage() {
                   <span className="hidden lg:block">Available</span>
                 </div>
               )}
+
+              {isNotAvailable && !isAssigned && (
+                <div className="flex items-center gap-1 text-red-400/75">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  <span className="hidden lg:block">Not Available</span>
+                </div>
+              )}
+
+              {hasTimeRange && !isAssigned && (
+                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
+                  <Clock size={11} />
+                  <span>{formatTimeRange(startTimeDisplay, endTimeDisplay)}</span>
+                </div>
+              )}
+
             </div>
           )}
         </div>
@@ -568,7 +589,7 @@ export default function AvailabilityDetailsPage() {
                   </div>
                 </div>
 
-                <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                {/* <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
                   }`}>
                   <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
                   <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
@@ -579,7 +600,7 @@ export default function AvailabilityDetailsPage() {
                     <Copy size={16} className="mr-2" />
                     Copy Link
                   </Button>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

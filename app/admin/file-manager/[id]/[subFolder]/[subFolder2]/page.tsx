@@ -50,6 +50,11 @@ import {
 import { toast } from "sonner";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { MobileFileRow } from "@/components/admin/file-manager/MobileRow";
+import {
+  getFileManagerRouteState,
+  getFileManagerRouteStateKey,
+  setFileManagerRouteState,
+} from "@/lib/fileManagerRouteState";
 
 const FILES_PAGE_SIZE = 20;
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
@@ -158,6 +163,7 @@ export default function SubFolderDetailsPage() {
     return fallbackFromPath || slugToWorkspaceName(nestedSlug);
   }, [folderPath, nestedSlug, searchParams]);
   const { isDark } = useResolvedTheme();
+  const routeStateKey = getFileManagerRouteStateKey(pathname);
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -193,6 +199,22 @@ export default function SubFolderDetailsPage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const savedState = getFileManagerRouteState(routeStateKey);
+    setSearchTerm(savedState.searchTerm);
+    setVisibleFileCount(savedState.visibleFileCount);
+  }, [routeStateKey]);
+
+  useEffect(() => {
+    setFileManagerRouteState(
+      {
+        searchTerm,
+        visibleFileCount,
+      },
+      routeStateKey
+    );
+  }, [routeStateKey, searchTerm, visibleFileCount]);
 
   const loadFiles = async () => {
     try {
