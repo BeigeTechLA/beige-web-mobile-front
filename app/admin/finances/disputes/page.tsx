@@ -21,6 +21,14 @@ import DisputeDetailsModal, {
   type DisputeDetailsRecord,
 } from "@/components/admin/finances/DisputeDetailsModal";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import ResolveDisputeModal, {
+  type ResolveDisputeFormData,
+} from "@/components/admin/finances/ResolveDisputeModal";
+import ConfirmResolutionModal, {
+  type DisputeResolutionData,
+} from "@/components/admin/finances/ConfirmResolutionModal";
+import ResolutionSuccessfulModal from "@/components/admin/finances/ResolutionSuccessfulModal";
+import ProcessingResolutionModal from "@/components/admin/finances/ProcessingResolutionModal";
 import {
   financeTransactionsApi,
   type AdminFinanceDisputeApiRow,
@@ -179,6 +187,14 @@ export default function AdminDisputesPage() {
   const [actionLoading, setActionLoading] = useState<"review" | "resolve" | "reject" | "escalate" | "comment" | "attachment" | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Resolution modal states
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [disputeToResolve, setDisputeToResolve] = useState<DisputeDetailsRecord | null>(null);
+  const [resolutionData, setResolutionData] = useState<DisputeResolutionData | null>(null);
+  const [resolutionFormData, setResolutionFormData] = useState<ResolveDisputeFormData | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -353,6 +369,72 @@ export default function AdminDisputesPage() {
     }
   };
 
+  const openResolveFlow = (dispute: DisputeDetailsRecord) => {
+    setDisputeToResolve(dispute);
+    setResolutionData(null);
+    setResolveModalOpen(true);
+  };
+
+  const handleResolveModalSubmit = (formData: ResolveDisputeFormData) => {
+    if (!disputeToResolve) return;
+
+    const amount = formData.resolutionType === "credits"
+      ? undefined
+      : formData.amount || disputeToResolve.disputedAmount;
+    const creditAmount = formData.resolutionType === "credits"
+      ? `${formData.creditAmount || "0"} credits`
+      : undefined;
+
+    setResolutionData({
+      resolutionType: formData.resolutionType,
+      disputeId: disputeToResolve.id,
+      recipient: formData.recipient || disputeToResolve.raisedBy || "Client",
+      amount,
+      creditAmount,
+      paymentMethod: formData.paymentMethod || "Manual Payment",
+      transactionId: formData.transactionId || "-",
+    });
+    setResolutionFormData(formData);
+    setResolveModalOpen(false);
+    setConfirmResolveOpen(true);
+  };
+
+  const confirmResolveDispute = async () => {
+    if (!disputeToResolve?.disputeId || !resolutionData) return;
+
+    setConfirmResolveOpen(false);
+    setIsProcessing(true);
+    setActionLoading("resolve");
+    try {
+      const response = await financeTransactionsApi.resolveAdminDispute(disputeToResolve.disputeId, {
+        resolution_type: resolutionData.resolutionType,
+        release_payout_holds: true,
+        amount: resolutionData.amount,
+        credit_amount: resolutionData.creditAmount,
+        recipient: resolutionData.recipient,
+        payment_method: resolutionData.paymentMethod,
+        transaction_id: resolutionData.transactionId,
+        notes: resolutionFormData?.notes || `Resolved by admin via ${resolutionData.resolutionType} resolution`,
+      });
+
+      if (resolutionFormData?.files.length) {
+        const payload = new FormData();
+        resolutionFormData.files.forEach((file) => payload.append("attachments", file));
+        await financeTransactionsApi.addAdminDisputeAttachment(disputeToResolve.disputeId, payload);
+      }
+
+      const detailsResponse = await financeTransactionsApi.getAdminDisputeDetails(disputeToResolve.disputeId);
+      setSelectedDispute(mapDisputeDetails(detailsResponse.data || response.data));
+      setRefreshKey((current) => current + 1);
+      setIsSuccessOpen(true);
+    } catch (error) {
+      console.error("Failed to resolve dispute:", error);
+    } finally {
+      setIsProcessing(false);
+      setActionLoading(null);
+    }
+  };
+
   const addDisputeComment = async (dispute: DisputeDetailsRecord, body: string) => {
     if (!dispute.disputeId) return;
     setActionLoading("comment");
@@ -471,7 +553,7 @@ export default function AdminDisputesPage() {
         dispute={selectedDispute}
         actionLoading={actionLoading}
         onMarkInReview={(dispute) => void applyDisputeAction(dispute, "review")}
-        onResolve={(dispute) => void applyDisputeAction(dispute, "resolve")}
+        onResolve={openResolveFlow}
         onReject={(dispute) => void applyDisputeAction(dispute, "reject")}
         onEscalate={(dispute) => void applyDisputeAction(dispute, "escalate")}
         onAddComment={(dispute, body) => void addDisputeComment(dispute, body)}
@@ -479,6 +561,48 @@ export default function AdminDisputesPage() {
         onOpenInvoice={(dispute) => {
           if (dispute.invoiceUrl) window.open(dispute.invoiceUrl, "_blank", "noopener,noreferrer");
         }}
+      />
+
+      <ResolveDisputeModal
+        open={resolveModalOpen}
+        isDark={isDark}
+        disputeData={disputeToResolve ? {
+          disputeId: disputeToResolve.id,
+          shootId: disputeToResolve.shootId,
+          amount: disputeToResolve.disputedAmount,
+          recipient: disputeToResolve.raisedBy,
+        } : null}
+        onClose={() => setResolveModalOpen(false)}
+        onSubmit={handleResolveModalSubmit}
+      />
+
+      {resolutionData ? (
+        <ConfirmResolutionModal
+          open={confirmResolveOpen}
+          isDark={isDark}
+          isSubmitting={actionLoading === "resolve"}
+          disputeData={resolutionData}
+          onClose={() => setConfirmResolveOpen(false)}
+          onConfirm={() => void confirmResolveDispute()}
+        />
+      ) : null}
+
+      <ResolutionSuccessfulModal
+        open={isSuccessOpen}
+        isDark={isDark}
+        disputeData={{
+          paymentType: resolutionData?.resolutionType || "manual",
+          disputeId: resolutionData?.disputeId || disputeToResolve?.id || "-",
+          status: "Resolved - Paid",
+          amount: resolutionData?.amount || disputeToResolve?.disputedAmount || "$0",
+          creditAmount: resolutionData?.creditAmount || "0 credits",
+        }}
+        onClose={() => setIsSuccessOpen(false)}
+      />
+
+      <ProcessingResolutionModal
+        open={isProcessing}
+        isDark={isDark}
       />
     </>
   );

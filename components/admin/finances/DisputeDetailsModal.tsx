@@ -111,8 +111,6 @@ function DetailCard({
     ? className
     : (isDark ? "bg-[#1F1F1F] border-white/10 text-white" : "bg-[#F5F5F5] border-black/10 text-black");
 
-  console.log(finalContainerClass)
-
   // If no explicit valueClassName is passed, apply default weight and color
   const finalValueClass = valueClassName
     ? valueClassName
