@@ -63,7 +63,7 @@ const menuItems = [
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
       { name: 'Transactions', link: '/admin/finances/transactions' },
-      { name: 'Disputes', link: '/admin/finances/disputes' },
+      // { name: 'Disputes', link: '/admin/finances/disputes' },
       { name: 'Beige credit points', link: '/admin/finances/creditPoints' },
       { name: 'CP Compensation', link: '/admin/finances/cpCompensation' },
 
