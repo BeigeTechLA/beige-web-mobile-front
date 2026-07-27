@@ -29,6 +29,9 @@ import ConfirmResolutionModal, {
 } from "@/components/admin/finances/ConfirmResolutionModal";
 import ResolutionSuccessfulModal from "@/components/admin/finances/ResolutionSuccessfulModal";
 import ProcessingResolutionModal from "@/components/admin/finances/ProcessingResolutionModal";
+import RejectDisputeModal, {
+  type RejectDisputeFormData,
+} from "@/components/admin/finances/RejectDisputeModal";
 import {
   financeTransactionsApi,
   type AdminFinanceDisputeApiRow,
@@ -39,6 +42,12 @@ import {
 const formatCurrency = (value: number | string | null | undefined) => {
   const amount = Number(value || 0);
   return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+
+const parseMoneyValue = (value: number | string | null | undefined) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(amount) ? amount : 0;
 };
 
 const formatDate = (value: string | null | undefined) => {
@@ -93,6 +102,23 @@ const titleize = (value: string | null | undefined) =>
     .replace(/\b\w/g, (char) => char.toUpperCase())
     .trim();
 
+const formatResolutionType = (value: string | null | undefined) => {
+  const normalized = String(value || "").toLowerCase();
+  const labels: Record<string, string> = {
+    payout_release: "Payout Release",
+    refund: "Refund",
+    partial_refund: "Partial Refund",
+    credit_compensation: "Beige Credits",
+    payout_adjustment: "Payout Adjustment",
+    no_action: "No Action",
+    other: "Other",
+  };
+  return labels[normalized] || titleize(value);
+};
+
+const isProofAttachmentType = (type: string | null | undefined) =>
+  type === "refund_proof" || type === "payout_proof";
+
 const mapStatus = (status: string | null | undefined): DisputeHistoryItem["status"] => {
   const normalized = String(status || "").toLowerCase();
   if (normalized === "in_review") return "In Review";
@@ -100,6 +126,44 @@ const mapStatus = (status: string | null | undefined): DisputeHistoryItem["statu
   if (normalized === "rejected") return "Rejected";
   if (normalized === "escalated") return "Escalated";
   return "Open";
+};
+
+const inferRejectedFromResolution = (item: AdminFinanceDisputeDetailsApiRow) => {
+  const resolutionText = `${item.resolution?.type || ""} ${item.resolution?.notes || ""}`.toLowerCase();
+  return item.status === "resolved" && /\breject(ed|ing)?\b|no_action|invalid claim/.test(resolutionText);
+};
+
+const buildResolutionSummary = (
+  item: AdminFinanceDisputeDetailsApiRow,
+  status: DisputeHistoryItem["status"]
+): DisputeDetailsRecord["resolutionSummary"] => {
+  if (status !== "Resolved" && status !== "Rejected") return null;
+  const latestCloseEvent = [...(item.timeline || [])]
+    .reverse()
+    .find((event) => event.to_status === "resolved" || event.to_status === "rejected");
+  const metadata = latestCloseEvent?.metadata || {};
+  const metadataValue = (key: string) => {
+    const value = metadata[key];
+    return value === null || value === undefined || value === "" ? "" : String(value);
+  };
+  const resolutionType = String(item.resolution?.type || metadataValue("resolution_type") || "");
+  const isCreditResolution = resolutionType === "credit_compensation";
+  const details = [
+    { label: "Status", value: status },
+    { label: status === "Rejected" ? "Reason" : "Resolution Type", value: status === "Rejected" ? metadataValue("rejection_reason") : formatResolutionType(resolutionType) },
+    { label: "Amount", value: metadataValue("resolution_amount") || metadataValue("credit_amount") || metadataValue("refund_amount") },
+    { label: "Payment Method", value: metadataValue("payment_method") },
+    { label: "Transaction ID", value: metadataValue("transaction_id") },
+    { label: "Recipient", value: metadataValue("recipient") },
+    { label: "Credit Reference", value: metadataValue("account_credit_ledger_id") ? `CR-${metadataValue("account_credit_ledger_id")}` : "" },
+    { label: "Credit Use", value: isCreditResolution ? "Added to the client account for future bookings." : "" },
+    { label: "Notes", value: item.resolution?.notes || latestCloseEvent?.notes || "" },
+  ].filter((detail) => detail.value);
+
+  return {
+    label: status === "Rejected" ? "Rejection Details" : "Resolution Details",
+    details: details.length ? details : [{ label: "Status", value: status }],
+  };
 };
 
 const statusApiValue: Record<string, string | undefined> = {
@@ -136,17 +200,30 @@ const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => 
 
 const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetailsRecord => {
   const row = mapDisputeItem(item);
+  const status = inferRejectedFromResolution(item) ? "Rejected" : row.status;
+  const payoutHoldAmount = parseMoneyValue(row.payoutHold);
   const timeline = (item.timeline || []).map((event) => ({
+    id: event.id,
     title: titleize(event.action) || "Updated",
     by: event.performed_by?.name || "Admin",
     at: formatDateTime(event.created_at),
     tone: event.to_status === "resolved" ? "resolved" as const : event.to_status === "in_review" || event.to_status === "escalated" ? "review" as const : "warning" as const,
   }));
+  const attachments = (item.attachments || []).map((attachment) => ({
+    name: attachment.file_name || "Attachment",
+    url: attachment.file_url || null,
+    uploadedBy: getActorRole(attachment.uploaded_by, item),
+    uploadedAt: formatDateTime(attachment.created_at),
+    attachmentType: attachment.attachment_type || null,
+  }));
 
   return {
     ...row,
+    status,
     createdAt: formatDate(item.created_at),
-    payoutNote: item.resolution?.notes || (row.status === "Resolved" ? "Released after resolution" : "On hold until resolved"),
+    payoutNote: payoutHoldAmount > 0
+      ? status === "Resolved" ? "Hold released after resolution" : status === "Rejected" ? "Hold reviewed with dispute" : "On hold until resolved"
+      : "No payout currently impacted",
     invoiceUrl: buildParentInvoiceUrl(item.booking_id) || item.invoice?.invoice_url || item.invoice?.invoice_pdf || null,
     timeline: timeline.length > 0 ? timeline : [{
       title: "Dispute Created",
@@ -160,12 +237,9 @@ const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetai
       message: comment.body || "-",
       at: formatDateTime(comment.created_at),
     })),
-    attachments: (item.attachments || []).map((attachment) => ({
-      name: attachment.file_name || "Attachment",
-      url: attachment.file_url || null,
-      uploadedBy: getActorRole(attachment.uploaded_by, item),
-      uploadedAt: "-",
-    })),
+    attachments,
+    resolutionProofs: attachments.filter((attachment) => isProofAttachmentType(attachment.attachmentType)),
+    resolutionSummary: buildResolutionSummary(item, status),
   };
 };
 
@@ -195,6 +269,8 @@ export default function AdminDisputesPage() {
   const [disputeToResolve, setDisputeToResolve] = useState<DisputeDetailsRecord | null>(null);
   const [resolutionData, setResolutionData] = useState<DisputeResolutionData | null>(null);
   const [resolutionFormData, setResolutionFormData] = useState<ResolveDisputeFormData | null>(null);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [disputeToReject, setDisputeToReject] = useState<DisputeDetailsRecord | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -375,6 +451,11 @@ export default function AdminDisputesPage() {
     setResolveModalOpen(true);
   };
 
+  const openRejectFlow = (dispute: DisputeDetailsRecord) => {
+    setDisputeToReject(dispute);
+    setRejectModalOpen(true);
+  };
+
   const handleResolveModalSubmit = (formData: ResolveDisputeFormData) => {
     if (!disputeToResolve) return;
 
@@ -382,7 +463,7 @@ export default function AdminDisputesPage() {
       ? undefined
       : formData.amount || disputeToResolve.disputedAmount;
     const creditAmount = formData.resolutionType === "credits"
-      ? `${formData.creditAmount || "0"} credits`
+      ? formatCurrency(parseMoneyValue(formData.creditAmount))
       : undefined;
 
     setResolutionData({
@@ -406,19 +487,32 @@ export default function AdminDisputesPage() {
     setIsProcessing(true);
     setActionLoading("resolve");
     try {
+      const apiResolutionType =
+        resolutionFormData?.resolutionType === "credits"
+          ? "credit_compensation"
+          : resolutionFormData?.resolutionType === "manual"
+            ? resolutionFormData.amountType === "partial" ? "partial_refund" : "refund"
+            : "payout_release";
+      const resolutionAmount = parseMoneyValue(resolutionData.amount || disputeToResolve.disputedAmount);
+      const creditAmount = parseMoneyValue(resolutionFormData?.creditAmount || resolutionData.creditAmount);
       const response = await financeTransactionsApi.resolveAdminDispute(disputeToResolve.disputeId, {
-        resolution_type: resolutionData.resolutionType,
+        resolution_type: apiResolutionType,
         release_payout_holds: true,
-        amount: resolutionData.amount,
-        credit_amount: resolutionData.creditAmount,
+        amount: apiResolutionType === "credit_compensation" ? creditAmount : resolutionAmount,
+        refund_amount: apiResolutionType === "refund" || apiResolutionType === "partial_refund" ? resolutionAmount : undefined,
+        credit_amount: apiResolutionType === "credit_compensation" ? creditAmount : undefined,
         recipient: resolutionData.recipient,
-        payment_method: resolutionData.paymentMethod,
+        payment_method: apiResolutionType === "credit_compensation" ? "Beige Credits" : resolutionData.paymentMethod,
         transaction_id: resolutionData.transactionId,
-        notes: resolutionFormData?.notes || `Resolved by admin via ${resolutionData.resolutionType} resolution`,
+        notes: resolutionFormData?.notes || (apiResolutionType === "credit_compensation"
+          ? "Beige credits added to the client account for future bookings."
+          : `Resolved by admin via ${formatResolutionType(apiResolutionType)}.`),
+        notify_user: apiResolutionType === "credit_compensation",
       });
 
       if (resolutionFormData?.files.length) {
         const payload = new FormData();
+        payload.append("attachment_type", apiResolutionType === "payout_release" ? "payout_proof" : "refund_proof");
         resolutionFormData.files.forEach((file) => payload.append("attachments", file));
         await financeTransactionsApi.addAdminDisputeAttachment(disputeToResolve.disputeId, payload);
       }
@@ -431,6 +525,28 @@ export default function AdminDisputesPage() {
       console.error("Failed to resolve dispute:", error);
     } finally {
       setIsProcessing(false);
+      setActionLoading(null);
+    }
+  };
+
+  const submitRejectDispute = async (formData: RejectDisputeFormData) => {
+    if (!disputeToReject?.disputeId) return;
+
+    setActionLoading("reject");
+    try {
+      const response = await financeTransactionsApi.rejectOrRefundAdminDispute(disputeToReject.disputeId, {
+        resolution_type: "no_action",
+        rejection_reason: formData.reason,
+        notes: formData.notes || `Rejected by admin: ${titleize(formData.reason)}`,
+      });
+
+      setSelectedDispute(mapDisputeDetails(response.data));
+      setRejectModalOpen(false);
+      setDisputeToReject(null);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to reject dispute:", error);
+    } finally {
       setActionLoading(null);
     }
   };
@@ -480,14 +596,14 @@ export default function AdminDisputesPage() {
                 }`}>
               <ArrowUpToLine /> Export
             </Button>
-            <Button
+            {/* <Button
               onClick={() => setIsDisputeModalOpen(true)}
               disabled={!canCreate}
               title={canCreate ? "Add Dispute" : "Create permission not allowed"}
               className="bg-[#E5D5B8] text-black h-12 px-4 lg:px-7 hover:bg-[#d9c59d]"
             >
               Add Dispute
-            </Button>
+            </Button> */}
           </>
         }
       />
@@ -554,8 +670,7 @@ export default function AdminDisputesPage() {
         actionLoading={actionLoading}
         onMarkInReview={(dispute) => void applyDisputeAction(dispute, "review")}
         onResolve={openResolveFlow}
-        onReject={(dispute) => void applyDisputeAction(dispute, "reject")}
-        onEscalate={(dispute) => void applyDisputeAction(dispute, "escalate")}
+        onReject={openRejectFlow}
         onAddComment={(dispute, body) => void addDisputeComment(dispute, body)}
         onAddAttachment={(dispute, files) => void addDisputeAttachment(dispute, files)}
         onOpenInvoice={(dispute) => {
@@ -603,6 +718,19 @@ export default function AdminDisputesPage() {
       <ProcessingResolutionModal
         open={isProcessing}
         isDark={isDark}
+      />
+
+      <RejectDisputeModal
+        open={rejectModalOpen}
+        isDark={isDark}
+        isSubmitting={actionLoading === "reject"}
+        disputeLabel={disputeToReject ? `${disputeToReject.id} • ${disputeToReject.shootId} • ${disputeToReject.disputedAmount}` : undefined}
+        onClose={() => {
+          if (actionLoading === "reject") return;
+          setRejectModalOpen(false);
+          setDisputeToReject(null);
+        }}
+        onSubmit={(formData) => void submitRejectDispute(formData)}
       />
     </>
   );

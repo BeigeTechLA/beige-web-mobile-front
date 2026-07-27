@@ -52,6 +52,9 @@ export const disputeStatusStyles: Record<DisputeStatus, string> = {
   Escalated: "bg-[#A855F7]/10 text-[#A855F7] border-[#A855F7]/20",
 };
 
+const isClosedDisputeStatus = (status: DisputeStatus) =>
+  status === "Resolved" || status === "Rejected";
+
 const buildPaginationItems = (
   currentPage: number,
   totalPages: number
@@ -176,12 +179,18 @@ export default function DisputeHistoryList({
             <Loader2 className="animate-spin text-[#E8D1AB]" size={32} />
           </div>
         ) : visibleItems.length > 0 ? (
-          visibleItems.map((item) => (
+          visibleItems.map((item) => {
+            const isClosed = isClosedDisputeStatus(item.status);
+            return (
             <article
               key={item.id}
               className={`rounded-2xl border p-0 lg:p-6 transition-colors duration-200 ${isDark
-                ? "border-[#E8D1AB] bg-[#0D0D0D] hover:border-[#E8D1AB]/80 hover:bg-[#0D0D0D]/80"
-                : "border-[#E5D5B8] bg-[#FFFCF7] hover:border-[#D7C199] hover:bg-[#FFF8EF]"
+                ? isClosed
+                  ? "border-[#333333] bg-[#0D0D0D] hover:border-[#444444] hover:bg-[#111111]"
+                  : "border-[#E8D1AB] bg-[#0D0D0D] hover:border-[#E8D1AB]/80 hover:bg-[#0D0D0D]/80"
+                : isClosed
+                  ? "border-[#E5E5E5] bg-white hover:border-[#D1D1D1] hover:bg-[#FAFAFA]"
+                  : "border-[#E5D5B8] bg-[#FFFCF7] hover:border-[#D7C199] hover:bg-[#FFF8EF]"
                 }`}
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-6">
@@ -249,7 +258,8 @@ export default function DisputeHistoryList({
                 </button>
               </div>
             </article>
-          ))
+            );
+          })
         ) : (
           <div className={`py-8 text-center text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
             No disputes found.

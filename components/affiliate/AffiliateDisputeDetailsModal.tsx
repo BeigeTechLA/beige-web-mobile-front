@@ -17,6 +17,7 @@ import {
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type AffiliateDisputeTimelineEvent = {
+  id?: string | number | null;
   title: string;
   by: string;
   at: string;
@@ -30,6 +31,14 @@ type AffiliateDisputeComment = {
   at: string;
 };
 
+export type AffiliateDisputeHistoryItem = {
+  disputeId: string | number;
+  label: string;
+  status: AffiliateDisputeDetailsRecord["status"];
+  issueType: string;
+  createdAt: string;
+};
+
 export type AffiliateDisputeDetailsRecord = {
   id: string;
   bookingId: string;
@@ -37,7 +46,7 @@ export type AffiliateDisputeDetailsRecord = {
   raisedBy: string;
   raisedRole: string;
   createdAt: string;
-  status: "Dispute - Open" | "Under Review" | "Resolved";
+  status: "Dispute - Open" | "Under Review" | "Resolved" | "Rejected";
   issueType: string;
   description: string;
   timeline: AffiliateDisputeTimelineEvent[];
@@ -47,16 +56,32 @@ export type AffiliateDisputeDetailsRecord = {
     uploadedBy: string;
     uploadedAt: string;
     url?: string | null;
+    attachmentType?: string | null;
+  }>;
+  resolutionProofs?: Array<{
+    name: string;
+    size: string;
+    uploadedBy: string;
+    uploadedAt: string;
+    url?: string | null;
+    attachmentType?: string | null;
   }>;
   comments: AffiliateDisputeComment[];
   invoiceUrl?: string | null;
+  resolutionSummary?: {
+    label: string;
+    details: Array<{ label: string; value: string }>;
+  } | null;
 };
 
 type AffiliateDisputeDetailsModalProps = {
   isOpen: boolean;
   onClose: () => void;
   dispute: AffiliateDisputeDetailsRecord | null;
+  disputeHistory?: AffiliateDisputeHistoryItem[];
+  activeDisputeId?: string | number | null;
   actionLoading?: "comment" | "attachment" | null;
+  onSelectHistory?: (disputeId: string | number) => void;
   onAddComment?: (dispute: AffiliateDisputeDetailsRecord, body: string) => void;
   onAddAttachment?: (dispute: AffiliateDisputeDetailsRecord, files: File[]) => void;
   onOpenInvoice?: (dispute: AffiliateDisputeDetailsRecord) => void;
@@ -82,6 +107,10 @@ const timelineStyles: Record<
     iconColor: "text-[#22C55E]",
   },
 };
+
+const isResolutionProof = (
+  file: { attachmentType?: string | null }
+) => file.attachmentType === "refund_proof" || file.attachmentType === "payout_proof";
 
 function DetailCard({
   icon,
@@ -128,7 +157,10 @@ export default function AffiliateDisputeDetailsModal({
   isOpen,
   onClose,
   dispute,
+  disputeHistory = [],
+  activeDisputeId = null,
   actionLoading = null,
+  onSelectHistory,
   onAddComment,
   onAddAttachment,
   onOpenInvoice,
@@ -139,6 +171,11 @@ export default function AffiliateDisputeDetailsModal({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   if (!isOpen || !dispute) return null;
+  const allAttachments = dispute.attachments || [];
+  const resolutionProofs = dispute.resolutionProofs?.length
+    ? dispute.resolutionProofs
+    : allAttachments.filter(isResolutionProof);
+  const attachments = allAttachments.filter((file) => !isResolutionProof(file));
 
   return (
     <div className="fixed inset-0 z-[150] flex items-stretch justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200">
@@ -176,6 +213,8 @@ export default function AffiliateDisputeDetailsModal({
             <span className={`inline-flex rounded-full border px-3 py-1 text-sm ${
               dispute.status === "Resolved"
                 ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
+                : dispute.status === "Rejected"
+                  ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
                 : dispute.status === "Under Review"
                   ? "border-[#2A4C7A] bg-[#17263D] text-[#4F93FF]"
                   : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
@@ -183,6 +222,54 @@ export default function AffiliateDisputeDetailsModal({
               {dispute.status}
             </span>
           </div>
+
+          {disputeHistory.length > 1 ? (
+            <div className={`mb-5 rounded-xl border p-4 ${isDark ? "border-white/10 bg-[#111]" : "border-black/10 bg-[#F7F7F7]"}`}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Dispute History</p>
+                <span className={isDark ? "text-sm text-white/45" : "text-sm text-black/45"}>
+                  {disputeHistory.length} attempts
+                </span>
+              </div>
+              <div className="space-y-2">
+                {disputeHistory.map((item) => {
+                  const isActive = String(item.disputeId) === String(activeDisputeId || "");
+                  return (
+                    <button
+                      key={String(item.disputeId)}
+                      type="button"
+                      onClick={() => onSelectHistory?.(item.disputeId)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                        isActive
+                          ? "border-[#E8D1AB] bg-[#E8D1AB]/10"
+                          : isDark
+                            ? "border-white/10 bg-[#1A1A1A] hover:border-white/20"
+                            : "border-black/10 bg-white hover:border-black/20"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{item.label}</p>
+                        <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                          {item.issueType} · {item.createdAt}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${
+                        item.status === "Resolved"
+                          ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
+                          : item.status === "Rejected"
+                            ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
+                            : item.status === "Under Review"
+                              ? "border-[#2A4C7A] bg-[#17263D] text-[#4F93FF]"
+                              : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <DetailCard
@@ -228,6 +315,43 @@ export default function AffiliateDisputeDetailsModal({
               Open Parent Invoice
             </button>
 
+            {dispute.resolutionSummary ? (
+              <div>
+                <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  {dispute.resolutionSummary.label}
+                </p>
+                <div className={`space-y-2 rounded-lg border px-4 py-3.5 ${isDark ? "border-white/10 bg-[#1F1F1F]" : "border-black/10 bg-[#F3F4F6]"}`}>
+                  {dispute.resolutionSummary.details.map((item) => (
+                    <div key={item.label} className="flex items-start justify-between gap-4 text-sm">
+                      <span className={isDark ? "text-[#A0A0A0]" : "text-black/50"}>{item.label}</span>
+                      <span className={`text-right ${isDark ? "text-white" : "text-black"}`}>{item.value}</span>
+                    </div>
+                  ))}
+                  {resolutionProofs.length > 0 ? (
+                    <div className={`mt-3 border-t pt-3 ${isDark ? "border-white/10" : "border-black/10"}`}>
+                      <p className={`mb-2 text-sm ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Payment Proof</p>
+                      <div className="space-y-2">
+                        {resolutionProofs.map((file, index) => (
+                          <div key={`${file.name}-${file.url || ""}-${index}`} className="flex items-center justify-between gap-3 text-sm">
+                            <span className={`min-w-0 truncate ${isDark ? "text-white" : "text-black"}`}>{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => file.url && window.open(file.url, "_blank", "noopener,noreferrer")}
+                              disabled={!file.url}
+                              className={`shrink-0 ${isDark ? "text-white/70" : "text-black/60"} disabled:opacity-40`}
+                              aria-label={`Download ${file.name}`}
+                            >
+                              <Download size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             <div>
               <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Issue Type</p>
               <div className={`h-14 rounded-lg px-4 py-3.5 text-base ${isDark ? "bg-[#1F1F1F] text-white" : "bg-[#F3F4F6] text-black/90"}`}>
@@ -247,8 +371,14 @@ export default function AffiliateDisputeDetailsModal({
               <div className="space-y-4">
                 {dispute.timeline.map((event, index) => {
                   const style = timelineStyles[event.tone];
+                  const timelineKey = [
+                    event.id || "timeline",
+                    event.title,
+                    event.at,
+                    index,
+                  ].join("-");
                   return (
-                    <div key={`${event.title}-${event.at}`} className="relative flex gap-3">
+                    <div key={timelineKey} className="relative flex gap-3">
                       {index < dispute.timeline.length - 1 ? (
                         <div className={`absolute left-[11px] top-6 h-[calc(100%+6px)] w-px ${isDark ? "bg-white/10" : "bg-black/10"}`} />
                       ) : null}
@@ -269,12 +399,12 @@ export default function AffiliateDisputeDetailsModal({
 
             <div>
               <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Attachments ({dispute.attachments.length})
+                Attachments ({attachments.length})
               </p>
               <div className="space-y-3">
-                {dispute.attachments.map((file) => (
+                {attachments.map((file, index) => (
                   <div
-                    key={file.name}
+                    key={`${file.name}-${file.url || ""}-${index}`}
                     className={`flex items-center justify-between rounded-lg px-4 py-3 ${
                       isDark ? "bg-[#1F1F1F]" : "bg-[#F4F5F7]"
                     }`}
@@ -299,7 +429,7 @@ export default function AffiliateDisputeDetailsModal({
                     </button>
                   </div>
                 ))}
-                {!dispute.attachments.length ? (
+                {!attachments.length ? (
                   <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? "bg-[#1F1F1F] text-white/45" : "bg-[#F4F5F7] text-black/45"}`}>
                     No attachments added.
                   </div>

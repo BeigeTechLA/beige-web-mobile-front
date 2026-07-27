@@ -721,9 +721,11 @@ export const ShootsTable = ({
     const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
     const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
     const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
+    const next30Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).getTime();
     const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
     const last7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).getTime();
     const last15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15).getTime();
+    const last30Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
     const last1Month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).getTime();
     const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
     const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
@@ -752,12 +754,14 @@ export const ShootsTable = ({
       if (range === "upcoming") return shoot.rawDate >= startOfToday;
       if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
       if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
+      if (range === "next_30_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next30Days;
       if (range === "in_1_month") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Month;
       if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
       if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
       if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
       if (range === "last_7_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last7Days;
       if (range === "last_15_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last15Days;
+      if (range === "last_30_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last30Days;
       if (range === "last_1_month") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last1Month;
 
       return true;
@@ -1205,19 +1209,18 @@ export const ShootsTable = ({
                     className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
                     viewportClassName="!h-auto max-h-56 overflow-y-auto"
                   >
-                    <SelectItem value="all">All</SelectItem>
+                    <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#E8D1AB]">
+                      Filter by Shoot Date
+                    </div>
                     <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                      <SelectItem value="last_15_days">Last 15 Days</SelectItem>
-                      <SelectItem value="last_1_month">Last 1 Month</SelectItem>
                       <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                       <SelectItem value="next_15_days">Next 15 Days</SelectItem>
-                      <SelectItem value="in_1_month">In 1 Month</SelectItem>
-                      <SelectItem value="in_2_months">In 2 Months</SelectItem>
-                      <SelectItem value="in_6_months">In 6 Months</SelectItem>
-                      <SelectItem value="in_1_year">In 1 Year</SelectItem>
+                      <SelectItem value="next_30_days">Next 30 Days</SelectItem>
+                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                      <SelectItem value="last_15_days">Last 15 Days</SelectItem>
+                      <SelectItem value="last_30_days">Last 30 Days</SelectItem>
                       {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+                      {!externalSelectedDate && <SelectItem value="custom">Custom Range</SelectItem>}
                     </SelectContent>
                   </Select>
                   <Select value={activeCpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => { setActiveCpAssignmentFilter(v); setCurrentPage(1); }}>

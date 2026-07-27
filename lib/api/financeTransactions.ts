@@ -105,6 +105,7 @@ export type ClientFinanceDisputeDetailsApiRow = ClientFinanceDisputeApiRow & {
   shoot_id?: string | null;
   description?: string | null;
   invoice?: ClientFinanceInvoiceApiRow | null;
+  resolution?: AdminFinanceDisputeDetailsApiRow["resolution"];
   timeline?: AdminFinanceDisputeDetailsApiRow["timeline"];
   internal_comments?: AdminFinanceDisputeDetailsApiRow["internal_comments"];
   attachments?: Array<{
@@ -112,6 +113,8 @@ export type ClientFinanceDisputeDetailsApiRow = ClientFinanceDisputeApiRow & {
     file_name?: string | null;
     file_url?: string | null;
     file_path?: string | null;
+    attachment_type?: string | null;
+    created_at?: string | null;
     uploaded_by?: {
       id?: number | string | null;
       name?: string | null;
@@ -232,6 +235,7 @@ export type AdminFinanceDisputeDetailsApiRow = AdminFinanceDisputeApiRow & {
       name?: string | null;
       email?: string | null;
     } | null;
+    metadata?: Record<string, unknown> | null;
   }>;
   internal_comments?: Array<{
     id?: number | string | null;
@@ -253,6 +257,9 @@ export type AdminFinanceDisputeDetailsApiRow = AdminFinanceDisputeApiRow & {
     id?: number | string | null;
     file_name?: string | null;
     file_url?: string | null;
+    file_path?: string | null;
+    attachment_type?: string | null;
+    created_at?: string | null;
     uploaded_by?: {
       id?: number | string | null;
       name?: string | null;
@@ -340,6 +347,13 @@ export const financeTransactionsApi = {
   listClientPayments(params: FinanceTransactionListParams = {}) {
     return apiClient.get<ApiEnvelope<FinanceListResponse<ClientFinancePaymentApiRow>>>(
       "finance/client/payments",
+      cleanParams(params)
+    );
+  },
+
+  listClientDisputes(params: AdminFinanceDisputeListParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceListResponse<ClientFinanceDisputeDetailsApiRow>>>(
+      "finance/client/disputes",
       cleanParams(params)
     );
   },

@@ -72,7 +72,7 @@ const MOCK_SHOOT_DATA: ShootCPRow[] = [
     shootBudget: 12000,
     cpPayout: 3000,
     margin: 9.00,
-    status: "Finance Approval",
+    status: "Approval Pending",
     category: "videography",
     avatarImage: "",
     date: "2026-06-02T16:30:12.000Z"
@@ -171,7 +171,7 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
     shootBudget: 9800,
     cpPayout: 1100,
     margin: 16,
-    status: "Finance Approval",
+    status: "Approval Pending",
     date: "2026-05-28T16:00:00.000Z",
   }
 ];
@@ -247,7 +247,7 @@ export default function AdminFinancesPage() {
     {
       id: "pending",
       label: "Pending Approval",
-      value: new Intl.NumberFormat("en-US").format(overviewRows.filter((row) => row.status === "Finance Approval").length),
+      value: new Intl.NumberFormat("en-US").format(overviewRows.filter((row) => row.status === "Approval Pending").length),
       helperText: "Awaiting approval",
       icon: Clock,
     },
@@ -295,6 +295,22 @@ export default function AdminFinancesPage() {
       setPendingShootsLoading(false);
     }
   };
+
+  const refreshOpenCompensationDetails = useCallback(async () => {
+    if (!isCompOpen || !selectedRow) return;
+
+    const bookingId = selectedRow.bookingId || Number(selectedRow.id);
+    if (!bookingId) return;
+
+    setDetailsLoading(true);
+    try {
+      setDetails(await cpCompensationApi.details(bookingId));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to refresh compensation details");
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, [isCompOpen, selectedRow]);
 
   const handleRowClick = async (row: ShootCPRow) => {
     setSelectedRow(row);
@@ -369,7 +385,6 @@ export default function AdminFinancesPage() {
     }
     setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsApproveOpen(true);
-    setIsCompOpen(false);
   };
 
   const handleOpenReject = (creatorEarningIds?: number[]) => {
@@ -379,7 +394,6 @@ export default function AdminFinancesPage() {
     }
     setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
     setIsRejectOpen(true);
-    setIsCompOpen(false);
   };
 
   const handleOpenReceipt = () => {
@@ -509,12 +523,13 @@ export default function AdminFinancesPage() {
       await Promise.all(earningIds.map((earningId) => cpCompensationApi.approve(earningId, payload?.reason)));
       setIsApproveOpen(false);
       setSelectedActionEarningIds([]);
-      await loadHistory(dataType);
 
       setSuccessTitle("Payout Approved Successfully");
       setSuccessSubtext(`The payout has been approved for ${earningIds.length} Creative Partner${earningIds.length === 1 ? "" : "s"} and is now ready for payment processing.`);
       setSuccessButtonText("");
       setIsSuccessOpen(true);
+
+      await Promise.all([loadHistory(dataType), refreshOpenCompensationDetails()]);
     } catch (error) {
       toast.error("Approval transaction failed");
     } finally {
@@ -537,12 +552,13 @@ export default function AdminFinancesPage() {
       await Promise.all(earningIds.map((earningId) => cpCompensationApi.reject(earningId, payload.reason)));
       setIsRejectOpen(false);
       setSelectedActionEarningIds([]);
-      await loadHistory(dataType);
 
       setSuccessTitle("Payout Reject Successfully");
       setSuccessSubtext("The payout has been Rejected");
       setSuccessButtonText("");
       setIsSuccessOpen(true);
+
+      await Promise.all([loadHistory(dataType), refreshOpenCompensationDetails()]);
     } catch (error) {
       toast.error("Rejection workflow error");
     } finally {
@@ -673,11 +689,15 @@ export default function AdminFinancesPage() {
     try {
       await cpCompensationApi.add(payload);
       setIsAddCompOpen(false);
-      await Promise.all([loadHistory(dataType), loadPendingShoots()]);
       setSuccessTitle("Compensation Added Successfully");
       setSuccessSubtext("The compensation has been added and approved.");
       setSuccessButtonText("");
       setIsSuccessOpen(true);
+      window.setTimeout(() => {
+        void Promise.all([loadHistory(dataType), loadPendingShoots()]).catch((error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to refresh compensation history");
+        });
+      }, 0);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to add compensation");
     } finally {

@@ -139,11 +139,11 @@ const getCompensationBreakdown = (
 
   let remainingBudget = roundMoney(budgetLimit);
   let base = 0;
-  let editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
+  const editing = roundMoney(Math.min(Math.max(editingRaw, 0), remainingBudget));
   remainingBudget = roundMoney(Math.max(remainingBudget - editing, 0));
-  let travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
+  const travel = roundMoney(Math.min(Math.max(travelRaw, 0), remainingBudget));
   remainingBudget = roundMoney(Math.max(remainingBudget - travel, 0));
-  let bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
+  const bonus = roundMoney(Math.min(Math.max(bonusRaw, 0), remainingBudget));
   remainingBudget = roundMoney(Math.max(remainingBudget - bonus, 0));
   base = roundMoney(remainingBudget);
 
@@ -430,11 +430,11 @@ export default function AddCompensationModal({
 
           let remainingBudget = roundMoney(Math.max(budgetLimit, 0));
           let nextBaseAmount = 0;
-          let nextEditingAmount = roundMoney(Math.min(Math.max(editingCandidate, 0), remainingBudget));
+          const nextEditingAmount = roundMoney(Math.min(Math.max(editingCandidate, 0), remainingBudget));
           remainingBudget = roundMoney(Math.max(remainingBudget - nextEditingAmount, 0));
-          let nextTravelAmount = roundMoney(Math.min(Math.max(travelCandidate, 0), remainingBudget));
+          const nextTravelAmount = roundMoney(Math.min(Math.max(travelCandidate, 0), remainingBudget));
           remainingBudget = roundMoney(Math.max(remainingBudget - nextTravelAmount, 0));
-          let nextBonusAmount = roundMoney(Math.min(Math.max(bonusCandidate, 0), remainingBudget));
+          const nextBonusAmount = roundMoney(Math.min(Math.max(bonusCandidate, 0), remainingBudget));
           remainingBudget = roundMoney(Math.max(remainingBudget - nextBonusAmount, 0));
           nextBaseAmount = roundMoney(remainingBudget);
 
@@ -725,28 +725,28 @@ export default function AddCompensationModal({
                       className={`border rounded-xl transition-all overflow-hidden ${isDark ? "bg-[#1F1F1F]" : "bg-[#F4F5F7]"} ${isChecked ? "border-[#E8D1AB]/40" : isDark ? "border-[#3D3D3D]" : ""}`}
                     >
                       <div className={`flex flex-col p-3 lg:p-6 gap-2 ${isChecked ? "border-b border-[#E8D1AB]/40" : ""}`}>
-                        <div className="flex items-center gap-3 lg:gap-5">
+                        <div className="flex items-center gap-3 lg:gap-5 min-w-0">
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleCheckboxChange(creatorId)}
                             className="h-4 w-4 lg:h-6 lg:w-6 rounded bg-black text-[#E8D1AB] accent-[#E8D1AB]"
                           />
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex flex-1 items-center gap-3 min-w-0">
                             <div className={`h-11 w-11 lg:h-15 lg:w-15 shrink-0 rounded-full lg:text-xl font-semibold flex items-center justify-center ${isDark ? "bg-[#363434] text-zinc-300" : "text-black bg-[#E8D1AB]"}`}>
                               {(creator.creator_name || "CP").split(" ").map((name) => name[0]).join("")}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <h4 className={`lg:text-lg font-semibold truncate ${isDark ? "text-white" : "text-black"}`}>{creator.creator_name || "Unknown Creator"}</h4>
                               <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{normalizeCpRoleLabel(creator.cp_role) || "Creative Partner"}</p>
                             </div>
-                            <div className="hidden bg-[#E8D1AB] text-[#171717] font-semibold text-sm lg:text-lg px-3 py-2 lg:px-6 lg:py-2.5 rounded-full lg:flex items-center gap-1.5">
-                              {formatCurrency(getCreatorTotal(creatorId))} <span className="text-[#171717]/60 font-normal">Total Compensation</span>
+                            <div className="hidden shrink-0 whitespace-nowrap bg-[#E8D1AB] text-[#171717] font-semibold text-sm lg:text-base px-3 py-2 lg:px-5 lg:py-2.5 rounded-full lg:flex items-center gap-1.5">
+                              {formatCurrency(getCreatorTotal(creatorId))} <span className="text-[#171717]/60 font-normal whitespace-nowrap">Total Compensation</span>
                             </div>
                           </div>
                         </div>
-                        <div className="lg:hidden bg-[#E8D1AB] text-[#171717] font-semibold text-sm px-3 py-2 rounded-full flex justify-center gap-1.5">
-                          {formatCurrency(getCreatorTotal(creatorId))} <span className="text-[#171717]/60 font-normal">Total Compensation</span>
+                        <div className="lg:hidden bg-[#E8D1AB] text-[#171717] font-semibold text-sm px-3 py-2 rounded-full flex justify-center gap-1.5 whitespace-nowrap">
+                          {formatCurrency(getCreatorTotal(creatorId))} <span className="text-[#171717]/60 font-normal whitespace-nowrap">Total Compensation</span>
                         </div>
                       </div>
 
@@ -908,7 +908,6 @@ export default function AddCompensationModal({
                                 inputMode="decimal"
                                 value={form.editing}
                                 onChange={(event) => updateCreatorForm(creatorId, "editing", normalizeMoneyInput(event.target.value))}
-                                inputMode="decimal"
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                               />
                             </div>
@@ -921,7 +920,6 @@ export default function AddCompensationModal({
                                 inputMode="decimal"
                                 value={form.travel}
                                 onChange={(event) => updateCreatorForm(creatorId, "travel", normalizeMoneyInput(event.target.value))}
-                                inputMode="decimal"
                                 className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                               />
                             </div>
@@ -936,7 +934,6 @@ export default function AddCompensationModal({
                               inputMode="decimal"
                               value={form.bonus}
                               onChange={(event) => updateCreatorForm(creatorId, "bonus", normalizeMoneyInput(event.target.value))}
-                              inputMode="decimal"
                               className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                             />
                           </div>

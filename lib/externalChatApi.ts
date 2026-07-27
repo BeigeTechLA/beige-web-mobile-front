@@ -28,7 +28,8 @@ export interface ExternalChatRoom {
   chat_id?: string;
   name?: string;
   status?: "active" | "read_only" | "archived" | string;
-  order_id?: string | number | { id?: string | number; name?: string };
+  order_id?: string | number | { id?: string | number; _id?: string | number; name?: string };
+  external_order_ref?: string;
   last_message?: {
     id?: string;
     message?: string;
@@ -97,7 +98,7 @@ interface RoomResponse {
   chat_id?: string;
   name?: string;
   status?: string;
-  order_id?: string | number | { id?: string | number; name?: string };
+  order_id?: string | number | { id?: string | number; _id?: string | number; name?: string };
   external_order_ref?: string;
   client_id?: ExternalChatUser | string | number | null;
   client_snapshot?: ExternalChatUser | null;

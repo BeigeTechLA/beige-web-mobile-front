@@ -52,6 +52,7 @@ const tabs = [
       </span>
     ),
     value: "auto",
+    disabled: true,
   },
   {
     label: (
@@ -79,7 +80,7 @@ export default function ResolveDisputeModal({
   onClose,
   onSubmit,
 }: ResolveDisputeModalProps) {
-  const [tab, setTab] = useState<ResolutionType>("auto");
+  const [tab, setTab] = useState<ResolutionType>("credits");
   const [amountType, setAmountType] = useState<AmountType>("full");
   const [amount, setAmount] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
@@ -91,7 +92,7 @@ export default function ResolveDisputeModal({
 
   useEffect(() => {
     if (!open) return;
-    setTab("auto");
+    setTab("credits");
     setAmountType("full");
     setAmount("");
     setCreditAmount("");
@@ -101,6 +102,10 @@ export default function ResolveDisputeModal({
     setNotes("");
     setUploadedFiles([]);
   }, [open]);
+
+  useEffect(() => {
+    if (tab === "credits") setRecipient("client");
+  }, [tab]);
 
   const fullAmount = disputeData?.amount || "$0";
   const maxAmount = fullAmount;
@@ -116,6 +121,7 @@ export default function ResolveDisputeModal({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (tab === "auto") return;
     onSubmit({
       resolutionType: tab,
       amountType,
@@ -236,6 +242,15 @@ export default function ResolveDisputeModal({
                     recipient={recipient}
                     recipientLabel={recipientLabel}
                     onChange={setRecipient}
+                    clientOnly
+                  />
+
+                  <FloatingInput
+                    isDark={isDark}
+                    label="Notes (Optional)"
+                    value={notes}
+                    onChange={setNotes}
+                    placeholder="Add a client-facing credit note..."
                   />
 
                   <InfoBox
@@ -252,9 +267,26 @@ export default function ResolveDisputeModal({
                   <ResolutionHeader
                     isDark={isDark}
                     icon={<FileText className="h-5 w-5" />}
-                    title="Manual Payment Configuration"
+                    title="Amount Type - Manual Payment Configuration"
                     subtitle="Record manual payment with proof"
                   />
+
+                  <AmountTypePicker
+                    isDark={isDark}
+                    amountType={amountType}
+                    fullAmount={fullAmount}
+                    onChange={setAmountType}
+                  />
+
+                  {amountType === "partial" ? (
+                    <FloatingInput
+                      isDark={isDark}
+                      label="Enter Amount"
+                      value={amount}
+                      onChange={setAmount}
+                      placeholder={`Maximum: ${maxAmount}`}
+                    />
+                  ) : null}
 
                   <div className="relative">
                     <label className={`absolute -top-3 left-4 z-10 px-2 text-sm font-medium lg:text-base ${isDark ? "bg-[#171717] text-white/50" : "bg-white text-black/60"}`}>
@@ -428,11 +460,13 @@ function RecipientSelect({
   recipient,
   recipientLabel,
   onChange,
+  clientOnly = false,
 }: {
   isDark: boolean;
   recipient: string;
   recipientLabel: string;
   onChange: (value: string) => void;
+  clientOnly?: boolean;
 }) {
   return (
     <div className="relative">
@@ -445,8 +479,12 @@ function RecipientSelect({
         </SelectTrigger>
         <SelectContent className={`rounded-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-black/20 bg-white text-black"}`}>
           <SelectItem value="client">Client - {recipientLabel}</SelectItem>
-          <SelectItem value="creator">Creative Partner</SelectItem>
-          <SelectItem value="admin">Admin Hold</SelectItem>
+          {!clientOnly ? (
+            <>
+              <SelectItem value="creator">Creative Partner</SelectItem>
+              <SelectItem value="admin">Admin Hold</SelectItem>
+            </>
+          ) : null}
         </SelectContent>
       </Select>
     </div>

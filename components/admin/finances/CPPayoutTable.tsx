@@ -37,7 +37,7 @@ export type ShootCPRow = {
   status:
   | "Pending"
   | "Partially Paid"
-  | "Finance Approval"
+  | "Approval Pending"
   | "Approved"
   | "Fully Paid"
   | "Rejected";
@@ -376,7 +376,7 @@ export default function CPPayoutTable({
                   {/* <SelectItem value="Pending">Pending</SelectItem> */}
                   <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Finance approval">Finance Approval</SelectItem>
+                  <SelectItem value="Approval Pending">Approval Pending</SelectItem>
                   <SelectItem value="Rejected">Rejected</SelectItem>
                   <SelectItem value="Fully Paid">Fully Paid</SelectItem>
                 </SelectContent>

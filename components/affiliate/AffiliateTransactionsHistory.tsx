@@ -19,6 +19,7 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import AffiliateDisputeDetailsModal, {
   type AffiliateDisputeDetailsRecord,
+  type AffiliateDisputeHistoryItem,
 } from "@/components/affiliate/AffiliateDisputeDetailsModal";
 import {
   Select,
@@ -34,7 +35,7 @@ import {
   type FinanceTransactionApiRow,
 } from "@/lib/api/financeTransactions";
 
-type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Progress" | "Resolved";
+type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Progress" | "Resolved" | "Rejected";
 
 type PaymentRow = {
   id: string;
@@ -57,6 +58,7 @@ type PaymentRow = {
   canRaiseDispute?: boolean;
   transactionDetails?: TransactionDetail[];
   dispute?: ClientFinancePaymentApiRow["dispute"];
+  disputes?: ClientFinanceDisputeDetailsApiRow[];
 };
 
 type AffiliateTransactionsHistoryProps = {
@@ -80,6 +82,9 @@ const formatShootId = (value: number | string | null | undefined) => {
   return normalized ? `#${normalized}` : "#N/A";
 };
 
+const normalizeShootKey = (value: number | string | null | undefined) =>
+  String(value || "").replace(/^BK-/i, "").replace(/^SH-/i, "").replace(/^#/, "").replace(/^0+/, "").trim();
+
 const buildParentInvoiceUrl = (bookingId: string) => {
   const normalized = String(bookingId || "").replace(/^#/, "").trim();
   return normalized ? `/beige_invoice/${encodeURIComponent(normalized)}?manual=1&t=${Date.now()}` : null;
@@ -101,6 +106,29 @@ const getActorRole = (
   return "Admin";
 };
 
+const titleize = (value: string | null | undefined) =>
+  String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+
+const formatResolutionType = (value: string | null | undefined) => {
+  const normalized = String(value || "").toLowerCase();
+  const labels: Record<string, string> = {
+    payout_release: "Payout Release",
+    refund: "Refund",
+    partial_refund: "Partial Refund",
+    credit_compensation: "Beige Credits",
+    payout_adjustment: "Payout Adjustment",
+    no_action: "No Action",
+    other: "Other",
+  };
+  return labels[normalized] || titleize(value);
+};
+
+const isProofAttachmentType = (type: string | null | undefined) =>
+  type === "refund_proof" || type === "payout_proof";
+
 const statusStyles: Record<PaymentStatus, string> = {
   Paid: "bg-[#DDF9E7] text-[#178B4A] border-[#DDF9E7]",
   "Dispute Open": "bg-[#FCE8E4] text-[#D6453D] border-[#FCE8E4]",
@@ -108,9 +136,10 @@ const statusStyles: Record<PaymentStatus, string> = {
   Refunded: "bg-[#2C2C2C] text-[#8B8B8B] border-[#3A3A3A]",
   "In-Progress": "bg-[#D7E5FF] text-[#2457D3] border-[#D7E5FF]",
   Resolved: "bg-[#DDFCE6] text-[#159257] border-[#DDFCE6]",
+  Rejected: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
 };
 
-const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In-Progress", "Resolved"] as const;
+const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In-Progress", "Resolved", "Rejected"] as const;
 const monthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"] as const;
 const typeOptions = ["All", "Stripe", "Bank Transfer", "Manual"] as const;
 
@@ -148,8 +177,24 @@ const normalizePaymentStatus = (value: string | null | undefined): PaymentStatus
   if (normalized === "dispute_open" || normalized === "open") return "Dispute Open";
   if (normalized === "in_progress" || normalized === "in-progress" || normalized === "in_review" || normalized === "escalated") return "In-Progress";
   if (normalized === "resolved") return "Resolved";
+  if (normalized === "rejected" || normalized === "reject") return "Rejected";
   if (normalized === "refunded") return "Refunded";
   return "Pending";
+};
+
+const isActiveDisputeStatus = (value: string | null | undefined) => {
+  const normalized = normalizePaymentStatus(value);
+  return normalized === "Dispute Open" || normalized === "In-Progress";
+};
+
+const inferRejectedDisputeStatus = (dispute: ClientFinanceDisputeDetailsApiRow) => {
+  const resolutionText = `${dispute.resolution?.type || ""} ${dispute.resolution?.notes || ""}`.toLowerCase();
+  return dispute.status === "resolved" && /\breject(ed|ing)?\b|no_action|invalid claim/.test(resolutionText);
+};
+
+const normalizeDisputeStatus = (dispute: ClientFinanceDisputeDetailsApiRow | ClientFinancePaymentApiRow["dispute"]) => {
+  if (dispute && inferRejectedDisputeStatus(dispute as ClientFinanceDisputeDetailsApiRow)) return "Rejected";
+  return normalizePaymentStatus(dispute?.status);
 };
 
 const normalizePaymentMethod = (value: string | null | undefined) => {
@@ -207,7 +252,7 @@ const mapClientPaymentRow = (row: ClientFinancePaymentApiRow): PaymentRow => {
     invoiceLabel: formatInvoiceLabel(row.invoices_count),
     rawDateTime: row.date_time || row.event_date || new Date(0).toISOString(),
     paymentMethod: normalizePaymentMethod(row.payment_method || transactionDetails[0]?.method),
-    status: normalizePaymentStatus(row.status || row.payment_status),
+    status: row.dispute ? normalizePaymentStatus(row.dispute.status) : normalizePaymentStatus(row.status || row.payment_status),
     actionType: row.dispute ? "view" : "menu",
     invoiceUrl: buildParentInvoiceUrl(bookingId) || row.latest_invoice?.invoice_url || row.latest_invoice?.invoice_pdf || null,
     invoiceDownloadUrl: buildParentInvoiceUrl(bookingId) || row.latest_invoice?.invoice_pdf || row.latest_invoice?.invoice_url || null,
@@ -215,6 +260,36 @@ const mapClientPaymentRow = (row: ClientFinancePaymentApiRow): PaymentRow => {
     transactionDetails,
     dispute: row.dispute || null,
   };
+};
+
+const attachDisputeHistoryToRows = (
+  paymentRows: PaymentRow[],
+  disputeRows: ClientFinanceDisputeDetailsApiRow[]
+) => {
+  if (!disputeRows.length) return paymentRows;
+
+  const disputesByBooking = new Map<string, ClientFinanceDisputeDetailsApiRow[]>();
+  disputeRows.forEach((dispute) => {
+    const key = normalizeShootKey(dispute.booking_id || dispute.shoot_id);
+    if (!key) return;
+    disputesByBooking.set(key, [...(disputesByBooking.get(key) || []), dispute]);
+  });
+
+  return paymentRows.map((row) => {
+    const disputes = (disputesByBooking.get(normalizeShootKey(row.bookingId)) || [])
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    if (!disputes.length) return row;
+    const activeDispute = disputes.find((dispute) => isActiveDisputeStatus(dispute.status));
+    const latestDispute = activeDispute || disputes[0];
+    return {
+      ...row,
+      status: normalizeDisputeStatus(latestDispute),
+      actionType: activeDispute ? "view" as const : "menu" as const,
+      canRaiseDispute: !activeDispute && row.canRaiseDispute !== false,
+      dispute: latestDispute as ClientFinancePaymentApiRow["dispute"],
+      disputes,
+    };
+  });
 };
 
 const matchesSelectedDate = (row: PaymentRow, selectedDate: Date | null) => {
@@ -289,7 +364,13 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
   const createdAt = Number.isNaN(parsedDate.getTime())
     ? "20-04-2026"
     : format(parsedDate, "dd-MM-yyyy");
-  const status = normalizePaymentStatus(row.dispute?.status || row.status);
+  const status = row.dispute ? normalizeDisputeStatus(row.dispute) : normalizePaymentStatus(row.status);
+
+  const detailStatus =
+    status === "Resolved" ? "Resolved" :
+    status === "Rejected" ? "Rejected" :
+    status === "Dispute Open" ? "Dispute - Open" :
+    "Under Review";
 
   return {
     id: row.dispute?.dispute_code || `DIS-${suffix}`,
@@ -298,7 +379,7 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
     raisedBy: status === "Dispute Open" ? "Client" : "Support Team",
     raisedRole: status === "Dispute Open" ? "Client" : "Admin",
     createdAt,
-    status: status === "Resolved" ? "Resolved" : status === "Dispute Open" ? "Dispute - Open" : "Under Review",
+    status: detailStatus,
     issueType: row.dispute?.category || row.dispute?.subject || (status === "Dispute Open" ? "Quality Issue" : "Payment Review"),
     description:
       row.dispute?.subject ||
@@ -313,10 +394,10 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
         tone: "warning",
       },
       {
-        title: status === "Resolved" ? "Resolved" : "Under Review",
+        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "Under Review",
         by: "Support Team",
         at: `${createdAt} 14:20`,
-        tone: status === "Resolved" ? "resolved" : "review",
+        tone: status === "Resolved" ? "resolved" : status === "Rejected" ? "warning" : "review",
       },
     ],
     attachments: [],
@@ -330,7 +411,49 @@ const mapClientDisputeDetails = (
   fallbackRow?: PaymentRow | null
 ): AffiliateDisputeDetailsRecord => {
   const createdAt = formatShortDate(dispute.created_at);
-  const status = normalizePaymentStatus(dispute.status);
+  const status = normalizeDisputeStatus(dispute);
+  const detailStatus =
+    status === "Resolved" ? "Resolved" :
+    status === "Rejected" ? "Rejected" :
+    status === "In-Progress" ? "Under Review" :
+    "Dispute - Open";
+  const timeline = (dispute.timeline || []).map((event) => ({
+    id: event.id,
+    title: titleize(event.action) || "Updated",
+    by: event.performed_by?.name || "Support Team",
+    at: formatShortDate(event.created_at),
+    tone: event.to_status === "resolved" ? "resolved" as const : event.to_status === "in_review" || event.to_status === "escalated" ? "review" as const : "warning" as const,
+  }));
+  const latestCloseEvent = [...(dispute.timeline || [])]
+    .reverse()
+    .find((event) => event.to_status === "resolved" || event.to_status === "rejected");
+  const metadata = latestCloseEvent?.metadata || {};
+  const metadataValue = (key: string) => {
+    const value = metadata[key];
+    return value === null || value === undefined || value === "" ? "" : String(value);
+  };
+  const resolutionType = String(dispute.resolution?.type || metadataValue("resolution_type") || "");
+  const isCreditResolution = resolutionType === "credit_compensation";
+  const resolutionDetails = [
+    { label: "Status", value: detailStatus },
+    { label: detailStatus === "Rejected" ? "Reason" : "Resolution Type", value: detailStatus === "Rejected" ? metadataValue("rejection_reason") : formatResolutionType(resolutionType) },
+    { label: "Amount", value: metadataValue("resolution_amount") || metadataValue("credit_amount") || metadataValue("refund_amount") },
+    { label: "Payment Method", value: metadataValue("payment_method") },
+    { label: "Transaction ID", value: metadataValue("transaction_id") },
+    { label: "Recipient", value: metadataValue("recipient") },
+    { label: "Credit Reference", value: metadataValue("account_credit_ledger_id") ? `CR-${metadataValue("account_credit_ledger_id")}` : "" },
+    { label: "Credit Use", value: isCreditResolution ? "Added to your account for future bookings." : "" },
+    { label: "Notes", value: dispute.resolution?.notes || latestCloseEvent?.notes || "" },
+  ].filter((item) => item.value);
+  const attachments = (dispute.attachments || []).map((file) => ({
+    name: file.file_name || "Attachment",
+    size: "-",
+    uploadedBy: getActorRole(file.uploaded_by, dispute),
+    uploadedAt: formatShortDate(file.created_at),
+    url: file.file_url || file.file_path || null,
+    attachmentType: file.attachment_type || null,
+  }));
+
   return {
     id: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "DIS"),
     bookingId: formatShootId(dispute.booking_id || fallbackRow?.bookingId),
@@ -338,31 +461,48 @@ const mapClientDisputeDetails = (
     raisedBy: "Client",
     raisedRole: "Client",
     createdAt,
-    status: status === "Resolved" ? "Resolved" : status === "In-Progress" ? "Under Review" : "Dispute - Open",
+    status: detailStatus,
     issueType: dispute.category || dispute.subject || "Dispute",
     description: dispute.description || dispute.subject || "This dispute is being reviewed.",
     invoiceUrl: buildParentInvoiceUrl(formatShootId(dispute.booking_id || fallbackRow?.bookingId)) || dispute.invoice?.invoice_url || dispute.invoice?.invoice_pdf || fallbackRow?.invoiceUrl || fallbackRow?.invoiceDownloadUrl || null,
-    timeline: (dispute.timeline || []).map((event) => ({
-      title: String(event.action || "Updated").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
-      by: event.performed_by?.name || "Support Team",
-      at: formatShortDate(event.created_at),
-      tone: event.to_status === "resolved" ? "resolved" : event.to_status === "in_review" || event.to_status === "escalated" ? "review" : "warning",
-    })),
-    attachments: (dispute.attachments || []).map((file) => ({
-      name: file.file_name || "Attachment",
-      size: "-",
-      uploadedBy: getActorRole(file.uploaded_by, dispute),
-      uploadedAt: "-",
-      url: file.file_url || file.file_path || null,
-    })),
+    timeline: timeline.length ? timeline : [{
+      title: "Dispute Created",
+      by: "Client",
+      at: createdAt,
+      tone: "warning",
+    }],
+    attachments,
+    resolutionProofs: attachments.filter((file) => isProofAttachmentType(file.attachmentType)),
     comments: (dispute.internal_comments || []).map((comment) => ({
       author: comment.created_by?.name || comment.created_by_creator?.name || "Support",
       role: comment.created_by_creator ? "CP" : getActorRole(comment.created_by, dispute),
       message: comment.body || "-",
       at: formatShortDate(comment.created_at),
     })),
+    resolutionSummary: detailStatus === "Resolved" || detailStatus === "Rejected" ? {
+      label: detailStatus === "Rejected" ? "Rejection Details" : "Resolution Details",
+      details: resolutionDetails.length ? resolutionDetails : [{ label: "Status", value: detailStatus }],
+    } : null,
   };
 };
+
+const buildDisputeHistoryItems = (row: PaymentRow | null): AffiliateDisputeHistoryItem[] =>
+  (row?.disputes || []).map((dispute) => {
+    const status = normalizeDisputeStatus(dispute);
+    const detailStatus: AffiliateDisputeHistoryItem["status"] =
+      status === "Resolved" ? "Resolved" :
+      status === "Rejected" ? "Rejected" :
+      status === "In-Progress" ? "Under Review" :
+      "Dispute - Open";
+
+    return {
+      disputeId: dispute.dispute_id || dispute.dispute_code || "",
+      label: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "DIS"),
+      status: detailStatus,
+      issueType: dispute.category || dispute.subject || "Dispute",
+      createdAt: formatShortDate(dispute.created_at),
+    };
+  }).filter((item) => item.disputeId);
 
 export default function AffiliateTransactionsHistory({
   onRaiseDispute,
@@ -382,6 +522,7 @@ export default function AffiliateTransactionsHistory({
   const [selectedRow, setSelectedRow] = useState<PaymentRow | null>(null);
   const [selectedDispute, setSelectedDispute] = useState<AffiliateDisputeDetailsRecord | null>(null);
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | number | null>(null);
+  const [selectedDisputePaymentRow, setSelectedDisputePaymentRow] = useState<PaymentRow | null>(null);
   const [disputeActionLoading, setDisputeActionLoading] = useState<"comment" | "attachment" | null>(null);
   const [openMenuState, setOpenMenuState] = useState<{ rowId: string; direction: "up" | "down" } | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -395,12 +536,22 @@ export default function AffiliateTransactionsHistory({
       setErrorMessage(null);
 
       try {
-        const response = await financeTransactionsApi.listClientPayments({
-          page: 1,
-          limit: 100,
-          search: searchValue.trim() || undefined,
-        });
-        const mappedRows = (response.data?.rows || []).map(mapClientPaymentRow);
+        const [paymentsResponse, disputesResponse] = await Promise.all([
+          financeTransactionsApi.listClientPayments({
+            page: 1,
+            limit: 100,
+            search: searchValue.trim() || undefined,
+          }),
+          financeTransactionsApi.listClientDisputes({
+            page: 1,
+            limit: 100,
+            search: searchValue.trim() || undefined,
+          }),
+        ]);
+        const mappedRows = attachDisputeHistoryToRows(
+          (paymentsResponse.data?.rows || []).map(mapClientPaymentRow),
+          disputesResponse.data?.rows || []
+        );
 
         if (isCancelled) return;
         setRows(mappedRows);
@@ -468,6 +619,7 @@ export default function AffiliateTransactionsHistory({
   const closeDispute = () => {
     setSelectedDispute(null);
     setSelectedDisputeId(null);
+    setSelectedDisputePaymentRow(null);
   };
   const toggleRow = (rowId: string) => {
     setExpandedRowId((current) => (current === rowId ? null : rowId));
@@ -494,7 +646,7 @@ export default function AffiliateTransactionsHistory({
     return true;
   };
 
-  const handleMenuAction = (event: React.MouseEvent, row: PaymentRow, action: "details" | "invoice" | "download" | "dispute") => {
+  const handleMenuAction = (event: React.MouseEvent, row: PaymentRow, action: "details" | "invoice" | "download" | "dispute" | "disputeHistory") => {
     event.stopPropagation();
     setOpenMenuState(null);
 
@@ -513,20 +665,31 @@ export default function AffiliateTransactionsHistory({
       return;
     }
 
+    if (action === "disputeHistory") {
+      void openDisputeDetails(event, row);
+      return;
+    }
+
     if (action === "dispute") {
       onRaiseDispute?.(row.bookingId);
       return;
     }
   };
 
-  const openDisputeDetails = async (event: React.MouseEvent, row: PaymentRow) => {
+  const openDisputeDetails = async (
+    event: React.MouseEvent,
+    row: PaymentRow,
+    disputeOverride?: ClientFinanceDisputeDetailsApiRow
+  ) => {
     event.stopPropagation();
-    if (row.dispute) {
-      setSelectedDispute(buildDisputeRecord(row));
-      setSelectedDisputeId(row.dispute.dispute_id || null);
-      if (row.dispute.dispute_id) {
+    setSelectedDisputePaymentRow(row);
+    const dispute = disputeOverride || row.dispute;
+    if (dispute) {
+      setSelectedDispute(buildDisputeRecord({ ...row, dispute }));
+      setSelectedDisputeId(dispute.dispute_id || null);
+      if (dispute.dispute_id) {
         try {
-          const response = await financeTransactionsApi.getClientDisputeDetails(row.dispute.dispute_id);
+          const response = await financeTransactionsApi.getClientDisputeDetails(dispute.dispute_id);
           setSelectedDispute(mapClientDisputeDetails(response.data, row));
         } catch (error) {
           console.error("Failed to fetch client dispute details:", error);
@@ -537,10 +700,25 @@ export default function AffiliateTransactionsHistory({
     toggleRow(row.id);
   };
 
+  const selectDisputeHistoryItem = async (disputeId: string | number) => {
+    if (!disputeId || !selectedDisputePaymentRow) return;
+    setSelectedDisputeId(disputeId);
+    const dispute = selectedDisputePaymentRow.disputes?.find((item) => String(item.dispute_id || item.dispute_code) === String(disputeId));
+    if (dispute) {
+      setSelectedDispute(buildDisputeRecord({ ...selectedDisputePaymentRow, dispute }));
+    }
+    try {
+      const response = await financeTransactionsApi.getClientDisputeDetails(disputeId);
+      setSelectedDispute(mapClientDisputeDetails(response.data, selectedDisputePaymentRow));
+    } catch (error) {
+      console.error("Failed to fetch client dispute history details:", error);
+    }
+  };
+
   const refreshClientDisputeDetails = async () => {
     if (!selectedDisputeId) return;
     const response = await financeTransactionsApi.getClientDisputeDetails(selectedDisputeId);
-    setSelectedDispute(mapClientDisputeDetails(response.data));
+    setSelectedDispute(mapClientDisputeDetails(response.data, selectedDisputePaymentRow));
   };
 
   const addClientDisputeComment = async (_dispute: AffiliateDisputeDetailsRecord, body: string) => {
@@ -628,6 +806,47 @@ export default function AffiliateTransactionsHistory({
           No transactions found for this shoot.
         </div>
       )}
+
+      {(row.disputes || []).length > 0 ? (
+        <div className="mt-5">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertCircle size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
+            <p className={`text-base font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+              Dispute History
+            </p>
+          </div>
+          <div className="space-y-3">
+            {(row.disputes || []).map((dispute) => {
+              const disputeStatus = normalizeDisputeStatus(dispute);
+              return (
+                <button
+                  key={String(dispute.dispute_id || dispute.dispute_code)}
+                  type="button"
+                  onClick={(event) => void openDisputeDetails(event, row, dispute)}
+                  className={`flex w-full flex-col gap-3 rounded-lg border p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
+                >
+                  <div className="min-w-0">
+                    <p className={`truncate text-sm font-medium sm:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>
+                      {dispute.dispute_code || `DIS-${dispute.dispute_id || ""}`}
+                    </p>
+                    <p className={`mt-1 text-xs sm:text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
+                      {dispute.category || dispute.subject || "Dispute"} · {formatShortDate(dispute.created_at)}
+                    </p>
+                    {dispute.description ? (
+                      <p className={`mt-1 line-clamp-1 text-xs ${isDark ? "text-white/40" : "text-[#8A8A8A]"}`}>
+                        {dispute.description}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[disputeStatus]}`}>
+                    {disputeStatus}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -866,6 +1085,16 @@ export default function AffiliateTransactionsHistory({
                                   <Download size={16} className="shrink-0" />
                                   <span className="font-medium">Download Invoice</span>
                                 </button>
+                                {(row.disputes || []).length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => handleMenuAction(event, row, "disputeHistory")}
+                                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-white transition-colors hover:bg-white/5"
+                                  >
+                                    <AlertCircle size={16} className="shrink-0" />
+                                    <span className="font-medium">View Dispute History</span>
+                                  </button>
+                                )}
                                 <div className="h-px bg-white/10" />
                                 {row.canRaiseDispute !== false && (
                                   <button
@@ -1016,6 +1245,16 @@ export default function AffiliateTransactionsHistory({
                                 <Download size={16} className="shrink-0" />
                                 <span className="font-medium">Download Invoice</span>
                               </button>
+                              {(row.disputes || []).length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "disputeHistory")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                                >
+                                  <AlertCircle size={16} className="shrink-0" />
+                                  <span className="font-medium">View Dispute History</span>
+                                </button>
+                              )}
                               <div className="h-px bg-white/10" />
                               {row.canRaiseDispute !== false && (
                                 <button
@@ -1155,7 +1394,10 @@ export default function AffiliateTransactionsHistory({
         isOpen={Boolean(selectedDispute)}
         onClose={closeDispute}
         dispute={selectedDispute}
+        disputeHistory={buildDisputeHistoryItems(selectedDisputePaymentRow)}
+        activeDisputeId={selectedDisputeId}
         actionLoading={disputeActionLoading}
+        onSelectHistory={(disputeId) => void selectDisputeHistoryItem(disputeId)}
         onAddComment={addClientDisputeComment}
         onAddAttachment={addClientDisputeAttachment}
         onOpenInvoice={(dispute) => openUrl(dispute.invoiceUrl)}
