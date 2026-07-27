@@ -219,13 +219,12 @@ export default function RaiseDisputeModal({
 
     return (
         <>
-            {/* Main Raise Dispute Modal */}
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border border-white/25 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden">
+                <DialogContent className="w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border border-white/40 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden">
                     <DialogTitle className="sr-only">Raise New Dispute</DialogTitle>
 
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-white/20 px-5 py-4">
+                    <div className="flex items-center justify-between border-b border-white/40 px-5 py-4">
                         <h2 className="text-[22px] font-semibold leading-none">
                             Raise New Dispute
                         </h2>
@@ -247,8 +246,8 @@ export default function RaiseDisputeModal({
                     >
                         <div className="space-y-3.5">
                             {/* Select Shoot ID */}
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-[8px] border border-white/50 px-4 pb-3 pt-1.5">
+                                <legend className="px-1 text-[11px] leading-none text-white/60">
                                     Select Shoot ID*
                                 </legend>
                                 <Select
@@ -269,8 +268,8 @@ export default function RaiseDisputeModal({
                             </fieldset>
 
                             {/* Select Dispute Type */}
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-[8px] border border-white/50 px-4 pb-3 pt-1.5">
+                                <legend className="px-1 text-[11px] leading-none text-white/60">
                                     Select Dispute Type*
                                 </legend>
                                 <Select
@@ -291,8 +290,8 @@ export default function RaiseDisputeModal({
                             </fieldset>
 
                             {/* Description */}
-                            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-                                <legend className="px-1 text-[11px] leading-none text-white/55">
+                            <fieldset className="rounded-[8px] border border-white/50 px-4 pb-3 pt-1.5">
+                                <legend className="px-1 text-[11px] leading-none text-white/60">
                                     Description
                                 </legend>
                                 <Textarea
@@ -305,7 +304,7 @@ export default function RaiseDisputeModal({
 
                             {/* Attach File */}
                             <div>
-                                <label className="mb-1.5 block text-[13px] text-white/70">
+                                <label className="mb-1.5 block text-[13px] text-white/60">
                                     Attach File
                                 </label>
                                 <div
