@@ -11,9 +11,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type DisputeStatus = "Open" | "In Review" | "Resolved";
+export type DisputeStatus = "Open" | "In Review" | "Resolved" | "Rejected" | "Escalated";
 
 export type DisputeHistoryItem = {
+  disputeId?: number | string;
+  rawStatus?: string;
   id: string;
   shootId: string;
   invoiceId: string;
@@ -46,6 +48,8 @@ export const disputeStatusStyles: Record<DisputeStatus, string> = {
   Open: "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20",
   "In Review": "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
   Resolved: "bg-[#10B981]/10 text-[#10B981] border-[#10B981]/20",
+  Rejected: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
+  Escalated: "bg-[#A855F7]/10 text-[#A855F7] border-[#A855F7]/20",
 };
 
 const buildPaginationItems = (
@@ -121,6 +125,8 @@ export default function DisputeHistoryList({
                 <SelectItem value="Open">Open</SelectItem>
                 <SelectItem value="In Review">In Review</SelectItem>
                 <SelectItem value="Resolved">Resolved</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
+                <SelectItem value="Escalated">Escalated</SelectItem>
               </SelectContent>
             </Select>
 
@@ -246,7 +252,7 @@ export default function DisputeHistoryList({
           ))
         ) : (
           <div className={`py-8 text-center text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
-            No payout history found.
+            No disputes found.
           </div>
         )}
       </div>

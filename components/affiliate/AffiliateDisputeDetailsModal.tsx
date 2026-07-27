@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import {
   CalendarDays,
   Download,
@@ -46,14 +46,20 @@ export type AffiliateDisputeDetailsRecord = {
     size: string;
     uploadedBy: string;
     uploadedAt: string;
+    url?: string | null;
   }>;
   comments: AffiliateDisputeComment[];
+  invoiceUrl?: string | null;
 };
 
 type AffiliateDisputeDetailsModalProps = {
   isOpen: boolean;
   onClose: () => void;
   dispute: AffiliateDisputeDetailsRecord | null;
+  actionLoading?: "comment" | "attachment" | null;
+  onAddComment?: (dispute: AffiliateDisputeDetailsRecord, body: string) => void;
+  onAddAttachment?: (dispute: AffiliateDisputeDetailsRecord, files: File[]) => void;
+  onOpenInvoice?: (dispute: AffiliateDisputeDetailsRecord) => void;
 };
 
 const timelineStyles: Record<
@@ -122,8 +128,15 @@ export default function AffiliateDisputeDetailsModal({
   isOpen,
   onClose,
   dispute,
+  actionLoading = null,
+  onAddComment,
+  onAddAttachment,
+  onOpenInvoice,
 }: AffiliateDisputeDetailsModalProps) {
   const { isDark } = useResolvedTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [comment, setComment] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   if (!isOpen || !dispute) return null;
 
@@ -201,6 +214,20 @@ export default function AffiliateDisputeDetailsModal({
           </div>
 
           <div className="mt-5 space-y-4">
+            <button
+              type="button"
+              onClick={() => onOpenInvoice?.(dispute)}
+              disabled={!dispute.invoiceUrl}
+              className={`flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                isDark
+                  ? "border-white/10 bg-[#171717] text-white hover:bg-[#222]"
+                  : "border-black/10 bg-white text-black hover:bg-[#F7F7F7]"
+              }`}
+            >
+              <FileText size={16} />
+              Open Parent Invoice
+            </button>
+
             <div>
               <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Issue Type</p>
               <div className={`h-14 rounded-lg px-4 py-3.5 text-base ${isDark ? "bg-[#1F1F1F] text-white" : "bg-[#F3F4F6] text-black/90"}`}>
@@ -257,15 +284,26 @@ export default function AffiliateDisputeDetailsModal({
                       <div>
                         <p className={`${isDark ? "text-white" : "text-black"}`}>{file.name}</p>
                         <p className={`text-sm ${isDark ? "text-[#A0A0A0]" : "text-black/45"}`}>
-                          {file.size} · Uploaded by {file.uploadedBy} on {file.uploadedAt}
+                          {file.size} · Uploaded by {file.uploadedBy}{file.uploadedAt && file.uploadedAt !== "-" ? ` on ${file.uploadedAt}` : ""}
                         </p>
                       </div>
                     </div>
-                    <button type="button" className={`${isDark ? "text-white/70" : "text-black/60"}`} aria-label={`Download ${file.name}`}>
+                    <button
+                      type="button"
+                      onClick={() => file.url && window.open(file.url, "_blank", "noopener,noreferrer")}
+                      disabled={!file.url}
+                      className={`${isDark ? "text-white/70" : "text-black/60"} disabled:opacity-40`}
+                      aria-label={`Download ${file.name}`}
+                    >
                       <Download size={18} />
                     </button>
                   </div>
                 ))}
+                {!dispute.attachments.length ? (
+                  <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? "bg-[#1F1F1F] text-white/45" : "bg-[#F4F5F7] text-black/45"}`}>
+                    No attachments added.
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -288,12 +326,19 @@ export default function AffiliateDisputeDetailsModal({
                     <p className={isDark ? "text-[#A0A0A0]" : "text-black/50"}>{comment.message}</p>
                   </div>
                 ))}
+                {!dispute.comments.length ? (
+                  <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? "bg-[#1F1F1F] text-white/45" : "bg-[#F4F5F7] text-black/45"}`}>
+                    No comments yet.
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="pt-1">
               <fieldset className={`rounded-[16px] border px-4 pb-4 pt-2 ${isDark ? "border-white/10" : "border-black/10"}`}>
                 <legend className={`px-2 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Comment</legend>
                 <textarea
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
                   rows={4}
                   placeholder="Add your comment..."
                   className={`min-h-[120px] w-full resize-none border-0 bg-transparent px-0 py-1 text-sm outline-none placeholder:text-sm ${
@@ -301,10 +346,23 @@ export default function AffiliateDisputeDetailsModal({
                   }`}
                 />
               </fieldset>
+              {pendingFiles.length > 0 ? (
+                <p className="mt-3 text-xs text-[#E8D1AB]">
+                  {pendingFiles.length} file{pendingFiles.length > 1 ? "s" : ""} selected
+                </p>
+              ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => setPendingFiles(Array.from(event.target.files || []))}
+              />
 
               <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <button
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   className={`flex h-12 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors ${
                     isDark
                       ? "border-white/10 bg-[#171717] text-white hover:bg-[#1f1f1f]"
@@ -312,16 +370,35 @@ export default function AffiliateDisputeDetailsModal({
                   }`}
                 >
                   <Upload size={16} />
-                  Upload File
+                  Select File
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    if (!pendingFiles.length) return;
+                    onAddAttachment?.(dispute, pendingFiles);
+                    setPendingFiles([]);
+                  }}
+                  disabled={!pendingFiles.length || Boolean(actionLoading)}
                   className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] px-4 text-sm font-semibold text-black hover:bg-[#d9c08a]"
                 >
-                  <Send size={16} />
-                  Send Comments
+                  <Upload size={16} />
+                  {actionLoading === "attachment" ? "Uploading..." : "Upload File"}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!comment.trim()) return;
+                  onAddComment?.(dispute, comment.trim());
+                  setComment("");
+                }}
+                disabled={!comment.trim() || Boolean(actionLoading)}
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] px-4 text-sm font-semibold text-black hover:bg-[#d9c08a] disabled:opacity-50"
+              >
+                <Send size={16} />
+                {actionLoading === "comment" ? "Sending..." : "Send Comment"}
+              </button>
             </div>
           </div>
         </div>

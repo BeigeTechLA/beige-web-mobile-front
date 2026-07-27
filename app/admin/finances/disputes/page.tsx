@@ -5,10 +5,6 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePathname } from "next/navigation";
 import {
   ArrowUpToLine,
-  AlertTriangle,
-  BadgeDollarSign,
-  CheckCircle2,
-  Clock3,
 } from "lucide-react";
 
 import Topbar from "@/components/admin/Topbar";
@@ -20,146 +16,149 @@ import DisputeMetricCards, {
 import DisputeHistoryList, {
   type DisputeHistoryItem,
 } from "@/components/admin/finances/DisputeHistoryList";
-import DottedDivider from "@/components/admin/DottedDivider";
 import AddEditDisputeModal from "@/components/admin/finances/AddEditDisputeModal";
 import DisputeDetailsModal, {
   type DisputeDetailsRecord,
 } from "@/components/admin/finances/DisputeDetailsModal";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import {
+  financeTransactionsApi,
+  type AdminFinanceDisputeApiRow,
+  type AdminFinanceDisputeDetailsApiRow,
+  type AdminFinanceDisputesDashboard,
+} from "@/lib/api/financeTransactions";
 
-const disputeItems: DisputeHistoryItem[] = [
-  {
-    id: "DIS-001",
-    shootId: "SH-004",
-    invoiceId: "INV-004-B",
-    category: "Quality Issue",
-    description: "The final photos did not meet the agreed quality standards.",
-    raisedBy: "Emily Johnson",
-    raisedRole: "Client",
-    raisedDate: "19-04-2026",
-    disputedAmount: "$5,000",
-    payoutHold: "$4,500",
-    status: "Open",
-  },
-  {
-    id: "DIS-002",
-    shootId: "SH-005",
-    invoiceId: "INV-005-A",
-    category: "Payment Delay",
-    description: "Payout has been delayed beyond the agreed timeline.",
-    raisedBy: "Ryan Cooper",
-    raisedRole: "Creator",
-    raisedDate: "17-04-2026",
-    disputedAmount: "$4,200",
-    payoutHold: "$3,696",
-    status: "In Review",
-  },
-  {
-    id: "DIS-003",
-    shootId: "SH-006",
-    invoiceId: "INV-006-A",
-    category: "Wrong Deliverable",
-    description: "Received wrong edited files.",
-    raisedBy: "Marcus Reid",
-    raisedRole: "Client",
-    raisedDate: "22-03-2026",
-    disputedAmount: "$3,200",
-    payoutHold: "$1,200",
-    status: "Resolved",
-  },
-];
+const formatCurrency = (value: number | string | null | undefined) => {
+  const amount = Number(value || 0);
+  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
 
-const disputeDetailsMap: Record<string, Omit<DisputeDetailsRecord, keyof DisputeHistoryItem>> = {
-  "DIS-001": {
-    createdAt: "2026-04-19",
-    payoutNote: "On hold until resolved",
-    timeline: [
-      {
-        title: "Dispute Created",
-        by: "Emily Johnson",
-        at: "2026-04-19 10:30",
-        tone: "warning",
-      },
-      {
-        title: "Under Review",
-        by: "Support Team",
-        at: "2026-04-19 14:20",
-        tone: "review",
-      },
-    ],
-    internalComments: [
-      {
-        author: "Emily Johnson",
-        message: "The photos are blurry and not as discussed.",
-        at: "2026-04-19 10:35",
-      },
-      {
-        author: "Support Agent",
-        message: "We are reviewing the original contract and deliverables.",
-        at: "2026-04-19 14:25",
-      },
-    ],
-  },
-  "DIS-002": {
-    createdAt: "2026-04-17",
-    payoutNote: "Held while finance review is active",
-    timeline: [
-      {
-        title: "Dispute Created",
-        by: "Ryan Cooper",
-        at: "2026-04-17 09:10",
-        tone: "warning",
-      },
-      {
-        title: "Finance Review Started",
-        by: "Payments Team",
-        at: "2026-04-17 11:45",
-        tone: "review",
-      },
-    ],
-    internalComments: [
-      {
-        author: "Ryan Cooper",
-        message: "The payout has exceeded the promised timeline.",
-        at: "2026-04-17 09:20",
-      },
-      {
-        author: "Payments Team",
-        message: "Bank transfer verification is in progress.",
-        at: "2026-04-17 11:50",
-      },
-    ],
-  },
-  "DIS-003": {
-    createdAt: "2026-03-22",
-    payoutNote: "Released after resolution",
-    timeline: [
-      {
-        title: "Dispute Created",
-        by: "Marcus Reid",
-        at: "2026-03-22 08:15",
-        tone: "warning",
-      },
-      {
-        title: "Resolved",
-        by: "Support Team",
-        at: "2026-03-24 16:10",
-        tone: "resolved",
-      },
-    ],
-    internalComments: [
-      {
-        author: "Marcus Reid",
-        message: "The delivered files do not match the agreed selection.",
-        at: "2026-03-22 08:20",
-      },
-      {
-        author: "Support Team",
-        message: "Updated files were shared and approved by the client.",
-        at: "2026-03-24 16:15",
-      },
-    ],
-  },
+const formatDate = (value: string | null | undefined) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatShootId = (value: number | string | null | undefined) => {
+  const normalized = String(value || "").replace(/^BK-/i, "").replace(/^SH-/i, "").replace(/^#/, "").replace(/^0+/, "").trim();
+  return normalized ? `#${normalized}` : "-";
+};
+
+const buildParentInvoiceUrl = (bookingId: number | string | null | undefined) => {
+  const normalized = String(bookingId || "").replace(/^#/, "").trim();
+  return normalized ? `/beige_invoice/${encodeURIComponent(normalized)}?manual=1&t=${Date.now()}` : null;
+};
+
+const getActorRole = (
+  user: { id?: number | string | null; role?: string | null; user_type?: number | string | null } | null | undefined,
+  dispute?: AdminFinanceDisputeDetailsApiRow | null
+) => {
+  const userId = String(user?.id || "");
+  const raisedById = String(dispute?.raised_by?.id || "");
+  if (userId && raisedById && userId === raisedById) return titleize(dispute?.raised_by?.type) || "Client";
+  const role = String(user?.role || "").toLowerCase();
+  if (role.includes("admin")) return "Admin";
+  if (role.includes("client") || role.includes("affiliate")) return "Client";
+  if (role.includes("creator") || role.includes("cp")) return "CP";
+  const userType = String(user?.user_type || "");
+  if (userType === "1") return "Admin";
+  return "Admin";
+};
+
+const titleize = (value: string | null | undefined) =>
+  String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+
+const mapStatus = (status: string | null | undefined): DisputeHistoryItem["status"] => {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "in_review") return "In Review";
+  if (normalized === "resolved") return "Resolved";
+  if (normalized === "rejected") return "Rejected";
+  if (normalized === "escalated") return "Escalated";
+  return "Open";
+};
+
+const statusApiValue: Record<string, string | undefined> = {
+  All: undefined,
+  Open: "open",
+  "In Review": "in_review",
+  Resolved: "resolved",
+  Rejected: "rejected",
+  Escalated: "escalated",
+};
+
+const roleApiValue: Record<string, string | undefined> = {
+  All: undefined,
+  Client: "client",
+  Creator: "creator",
+  Admin: "admin",
+};
+
+const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => ({
+  disputeId: item.dispute_id || item.dispute_code || "",
+  rawStatus: item.status || "open",
+  id: item.dispute_code || (item.dispute_id ? `DIS-${item.dispute_id}` : "-"),
+  shootId: formatShootId(item.booking_id || item.shoot_id),
+  invoiceId: item.invoice_id || (item.invoice_send_history_id ? `INV-${item.invoice_send_history_id}` : "-"),
+  category: item.issue_type || titleize(item.category) || "Other",
+  description: item.description || item.subject || "-",
+  raisedBy: item.raised_by?.name || item.client?.name || item.creator?.name || "-",
+  raisedRole: titleize(item.raised_by?.type) || "Admin",
+  raisedDate: formatDate(item.created_at),
+  disputedAmount: formatCurrency(item.disputed_amount),
+  payoutHold: formatCurrency(item.impacted_payout_amount ?? item.payout_hold_amount),
+  status: mapStatus(item.status),
+});
+
+const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetailsRecord => {
+  const row = mapDisputeItem(item);
+  const timeline = (item.timeline || []).map((event) => ({
+    title: titleize(event.action) || "Updated",
+    by: event.performed_by?.name || "Admin",
+    at: formatDateTime(event.created_at),
+    tone: event.to_status === "resolved" ? "resolved" as const : event.to_status === "in_review" || event.to_status === "escalated" ? "review" as const : "warning" as const,
+  }));
+
+  return {
+    ...row,
+    createdAt: formatDate(item.created_at),
+    payoutNote: item.resolution?.notes || (row.status === "Resolved" ? "Released after resolution" : "On hold until resolved"),
+    invoiceUrl: buildParentInvoiceUrl(item.booking_id) || item.invoice?.invoice_url || item.invoice?.invoice_pdf || null,
+    timeline: timeline.length > 0 ? timeline : [{
+      title: "Dispute Created",
+      by: row.raisedBy,
+      at: formatDateTime(item.created_at),
+      tone: "warning",
+    }],
+    internalComments: (item.internal_comments || []).map((comment) => ({
+      author: comment.created_by?.name || comment.created_by_creator?.name || "Admin",
+      role: comment.created_by_creator ? "CP" : getActorRole(comment.created_by, item),
+      message: comment.body || "-",
+      at: formatDateTime(comment.created_at),
+    })),
+    attachments: (item.attachments || []).map((attachment) => ({
+      name: attachment.file_name || "Attachment",
+      url: attachment.file_url || null,
+      uploadedBy: getActorRole(attachment.uploaded_by, item),
+      uploadedAt: "-",
+    })),
+  };
 };
 
 export default function AdminDisputesPage() {
@@ -175,16 +174,54 @@ export default function AdminDisputesPage() {
   const [typeFilter, setTypeFilter] = useState("All");
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
+  const [disputeItems, setDisputeItems] = useState<DisputeHistoryItem[]>([]);
+  const [dashboard, setDashboard] = useState<AdminFinanceDisputesDashboard | null>(null);
+  const [actionLoading, setActionLoading] = useState<"review" | "resolve" | "reject" | "escalate" | "comment" | "attachment" | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
 
   useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      setLoading(false);
-    }, 450);
+    let isCancelled = false;
 
-    return () => window.clearTimeout(timer);
-  }, [selectedDate, metricRange, searchQuery, statusFilter, monthFilter, typeFilter]);
+    const fetchDisputes = async () => {
+      setLoading(true);
+      try {
+        const [dashboardResponse, listResponse] = await Promise.all([
+          financeTransactionsApi.getAdminDisputesDashboard(),
+          financeTransactionsApi.listAdminDisputes({
+            page: 1,
+            limit: 100,
+            search: searchQuery.trim() || undefined,
+            status: statusApiValue[statusFilter],
+            raised_by_type: roleApiValue[typeFilter],
+            sort_by: "created_at",
+            sort_dir: "DESC",
+          }),
+        ]);
+
+        if (isCancelled) return;
+        setDashboard(dashboardResponse.data || null);
+        setDisputeItems((listResponse.data?.rows || []).map(mapDisputeItem));
+      } catch (error) {
+        console.error("Failed to fetch admin disputes:", error);
+        if (!isCancelled) {
+          setDashboard(null);
+          setDisputeItems([]);
+        }
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      void fetchDisputes();
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [refreshKey, searchQuery, statusFilter, typeFilter]);
 
   const { isDark } = useResolvedTheme();
 
@@ -225,48 +262,128 @@ export default function AdminDisputesPage() {
     {
       id: "open",
       label: "Open Disputes",
-      value: "14",
-      helperText: "3 shoots affected",
+      value: String(dashboard?.overview?.open_disputes ?? 0).padStart(2, "0"),
+      helperText: `${dashboard?.overview?.total_disputes ?? 0} total disputes`,
       icon: CustomCautionIcon,
     },
     {
       id: "review",
       label: "In Review",
-      value: "04",
+      value: String(dashboard?.overview?.in_review ?? 0).padStart(2, "0"),
       helperText: "Pending resolution",
       icon: CustomClockIcon,
     },
     {
       id: "resolved",
       label: "Resolved (30d)",
-      value: "25",
+      value: String(dashboard?.overview?.resolved_last_30d ?? 0).padStart(2, "0"),
       helperText: "Last month",
       icon: CustomCheckIcon,
     },
     {
       id: "hold",
       label: "Impacted Payouts",
-      value: "$9,396",
+      value: formatCurrency(dashboard?.overview?.impacted_payout_total),
       helperText: "Total on hold",
       icon: CustomDollarIcon,
     },
   ];
 
   const filteredItems = useMemo(() => {
-    return disputeItems.filter((item) => {
-      const matchesSearch =
-        item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.raisedBy.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "All" || item.status === statusFilter;
-      const matchesType = typeFilter === "All" || item.raisedRole === typeFilter;
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [searchQuery, statusFilter, typeFilter]);
+    return disputeItems;
+  }, [disputeItems]);
 
   const disputeShootOptions = useMemo(
     () => Array.from(new Set(disputeItems.map((item) => item.shootId))),
-    []
+    [disputeItems]
   );
+
+  const openDisputeDetails = async (item: DisputeHistoryItem) => {
+    if (!item.disputeId) return;
+    setSelectedDispute({
+      ...item,
+      createdAt: item.raisedDate,
+      payoutNote: "Loading dispute details...",
+      timeline: [],
+      internalComments: [],
+    });
+    try {
+      const response = await financeTransactionsApi.getAdminDisputeDetails(item.disputeId);
+      setSelectedDispute(mapDisputeDetails(response.data));
+    } catch (error) {
+      console.error("Failed to fetch dispute details:", error);
+    }
+  };
+
+  const applyDisputeAction = async (
+    dispute: DisputeDetailsRecord,
+    action: "review" | "resolve" | "reject" | "escalate"
+  ) => {
+    if (!dispute.disputeId) return;
+    setActionLoading(action);
+    try {
+      const response =
+        action === "review"
+          ? await financeTransactionsApi.updateAdminDispute(dispute.disputeId, {
+              status: "in_review",
+              notes: "Marked in review by admin",
+            })
+          : action === "resolve"
+          ? await financeTransactionsApi.resolveAdminDispute(dispute.disputeId, {
+              resolution_type: "payout_release",
+              release_payout_holds: true,
+              notes: "Resolved by admin",
+            })
+          : action === "reject"
+            ? await financeTransactionsApi.rejectOrRefundAdminDispute(dispute.disputeId, {
+                resolution_type: "no_action",
+                notes: "Rejected by admin",
+              })
+            : await financeTransactionsApi.escalateAdminDispute(dispute.disputeId, {
+                priority: "high",
+                notes: "Escalated by admin",
+              });
+
+      setSelectedDispute(mapDisputeDetails(response.data));
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error(`Failed to ${action} dispute:`, error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const addDisputeComment = async (dispute: DisputeDetailsRecord, body: string) => {
+    if (!dispute.disputeId) return;
+    setActionLoading("comment");
+    try {
+      await financeTransactionsApi.addAdminDisputeComment(dispute.disputeId, body);
+      const response = await financeTransactionsApi.getAdminDisputeDetails(dispute.disputeId);
+      setSelectedDispute(mapDisputeDetails(response.data));
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add dispute comment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const addDisputeAttachment = async (dispute: DisputeDetailsRecord, files: File[]) => {
+    if (!dispute.disputeId || !files.length) return;
+    setActionLoading("attachment");
+    try {
+      const payload = new FormData();
+      files.forEach((file) => payload.append("attachments", file));
+      await financeTransactionsApi.addAdminDisputeAttachment(dispute.disputeId, payload);
+      const response = await financeTransactionsApi.getAdminDisputeDetails(dispute.disputeId);
+      setSelectedDispute(mapDisputeDetails(response.data));
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add dispute attachment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <>
@@ -328,12 +445,7 @@ export default function AdminDisputesPage() {
           onMonthChange={setMonthFilter}
           typeValue={typeFilter}
           onTypeChange={setTypeFilter}
-          onViewDetails={(item) =>
-            setSelectedDispute({
-              ...item,
-              ...disputeDetailsMap[item.id],
-            })
-          }
+          onViewDetails={(item) => void openDisputeDetails(item)}
         />
 
         {/* --- FLOATING MOBILE BUTTON --- */}
@@ -357,6 +469,16 @@ export default function AdminDisputesPage() {
         isOpen={!!selectedDispute}
         onClose={() => setSelectedDispute(null)}
         dispute={selectedDispute}
+        actionLoading={actionLoading}
+        onMarkInReview={(dispute) => void applyDisputeAction(dispute, "review")}
+        onResolve={(dispute) => void applyDisputeAction(dispute, "resolve")}
+        onReject={(dispute) => void applyDisputeAction(dispute, "reject")}
+        onEscalate={(dispute) => void applyDisputeAction(dispute, "escalate")}
+        onAddComment={(dispute, body) => void addDisputeComment(dispute, body)}
+        onAddAttachment={(dispute, files) => void addDisputeAttachment(dispute, files)}
+        onOpenInvoice={(dispute) => {
+          if (dispute.invoiceUrl) window.open(dispute.invoiceUrl, "_blank", "noopener,noreferrer");
+        }}
       />
     </>
   );
