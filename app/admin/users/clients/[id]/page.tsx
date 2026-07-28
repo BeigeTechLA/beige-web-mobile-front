@@ -556,7 +556,7 @@ export default function ClientDetailsPage() {
               ) : (
                 <div className={`flex items-center gap-3 rounded-xl lg:rounded-2xl border p-4 lg:p-8 ${isDark ? "bg-[#0D0D0D] border-white/20" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
                   <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${isDark ? "bg-white/5 text-[#E5D5B8]" : "bg-black/5 text-black"}`}>
-                    <History size={20} />
+                    <History size={20} /> 
                   </div>
                   <div>
                     <p className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No archive history found.</p>

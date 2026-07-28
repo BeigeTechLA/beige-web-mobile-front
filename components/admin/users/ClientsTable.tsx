@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Loader2, ArrowUpToLine, ChevronLeft, ChevronDown } from "lucide-react";
+import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Loader2, ArrowUpToLine, ChevronLeft, ChevronDown, Notebook, NotebookText, History } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -35,6 +35,7 @@ import { useTheme } from 'next-themes';
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { TabsSwitcher } from "../TabsSwitcher";
+import ArchiveUsersHistoryModal from "@/components/admin/users/ArchiveUsersHistoryModal";
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 type ClientsTab = "active" | "all" | "archived";
@@ -122,6 +123,10 @@ export const ClientsTable = () => {
   const [completedClientName, setCompletedClientName] = useState("");
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isArchiveHistoryOpen, setIsArchiveHistoryOpen] = useState(false);
+  const [selectedClientForHistory, setSelectedClientForHistory] = useState<string | null>(null);
+  const [clientArchiveHistory, setClientArchiveHistory] = useState<any[]>([]);
+  const [isLoadingArchiveHistory, setIsLoadingArchiveHistory] = useState(false);
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -517,6 +522,35 @@ export const ClientsTable = () => {
     }
   };
 
+  const fetchClientArchiveHistory = async (clientId: string) => {
+    setIsLoadingArchiveHistory(true);
+    try {
+      const cleanId = clientId.replace("#", "");
+      const response = await adminApi.getClientById(cleanId as string);
+
+      if (response && response.data && response.data.archive_history) {
+        // The API returns archive_history inside response.data
+        const historyData = response.data.archive_history || [];
+        setClientArchiveHistory(historyData);
+      } else {
+        setClientArchiveHistory([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch archive history:", error);
+      toast.error("Failed to load archive history");
+      setClientArchiveHistory([]);
+    } finally {
+      setIsLoadingArchiveHistory(false);
+    }
+  };
+
+  const handleArchiveHistoryOpen = (client: Client, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedClientForHistory(client.id);
+    setIsArchiveHistoryOpen(true);
+    fetchClientArchiveHistory(client.id);
+  };
+
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Header */}
@@ -821,7 +855,8 @@ export const ClientsTable = () => {
                   <th className="w-[11%] p-5 font-medium">Status</th>
                   <th className="w-[12%] p-5 font-medium">Client Type</th>
                   <th className="w-[15%] p-5 font-medium text-center">Referral Code</th>
-                  <th className="w-[10%] p-5 font-medium text-right rounded-br-xl">Action</th>
+                  <th className="w-[10%] p-5 font-medium text-center">Action</th>
+                  <th className="w-[5%] p-5 font-medium text-right rounded-br-xl"></th>
                 </tr>
               </thead>
               <tbody>
@@ -888,20 +923,22 @@ export const ClientsTable = () => {
                           <span className="opacity-40">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end">
+                      <td className="py-3 px-6 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center">
                           {client.isArchived ? (
-                            <button
-                              type="button"
-                              onClick={(event) => handleActionClick(client, event)}
-                              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${isDark
-                                ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                                : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"
-                                }`}
-                              title={`Restore ${client.name}`}
-                            >
-                              Restore
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={(event) => handleActionClick(client, event)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${isDark
+                                  ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                  : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"
+                                  }`}
+                                title={`Restore ${client.name}`}
+                              >
+                                Restore
+                              </button>
+                            </>
                           ) : (
                             <button
                               type="button"
@@ -913,6 +950,16 @@ export const ClientsTable = () => {
                             </button>
                           )}
                         </div>
+                      </td>
+                      <td className="py-3 px-6 text-right">
+                        <button
+                          type="button"
+                          onClick={(event) => handleArchiveHistoryOpen(client, event)}
+                          className={`${isDark ? "text-[#666] hover:text-yellow-400" : "text-[#888] hover:text-yellow-500"} transition-colors`}
+                          title={`Archive ${client.name}`}
+                        >
+                          <History size={20} />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -1028,6 +1075,14 @@ export const ClientsTable = () => {
                           <div className="flex justify-end gap-2 mt-1 text-sm font-medium">
                             <button
                               type="button"
+                              onClick={(event) => handleArchiveHistoryOpen(client, event)}
+                              className={`${isDark ? "text-[#666] hover:text-yellow-400" : "text-[#888] hover:text-yellow-500"} transition-colors`}
+                            >
+                              <History size={20} />
+                            </button>
+                            <span className="opacity-20">|</span>
+                            <button
+                              type="button"
                               onClick={() => handleRowClick(client.id)}
                               className={`inline-flex items-center gap-1 underline ${isDark ? "text-[#E8D1AB]" : "text-[#8E6A2A]"}`}
                             >
@@ -1035,13 +1090,15 @@ export const ClientsTable = () => {
                             </button>
                             <span className="opacity-20">|</span>
                             {client.isArchived ? (
-                              <button
-                                type="button"
-                                onClick={(event) => handleActionClick(client, event)}
-                                className="text-emerald-500 underline"
-                              >
-                                Restore
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleActionClick(client, event)}
+                                  className="text-emerald-500 underline"
+                                >
+                                  Restore
+                                </button>
+                              </>
                             ) : (
                               <button
                                 type="button"
@@ -1135,6 +1192,24 @@ export const ClientsTable = () => {
           </div>
         )}
       </div>
+
+      {/* <ArchiveUsersHistoryModal
+        isOpen={isArchiveHistoryOpen}
+        onClose={() => setIsArchiveHistoryOpen(false)}
+        history={[]} // Pass your actual history data
+      /> */}
+      <ArchiveUsersHistoryModal
+        isOpen={isArchiveHistoryOpen}
+        onClose={() => {
+          setIsArchiveHistoryOpen(false);
+          setSelectedClientForHistory(null);
+          setClientArchiveHistory([]);
+        }}
+        history={clientArchiveHistory}
+        clientName={clients.find(c => c.id === selectedClientForHistory)?.name || ""}
+        isDark={isDark}
+      />
+
 
       <ActionModal
         isOpen={isActionModalOpen}
