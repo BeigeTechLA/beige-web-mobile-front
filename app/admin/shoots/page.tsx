@@ -46,16 +46,12 @@ const FILTER_STATUS_OPTIONS = [
 const RANGE_FILTER_OPTIONS = new Set([
   "all",
   "today",
-  "upcoming",
-  "last_7_days",    
-  "last_15_days",   
-  "last_1_month", 
   "next_7_days",
   "next_15_days",
-  "in_1_month",
-  "in_2_months",
-  "in_6_months",
-  "in_1_year",
+  "next_30_days",
+  "last_7_days",
+  "last_15_days",
+  "last_30_days",
   "custom",
 ]);
 const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
@@ -63,6 +59,12 @@ type PaymentFilter = "all" | "pending" | "paid";
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   PAYMENT_FILTER_OPTIONS.has(value);
+
+const normalizeRangeFilter = (value: string) => {
+  if (value === "in_1_month") return "next_30_days";
+  if (value === "last_1_month") return "last_30_days";
+  return RANGE_FILTER_OPTIONS.has(value) ? value : "all";
+};
 
 export default function ShootsPage() {
   const router = useRouter()
@@ -114,7 +116,7 @@ export default function ShootsPage() {
       }
       if (typeof parsed.productionFilter === "string") setProductionFilter(parsed.productionFilter);
       if (typeof parsed.range === "string") {
-        setRange(RANGE_FILTER_OPTIONS.has(parsed.range) ? parsed.range : "all");
+        setRange(normalizeRangeFilter(parsed.range));
       }
       if (parsed.cpAssignmentFilter === "all" || parsed.cpAssignmentFilter === "assigned" || parsed.cpAssignmentFilter === "not_assigned") {
         setCpAssignmentFilter(parsed.cpAssignmentFilter);
@@ -480,112 +482,120 @@ export default function ShootsPage() {
           {
             showFilters && (
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="corporate">Corporate</SelectItem>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                    {/* ... add others as needed */}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col gap-1">
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="private">Private</SelectItem>
+                      {/* ... add others as needed */}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    {FILTER_STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-col gap-1">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      {FILTER_STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <Select
-                  value={paymentFilter}
-                  onValueChange={(value) => {
-                    if (isPaymentFilter(value)) setPaymentFilter(value);
-                  }}
-                >
-                  <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="Payment" />
-                  </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={productionFilter} onValueChange={setProductionFilter}>
-                  <SelectTrigger className={`w-[260px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="Production Filter" />
-                  </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    <SelectItem value="all">All Production</SelectItem>
-                    <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
-                      Pre Production
-                    </div>
-                    <SelectItem value="pre_production_file_not_provided">File Not Provided</SelectItem>
-                    <SelectItem value="pre_production_meeting_not_done">Meeting Not Scheduled</SelectItem>
-                    <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
-                      Post Production
-                    </div>
-                    <SelectItem value="post_production_file_not_uploaded">File Not Uploaded</SelectItem>
-                    <SelectItem value="post_production_meeting_not_done">Meeting Not Scheduled</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={range} onValueChange={handleRangeChange}>
-                  <SelectTrigger className={`w-[110px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="Range" />
-                  </SelectTrigger>
-                  <SelectContent
-                    className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
-                    viewportClassName="!h-auto max-h-56 overflow-y-auto"
+                <div className="flex flex-col gap-1">
+                  <Select
+                    value={paymentFilter}
+                    onValueChange={(value) => {
+                      if (isPaymentFilter(value)) setPaymentFilter(value);
+                    }}
                   >
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                    <SelectItem value="next_7_days">Next 7 Days</SelectItem>
-                    <SelectItem value="next_15_days">Next 15 Days</SelectItem>
-                    <SelectItem value="in_1_month">In 1 Month</SelectItem>
-                    <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                    <SelectItem value="last_15_days">Last 15 Days</SelectItem>
-                    <SelectItem value="last_1_month">Last 1 Month</SelectItem>
-                    <SelectItem value="in_2_months">In 2 Months</SelectItem>
-                    <SelectItem value="in_6_months">In 6 Months</SelectItem>
-                    <SelectItem value="in_1_year">In 1 Year</SelectItem>
-                    <SelectItem
-                      value="custom"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setRange("custom");
-                        openCustomRangeDialog();
-                      }}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        setRange("custom");
-                        openCustomRangeDialog();
-                      }}
+                    <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Select value={productionFilter} onValueChange={setProductionFilter}>
+                    <SelectTrigger className={`w-[260px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Production Filter" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All Production</SelectItem>
+                      <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
+                        Pre Production
+                      </div>
+                      <SelectItem value="pre_production_file_not_provided">File Not Provided</SelectItem>
+                      <SelectItem value="pre_production_meeting_not_done">Meeting Not Scheduled</SelectItem>
+                      <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
+                        Post Production
+                      </div>
+                      <SelectItem value="post_production_file_not_uploaded">File Not Uploaded</SelectItem>
+                      <SelectItem value="post_production_meeting_not_done">Meeting Not Scheduled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Select value={range === "all" ? "" : range} onValueChange={handleRangeChange}>
+                    <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Shoot Date" />
+                    </SelectTrigger>
+                    <SelectContent
+                      className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
+                      viewportClassName="!h-auto max-h-56 overflow-y-auto"
                     >
-                      Custom Range
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
-                  <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                    <SelectValue placeholder="CP Assignment" />
-                  </SelectTrigger>
-                  <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                    <SelectItem value="all">All CP Assignment</SelectItem>
-                    <SelectItem value="assigned">CP Assigned</SelectItem>
-                    <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
-                  </SelectContent>
-                </Select>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                      <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+                      <SelectItem value="next_30_days">Next 30 Days</SelectItem>
+                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                      <SelectItem value="last_15_days">Last 15 Days</SelectItem>
+                      <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                      <SelectItem
+                        value="custom"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setRange("custom");
+                          openCustomRangeDialog();
+                        }}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setRange("custom");
+                          openCustomRangeDialog();
+                        }}
+                      >
+                        Custom Range
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   type="button"
                   onClick={resetAllFilters}

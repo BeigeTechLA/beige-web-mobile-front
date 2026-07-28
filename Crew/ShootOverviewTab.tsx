@@ -7,15 +7,93 @@ import {
   timelineStageToHeaderLabel,
 } from "@/lib/utils/projectTimeline";
 
-export default function ShootOverviewTab({ project, apiResponse, currentCrewMemberId, isDark = true }: any) {
-  const assignedCrew = Array.isArray(apiResponse?.assignedCrew)
-    ? apiResponse.assignedCrew
-    : Array.isArray(project?.assignedCrew)
-      ? project.assignedCrew
-      : Array.isArray(project?.assigned_crews)
-        ? project.assigned_crews
-        : [];
-  const currentAssignment = assignedCrew.find((assignment: any) => {
+type TimestampValue = string | number | Date | null | undefined;
+
+type CrewMember = {
+  crew_member_id?: string | number | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  primary_role?: unknown;
+  role_name?: string | null;
+};
+
+type ProjectAssignment = {
+  id?: string | number | null;
+  crew_member_id?: string | number | null;
+  crew_member?: CrewMember | null;
+  acceptance_status?: string | null;
+  status?: string | null;
+  responded_at?: TimestampValue;
+  updated_at?: TimestampValue;
+  assigned_date?: TimestampValue;
+  created_at?: TimestampValue;
+};
+
+type LeadActivity = {
+  created_at?: TimestampValue;
+  updated_at?: TimestampValue;
+};
+
+type LeadDetails = {
+  client_name?: string | null;
+  last_activity_at?: TimestampValue;
+  updated_at?: TimestampValue;
+  created_at?: TimestampValue;
+  activities?: LeadActivity[] | null;
+};
+
+type ProjectLike = {
+  assignedCrew?: ProjectAssignment[] | null;
+  assigned_crews?: ProjectAssignment[] | null;
+  booking_days?: {
+    duration_hours?: number | string | null;
+    date?: string | null;
+    event_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    time_zone?: string | null;
+  }[] | null;
+  booking_type?: string | null;
+  bookingType?: string | null;
+  city?: string | null;
+  client?: { name?: string | null } | null;
+  client_name?: string | null;
+  country?: string | null;
+  created_at?: TimestampValue;
+  event_date?: string | null;
+  event_location?: string | null;
+  event_start_time?: string | null;
+  guest_name?: string | null;
+  is_cancelled?: number | boolean | null;
+  lead_details?: LeadDetails | null;
+  location?: string | null;
+  project_name?: string | null;
+  skills_needed?: unknown;
+  start_time?: string | null;
+  end_time?: string | null;
+  state?: string | null;
+  status?: number | string | null;
+  timeline_status?: number | string | null;
+  time_zone?: string | null;
+  updated_at?: TimestampValue;
+};
+
+type ProjectDetailsResponse = {
+  assignedCrew?: ProjectAssignment[] | null;
+  lead_details?: LeadDetails | null;
+  updated_at?: TimestampValue;
+};
+
+type ShootOverviewTabProps = {
+  project?: ProjectLike | null;
+  apiResponse?: ProjectDetailsResponse | null;
+  currentCrewMemberId?: string | number | null;
+  isDark?: boolean;
+};
+
+export default function ShootOverviewTab({ project, apiResponse, currentCrewMemberId, isDark = true }: ShootOverviewTabProps) {
+  const assignedCrew = getAssignedCrew(project, apiResponse);
+  const currentAssignment = assignedCrew.find((assignment) => {
     const crewMemberId = assignment?.crew_member_id || assignment?.crew_member?.crew_member_id;
     return currentCrewMemberId && String(crewMemberId) === String(currentCrewMemberId);
   });
@@ -32,15 +110,18 @@ export default function ShootOverviewTab({ project, apiResponse, currentCrewMemb
     [timelineStage]
   );
   const isCancelled = timelineStage === TIMELINE_STAGE.CANCELLED;
-  const lastUpdatedText = project?.updated_at
-    ? new Date(project.updated_at).toLocaleString("en-US", {
+  const lastUpdatedText = useMemo(() => {
+    const latestDate = getLatestProjectActivityDate(project, apiResponse);
+    if (!latestDate) return "N/A";
+
+    return latestDate.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
-    })
-    : "N/A";
+    });
+  }, [project, apiResponse]);
   const clientName =
     apiResponse?.lead_details?.client_name ||
     project?.client?.name ||
@@ -159,7 +240,7 @@ export default function ShootOverviewTab({ project, apiResponse, currentCrewMemb
 
           {assignedCrew.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {assignedCrew.map((assignment: any) => {
+              {assignedCrew.map((assignment) => {
                 const member = assignment?.crew_member || {};
                 const name = [member.first_name, member.last_name].filter(Boolean).join(" ") || "Creative Partner";
                 const role = getPrimaryRoleLabel(member.primary_role, member.role_name);
@@ -299,7 +380,12 @@ export default function ShootOverviewTab({ project, apiResponse, currentCrewMemb
 
 /* --- INTERNAL HELPERS --- */
 
-function DetailItem({ label, value, icon, isDark }: any) {
+function DetailItem({ label, value, icon, isDark }: {
+  label: string;
+  value?: React.ReactNode;
+  icon?: React.ReactNode;
+  isDark: boolean;
+}) {
   return (
     <div className="space-y-1 lg:space-y-2">
       <p className={`text-xs uppercase font-bold tracking-[0.15em] ${isDark ? "text-white/30" : "text-black/40"}`}>
@@ -314,7 +400,12 @@ function DetailItem({ label, value, icon, isDark }: any) {
   );
 }
 
-function StatusStep({ label, completed, active, isDark }: any) {
+function StatusStep({ label, completed, active, isDark }: {
+  label: string;
+  completed?: boolean;
+  active?: boolean;
+  isDark: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 lg:gap-5 relative z-10">
       <div
@@ -348,4 +439,55 @@ function StatusStep({ label, completed, active, isDark }: any) {
       </span>
     </div>
   );
+}
+
+function getLatestProjectActivityDate(
+  project?: ProjectLike | null,
+  apiResponse?: ProjectDetailsResponse | null,
+): Date | null {
+  const dates: Date[] = [];
+
+  const addDate = (value: unknown) => {
+    if (!value) return;
+    const date = new Date(String(value));
+    if (!Number.isNaN(date.getTime())) {
+      dates.push(date);
+    }
+  };
+
+  const leadDetails = apiResponse?.lead_details || project?.lead_details;
+  const assignedCrew = getAssignedCrew(project, apiResponse);
+  const activities = Array.isArray(leadDetails?.activities) ? leadDetails.activities : [];
+
+  addDate(project?.updated_at);
+  addDate(apiResponse?.updated_at);
+  addDate(leadDetails?.last_activity_at);
+  addDate(leadDetails?.updated_at);
+  addDate(project?.created_at);
+  addDate(leadDetails?.created_at);
+
+  assignedCrew.forEach((assignment) => {
+    addDate(assignment?.responded_at);
+    addDate(assignment?.updated_at);
+    addDate(assignment?.assigned_date);
+    addDate(assignment?.created_at);
+  });
+
+  activities.forEach((activity) => {
+    addDate(activity?.created_at);
+    addDate(activity?.updated_at);
+  });
+
+  if (dates.length === 0) return null;
+  return dates.reduce((latest, date) => (date.getTime() > latest.getTime() ? date : latest));
+}
+
+function getAssignedCrew(
+  project?: ProjectLike | null,
+  apiResponse?: ProjectDetailsResponse | null,
+): ProjectAssignment[] {
+  if (Array.isArray(apiResponse?.assignedCrew)) return apiResponse.assignedCrew;
+  if (Array.isArray(project?.assignedCrew)) return project.assignedCrew;
+  if (Array.isArray(project?.assigned_crews)) return project.assigned_crews;
+  return [];
 }

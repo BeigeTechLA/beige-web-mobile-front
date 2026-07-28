@@ -315,6 +315,149 @@ const getRoomActivityTimestamp = (room?: ExternalChatRoom | null) =>
     String(room?.updatedAt || room?.createdAt || ""),
   ].join("|");
 
+const getBookingReferenceValues = (room?: ExternalChatRoom | null) => {
+  if (!room) return [];
+  const orderId = room.order_id;
+  const orderObject = orderId && typeof orderId === "object" ? orderId : null;
+
+  return [
+    room.external_order_ref,
+    orderObject?.id,
+    orderObject?._id,
+    typeof orderId === "string" || typeof orderId === "number" ? orderId : null,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+};
+
+const roomMatchesBookingReference = (room: ExternalChatRoom, bookingId?: string | number | null) => {
+  const normalizedBookingId = String(bookingId || "").trim();
+  if (!normalizedBookingId) return true;
+  return getBookingReferenceValues(room).includes(normalizedBookingId);
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+
+const getOptionalString = (value: unknown) => {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return undefined;
+};
+
+const getRoomCreatedPayloadType = (payload: unknown) => {
+  const payloadRecord = asRecord(payload);
+  const metadata = asRecord(payloadRecord?.metadata);
+
+  return String(payloadRecord?.event || payloadRecord?.type || metadata?.event || metadata?.type || "")
+    .trim()
+    .toLowerCase();
+};
+
+const isRoomAvailabilityPayload = (payload: unknown) => {
+  const type = getRoomCreatedPayloadType(payload);
+  return type === "chatroomcreated" || type === "addedtochat";
+};
+
+const looksLikeRoomSnapshot = (value: unknown) => {
+  const record = asRecord(value);
+
+  return Boolean(
+    record &&
+    (
+      record.id ||
+      record._id ||
+      record.chat_id ||
+      record.name ||
+      record.order_id ||
+      record.external_order_ref ||
+      record.externalOrderRef ||
+      record.client_id ||
+      record.client_snapshot ||
+      record.pm_id ||
+      Array.isArray(record.cp_ids) ||
+      Array.isArray(record.manager_ids) ||
+      Array.isArray(record.production_ids)
+    )
+  );
+};
+
+const normalizeRoomCreatedPayload = (payload: unknown): ExternalChatRoom | null => {
+  const payloadRecord = asRecord(payload);
+  if (!payloadRecord) return null;
+
+  const data = asRecord(payloadRecord.data);
+  const metadata = asRecord(payloadRecord.metadata);
+  const roomSource =
+    asRecord(payloadRecord.room) ||
+    asRecord(payloadRecord.chatRoom) ||
+    asRecord(data?.room) ||
+    asRecord(data?.chatRoom) ||
+    (looksLikeRoomSnapshot(data) ? data : null) ||
+    (looksLikeRoomSnapshot(payloadRecord) ? payloadRecord : null);
+
+  if (!roomSource) return null;
+
+  const roomId = String(
+    roomSource.id ||
+    roomSource._id ||
+    payloadRecord.roomId ||
+    payloadRecord.chatRoomId ||
+    metadata?.roomId ||
+    metadata?.chatRoomId ||
+    ""
+  ).trim();
+
+  if (!roomId) return null;
+
+  const room = roomSource as ExternalChatRoom;
+  const externalOrderRef =
+    getOptionalString(roomSource.external_order_ref) ||
+    getOptionalString(payloadRecord.externalOrderRef) ||
+    getOptionalString(payloadRecord.external_order_ref);
+
+  return {
+    ...room,
+    id: getOptionalString(roomSource.id) || roomId,
+    _id: getOptionalString(roomSource._id) || roomId,
+    name: getOptionalString(roomSource.name) || getOptionalString(payloadRecord.name) || "Messages",
+    order_id: (roomSource.order_id || payloadRecord.orderId || payloadRecord.order_id) as ExternalChatRoom["order_id"],
+    external_order_ref: externalOrderRef,
+    createdAt: getOptionalString(roomSource.createdAt) || getOptionalString(payloadRecord.createdAt),
+    updatedAt:
+      getOptionalString(roomSource.updatedAt) ||
+      getOptionalString(payloadRecord.updatedAt) ||
+      getOptionalString(payloadRecord.createdAt) ||
+      new Date().toISOString(),
+  };
+};
+
+const mergeRoomSnapshots = (existing: ExternalChatRoom | null | undefined, incoming: ExternalChatRoom): ExternalChatRoom => ({
+  ...(existing || {}),
+  ...incoming,
+  last_message: incoming.last_message || existing?.last_message || null,
+  unread_counts: {
+    ...(existing?.unread_counts || {}),
+    ...(incoming.unread_counts || {}),
+  },
+});
+
+const getSocketNotificationIds = (user: Record<string, unknown> | null | undefined) => {
+  const ids = [
+    user?.id,
+    user?.user_id,
+    user?.userId,
+    user?.client_id,
+    user?.clientId,
+    user?.crew_member_id,
+    user?.crewMemberId,
+    user?.email,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  return [...new Set(ids)];
+};
+
 const formatDayLabel = (value?: string) => {
   if (!value) return "";
   const date = new Date(value);
@@ -620,6 +763,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [pickerHeight, setPickerHeight] = useState(340);
   const socketRef = useRef<Socket | null>(null);
   const socketRefreshTimerRef = useRef<number | null>(null);
+  const handleRoomAvailabilityEventRef = useRef<(payload: unknown) => void>(() => undefined);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const unreadMarkerRef = useRef<HTMLDivElement | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
@@ -638,10 +782,22 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const userId = effectiveUser?.id != null ? String(effectiveUser.id) : null;
   const userName = String(effectiveUser?.name || effectiveUser?.email || "").trim();
   const safeUserName = userName || `User ${userId || "guest"}`;
+  const socketNotificationIds = useMemo(
+    () => getSocketNotificationIds(effectiveUser as Record<string, unknown>),
+    [effectiveUser]
+  );
   const isAdminView = role === "admin";
   const { canCreate: canCreateMessages } = usePermissions("messages");
   const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
+    const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
+    const isLocalBrowser = typeof window !== "undefined" && /^localhost$|^127\.0\.0\.1$/i.test(window.location.hostname);
+    const isLocalApi = /localhost:5001|127\.0\.0\.1:5001/i.test(apiEndpoint);
+
+    if (isLocalBrowser && isLocalApi) {
+      return "http://localhost:5002";
+    }
+
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
     if (explicitSocketUrl) {
       return explicitSocketUrl.replace(/\/+$/, "");
@@ -651,7 +807,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       return "https://api2.dev.beige.app";
     }
 
-    const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
     if (apiEndpoint) {
       const normalized = apiEndpoint.replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
       if (/localhost:5001/i.test(normalized)) {
@@ -1098,6 +1253,56 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const handleRoomAvailabilityEvent = (payload: unknown) => {
+    const incomingRoom = normalizeRoomCreatedPayload(payload);
+
+    if (!incomingRoom) {
+      scheduleSocketRefresh({ forceRoomRefresh: true });
+      return;
+    }
+
+    if (!roomMatchesBookingReference(incomingRoom, bookingId)) {
+      return;
+    }
+
+    const incomingRoomId = getRoomId(incomingRoom);
+    if (!incomingRoomId) {
+      scheduleSocketRefresh({ forceRoomRefresh: true });
+      return;
+    }
+
+    const currentSelectedRoom = selectedRoomRef.current;
+    const selectedRoomId = getRoomId(currentSelectedRoom);
+
+    if (selectedRoomId === incomingRoomId) {
+      const mergedSelectedRoom = mergeRoomSnapshots(currentSelectedRoom, incomingRoom);
+      selectedRoomRef.current = mergedSelectedRoom;
+      setSelectedRoom(mergedSelectedRoom);
+    }
+
+    setRooms((current) => {
+      const existingRoom = current.find((room) => getRoomId(room) === incomingRoomId);
+      const mergedRoom = mergeRoomSnapshots(existingRoom, incomingRoom);
+      roomActivityRef.current[incomingRoomId] = getRoomActivityTimestamp(mergedRoom);
+
+      if (existingRoom) {
+        return current.map((room) => (getRoomId(room) === incomingRoomId ? mergedRoom : room));
+      }
+
+      return [mergedRoom, ...current];
+    });
+
+    onRoomAvailabilityChange?.(true);
+
+    if (bookingId && shouldUseDirectRoom && !selectedRoomId) {
+      loadRoomDetails(incomingRoom).catch(() => undefined);
+    }
+  };
+
+  useEffect(() => {
+    handleRoomAvailabilityEventRef.current = handleRoomAvailabilityEvent;
+  });
+
   const loadRooms = async () => {
     setLoading(true);
     try {
@@ -1179,6 +1384,15 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     });
     socketRef.current = socket;
 
+    const joinNotificationRooms = () => {
+      socketNotificationIds.forEach((notificationUserId) => {
+        socket.emit("joinNotificationRoom", {
+          userId: notificationUserId,
+          userRole: role,
+        });
+      });
+    };
+
     const joinActiveRoom = () => {
       const activeRoomId = getRoomId(selectedRoomRef.current);
       if (!activeRoomId) return;
@@ -1190,9 +1404,13 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     };
 
     socket.on("connect", () => {
-      socket.emit("joinNotificationRoom", { userId, userRole: role });
+      joinNotificationRooms();
       joinActiveRoom();
       scheduleSocketRefresh({ forceRoomRefresh: true });
+    });
+
+    socket.on("chatRoomCreated", (payload: unknown) => {
+      handleRoomAvailabilityEventRef.current(payload);
     });
 
     socket.on("message", (payload: any) => {
@@ -1266,6 +1484,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     });
 
     socket.on("updateChatRoom", (payload: any) => {
+      if (isRoomAvailabilityPayload(payload)) {
+        scheduleSocketRefresh({ forceRoomRefresh: true });
+        return;
+      }
+
       const roomIdFromPayload = String(payload?.roomId || "").trim();
       if (!roomIdFromPayload) {
         scheduleSocketRefresh();
@@ -1341,7 +1564,18 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     socket.on("participantRemoved", () => scheduleSocketRefresh({ forceRoomRefresh: true }));
     socket.on("chatRoomStatusChanged", () => scheduleSocketRefresh({ forceRoomRefresh: true }));
     socket.on("notification:new", (payload: any) => {
-      const roomIdFromPayload = String(payload?.roomId || payload?.id || "").trim();
+      if (isRoomAvailabilityPayload(payload)) {
+        handleRoomAvailabilityEventRef.current(payload);
+        return;
+      }
+
+      const roomIdFromPayload = String(
+        payload?.roomId ||
+        payload?.chatRoomId ||
+        payload?.metadata?.roomId ||
+        payload?.metadata?.chatRoomId ||
+        ""
+      ).trim();
       if (!roomIdFromPayload || payload?.senderId === userId) return;
 
       setLocalUnreadCounts((current) => {
@@ -1363,7 +1597,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [socketServerUrl, userId, safeUserName, role]);
+  }, [socketServerUrl, userId, safeUserName, role, socketNotificationIds]);
 
   useEffect(() => {
     const socket = socketRef.current;

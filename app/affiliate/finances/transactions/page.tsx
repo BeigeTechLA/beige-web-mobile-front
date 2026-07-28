@@ -13,6 +13,7 @@ export default function AffiliateTransactionsPage() {
   const topbarPathname = pathname.replace(/^\/affiliate/, "") || pathname;
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [initialShootId, setInitialShootId] = useState<string | null>(null);
+  const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
 
   const openDisputeModal = (bookingId?: string) => {
     setInitialShootId(bookingId || null);
@@ -33,7 +34,10 @@ export default function AffiliateTransactionsPage() {
           </Button>
         }
       />
-      <AffiliateTransactionsHistory onRaiseDispute={openDisputeModal} />
+      <AffiliateTransactionsHistory
+        onRaiseDispute={openDisputeModal}
+        refreshKey={transactionsRefreshKey}
+      />
       <AffiliateRaiseDisputeModal
         isOpen={isDisputeModalOpen}
         onClose={() => {
@@ -41,6 +45,7 @@ export default function AffiliateTransactionsPage() {
           setInitialShootId(null);
         }}
         initialShootId={initialShootId}
+        onSubmitted={() => setTransactionsRefreshKey((current) => current + 1)}
       />
     </>
   );
