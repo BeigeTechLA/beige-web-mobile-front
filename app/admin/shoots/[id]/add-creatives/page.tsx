@@ -15,14 +15,6 @@ import AddCompensationModal from "@/components/admin/finances/AddCompensationMod
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
-type ProjectFulfillmentStats = {
-  fulfillment_stats?: {
-    videographer?: string;
-    photographer?: string;
-  };
-  location?: string;
-};
-
 type FulfillmentStats = {
   fulfillment_stats?: {
     videographer?: string;
@@ -35,6 +27,8 @@ type FulfillmentStats = {
   needs_attention?: {
     missing_fields?: string[];
   };
+  assignedCrew?: unknown[];
+  assigned_crews?: unknown[];
   [key: string]: unknown;
 };
 
@@ -66,6 +60,74 @@ const asText = (value: unknown, fallback = "") => {
 const asNullableText = (value: unknown) => {
   const text = asText(value);
   return text || null;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
+
+const buildCreatorName = (record: Record<string, unknown>, fallback: string) => {
+  const name = asText(record.name);
+  if (name) return name;
+
+  const firstName = asText(record.first_name);
+  const lastName = asText(record.last_name);
+  return [firstName, lastName].filter(Boolean).join(" ").trim() || fallback;
+};
+
+const mergeCompensationCreator = (
+  current: PendingCompensationShoot["creators"][number] | undefined,
+  next: PendingCompensationShoot["creators"][number]
+): PendingCompensationShoot["creators"][number] => ({
+  creator_id: next.creator_id || current?.creator_id || 0,
+  creator_name: next.creator_name || current?.creator_name || null,
+  creator_email: next.creator_email || current?.creator_email || null,
+  cp_role: next.cp_role || current?.cp_role || null,
+  hourly_rate: next.hourly_rate || current?.hourly_rate || 0,
+});
+
+const getAssignedCompensationCreators = (stats: FulfillmentStats | null) => {
+  const assignments = [
+    ...(Array.isArray(stats?.assignedCrew) ? stats.assignedCrew : []),
+    ...(Array.isArray(stats?.assigned_crews) ? stats.assigned_crews : []),
+  ];
+  const byCreatorId = new Map<number, PendingCompensationShoot["creators"][number]>();
+
+  assignments.forEach((assignment) => {
+    const assignmentRecord = asRecord(assignment);
+    if (!assignmentRecord) return;
+
+    const crewRecord =
+      asRecord(assignmentRecord.crew_member) ||
+      asRecord(assignmentRecord.crewMember) ||
+      asRecord(assignmentRecord.creator) ||
+      assignmentRecord;
+    const creatorId = toNumber(
+      assignmentRecord.crew_member_id ??
+      assignmentRecord.creator_id ??
+      crewRecord.crew_member_id ??
+      crewRecord.id,
+      0
+    );
+
+    if (!creatorId) return;
+
+    const creator = {
+      creator_id: creatorId,
+      creator_name: buildCreatorName(crewRecord, `Creator #${creatorId}`),
+      creator_email: asNullableText(crewRecord.email ?? assignmentRecord.email),
+      cp_role: asNullableText(
+        crewRecord.role_name ??
+        crewRecord.primary_role ??
+        assignmentRecord.cp_role ??
+        assignmentRecord.role
+      ),
+      hourly_rate: toNumber(crewRecord.hourly_rate ?? assignmentRecord.hourly_rate, 0),
+    };
+
+    byCreatorId.set(creatorId, mergeCompensationCreator(byCreatorId.get(creatorId), creator));
+  });
+
+  return Array.from(byCreatorId.values());
 };
 
 export default function AddCreativesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -120,8 +182,14 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         // BUT if the backend actually returns `{ success: true, data: { ... } }` inside that data:
         const stats = (response?.success && response?.data ? response.data : response) as FulfillmentStats;
         const detailsResponse = detailsResult.status === "fulfilled" ? detailsResult.value : null;
-        const projectDetails = (detailsResponse?.data?.project || detailsResponse?.project || detailsResponse?.data || {}) as Record<string, unknown>;
-        const mergedStats = { ...projectDetails, ...(stats || {}) } as FulfillmentStats;
+        const detailsData = (detailsResponse?.data || detailsResponse || {}) as Record<string, unknown>;
+        const projectDetails = (asRecord(detailsData.project) || asRecord(detailsResponse?.project) || detailsData) as Record<string, unknown>;
+        const mergedStats = {
+          ...projectDetails,
+          assignedCrew: detailsData.assignedCrew || projectDetails.assignedCrew,
+          assigned_crews: detailsData.assigned_crews || projectDetails.assigned_crews,
+          ...(stats || {}),
+        } as FulfillmentStats;
 
         if (mergedStats) {
           setStats(mergedStats);
@@ -154,6 +222,28 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       0
     );
 
+    const selectedCreatorsForCompensation = selectedCreativeIds
+      .map((id) => selectedCreatives.find((creative) => Number(creative.id) === Number(id)))
+      .filter((creative): creative is SelectedCreative => Boolean(creative))
+      .map((creative) => ({
+        creator_id: Number(creative.crew_member_id || creative.id),
+        creator_name: asText(
+          creative.name,
+          [creative.first_name, creative.last_name].filter(Boolean).join(" ").trim() || `Creator #${creative.id}`
+        ),
+        creator_email: creative.email || null,
+        cp_role: creative.specialities || creative.role || null,
+        hourly_rate: toNumber(creative.hourly_rate, 0),
+      }));
+    const creatorsById = new Map<number, PendingCompensationShoot["creators"][number]>();
+
+    [...getAssignedCompensationCreators(stats), ...selectedCreatorsForCompensation].forEach((creator) => {
+      creatorsById.set(
+        Number(creator.creator_id),
+        mergeCompensationCreator(creatorsById.get(Number(creator.creator_id)), creator)
+      );
+    });
+
     return {
       booking_id: Number(projectId),
       shoot_name: asText(statsRecord.project_name, asText(statsRecord.shoot_name, `Shoot #${projectId}`)),
@@ -166,19 +256,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         name: asNullableText(statsRecord.customer_name),
         email: asNullableText(statsRecord.customer_email),
       },
-      creators: selectedCreativeIds
-        .map((id) => selectedCreatives.find((creative) => Number(creative.id) === Number(id)))
-        .filter((creative): creative is SelectedCreative => Boolean(creative))
-        .map((creative) => ({
-          creator_id: Number(creative.crew_member_id || creative.id),
-          creator_name: asText(
-            creative.name,
-            [creative.first_name, creative.last_name].filter(Boolean).join(" ").trim() || `Creator #${creative.id}`
-          ),
-          creator_email: creative.email || null,
-          cp_role: creative.specialities || creative.role || null,
-          hourly_rate: toNumber(creative.hourly_rate, 0),
-        })),
+      creators: Array.from(creatorsById.values()),
     };
   }, [projectId, selectedCreativeIds, selectedCreatives, stats]);
 
