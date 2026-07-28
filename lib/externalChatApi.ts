@@ -83,8 +83,17 @@ interface RoomListResponse {
   data?: {
     results?: ExternalChatRoom[];
     rooms?: ExternalChatRoom[];
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+    totalResults?: number;
   };
   results?: ExternalChatRoom[];
+  rooms?: ExternalChatRoom[];
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+  totalResults?: number;
 }
 
 interface RoomResponse {
@@ -181,6 +190,38 @@ export interface ExternalParticipantsPayload {
   managers?: ExternalChatParticipantItem[];
 }
 
+export interface ExternalChatRoomListResult {
+  rooms: ExternalChatRoom[];
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalResults: number;
+  hasMore: boolean;
+}
+
+const extractRoomListResult = (response: RoomListResponse, requestedLimit?: number): ExternalChatRoomListResult => {
+  const data = response?.data || {};
+  const rooms = data.results || data.rooms || response.results || response.rooms || [];
+  const page = Number(data.page || response.page || 1);
+  const limit = Number(data.limit || response.limit || requestedLimit || rooms.length || 10);
+  const hasTotalResults = data.totalResults != null || response.totalResults != null;
+  const hasTotalPages = data.totalPages != null || response.totalPages != null;
+  const totalResults = Number(data.totalResults || response.totalResults || rooms.length);
+  const fallbackTotalPages = limit > 0 ? Math.ceil(totalResults / limit) : 1;
+  const totalPages = Number(data.totalPages || response.totalPages || fallbackTotalPages || 1);
+
+  return {
+    rooms,
+    page,
+    limit,
+    totalPages,
+    totalResults,
+    hasMore: hasTotalPages || hasTotalResults
+      ? page < totalPages || totalResults > page * limit
+      : rooms.length >= limit,
+  };
+};
+
 export const externalChatApi = {
   extractRoom(response: RoomResponse): ExternalChatRoom | null {
     if (response?.data) return response.data;
@@ -192,7 +233,12 @@ export const externalChatApi = {
 
   async listRooms(params?: ExternalChatRoomListParams) {
     const response = await apiClient.get<RoomListResponse>("external-chat/rooms", params);
-    return response.data?.results || response.data?.rooms || response.results || [];
+    return extractRoomListResult(response, params?.limit).rooms;
+  },
+
+  async listRoomsWithMeta(params?: ExternalChatRoomListParams) {
+    const response = await apiClient.get<RoomListResponse>("external-chat/rooms", params);
+    return extractRoomListResult(response, params?.limit);
   },
 
   async getRoomByBooking(bookingId: string | number) {

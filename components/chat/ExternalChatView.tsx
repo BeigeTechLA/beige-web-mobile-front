@@ -553,6 +553,7 @@ const getUnreadBoundaryMessageId = (
 };
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
+const ROOM_LIST_PAGE_SIZE = 10;
 
 export interface ExternalChatViewRef {
   triggerComposerOpen: () => void;
@@ -594,6 +595,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [search, setSearch] = useState("");
   const [roomSortOrder, setRoomSortOrder] = useState<RoomSortOrder>("latest");
   const [loading, setLoading] = useState(true);
+  const [loadingMoreRooms, setLoadingMoreRooms] = useState(false);
+  const [roomListPage, setRoomListPage] = useState(1);
+  const [roomListHasMore, setRoomListHasMore] = useState(false);
   const [activating, setActivating] = useState(false);
   const [loadingRoomData, setLoadingRoomData] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
@@ -623,6 +627,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const unreadMarkerRef = useRef<HTMLDivElement | null>(null);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
+  const roomListViewportRef = useRef<HTMLDivElement | null>(null);
   const shouldStickToBottomRef = useRef(true);
   const composerEmojiRef = useRef<HTMLDivElement | null>(null);
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
@@ -778,6 +783,21 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const mergeRoomsById = (currentRooms: ExternalChatRoom[], incomingRooms: ExternalChatRoom[]) => {
+    const roomMap = new Map<string, ExternalChatRoom>();
+    currentRooms.forEach((room) => {
+      const roomId = getRoomId(room);
+      if (roomId) roomMap.set(roomId, room);
+    });
+    incomingRooms.forEach((room) => {
+      const roomId = getRoomId(room);
+      if (!roomId) return;
+      const existing = roomMap.get(roomId);
+      roomMap.set(roomId, existing ? { ...existing, ...room } : room);
+    });
+    return Array.from(roomMap.values());
+  };
+
   const clearSelectedConversation = (notice?: string) => {
     setSelectedRoom(null);
     selectedRoomRef.current = null;
@@ -846,15 +866,16 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       return;
     }
 
-    const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
-    const roomMessagesMap: Record<string, ExternalChatMessage[]> = {};
-    const hydratedRooms = await hydrateRoomPreviews(roomList, {
-      forceLatestMessage: true,
-      onMessages: (roomId, roomMessages) => {
-        roomMessagesMap[roomId] = roomMessages;
-      },
+    const refreshLimit = Math.max(roomListPage * ROOM_LIST_PAGE_SIZE, ROOM_LIST_PAGE_SIZE);
+    const roomListResult = await externalChatApi.listRoomsWithMeta({
+      page: 1,
+      limit: refreshLimit,
+      sortBy: "updatedAt:desc",
     });
-    const mergedRooms = hydratedRooms.map((incoming) => {
+    setRoomListPage(Math.max(1, Math.ceil(roomListResult.rooms.length / ROOM_LIST_PAGE_SIZE)));
+    setRoomListHasMore(roomListResult.hasMore);
+
+    const mergedRooms = roomListResult.rooms.map((incoming) => {
       const existing = roomsRef.current.find((room) => getRoomId(room) === getRoomId(incoming));
       const mergedRoom =
         existing && !incoming.last_message?.message ? { ...existing, ...incoming, last_message: existing.last_message } : { ...existing, ...incoming };
@@ -880,25 +901,21 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         const isCurrentRoom = roomId === activeSelectedRoomId;
         const serverUnreadCount = getRoomUnreadCount(room, userId);
         const isOwnLatestMessage = getRoomLastMessageSenderId(room) === userId;
-        const roomMessages = roomMessagesMap[roomId] || [];
         const lastSeenAt = roomLastSeenAtRef.current[roomId];
-        const countedUnreadFromMessages = lastSeenAt
-          ? roomMessages.filter((message) => {
-            const timestamp = getMessageTimestamp(message);
-            return Boolean(
-              timestamp &&
-              new Date(timestamp).getTime() > new Date(lastSeenAt).getTime() &&
-              isUnreadEligibleMessage(message, userId)
-            );
-          }).length
-          : 0;
+        const hasNewServerActivity = Boolean(
+          lastSeenAt &&
+          (room.updatedAt || room.last_message?.createdAt) &&
+          new Date(String(room.updatedAt || room.last_message?.createdAt)).getTime() > new Date(lastSeenAt).getTime()
+        );
 
         if (isCurrentRoom) {
           delete next[roomId];
-        } else if (countedUnreadFromMessages > 0 || serverUnreadCount > 0) {
-          next[roomId] = Math.max(next[roomId] || 0, countedUnreadFromMessages, serverUnreadCount);
+        } else if (serverUnreadCount > 0) {
+          next[roomId] = Math.max(next[roomId] || 0, serverUnreadCount);
         } else if (previousActivity && currentActivity && previousActivity !== currentActivity && !isOwnLatestMessage) {
           next[roomId] = Math.max((next[roomId] || 0) + 1, 1);
+        } else if (hasNewServerActivity && !isOwnLatestMessage) {
+          next[roomId] = Math.max(next[roomId] || 0, 1);
         }
 
         roomActivityRef.current[roomId] = currentActivity;
@@ -1100,6 +1117,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
   const loadRooms = async () => {
     setLoading(true);
+    setLoadingMoreRooms(false);
+    setRoomListPage(1);
+    setRoomListHasMore(false);
     try {
       if (bookingId) {
         const room = await externalChatApi.getRoomByBooking(bookingId);
@@ -1115,13 +1135,18 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           clearSelectedConversation();
         }
       } else {
-        const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
-        const hydratedRooms = await hydrateRoomPreviews(roomList);
-        hydratedRooms.forEach((item) => {
+        const roomListResult = await externalChatApi.listRoomsWithMeta({
+          page: 1,
+          limit: ROOM_LIST_PAGE_SIZE,
+          sortBy: "updatedAt:desc",
+        });
+        roomListResult.rooms.forEach((item) => {
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
-        setRooms(hydratedRooms);
-        onRoomAvailabilityChange?.(hydratedRooms.length > 0);
+        setRooms(roomListResult.rooms);
+        setRoomListPage(roomListResult.page);
+        setRoomListHasMore(roomListResult.hasMore);
+        onRoomAvailabilityChange?.(roomListResult.rooms.length > 0);
         clearSelectedConversation();
       }
     } catch (err: any) {
@@ -1134,6 +1159,40 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       toast.error(err?.message || "Failed to load chat rooms");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreRooms = async () => {
+    if (bookingId || loading || loadingMoreRooms || !roomListHasMore) return;
+
+    setLoadingMoreRooms(true);
+    try {
+      const roomListResult = await externalChatApi.listRoomsWithMeta({
+        page: roomListPage + 1,
+        limit: ROOM_LIST_PAGE_SIZE,
+        sortBy: "updatedAt:desc",
+      });
+      roomListResult.rooms.forEach((item) => {
+        roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
+      });
+      setRooms((current) => mergeRoomsById(current, roomListResult.rooms));
+      setRoomListPage(roomListResult.page);
+      setRoomListHasMore(roomListResult.hasMore);
+      onRoomAvailabilityChange?.(roomsRef.current.length + roomListResult.rooms.length > 0);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load more chat rooms");
+    } finally {
+      setLoadingMoreRooms(false);
+    }
+  };
+
+  const handleRoomListScroll = () => {
+    const viewport = roomListViewportRef.current;
+    if (!viewport || loadingMoreRooms || !roomListHasMore) return;
+
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    if (distanceFromBottom < 160) {
+      loadMoreRooms();
     }
   };
 
@@ -1727,7 +1786,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                 </div>
 
                 {/* Dynamic Conversational Rooms List view */}
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div
+                  ref={roomListViewportRef}
+                  onScroll={handleRoomListScroll}
+                  className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
                   {loading ? (
                     <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
                       <Loader2 className="animate-spin text-[#BFA780]" size={40} />
@@ -1856,6 +1919,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                           </button>
                         );
                       })}
+                      {loadingMoreRooms ? (
+                        <div className={`flex items-center justify-center gap-2 py-4 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                          <Loader2 className="h-4 w-4 animate-spin text-[#BFA780]" />
+                          <span>Loading more conversations...</span>
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>
