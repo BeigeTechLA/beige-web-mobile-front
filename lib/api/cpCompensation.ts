@@ -153,7 +153,7 @@ export type AddCpCompensationPayload = {
 export const mapCpStatusToUi = (status?: string): ShootCPRow["status"] => {
   switch (status) {
     case "pending_approval":
-      return "Finance Approval";
+      return "Approval Pending";
     case "approved":
       return "Approved";
     case "partially_paid":

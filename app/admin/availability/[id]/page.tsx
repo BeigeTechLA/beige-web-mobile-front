@@ -589,7 +589,7 @@ export default function AvailabilityDetailsPage() {
                   </div>
                 </div>
 
-                <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+                {/* <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
                   }`}>
                   <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
                   <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
@@ -600,7 +600,7 @@ export default function AvailabilityDetailsPage() {
                     <Copy size={16} className="mr-2" />
                     Copy Link
                   </Button>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

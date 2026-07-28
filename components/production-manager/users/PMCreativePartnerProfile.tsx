@@ -902,15 +902,15 @@ export const PMCreativePartnerProfile = ({ id, hideActions = false, isDark = tru
                     <span className="text-[#999] text-sm">Booked Shoots</span>
                     <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{stats?.total_projects || stats?.accepted_projects || '0'}</span>
                   </div>
-                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
+                  {/* <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? "bg-[#1A1A1A]" : "bg-[#F0F0F0]"}`}>
                     <span className="text-[#999] text-sm">Rating</span>
                     <span className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#303030]"}`}>{partner.rating || "N/A"}</span>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
               {/* Share Availability */}
-              <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
+              {/* <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"
                 }`}>
                 <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Share Availability</h3>
                 <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>Share your availability link with production teams</p>
@@ -919,7 +919,7 @@ export const PMCreativePartnerProfile = ({ id, hideActions = false, isDark = tru
                   <Copy size={18} />
                   <span>Copy Link</span>
                 </button>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

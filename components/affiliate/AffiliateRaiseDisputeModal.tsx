@@ -13,6 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ClientFinancePaymentApiRow,
+  financeTransactionsApi,
+} from "@/lib/api/financeTransactions";
 
 type DisputeFormState = {
   shootId: string;
@@ -32,10 +36,18 @@ type AffiliateDisputeSuccessDetails = {
   status: string;
 };
 
+type ShootOption = {
+  bookingId: string;
+  label: string;
+  displayLabel: string;
+  subtitle: string;
+};
+
 type AffiliateRaiseDisputeModalProps = {
   isOpen: boolean;
   onClose: () => void;
   initialShootId?: string | null;
+  onSubmitted?: () => void;
 };
 
 const DEFAULT_FORM_STATE: DisputeFormState = {
@@ -44,33 +56,68 @@ const DEFAULT_FORM_STATE: DisputeFormState = {
   description: "",
 };
 
-const SHOOT_OPTIONS = ["BK-001", "BK-002", "BK-003", "BK-004", "BK-005"];
 const DISPUTE_TYPES = ["Payment Issue", "Invoice Mismatch", "Refund Request", "Service Concern"];
+const DISPUTE_CATEGORY_BY_TYPE: Record<string, string> = {
+  "Payment Issue": "payment_delay",
+  "Invoice Mismatch": "wrong_deliverables",
+  "Refund Request": "refund",
+  "Service Concern": "quality",
+};
+
+const normalizeShootId = (value: number | string | null | undefined) =>
+  String(value || "").replace(/^BK-/i, "").replace(/^#/, "").trim();
+
+const formatShootLabel = (value: number | string | null | undefined) => {
+  const normalized = normalizeShootId(value);
+  return normalized ? `#${normalized}` : "#N/A";
+};
+
+const getShootOption = (row: ClientFinancePaymentApiRow): ShootOption | null => {
+  const bookingId = normalizeShootId(row.booking_id || row.shoot_id);
+  if (!bookingId) return null;
+  const shootName = row.project_name || row.shoot_type || "Shoot";
+  return {
+    bookingId,
+    label: formatShootLabel(bookingId),
+    displayLabel: `${formatShootLabel(bookingId)} - ${shootName}`,
+    subtitle: shootName,
+  };
+};
 
 export default function AffiliateRaiseDisputeModal({
   isOpen,
   onClose,
   initialShootId,
+  onSubmitted,
 }: AffiliateRaiseDisputeModalProps) {
   const { isDark } = useResolvedTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [form, setForm] = useState<DisputeFormState>(DEFAULT_FORM_STATE);
   const [files, setFiles] = useState<AttachedFile[]>([]);
+  const [shootOptions, setShootOptions] = useState<ShootOption[]>([]);
+  const [isLoadingShoots, setIsLoadingShoots] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState<AffiliateDisputeSuccessDetails | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
+      const initialBookingId = normalizeShootId(initialShootId);
       setForm((current) => ({
         ...DEFAULT_FORM_STATE,
-        shootId: initialShootId || current.shootId || SHOOT_OPTIONS[0],
+        shootId: initialBookingId || current.shootId,
       }));
+      setSubmitError(null);
       return;
     }
 
     setForm(DEFAULT_FORM_STATE);
+    setShootOptions([]);
+    setIsSubmitting(false);
+    setSubmitError(null);
     setFiles((prev) => {
       prev.forEach((item) => {
         if (item.previewUrl && previewUrlsRef.current.has(item.previewUrl)) {
@@ -81,6 +128,69 @@ export default function AffiliateRaiseDisputeModal({
       return [];
     });
     setIsDragging(false);
+  }, [isOpen, initialShootId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isCancelled = false;
+    const initialBookingId = normalizeShootId(initialShootId);
+
+    const fetchShootOptions = async () => {
+      setIsLoadingShoots(true);
+      try {
+        const response = await financeTransactionsApi.listClientPayments({ page: 1, limit: 200 });
+        const seen = new Set<string>();
+        const options = (response.data?.rows || [])
+          .filter((row) => row.actions?.can_raise_dispute !== false)
+          .map(getShootOption)
+          .filter((option): option is ShootOption => Boolean(option))
+          .filter((option) => {
+            if (seen.has(option.bookingId)) return false;
+            seen.add(option.bookingId);
+            return true;
+          });
+
+        if (initialBookingId && !seen.has(initialBookingId)) {
+          options.unshift({
+            bookingId: initialBookingId,
+            label: formatShootLabel(initialBookingId),
+            displayLabel: `${formatShootLabel(initialBookingId)} - Selected shoot`,
+            subtitle: "Selected shoot",
+          });
+        }
+
+        if (isCancelled) return;
+        setShootOptions(options);
+        setForm((current) => ({
+          ...current,
+          shootId: current.shootId || options[0]?.bookingId || "",
+        }));
+      } catch (error) {
+        console.error("Failed to fetch dispute shoot options:", error);
+        if (!isCancelled) {
+          setShootOptions(
+            initialBookingId
+              ? [{
+                  bookingId: initialBookingId,
+                  label: formatShootLabel(initialBookingId),
+                  displayLabel: `${formatShootLabel(initialBookingId)} - Selected shoot`,
+                  subtitle: "Selected shoot",
+                }]
+              : []
+          );
+          setSubmitError(error instanceof Error ? error.message : "Failed to load shoots");
+        }
+      } finally {
+        if (!isCancelled) setIsLoadingShoots(false);
+      }
+    };
+
+    void fetchShootOptions();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isOpen, initialShootId]);
 
   useEffect(() => {
@@ -130,18 +240,46 @@ export default function AffiliateRaiseDisputeModal({
     });
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const bookingId = form.shootId || initialShootId || SHOOT_OPTIONS[0];
-    const disputeNumber = String(Math.floor(700 + Math.random() * 300)).padStart(3, "0");
+  const selectedShoot = useMemo(
+    () => shootOptions.find((option) => option.bookingId === form.shootId),
+    [form.shootId, shootOptions]
+  );
 
-    setSuccessDetails({
-      disputeId: `DIS-${disputeNumber}`,
-      bookingId,
-      status: "Dispute - Open",
-    });
-    setIsSuccessOpen(true);
-    onClose();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!form.shootId || !form.disputeType) {
+      setSubmitError("Please select a shoot and dispute type.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const payload = new FormData();
+      payload.append("booking_id", form.shootId);
+      payload.append("category", DISPUTE_CATEGORY_BY_TYPE[form.disputeType] || "other");
+      payload.append("subject", form.disputeType);
+      payload.append("description", form.description.trim());
+      files.forEach((item) => payload.append("attachments", item.file));
+
+      const response = await financeTransactionsApi.createClientDispute(payload);
+      const dispute = response.data;
+
+      setSuccessDetails({
+        disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
+        bookingId: formatShootLabel(dispute.booking_id || form.shootId),
+        status: "Dispute Open",
+      });
+      setIsSuccessOpen(true);
+      onSubmitted?.();
+      onClose();
+    } catch (error) {
+      console.error("Failed to submit dispute:", error);
+      setSubmitError(error instanceof Error ? error.message : "Failed to submit dispute");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDragState = (event: React.DragEvent<HTMLDivElement>) => {
@@ -168,7 +306,7 @@ export default function AffiliateRaiseDisputeModal({
       {isOpen && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 px-4 py-5 backdrop-blur-md">
           <div
-            className={`relative flex max-h-[90vh] w-full max-w-[438px] flex-col overflow-hidden rounded-[18px] border ${
+            className={`relative flex max-h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[18px] border ${
               isDark
                 ? "border-white/15 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
                 : "border-[#D7D7D7] bg-white text-black shadow-2xl"
@@ -200,16 +338,34 @@ export default function AffiliateRaiseDisputeModal({
                   <Select
                     value={form.shootId}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, shootId: value }))}
+                    disabled={isLoadingShoots || isSubmitting}
                   >
-                    <SelectTrigger className={`h-auto border-0 bg-transparent px-0 py-1 shadow-none focus:ring-0 ${isDark ? "text-white" : "text-black"}`}>
-                      <SelectValue placeholder="Select a shoot" />
+                    <SelectTrigger className={`h-auto min-h-[42px] border-0 bg-transparent px-0 py-1 shadow-none focus:ring-0 [&>span]:line-clamp-none ${isDark ? "text-white" : "text-black"}`}>
+                      <span className="min-w-0 flex-1 truncate text-left text-sm">
+                        {selectedShoot?.displayLabel || (isLoadingShoots ? "Loading shoots..." : "Select a shoot")}
+                      </span>
                     </SelectTrigger>
-                    <SelectContent className={isDark ? "border-[#333] bg-[#111] text-white" : "border-[#E5E5E5] bg-white text-black"}>
-                      {SHOOT_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
+                    <SelectContent
+                      className={`z-[220] max-h-[280px] ${isDark ? "border-[#333] bg-[#111] text-white shadow-[0_18px_50px_rgba(0,0,0,0.65)]" : "border-[#E5E5E5] bg-white text-black shadow-xl"}`}
+                      viewportClassName="h-auto max-h-[270px]"
+                    >
+                      {shootOptions.length > 0 ? (
+                        shootOptions.map((option) => (
+                          <SelectItem
+                            key={option.bookingId}
+                            value={option.bookingId}
+                            className={`py-2.5 pl-8 pr-3 ${isDark ? "focus:bg-white/10" : "focus:bg-black/5 focus:text-black"}`}
+                          >
+                            <span className="block max-w-[430px] truncate" title={option.displayLabel}>
+                              {option.displayLabel}
+                            </span>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-sm opacity-60">
+                          No shoots available
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </fieldset>
@@ -221,13 +377,21 @@ export default function AffiliateRaiseDisputeModal({
                   <Select
                     value={form.disputeType}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, disputeType: value }))}
+                    disabled={isSubmitting}
                   >
                     <SelectTrigger className={`h-auto border-0 bg-transparent px-0 py-1 shadow-none focus:ring-0 ${isDark ? "text-white" : "text-black"}`}>
                       <SelectValue placeholder="Choose type" />
                     </SelectTrigger>
-                    <SelectContent className={isDark ? "border-[#333] bg-[#111] text-white" : "border-[#E5E5E5] bg-white text-black"}>
+                    <SelectContent
+                      className={`z-[220] ${isDark ? "border-[#333] bg-[#111] text-white shadow-[0_18px_50px_rgba(0,0,0,0.65)]" : "border-[#E5E5E5] bg-white text-black shadow-xl"}`}
+                      viewportClassName="h-auto"
+                    >
                       {DISPUTE_TYPES.map((option) => (
-                        <SelectItem key={option} value={option}>
+                        <SelectItem
+                          key={option}
+                          value={option}
+                          className={isDark ? "focus:bg-white/10" : "focus:bg-black/5 focus:text-black"}
+                        >
                           {option}
                         </SelectItem>
                       ))}
@@ -321,15 +485,22 @@ export default function AffiliateRaiseDisputeModal({
                     </div>
                   )}
                 </div>
+
+                {submitError && (
+                  <p className="rounded-lg border border-[#E26E67]/20 bg-[#E26E67]/10 px-3 py-2 text-xs text-[#E26E67]">
+                    {submitError}
+                  </p>
+                )}
               </div>
 
               <div className="p-[18px] pt-0">
                 <Button
                   type="submit"
+                  disabled={isLoadingShoots || isSubmitting || !form.shootId || !form.disputeType}
                   className="h-12 w-full rounded-lg bg-[#E8D1AB] text-black hover:bg-[#d9c08a]"
                 >
                   <Plus size={16} className="mr-2" />
-                  Save & Update
+                  {isSubmitting ? "Submitting..." : "Save & Update"}
                 </Button>
               </div>
             </form>
@@ -346,11 +517,11 @@ export default function AffiliateRaiseDisputeModal({
             }
           }}
         >
-        <DialogContent className="w-[calc(100vw-24px)] max-w-[352px] overflow-hidden rounded-[22px] border border-white/15 bg-[#050505] p-0 text-white shadow-[0_30px_90px_rgba(0,0,0,0.6)] [&>button]:hidden">
+        <DialogContent className="w-[calc(100vw-24px)] max-w-[440px] overflow-hidden rounded-[22px] border border-white/15 bg-[#050505] p-0 text-white shadow-[0_30px_90px_rgba(0,0,0,0.6)] [&>button]:hidden">
             <DialogTitle className="sr-only">Dispute Submitted Successfully</DialogTitle>
 
-            <div className="flex flex-col px-4 pb-4 pt-4">
-              <div className="relative mx-auto h-[156px] w-[270px]">
+            <div className="flex flex-col px-6 pb-6 pt-5">
+              <div className="relative mx-auto h-[180px] w-[320px] max-w-full">
                 <Image
                   src="/images/misc/PaymentSuccess.gif"
                   alt="Dispute Submitted"
@@ -365,12 +536,12 @@ export default function AffiliateRaiseDisputeModal({
                 <h2 className="text-[18px] font-medium leading-tight text-white sm:text-[20px]">
                   Dispute Submitted Successfully
                 </h2>
-                <p className="mx-auto mt-2 max-w-[280px] text-[11px] leading-[1.45] text-white/55 sm:text-[12px]">
+                <p className="mx-auto mt-2 max-w-[340px] text-[12px] leading-[1.5] text-white/55 sm:text-[13px]">
                   Your dispute has been received and is now under review. You will be notified of any updates.
                 </p>
               </div>
 
-              <div className="mt-4 rounded-[14px] border border-white/5 bg-[#121212] px-4 py-3.5">
+              <div className="mt-5 rounded-[14px] border border-white/5 bg-[#121212] px-5 py-4">
                 <div className="space-y-2.5">
                   {[
                     { label: "Dispute ID", value: successDetails?.disputeId || "-" },
@@ -378,9 +549,9 @@ export default function AffiliateRaiseDisputeModal({
                     { label: "Status", value: successDetails?.status || "-" },
                   ].map((row) => (
                     <div key={row.label} className="flex items-center justify-between gap-4">
-                      <span className="text-[11px] text-white/40">{row.label}</span>
+                      <span className="text-xs text-white/40">{row.label}</span>
                       <span
-                        className={`text-[11px] font-medium ${
+                        className={`text-xs font-medium ${
                           row.label === "Status"
                             ? "rounded-full border border-[#E26E67]/20 bg-[#E26E67]/10 px-2.5 py-0.5 text-[#E26E67]"
                             : "text-white"

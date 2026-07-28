@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -18,6 +19,7 @@ import { SortDateButton } from "@/components/admin/SortDateButton";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import AffiliateDisputeDetailsModal, {
   type AffiliateDisputeDetailsRecord,
+  type AffiliateDisputeHistoryItem,
 } from "@/components/affiliate/AffiliateDisputeDetailsModal";
 import {
   Select,
@@ -26,8 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  financeTransactionsApi,
+  type ClientFinanceDisputeDetailsApiRow,
+  type ClientFinancePaymentApiRow,
+  type FinanceTransactionApiRow,
+} from "@/lib/api/financeTransactions";
 
-type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Progress" | "Resolved";
+type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Progress" | "Resolved" | "Rejected";
 
 type PaymentRow = {
   id: string;
@@ -45,252 +53,81 @@ type PaymentRow = {
   paymentMethod: string;
   status: PaymentStatus;
   actionType: "menu" | "view";
+  invoiceUrl?: string | null;
+  invoiceDownloadUrl?: string | null;
+  canRaiseDispute?: boolean;
+  transactionDetails?: TransactionDetail[];
+  dispute?: ClientFinancePaymentApiRow["dispute"];
+  disputes?: ClientFinanceDisputeDetailsApiRow[];
 };
 
 type AffiliateTransactionsHistoryProps = {
   onRaiseDispute?: (bookingId?: string) => void;
+  refreshKey?: number;
 };
 
-const paymentRows: PaymentRow[] = [
-  {
-    id: "bk-001-1",
-    bookingId: "BK-001",
-    shootType: "Wedding Videography",
-    totalAmount: "$2,500",
-    breakdown: {
-      baseCost: "$2,000.00",
-      addOns: "$300.00",
-      taxes: "$250.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-2",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,200.00",
-      addOns: "$500.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Dispute Open",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-3",
-    bookingId: "BK-001",
-    shootType: "Music Video",
-    totalAmount: "$4,000",
-    breakdown: {
-      baseCost: "$3,300.00",
-      addOns: "$400.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Pending",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-4",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,150.00",
-      addOns: "$650.00",
-      taxes: "$300.00",
-      discounts: "-$100.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Refunded",
-    actionType: "menu",
-  },
-  {
-    id: "bk-001-5",
-    bookingId: "BK-001",
-    shootType: "Corporate Photography",
-    totalAmount: "$12,000",
-    breakdown: {
-      baseCost: "$10,900.00",
-      addOns: "$850.00",
-      taxes: "$350.00",
-      discounts: "-$100.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "In-Progress",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-6",
-    bookingId: "BK-001",
-    shootType: "Podcast Shoot",
-    totalAmount: "$8,000",
-    breakdown: {
-      baseCost: "$7,200.00",
-      addOns: "$400.00",
-      taxes: "$450.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Stripe",
-    status: "Resolved",
-    actionType: "view",
-  },
-  {
-    id: "bk-001-7",
-    bookingId: "BK-001",
-    shootType: "Music Video",
-    totalAmount: "$10,000",
-    breakdown: {
-      baseCost: "$8,900.00",
-      addOns: "$1,000.00",
-      taxes: "$150.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-04-15T11:25:00",
-    paymentMethod: "Bank Transfer",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-1",
-    bookingId: "BK-002",
-    shootType: "Event Coverage",
-    totalAmount: "$6,500",
-    breakdown: {
-      baseCost: "$5,500.00",
-      addOns: "$600.00",
-      taxes: "$450.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-02T09:10:00",
-    paymentMethod: "Stripe",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-2",
-    bookingId: "BK-002",
-    shootType: "Brand Film",
-    totalAmount: "$14,200",
-    breakdown: {
-      baseCost: "$12,500.00",
-      addOns: "$1,000.00",
-      taxes: "$750.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "03 Invoices",
-    rawDateTime: "2026-05-02T09:10:00",
-    paymentMethod: "Bank Transfer",
-    status: "Pending",
-    actionType: "view",
-  },
-  {
-    id: "bk-002-3",
-    bookingId: "BK-003",
-    shootType: "Product Shoot",
-    totalAmount: "$3,750",
-    breakdown: {
-      baseCost: "$3,100.00",
-      addOns: "$400.00",
-      taxes: "$300.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-06T14:45:00",
-    paymentMethod: "Stripe",
-    status: "Resolved",
-    actionType: "menu",
-  },
-  {
-    id: "bk-002-4",
-    bookingId: "BK-003",
-    shootType: "Corporate Headshots",
-    totalAmount: "$2,100",
-    breakdown: {
-      baseCost: "$1,800.00",
-      addOns: "$200.00",
-      taxes: "$150.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-06T14:45:00",
-    paymentMethod: "Manual",
-    status: "Refunded",
-    actionType: "menu",
-  },
-  {
-    id: "bk-003-1",
-    bookingId: "BK-004",
-    shootType: "Fashion Shoot",
-    totalAmount: "$9,000",
-    breakdown: {
-      baseCost: "$7,800.00",
-      addOns: "$900.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-05-10T12:20:00",
-    paymentMethod: "Stripe",
-    status: "Dispute Open",
-    actionType: "view",
-  },
-  {
-    id: "bk-003-2",
-    bookingId: "BK-004",
-    shootType: "Podcast Shoot",
-    totalAmount: "$4,800",
-    breakdown: {
-      baseCost: "$4,000.00",
-      addOns: "$500.00",
-      taxes: "$350.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "01 Invoices",
-    rawDateTime: "2026-05-10T12:20:00",
-    paymentMethod: "Bank Transfer",
-    status: "Paid",
-    actionType: "menu",
-  },
-  {
-    id: "bk-003-3",
-    bookingId: "BK-005",
-    shootType: "Music Video",
-    totalAmount: "$11,500",
-    breakdown: {
-      baseCost: "$10,000.00",
-      addOns: "$1,000.00",
-      taxes: "$550.00",
-      discounts: "-$50.00",
-    },
-    invoiceLabel: "02 Invoices",
-    rawDateTime: "2026-05-14T16:05:00",
-    paymentMethod: "Stripe",
-    status: "In-Progress",
-    actionType: "view",
-  },
-];
+type TransactionDetail = {
+  id: string;
+  transactionId: string;
+  date: string;
+  amount: string;
+  method: string;
+  status: string;
+  receiptUrl?: string | null;
+  note?: string;
+};
+
+const formatShootId = (value: number | string | null | undefined) => {
+  const normalized = String(value || "").replace(/^BK-/i, "").replace(/^#/, "").trim();
+  return normalized ? `#${normalized}` : "#N/A";
+};
+
+const normalizeShootKey = (value: number | string | null | undefined) =>
+  String(value || "").replace(/^BK-/i, "").replace(/^SH-/i, "").replace(/^#/, "").replace(/^0+/, "").trim();
+
+const buildParentInvoiceUrl = (bookingId: string) => {
+  const normalized = String(bookingId || "").replace(/^#/, "").trim();
+  return normalized ? `/beige_invoice/${encodeURIComponent(normalized)}?manual=1&t=${Date.now()}` : null;
+};
+
+const getActorRole = (
+  user: { id?: number | string | null; role?: string | null; user_type?: number | string | null } | null | undefined,
+  dispute?: ClientFinanceDisputeDetailsApiRow | null
+) => {
+  const userId = String(user?.id || "");
+  const raisedById = String(dispute?.raised_by?.id || "");
+  if (userId && raisedById && userId === raisedById) return String(dispute?.raised_by?.type || "Client").replace(/\b\w/g, (char) => char.toUpperCase());
+  const role = String(user?.role || "").toLowerCase();
+  if (role.includes("admin")) return "Admin";
+  if (role.includes("client") || role.includes("affiliate")) return "Client";
+  if (role.includes("creator") || role.includes("cp")) return "CP";
+  const userType = String(user?.user_type || "");
+  if (userType === "1") return "Admin";
+  return "Admin";
+};
+
+const titleize = (value: string | null | undefined) =>
+  String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+
+const formatResolutionType = (value: string | null | undefined) => {
+  const normalized = String(value || "").toLowerCase();
+  const labels: Record<string, string> = {
+    payout_release: "Payout Release",
+    refund: "Refund",
+    partial_refund: "Partial Refund",
+    credit_compensation: "Beige Credits",
+    payout_adjustment: "Payout Adjustment",
+    no_action: "No Action",
+    other: "Other",
+  };
+  return labels[normalized] || titleize(value);
+};
+
+const isProofAttachmentType = (type: string | null | undefined) =>
+  type === "refund_proof" || type === "payout_proof";
 
 const statusStyles: Record<PaymentStatus, string> = {
   Paid: "bg-[#DDF9E7] text-[#178B4A] border-[#DDF9E7]",
@@ -299,11 +136,24 @@ const statusStyles: Record<PaymentStatus, string> = {
   Refunded: "bg-[#2C2C2C] text-[#8B8B8B] border-[#3A3A3A]",
   "In-Progress": "bg-[#D7E5FF] text-[#2457D3] border-[#D7E5FF]",
   Resolved: "bg-[#DDFCE6] text-[#159257] border-[#DDFCE6]",
+  Rejected: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
 };
 
-const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In-Progress", "Resolved"] as const;
+const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In-Progress", "Resolved", "Rejected"] as const;
 const monthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"] as const;
 const typeOptions = ["All", "Stripe", "Bank Transfer", "Manual"] as const;
+
+const formatCurrency = (value: number | string | null | undefined, currency = "USD") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "$0.00";
+
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 const formatDate = (value: string) => {
   const parsed = parseISO(value);
@@ -312,6 +162,167 @@ const formatDate = (value: string) => {
     date: format(parsed, "MMMM d, yyyy"),
     time: format(parsed, "h:mm a"),
   };
+};
+
+const formatShortDate = (value: string | null | undefined) => {
+  if (!value) return "N/A";
+  const parsed = parseISO(value);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return format(parsed, "MMM d, yyyy");
+};
+
+const normalizePaymentStatus = (value: string | null | undefined): PaymentStatus => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["paid", "succeeded", "success", "completed", "complete"].includes(normalized)) return "Paid";
+  if (normalized === "dispute_open" || normalized === "open") return "Dispute Open";
+  if (normalized === "in_progress" || normalized === "in-progress" || normalized === "in_review" || normalized === "escalated") return "In-Progress";
+  if (normalized === "resolved") return "Resolved";
+  if (normalized === "rejected" || normalized === "reject") return "Rejected";
+  if (normalized === "refunded") return "Refunded";
+  return "Pending";
+};
+
+const isActiveDisputeStatus = (value: string | null | undefined) => {
+  const normalized = normalizePaymentStatus(value);
+  return normalized === "Dispute Open" || normalized === "In-Progress";
+};
+
+const inferRejectedDisputeStatus = (dispute: ClientFinanceDisputeDetailsApiRow) => {
+  const resolutionText = `${dispute.resolution?.type || ""} ${dispute.resolution?.notes || ""}`.toLowerCase();
+  return dispute.status === "resolved" && /\breject(ed|ing)?\b|no_action|invalid claim/.test(resolutionText);
+};
+
+const normalizeDisputeStatus = (dispute: ClientFinanceDisputeDetailsApiRow | ClientFinancePaymentApiRow["dispute"]) => {
+  if (dispute && inferRejectedDisputeStatus(dispute as ClientFinanceDisputeDetailsApiRow)) return "Rejected";
+  return normalizePaymentStatus(dispute?.status);
+};
+
+const normalizePaymentMethod = (value: string | null | undefined) => {
+  const method = String(value || "").trim();
+  if (!method) return "N/A";
+  const normalized = method.toLowerCase();
+  if (normalized.includes("stripe") || normalized.includes("online") || normalized.includes("card")) return "Stripe";
+  if (normalized.includes("bank")) return "Bank Transfer";
+  if (normalized.includes("manual")) return "Manual";
+  return method;
+};
+
+const formatInvoiceLabel = (count: number | null | undefined) => {
+  const normalizedCount = Math.max(Number(count || 0), 0);
+  return `${String(normalizedCount).padStart(2, "0")} ${normalizedCount === 1 ? "Invoice" : "Invoices"}`;
+};
+
+const buildTransactionId = (transaction: FinanceTransactionApiRow) =>
+  transaction.transaction_id ||
+  transaction.transaction_code ||
+  transaction.receipt_number ||
+  `PAY-${transaction.finance_transaction_id || transaction.payment_id || transaction.manual_payment_id || "N/A"}`;
+
+const mapTransactionDetail = (transaction: FinanceTransactionApiRow): TransactionDetail => {
+  const transactionId = buildTransactionId(transaction);
+
+  return {
+    id: String(transaction.finance_transaction_id || transaction.payment_id || transaction.manual_payment_id || transactionId),
+    transactionId,
+    date: formatShortDate(transaction.transaction_date || transaction.event_date),
+    amount: formatCurrency(transaction.total_amount, transaction.currency || "USD"),
+    method: normalizePaymentMethod(transaction.payment_method),
+    status: normalizePaymentStatus(transaction.status),
+    receiptUrl: transaction.receipt_url || transaction.receipt_download_url || null,
+    note: transaction.invoice_number || transaction.receipt_number || transaction.source || undefined,
+  };
+};
+
+const mapClientPaymentRow = (row: ClientFinancePaymentApiRow): PaymentRow => {
+  const currency = row.currency || row.cost_breakdown?.currency || "USD";
+  const bookingId = formatShootId(row.booking_id || row.shoot_id);
+  const transactionDetails = (row.transactions || []).map(mapTransactionDetail);
+
+  return {
+    id: String(row.booking_id || row.shoot_id || bookingId),
+    bookingId,
+    shootType: row.project_name || row.shoot_type || "N/A",
+    totalAmount: formatCurrency(row.total_amount || row.cost_breakdown?.total_amount, currency),
+    breakdown: {
+      baseCost: formatCurrency(row.cost_breakdown?.base_cost, currency),
+      addOns: formatCurrency(row.cost_breakdown?.add_ons, currency),
+      taxes: formatCurrency(row.cost_breakdown?.taxes, currency),
+      discounts: `-${formatCurrency(Math.abs(Number(row.cost_breakdown?.discounts || 0)), currency)}`,
+    },
+    invoiceLabel: formatInvoiceLabel(row.invoices_count),
+    rawDateTime: row.date_time || row.event_date || new Date(0).toISOString(),
+    paymentMethod: normalizePaymentMethod(row.payment_method || transactionDetails[0]?.method),
+    status: row.dispute ? normalizePaymentStatus(row.dispute.status) : normalizePaymentStatus(row.status || row.payment_status),
+    actionType: row.dispute ? "view" : "menu",
+    invoiceUrl: buildParentInvoiceUrl(bookingId) || row.latest_invoice?.invoice_url || row.latest_invoice?.invoice_pdf || null,
+    invoiceDownloadUrl: buildParentInvoiceUrl(bookingId) || row.latest_invoice?.invoice_pdf || row.latest_invoice?.invoice_url || null,
+    canRaiseDispute: row.actions?.can_raise_dispute !== false,
+    transactionDetails,
+    dispute: row.dispute || null,
+  };
+};
+
+const attachDisputeHistoryToRows = (
+  paymentRows: PaymentRow[],
+  disputeRows: ClientFinanceDisputeDetailsApiRow[]
+) => {
+  if (!disputeRows.length) return paymentRows;
+
+  const disputesByBooking = new Map<string, ClientFinanceDisputeDetailsApiRow[]>();
+  disputeRows.forEach((dispute) => {
+    const key = normalizeShootKey(dispute.booking_id || dispute.shoot_id);
+    if (!key) return;
+    disputesByBooking.set(key, [...(disputesByBooking.get(key) || []), dispute]);
+  });
+
+  return paymentRows.map((row) => {
+    const disputes = (disputesByBooking.get(normalizeShootKey(row.bookingId)) || [])
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    if (!disputes.length) return row;
+    const activeDispute = disputes.find((dispute) => isActiveDisputeStatus(dispute.status));
+    const latestDispute = activeDispute || disputes[0];
+    return {
+      ...row,
+      status: normalizeDisputeStatus(latestDispute),
+      actionType: activeDispute ? "view" as const : "menu" as const,
+      canRaiseDispute: !activeDispute && row.canRaiseDispute !== false,
+      dispute: latestDispute as ClientFinancePaymentApiRow["dispute"],
+      disputes,
+    };
+  });
+};
+
+const matchesSelectedDate = (row: PaymentRow, selectedDate: Date | null) => {
+  if (!selectedDate) return true;
+  const parsed = parseISO(row.rawDateTime);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return format(parsed, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+};
+
+const matchesMonthPreset = (row: PaymentRow, monthFilter: (typeof monthOptions)[number]) => {
+  if (monthFilter === "Month") return true;
+  const parsed = parseISO(row.rawDateTime);
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  const now = new Date();
+  if (monthFilter === "Last 30 Days") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    return parsed >= start && parsed <= now;
+  }
+
+  if (monthFilter === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const start = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return parsed >= start && parsed <= now;
+  }
+
+  if (monthFilter === "This Year") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    return parsed >= start && parsed <= now;
+  }
+
+  return true;
 };
 
 const matchesSearch = (row: PaymentRow, query: string) => {
@@ -348,72 +359,154 @@ const buildPaginationItems = (
 };
 
 const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
-  const suffix = row.bookingId.replace(/^BK-/, "").padStart(3, "0");
+  const suffix = row.bookingId.replace(/^#/, "").padStart(3, "0");
   const parsedDate = parseISO(row.rawDateTime);
   const createdAt = Number.isNaN(parsedDate.getTime())
     ? "20-04-2026"
     : format(parsedDate, "dd-MM-yyyy");
+  const status = row.dispute ? normalizeDisputeStatus(row.dispute) : normalizePaymentStatus(row.status);
+
+  const detailStatus =
+    status === "Resolved" ? "Resolved" :
+    status === "Rejected" ? "Rejected" :
+    status === "Dispute Open" ? "Dispute - Open" :
+    "Under Review";
 
   return {
-    id: `DIS-${suffix}`,
+    id: row.dispute?.dispute_code || `DIS-${suffix}`,
     bookingId: row.bookingId,
-    invoiceId: `INV-${suffix}-B`,
-    raisedBy: row.status === "Dispute Open" ? "Emily Johnson" : "Support Team",
-    raisedRole: row.status === "Dispute Open" ? "Client" : "Admin",
+    invoiceId: row.invoiceLabel,
+    raisedBy: status === "Dispute Open" ? "Client" : "Support Team",
+    raisedRole: status === "Dispute Open" ? "Client" : "Admin",
     createdAt,
-    status: row.status === "Resolved" ? "Resolved" : row.status === "Dispute Open" ? "Dispute - Open" : "Under Review",
-    issueType: row.status === "Dispute Open" ? "Quality Issue" : "Payment Review",
+    status: detailStatus,
+    issueType: row.dispute?.category || row.dispute?.subject || (status === "Dispute Open" ? "Quality Issue" : "Payment Review"),
     description:
-      row.status === "Dispute Open"
-        ? "The delivered work does not match the agreed quality standards."
-        : "This payment is being reviewed by the support team.",
+      row.dispute?.subject ||
+      (status === "Dispute Open"
+        ? "This payment dispute is currently open."
+        : "This payment is being reviewed by the support team."),
     timeline: [
       {
         title: "Dispute Created",
-        by: row.status === "Dispute Open" ? "Emily Johnson" : "Support Team",
+        by: status === "Dispute Open" ? "Client" : "Support Team",
         at: `${createdAt} 10:30`,
         tone: "warning",
       },
       {
-        title: row.status === "Resolved" ? "Resolved" : "Under Review",
+        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "Under Review",
         by: "Support Team",
         at: `${createdAt} 14:20`,
-        tone: row.status === "Resolved" ? "resolved" : "review",
+        tone: status === "Resolved" ? "resolved" : status === "Rejected" ? "warning" : "review",
       },
     ],
-    attachments: [
-      {
-        name: "contract.pdf",
-        size: "245 KB",
-        uploadedBy: "Sarah Chen",
-        uploadedAt: createdAt,
-      },
-      {
-        name: "sample-photos.zip",
-        size: "12.5 MB",
-        uploadedBy: "Sarah Chen",
-        uploadedAt: createdAt,
-      },
-    ],
-    comments: [
-      {
-        author: "Emily Johnson",
-        role: "Client",
-        message: "The photos are blurry and not as discussed.",
-        at: `${createdAt}, 10:35`,
-      },
-      {
-        author: "Support Agent",
-        role: "Admin",
-        message: "We are reviewing the original contract and deliverables.",
-        at: `${createdAt}, 15:35`,
-      },
-    ],
+    attachments: [],
+    comments: [],
+    invoiceUrl: row.invoiceUrl || row.invoiceDownloadUrl || null,
   };
 };
 
+const mapClientDisputeDetails = (
+  dispute: ClientFinanceDisputeDetailsApiRow,
+  fallbackRow?: PaymentRow | null
+): AffiliateDisputeDetailsRecord => {
+  const createdAt = formatShortDate(dispute.created_at);
+  const status = normalizeDisputeStatus(dispute);
+  const detailStatus =
+    status === "Resolved" ? "Resolved" :
+    status === "Rejected" ? "Rejected" :
+    status === "In-Progress" ? "Under Review" :
+    "Dispute - Open";
+  const timeline = (dispute.timeline || []).map((event) => ({
+    id: event.id,
+    title: titleize(event.action) || "Updated",
+    by: event.performed_by?.name || "Support Team",
+    at: formatShortDate(event.created_at),
+    tone: event.to_status === "resolved" ? "resolved" as const : event.to_status === "in_review" || event.to_status === "escalated" ? "review" as const : "warning" as const,
+  }));
+  const latestCloseEvent = [...(dispute.timeline || [])]
+    .reverse()
+    .find((event) => event.to_status === "resolved" || event.to_status === "rejected");
+  const metadata = latestCloseEvent?.metadata || {};
+  const metadataValue = (key: string) => {
+    const value = metadata[key];
+    return value === null || value === undefined || value === "" ? "" : String(value);
+  };
+  const resolutionType = String(dispute.resolution?.type || metadataValue("resolution_type") || "");
+  const isCreditResolution = resolutionType === "credit_compensation";
+  const resolutionDetails = [
+    { label: "Status", value: detailStatus },
+    { label: detailStatus === "Rejected" ? "Reason" : "Resolution Type", value: detailStatus === "Rejected" ? metadataValue("rejection_reason") : formatResolutionType(resolutionType) },
+    { label: "Amount", value: metadataValue("resolution_amount") || metadataValue("credit_amount") || metadataValue("refund_amount") },
+    { label: "Payment Method", value: metadataValue("payment_method") },
+    { label: "Transaction ID", value: metadataValue("transaction_id") },
+    { label: "Recipient", value: metadataValue("recipient") },
+    { label: "Credit Reference", value: metadataValue("account_credit_ledger_id") ? `CR-${metadataValue("account_credit_ledger_id")}` : "" },
+    { label: "Credit Use", value: isCreditResolution ? "Added to your account for future bookings." : "" },
+    { label: "Notes", value: dispute.resolution?.notes || latestCloseEvent?.notes || "" },
+  ].filter((item) => item.value);
+  const attachments = (dispute.attachments || []).map((file) => ({
+    name: file.file_name || "Attachment",
+    size: "-",
+    uploadedBy: getActorRole(file.uploaded_by, dispute),
+    uploadedAt: formatShortDate(file.created_at),
+    url: file.file_url || file.file_path || null,
+    attachmentType: file.attachment_type || null,
+  }));
+
+  return {
+    id: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "DIS"),
+    bookingId: formatShootId(dispute.booking_id || fallbackRow?.bookingId),
+    invoiceId: dispute.invoice?.invoice_number || fallbackRow?.invoiceLabel || "-",
+    raisedBy: "Client",
+    raisedRole: "Client",
+    createdAt,
+    status: detailStatus,
+    issueType: dispute.category || dispute.subject || "Dispute",
+    description: dispute.description || dispute.subject || "This dispute is being reviewed.",
+    invoiceUrl: buildParentInvoiceUrl(formatShootId(dispute.booking_id || fallbackRow?.bookingId)) || dispute.invoice?.invoice_url || dispute.invoice?.invoice_pdf || fallbackRow?.invoiceUrl || fallbackRow?.invoiceDownloadUrl || null,
+    timeline: timeline.length ? timeline : [{
+      title: "Dispute Created",
+      by: "Client",
+      at: createdAt,
+      tone: "warning",
+    }],
+    attachments,
+    resolutionProofs: attachments.filter((file) => isProofAttachmentType(file.attachmentType)),
+    comments: (dispute.internal_comments || []).map((comment) => ({
+      author: comment.created_by?.name || comment.created_by_creator?.name || "Support",
+      role: comment.created_by_creator ? "CP" : getActorRole(comment.created_by, dispute),
+      message: comment.body || "-",
+      at: formatShortDate(comment.created_at),
+    })),
+    resolutionSummary: detailStatus === "Resolved" || detailStatus === "Rejected" ? {
+      label: detailStatus === "Rejected" ? "Rejection Details" : "Resolution Details",
+      details: resolutionDetails.length ? resolutionDetails : [{ label: "Status", value: detailStatus }],
+    } : null,
+  };
+};
+
+const buildDisputeHistoryItems = (row: PaymentRow | null): AffiliateDisputeHistoryItem[] =>
+  (row?.disputes || []).map((dispute) => {
+    const status = normalizeDisputeStatus(dispute);
+    const detailStatus: AffiliateDisputeHistoryItem["status"] =
+      status === "Resolved" ? "Resolved" :
+      status === "Rejected" ? "Rejected" :
+      status === "In-Progress" ? "Under Review" :
+      "Dispute - Open";
+
+    return {
+      disputeId: dispute.dispute_id || dispute.dispute_code || "",
+      label: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "DIS"),
+      status: detailStatus,
+      issueType: dispute.category || dispute.subject || "Dispute",
+      createdAt: formatShortDate(dispute.created_at),
+    };
+  }).filter((item) => item.disputeId);
+
 export default function AffiliateTransactionsHistory({
   onRaiseDispute,
+  refreshKey = 0,
 }: AffiliateTransactionsHistoryProps) {
   const { isDark } = useResolvedTheme();
 
@@ -423,18 +516,78 @@ export default function AffiliateTransactionsHistory({
   const [monthFilter, setMonthFilter] = useState<(typeof monthOptions)[number]>("Month");
   const [typeFilter, setTypeFilter] = useState<(typeof typeOptions)[number]>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedRow, setSelectedRow] = useState<PaymentRow | null>(null);
   const [selectedDispute, setSelectedDispute] = useState<AffiliateDisputeDetailsRecord | null>(null);
+  const [selectedDisputeId, setSelectedDisputeId] = useState<string | number | null>(null);
+  const [selectedDisputePaymentRow, setSelectedDisputePaymentRow] = useState<PaymentRow | null>(null);
+  const [disputeActionLoading, setDisputeActionLoading] = useState<"comment" | "attachment" | null>(null);
   const [openMenuState, setOpenMenuState] = useState<{ rowId: string; direction: "up" | "down" } | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
+  React.useEffect(() => {
+    let isCancelled = false;
+
+    const fetchPayments = async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const [paymentsResponse, disputesResponse] = await Promise.all([
+          financeTransactionsApi.listClientPayments({
+            page: 1,
+            limit: 100,
+            search: searchValue.trim() || undefined,
+          }),
+          financeTransactionsApi.listClientDisputes({
+            page: 1,
+            limit: 100,
+            search: searchValue.trim() || undefined,
+          }),
+        ]);
+        const mappedRows = attachDisputeHistoryToRows(
+          (paymentsResponse.data?.rows || []).map(mapClientPaymentRow),
+          disputesResponse.data?.rows || []
+        );
+
+        if (isCancelled) return;
+        setRows(mappedRows);
+      } catch (error) {
+        console.error("Failed to fetch client payments:", error);
+        if (isCancelled) return;
+        setRows([]);
+        setErrorMessage(error instanceof Error ? error.message : "Failed to fetch payments");
+      } finally {
+        if (!isCancelled) setIsLoading(false);
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      void fetchPayments();
+    }, 300);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [refreshKey, searchValue]);
+
   const filteredRows = useMemo(() => {
-    return paymentRows.filter((row) => {
+    return rows.filter((row) => {
       const matchesStatus = statusFilter === "All" || row.status === statusFilter;
       const matchesType = typeFilter === "All" || row.paymentMethod === typeFilter;
-      return matchesStatus && matchesType && matchesSearch(row, searchValue);
+      return (
+        matchesStatus &&
+        matchesType &&
+        matchesSelectedDate(row, selectedDate) &&
+        matchesMonthPreset(row, monthFilter) &&
+        matchesSearch(row, searchValue)
+      );
     });
-  }, [searchValue, statusFilter, typeFilter]);
+  }, [monthFilter, rows, searchValue, selectedDate, statusFilter, typeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -444,7 +597,7 @@ export default function AffiliateTransactionsHistory({
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchValue, statusFilter, monthFilter, typeFilter]);
+  }, [searchValue, selectedDate, statusFilter, monthFilter, typeFilter]);
 
   React.useEffect(() => {
     if (currentPage > totalPages) {
@@ -453,13 +606,24 @@ export default function AffiliateTransactionsHistory({
   }, [currentPage, totalPages]);
 
   React.useEffect(() => {
+    setExpandedRowId(null);
+  }, [currentPage, searchValue, selectedDate, statusFilter, monthFilter, typeFilter]);
+
+  React.useEffect(() => {
     const handleClickOutside = () => setOpenMenuState(null);
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, []);
 
   const closeBreakdown = () => setSelectedRow(null);
-  const closeDispute = () => setSelectedDispute(null);
+  const closeDispute = () => {
+    setSelectedDispute(null);
+    setSelectedDisputeId(null);
+    setSelectedDisputePaymentRow(null);
+  };
+  const toggleRow = (rowId: string) => {
+    setExpandedRowId((current) => (current === rowId ? null : rowId));
+  };
 
   const openRowMenu = (event: React.MouseEvent, rowId: string) => {
     event.stopPropagation();
@@ -475,12 +639,34 @@ export default function AffiliateTransactionsHistory({
     );
   };
 
-  const handleMenuAction = (event: React.MouseEvent, row: PaymentRow, action: "details" | "invoice" | "download" | "dispute") => {
+  const openUrl = (url: string | null | undefined) => {
+    const targetUrl = String(url || "").trim();
+    if (!targetUrl) return false;
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    return true;
+  };
+
+  const handleMenuAction = (event: React.MouseEvent, row: PaymentRow, action: "details" | "invoice" | "download" | "dispute" | "disputeHistory") => {
     event.stopPropagation();
     setOpenMenuState(null);
 
     if (action === "details") {
-      setSelectedDispute(buildDisputeRecord(row));
+      toggleRow(row.id);
+      return;
+    }
+
+    if (action === "invoice") {
+      openUrl(row.invoiceUrl);
+      return;
+    }
+
+    if (action === "download") {
+      openUrl(row.invoiceDownloadUrl || row.invoiceUrl);
+      return;
+    }
+
+    if (action === "disputeHistory") {
+      void openDisputeDetails(event, row);
       return;
     }
 
@@ -488,15 +674,181 @@ export default function AffiliateTransactionsHistory({
       onRaiseDispute?.(row.bookingId);
       return;
     }
-
-    // Static UI only: these actions intentionally do not navigate anywhere yet.
-    console.log(`${action} clicked for ${row.id}`);
   };
 
-  const openDisputeDetails = (event: React.MouseEvent, row: PaymentRow) => {
+  const openDisputeDetails = async (
+    event: React.MouseEvent,
+    row: PaymentRow,
+    disputeOverride?: ClientFinanceDisputeDetailsApiRow
+  ) => {
     event.stopPropagation();
-    setSelectedDispute(buildDisputeRecord(row));
+    setSelectedDisputePaymentRow(row);
+    const dispute = disputeOverride || row.dispute;
+    if (dispute) {
+      setSelectedDispute(buildDisputeRecord({ ...row, dispute }));
+      setSelectedDisputeId(dispute.dispute_id || null);
+      if (dispute.dispute_id) {
+        try {
+          const response = await financeTransactionsApi.getClientDisputeDetails(dispute.dispute_id);
+          setSelectedDispute(mapClientDisputeDetails(response.data, row));
+        } catch (error) {
+          console.error("Failed to fetch client dispute details:", error);
+        }
+      }
+      return;
+    }
+    toggleRow(row.id);
   };
+
+  const selectDisputeHistoryItem = async (disputeId: string | number) => {
+    if (!disputeId || !selectedDisputePaymentRow) return;
+    setSelectedDisputeId(disputeId);
+    const dispute = selectedDisputePaymentRow.disputes?.find((item) => String(item.dispute_id || item.dispute_code) === String(disputeId));
+    if (dispute) {
+      setSelectedDispute(buildDisputeRecord({ ...selectedDisputePaymentRow, dispute }));
+    }
+    try {
+      const response = await financeTransactionsApi.getClientDisputeDetails(disputeId);
+      setSelectedDispute(mapClientDisputeDetails(response.data, selectedDisputePaymentRow));
+    } catch (error) {
+      console.error("Failed to fetch client dispute history details:", error);
+    }
+  };
+
+  const refreshClientDisputeDetails = async () => {
+    if (!selectedDisputeId) return;
+    const response = await financeTransactionsApi.getClientDisputeDetails(selectedDisputeId);
+    setSelectedDispute(mapClientDisputeDetails(response.data, selectedDisputePaymentRow));
+  };
+
+  const addClientDisputeComment = async (_dispute: AffiliateDisputeDetailsRecord, body: string) => {
+    if (!selectedDisputeId) return;
+    setDisputeActionLoading("comment");
+    try {
+      await financeTransactionsApi.addClientDisputeComment(selectedDisputeId, body);
+      await refreshClientDisputeDetails();
+    } catch (error) {
+      console.error("Failed to add client dispute comment:", error);
+    } finally {
+      setDisputeActionLoading(null);
+    }
+  };
+
+  const addClientDisputeAttachment = async (_dispute: AffiliateDisputeDetailsRecord, files: File[]) => {
+    if (!selectedDisputeId || !files.length) return;
+    setDisputeActionLoading("attachment");
+    try {
+      const payload = new FormData();
+      files.forEach((file) => payload.append("attachments", file));
+      await financeTransactionsApi.addClientDisputeAttachment(selectedDisputeId, payload);
+      await refreshClientDisputeDetails();
+    } catch (error) {
+      console.error("Failed to add client dispute attachment:", error);
+    } finally {
+      setDisputeActionLoading(null);
+    }
+  };
+
+  const DetailPanelContent = ({ row }: { row: PaymentRow }) => (
+    <div className={`p-5 lg:px-5 lg:py-6 ${isDark ? "bg-[#0A0A0A]" : "bg-[#FAFAFA]"}`}>
+      <div className="mb-4 flex items-center gap-2">
+        <FileText size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
+        <p className={`text-base font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+          Transactions for {row.bookingId}
+        </p>
+      </div>
+
+      {(row.transactionDetails || []).length > 0 ? (
+        <div className="space-y-3">
+          {(row.transactionDetails || []).map((transaction) => {
+            const displayStatus = normalizePaymentStatus(transaction.status);
+            return (
+              <button
+                key={transaction.id}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openUrl(transaction.receiptUrl);
+                }}
+                className={`flex w-full flex-col gap-3 rounded-lg border p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${
+                  transaction.receiptUrl ? "cursor-pointer" : "cursor-default"
+                } ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
+              >
+                <div className="min-w-0">
+                  <p className={`truncate text-sm font-medium sm:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>
+                    {transaction.transactionId}
+                  </p>
+                  <p className={`mt-1 text-xs sm:text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
+                    {transaction.date} · {transaction.method}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <div className="text-right">
+                    <p className={`text-base font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
+                      {transaction.amount}
+                    </p>
+                    {transaction.note ? (
+                      <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-[#8A8A8A]"}`}>
+                        {transaction.note}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[displayStatus]}`}>
+                    {displayStatus}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={`rounded-lg border p-4 text-sm ${isDark ? "border-[#262626] bg-[#141414] text-white/50" : "border-[#E5E5E5] bg-white text-[#777]"}`}>
+          No transactions found for this shoot.
+        </div>
+      )}
+
+      {(row.disputes || []).length > 0 ? (
+        <div className="mt-5">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertCircle size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
+            <p className={`text-base font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+              Dispute History
+            </p>
+          </div>
+          <div className="space-y-3">
+            {(row.disputes || []).map((dispute) => {
+              const disputeStatus = normalizeDisputeStatus(dispute);
+              return (
+                <button
+                  key={String(dispute.dispute_id || dispute.dispute_code)}
+                  type="button"
+                  onClick={(event) => void openDisputeDetails(event, row, dispute)}
+                  className={`flex w-full flex-col gap-3 rounded-lg border p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
+                >
+                  <div className="min-w-0">
+                    <p className={`truncate text-sm font-medium sm:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>
+                      {dispute.dispute_code || `DIS-${dispute.dispute_id || ""}`}
+                    </p>
+                    <p className={`mt-1 text-xs sm:text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
+                      {dispute.category || dispute.subject || "Dispute"} · {formatShortDate(dispute.created_at)}
+                    </p>
+                    {dispute.description ? (
+                      <p className={`mt-1 line-clamp-1 text-xs ${isDark ? "text-white/40" : "text-[#8A8A8A]"}`}>
+                        {dispute.description}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[disputeStatus]}`}>
+                    {disputeStatus}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <div
@@ -615,16 +967,37 @@ export default function AffiliateTransactionsHistory({
               </tr>
             </thead>
             <tbody>
-                {paginatedRows.map((row) => {
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className={`px-4 py-12 text-center text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
+                    Loading payment history...
+                  </td>
+                </tr>
+              ) : paginatedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className={`px-4 py-12 text-center text-sm ${isDark ? "text-white/55" : "text-[#777]"}`}>
+                    {errorMessage || "No transactions found."}
+                  </td>
+                </tr>
+              ) : (
+                paginatedRows.flatMap((row) => {
                   const { date, time } = formatDate(row.rawDateTime);
+                  const isExpanded = expandedRowId === row.id;
 
-                return (
+                return [
                   <tr
                     key={row.id}
-                    className={`border-b transition-colors ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F3F3F3] hover:bg-[#FAFAFA]"}`}
+                    onClick={() => toggleRow(row.id)}
+                    className={`cursor-pointer border-b transition-colors ${isDark ? "border-[#222222] hover:bg-white/[0.02]" : "border-[#F3F3F3] hover:bg-[#FAFAFA]"}`}
                   >
                     <td className={`px-4 py-5 text-sm ${isDark ? "text-white/85" : "text-[#171717]"}`}>
-                      {row.bookingId}
+                      <div className="flex items-center gap-3">
+                        <ChevronDown
+                          size={20}
+                          className={`shrink-0 transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"} ${isDark ? "text-white/70" : "text-[#666]"}`}
+                        />
+                        <span>{row.bookingId}</span>
+                      </div>
                     </td>
                     <td className={`px-4 py-5 text-sm ${isDark ? "text-white/85" : "text-[#171717]"}`}>
                       {row.shootType}
@@ -697,6 +1070,7 @@ export default function AffiliateTransactionsHistory({
                                 <button
                                   type="button"
                                   onClick={(event) => handleMenuAction(event, row, "invoice")}
+                                  disabled={!row.invoiceUrl}
                                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-white transition-colors hover:bg-white/5"
                                 >
                                   <FileText size={16} className="shrink-0" />
@@ -705,42 +1079,82 @@ export default function AffiliateTransactionsHistory({
                                 <button
                                   type="button"
                                   onClick={(event) => handleMenuAction(event, row, "download")}
+                                  disabled={!row.invoiceDownloadUrl && !row.invoiceUrl}
                                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-white transition-colors hover:bg-white/5"
                                 >
                                   <Download size={16} className="shrink-0" />
                                   <span className="font-medium">Download Invoice</span>
                                 </button>
+                                {(row.disputes || []).length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => handleMenuAction(event, row, "disputeHistory")}
+                                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-white transition-colors hover:bg-white/5"
+                                  >
+                                    <AlertCircle size={16} className="shrink-0" />
+                                    <span className="font-medium">View Dispute History</span>
+                                  </button>
+                                )}
                                 <div className="h-px bg-white/10" />
-                                <button
-                                  type="button"
-                                  onClick={(event) => handleMenuAction(event, row, "dispute")}
-                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
-                                >
-                                  <AlertCircle size={16} className="shrink-0" />
-                                  <span className="font-medium">Raise Dispute</span>
-                                </button>
+                                {row.canRaiseDispute !== false && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => handleMenuAction(event, row, "dispute")}
+                                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
+                                  >
+                                    <AlertCircle size={16} className="shrink-0" />
+                                    <span className="font-medium">Raise Dispute</span>
+                                  </button>
+                                )}
                               </div>
                             )}
                           </>
                         )}
                       </div>
                     </td>
-                  </tr>
-                );
-              })}
+                  </tr>,
+                  ...(isExpanded ? [
+                    <tr key={`${row.id}-details`}>
+                      <td colSpan={8}>
+                        <DetailPanelContent row={row} />
+                      </td>
+                    </tr>
+                  ] : []),
+                ];
+              }))}
             </tbody>
           </table>
         </div>
 
         <div className="lg:hidden">
-          {paginatedRows.map((row) => {
+          {isLoading ? (
+            <div className={`border-b p-6 text-center text-sm ${isDark ? "border-[#222222] text-white/55" : "border-[#F0F0F0] text-[#777]"}`}>
+              Loading payment history...
+            </div>
+          ) : paginatedRows.length === 0 ? (
+            <div className={`border-b p-6 text-center text-sm ${isDark ? "border-[#222222] text-white/55" : "border-[#F0F0F0] text-[#777]"}`}>
+              {errorMessage || "No transactions found."}
+            </div>
+          ) : (
+          paginatedRows.map((row) => {
             const { date, time } = formatDate(row.rawDateTime);
+            const isExpanded = expandedRowId === row.id;
             return (
-              <div key={row.id} className={`border-b p-4 ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}>
+              <div
+                key={row.id}
+                onClick={() => toggleRow(row.id)}
+                className={`cursor-pointer border-b p-4 ${isDark ? "border-[#222222]" : "border-[#F0F0F0]"}`}
+              >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <ChevronDown
+                      size={18}
+                      className={`mt-0.5 shrink-0 transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"} ${isDark ? "text-white/70" : "text-[#666]"}`}
+                    />
+                    <div className="min-w-0">
                     <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#111]"}`}>{row.shootType}</p>
                     <p className={`mt-1 text-xs ${isDark ? "text-white/50" : "text-[#666]"}`}>{row.bookingId}</p>
+                    </div>
                   </div>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
                     {row.status}
@@ -752,7 +1166,10 @@ export default function AffiliateTransactionsHistory({
                       <p className={`text-[10px] uppercase tracking-[0.12em] ${isDark ? "text-white/35" : "text-[#777]"}`}>Amount</p>
                       <button
                         type="button"
-                        onClick={() => setSelectedRow(row)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedRow(row);
+                        }}
                         className={`mt-1 font-medium underline decoration-white/30 underline-offset-4 transition-opacity hover:opacity-80 ${isDark ? "text-white" : "text-[#111]"}`}
                       >
                         {row.totalAmount}
@@ -813,6 +1230,7 @@ export default function AffiliateTransactionsHistory({
                               <button
                                 type="button"
                                 onClick={(event) => handleMenuAction(event, row, "invoice")}
+                                disabled={!row.invoiceUrl}
                                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
                               >
                                 <FileText size={16} className="shrink-0" />
@@ -821,20 +1239,33 @@ export default function AffiliateTransactionsHistory({
                               <button
                                 type="button"
                                 onClick={(event) => handleMenuAction(event, row, "download")}
+                                disabled={!row.invoiceDownloadUrl && !row.invoiceUrl}
                                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
                               >
                                 <Download size={16} className="shrink-0" />
                                 <span className="font-medium">Download Invoice</span>
                               </button>
+                              {(row.disputes || []).length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "disputeHistory")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-white transition-colors hover:bg-white/5"
+                                >
+                                  <AlertCircle size={16} className="shrink-0" />
+                                  <span className="font-medium">View Dispute History</span>
+                                </button>
+                              )}
                               <div className="h-px bg-white/10" />
-                              <button
-                                type="button"
-                                onClick={(event) => handleMenuAction(event, row, "dispute")}
-                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
-                              >
-                                <AlertCircle size={16} className="shrink-0" />
-                                <span className="font-medium">Raise Dispute</span>
-                              </button>
+                              {row.canRaiseDispute !== false && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleMenuAction(event, row, "dispute")}
+                                  className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] text-[#FF3B3B] transition-colors hover:bg-white/5"
+                                >
+                                  <AlertCircle size={16} className="shrink-0" />
+                                  <span className="font-medium">Raise Dispute</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </>
@@ -842,9 +1273,14 @@ export default function AffiliateTransactionsHistory({
                     </div>
                   </div>
                 </div>
+                {isExpanded && (
+                  <div className="-mx-4 mt-4">
+                    <DetailPanelContent row={row} />
+                  </div>
+                )}
               </div>
             );
-          })}
+          }))}
         </div>
 
         <div className={`flex flex-col gap-4 border-t p-4 lg:flex-row lg:items-center lg:justify-between lg:p-6 ${isDark ? "border-[#262626]" : "border-[#E8E8E8]"}`}>
@@ -958,6 +1394,13 @@ export default function AffiliateTransactionsHistory({
         isOpen={Boolean(selectedDispute)}
         onClose={closeDispute}
         dispute={selectedDispute}
+        disputeHistory={buildDisputeHistoryItems(selectedDisputePaymentRow)}
+        activeDisputeId={selectedDisputeId}
+        actionLoading={disputeActionLoading}
+        onSelectHistory={(disputeId) => void selectDisputeHistoryItem(disputeId)}
+        onAddComment={addClientDisputeComment}
+        onAddAttachment={addClientDisputeAttachment}
+        onOpenInvoice={(dispute) => openUrl(dispute.invoiceUrl)}
       />
 
     </div>
