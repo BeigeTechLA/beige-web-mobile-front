@@ -361,13 +361,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                 ))}
               </div>
 
-              <Button
+              {/* <Button
                 onClick={handleAssign}
                 disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
                 className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
               >
                 {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-              </Button>
+              </Button> */}
             </div>
           }
         />
