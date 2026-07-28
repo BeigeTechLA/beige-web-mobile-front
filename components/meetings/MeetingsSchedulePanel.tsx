@@ -15,6 +15,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { canRespondToMeeting, formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
+import { getBrowserTimeZoneLabel } from "@/lib/timezone";
 import {
   Select,
   SelectContent,
@@ -92,13 +93,14 @@ const formatDateTime = (value?: string) => {
   if (!value) return "No schedule";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "No schedule";
-  return date.toLocaleString([], {
+  const dateTime = date.toLocaleString([], {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${dateTime} (${getBrowserTimeZoneLabel(date)})`;
 };
 
 const StatusBadge = ({ status, isDark = true }: { status?: string; isDark?: boolean }) => {
