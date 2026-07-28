@@ -203,7 +203,7 @@ export const Footer = () => {
               </h4>
               <ul className="space-y-2 lg:space-y-4">
                 <li className="text-white text-sm lg:text-lg font-medium flex items-center gap-2">
-                  <PhoneCall className="w-4 h-4 lg:w-6 lg:h-6 text-white fill-white" />{" "}
+                  <PhoneCall className="shrink-0 w-4 h-4 lg:w-6 lg:h-6 text-white fill-white" />{" "}
                   323-826-7230
                 </li>
                 <li>
@@ -211,7 +211,7 @@ export const Footer = () => {
                     href="mailto:sales@beigecorporation.io"
                     className="text-white text-sm lg:text-lg hover:text-[#ECE1CE] transition-colors font-medium flex items-center gap-2"
                   >
-                    <Mail className="w-4 h-4 lg:w-6 lg:h-6 text-white" />{" "}
+                    <Mail className="shrink-0 w-4 h-4 lg:w-6 lg:h-6 text-white" />{" "}
                     sales@beigecorporation.io
                   </a>
                 </li>
