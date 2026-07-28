@@ -277,11 +277,11 @@ export default function DisputesPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <Select value={overviewRange} onValueChange={(val) => setOverviewRange(val)}>
-                                    <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#807E7E] text-[#C4C4C4]" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
+                                    <SelectTrigger className={`rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-[#171717] border-[#807E7E] text-[#C4C4C4]" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
                                         }`}>
                                         <SelectValue placeholder="Range" />
                                     </SelectTrigger>
-                                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#807E7E] text-[#C4C4C4]" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
+                                    <SelectContent className={`${isDark ? "bg-[#171717] border-[#807E7E] text-[#C4C4C4]" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
                                         <SelectItem value="month">Month</SelectItem>
                                         <SelectItem value="week">This Week</SelectItem>
                                         <SelectItem value="all">All time</SelectItem>
@@ -456,7 +456,7 @@ export default function DisputesPage() {
                                                 </div>
 
                                                 {/* Payout Status */}
-                                                <div className="bg-[#171717] border border-[#2A2A2A] rounded-xl p-5">
+                                                <div className="bg-[#171717] border border-[#2A2A2A] rounded-lg p-5">
                                                     <h4 className="text-base font-normal mb-4">Payout Status</h4>
                                                     <div className="space-y-3">
                                                         <div className="flex justify-between items-center">

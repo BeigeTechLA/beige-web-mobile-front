@@ -13,10 +13,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Check, Upload, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 interface RaiseDisputeModalProps {
     open: boolean;
@@ -31,12 +32,12 @@ export interface RaiseDisputeData {
     file?: File | null;
 }
 
-interface SuccessModalProps {
+type DisputeSuccessModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     disputeId: string;
     bookingId: string;
-}
+};
 
 // Success Modal Component
 function DisputeSuccessModal({
@@ -44,70 +45,91 @@ function DisputeSuccessModal({
     onOpenChange,
     disputeId,
     bookingId,
-}: SuccessModalProps) {
+}: DisputeSuccessModalProps) {
+    const { isDark } = useResolvedTheme();
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    if (!open) {
+        return null;
+    }
+
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+            onOpenChange(false);
+        }
+    };
+
+    const handleClose = () => {
+        onOpenChange(false);
+    };
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[calc(100vw-24px)] max-w-[420px] overflow-hidden rounded-[2px] border border-white/25 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden">
-                <DialogTitle className="sr-only">Dispute Submitted Successfully</DialogTitle>
+        <div
+            onClick={handleBackdropClick}
+            className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5"
+        >
+            <div
+                ref={containerRef}
+                className={`relative max-h-[calc(80vh-60px)] w-full overflow-y-auto rounded-[16px] border p-5 transition-colors duration-200 flex flex-col items-center gap-3 lg:max-w-lg lg:gap-6 lg:p-8 animate-in fade-in zoom-in duration-200 ${isDark
+                    ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
+                    : "border-[#E3E3E3] bg-white text-[#101010] shadow-[0_24px_80px_rgba(16,16,16,0.18)]"
+                    }`}
+            >
+                <div className="relative h-[220px] w-[360px]">
+                    <Image
+                        src="/images/misc/PaymentSuccess.gif"
+                        alt="Dispute Submitted Successfully"
+                        fill
+                        className="object-contain"
+                        priority
+                        unoptimized
+                    />
+                </div>
 
-                <div className="flex flex-col items-center justify-center px-6 py-8">
-                    {/* Success Icon with Celebration Effect */}
-                    <div className="relative mb-6">
-                        <div className="absolute inset-0 animate-ping rounded-full bg-[#E8D1AB]/20" />
-                        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[#E8D1AB]">
-                            <Check className="h-10 w-10 text-black" strokeWidth={3} />
-                        </div>
-                        {/* Celebration dots */}
-                        <div className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[#10B981] animate-bounce" />
-                        <div className="absolute -right-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#3B82F6] animate-bounce" style={{ animationDelay: "0.1s" }} />
-                        <div className="absolute -bottom-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[#F59E0B] animate-bounce" style={{ animationDelay: "0.2s" }} />
-                        <div className="absolute -left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#EF4444] animate-bounce" style={{ animationDelay: "0.3s" }} />
-                    </div>
-
-                    {/* Title */}
-                    <h2 className="mb-2 text-[22px] font-semibold leading-none text-white">
+                <div className="flex flex-col items-center gap-2 text-center lg:gap-3">
+                    <h2 className={`pr-4 text-lg font-bold lg:text-3xl ${isDark ? "text-white" : "text-[#101010]"}`}>
                         Dispute Submitted Successfully
                     </h2>
-
-                    {/* Description */}
-                    <p className="mb-6 text-center text-sm text-white/60">
+                    <p className={`text-xs lg:text-sm ${isDark ? "text-white/80" : "text-[#32323299]"}`}>
                         Your dispute has been received and is now under review.
                         <br />
                         You will be notified of any updates.
                     </p>
+                </div>
 
-                    {/* Details Card */}
-                    <div className="mb-6 w-full rounded-[8px] border border-white/10 bg-[#111111] p-4">
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Dispute ID</span>
-                                <span className="text-sm font-medium text-white">{disputeId}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Booking ID</span>
-                                <span className="text-sm font-medium text-white">{bookingId}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Status</span>
-                                <span className="rounded-full border border-[#EF4444]/20 bg-[#EF4444]/10 px-2.5 py-0.5 text-xs font-medium text-[#EF4444]">
-                                    Dispute - Open
-                                </span>
-                            </div>
+                {/* Details Card */}
+                <div className={`w-full rounded-[8px] border p-4 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E3E3E3] bg-[#F9F9F9]"
+                    }`}>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className={`text-sm ${isDark ? "text-white/55" : "text-[#32323299]"}`}>Dispute ID</span>
+                            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#101010]"}`}>{disputeId}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className={`text-sm ${isDark ? "text-white/55" : "text-[#32323299]"}`}>Booking ID</span>
+                            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-[#101010]"}`}>{bookingId}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className={`text-sm ${isDark ? "text-white/55" : "text-[#32323299]"}`}>Status</span>
+                            <span className="rounded-full border border-[#EF4444]/20 bg-[#EF4444]/10 px-2.5 py-0.5 text-xs font-medium text-[#EF4444]">
+                                Dispute - Open
+                            </span>
                         </div>
                     </div>
-
-                    {/* Close Button */}
-                    <DialogClose asChild>
-                        <button
-                            type="button"
-                            className="w-full rounded-[8px] bg-[#E8D1AB] px-4 py-3 text-sm font-medium text-black transition hover:bg-[#F5EBD8]"
-                        >
-                            Close
-                        </button>
-                    </DialogClose>
                 </div>
-            </DialogContent>
-        </Dialog>
+
+                <Button
+                    type="button"
+                    onClick={handleClose}
+                    className={`h-10 w-full rounded-lg px-5 text-sm font-semibold lg:h-12 lg:text-base ${isDark
+                        ? "bg-[#EED4A7] text-black hover:bg-[#EED4A7]/92"
+                        : "bg-[#E5D5B8] text-[#101010] hover:bg-[#DCC79F]"
+                        }`}
+                >
+                    Close
+                </Button>
+            </div>
+        </div>
     );
 }
 
@@ -197,7 +219,7 @@ export default function RaiseDisputeModal({
             });
 
             setShowSuccess(true);
-
+            onOpenChange(false);
             // Reset form
             setFormData({
                 shootId: "",
@@ -213,14 +235,14 @@ export default function RaiseDisputeModal({
     };
 
     const handleClose = () => {
-        setShowSuccess(false);
+        //setShowSuccess(false);
         onOpenChange(false);
     };
 
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border border-white/40 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden">
+                <DialogContent className="w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border border-white/40 bg-black/82 backdrop-blur-md p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden">
                     <DialogTitle className="sr-only">Raise New Dispute</DialogTitle>
 
                     {/* Header */}
@@ -351,6 +373,7 @@ export default function RaiseDisputeModal({
                             {/* Submit Button */}
                             <Button
                                 type="submit"
+                                //onClick={handleClose}
                                 disabled={isSubmitting || !formData.shootId || !formData.disputeType}
                                 className="mt-2 w-full rounded-[8px] bg-[#E8D1AB] py-3 text-sm font-medium text-black transition hover:bg-[#F5EBD8] disabled:cursor-not-allowed disabled:opacity-50"
                             >
