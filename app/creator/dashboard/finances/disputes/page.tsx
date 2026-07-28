@@ -277,11 +277,11 @@ export default function DisputesPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <Select value={overviewRange} onValueChange={(val) => setOverviewRange(val)}>
-                                    <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
+                                    <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#807E7E] text-[#C4C4C4]" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
                                         }`}>
                                         <SelectValue placeholder="Range" />
                                     </SelectTrigger>
-                                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
+                                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#807E7E] text-[#C4C4C4]" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
                                         <SelectItem value="month">Month</SelectItem>
                                         <SelectItem value="week">This Week</SelectItem>
                                         <SelectItem value="all">All time</SelectItem>
@@ -328,7 +328,7 @@ export default function DisputesPage() {
 
                     {/* Dispute History Section */}
                     <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl mb-6">
-                        <div className="rounded-2xl border-[0.5px] border-[#3D3D3D] bg-[#101010] p-6">
+                        <div className="rounded-2xl border-b-[0.5px] border-[#3D3D3D] bg-[#101010] p-6">
                             <div className="flex items-center justify-between mb-5">
                                 <div className="flex items-center gap-2">
                                     <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
@@ -390,7 +390,7 @@ export default function DisputesPage() {
                         {/* Dispute List */}
                         <div className="space-y-3 p-6">
                             {filteredDisputes.map((dispute) => (
-                                <div key={dispute.id} className={`rounded-2xl overflow-hidden bg-[#0D0D0D] ${expandedId === dispute.id ? 'border-[0.5px] border-[#E8D1AB]' : 'border-[0.5px] border-[#262626]'}`}>
+                                <div key={dispute.id} className={`rounded-2xl overflow-hidden bg-[#0D0D0D] ${expandedId === dispute.id ? 'border border-[#E8D1AB]' : 'border border-[#262626]'}`}>
                                     {/* Collapsed Header */}
                                     <div
                                         onClick={() => toggleExpand(dispute.id)}
@@ -497,7 +497,7 @@ export default function DisputesPage() {
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between px-3.5 py-5 border-t border-[#3D3D3D] border-b-0 bg-[#101010]">
+                        <div className="flex items-center justify-between px-3.5 py-5 border-t border-[#3D3D3D] rounded-b-2xl bg-[#101010]">
                             <p className="text-sm text-gray-500">Page 1 to 10</p>
                             <div className="flex items-center gap-2">
                                 <button className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors">
