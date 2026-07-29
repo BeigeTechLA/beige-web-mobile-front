@@ -724,6 +724,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       return null;
     }
   }, []);
+
+  const ROOM_LIMIT = 20;
+  const MESSAGE_CACHE_LIMIT = 50;
+  const MESSAGE_PRELOAD_CONCURRENCY = 4;
+
+  const [page, setPage] = useState(1);
+  const [hasMoreRooms, setHasMoreRooms] = useState(true);
+  const [loadingMoreRooms, setLoadingMoreRooms] = useState(false);
   const [rooms, setRooms] = useState<ExternalChatRoom[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<ExternalChatRoom | null>(null);
   const [messages, setMessages] = useState<ExternalChatMessage[]>([]);
@@ -776,6 +784,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const selectedRoomRef = useRef<ExternalChatRoom | null>(null);
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageCacheRef = useRef<Map<string, ExternalChatMessage[]>>(new Map());
+  const messageLoadPromisesRef = useRef<Map<string, Promise<ExternalChatMessage[]>>>(new Map());
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
@@ -981,13 +991,172 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const syncRoomPreviewFromMessages = (roomId: string, messageData: ExternalChatMessage[] = []) => {
+    if (!roomId || messageData.length === 0) return;
+    const latestMessage = messageData[messageData.length - 1];
+    const latestMessageId = latestMessage.id || latestMessage._id;
+    const latestPreview = latestMessage.is_deleted
+      ? getMessageText(latestMessage)
+      : latestMessage.message || latestMessage.file_name || getMessageText(latestMessage);
+    const latestTimestamp = latestMessage.createdAt || latestMessage.updatedAt;
+
+    setRooms((current) => {
+      let didChange = false;
+      const nextRooms = current.map((room) => {
+        if (getRoomId(room) !== roomId) return room;
+
+        const currentLastMessage = room.last_message;
+        const isSamePreview =
+          String(currentLastMessage?.id || "") === String(latestMessageId || "") &&
+          String(currentLastMessage?.message || "") === String(latestPreview || "") &&
+          String(currentLastMessage?.createdAt || "") === String(latestTimestamp || "") &&
+          String(room.updatedAt || "") === String(latestTimestamp || room.updatedAt || "");
+
+        if (isSamePreview) return room;
+        didChange = true;
+        const updatedRoom = {
+          ...room,
+          last_message: {
+            id: latestMessageId,
+            message: latestPreview,
+            createdAt: latestTimestamp,
+            sent_by: latestMessage.sent_by,
+          },
+          updatedAt: latestTimestamp || room.updatedAt,
+        };
+        roomActivityRef.current[roomId] = getRoomActivityTimestamp(updatedRoom);
+        return updatedRoom;
+      });
+
+      return didChange ? nextRooms : current;
+    });
+  };
+
+  const setMessageCache = (roomId: string, roomMessages: ExternalChatMessage[]) => {
+    if (!roomId) return;
+    messageCacheRef.current.delete(roomId);
+    messageCacheRef.current.set(roomId, roomMessages);
+    while (messageCacheRef.current.size > MESSAGE_CACHE_LIMIT) {
+      const oldestRoomId = messageCacheRef.current.keys().next().value;
+      if (!oldestRoomId) break;
+      messageCacheRef.current.delete(oldestRoomId);
+    }
+  };
+
+  const loadMessagesForRoom = (roomId: string, options?: { syncPreview?: boolean }) => {
+    const cachedMessages = messageCacheRef.current.get(roomId);
+    if (cachedMessages) return Promise.resolve(cachedMessages);
+
+    const pendingMessages = messageLoadPromisesRef.current.get(roomId);
+    if (pendingMessages) return pendingMessages;
+
+    const request = externalChatApi.getMessages(roomId, { page: 1, limit: 100, sortBy: "createdAt:asc" })
+      .then((messageData) => {
+        const sortedMessages = sortMessagesAsc(messageData);
+        setMessageCache(roomId, sortedMessages);
+        if (options?.syncPreview !== false) {
+          syncRoomPreviewFromMessages(roomId, sortedMessages);
+        }
+        return sortedMessages;
+      })
+      .finally(() => {
+        messageLoadPromisesRef.current.delete(roomId);
+      });
+
+    messageLoadPromisesRef.current.set(roomId, request);
+    return request;
+  };
+
+  const getRoomWithLatestCachedMessage = async (room: ExternalChatRoom) => {
+    const roomId = getRoomId(room);
+    if (!roomId) return room;
+
+    try {
+      const roomMessages = await loadMessagesForRoom(roomId, { syncPreview: false });
+      const latestMessage = roomMessages[roomMessages.length - 1];
+      if (!latestMessage) return room;
+
+      return {
+        ...room,
+        last_message: {
+          id: latestMessage.id || latestMessage._id,
+          message: latestMessage.is_deleted
+            ? getMessageText(latestMessage)
+            : latestMessage.message || latestMessage.file_name || getMessageText(latestMessage),
+          createdAt: latestMessage.createdAt || latestMessage.updatedAt,
+          sent_by: latestMessage.sent_by,
+        },
+        updatedAt: latestMessage.createdAt || latestMessage.updatedAt || room.updatedAt,
+      };
+    } catch {
+      return room;
+    }
+  };
+
+  const preloadRoomMessagesForRender = async (roomList: ExternalChatRoom[]) => {
+    const hydratedRooms = [...roomList];
+    let nextIndex = 0;
+    const workerCount = Math.min(MESSAGE_PRELOAD_CONCURRENCY, hydratedRooms.length);
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (nextIndex < hydratedRooms.length) {
+        const roomIndex = nextIndex;
+        nextIndex += 1;
+        hydratedRooms[roomIndex] = await getRoomWithLatestCachedMessage(hydratedRooms[roomIndex]);
+      }
+    });
+
+    await Promise.all(workers);
+
+    return hydratedRooms.sort((a, b) => {
+      const left = new Date(a.updatedAt || a.last_message?.createdAt || a.createdAt || 0).getTime();
+      const right = new Date(b.updatedAt || b.last_message?.createdAt || b.createdAt || 0).getTime();
+      return right - left;
+    });
+  };
+
+  const updateCachedMessages = (
+    roomId: string,
+    updater: (current: ExternalChatMessage[]) => ExternalChatMessage[]
+  ) => {
+    if (!roomId) return;
+    const current = messageCacheRef.current.get(roomId);
+    if (!current) return;
+    const next = sortMessagesAsc(updater(current));
+    setMessageCache(roomId, next);
+  };
+
+  const updateMessageEverywhere = (
+    roomId: string | null | undefined,
+    updater: (current: ExternalChatMessage[]) => ExternalChatMessage[]
+  ) => {
+    const activeRoomId = getRoomId(selectedRoomRef.current);
+    const targetRoomIds = roomId
+      ? [roomId]
+      : Array.from(messageCacheRef.current.keys());
+
+    targetRoomIds.forEach((targetRoomId) => {
+      updateCachedMessages(targetRoomId, updater);
+    });
+
+    if (!roomId || roomId === activeRoomId) {
+      setMessages((current) => {
+        const next = sortMessagesAsc(updater(current));
+        if (activeRoomId) {
+          setMessageCache(activeRoomId, next);
+        }
+        return next;
+      });
+    }
+  };
+
   const refreshRoomListSnapshot = async () => {
     const activeSelectedRoom = selectedRoomRef.current;
     const activeSelectedRoomId = getRoomId(activeSelectedRoom);
 
     if (bookingId) {
       const room = await externalChatApi.getRoomByBooking(bookingId);
-      const roomList = room ? await hydrateRoomPreviews([room]) : [];
+      const roomList = room ? [room] : [];
       setRooms(
         roomList.map((item) =>
           getRoomId(item) === activeSelectedRoomId && userId
@@ -1002,27 +1171,18 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
 
     const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
-    const roomMessagesMap: Record<string, ExternalChatMessage[]> = {};
-    const hydratedRooms = await hydrateRoomPreviews(roomList, {
-      forceLatestMessage: true,
-      onMessages: (roomId, roomMessages) => {
-        roomMessagesMap[roomId] = roomMessages;
-      },
-    });
-    const mergedRooms = hydratedRooms.map((incoming) => {
-      const existing = roomsRef.current.find((room) => getRoomId(room) === getRoomId(incoming));
-      const mergedRoom =
-        existing && !incoming.last_message?.message ? { ...existing, ...incoming, last_message: existing.last_message } : { ...existing, ...incoming };
-
-      if (getRoomId(mergedRoom) === activeSelectedRoomId && userId) {
-        return {
-          ...mergedRoom,
-          unread_counts: { ...(mergedRoom.unread_counts || {}), [String(userId)]: 0 },
-        };
-      }
-
-      return mergedRoom;
-    });
+    const incomingRoomIds = new Set(roomList.map((room) => getRoomId(room)).filter(Boolean));
+    const mergedRooms = [
+      ...roomList.map((incoming) => {
+        const existing = roomsRef.current.find((room) => getRoomId(room) === getRoomId(incoming));
+        return existing ? mergeRoomSnapshots(existing, incoming) : incoming;
+      }),
+      ...roomsRef.current.filter((room) => {
+        const roomId = getRoomId(room);
+        return roomId && !incomingRoomIds.has(roomId);
+      }),
+    ];
+    setRooms(mergedRooms);
 
     setLocalUnreadCounts((current) => {
       const next = { ...current };
@@ -1035,7 +1195,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         const isCurrentRoom = roomId === activeSelectedRoomId;
         const serverUnreadCount = getRoomUnreadCount(room, userId);
         const isOwnLatestMessage = getRoomLastMessageSenderId(room) === userId;
-        const roomMessages = roomMessagesMap[roomId] || [];
+        const roomMessages = messageCacheRef.current.get(roomId) || [];
         const lastSeenAt = roomLastSeenAtRef.current[roomId];
         const countedUnreadFromMessages = lastSeenAt
           ? roomMessages.filter((message) => {
@@ -1081,45 +1241,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         loadRoomDetails(activeRoom, { silent: true }).catch(() => undefined);
       }
     }, 250);
-  };
-
-  const hydrateRoomPreviews = async (
-    roomList: ExternalChatRoom[],
-    options?: { forceLatestMessage?: boolean; onMessages?: (roomId: string, roomMessages: ExternalChatMessage[]) => void }
-  ) => {
-    const hydratedRooms = await Promise.all(
-      roomList.map(async (room) => {
-        const roomId = getRoomId(room);
-        const shouldFetchLatest = Boolean(options?.forceLatestMessage || !room.last_message?.message?.trim());
-        if (!roomId || !shouldFetchLatest) return room;
-
-        try {
-          const latestMessages = await externalChatApi.getMessages(roomId, {
-            page: 1,
-            limit: options?.forceLatestMessage ? 30 : 1,
-            sortBy: "createdAt:desc",
-          });
-          options?.onMessages?.(roomId, latestMessages);
-          const latestMessage = latestMessages[0];
-          if (!latestMessage) return room;
-
-          return {
-            ...room,
-            last_message: {
-              id: latestMessage.id || latestMessage._id,
-              message: latestMessage.message || latestMessage.file_name || getMessageText(latestMessage),
-              createdAt: latestMessage.createdAt || latestMessage.updatedAt,
-              sent_by: latestMessage.sent_by,
-            },
-            updatedAt: latestMessage.createdAt || latestMessage.updatedAt || room.updatedAt,
-          };
-        } catch {
-          return room;
-        }
-      })
-    );
-
-    return hydratedRooms;
   };
 
   const loadRoomDetails = async (
@@ -1176,15 +1297,24 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setPendingInitialScroll(shouldStartAtBottom ? "bottom" : "unread");
     }
 
+    const cachedMessages = messageCacheRef.current.get(roomId);
+
+    if (cachedMessages) {
+      if (!options?.silent) {
+        setMessages(cachedMessages);
+        setParticipants(buildParticipantStateFromRoom(room));
+      }
+
+      syncRoomPreviewFromMessages(roomId, cachedMessages);
+      return;
+    }
+
     if (!options?.silent) {
       setLoadingRoomData(true);
     }
     try {
-      const [messageData, participantData] = await Promise.all([
-        externalChatApi.getMessages(roomId, { page: 1, limit: 100, sortBy: "createdAt:asc" }),
-        externalChatApi.getParticipants(roomId),
-      ]);
-      const sortedMessages = sortMessagesAsc(messageData);
+      const sortedMessages = await loadMessagesForRoom(roomId);
+      const participantData = await externalChatApi.getParticipants(roomId);
       const existingMessages = isSwitchingRooms ? [] : messagesRef.current;
       const knownMessageIds = new Set(existingMessages.map((item) => getMessageId(item)).filter(Boolean));
       const incomingUnreadCount =
@@ -1195,7 +1325,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           : 0;
 
       setMessages(sortedMessages);
-      syncRoomSnapshot(roomWithClearedUnread, sortedMessages);
       const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
       await externalChatApi.markRoomAsRead(roomId, currentSender).catch(() => undefined);
       if (latestSeenTimestamp) {
@@ -1303,42 +1432,27 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     handleRoomAvailabilityEventRef.current = handleRoomAvailabilityEvent;
   });
 
-  const loadRooms = async () => {
-    setLoading(true);
+  const loadRooms = async (pageNumber = 1, append = false) => {
+    if (pageNumber === 1) setLoading(true);
+    else setLoadingMoreRooms(true);
+
     try {
-      if (bookingId) {
-        const room = await externalChatApi.getRoomByBooking(bookingId);
-        const roomList = room ? await hydrateRoomPreviews([room]) : [];
-        roomList.forEach((item) => {
-          roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
-        });
-        setRooms(roomList);
-        onRoomAvailabilityChange?.(roomList.length > 0);
-        if (shouldUseDirectRoom && roomList[0]) {
-          await loadRoomDetails(roomList[0]);
-        } else {
-          clearSelectedConversation();
-        }
-      } else {
-        const roomList = await externalChatApi.listRooms({ page: 1, limit: 100, sortBy: "updatedAt:desc" });
-        const hydratedRooms = await hydrateRoomPreviews(roomList);
-        hydratedRooms.forEach((item) => {
-          roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
-        });
-        setRooms(hydratedRooms);
-        onRoomAvailabilityChange?.(hydratedRooms.length > 0);
-        clearSelectedConversation();
-      }
-    } catch (err: any) {
-      if (bookingId && (err?.status === 404 || err?.response?.status === 404)) {
-        setRooms([]);
-        onRoomAvailabilityChange?.(false);
-        clearSelectedConversation();
-        return;
-      }
-      toast.error(err?.message || "Failed to load chat rooms");
+      const roomList = await externalChatApi.listRooms({
+        page: pageNumber,
+        limit: ROOM_LIMIT,
+        sortBy: "updatedAt:desc",
+      });
+      const hydratedRooms = await preloadRoomMessagesForRender(roomList);
+
+      setRooms(prev =>
+        append ? [...prev, ...hydratedRooms] : hydratedRooms
+      );
+
+      setHasMoreRooms(hydratedRooms.length === ROOM_LIMIT);
+      setPage(pageNumber);
     } finally {
       setLoading(false);
+      setLoadingMoreRooms(false);
     }
   };
 
@@ -1425,9 +1539,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       const roomIdFromPayload = String(payload?.roomId || "").trim();
       const incomingMessage = buildMessageFromSocketPayload(payload);
       const incomingSenderId = String(payload?.senderId || normalizeUser(incomingMessage?.sent_by || null)?.id || "").trim();
-      const incomingMessageTimestamp = String(
-        incomingMessage?.createdAt || incomingMessage?.updatedAt || payload?.createdAt || new Date().toISOString()
-      );
 
       if (incomingMessage && roomIdFromPayload) {
         setRooms((current) =>
@@ -1452,13 +1563,28 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           incomingMessage.message || "",
           incomingMessage.updatedAt || "",
         ].join("|");
+
+        updateCachedMessages(roomIdFromPayload, (current) => {
+          const incomingMessageId = getMessageId(incomingMessage);
+          if (incomingMessageId && current.some((item) => getMessageId(item) === incomingMessageId)) return current;
+          return [...current, incomingMessage];
+        });
       }
 
       if (incomingMessage && activeRoomId && roomIdFromPayload === String(activeRoomId)) {
         setMessages((current) => {
-          const exists = current.some((item) => getMessageId(item) === getMessageId(incomingMessage));
+          const exists = current.some(
+            item => getMessageId(item) === getMessageId(incomingMessage)
+          );
           if (exists) return current;
-          return sortMessagesAsc([...current, incomingMessage]);
+          const updatedMessages =
+            sortMessagesAsc([...current, incomingMessage]);
+          setMessageCache(
+            roomIdFromPayload,
+            updatedMessages
+          );
+
+          return updatedMessages;
         });
 
         if (!shouldStickToBottomRef.current && incomingSenderId && incomingSenderId !== String(userId || "")) {
@@ -1514,8 +1640,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       if (payload?.success === false) return;
       const messageId = String(payload?.messageId || "").trim();
       if (!messageId) return;
+      const roomIdFromPayload = String(payload?.roomId || payload?.chatRoomId || "").trim();
 
-      setMessages((current) =>
+      updateMessageEverywhere(roomIdFromPayload || null, (current) =>
         current.map((item) =>
           getMessageId(item) === messageId
             ? {
@@ -1527,13 +1654,29 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
             : item
         )
       );
+
+      setRooms((current) =>
+        current.map((room) =>
+          getMessageId(room.last_message as ExternalChatMessage | null) === messageId
+            ? {
+              ...room,
+              last_message: {
+                ...(room.last_message || {}),
+                message: String(payload?.content || room.last_message?.message || ""),
+              },
+              updatedAt: payload?.updatedAt || room.updatedAt,
+            }
+            : room
+        )
+      );
     });
     socket.on("messageDeleted", (payload: any) => {
       if (payload?.success === false) return;
       const messageId = String(payload?.messageId || "").trim();
       if (!messageId) return;
+      const roomIdFromPayload = String(payload?.roomId || payload?.chatRoomId || "").trim();
 
-      setMessages((current) =>
+      updateMessageEverywhere(roomIdFromPayload || null, (current) =>
         current.map((item) =>
           getMessageId(item) === messageId
             ? {
@@ -1545,14 +1688,30 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
             : item
         )
       );
+
+      setRooms((current) =>
+        current.map((room) =>
+          getMessageId(room.last_message as ExternalChatMessage | null) === messageId
+            ? {
+              ...room,
+              last_message: {
+                ...(room.last_message || {}),
+                message: "This message was deleted",
+              },
+              updatedAt: payload?.updatedAt || room.updatedAt,
+            }
+            : room
+        )
+      );
     });
     socket.on("reactionUpdated", (payload: any) => {
       if (payload?.success === false) return;
       const messageId = String(payload?.messageId || "").trim();
       if (!messageId) return;
       const nextReactions = Array.isArray(payload?.reactions) ? payload.reactions : [];
+      const roomIdFromPayload = String(payload?.roomId || payload?.chatRoomId || "").trim();
 
-      setMessages((current) =>
+      updateMessageEverywhere(roomIdFromPayload || null, (current) =>
         current.map((item) =>
           getMessageId(item) === messageId
             ? { ...item, reactions: nextReactions, updatedAt: payload?.updatedAt || item.updatedAt }
@@ -1717,12 +1876,18 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setShowComposerEmojis(false);
       shouldStickToBottomRef.current = true;
       if (sent) {
+        const sentId = getMessageId(sent);
+        const nextMessages = sentId && messagesRef.current.some((item) => getMessageId(item) === sentId)
+          ? messagesRef.current
+          : sortMessagesAsc([...messagesRef.current, sent]);
         setMessages((current) => {
-          const sentId = getMessageId(sent);
           if (sentId && current.some((item) => getMessageId(item) === sentId)) return current;
-          return sortMessagesAsc([...current, sent]);
+          const updatedMessages = sortMessagesAsc([...current, sent]);
+          setMessageCache(roomId, updatedMessages);
+          return updatedMessages;
         });
-        syncRoomSnapshot(selectedRoom, sortMessagesAsc([...messagesRef.current, sent]));
+        setMessageCache(roomId, nextMessages);
+        syncRoomSnapshot(selectedRoom, nextMessages);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to send message");
@@ -1800,6 +1965,18 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
     try {
       await externalChatApi.editMessage(editingMessageId, editingText.trim(), currentSender, roomId || undefined);
+      updateMessageEverywhere(roomId, (current) =>
+        current.map((item) =>
+          getMessageId(item) === editingMessageId
+            ? {
+              ...item,
+              message: editingText.trim(),
+              is_edited: true,
+              updatedAt: new Date().toISOString(),
+            }
+            : item
+        )
+      );
       setEditingMessageId(null);
       setEditingText("");
     } catch (err: any) {
@@ -1819,15 +1996,16 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setOpenReactionDetails(null);
       setMessagePendingDelete(null);
       if (updated) {
-        setMessages((current) =>
+        updateMessageEverywhere(roomId, (current) =>
           current.map((item) => (getMessageId(item) === messageId ? { ...item, ...updated } : item))
         );
-        syncRoomSnapshot(selectedRoom, messages.map((item) => (getMessageId(item) === messageId ? { ...item, ...updated } : item)));
+        syncRoomSnapshot(selectedRoom, messagesRef.current.map((item) => (getMessageId(item) === messageId ? { ...item, ...updated } : item)));
       } else {
-        setMessages((current) =>
+        const deletedMessage = { is_deleted: true, message: "This message was deleted" };
+        updateMessageEverywhere(roomId, (current) =>
           current.map((item) =>
             getMessageId(item) === messageId
-              ? { ...item, is_deleted: true, message: "This message was deleted" }
+              ? { ...item, ...deletedMessage }
               : item
           )
         );
@@ -1848,6 +2026,19 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const selectedRoomTitle = selectedRoom ? getRoomDisplayName(selectedRoom) : "Messages";
   const latestDate = visibleMessages[visibleMessages.length - 1]?.createdAt || selectedRoom?.updatedAt || selectedRoom?.createdAt;
   const isDirectRoomLoading = shouldUseDirectRoom && loading;
+
+  const roomListRef = useRef<HTMLDivElement>(null);
+
+  const handleRoomScroll = () => {
+    const el = roomListRef.current;
+
+    if (!el || loadingMoreRooms || !hasMoreRooms)
+      return;
+
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+      loadRooms(page + 1, true);
+    }
+  };
 
   return (
     <>
@@ -1922,7 +2113,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                     </div>
                     <Button
                       type="button"
-                      onClick={loadRooms}
+                      onClick={() => loadRooms()}
                       variant="outline"
                       className={`rounded-full p-0 shrink-0 w-9 h-8 lg:h-9 transition-colors border-none ${isDark ? "text-white" : "text-black"}`}
                     >
@@ -1961,10 +2152,35 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                 </div>
 
                 {/* Dynamic Conversational Rooms List view */}
-                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div
+                  ref={roomListRef}
+                  onScroll={handleRoomScroll}
+                  className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
                   {loading ? (
-                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
-                      <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+                    <div className="space-y-1">
+                      {Array.from({ length: 9 }).map((_, index) => (
+                        <div
+                          key={`room-skeleton-${index}`}
+                          className={`w-full rounded-xl lg:rounded-2xl px-3 py-4 text-left transition-all animate-pulse ${isDark ? "bg-transparent" : "bg-transparent"}`}
+                        >
+                          <div className="flex items-start gap-2 lg:gap-4">
+                            <div className={`h-11 w-11 lg:h-16 lg:w-16 shrink-0 rounded-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className={`h-4 lg:h-5 w-3/5 rounded-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
+                                  <div className={`mt-3 h-4 lg:h-5 w-4/5 rounded-full ${isDark ? "bg-white/5" : "bg-zinc-100"}`} />
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
+                                  <div className={`h-3 w-14 rounded-full ${isDark ? "bg-white/5" : "bg-zinc-100"}`} />
+                                  <div className={`h-5 w-8 rounded-full ${isDark ? "bg-white/5" : "bg-zinc-100"}`} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : filteredRooms.length === 0 ? (
                     <div className={`rounded-3xl border border-dashed p-3 lg:p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
@@ -2090,6 +2306,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                           </button>
                         );
                       })}
+                      {loadingMoreRooms ? (
+                        <div className={`flex items-center justify-center gap-2 py-4 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                          <Loader2 className="h-4 w-4 animate-spin text-[#BFA780]" />
+                          <span>Loading more conversations...</span>
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -2293,13 +2515,27 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                       </div>
                     </div>
                   ) : loadingRoomData ? (
-                    <div className="flex h-full min-h-[260px] items-center justify-center">
-                      <div className={`flex flex-col items-center gap-3 rounded-3xl border px-8 py-7 ${isDark ? "border-white/10 bg-[#202020]" : "border-zinc-200 bg-white"}`}>
-                        <Loader2 className="h-8 w-8 animate-spin text-[#BFA780]" />
-                        <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                          Loading messages...
-                        </p>
-                      </div>
+                    <div className="space-y-3 lg:space-y-5 w-full min-w-0 overflow-x-hidden animate-pulse">
+                      {Array.from({ length: 8 }).map((_, index) => {
+                        const isOwnSkeleton = index % 2 === 1;
+                        return (
+                          <div
+                            key={`message-skeleton-${index}`}
+                            className={`flex w-full items-end gap-2 lg:gap-3 ${isOwnSkeleton ? "justify-end" : "justify-start"}`}
+                          >
+                            {!isOwnSkeleton ? (
+                              <div className={`h-8 w-8 lg:h-10 lg:w-10 shrink-0 rounded-full ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
+                            ) : null}
+                            <div className={`flex min-w-0 max-w-[78%] flex-col gap-2 ${isOwnSkeleton ? "items-end" : "items-start"}`}>
+                              <div className={`h-3 w-20 rounded-full ${isDark ? "bg-white/5" : "bg-zinc-100"}`} />
+                              <div className={`h-16 max-w-full rounded-[18px] ${isOwnSkeleton ? "w-52 lg:w-72" : "w-60 lg:w-80"} ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
+                            </div>
+                            {isOwnSkeleton ? (
+                              <div className={`h-8 w-8 lg:h-10 lg:w-10 shrink-0 rounded-full ${isDark ? "bg-[#E8D1AB]/20" : "bg-zinc-200"}`} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : !selectedRoom ? (
                     <div className="flex h-full items-center justify-center">
