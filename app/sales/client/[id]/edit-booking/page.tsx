@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { useGetClientLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
+import { apiClient } from "@/lib/apiClient";
 import EditBookingDetailsForm from "@/components/admin/EditBookingDetailsForm";
 import Topbar from "@/components/admin/Topbar";
 import { useTheme } from "next-themes";
@@ -20,6 +20,9 @@ export default function EditBookingPage() {
     `/sales/client/${leadId}`,
   );
   const [mounted, setMounted] = useState(false);
+  const [leadData, setLeadData] = useState<any>(null);
+  const [isLeadLoading, setIsLeadLoading] = useState(true);
+  const [leadError, setLeadError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -28,10 +31,38 @@ export default function EditBookingPage() {
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
 
-  // Fetch lead data for pre-population
-  const { data: leadData, isLoading: isLeadLoading } = useGetClientLeadByIdQuery(parseInt(leadId), {
-    skip: !leadId,
-  });
+  useEffect(() => {
+    if (!leadId) return;
+
+    let isActive = true;
+
+    const loadLead = async () => {
+      setIsLeadLoading(true);
+      setLeadError(null);
+
+      try {
+        const response = await apiClient.get<any>(`sales/leads/${leadId}`);
+        if (!isActive) return;
+
+        const normalizedData = response?.data ?? response;
+        setLeadData(normalizedData);
+      } catch (error) {
+        if (!isActive) return;
+        setLeadError(error instanceof Error ? error.message : "Failed to load lead data");
+        setLeadData(null);
+      } finally {
+        if (isActive) {
+          setIsLeadLoading(false);
+        }
+      }
+    };
+
+    loadLead();
+
+    return () => {
+      isActive = false;
+    };
+  }, [leadId]);
 
   if (isLeadLoading || isPermissionLoading || !allowed) {
     return (
@@ -48,7 +79,7 @@ export default function EditBookingPage() {
   if (!leadData) {
     return (
       <div className={`flex h-screen items-center justify-center bg-[#101010] ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
-        <p>Lead not found.</p>
+        <p>{leadError || "Lead not found."}</p>
       </div>
     );
   }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, ChevronUp, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse, Plus } from "lucide-react";
+import { ArrowLeft, Radio, SquaresUnite, Video, Camera, Scissors, Info, ChevronDown, ChevronUp, Check, Calendar, ChevronLeft, ChevronRight, X, MapPinHouse, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, set, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,13 +14,19 @@ import { Label } from "@/components/ui/label"
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
-import { salesApi } from "@/lib/api";
+import { salesApi, studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { ContentTypeCheckbox } from "@/components/book-a-shoot/v3/components/ContentTypeCheckbox";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
 import { useTheme } from "next-themes";
+import StudioCard from "@/components/book-a-shoot/v3/components/StudioCard";
+import {
+  buildHourlyStudioSelection,
+  normalizeSelectedStudios,
+  removeSelectedStudio,
+} from "@/components/book-a-shoot/v3/studioData";
 
 import {
   newshootTypes,
@@ -73,6 +79,27 @@ const intentOptions = [
   { value: "Warm", label: "Warm" },
   { value: "Cold", label: "Cold" },
 ];
+
+const STUDIO_BOOKING_TYPES = [
+  { key: "production", value: "Production" },
+  { key: "audio", value: "Audio" },
+  { key: "event", value: "Event" }
+];
+
+const LOAD_MORE_COUNT = 3;
+const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
+
+const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
+  slug: studio.slug || studio.id,
+  image: studio.image || "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  name: studio.name,
+  description: studio.propertyType ? `(${studio.propertyType})` : "",
+  location: studio.location || PUBLIC_STUDIO_LOCATION,
+  price: studio.priceValue || 0,
+  rating: Number(studio.rating || 5),
+  reviews: studio.reviews || 0,
+  tags: studio.tags?.length ? studio.tags : ["Studio", "Available"],
+});
 
 type ClientDropdownItem = {
   client_id?: string | number | null;
@@ -175,7 +202,12 @@ function ClientDetailPage() {
     selectedCrewIds: []
   });
 
-  const [availableShootTypes, setAvailableShootTypes] = useState(newshootTypes);
+  const withStudioOption = (types: any[]) => {
+    const nonStudioTypes = types.filter((type) => type.key !== "studio" && type.key !== "coachella");
+    return [{ key: "studio", title: "Studio" }, ...nonStudioTypes];
+  };
+
+  const [availableShootTypes, setAvailableShootTypes] = useState(withStudioOption(newshootTypes));
   const [videoEditTypeOptions, setVideoEditTypeOptions] = useState<{ key: string; value: string }[]>([]);
   const [photoEditTypeOptions, setPhotoEditTypeOptions] = useState<{ key: string; value: string; note?: string }[]>([]);
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
@@ -211,6 +243,25 @@ function ClientDetailPage() {
   const [salesRepId, setSalesRepId] = useState<string>("");
   const [salesRepOptions, setSalesRepOptions] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingSalesReps, setIsLoadingSalesReps] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(formData.bookingFor || "");
+  const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [visibleStudioCount, setVisibleStudioCount] = useState(INITIAL_COUNT);
+
+  const selectedStudios = useMemo(
+    () =>
+      normalizeSelectedStudios({
+        selectedStudios: formData.selectedStudios,
+        selectedStudioIds: formData.selectedStudioIds,
+      }),
+    [formData.selectedStudios, formData.selectedStudioIds],
+  );
+
+  const selectedStudioIds = useMemo(
+    () => selectedStudios.map((studio) => studio.studioId),
+    [selectedStudios],
+  );
 
   const getAuthToken = useCallback(() => {
     if (typeof window === "undefined") return "";
@@ -253,6 +304,7 @@ function ClientDetailPage() {
 
     setIsLoadingCrew(true);
     try {
+      const token = getAuthToken();
       const dateObj = parseDate(formData.startDate);
       const dateStr = dateObj ? format(dateObj, "yyyy-MM-dd") : "";
       const roles = formData.contentType.filter(t => t !== 'editing').join(',');
@@ -266,7 +318,12 @@ function ClientDetailPage() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/admin/get-crew-for-lead/?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`
+        `${API_BASE_URL}/admin/get-crew-for-lead?date=${dateStr}&role_type=${roles}&search_query=${encodeURIComponent(citySearch)}`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
       );
       const result = await response.json();
 
@@ -384,6 +441,94 @@ function ClientDetailPage() {
   }, [fetchSalesReps]);
 
   useEffect(() => {
+    let isActive = true;
+
+    const loadStudios = async () => {
+      setStudioLoading(true);
+      try {
+        const bookingForParam =
+          bookingFor === "production"
+            ? "productions"
+            : bookingFor === "audio"
+              ? "audio"
+              : bookingFor === "event"
+                ? "event"
+                : undefined;
+
+        const response = await studioCatalogApi.list({
+          page: 1,
+          limit: visibleStudioCount,
+          search: searchQuery.trim() || undefined,
+          booking_for: bookingForParam,
+        });
+
+        if (!isActive) return;
+        setStudioData((response.data || []).map(mapCatalogStudio));
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load studio catalog:", error);
+        setStudioData([]);
+      } finally {
+        if (isActive) setStudioLoading(false);
+      }
+    };
+
+    loadStudios();
+
+    return () => {
+      isActive = false;
+    };
+  }, [bookingFor, searchQuery, visibleStudioCount]);
+
+  const handleStudioToggle = useCallback((studio: ReturnType<typeof mapCatalogStudio>) => {
+    const existing = selectedStudios.find((item) => item.studioId === studio.slug);
+
+    if (existing) {
+      updateData({
+        selectedStudios: removeSelectedStudio(selectedStudios, studio.slug),
+        selectedStudioIds: selectedStudioIds.filter((id) => id !== studio.slug),
+      });
+      toast.success("Studio removed.");
+      return;
+    }
+
+    const fallbackDate = formData.startDate
+      ? format(parseDate(formData.startDate) || new Date(), "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd");
+
+    const selection = buildHourlyStudioSelection(
+      {
+        id: studio.slug,
+        name: studio.name,
+        location: studio.location,
+        image: studio.image,
+        pricingMode: "hourly",
+        priceValue: studio.price,
+        priceLabel: `$${studio.price}/Hr`,
+        pricingOptions: [],
+        beds: 0,
+        baths: 0,
+        poolType: "",
+      },
+      {
+        selectedDate: fallbackDate,
+        startTime: formData.startDate ? format(parseDate(formData.startDate) || new Date(), "HH:mm") : "10:30",
+        endTime: formData.endDate ? format(parseDate(formData.endDate) || new Date(), "HH:mm") : "14:30",
+        pricingKey: "",
+      },
+    );
+
+    updateData({
+      selectedStudios: [selection],
+      selectedStudioIds: [studio.slug],
+      selectedStudioImage: studio.image,
+      selectedStudioName: studio.name,
+      isBrowsingStudios: false,
+    });
+    toast.success("Studio added.");
+  }, [formData.endDate, formData.startDate, selectedStudioIds, selectedStudios, updateData]);
+
+  useEffect(() => {
     const primaryDate = formData.startDate || formData.endDate;
     if (!primaryDate) {
       setSelectedShootDate(null);
@@ -404,13 +549,13 @@ function ClientDetailPage() {
     const isPhoto = formData.contentType.includes("photographer");
 
     if (isVideo && isPhoto) {
-      setAvailableShootTypes(hybridShootTypes);
+      setAvailableShootTypes(withStudioOption(hybridShootTypes));
     } else if (isPhoto) {
-      setAvailableShootTypes(photoShootTypes);
+      setAvailableShootTypes(withStudioOption(photoShootTypes));
     } else if (isVideo) {
-      setAvailableShootTypes(videoShootTypes);
+      setAvailableShootTypes(withStudioOption(videoShootTypes));
     } else {
-      setAvailableShootTypes(newshootTypes);
+      setAvailableShootTypes(withStudioOption(newshootTypes));
     }
   }, [formData.contentType]);
 
@@ -796,7 +941,7 @@ function ClientDetailPage() {
     setOpenEditPanel((prev) => (prev === "photo" ? null : "photo"));
   };
 
-  const toggleContentType = (type: "videographer" | "photographer" | "editing") => {
+  const toggleContentType = (type: "videographer" | "photographer" | "editing" | "studio") => {
     const current = [...formData.contentType];
     const isCurrentlySelected = current.includes(type);
     const nextContentType = isCurrentlySelected ? current.filter((t) => t !== type) : [...current, type];
@@ -910,7 +1055,7 @@ function ClientDetailPage() {
       const startTimePart = getLocalTimePart(formData.startDate);
       const endTimePart = getLocalTimePart(formData.endDate);
 
-      const payload = {
+      const payload: any = {
         client_name: clientName,
         guest_email: clientEmail,
         phone: clientPhone,
@@ -951,6 +1096,80 @@ function ClientDetailPage() {
           time_zone: d.time_zone || d.timeZone || browserTimeZone
         }))
       };
+
+      if (formData.contentType.includes("studio") && selectedStudios.length > 0) {
+        const studio = selectedStudios[0];
+        payload.studio_booking_for = bookingFor || "production";
+
+        let studioDurationHours = durationHours;
+        let studioStartDate = getLocalDatePart(formData.startDate) || format(new Date(), "yyyy-MM-dd");
+        let studioStartTime = getLocalTimePart(formData.startDate) || "10:00:00";
+        let studioEndTime = getLocalTimePart(formData.endDate) || "18:00:00";
+
+        if (studio.selectedDate) {
+          studioStartDate = studio.selectedDate;
+        }
+        if (studio.startTime) {
+          studioStartTime = studio.startTime;
+        }
+        if (studio.endTime) {
+          studioEndTime = studio.endTime;
+        }
+
+        if (studioStartTime && studioEndTime) {
+          const [sh, sm] = studioStartTime.split(":").map(Number);
+          const [eh, em] = studioEndTime.split(":").map(Number);
+          if (!isNaN(sh) && !isNaN(eh)) {
+            studioDurationHours = (eh + em / 60) - (sh + sm / 60);
+          }
+        }
+
+        let unitPrice = studio.priceValue || 0;
+        if (unitPrice === 0 && studio.priceLabel) {
+          const match = studio.priceLabel.match(/\d+/);
+          if (match) {
+            unitPrice = parseInt(match[0], 10);
+          }
+        }
+
+        const quantity = Math.max(0, studioDurationHours);
+        const studioTotal = unitPrice * quantity;
+
+        payload.studio_total = studioTotal;
+
+        const pricingCategory = bookingFor || "production";
+        const pricingLabel = pricingCategory === "production" ? "Production" : pricingCategory === "audio" ? "Audio" : "Event";
+
+        payload.studio_items = [
+          {
+            studio_id: studio.studioId,
+            name: studio.name,
+            location: studio.location,
+            image: studio.image,
+            pricing_mode: studio.pricingMode || "hourly",
+            pricing_category: pricingCategory,
+            pricing_label: pricingLabel,
+            unit_price: unitPrice,
+            quantity: quantity,
+            total: studioTotal,
+            price_label: studio.priceLabel || `$${unitPrice}/hour`,
+            selected_date: studioStartDate,
+            start_time: studioStartTime,
+            end_time: studioEndTime,
+            time_zone: browserTimeZone,
+            studio_booking_type: formData.bookingType,
+            booking_days: formData.bookingType === "multi_day" ? payload.booking_days : [],
+            cast_and_crew_count: formData.crewCount || 0,
+            update_studio_datetime: true,
+            lat: formData.locationDetails?.coordinates?.lat ?? formData.locationDetails?.lat ?? undefined,
+            lng: formData.locationDetails?.coordinates?.lng ?? formData.locationDetails?.lng ?? undefined
+          }
+        ];
+
+        if (!payload.location || payload.location.trim() === "") {
+          payload.location = studio.location;
+        }
+      }
 
       const response = await fetch(`${API_BASE_URL}/sales/deals/finalize`, {
         method: "POST",
@@ -1216,7 +1435,13 @@ function ClientDetailPage() {
               isDark={isDark}
             />
             <ContentTypeCheckbox label="AI Editing" subLabel="Coming Soon" icon={<Scissors size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
-            <ContentTypeCheckbox label="Locations" subLabel="Coming Soon" icon={<MapPinHouse size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
+            <ContentTypeCheckbox
+              label="Studios"
+              icon={<MapPinHouse size={20} />}
+              checked={formData.contentType.includes("studio")}
+              onChange={() => toggleContentType("studio")}
+              isDark={isDark}
+            />
             <ContentTypeCheckbox label="Livestream" subLabel="Coming Soon" icon={<Radio size={20} />} checked={false} onChange={() => { }} disabled={true} isDark={isDark} />
           </div>
         </div>
@@ -1240,6 +1465,73 @@ function ClientDetailPage() {
             isDark={isDark}
           />
         </div>
+
+        {formData.shootType === "studio" && (
+          <div className="pt-6 lg:pt-15 border-t border-white/10 mb-4 lg:mb-9">
+            <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 transition-colors ${isDark ? "text-white/90" : "text-black/80"}`}>
+              What type of studio do you need?
+            </h3>
+
+            <div className="flex-1 mb-6">
+              <DropdownSelect
+                title="Booking For"
+                options={STUDIO_BOOKING_TYPES}
+                value={bookingFor}
+                onChange={setBookingFor}
+                bgColour={isDark ? "bg-[#101010]" : "bg-[#F4F5F7]"}
+                isDark={isDark}
+              />
+            </div>
+
+            <p className="text-lg lg:text-xl font-medium mb-3 lg:mb-5">
+              {studioLoading ? "Loading studios..." : `${studioData.length} Studio Available Based on Categories`}
+            </p>
+            <div className="flex gap-2 lg:gap-4 mb-5 lg:mb-10">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#BEBEBE]" : "text-[#7B7B7B]"}`} size={24} />
+                <input
+                  type="text"
+                  placeholder="Search ..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors ${isDark ? "bg-[#202020] border-[#FFFFFF33] text-[#BEBEBE]" : "bg-white border-[#0000004D] text-[#2C2C2C]"}`} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
+              {studioData.slice(0, visibleStudioCount).map((studio, index) => (
+                <StudioCard
+                  key={index}
+                  {...studio}
+                  isSelected={selectedStudioIds.includes(studio.slug)}
+                  onToggle={() => handleStudioToggle(studio)}
+                />
+              ))}
+            </div>
+            {studioData.length > visibleStudioCount && (
+              <button
+                onClick={() => setVisibleStudioCount((prev) => prev + LOAD_MORE_COUNT)}
+                className={`flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg ${isDark ? "bg-[#171717]" : "bg-[#F4F5F7]"}`}
+              >
+                <span className="text-lg lg:text-xl pl-7">View More</span>
+                <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="26"
+                    height="32"
+                    viewBox="0 0 32 26"
+                    fill="none"
+                  >
+                    <path
+                      d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
+                      fill="#1D1D1B"
+                    />
+                  </svg>
+                </div>
+              </button>
+            )}
+          </div>
+        )}
         {/* <DottedDivider /> */}
 
         {/* Booking Type */}

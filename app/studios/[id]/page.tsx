@@ -30,6 +30,13 @@ import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 const STUDIO_IMAGE_FALLBACK =
   "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
+const STUDIO_ASSET_BASE_URL = "https://d2jhn32fsulyac.cloudfront.net/assets/studio";
+
+const normalizeStudioImageSrc = (src?: string | null) => {
+  if (!src) return STUDIO_IMAGE_FALLBACK;
+  if (/^https?:\/\//i.test(src) || src.startsWith("/")) return src;
+  return `${STUDIO_ASSET_BASE_URL}/${src.replace(/^\/+/, "")}`;
+};
 
 const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
   const router = useRouter();
@@ -38,7 +45,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
     [studio.image, ...(studio.images || [])].forEach((image) => {
-      if (image) imageSet.add(image);
+      if (image) imageSet.add(normalizeStudioImageSrc(image));
     });
     if (imageSet.size === 0) imageSet.add(STUDIO_IMAGE_FALLBACK);
     return Array.from(imageSet);
@@ -125,7 +132,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
             onClick={() => setActiveImageIndex(0)}
           >
             <Image
-              src={galleryImages[0]}
+              src={normalizeStudioImageSrc(galleryImages[0])}
               alt="Main"
               fill
               className="object-cover hover:opacity-90 transition-opacity"
@@ -142,7 +149,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
                 }
               >
                 <Image
-                  src={galleryImages[idx] || galleryImages[0]}
+                  src={normalizeStudioImageSrc(galleryImages[idx] || galleryImages[0])}
                   alt={`Gallery ${idx}`}
                   fill
                   className="object-cover hover:opacity-90 transition-opacity"
@@ -397,7 +404,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
 
             <div className="relative w-full h-full max-h-[75vh]">
               <Image
-                src={galleryImages[activeImageIndex]}
+                src={normalizeStudioImageSrc(galleryImages[activeImageIndex])}
                 alt="Full view"
                 fill
                 className="object-contain"
@@ -430,7 +437,13 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
                       : "border-transparent opacity-30 hover:opacity-60"
                   }`}
                 >
-                  <Image src={img} alt="" fill sizes="56px" className="object-cover" />
+                  <Image
+                    src={normalizeStudioImageSrc(img)}
+                    alt=""
+                    fill
+                    sizes="56px"
+                    className="object-cover"
+                  />
                 </button>
               ))}
             </div>
