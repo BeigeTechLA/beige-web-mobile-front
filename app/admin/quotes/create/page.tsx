@@ -1303,6 +1303,7 @@ function CreateQuotePageContent() {
   const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
   const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
   const [bookingSchedule, setBookingSchedule] = useState<BookingScheduleData | null>(null);
+  const [bookingDateTimeInitialSnapshot, setBookingDateTimeInitialSnapshot,] = useState<BookingScheduleData | null | undefined>(undefined);
   const [projectDescription, setProjectDescription] = useState("");
   const [validityDays, setValidityDays] = useState<number | "custom">(7);
   const [validUntil, setValidUntil] = useState(
@@ -1512,6 +1513,13 @@ function CreateQuotePageContent() {
     ],
   );
   const effectiveBookingSchedule = bookingSchedule ?? bookingScheduleInitialData;
+  const openDetailsStep = React.useCallback(() => {
+    setBookingDateTimeInitialSnapshot(
+      bookingSchedule ?? bookingScheduleInitialData ?? undefined
+    );
+
+    setView("details");
+  }, [bookingSchedule, bookingScheduleInitialData]);
   const bookingDurationHours = React.useMemo(() => {
     if (!effectiveBookingSchedule) {
       return null;
@@ -1549,7 +1557,9 @@ function CreateQuotePageContent() {
       .map((day) => calculateDurationHours(day.start_time.slice(0, 5), day.end_time.slice(0, 5)))
       .filter((duration): duration is number => typeof duration === "number" && duration > 0);
 
-    return dayDurations.length > 0 ? Math.max(...dayDurations) : null;
+    return dayDurations.length > 0
+      ? dayDurations.reduce((sum, hours) => sum + hours, 0)
+      : null;
   }, [effectiveBookingSchedule]);
   const convertModalInitialData = React.useMemo(
     () =>
@@ -1584,9 +1594,38 @@ function CreateQuotePageContent() {
 
   React.useEffect(() => {
     setBookingSchedule(null);
+    setBookingDateTimeInitialSnapshot(undefined);
   }, [editQuoteId]);
 
   const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
+
+  useEffect(() => {
+    if (bookingDurationHours == null) return;
+
+    setServiceConfigs(prev => {
+      let changed = false;
+
+      const updated = Object.fromEntries(
+        Object.entries(prev).map(([id, config]) => {
+          if (config.duration > bookingDurationHours) {
+            changed = true;
+
+            return [
+              id,
+              {
+                ...config,
+                duration: bookingDurationHours,
+              },
+            ];
+          }
+
+          return [id, config];
+        })
+      );
+
+      return changed ? updated : prev;
+    });
+  }, [bookingDurationHours]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);
@@ -1635,10 +1674,10 @@ function CreateQuotePageContent() {
       setSearchQuery("");
 
       if (advanceToDetails) {
-        setView("details");
+        openDetailsStep();
       }
     },
-    [applyClientSelection],
+    [applyClientSelection, openDetailsStep],
   );
 
   React.useEffect(() => {
@@ -3091,7 +3130,7 @@ function CreateQuotePageContent() {
     if (view === "selection" && selectedClient) {
       applyClientSelection(selectedClient);
       setIsCreateNewClientFlow(false);
-      setView("details");
+      openDetailsStep();
     } else if (view === "details") {
       if (isCreateNewClientFlow) {
         setIsCreatingClient(true);
@@ -3200,8 +3239,8 @@ function CreateQuotePageContent() {
   const handleBack = () => {
     if (view === 'details') {
       setView('selection');
-    } else if (view === 'services') {
-      setView('details');
+    } else if (view === "services") {
+      openDetailsStep();
     } else if (view === 'addons') {
       setView('services');
     } else if (view === 'logistics') {
@@ -8228,7 +8267,11 @@ function CreateQuotePageContent() {
                 {/* Date and Time Selection Module */}
                 <BookingDateTimeSection
                   isDark={isDark}
-                  initialData={effectiveBookingSchedule}
+                  initialData={
+                    bookingDateTimeInitialSnapshot === undefined
+                      ? bookingScheduleInitialData
+                      : bookingDateTimeInitialSnapshot
+                  }
                   onChange={setBookingSchedule}
                 />
 

@@ -104,11 +104,19 @@ export default function ConvertBookingModal({
   const isDraggingReel = useRef(false);
   const dragStartX = useRef(0);
   const dragStartScrollLeft = useRef(0);
+  const hasInitializedOpenRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
+      hasInitializedOpenRef.current = false;
       return;
     }
+
+    if (hasInitializedOpenRef.current) {
+      return;
+    }
+
+    hasInitializedOpenRef.current = true;
 
     const toDate = (value?: string) => {
       if (!value) return null;
@@ -393,14 +401,50 @@ export default function ConvertBookingModal({
 
   const toggleDateSelection = (date: Date) => {
     setValidationErrors((prev) => ({ ...prev, multiDates: false }));
-    setSelectedDates((prev) => {
-      const exists = prev.some((selectedDate) => isSameDay(selectedDate, date));
+    const dateKey = getDateKey(date);
+    const exists = selectedDates.some((selectedDate) => isSameDay(selectedDate, date));
+    const nextSelectedDates = exists
+      ? selectedDates.filter((selectedDate) => !isSameDay(selectedDate, date))
+      : [...selectedDates, date].sort((a, b) => a.getTime() - b.getTime());
+
+    setMultiDayTimes((prev) => {
       if (exists) {
-        return prev.filter((selectedDate) => !isSameDay(selectedDate, date));
+        const remainingTimes = { ...prev };
+        delete remainingTimes[dateKey];
+        return remainingTimes;
       }
 
-      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+      if (prev[dateKey]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [dateKey]: sameTimingsMulti
+          ? {
+            startKey: sharedMultiStartTime,
+            endKey: sharedMultiEndTime,
+          }
+          : {
+            startKey: "",
+            endKey: "",
+          },
+      };
     });
+
+    setExpandedDateKey((prev) => {
+      if (nextSelectedDates.length === 0) {
+        return null;
+      }
+
+      if (prev && nextSelectedDates.some((selectedDate) => getDateKey(selectedDate) === prev)) {
+        return prev;
+      }
+
+      return exists ? getDateKey(nextSelectedDates[0]) : dateKey;
+    });
+
+    setSelectedDates(nextSelectedDates);
   };
 
   const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
@@ -627,8 +671,6 @@ export default function ConvertBookingModal({
                 onClick={() => {
                   setBookingType("single_day");
                   setSelectedDates([]);
-                  setSameTimingsMulti(true);
-                  setMultiDayTimes({});
                   setValidationErrors((prev) => ({
                     ...prev,
                     multiDates: false,
@@ -846,7 +888,6 @@ export default function ConvertBookingModal({
                         type="button"
                         onClick={() => {
                           setSameTimingsMulti(true);
-                          setMultiDayTimes({});
                           setSharedMultiStartTime("");
                           setSharedMultiEndTime("");
                           setValidationErrors((prev) => ({ ...prev, multiTimes: false }));
@@ -862,14 +903,21 @@ export default function ConvertBookingModal({
                         type="button"
                         onClick={() => {
                           setSameTimingsMulti(false);
-                          const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
-                          selectedDates.forEach((date) => {
-                            nextTimes[getDateKey(date)] = {
-                              startKey: sharedMultiStartTime,
-                              endKey: sharedMultiEndTime,
-                            };
+                          setMultiDayTimes((prev) => {
+                            const nextTimes = { ...prev };
+                            let hasNewDate = false;
+                            selectedDates.forEach((date) => {
+                              const dateKey = getDateKey(date);
+                              if (!nextTimes[dateKey]) {
+                                nextTimes[dateKey] = {
+                                  startKey: sharedMultiStartTime,
+                                  endKey: sharedMultiEndTime,
+                                };
+                                hasNewDate = true;
+                              }
+                            });
+                            return hasNewDate ? nextTimes : prev;
                           });
-                          setMultiDayTimes(nextTimes);
                         }}
                         className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[140px] lg:px-6 ${!sameTimingsMulti ? "border-transparent bg-[#E8D1AB] text-black [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)]" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9]" : "border-[#0000004D] bg-transparent text-[#2C2C2C]"}`}
                       >
