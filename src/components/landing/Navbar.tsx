@@ -65,6 +65,12 @@ const portfolioConfig = {
         icon: <Gem size={24} />,
         subSectors: []
       },
+      {
+        id: "real-estate",
+        label: "Real Estate",
+        icon: realEstateImg,
+        subSectors: []
+      },
     ]
   },
   videos: {

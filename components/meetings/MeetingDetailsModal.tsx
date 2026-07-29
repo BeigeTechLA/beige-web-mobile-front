@@ -28,6 +28,7 @@ import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
 import { cn } from "@/lib/utils";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { getBrowserTimeZoneLabel } from "@/lib/timezone";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type AddRole = "cp" | "manager";
@@ -75,16 +76,16 @@ const formatTimeRange = (start?: string, end?: string) => {
     minute: "2-digit",
   });
 
-  if (!end) return startTimeStr;
+  if (!end) return `${startTimeStr} (${getBrowserTimeZoneLabel(startDate)})`;
   const endDate = new Date(end);
-  if (Number.isNaN(endDate.getTime())) return startTimeStr;
+  if (Number.isNaN(endDate.getTime())) return `${startTimeStr} (${getBrowserTimeZoneLabel(startDate)})`;
 
   const endTimeStr = endDate.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  return `${startTimeStr} - ${endTimeStr}`;
+  return `${startTimeStr} - ${endTimeStr} (${getBrowserTimeZoneLabel(startDate)})`;
 };
 
 const resolveId = (value: unknown) => {

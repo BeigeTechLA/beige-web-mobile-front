@@ -475,7 +475,7 @@ export const salesApi = createApi({
       invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
     }),
 
-    assignCrewFromLead: builder.mutation<ApiResponse<void>, { client_lead_id: number; crew_member_ids: number[] }>({
+    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id?: number; client_lead_id?: number; crew_member_ids: number[]; allow_pending_compensation_assignment?: boolean }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-lead',
         method: 'POST',

@@ -8,7 +8,7 @@ interface PageProps {
   };
 }
 
-export default function PhotoPortfolioPage({ params }: PageProps) {
+export default function VideoPortfolioPage({ params }: PageProps) {
   const { slug = [] } = params;
 
   // Destructure for clarity

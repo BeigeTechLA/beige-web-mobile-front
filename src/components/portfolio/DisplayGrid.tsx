@@ -21,7 +21,8 @@ import {
   PRIVATE_VIDEOS,
   SHORT_FILMS_VIDEO,
   KEYNOTE_VIDEOS,
-  REAL_ESTATE_VIDEOS
+  REAL_ESTATE_VIDEOS,
+  REAL_ESTATE_IMAGES
 } from "@/app/data/useCaseData";
 
 interface PortfolioHeroProps {
@@ -39,6 +40,7 @@ const PHOTO_MAP: Record<string, { name: string; src: string }[]> = {
   "products": BRAND_IMAGES,
   "people-teams": PEOPLE_IMAGES,
   "social-content": SOCIAL_IMAGES,
+  "real-estate": REAL_ESTATE_IMAGES,
 };
 
 // Map for Videography
