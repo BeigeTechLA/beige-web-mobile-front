@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,32 +14,72 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 export type AdvancePaymentModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  //rowContext: ShootCPRow | null;
-  //onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
-  //isSubmitting?: boolean;
+  rowContext?: ShootCPRow | null;
+  creatorName?: string | null;
+  totalCompensation?: number;
+  maxAmount?: number;
+  initialAdvanceAmount?: number | string | null;
+  initialPaymentDate?: Date | string | null;
+  initialNotes?: string | null;
+  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
+  isSubmitting?: boolean;
+  submitLabel?: string;
+};
+
+const parseDateAsLocalDay = (value: Date | string | null | undefined) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 export default function AdvancePaymentModal({
-  //onSubmit,
-  //isSubmitting = false,
+  onSubmit,
+  isSubmitting = false,
   isOpen,
   onClose,
-  //rowContext
+  rowContext,
+  creatorName,
+  totalCompensation,
+  maxAmount,
+  initialAdvanceAmount,
+  initialPaymentDate,
+  initialNotes,
+  submitLabel = "Save Advance",
 }: AdvancePaymentModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
   const [advanceAmount, setAdvanceAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | null>(null);
 
-  const compensation = 6250;
-  const [remaining, setRemaining] = useState(0);
+  const compensation = Number(totalCompensation || rowContext?.cpPayout || 0);
+  const availableAmount = Number(maxAmount || compensation || 0);
+  const parsedAdvanceAmount = useMemo(() => {
+    const numeric = Number(String(advanceAmount || "0").replace(/[$,]/g, ""));
+    return Number.isFinite(numeric) ? numeric : 0;
+  }, [advanceAmount]);
+  const remaining = Math.max(compensation - parsedAdvanceAmount, 0);
+  const isInvalidAmount = parsedAdvanceAmount <= 0 || (availableAmount > 0 && parsedAdvanceAmount > availableAmount);
 
   useEffect(() => {
-    const value =
-      compensation - (Number(advanceAmount) || 0);
+    if (!isOpen) return;
 
-    setRemaining(value);
-  }, [advanceAmount]);
+    setAdvanceAmount(initialAdvanceAmount ? String(initialAdvanceAmount) : "");
+    setNotes(initialNotes || "");
+
+    if (initialPaymentDate) {
+      setPaymentDate(parseDateAsLocalDay(initialPaymentDate));
+      return;
+    }
+
+    setPaymentDate(null);
+  }, [initialAdvanceAmount, initialNotes, initialPaymentDate, isOpen]);
 
   if (!isOpen) {
     return null;
@@ -55,7 +95,7 @@ export default function AdvancePaymentModal({
 
   return (
     <div className={`fixed inset-0 z-[140] flex items-center justify-center p-3 backdrop-blur-md lg:p-5 ${isDark ? "bg-black/82" : "bg-white/82"}`}>
-      <div className={`relative max-h-[90vh] w-full lg:max-w-xl overflow-y-auto rounded-2xl border transition-colors duration-200 ${isDark
+      <div className={`relative max-h-[90vh] w-full lg:max-w-xl overflow-y-auto no-scrollbar rounded-2xl border transition-colors duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
@@ -79,11 +119,10 @@ export default function AdvancePaymentModal({
         <div className="space-y-3 lg:space-y-7 p-4 lg:p-7">
           <div className={`rounded-xl border px-4 py-3.5 lg:px-5 lg:py-4 border-[#E8D1AB33] bg-[#E8D1AB33]`}>
             <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
-              Total Compensation for Ethan Cole
+              Total Compensation{creatorName ? ` for ${creatorName}` : ""}
             </p>
             <p className="mt-1 text-[#E8D1AB] text-lg lg:text-2xl font-bold">
-              {/* {formatCurrency(rowContext?.cpPayout || 6250)} */}
-              {compensation}
+              {formatCurrency(compensation)}
             </p>
           </div>
 
@@ -95,13 +134,26 @@ export default function AdvancePaymentModal({
                 </span>
               </div>
               <input
+                type="number"
+                min="0"
+                max={availableAmount || undefined}
+                step="0.01"
                 value={advanceAmount}
                 onChange={(event) => setAdvanceAmount(event.target.value)}
                 placeholder="$0"
                 className={`h-12 lg:h-16 w-full resize-none border-0 bg-transparent px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white placeholder:text-white/50" : "text-black placeholder:text-[#9F9FA9]"}`}
               />
             </div>
-            <p className={`mt-2 lg:mt-3 ml-1 text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Remaining Balance : <span className={`text-sm lg:text-base text-[#10B981] font-semibold`}>{formatCurrency(4250)}</span></p>
+            <div className="mt-2 lg:mt-3 ml-1 flex flex-wrap gap-x-3 gap-y-1 text-xs lg:text-sm font-medium">
+              <p className={isDark ? "text-white" : "text-black"}>
+                Remaining Balance : <span className="text-sm lg:text-base text-[#10B981] font-semibold">{formatCurrency(remaining)}</span>
+              </p>
+              {availableAmount > 0 && (
+                <p className={isInvalidAmount ? "text-[#EF4444]" : isDark ? "text-white/50" : "text-black/50"}>
+                  Max advance {formatCurrency(availableAmount)}
+                </p>
+              )}
+            </div>
           </div>
 
           <DatePickerFloating
@@ -126,18 +178,18 @@ export default function AdvancePaymentModal({
             />
           </div>
 
-          {advanceAmount != null && (
+          {parsedAdvanceAmount > 0 && (
             <div className="rounded-xl bg-[#2B2B2B] p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-white">Advance Payment</span>
                 <span className="text-md font-semibold text-white">
-                  ${advanceAmount?.toLocaleString() || "0"}
+                  {formatCurrency(parsedAdvanceAmount)}
                 </span>
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-sm text-white">Remaining Balance</span>
                 <span className="text-md font-semibold text-[#10B981]">
-                  ${remaining.toLocaleString()}
+                  {formatCurrency(remaining)}
                 </span>
               </div>
             </div>
@@ -159,15 +211,13 @@ export default function AdvancePaymentModal({
           </Button>
           <Button
             type="button"
-            //disabled={isSubmitting || !notes.trim()}
+            disabled={isSubmitting || isInvalidAmount}
             onClick={() => {
-              console.log("Modification Submission Fired");
-              //onSubmit({ reason: notes, advanceAmount: advanceAmount, paymentDate: paymentDate });
-              onClose();
+              onSubmit({ reason: notes, advanceAmount, paymentDate });
             }}
-            className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base"
+            className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Save Advance
+            {isSubmitting ? "Saving..." : submitLabel}
           </Button>
         </div>
       </div>
