@@ -1030,7 +1030,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     setRoomListPage(Math.max(1, Math.ceil(roomListResult.rooms.length / ROOM_LIST_PAGE_SIZE)));
     setRoomListHasMore(roomListResult.hasMore);
 
-    const mergedRooms = roomListResult.rooms.map((incoming) => {
+    const roomList = await hydrateRoomPreviews(roomListResult.rooms);
+    const mergedRooms = roomList.map((incoming) => {
       const existing = roomsRef.current.find((room) => getRoomId(room) === getRoomId(incoming));
       const mergedRoom =
         existing && !incoming.last_message?.message ? { ...existing, ...incoming, last_message: existing.last_message } : { ...existing, ...incoming };
@@ -1345,13 +1346,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           limit: ROOM_LIST_PAGE_SIZE,
           sortBy: "updatedAt:desc",
         });
-        roomListResult.rooms.forEach((item) => {
+        const hydratedRooms = await hydrateRoomPreviews(roomListResult.rooms);
+        hydratedRooms.forEach((item) => {
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
-        setRooms(roomListResult.rooms);
+        setRooms(hydratedRooms);
         setRoomListPage(roomListResult.page);
         setRoomListHasMore(roomListResult.hasMore);
-        onRoomAvailabilityChange?.(roomListResult.rooms.length > 0);
+        onRoomAvailabilityChange?.(hydratedRooms.length > 0);
         clearSelectedConversation();
       }
     } catch (err: any) {
@@ -1377,13 +1379,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         limit: ROOM_LIST_PAGE_SIZE,
         sortBy: "updatedAt:desc",
       });
-      roomListResult.rooms.forEach((item) => {
+      const hydratedRooms = await hydrateRoomPreviews(roomListResult.rooms);
+      hydratedRooms.forEach((item) => {
         roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
       });
-      setRooms((current) => mergeRoomsById(current, roomListResult.rooms));
+      setRooms((current) => mergeRoomsById(current, hydratedRooms));
       setRoomListPage(roomListResult.page);
       setRoomListHasMore(roomListResult.hasMore);
-      onRoomAvailabilityChange?.(roomsRef.current.length + roomListResult.rooms.length > 0);
+      onRoomAvailabilityChange?.(roomsRef.current.length + hydratedRooms.length > 0);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to load more chat rooms");
     } finally {

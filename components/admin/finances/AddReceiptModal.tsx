@@ -9,6 +9,7 @@ import { ShootCPRow } from "./CPPayoutTable";
 
 export type ReceiptPayload = {
   paymentMethod: string;
+  otherPaymentMethod?: string;
   amount: number;
   transactionId: string;
   proofFile: File | null;
@@ -24,7 +25,17 @@ export type AddReceiptModalProps = {
   isSubmitting?: boolean;
 };
 
-const PAYMENT_METHODS = ["UPI", "Cash", "Bank Transfer", "Credit Card", "Others"];
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "wire", label: "Wire" },
+  { value: "ach", label: "ACH" },
+  { value: "zelle", label: "Zelle" },
+  { value: "venmo", label: "Venmo" },
+  { value: "cashapp", label: "CashApp" },
+  { value: "applepay", label: "ApplePay" },
+  { value: "net30", label: "Net 30" },
+  { value: "other", label: "Other" },
+];
 
 const formatMoneyValue = (value?: number | null) => {
   const numeric = Number(value || 0);
@@ -43,6 +54,7 @@ export default function AddReceiptModal({
 
   // Component State Elements
   const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [otherPaymentMethod, setOtherPaymentMethod] = useState<string>("");
   const [amount, setAmount] = useState<string>(formatMoneyValue(payableAmount || rowContext?.cpPayout));
   const [transactionId, setTransactionId] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -56,6 +68,7 @@ export default function AddReceiptModal({
     if (isOpen) {
       setAmount(formatMoneyValue(payableAmount || rowContext?.cpPayout));
       setPaymentMethod("");
+      setOtherPaymentMethod("");
       setTransactionId("");
       setNotes("");
       setProofFile(null);
@@ -100,6 +113,7 @@ export default function AddReceiptModal({
   const handleSave = () => {
     onSubmit({
       paymentMethod,
+      otherPaymentMethod: paymentMethod === "other" ? otherPaymentMethod.trim() : undefined,
       amount: Number(String(amount || "0").replace(/[$,]/g, "")) || 0,
       transactionId,
       proofFile,
@@ -109,7 +123,7 @@ export default function AddReceiptModal({
 
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5">
-      <div className={`relative max-h-[90vh] w-full lg:max-w-6xl overflow-y-auto rounded-[16px] border transition-colors duration-200 ${isDark
+      <div className={`relative max-h-[90vh] w-full lg:max-w-6xl overflow-y-auto no-scrollbar rounded-[16px] border transition-colors duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
@@ -144,28 +158,48 @@ export default function AddReceiptModal({
                 className="flex h-11 lg:h-14 w-full items-center justify-between cursor-pointer text-sm lg:text-base"
               >
                 <span className={paymentMethod ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/40" : "text-[#9F9FA9]")}>
-                  {paymentMethod || "Eg : UPI, Cash, Bank Transfer, Credit Card and Others..."}
+                  {PAYMENT_METHODS.find((method) => method.value === paymentMethod)?.label || "Select payment mode"}
                 </span>
                 <ChevronDown size={18} className={isDark ? "text-white/60" : "text-black/60"} />
               </div>
 
               {isDropdownOpen && (
-                <div className={`absolute left-0 right-0 top-[105%] z-50 rounded-lg border shadow-xl max-h-48 overflow-y-auto ${isDark ? "bg-[#141414] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"}`}>
+                <div className={`absolute left-0 right-0 top-[105%] z-50 rounded-lg border shadow-xl max-h-48 overflow-y-auto no-scrollbar ${isDark ? "bg-[#141414] border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"}`}>
                   {PAYMENT_METHODS.map((method) => (
                     <div
-                      key={method}
+                      key={method.value}
                       onClick={() => {
-                        setPaymentMethod(method);
+                        setPaymentMethod(method.value);
+                        if (method.value !== "other") {
+                          setOtherPaymentMethod("");
+                        }
                         setIsDropdownOpen(false);
                       }}
                       className={`px-4 py-3 text-sm cursor-pointer transition-colors ${isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"}`}
                     >
-                      {method}
+                      {method.label}
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {paymentMethod === "other" && (
+              <div className={`relative rounded-xl border px-4 py-2 mt-2 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
+                <div className="absolute -top-3 left-3 px-1 text-sm z-10">
+                  <span className={`px-1 text-sm lg:text-base ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
+                    Other Payment Mode*
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={otherPaymentMethod}
+                  onChange={(event) => setOtherPaymentMethod(event.target.value)}
+                  placeholder="Enter payment mode..."
+                  className={`h-11 lg:h-14 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-[#9F9FA9]"}`}
+                />
+              </div>
+            )}
 
             <div className={`relative rounded-xl border px-4 py-2 mt-2 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
               <div className="absolute -top-3 left-3 px-1 text-sm z-10">
@@ -254,7 +288,7 @@ export default function AddReceiptModal({
 
           <Button
             type="button"
-            disabled={isSubmitting || !paymentMethod || !(Number(amount) > 0) || !transactionId || !proofFile}
+            disabled={isSubmitting || !paymentMethod || (paymentMethod === "other" && !otherPaymentMethod.trim()) || !(Number(amount) > 0) || !transactionId || !proofFile}
             onClick={handleSave}
             className="h-10 lg:h-12 w-full lg:w-fit rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:opacity-40"
           >

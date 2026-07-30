@@ -211,6 +211,8 @@ export default function AdminFinancesPage() {
   const [dataType, setDataType] = useState<TabType>("shoots");
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
   const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
+  const [selectedPaymentScope, setSelectedPaymentScope] = useState<"advance" | "final" | null>(null);
+  const [selectedPendingAdvance, setSelectedPendingAdvance] = useState<{ advanceId?: number; amount?: number; paymentDate?: string } | null>(null);
   const [selectedActionEarningIds, setSelectedActionEarningIds] = useState<number[]>([]);
 
   // Visibility States
@@ -316,6 +318,8 @@ export default function AdminFinancesPage() {
     setSelectedRow(row);
     setSelectedActionEarningIds([]);
     setSelectedPaymentEarningId(null);
+    setSelectedPaymentScope(null);
+    setSelectedPendingAdvance(null);
     setIsCompOpen(true);
     setDetails(null);
     const bookingId = row.bookingId || Number(row.id);
@@ -411,11 +415,31 @@ export default function AdminFinancesPage() {
       return;
     }
     setSelectedPaymentEarningId(creatorEarningId);
+    setSelectedPaymentScope(null);
+    setSelectedPendingAdvance(null);
+    setIsCompOpen(false);
+    setPaymentSelectionOpen(true);
+  };
+
+  const handleOpenAdvancePayment = (
+    creatorEarningId: number,
+    advance?: { advanceId?: number; amount?: number; paymentDate?: string }
+  ) => {
+    if (!canEdit) {
+      toast.error("Edit permission not allowed");
+      return;
+    }
+    setSelectedPaymentEarningId(creatorEarningId);
+    setSelectedPaymentScope("advance");
+    setSelectedPendingAdvance(advance || null);
     setIsCompOpen(false);
     setPaymentSelectionOpen(true);
   };
 
   const getPaymentAmount = (earningId: number | null) => {
+    if (selectedPaymentScope === "advance" && Number(selectedPendingAdvance?.amount || 0) > 0) {
+      return Number(selectedPendingAdvance?.amount || 0);
+    }
     const creator = details?.creators.find((item) => item.creator_earning_id === earningId);
     return Number(creator?.remaining_balance || creator?.total_compensation || selectedRow?.cpPayout || 0);
   };
@@ -439,10 +463,13 @@ export default function AdminFinancesPage() {
       await cpCompensationApi.processPayment(earningId, {
         amount,
         payment_method: "stripe",
-        payment_scope: "final",
+        payment_scope: selectedPaymentScope || "final",
+        advance_id: selectedPendingAdvance?.advanceId,
       });
       setPaymentSelectionOpen(false);
       setSelectedPaymentEarningId(null);
+      setSelectedPaymentScope(null);
+      setSelectedPendingAdvance(null);
       await loadHistory(dataType);
       setSuccessTitle("Stripe Payment Started");
       setSuccessSubtext("Creator payout has been sent for Stripe processing.");
@@ -597,16 +624,21 @@ export default function AdminFinancesPage() {
       await cpCompensationApi.processPayment(earningId, {
         amount,
         payment_method: "outside_platform",
-        payment_mode: payload.paymentMethod,
+        payment_mode: payload.paymentMethod === "other"
+          ? payload.otherPaymentMethod || payload.paymentMethod
+          : payload.paymentMethod,
         proof_url: proofUrl,
         proof_file_path: uploadedProof?.file_path || undefined,
         proof_file_name: payload.proofFile?.name,
         transaction_reference: payload.transactionId,
         notes: payload.notes,
-        payment_scope: getPaymentScope(amount, remainingAmount),
+        payment_scope: selectedPaymentScope || getPaymentScope(amount, remainingAmount),
+        advance_id: selectedPendingAdvance?.advanceId,
       });
       setIsReceiptOpen(false);
       setSelectedPaymentEarningId(null);
+      setSelectedPaymentScope(null);
+      setSelectedPendingAdvance(null);
       await loadHistory(dataType);
       if (selectedRow?.bookingId || selectedRow?.id) {
         const bookingId = selectedRow.bookingId || Number(selectedRow.id);
@@ -641,7 +673,7 @@ export default function AdminFinancesPage() {
       }
       await cpCompensationApi.addAdvance(earningId, {
         amount,
-        payment_date: payload.paymentDate ? payload.paymentDate.toISOString().slice(0, 10) : undefined,
+        payment_date: payload.paymentDate ? formatDateForApi(payload.paymentDate) : undefined,
         notes: payload.reason,
       });
       setIsAdvanceOpen(false);
@@ -799,6 +831,7 @@ export default function AdminFinancesPage() {
           onApproveClick={handleOpenApprove}
           onRejectClick={handleOpenReject}
           onPaymentClick={handleOpenPayment}
+          onAdvancePaymentClick={handleOpenAdvancePayment}
           canEditActions={canEdit}
         />
 
