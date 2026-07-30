@@ -293,14 +293,27 @@ export default function ConvertBookingModal({
       return false;
     }
 
-    if (!hasDurationLimit) {
+    if (!hasDurationLimit || typeof maxDurationHours !== "number") {
       return true;
     }
 
     return duration <= maxDurationHours;
   };
 
-    const isTimeInPast = (timeKey: string, date: Date | null) => {
+  const isSharedMultiDayRangeWithinDurationLimit = (startKey: string, endKey: string) => {
+    const duration = calculateDurationHours(startKey, endKey);
+    if (duration === null) {
+      return false;
+    }
+
+    if (!hasDurationLimit || typeof maxDurationHours !== "number") {
+      return true;
+    }
+
+    return duration * Math.max(1, selectedDates.length) <= maxDurationHours;
+  };
+
+  const isTimeInPast = (timeKey: string, date: Date | null) => {
     if (!date || !isSameDay(date, new Date())) return false;
     
     const now = new Date();
@@ -371,15 +384,15 @@ export default function ConvertBookingModal({
     return timeOptions.filter((option) => !isTimeInPast(option.key, hasToday ? new Date() : null));
   }, [selectedDates, timeOptions]);
 
-  const filteredSharedMultiEndTimeOptions = useMemo(() => {
-    const hasToday = selectedDates.some(d => isSameDay(d, new Date()));
-    return timeOptions.filter((option) => {
-      const isFuture = !isTimeInPast(option.key, hasToday ? new Date() : null);
-      const isAfterStart = sharedMultiStartTime ? option.key > sharedMultiStartTime : true;
-      const withinLimit = sharedMultiStartTime ? isTimeRangeWithinDurationLimit(sharedMultiStartTime, option.key) : true;
-      return isFuture && isAfterStart && withinLimit;
-    });
-  }, [timeOptions, sharedMultiStartTime, selectedDates, maxDurationHours]);
+  const hasTodayInSelectedDates = selectedDates.some((date) => isSameDay(date, new Date()));
+  const filteredSharedMultiEndTimeOptions = timeOptions.filter((option) => {
+    const isFuture = !isTimeInPast(option.key, hasTodayInSelectedDates ? new Date() : null);
+    const isAfterStart = sharedMultiStartTime ? option.key > sharedMultiStartTime : true;
+    const withinLimit = sharedMultiStartTime
+      ? isSharedMultiDayRangeWithinDurationLimit(sharedMultiStartTime, option.key)
+      : true;
+    return isFuture && isAfterStart && withinLimit;
+  });
 
   const getTimeLabel = (key: string) =>
     timeOptions.find((option) => option.key === key)?.value || key;
@@ -392,11 +405,33 @@ export default function ConvertBookingModal({
       .join(", ");
 
   const toggleDateSelection = (date: Date) => {
+    const dateKey = getDateKey(date);
     setValidationErrors((prev) => ({ ...prev, multiDates: false }));
     setSelectedDates((prev) => {
       const exists = prev.some((selectedDate) => isSameDay(selectedDate, date));
       if (exists) {
+        setMultiDayTimes((currentTimes) => {
+          if (!currentTimes[dateKey]) {
+            return currentTimes;
+          }
+
+          const nextTimes = { ...currentTimes };
+          delete nextTimes[dateKey];
+          return nextTimes;
+        });
+        setExpandedDateKey((currentKey) => (currentKey === dateKey ? null : currentKey));
         return prev.filter((selectedDate) => !isSameDay(selectedDate, date));
+      }
+
+      if (!sameTimingsMulti) {
+        setMultiDayTimes((currentTimes) => ({
+          ...currentTimes,
+          [dateKey]: currentTimes[dateKey] ?? {
+            startKey: sharedMultiStartTime,
+            endKey: sharedMultiEndTime,
+          },
+        }));
+        setExpandedDateKey((currentKey) => currentKey ?? dateKey);
       }
 
       return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
@@ -542,12 +577,12 @@ export default function ConvertBookingModal({
           return false;
         }
 
-        if (!isTimeRangeWithinDurationLimit(sharedMultiStartTime, sharedMultiEndTime)) {
+        if (!isSharedMultiDayRangeWithinDurationLimit(sharedMultiStartTime, sharedMultiEndTime)) {
           nextErrors.multiTimes = true;
           setValidationErrors(nextErrors);
           toast.error("Invalid Duration", {
             description: hasDurationLimit
-              ? `Booking duration cannot exceed ${maxDurationHours} hours per day.`
+              ? `Booking duration cannot exceed ${maxDurationHours} hours total.`
               : "End time must be after start time.",
           });
           return false;
@@ -567,20 +602,33 @@ export default function ConvertBookingModal({
           return false;
         }
 
-        const hasDurationOverflow = selectedDates.some((date) => {
+        let totalDuration = 0;
+        const hasInvalidDuration = selectedDates.some((date) => {
           const dateKey = getDateKey(date);
-          return !isTimeRangeWithinDurationLimit(
+          const duration = calculateDurationHours(
             multiDayTimes[dateKey]?.startKey || "",
-            multiDayTimes[dateKey]?.endKey || ""
+            multiDayTimes[dateKey]?.endKey || "",
           );
+
+          if (duration === null) {
+            return true;
+          }
+
+          totalDuration += duration;
+          return false;
         });
+        const hasDurationOverflow =
+          hasInvalidDuration ||
+          (hasDurationLimit &&
+            typeof maxDurationHours === "number" &&
+            totalDuration > maxDurationHours);
 
         if (hasDurationOverflow) {
           nextErrors.multiTimes = true;
           setValidationErrors(nextErrors);
           toast.error("Invalid Duration", {
             description: hasDurationLimit
-              ? `Each selected day must be ${maxDurationHours} hours or less.`
+              ? `Selected days cannot exceed ${maxDurationHours} hours total.`
               : "End time must be after start time.",
           });
           return false;
@@ -658,7 +706,7 @@ export default function ConvertBookingModal({
           <div className="my-4 lg:my-9">
             {hasDurationLimit ? (
               <p className={`mb-4 text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#6B5A3A]"}`}>
-                Maximum booking duration: {maxDurationHours} hours per day.
+                Maximum booking duration: {maxDurationHours} hours total.
               </p>
             ) : null}
             {bookingType === "single_day" ? (
@@ -845,10 +893,35 @@ export default function ConvertBookingModal({
                       <button
                         type="button"
                         onClick={() => {
+                          const firstCompleteDay = selectedDates
+                            .map((date) => multiDayTimes[getDateKey(date)])
+                            .find(
+                              (
+                                timePair,
+                              ): timePair is { startKey: string; endKey: string } =>
+                                Boolean(
+                                  timePair?.startKey &&
+                                  timePair?.endKey &&
+                                  isTimeRangeWithinDurationLimit(timePair.startKey, timePair.endKey),
+                                ),
+                            );
+                          const nextStartTime =
+                            sharedMultiStartTime || firstCompleteDay?.startKey || "";
+                          const nextEndTime =
+                            sharedMultiEndTime &&
+                              (!nextStartTime || isSharedMultiDayRangeWithinDurationLimit(nextStartTime, sharedMultiEndTime))
+                              ? sharedMultiEndTime
+                              : firstCompleteDay?.endKey || "";
                           setSameTimingsMulti(true);
                           setMultiDayTimes({});
-                          setSharedMultiStartTime("");
-                          setSharedMultiEndTime("");
+                          setSharedMultiStartTime(nextStartTime);
+                          setSharedMultiEndTime(
+                            nextStartTime &&
+                              nextEndTime &&
+                              !isSharedMultiDayRangeWithinDurationLimit(nextStartTime, nextEndTime)
+                              ? ""
+                              : nextEndTime,
+                          );
                           setValidationErrors((prev) => ({ ...prev, multiTimes: false }));
                         }}
                         className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[140px] lg:px-6 ${sameTimingsMulti ? "border-transparent bg-[#E8D1AB] text-black [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)]" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9]" : "border-[#0000004D] bg-transparent text-[#2C2C2C]"}`}
@@ -862,14 +935,37 @@ export default function ConvertBookingModal({
                         type="button"
                         onClick={() => {
                           setSameTimingsMulti(false);
-                          const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
-                          selectedDates.forEach((date) => {
-                            nextTimes[getDateKey(date)] = {
-                              startKey: sharedMultiStartTime,
-                              endKey: sharedMultiEndTime,
-                            };
+                          setExpandedDateKey((currentKey) => {
+                            if (currentKey && selectedDates.some((date) => getDateKey(date) === currentKey)) {
+                              return currentKey;
+                            }
+
+                            return selectedDates[0] ? getDateKey(selectedDates[0]) : null;
                           });
-                          setMultiDayTimes(nextTimes);
+                          setMultiDayTimes((currentTimes) => {
+                            const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                            selectedDates.forEach((date) => {
+                              const key = getDateKey(date);
+                              const existingTime = currentTimes[key];
+                              const startKey = existingTime?.startKey || sharedMultiStartTime;
+                              const existingEndKey =
+                                existingTime?.endKey &&
+                                  (!startKey || isTimeRangeWithinDurationLimit(startKey, existingTime.endKey))
+                                  ? existingTime.endKey
+                                  : "";
+                              const sharedEndKey =
+                                sharedMultiEndTime &&
+                                  (!startKey || isTimeRangeWithinDurationLimit(startKey, sharedMultiEndTime))
+                                  ? sharedMultiEndTime
+                                  : "";
+
+                              nextTimes[key] = {
+                                startKey,
+                                endKey: existingEndKey || sharedEndKey,
+                              };
+                            });
+                            return nextTimes;
+                          });
                         }}
                         className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[140px] lg:px-6 ${!sameTimingsMulti ? "border-transparent bg-[#E8D1AB] text-black [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)]" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9]" : "border-[#0000004D] bg-transparent text-[#2C2C2C]"}`}
                       >

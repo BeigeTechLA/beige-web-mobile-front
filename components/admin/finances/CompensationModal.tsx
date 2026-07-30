@@ -22,6 +22,7 @@ interface CompensationItem {
   travel: number;
   bonus: number;
   hasPendingAdvance?: boolean;
+  advanceId?: number;
   advanceAmount?: number;
   advanceDate?: string;
 }
@@ -36,6 +37,24 @@ type AuditEntry = {
 
 const isPaymentEvent = (value?: string | null) => String(value || "").includes("payment");
 const isFinanceApprovalTimelineEvent = (value?: string | null) => String(value || "") === "awaiting_finance_approval";
+
+const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const formatDateOnly = (value?: string | null) => {
+  if (!value) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return LONG_DATE_FORMATTER.format(new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : LONG_DATE_FORMATTER.format(date);
+};
 
 const getPaymentAmountFromText = (value?: string | null) => {
   const match = String(value || "").match(/\$?\s*([\d,]+(?:\.\d{1,2})?)/);
@@ -67,6 +86,7 @@ interface CompensationModalProps {
   onApproveClick: (creatorEarningIds?: number[]) => void;
   onRejectClick: (creatorEarningIds?: number[]) => void;
   onPaymentClick?: (creatorEarningId: number) => void;
+  onAdvancePaymentClick?: (creatorEarningId: number, advance?: { advanceId?: number; amount?: number; paymentDate?: string }) => void;
 }
 
 export default function CompensationModal({
@@ -79,7 +99,8 @@ export default function CompensationModal({
   onModifyClick,
   onApproveClick,
   onRejectClick,
-  onPaymentClick
+  onPaymentClick,
+  onAdvancePaymentClick
 }: CompensationModalProps) {
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
 
@@ -102,6 +123,7 @@ export default function CompensationModal({
       travel: itemAmount("Travel Adjustment"),
       bonus: itemAmount("Bonus/Other Adjustment"),
       hasPendingAdvance: Boolean(pendingAdvance),
+      advanceId: pendingAdvance?.advance_id,
       advanceAmount: pendingAdvance?.amount,
       advanceDate: pendingAdvance?.processed_at || undefined,
     };
@@ -239,7 +261,7 @@ export default function CompensationModal({
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Slide-Over Drawer Container Panel */}
-      <div className={`relative h-full w-full lg:max-w-3xl flex flex-col border rounded-lg lg:rounded-r-none lg:rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200 ${isDark
+      <div className={`relative h-full w-full lg:max-w-3xl flex flex-col border rounded-lg lg:rounded-r-none lg:rounded-l-2xl overflow-y-auto no-scrollbar animate-in slide-in-from-right duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
@@ -398,7 +420,7 @@ export default function CompensationModal({
                                   Approval Pending for the Advance Payment
                                 </p>
                                 <p className="text-[#BB4D00]">
-                                  {formatCurrency(creator.advanceAmount || 0)} on {creator.advanceDate ? new Date(creator.advanceDate).toLocaleDateString() : "Pending date"}
+                                  {formatCurrency(creator.advanceAmount || 0)} on {formatDateOnly(creator.advanceDate) || "Pending date"}
                                 </p>
                               </div>
                               <span className="text-sm lg:text-base font-semibold text-[#BA6605] bg-[#FACD9A] px-5 py-3 rounded-full">
@@ -406,15 +428,28 @@ export default function CompensationModal({
                               </span>
                             </div>
 
-                            <button className="w-full h-12 rounded-lg flex items-center justify-center gap-2 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors">
-                              <CheckCircle2 size={16} />
-                              Pay Advance Amount
-                            </button>
+                            {isApproved && canRecordPayment && canEditActions ? (
+                              <button
+                                onClick={() => onAdvancePaymentClick?.(Number(creator.id), {
+                                  advanceId: creator.advanceId,
+                                  amount: creator.advanceAmount,
+                                  paymentDate: creator.advanceDate,
+                                })}
+                                className="w-full h-12 rounded-lg flex items-center justify-center gap-2 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors"
+                              >
+                                <CheckCircle2 size={16} />
+                                Pay Advance Amount
+                              </button>
+                            ) : (
+                              <div className="rounded-lg border border-[#E8D1AB33] bg-[#211F1C] p-3 text-xs font-medium text-[#E8D1AB]">
+                                Approve this CP compensation before paying the advance.
+                              </div>
+                            )}
                           </div>
                         )}
 
                         {/* Context Action Button Panel inside individual active items */}
-                        {!creator.hasPendingAdvance && isChecked && isPendingApproval && canEditActions && (
+                        {isChecked && isPendingApproval && canEditActions && (
                           <div className="flex flex-col gap-3">
                             <button
                               onClick={() => onApproveClick([Number(creator.id)])}
@@ -440,7 +475,7 @@ export default function CompensationModal({
                             </div>
                           </div>
                         )}
-                        {isChecked && canRecordPayment && canEditActions && (
+                        {isChecked && canRecordPayment && canEditActions && !creator.hasPendingAdvance && (
                           <button
                             onClick={() => onPaymentClick?.(Number(creator.id))}
                             className="h-12 min-w-[180px] px-5 rounded-lg inline-flex items-center justify-center gap-2 bg-[#9810FA] hover:bg-[#9810FA]/90 text-white font-semibold text-sm whitespace-nowrap"
