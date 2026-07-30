@@ -205,6 +205,7 @@ export type AdminFinanceDisputeApiRow = {
     advance_paid?: number | string | null;
     remaining_balance?: number | string | null;
     disputed_amount?: number | string | null;
+    extra_amount?: number | string | null;
   } | null;
   created_at?: string | null;
   updated_at?: string | null;

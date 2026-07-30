@@ -15,6 +15,7 @@ interface CompensationItem {
   earningStatus?: string;
   paidTotal?: number;
   remainingBalance?: number;
+  disputeExtra?: number;
   isRejected?: boolean;
   total: number;
   base: number;
@@ -64,6 +65,19 @@ const getPaymentAmountFromText = (value?: string | null) => {
   return Number.isFinite(amount) ? amount : null;
 };
 
+const parseMoneyValue = (value?: string | number | null) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const getDisputeExtraAmount = (payment: { dispute_extra_amount?: string | number | null; notes?: string | null }) => {
+  const explicit = parseMoneyValue(payment.dispute_extra_amount);
+  if (explicit > 0) return explicit;
+  const noteMatch = String(payment.notes || "").match(/(?:extra\s*)?\$?([0-9][0-9,]*(?:\.\d{1,2})?)\s*extra/i);
+  return noteMatch ? parseMoneyValue(noteMatch[1]) : 0;
+};
+
 const getAuditMinuteBucket = (value?: string | null) => {
   if (!value) return "no-date";
 
@@ -108,6 +122,7 @@ export default function CompensationModal({
   const compensationList: CompensationItem[] = useMemo(() => (details?.creators || []).map((creator) => {
     const itemAmount = (label: string) => creator.compensation_items.find((item) => item.label === label)?.amount || 0;
     const pendingAdvance = creator.advances?.find((advance) => !["processed", "paid", "completed"].includes(String(advance.status || "").toLowerCase()));
+    const disputeExtra = (creator.payment_history || []).reduce((sum, payment) => sum + getDisputeExtraAmount(payment), 0);
     return {
       id: String(creator.creator_earning_id),
       name: creator.creator_name || "Unknown Creator",
@@ -116,6 +131,7 @@ export default function CompensationModal({
       earningStatus: creator.earning_status,
       paidTotal: creator.paid_total,
       remainingBalance: creator.remaining_balance,
+      disputeExtra,
       isRejected: creator.approval_status === "rejected",
       total: creator.total_compensation,
       base: itemAmount("Base Payout"),
@@ -405,6 +421,11 @@ export default function CompensationModal({
                             <span className="rounded-full border border-[#10B98166] bg-[#10B9811A] px-3 py-1 font-medium text-[#34D399]">
                               Paid {formatCurrency(creator.paidTotal || creator.total)}
                             </span>
+                            {Number(creator.disputeExtra || 0) > 0 ? (
+                              <span className="rounded-full border border-[#7DB0FF66] bg-[#7DB0FF1A] px-3 py-1 font-medium text-[#7DB0FF]">
+                                + {formatCurrency(creator.disputeExtra)} extra due to dispute
+                              </span>
+                            ) : null}
                             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-medium text-white/70">
                               Remaining {formatCurrency(Math.max(Number(creator.remainingBalance || 0), 0))}
                             </span>

@@ -98,7 +98,7 @@ export default function ResolveDisputeModal({
     setAmountType("full");
     setAmount("");
     setCreditAmount("");
-    setRecipient("client");
+    setRecipient(creatorDispute ? "cp" : "client");
     setPaymentMethod("");
     setTransactionId("");
     setNotes("");
@@ -130,7 +130,7 @@ export default function ResolveDisputeModal({
       amountType,
       amount: tab === "credits" ? "" : amountType === "full" ? fullAmount : amount,
       creditAmount,
-      recipient: recipient === "client" ? recipientLabel : recipient,
+      recipient: creatorDispute ? `CP - ${recipientLabel}` : recipient === "client" ? recipientLabel : recipient,
       paymentMethod,
       transactionId,
       notes,
@@ -315,6 +315,7 @@ export default function ResolveDisputeModal({
                     recipient={recipient}
                     recipientLabel={recipientLabel}
                     onChange={setRecipient}
+                    creatorDispute={creatorDispute}
                   />
 
                   <FloatingInput
@@ -474,6 +475,19 @@ function RecipientSelect({
   clientOnly?: boolean;
   creatorDispute?: boolean;
 }) {
+  if (creatorDispute) {
+    return (
+      <div className="relative">
+        <label className={`absolute -top-3 left-4 z-10 px-2 text-sm font-medium lg:text-base ${isDark ? "bg-[#171717] text-white/50" : "bg-white text-black/60"}`}>
+          Recipient
+        </label>
+        <div className={`flex h-16 items-center rounded-lg border px-4 text-left text-sm lg:h-[82px] lg:rounded-xl lg:text-base ${isDark ? "border-white/50 bg-[#171717] text-white" : "border-black/20 bg-white text-black"}`}>
+          CP - {recipientLabel}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <label className={`absolute -top-3 left-4 z-10 px-2 text-sm font-medium lg:text-base ${isDark ? "bg-[#171717] text-white/50" : "bg-white text-black/60"}`}>

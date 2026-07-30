@@ -61,6 +61,7 @@ type CreatorDisputeItem = {
   payoutDate: string;
   totalEarnings: number;
   paidAmount: number;
+  extraAmount: number;
   remainingBalance: number;
   finalPayout: number;
   raisedBy: string;
@@ -144,8 +145,12 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
   const cp = dispute.cp_compensation || {};
   const bookingId = dispute.booking_id || cp.booking_id || fallback?.booking_id || "";
   const compensationAmount = parseMoneyValue(cp.total_compensation ?? dispute.disputed_amount ?? fallback?.total_compensation);
-  const paidAmount = parseMoneyValue(cp.paid_amount ?? fallback?.paid_amount);
-  const remainingBalance = parseMoneyValue(cp.remaining_balance ?? fallback?.remaining_balance);
+  const paidAmount = Math.max(parseMoneyValue(cp.paid_amount), parseMoneyValue(fallback?.paid_amount));
+  const extraAmount = Math.max(paidAmount - compensationAmount, 0);
+  const basePaidAmount = Math.max(paidAmount - extraAmount, 0);
+  const remainingBalance = paidAmount > 0
+    ? Math.max(compensationAmount - basePaidAmount, 0)
+    : parseMoneyValue(cp.remaining_balance ?? fallback?.remaining_balance);
 
   return {
     id: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
@@ -159,8 +164,9 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
     payoutDate: formatDate(fallback?.due_date || dispute.created_at),
     totalEarnings: compensationAmount,
     paidAmount,
+    extraAmount,
     remainingBalance,
-    finalPayout: compensationAmount,
+    finalPayout: Math.max(paidAmount, compensationAmount),
     raisedBy: dispute.raised_by?.name || dispute.creator?.name || "You",
     raisedRole: "CP",
     category: buildIssueType(dispute.category),
@@ -169,7 +175,15 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
 };
 
 const mapDetails = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: CreatorDisputeItem): DisputeDetailsRecord => {
-  const row = mapDisputeRow(dispute);
+  const apiRow = mapDisputeRow(dispute);
+  const row = fallback ? {
+    ...apiRow,
+    totalEarnings: fallback.totalEarnings,
+    paidAmount: fallback.paidAmount,
+    extraAmount: fallback.extraAmount,
+    remainingBalance: fallback.remainingBalance,
+    finalPayout: fallback.finalPayout,
+  } : apiRow;
   return {
     id: row.id,
     disputeId: dispute.dispute_id || row.disputeId,
@@ -214,6 +228,7 @@ const mapDetails = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Creato
       total: formatCurrency(row.totalEarnings),
       paid: formatCurrency(row.paidAmount),
       remaining: formatCurrency(row.remainingBalance),
+      extra: row.extraAmount > 0 ? formatCurrency(row.extraAmount) : undefined,
     },
     ...(fallback ? { raisedDate: fallback.payoutDate } : {}),
   };
@@ -312,21 +327,17 @@ export default function DisputesPage() {
     })), [activeDisputeEarningIds, earnings]);
 
   const metrics = useMemo(() => {
-    const totalAmount = disputes.reduce((sum, dispute) => sum + parseMoneyValue(dispute.disputed_amount), 0);
-    const resolvedAmount = disputes
-      .filter((dispute) => String(dispute.status || "").toLowerCase() === "resolved")
-      .reduce((sum, dispute) => sum + parseMoneyValue(dispute.disputed_amount), 0);
-    const pendingAmount = disputes
-      .filter((dispute) => !["resolved", "rejected"].includes(String(dispute.status || "").toLowerCase()))
-      .reduce((sum, dispute) => sum + parseMoneyValue(dispute.disputed_amount), 0);
+    const totalExtraAmount = disputeItems.reduce((sum, dispute) => sum + dispute.extraAmount, 0);
+    const resolvedCount = disputeItems.filter((dispute) => dispute.status === "Resolved").length;
+    const pendingCount = disputeItems.filter((dispute) => !["Resolved", "Rejected"].includes(dispute.status)).length;
 
     return [
-      { id: "amount", label: "Total Dispute Amount", value: totalAmount, helper: "All CP disputes", icon: DollarSign },
+      { id: "amount", label: "Total Dispute Amount", value: totalExtraAmount, helper: "Extra paid by admin", icon: DollarSign },
       { id: "count", label: "Total Disputes Raised", value: disputes.length, helper: "Disputes submitted", icon: HandCoins, isCount: true },
-      { id: "paid", label: "Paid Disputes", value: resolvedAmount, helper: "Resolved amount", icon: CheckCircle2 },
-      { id: "pending", label: "Pending Dispute", value: pendingAmount, helper: "Open amount", icon: DollarSign },
+      { id: "resolved", label: "Resolved Disputes", value: resolvedCount, helper: "Disputes resolved", icon: CheckCircle2, isCount: true },
+      { id: "pending", label: "Pending Dispute", value: pendingCount, helper: "Open disputes", icon: AlertCircle, isCount: true },
     ];
-  }, [disputes]);
+  }, [disputeItems, disputes.length]);
 
   const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
     const payload = new FormData();
@@ -363,6 +374,7 @@ export default function DisputesPage() {
         total_compensation: dispute.totalEarnings,
         paid_amount: dispute.paidAmount,
         remaining_balance: dispute.remainingBalance,
+        extra_amount: dispute.extraAmount,
       },
       created_at: dispute.payoutDate,
       raised_by: { type: "creator", name: dispute.raisedBy },
@@ -557,6 +569,12 @@ export default function DisputesPage() {
                               <span className="text-[#A0A0A0]">Paid to You</span>
                               <span className="text-[#10B981]">{formatCurrency(dispute.paidAmount)}</span>
                             </div>
+                            {dispute.extraAmount > 0 ? (
+                              <div className="flex justify-between text-base">
+                                <span className="text-[#A0A0A0]">Extra Due to Dispute</span>
+                                <span className="text-[#7DB0FF]">{formatCurrency(dispute.extraAmount)}</span>
+                              </div>
+                            ) : null}
                             <div className="border-t-[0.5px] border-[#262626] pt-3 mt-3">
                               <div className="flex justify-between text-base">
                                 <span className="font-normal">Remaining Balance</span>

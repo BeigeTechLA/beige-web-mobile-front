@@ -732,7 +732,10 @@ export default function AdminDisputesPage() {
           disputeId: disputeToResolve.id,
           shootId: disputeToResolve.shootId,
           amount: disputeToResolve.raisedRole === "CP"
-            ? (disputeToResolve.compensationSummary?.details.find((item) => item.label === "Remaining Balance")?.value || disputeToResolve.disputedAmount)
+            ? (() => {
+                const remainingValue = disputeToResolve.compensationSummary?.details.find((item) => item.label === "Remaining Balance")?.value;
+                return parseMoneyValue(remainingValue) > 0 ? remainingValue : disputeToResolve.disputedAmount;
+              })()
             : disputeToResolve.disputedAmount,
           recipient: disputeToResolve.raisedBy,
         } : null}

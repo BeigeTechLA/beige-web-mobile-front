@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useRef } from "react";
+import Image from "next/image";
 import {
     Dialog,
     DialogContent,
@@ -14,7 +15,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Check, Upload, File } from "lucide-react";
+import { X, Upload, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface RaiseDisputeModalProps {
@@ -53,60 +54,53 @@ function DisputeSuccessModal({
 }: SuccessModalProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[calc(100vw-24px)] max-w-[420px] overflow-hidden rounded-[2px] border border-white/25 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden">
+            <DialogContent className="w-[calc(100vw-24px)] max-w-[440px] overflow-hidden rounded-[22px] border border-white/15 bg-[#050505] p-0 text-white shadow-[0_30px_90px_rgba(0,0,0,0.6)] [&>button]:hidden">
                 <DialogTitle className="sr-only">Dispute Submitted Successfully</DialogTitle>
 
-                <div className="flex flex-col items-center justify-center px-6 py-8">
-                    {/* Success Icon with Celebration Effect */}
-                    <div className="relative mb-6">
-                        <div className="absolute inset-0 animate-ping rounded-full bg-[#E8D1AB]/20" />
-                        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[#E8D1AB]">
-                            <Check className="h-10 w-10 text-black" strokeWidth={3} />
-                        </div>
-                        {/* Celebration dots */}
-                        <div className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[#10B981] animate-bounce" />
-                        <div className="absolute -right-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#3B82F6] animate-bounce" style={{ animationDelay: "0.1s" }} />
-                        <div className="absolute -bottom-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[#F59E0B] animate-bounce" style={{ animationDelay: "0.2s" }} />
-                        <div className="absolute -left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-[#EF4444] animate-bounce" style={{ animationDelay: "0.3s" }} />
+                <div className="flex flex-col px-6 pb-6 pt-5">
+                    <div className="relative mx-auto h-[180px] w-[320px] max-w-full">
+                        <Image
+                            src="/images/misc/PaymentSuccess.gif"
+                            alt="Dispute Submitted"
+                            fill
+                            className="object-contain"
+                            priority
+                            unoptimized
+                        />
                     </div>
 
-                    {/* Title */}
-                    <h2 className="mb-2 text-[22px] font-semibold leading-none text-white">
-                        Dispute Submitted Successfully
-                    </h2>
+                    <div className="text-center">
+                        <h2 className="text-[18px] font-medium leading-tight text-white sm:text-[20px]">
+                            Dispute Submitted Successfully
+                        </h2>
+                        <p className="mx-auto mt-2 max-w-[340px] text-[12px] leading-[1.5] text-white/55 sm:text-[13px]">
+                            Your dispute has been received and is now under review. You will be notified of any updates.
+                        </p>
+                    </div>
 
-                    {/* Description */}
-                    <p className="mb-6 text-center text-sm text-white/60">
-                        Your dispute has been received and is now under review.
-                        <br />
-                        You will be notified of any updates.
-                    </p>
-
-                    {/* Details Card */}
-                    <div className="mb-6 w-full rounded-[8px] border border-white/10 bg-[#111111] p-4">
-                        <div className="space-y-3">
+                    <div className="mt-5 rounded-[14px] border border-white/5 bg-[#121212] px-5 py-4">
+                        <div className="space-y-2.5">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Dispute ID</span>
-                                <span className="text-sm font-medium text-white">{disputeId}</span>
+                                <span className="text-xs text-white/40">Dispute ID</span>
+                                <span className="text-xs font-medium text-white">{disputeId}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Booking ID</span>
-                                <span className="text-sm font-medium text-white">{bookingId}</span>
+                                <span className="text-xs text-white/40">Booking ID</span>
+                                <span className="text-xs font-medium text-white">{bookingId}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/55">Status</span>
-                                <span className="rounded-full border border-[#EF4444]/20 bg-[#EF4444]/10 px-2.5 py-0.5 text-xs font-medium text-[#EF4444]">
-                                    Dispute - Open
+                                <span className="text-xs text-white/40">Status</span>
+                                <span className="rounded-full border border-[#E26E67]/20 bg-[#E26E67]/10 px-2.5 py-0.5 text-xs font-medium text-[#E26E67]">
+                                    Dispute Open
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Close Button */}
                     <DialogClose asChild>
                         <button
                             type="button"
-                            className="w-full rounded-[8px] bg-[#E8D1AB] px-4 py-3 text-sm font-medium text-black transition hover:bg-[#F5EBD8]"
+                            className="mt-4 h-11 w-full rounded-[12px] bg-[#E8D1AB] text-[13px] font-medium text-black transition-all hover:bg-[#F5EBD8] active:scale-[0.97]"
                         >
                             Close
                         </button>
@@ -192,6 +186,7 @@ export default function RaiseDisputeModal({
                 bookingId: submission?.bookingId || formData.shootId,
             });
 
+            onOpenChange(false);
             setShowSuccess(true);
 
             // Reset form
@@ -355,7 +350,10 @@ export default function RaiseDisputeModal({
             {/* Success Modal */}
             <DisputeSuccessModal
                 open={showSuccess}
-                onOpenChange={setShowSuccess}
+                onOpenChange={(isOpen) => {
+                    setShowSuccess(isOpen);
+                    if (!isOpen) onOpenChange(false);
+                }}
                 disputeId={submittedData.disputeId}
                 bookingId={submittedData.bookingId}
             />

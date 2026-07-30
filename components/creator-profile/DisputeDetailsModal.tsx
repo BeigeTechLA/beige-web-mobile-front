@@ -54,6 +54,7 @@ export type DisputeDetailsRecord = DisputeHistoryItem & {
         total: string;
         paid: string;
         remaining: string;
+        extra?: string;
     };
 };
 
@@ -207,7 +208,7 @@ export default function DisputeDetailsModal({
                             <p className={`mb-3 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
                                 CP Compensation
                             </p>
-                            <div className={`grid grid-cols-3 gap-2 rounded-lg border p-3 ${isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
+                            <div className={`grid gap-2 rounded-lg border p-3 ${dispute.compensation.extra ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"} ${isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
                                 <div>
                                     <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Total</p>
                                     <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{dispute.compensation.total}</p>
@@ -216,6 +217,12 @@ export default function DisputeDetailsModal({
                                     <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Paid</p>
                                     <p className="mt-1 text-sm font-medium text-[#10B981]">{dispute.compensation.paid}</p>
                                 </div>
+                                {dispute.compensation.extra ? (
+                                    <div>
+                                        <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Dispute Extra</p>
+                                        <p className="mt-1 text-sm font-medium text-[#7DB0FF]">{dispute.compensation.extra}</p>
+                                    </div>
+                                ) : null}
                                 <div>
                                     <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Remaining</p>
                                     <p className="mt-1 text-sm font-medium text-[#E8D1AB]">{dispute.compensation.remaining}</p>
