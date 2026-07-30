@@ -852,7 +852,7 @@ export default function CreatorDashboardPage() {
     <>
       <Topbar pathname={pathname} />
     <div 
-      className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-[40px] transition-all duration-700 
+      className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
         ${isDark 
           ? `bg-[#0A0A0A] 
             border border-[#E8D1AB]/40 

@@ -16,7 +16,7 @@ export default function CreatorMeetingsPage() {
       <Topbar pathname={pathname} />
       <PermissionGuard module="meetings" action="view">
         <div 
-          className={`mx-4 lg:mx-8 mt-6 mb-10 rounded-[40px] transition-all duration-700 overflow-hidden
+          className={`mx-4 lg:mx-8 mt-6 mb-10 rounded-2xl transition-all duration-700 overflow-hidden
             ${isDark 
               ? `bg-[#0A0A0A] 
                  border border-[#E8D1AB]/30 
