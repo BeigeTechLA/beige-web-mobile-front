@@ -43,6 +43,9 @@ export type CpCompensationCreator = {
     status: string;
     processed_at?: string | null;
     notes?: string | null;
+    receipt_url?: string | null;
+    receipt_download_url?: string | null;
+    proof_file_name?: string | null;
   }>;
   payment_history?: CpPaymentHistoryItem[];
   timeline?: Array<{
@@ -146,6 +149,9 @@ export type AddCpCompensationPayload = {
       amount: number;
       payment_date?: string;
       notes?: string;
+      proof_url?: string;
+      proof_file_path?: string;
+      proof_file_name?: string;
     };
   }>;
 };
@@ -297,7 +303,14 @@ export const cpCompensationApi = {
     return apiClient.patch<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/modify`, payload);
   },
 
-  async addAdvance(earningId: number, payload: { amount: number; payment_date?: string; notes?: string }) {
+  async addAdvance(earningId: number, payload: {
+    amount: number;
+    payment_date?: string;
+    notes?: string;
+    proof_url?: string;
+    proof_file_path?: string;
+    proof_file_name?: string;
+  }) {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/advance`, payload);
   },
 

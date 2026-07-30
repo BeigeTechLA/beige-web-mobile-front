@@ -21,7 +21,9 @@ export type AdvancePaymentModalProps = {
   initialAdvanceAmount?: number | string | null;
   initialPaymentDate?: Date | string | null;
   initialNotes?: string | null;
-  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
+  initialProofFile?: File | null;
+  initialProofFileName?: string | null;
+  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null; proofFile: File | null }) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
 };
@@ -51,12 +53,18 @@ export default function AdvancePaymentModal({
   initialAdvanceAmount,
   initialPaymentDate,
   initialNotes,
+  initialProofFile,
+  initialProofFileName,
   submitLabel = "Save Advance",
 }: AdvancePaymentModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
   const [advanceAmount, setAdvanceAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofFileName, setProofFileName] = useState<string>("");
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const compensation = Number(totalCompensation || rowContext?.cpPayout || 0);
   const availableAmount = Number(maxAmount || compensation || 0);
@@ -72,6 +80,9 @@ export default function AdvancePaymentModal({
 
     setAdvanceAmount(initialAdvanceAmount ? String(initialAdvanceAmount) : "");
     setNotes(initialNotes || "");
+    setProofFile(initialProofFile || null);
+    setProofFileName(initialProofFileName || "");
+    setIsDraggingFile(false);
 
     if (initialPaymentDate) {
       setPaymentDate(parseDateAsLocalDay(initialPaymentDate));
@@ -79,7 +90,7 @@ export default function AdvancePaymentModal({
     }
 
     setPaymentDate(null);
-  }, [initialAdvanceAmount, initialNotes, initialPaymentDate, isOpen]);
+  }, [initialAdvanceAmount, initialNotes, initialPaymentDate, initialProofFile, initialProofFileName, isOpen]);
 
   if (!isOpen) {
     return null;
@@ -91,6 +102,53 @@ export default function AdvancePaymentModal({
       return;
     }
     setPaymentDate(set(new Date(date), { hours: 0, minutes: 0, seconds: 0, milliseconds: 0 }));
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0] || null;
+    setProofFile(selectedFile);
+    setProofFileName(selectedFile?.name || "");
+  };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(false);
+
+    const droppedFile = event.dataTransfer.files?.[0];
+    if (droppedFile) {
+      setProofFile(droppedFile);
+      setProofFileName(droppedFile.name);
+    }
+  };
+
+  const handleFileDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleFileDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleAdvanceAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = event.target.value;
+    const numericValue = Number(String(rawValue || "0").replace(/[$,]/g, ""));
+
+    if (!Number.isFinite(numericValue)) {
+      setAdvanceAmount("");
+      return;
+    }
+
+    if (availableAmount > 0 && numericValue > availableAmount) {
+      setAdvanceAmount(String(availableAmount));
+      return;
+    }
+
+    setAdvanceAmount(rawValue);
   };
 
   return (
@@ -139,7 +197,7 @@ export default function AdvancePaymentModal({
                 max={availableAmount || undefined}
                 step="0.01"
                 value={advanceAmount}
-                onChange={(event) => setAdvanceAmount(event.target.value)}
+                onChange={handleAdvanceAmountChange}
                 placeholder="$0"
                 className={`h-12 lg:h-16 w-full resize-none border-0 bg-transparent px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white placeholder:text-white/50" : "text-black placeholder:text-[#9F9FA9]"}`}
               />
@@ -163,6 +221,41 @@ export default function AdvancePaymentModal({
             classnames={`!rounded-xl h-14 lg:h-20 w-full resize-none px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
             labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}
           />
+
+          <div className="space-y-2 lg:space-y-3">
+            <label className={`text-sm lg:text-base ${isDark ? "text-white/60" : "text-black/60"}`}>
+              Proof Upload <span className="text-[#E8D1AB]">(Required)</span>
+            </label>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/*,application/pdf"
+            />
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleFileDragOver}
+              onDragLeave={handleFileDragLeave}
+              onDrop={handleFileDrop}
+              className={`mt-3 border border-dashed rounded-xl p-6 lg:p-10 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${isDraggingFile
+                ? "border-[#E8D1AB] bg-[#E8D1AB]/10"
+                : isDark
+                ? "border-[#5A5A5F] bg-black hover:bg-zinc-900/40"
+                : "border-[#D7D7D7] bg-[#FAFAFA] hover:bg-zinc-100/70"
+                }`}
+            >
+              <p className="text-sm font-medium text-center">
+                {proofFile ? (
+                  <span className="text-[#EED4A7] font-semibold">{proofFile.name}</span>
+                ) : proofFileName ? (
+                  <span className="text-[#EED4A7] font-semibold">{proofFileName}</span>
+                ) : (
+                  <>Drag & Drop Your File Here Or <span className="text-[#EED4A7] underline hover:text-[#EED4A7]/80">Upload</span></>
+                )}
+              </p>
+            </div>
+          </div>
 
           <div className={`rounded-xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
             <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
@@ -211,9 +304,9 @@ export default function AdvancePaymentModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || isInvalidAmount}
+            disabled={isSubmitting || isInvalidAmount || !proofFile}
             onClick={() => {
-              onSubmit({ reason: notes, advanceAmount, paymentDate });
+              onSubmit({ reason: notes, advanceAmount, paymentDate, proofFile });
             }}
             className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:cursor-not-allowed disabled:opacity-40"
           >

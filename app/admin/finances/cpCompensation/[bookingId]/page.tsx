@@ -184,6 +184,11 @@ export default function CpCompensationHistoryPage() {
 
       const advances = (creator.advances || []).map((advance, index) => {
         const paidAt = advance.processed_at || null;
+        const rawReceiptValue = advance.receipt_url || advance.receipt_download_url || null;
+        const proofFileName = advance.proof_file_name || (rawReceiptValue ? getReceiptFileName(rawReceiptValue) : null);
+        const receiptUrl = resolveReceiptUrl(advance.receipt_url || advance.receipt_download_url, proofFileName);
+        const receiptDownloadUrl = receiptUrl ? withDownloadDisposition(receiptUrl, proofFileName || "receipt.pdf") : null;
+
         return {
           id: `advance-${creator.creator_earning_id}-${advance.advance_id || index}`,
           title: "Applied as partial payment",
@@ -191,8 +196,8 @@ export default function CpCompensationHistoryPage() {
           amount: formatCurrency(advance.amount || 0),
           dateLabel: formatHistoryDate(paidAt),
           dateSortKey: paidAt ? new Date(paidAt).getTime() : 0,
-          receiptUrl: null,
-          receiptDownloadUrl: null,
+          receiptUrl,
+          receiptDownloadUrl,
         };
       });
 

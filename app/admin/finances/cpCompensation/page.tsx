@@ -658,7 +658,7 @@ export default function AdminFinancesPage() {
     }
   };
 
-  const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+  const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null; proofFile: File | null }) => {
     if (!canEdit) {
       toast.error("Edit permission not allowed");
       return;
@@ -671,10 +671,19 @@ export default function AdminFinancesPage() {
         toast.error("Select a compensation record and enter a valid advance amount");
         return;
       }
+      if (!payload.proofFile) {
+        toast.error("Please upload a proof file for the advance payment");
+        return;
+      }
+      const bookingId = selectedRow?.bookingId || (selectedRow?.id ? Number(selectedRow.id) : null);
+      const uploadedProof = await cpCompensationApi.uploadPaymentProof(payload.proofFile, { bookingId, earningId });
       await cpCompensationApi.addAdvance(earningId, {
         amount,
         payment_date: payload.paymentDate ? formatDateForApi(payload.paymentDate) : undefined,
         notes: payload.reason,
+        proof_url: uploadedProof?.proof_url || uploadedProof?.file_path || payload.proofFile.name,
+        proof_file_path: uploadedProof?.file_path || undefined,
+        proof_file_name: payload.proofFile.name,
       });
       setIsAdvanceOpen(false);
       await loadHistory(dataType);

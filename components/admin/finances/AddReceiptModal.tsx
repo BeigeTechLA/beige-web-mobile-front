@@ -110,6 +110,24 @@ export default function AddReceiptModal({
     setIsDraggingFile(false);
   };
 
+  const handleAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = event.target.value;
+    const numericValue = Number(String(rawValue || "0").replace(/[$,]/g, ""));
+    const maxAmount = Number(payableAmount || rowContext?.cpPayout || 0);
+
+    if (!Number.isFinite(numericValue)) {
+      setAmount("");
+      return;
+    }
+
+    if (maxAmount > 0 && numericValue > maxAmount) {
+      setAmount(String(maxAmount));
+      return;
+    }
+
+    setAmount(rawValue);
+  };
+
   const handleSave = () => {
     onSubmit({
       paymentMethod,
@@ -210,9 +228,10 @@ export default function AddReceiptModal({
               <input
                 type="number"
                 min="0"
+                max={Number(payableAmount || rowContext?.cpPayout || 0) || undefined}
                 step="0.01"
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={handleAmountChange}
                 placeholder="$0.00"
                 className={`h-11 lg:h-14 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-[#9F9FA9]"}`}
               />
