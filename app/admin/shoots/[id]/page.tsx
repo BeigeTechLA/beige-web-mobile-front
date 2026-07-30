@@ -593,9 +593,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
           {hasMissingFields ? (
             <div
-              className={`sticky top-0 z-60 -mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8 ${isDark
-                ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
-                : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+              className={`sticky top-0 z-20 -mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-y px-4 py-3 sm:px-6 lg:px-8
+                ${isDark
+                  ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
+                  : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
                 }`}
             >
               <p className="min-w-0 truncate text-sm font-medium sm:text-base">
