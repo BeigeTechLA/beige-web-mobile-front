@@ -395,12 +395,19 @@ export default function DisputesPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 pb-12 text-white lg:px-10 lg:py-9">
-        <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8 bg-[#101010]">
+      <div
+        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-[40px] transition-all duration-700 overflow-hidden ${
+          isDark
+            ? "bg-[#0A0A0A] border border-[#E8D1AB]/30 shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]"
+            : "bg-white border border-zinc-200 shadow-sm"
+        }`}
+      >
+        <div className={`p-8 lg:p-16 space-y-8 lg:space-y-12 pb-24 ${isDark ? "text-white" : "text-[#202020]"}`}>
+        <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8">
           <div className="mb-3 flex items-center justify-between lg:mb-6">
             <div>
               <h1 className="text-base lg:text-3xl font-bold">Disputes</h1>
-              <p className="text-xs lg:text-base text-white/60">Resolve payout disputes linked to your compensated shoots</p>
+              <p className={`text-xs lg:text-base ${isDark ? "text-white/60" : "text-[#202020]/60"}`}>Resolve payout disputes linked to your compensated shoots</p>
             </div>
             <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
           </div>
@@ -649,6 +656,7 @@ export default function DisputesPage() {
           onClose={() => setSelectedDispute(null)}
           dispute={selectedDispute}
         />
+        </div>
       </div>
     </>
   );
