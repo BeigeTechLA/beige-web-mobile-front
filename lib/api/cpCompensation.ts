@@ -72,6 +72,11 @@ export type CpPaymentHistoryItem = {
   receipt_download_url?: string | null;
   proof_file_name?: string | null;
   notes?: string | null;
+  source?: string | null;
+  dispute_id?: string | number | null;
+  dispute_code?: string | null;
+  dispute_original_compensation?: number | string | null;
+  dispute_extra_amount?: number | string | null;
 };
 
 export type UploadedProof = {
@@ -146,6 +151,11 @@ export type AddCpCompensationPayload = {
       amount: number;
       payment_date?: string;
       notes?: string;
+      proof_url?: string;
+      proof_file_path?: string;
+      proof_file_name?: string;
+      payment_mode?: string;
+      transaction_reference?: string;
     };
   }>;
 };
@@ -332,6 +342,7 @@ export const cpCompensationApi = {
     notes?: string;
     payment_scope?: "advance" | "final";
     advance_id?: number;
+    payment_date?: string;
   }) {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/payment`, payload);
   },

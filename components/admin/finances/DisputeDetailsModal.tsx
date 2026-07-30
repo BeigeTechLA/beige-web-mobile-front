@@ -50,11 +50,16 @@ type DisputeAttachment = {
 export type DisputeDetailsRecord = DisputeHistoryItem & {
   createdAt: string;
   payoutNote: string;
+  hideImpactedPayout?: boolean;
   invoiceUrl?: string | null;
   timeline: DisputeTimelineEvent[];
   internalComments: DisputeComment[];
   attachments?: DisputeAttachment[];
   resolutionProofs?: DisputeAttachment[];
+  compensationSummary?: {
+    label: string;
+    details: Array<{ label: string; value: string }>;
+  } | null;
   resolutionSummary?: {
     label: string;
     details: Array<{ label: string; value: string }>;
@@ -229,15 +234,17 @@ export default function DisputeDetailsModal({
               valueClassName="text-[#FF6A5F]"
               isDark={isDark}
             />
-            <DetailCard
-              icon={<ShieldAlert size={16} />}
-              label="Impacted Payout"
-              value={dispute.payoutHold}
-              helperText={dispute.payoutNote}
-              className={isDark ? "border-[#5A4312] bg-[#241805]" : "border-[#FFF4C9] bg-[#FFF4C9]"}
-              valueClassName="text-[#E0AC21]"
-              isDark={isDark}
-            />
+            {!dispute.hideImpactedPayout ? (
+              <DetailCard
+                icon={<ShieldAlert size={16} />}
+                label="Impacted Payout"
+                value={dispute.payoutHold}
+                helperText={dispute.payoutNote}
+                className={isDark ? "border-[#5A4312] bg-[#241805]" : "border-[#FFF4C9] bg-[#FFF4C9]"}
+                valueClassName="text-[#E0AC21]"
+                isDark={isDark}
+              />
+            ) : null}
           </div>
 
           <div className="mt-5 space-y-4">
@@ -254,6 +261,22 @@ export default function DisputeDetailsModal({
               <FileText size={16} />
               Open Parent Invoice
             </button>
+
+            {dispute.compensationSummary ? (
+              <div>
+                <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                  {dispute.compensationSummary.label}
+                </p>
+                <div className={`space-y-2 rounded-lg border px-4 py-3.5 ${isDark ? "border-white/10 bg-[#1F1F1F]" : "border-black/10 bg-[#F3F4F6]"}`}>
+                  {dispute.compensationSummary.details.map((item) => (
+                    <div key={item.label} className="flex items-start justify-between gap-4 text-sm">
+                      <span className={isDark ? "text-[#A0A0A0]" : "text-black/50"}>{item.label}</span>
+                      <span className={`text-right ${isDark ? "text-white" : "text-black"}`}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {dispute.resolutionSummary ? (
               <div>

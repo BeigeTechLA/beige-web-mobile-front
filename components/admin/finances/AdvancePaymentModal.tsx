@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ShootCPRow } from "./CPPayoutTable";
@@ -21,9 +21,11 @@ export type AdvancePaymentModalProps = {
   initialAdvanceAmount?: number | string | null;
   initialPaymentDate?: Date | string | null;
   initialNotes?: string | null;
-  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => void;
+  onSubmit: (payload: { reason: string; advanceAmount: string; paymentDate: Date | null; proofFile?: File | null }) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  showProofUpload?: boolean;
+  requireProofUpload?: boolean;
 };
 
 const parseDateAsLocalDay = (value: Date | string | null | undefined) => {
@@ -52,11 +54,15 @@ export default function AdvancePaymentModal({
   initialPaymentDate,
   initialNotes,
   submitLabel = "Save Advance",
+  showProofUpload = true,
+  requireProofUpload = false,
 }: AdvancePaymentModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
   const [advanceAmount, setAdvanceAmount] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState<Date | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const proofInputRef = useRef<HTMLInputElement>(null);
 
   const compensation = Number(totalCompensation || rowContext?.cpPayout || 0);
   const availableAmount = Number(maxAmount || compensation || 0);
@@ -66,12 +72,14 @@ export default function AdvancePaymentModal({
   }, [advanceAmount]);
   const remaining = Math.max(compensation - parsedAdvanceAmount, 0);
   const isInvalidAmount = parsedAdvanceAmount <= 0 || (availableAmount > 0 && parsedAdvanceAmount > availableAmount);
+  const isMissingRequiredProof = showProofUpload && requireProofUpload && !proofFile;
 
   useEffect(() => {
     if (!isOpen) return;
 
     setAdvanceAmount(initialAdvanceAmount ? String(initialAdvanceAmount) : "");
     setNotes(initialNotes || "");
+    setProofFile(null);
 
     if (initialPaymentDate) {
       setPaymentDate(parseDateAsLocalDay(initialPaymentDate));
@@ -164,6 +172,48 @@ export default function AdvancePaymentModal({
             labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}
           />
 
+          {showProofUpload ? (
+            <div className="space-y-2">
+              <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white/80" : "text-black/70"}`}>
+                Upload Proof{requireProofUpload ? "*" : " "}
+                {!requireProofUpload ? <span className="text-[#E8D1AB]">(Optional)</span> : null}
+              </p>
+              <input
+                ref={proofInputRef}
+                type="file"
+                accept="image/png,image/jpeg,application/pdf"
+                className="hidden"
+                onChange={(event) => setProofFile(event.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                onClick={() => proofInputRef.current?.click()}
+                className={`flex min-h-[86px] w-full items-center justify-center rounded-xl border border-dashed px-4 text-center transition-colors ${isDark ? "border-white/30 bg-black hover:border-[#E8D1AB]/70" : "border-black/20 bg-white hover:border-[#E8D1AB]"}`}
+              >
+                {proofFile ? (
+                  <span className="flex min-w-0 items-center gap-2 text-sm text-[#E8D1AB]">
+                    <FileText size={17} className="shrink-0" />
+                    <span className="truncate">{proofFile.name}</span>
+                  </span>
+                ) : (
+                  <span className={`flex items-center gap-2 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    <Upload size={17} className="text-[#E8D1AB]" />
+                    Drag & Drop Your File Here Or <span className="font-semibold text-[#E8D1AB]">Upload</span>
+                  </span>
+                )}
+              </button>
+              {proofFile ? (
+                <button
+                  type="button"
+                  onClick={() => setProofFile(null)}
+                  className="text-xs font-medium text-white/45 transition hover:text-white"
+                >
+                  Remove proof
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className={`rounded-xl border px-5 pb-4 pt-0 relative mt-6 lg:px-6 lg:pb-4 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
             <div className="absolute -top-3 left-3 px-2 text-sm lg:text-base z-10">
               <span className={`px-2 font-medium ${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"}`}>
@@ -211,9 +261,9 @@ export default function AdvancePaymentModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || isInvalidAmount}
+            disabled={isSubmitting || isInvalidAmount || isMissingRequiredProof}
             onClick={() => {
-              onSubmit({ reason: notes, advanceAmount, paymentDate });
+              onSubmit({ reason: notes, advanceAmount, paymentDate, proofFile: showProofUpload ? proofFile : null });
             }}
             className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:cursor-not-allowed disabled:opacity-40"
           >
