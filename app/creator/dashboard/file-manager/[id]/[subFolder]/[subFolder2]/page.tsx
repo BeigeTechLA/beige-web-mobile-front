@@ -25,6 +25,7 @@ import {
   Trash2,
   Upload,
   X as CloseIcon,
+  Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1406,29 +1407,48 @@ export default function CreatorSubFolderDetailsPage() {
           isDark={isDark}
         />
 
-        {selectedFilePaths.length > 0 ? (
-          <div className="fixed bottom-6 left-1/2 z-[100] w-full max-w-xl -translate-x-1/2 px-4 lg:bottom-10">
-            <div className={`relative flex flex-col gap-4 rounded-2xl border p-4 shadow-2xl transition-all lg:flex-row lg:items-center lg:justify-between lg:gap-2 ${isDark
-              ? "border-[#E8D1AB]/50 bg-[#171717]"
-              : "border-[#cbb38b]/50 bg-white"
-              }`}>
+        {selectedFilePaths.length > 0 && (
+          <div className="fixed bottom-4 left-1/2 z-[100] w-fit -translate-x-1/2 lg:bottom-10">
+            <div
+              className={`relative flex items-center gap-3 rounded-2xl border px-3 py-2.5 shadow-2xl lg:gap-4 lg:px-5 lg:py-3 ${isDark
+                ? "border-[#E8D1AB]/50 bg-[#171717]"
+                : "border-[#cbb38b]/50 bg-white"
+                }`}
+            >
+              <div className="flex items-center gap-2 lg:gap-4 flex-1 min-w-0">
 
-              {/* Left Info Section */}
-              <div className="flex items-center gap-3 pr-8 lg:pr-0">
-                {/* Selected Items Counter Badge */}
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors ${isDark
-                  ? "bg-[#E8D1AB] text-black"
-                  : "bg-[#cbb38b] text-white"
-                  }`}>
+                {/* ─ Mobile: Folder icon with counter badge ─ */}
+                <div className="relative lg:hidden shrink-0">
+                  <Folder size={28} color="#000" fill="#E8D1AB" />
+                  <span
+                    className={`absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold leading-none ${isDark ? "bg-[#E8D1AB] text-black" : "bg-[#cbb38b] text-white"
+                      }`}
+                  >
+                    {selectedFilePaths.length}
+                  </span>
+                </div>
+
+                {/*  Desktop: Counter badge ─ */}
+                <div
+                  className={`hidden lg:flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shrink-0 ${isDark ? "bg-[#E8D1AB] text-black" : "bg-[#cbb38b] text-white"
+                    }`}
+                >
                   {selectedFilePaths.length}
                 </div>
-                <span className={`font-medium text-sm lg:text-base transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  Files selected
+
+                <span
+                  className={`font-medium text-xs lg:text-base whitespace-nowrap ${isDark ? "text-white" : "text-black"
+                    }`}
+                >
+                  <span className="lg:hidden">Selected</span>
+                  <span className="hidden lg:inline">Files selected</span>
                 </span>
-                {/* Clear Button */}
+
                 <Button
                   variant="ghost"
-                  className={`text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                  className={`text-xs lg:text-sm h-8 lg:h-9 px-2 lg:px-3 ${isDark
+                    ? "text-white/70 hover:text-white"
+                    : "text-black/70 hover:text-black"
                     }`}
                   onClick={() => {
                     setSelectedFilePaths([]);
@@ -1439,96 +1459,99 @@ export default function CreatorSubFolderDetailsPage() {
                 </Button>
                 <Button
                   variant="ghost"
-                  className={`text-xs lg:text-sm h-9 lg:h-10 gap-2 transition-colors ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
+                  className={`gap-1.5 text-xs lg:text-sm h-8 lg:h-9 px-2 lg:px-0 ${isDark
+                    ? "text-white/70 hover:text-white"
+                    : "text-black/70 hover:text-black"
                     }`}
                   onClick={() => {
-                    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
+                    const allVisible = visibleFiles
+                      .map((file) => file.filepath || "")
+                      .filter(Boolean);
                     setSelectedFilePaths(Array.from(new Set(allVisible)));
                     setIsSelectionMode(true);
                   }}
                 >
-                  <CheckSquare size={16} />
-                  Select all
+                  <CheckSquare size={14} className="lg:size-[16px]" />
+                  <span className="hidden lg:inline">Select all</span>
+                  <span className="lg:hidden">All</span>
                 </Button>
               </div>
 
-              {/* Right Action Trigger Group */}
-              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
-                {/* Vertical Divider (Hidden on small screens where buttons break lines) */}
-                <div className={`hidden lg:block mx-1 h-6 w-[1px] transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-
-                {/* Action Buttons Container */}
-                <div className="flex items-center gap-2 w-full lg:w-auto">
-                  {/* Batch Download Button */}
+              {/* DIVIDER (desktop only) */}
+              <div
+                className={`hidden lg:block h-7 w-[2px] shrink-0 ${isDark ? "bg-white/10" : "bg-black/10"
+                  }`}
+              />
+              <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
+                <Button
+                  className={`gap-1.5 lg:gap-2 text-xs lg:text-sm h-9 lg:h-10 ${isDark
+                    ? "border border-white/10 bg-white/10 text-white hover:bg-white/20"
+                    : "border border-black/10 bg-black/5 text-black hover:bg-black/10"
+                    }`}
+                  onClick={handleBatchDownload}
+                >
+                  <Download size={16} className="lg:size-[18px]" />
+                  <span className="hidden lg:inline">Download</span>
+                </Button>
+                {canDeleteFiles && (
                   <Button
-                    className={`flex-1 lg:flex-none gap-2 border text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark
-                      ? "border-white/10 bg-white/10 text-white hover:bg-white/20"
-                      : "border-black/10 bg-black/5 text-black hover:bg-black/10"
+                    className={`gap-1.5 lg:gap-2 text-xs lg:text-sm h-9 lg:h-10 ${isDark
+                      ? "bg-[#F04438] text-white hover:bg-[#F04438]/90"
+                      : "bg-red-500 text-white hover:bg-red-600"
                       }`}
-                    onClick={handleBatchDownload}
+                    onClick={() => setIsDeleteModalOpen(true)}
                   >
-                    <Download size={16} className="lg:size-[18px]" />
-                    Download
+                    <Trash2 size={16} className="lg:size-[18px]" />
+                    <span className="hidden lg:inline">Delete</span>
                   </Button>
-
-                  {/* Batch Delete Button */}
-                  {canDeleteFiles ? (
-                    <Button
-                      className={`flex-1 lg:flex-none gap-2 text-xs lg:text-sm h-9 lg:h-10 transition-colors ${isDark
-                        ? "bg-[#F04438] text-white hover:bg-[#F04438]/90"
-                        : "bg-red-500 text-white hover:bg-red-600"
-                        }`}
-                      onClick={() => setIsDeleteModalOpen(true)}
-                    >
-                      <Trash2 size={16} className="lg:size-[18px]" />
-                      Delete
-                    </Button>
-                  ) : null}
-                </div>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedFilePaths([]);
+                    setIsSelectionMode(false);
+                  }}
+                  className={`h-8 w-8 lg:h-9 lg:w-9 flex items-center justify-center rounded-full shrink-0 ${isDark
+                    ? "text-white/40 hover:text-white hover:bg-white/10"
+                    : "text-black/40 hover:text-black hover:bg-black/10"
+                    }`}
+                >
+                  <CloseIcon size={18} className="lg:size-[20px]" />
+                </button>
               </div>
-
-              {/* Absolute Escape Close Cross (Pinned to top corner on tiny viewports) */}
-              <button
-                onClick={() => {
-                  setSelectedFilePaths([]);
-                  setIsSelectionMode(false);
-                }}
-                className={`absolute top-4 right-4 lg:static transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
-              >
-                <CloseIcon size={20} />
-              </button>
             </div>
           </div>
-        ) : null}
+        )}
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        {canUpload ? (
-          <div className={`lg:hidden w-full fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-            {isCommonEventWorkspace ? (
-              <Button
-                onClick={() => setIsCreateFolderModalOpen(true)}
-                className="flex items-center gap-2 w-full rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
-              >
-                <FolderPlus size={18} />
-                Create Folder
-              </Button>
-            ) : null}
-            {showHeaderUploadButton ? (
-              <Button
-                onClick={() => {
-                  if (selectionLockActive) return;
-                  openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
-                }}
-                disabled={selectionLockActive}
-                className="flex items-center gap-2 w-full rounded-lg bg-[#E8D0AA] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
-              >
-                <Upload size={18} />
-                {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+        {
+          canUpload ? (
+            <div className={`lg:hidden w-full fixed flex gap-2 items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+              {isCommonEventWorkspace ? (
+                <Button
+                  onClick={() => setIsCreateFolderModalOpen(true)}
+                  className="flex items-center gap-2 w-full rounded-lg border border-white/20 bg-[#202020] px-3 text-white hover:bg-white/10 lg:h-10 lg:px-6"
+                >
+                  <FolderPlus size={18} />
+                  Create Folder
+                </Button>
+              ) : null}
+              {showHeaderUploadButton ? (
+                <Button
+                  onClick={() => {
+                    if (selectionLockActive) return;
+                    openUploadModalForVersion(isSelectedForEditsFolder || isRevisionRootFolder ? uploadModalVersion : null);
+                  }}
+                  disabled={selectionLockActive}
+                  className="flex items-center gap-2 w-full rounded-lg bg-[#E8D0AA] px-3 text-black hover:bg-[#D4C3A3] lg:h-10 lg:px-6"
+                >
+                  <Upload size={18} />
+                  {isSelectedForEditsFolder || isRevisionRootFolder ? `Upload Version${uploadModalVersion} Files` : "Upload Files"}
+                </Button>
+              ) : null}
+            </div>
+          ) : null
+        }
+      </div >
     </>
   );
 }
