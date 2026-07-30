@@ -572,7 +572,17 @@ export default function RequestsShootsPage() {
   return (
     <>
     <Topbar pathname={pathname} />
-    <div className="overflow-hidden p-4 pb-12 text-white lg:px-10 lg:py-9">
+<div 
+  className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-[40px] transition-all duration-700 overflow-hidden
+    ${isDark 
+      ? `bg-[#0A0A0A] 
+         border border-[#E8D1AB]/30 
+         shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+      : "bg-white border-zinc-200 shadow-sm"
+    }`}
+>
+  {/* Inner Padding - p-10 lg:p-16 ensures cards don't hit the 40px rounded corners */}
+  <div className="p-8 lg:p-16 space-y-8 lg:space-y-12 pb-24">
     <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between lg:mb-6">
@@ -729,6 +739,7 @@ export default function RequestsShootsPage() {
         onClose={() => setIsPaymentOpen(false)}
         timelineData={timelineData}
       />
+    </div>
     </div>
     </div>
     </>
