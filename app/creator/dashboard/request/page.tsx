@@ -401,7 +401,7 @@ export default function RequestsShootsPage() {
     <>
       <Topbar pathname={pathname} />
       <div 
-        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-[40px] transition-all duration-700 overflow-hidden
+        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
           ${isDark 
             ? `bg-[#0A0A0A] 
               border border-[#E8D1AB]/30 
@@ -610,7 +610,7 @@ export default function RequestsShootsPage() {
                   {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
-                    className={`border rounded-[40px] lg:rounded-[40px] p-4 lg:p-6 transition-all group ${isDark
+                    className={`border rounded-2xl p-4 lg:p-6 transition-all group ${isDark
                       ? "bg-[#111] border-white/5 hover:border-[#E8D1AB]/40"
                       : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/60 shadow-sm"
                       }`}
