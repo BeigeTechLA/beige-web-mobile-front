@@ -110,6 +110,29 @@ const HourlyStudioCard = ({
     studio.pricingOptions?.[0];
 
   useEffect(() => {
+    setSelectedDate(
+      currentSelection?.selectedDate
+        ? new Date(currentSelection.selectedDate)
+        : draftSelection?.selectedDate
+          ? new Date(draftSelection.selectedDate)
+          : null,
+    );
+    setStartTime(currentSelection?.startTime || draftSelection?.startTime || "");
+    setEndTime(currentSelection?.endTime || draftSelection?.endTime || "");
+    setPricingKey(currentSelection?.pricingCategory || draftSelection?.pricingKey || studio.pricingOptions?.[0]?.key || "");
+  }, [
+    currentSelection?.selectedDate,
+    currentSelection?.startTime,
+    currentSelection?.endTime,
+    currentSelection?.pricingCategory,
+    draftSelection?.selectedDate,
+    draftSelection?.startTime,
+    draftSelection?.endTime,
+    draftSelection?.pricingKey,
+    studio.pricingOptions,
+  ]);
+
+  useEffect(() => {
     const options = [];
     for (let i = 0; i < 24; i++) {
       for (let j = 0; j < 60; j += 15) {

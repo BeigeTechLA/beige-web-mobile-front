@@ -64,7 +64,6 @@ const STUDIO_BOOKING_TYPES = [
   { key: "event", value: "Event" }
 ];
 
-const LOAD_MORE_COUNT = 3;
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
 const normalizeStudioTags = (studio: Record<string, any>) => {
@@ -196,8 +195,6 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(formData.bookingFor || "");
   const [studioData, setStudioData] = useState<StudioCatalogListItem[]>([]);
   const [studioLoading, setStudioLoading] = useState(false);
-  const [visibleStudioCount, setVisibleStudioCount] = useState(3); // INITIAL_COUNT = 3
-
   const selectedStudios = useMemo(
     () =>
       normalizeSelectedStudios({
@@ -698,7 +695,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
       try {
         const response = await studioCatalogApi.list({
           search: searchQuery,
-          limit: 100,
+          limit: 1000,
         });
         const raw = (response as any)?.data;
         const rawStudios = Array.isArray(raw)
@@ -1089,7 +1086,7 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
           ) : (
             <div className="flex flex-col items-center">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-8">
-                {studioData.slice(0, visibleStudioCount).map((studio) => {
+                {studioData.map((studio) => {
                   const display = getStudioDisplayData(studio as StudioCatalogListItem & Record<string, any>);
                   const isSelected = selectedStudioIds.includes(display.slug);
                   return (
@@ -1118,19 +1115,6 @@ export default function EditBookingDetailsForm({ leadId, initialBookingData, onS
                   );
                 })}
               </div>
-
-              {visibleStudioCount < studioData.length && (
-                <button
-                  onClick={() => setVisibleStudioCount((prev) => Math.min(prev + LOAD_MORE_COUNT, studioData.length))}
-                  className={`px-8 py-3 rounded-xl border font-medium transition-colors ${
-                    isDark
-                      ? "border-white/20 text-white hover:bg-white/5"
-                      : "border-black/20 text-black hover:bg-black/5"
-                  }`}
-                >
-                  Load More Studios
-                </button>
-              )}
             </div>
           )}
         </div>
