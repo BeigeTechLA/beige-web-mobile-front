@@ -237,10 +237,33 @@ export default function BookingDateTimeSection({
       .join(", ");
 
   const toggleDateSelection = (date: Date) => {
+    const dateKey = getDateKey(date);
+
     setSelectedDates((prev) => {
       const exists = prev.some((selectedDate) => isSameDay(selectedDate, date));
       if (exists) {
+        setMultiDayTimes((currentTimes) => {
+          if (!currentTimes[dateKey]) {
+            return currentTimes;
+          }
+
+          const nextTimes = { ...currentTimes };
+          delete nextTimes[dateKey];
+          return nextTimes;
+        });
+        setExpandedDateKey((currentKey) => (currentKey === dateKey ? null : currentKey));
         return prev.filter((selectedDate) => !isSameDay(selectedDate, date));
+      }
+
+      if (!sameTimingsMulti) {
+        setMultiDayTimes((currentTimes) => ({
+          ...currentTimes,
+          [dateKey]: currentTimes[dateKey] ?? {
+            startKey: sharedMultiStartTime,
+            endKey: sharedMultiEndTime,
+          },
+        }));
+        setExpandedDateKey((currentKey) => currentKey ?? dateKey);
       }
 
       return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
@@ -718,10 +741,33 @@ export default function BookingDateTimeSection({
                   <button
                     type="button"
                     onClick={() => {
+                      const firstCompleteDay = selectedDates
+                        .map((date) => multiDayTimes[getDateKey(date)])
+                        .find(
+                          (
+                            timePair,
+                          ): timePair is { startKey: string; endKey: string } =>
+                            Boolean(
+                              timePair?.startKey &&
+                              timePair?.endKey &&
+                              isTimeRangeValid(timePair.startKey, timePair.endKey),
+                            ),
+                        );
+                      const nextStartTime =
+                        sharedMultiStartTime || firstCompleteDay?.startKey || "";
+                      const nextEndTime =
+                        sharedMultiEndTime &&
+                          (!nextStartTime || isTimeRangeValid(nextStartTime, sharedMultiEndTime))
+                          ? sharedMultiEndTime
+                          : firstCompleteDay?.endKey || "";
                       setSameTimingsMulti(true);
                       setMultiDayTimes({});
-                      setSharedMultiStartTime("");
-                      setSharedMultiEndTime("");
+                      setSharedMultiStartTime(nextStartTime);
+                      setSharedMultiEndTime(
+                        nextStartTime && nextEndTime && !isTimeRangeValid(nextStartTime, nextEndTime)
+                          ? ""
+                          : nextEndTime,
+                      );
                     }}
                     className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[140px] lg:px-6 ${sameTimingsMulti ? "border-transparent bg-[#E8D1AB] text-black [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)]" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9]" : "border-[#0000004D] bg-transparent text-[#2C2C2C]"}`}
                   >
@@ -734,14 +780,37 @@ export default function BookingDateTimeSection({
                     type="button"
                     onClick={() => {
                       setSameTimingsMulti(false);
-                      const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
-                      selectedDates.forEach((date) => {
-                        nextTimes[getDateKey(date)] = {
-                          startKey: sharedMultiStartTime,
-                          endKey: sharedMultiEndTime,
-                        };
+                      setExpandedDateKey((currentKey) => {
+                        if (currentKey && selectedDates.some((date) => getDateKey(date) === currentKey)) {
+                          return currentKey;
+                        }
+
+                        return selectedDates[0] ? getDateKey(selectedDates[0]) : null;
                       });
-                      setMultiDayTimes(nextTimes);
+                      setMultiDayTimes((currentTimes) => {
+                        const nextTimes: Record<string, { startKey?: string; endKey?: string }> = {};
+                        selectedDates.forEach((date) => {
+                          const key = getDateKey(date);
+                          const existingTime = currentTimes[key];
+                          const startKey = existingTime?.startKey || sharedMultiStartTime;
+                          const existingEndKey =
+                            existingTime?.endKey &&
+                              (!startKey || isTimeRangeValid(startKey, existingTime.endKey))
+                              ? existingTime.endKey
+                              : "";
+                          const sharedEndKey =
+                            sharedMultiEndTime &&
+                              (!startKey || isTimeRangeValid(startKey, sharedMultiEndTime))
+                              ? sharedMultiEndTime
+                              : "";
+
+                          nextTimes[key] = {
+                            startKey,
+                            endKey: existingEndKey || sharedEndKey,
+                          };
+                        });
+                        return nextTimes;
+                      });
                     }}
                     className={`flex h-14 w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[140px] lg:px-6 ${!sameTimingsMulti ? "border-transparent bg-[#E8D1AB] text-black [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)]" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9]" : "border-[#0000004D] bg-transparent text-[#2C2C2C]"}`}
                   >

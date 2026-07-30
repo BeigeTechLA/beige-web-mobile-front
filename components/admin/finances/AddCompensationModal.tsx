@@ -6,6 +6,7 @@ import { Check, ChevronDown, TrendingUp, Minus, Plus, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import AdvancePaymentModal from "./AdvancePaymentModal";
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -30,6 +31,9 @@ type CreatorFormState = {
   travel: string;
   bonus: string;
   notes: string;
+  advanceAmount: string;
+  advancePaymentDate: string;
+  advanceNotes: string;
 };
 
 const methodToApi = (method: TabType): AddCpCompensationPayload["compensation_method"] => {
@@ -78,6 +82,35 @@ const getAmountDisplayValue = (rawValue: string, calculatedValue: number) => {
 
 const formatShootOptionLabel = (shoot: PendingCompensationShoot) =>
   `#${shoot.booking_id} - ${shoot.shoot_name}`;
+
+const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const formatLocalDateForApi = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDate = (value?: string | null) => {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatLongDate = (value?: string | null) => {
+  const date = parseLocalDate(value);
+  return date ? LONG_DATE_FORMATTER.format(date) : value || "";
+};
 
 const getPercentMeta = (percentage: number) => {
   const displayedPercentage = Number(percentage.toFixed(1));
@@ -187,6 +220,9 @@ const getCreatorFormDefaults = (creatorHourlyRate = "", baseTarget = "0"): Creat
   travel: "0",
   bonus: "0",
   notes: "",
+  advanceAmount: "",
+  advancePaymentDate: "",
+  advanceNotes: "",
 });
 
 export default function AddCompensationModal({
@@ -203,6 +239,7 @@ export default function AddCompensationModal({
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
+  const [advanceCreatorId, setAdvanceCreatorId] = useState<string | null>(null);
   const shootDropdownRef = useRef<HTMLDivElement>(null);
 
   const { isDark } = useResolvedTheme();
@@ -238,6 +275,7 @@ export default function AddCompensationModal({
     setSelectedCreators([]);
     setCreatorForms({});
     setShootSearchQuery("");
+    setAdvanceCreatorId(null);
   }, []);
 
   const syncCreatorFormsForCompensationMethod = useCallback(() => {
@@ -287,6 +325,9 @@ export default function AddCompensationModal({
         travel: current.travel || "0",
         bonus: current.bonus || "0",
         notes: current.notes || "",
+        advanceAmount: current.advanceAmount || "",
+        advancePaymentDate: current.advancePaymentDate || "",
+        advanceNotes: current.advanceNotes || "",
       };
 
       acc[id] = nextForm;
@@ -479,6 +520,38 @@ export default function AddCompensationModal({
     setIsDropdownOpen(false);
   };
 
+  const activeAdvanceCreator = currentShoot?.creators.find((creator) => String(creator.creator_id) === advanceCreatorId) || null;
+  const activeAdvanceForm = advanceCreatorId ? creatorForms[advanceCreatorId] : undefined;
+  const activeAdvanceTotal = advanceCreatorId ? getCreatorTotal(advanceCreatorId) : 0;
+  const activeAdvanceDate = parseLocalDate(activeAdvanceForm?.advancePaymentDate);
+
+  const handleAdvanceSubmit = (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+    if (!advanceCreatorId) return;
+
+    setCreatorForms((prev) => ({
+      ...prev,
+      [advanceCreatorId]: {
+        ...(prev[advanceCreatorId] || getCreatorFormDefaults()),
+        advanceAmount: normalizeMoneyInput(payload.advanceAmount),
+        advancePaymentDate: payload.paymentDate ? formatLocalDateForApi(payload.paymentDate) : "",
+        advanceNotes: payload.reason,
+      },
+    }));
+    setAdvanceCreatorId(null);
+  };
+
+  const handleRemoveAdvance = (creatorId: string) => {
+    setCreatorForms((prev) => ({
+      ...prev,
+      [creatorId]: {
+        ...(prev[creatorId] || getCreatorFormDefaults()),
+        advanceAmount: "",
+        advancePaymentDate: "",
+        advanceNotes: "",
+      },
+    }));
+  };
+
   const toggleHourlyConfirmation = (creatorId: string) => {
     setCreatorForms((prev) => {
       const current = prev[creatorId] || getCreatorFormDefaults();
@@ -519,8 +592,12 @@ export default function AddCompensationModal({
         travel: "0",
         bonus: "0",
         notes: "",
+        advanceAmount: "",
+        advancePaymentDate: "",
+        advanceNotes: "",
       };
       const breakdown = getCreatorBreakdownForForm(form, form.rateType);
+      const advanceAmount = parseAmount(form.advanceAmount || "0");
       return {
         creator_id: Number(creatorId),
         rate_type: form.rateType,
@@ -531,6 +608,15 @@ export default function AddCompensationModal({
           { label: "Bonus/Other Adjustment", amount: breakdown.bonus },
         ],
         notes: form.notes || null,
+        ...(advanceAmount > 0
+          ? {
+              advance: {
+                amount: advanceAmount,
+                payment_date: form.advancePaymentDate || undefined,
+                notes: form.advanceNotes || undefined,
+              },
+            }
+          : {}),
       };
     });
 
@@ -709,6 +795,7 @@ export default function AddCompensationModal({
                   const form = creatorForms[creatorId] || {
                     baseTarget: "0",
                     base: "0",
+                    rateType: "flat",
                     hourlyRate: "",
                     hours: "1",
                     hourlyConfirmed: false,
@@ -717,6 +804,9 @@ export default function AddCompensationModal({
                     travel: "0",
                     bonus: "0",
                     notes: "",
+                    advanceAmount: "",
+                    advancePaymentDate: "",
+                    advanceNotes: "",
                   };
 
                   return (
@@ -949,6 +1039,46 @@ export default function AddCompensationModal({
                               className={`h-11 lg:h-16 w-full border-0 bg-transparent px-0 text-sm lg:text-base outline-none ${isDark ? "text-white" : "text-black"}`}
                             />
                           </div>
+
+                          <div className="space-y-2">
+                            {parseAmount(form.advanceAmount || "0") > 0 ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setAdvanceCreatorId(creatorId)}
+                                  className="inline-flex items-center gap-2 text-xs lg:text-sm font-semibold text-[#E8D1AB] underline underline-offset-4"
+                                >
+                                  Edit Advance Payment
+                                </button>
+                                <div className={`flex flex-col gap-2 rounded-lg px-3 py-2 text-xs lg:flex-row lg:items-center lg:justify-between ${isDark ? "bg-[#2B2B2B] text-white/70" : "bg-white text-black/70"}`}>
+                                  <span>
+                                    Advance: {formatCurrency(parseAmount(form.advanceAmount))}
+                                    {form.advancePaymentDate ? ` on ${formatLongDate(form.advancePaymentDate)}` : ""}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <span>
+                                      Remaining: {formatCurrency(Math.max(getCreatorTotal(creatorId) - parseAmount(form.advanceAmount), 0))}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveAdvance(creatorId)}
+                                      className="font-semibold text-[#EF4444]"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setAdvanceCreatorId(creatorId)}
+                                className="inline-flex items-center gap-2 text-xs lg:text-sm font-semibold text-[#E8D1AB] underline underline-offset-4"
+                              >
+                                <Plus size={14} /> Add Advance Payment
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -977,6 +1107,17 @@ export default function AddCompensationModal({
           </button>
         </div>
       </div>
+      <AdvancePaymentModal
+        isOpen={Boolean(advanceCreatorId)}
+        onClose={() => setAdvanceCreatorId(null)}
+        creatorName={activeAdvanceCreator?.creator_name || "Creative Partner"}
+        totalCompensation={activeAdvanceTotal}
+        maxAmount={activeAdvanceTotal}
+        initialAdvanceAmount={activeAdvanceForm?.advanceAmount || null}
+        initialPaymentDate={activeAdvanceDate}
+        initialNotes={activeAdvanceForm?.advanceNotes || null}
+        onSubmit={handleAdvanceSubmit}
+      />
     </div>
   );
 }
