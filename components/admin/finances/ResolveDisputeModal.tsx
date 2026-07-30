@@ -40,6 +40,7 @@ type ResolveDisputeModalProps = {
     amount: string;
     recipient: string;
   } | null;
+  creatorDispute?: boolean;
   onClose?: () => void;
   onSubmit: (data: ResolveDisputeFormData) => void;
 };
@@ -77,6 +78,7 @@ export default function ResolveDisputeModal({
   isSubmitting = false,
   isDark = true,
   disputeData,
+  creatorDispute = false,
   onClose,
   onSubmit,
 }: ResolveDisputeModalProps) {
@@ -92,7 +94,7 @@ export default function ResolveDisputeModal({
 
   useEffect(() => {
     if (!open) return;
-    setTab("credits");
+    setTab(creatorDispute ? "manual" : "credits");
     setAmountType("full");
     setAmount("");
     setCreditAmount("");
@@ -101,7 +103,7 @@ export default function ResolveDisputeModal({
     setTransactionId("");
     setNotes("");
     setUploadedFiles([]);
-  }, [open]);
+  }, [creatorDispute, open]);
 
   useEffect(() => {
     if (tab === "credits") setRecipient("client");
@@ -110,6 +112,7 @@ export default function ResolveDisputeModal({
   const fullAmount = disputeData?.amount || "$0";
   const maxAmount = fullAmount;
   const recipientLabel = disputeData?.recipient || "Client";
+  const visibleTabs = creatorDispute ? tabs.filter((item) => item.value !== "credits") : tabs;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUploadedFiles(Array.from(event.target.files || []));
@@ -170,7 +173,7 @@ export default function ResolveDisputeModal({
             </div>
 
             <TabsSwitcher
-              tabs={tabs}
+              tabs={visibleTabs}
               activeTab={tab}
               onChange={(value) => setTab(value)}
               className="w-full"
@@ -209,6 +212,7 @@ export default function ResolveDisputeModal({
                     recipient={recipient}
                     recipientLabel={recipientLabel}
                     onChange={setRecipient}
+                    creatorDispute={creatorDispute}
                   />
 
                   <InfoBox
@@ -461,12 +465,14 @@ function RecipientSelect({
   recipientLabel,
   onChange,
   clientOnly = false,
+  creatorDispute = false,
 }: {
   isDark: boolean;
   recipient: string;
   recipientLabel: string;
   onChange: (value: string) => void;
   clientOnly?: boolean;
+  creatorDispute?: boolean;
 }) {
   return (
     <div className="relative">
@@ -478,7 +484,7 @@ function RecipientSelect({
           <SelectValue />
         </SelectTrigger>
         <SelectContent className={`rounded-xl ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-black/20 bg-white text-black"}`}>
-          <SelectItem value="client">Client - {recipientLabel}</SelectItem>
+          <SelectItem value="client">{creatorDispute ? "CP" : "Client"} - {recipientLabel}</SelectItem>
           {!clientOnly ? (
             <>
               <SelectItem value="creator">Creative Partner</SelectItem>

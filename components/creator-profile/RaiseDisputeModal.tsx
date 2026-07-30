@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
     Dialog,
     DialogContent,
@@ -13,7 +13,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Check, Upload, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,11 +20,18 @@ import { Button } from "@/components/ui/button";
 interface RaiseDisputeModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: RaiseDisputeData) => Promise<void>;
+    onSubmit: (data: RaiseDisputeData) => Promise<{ disputeId: string; bookingId: string } | void>;
+    shootOptions?: Array<{
+        creatorEarningId: number | string;
+        bookingId: number | string;
+        label: string;
+        amountLabel?: string;
+    }>;
 }
 
 export interface RaiseDisputeData {
     shootId: string;
+    creatorEarningId?: number | string;
     disputeType: string;
     description: string;
     file?: File | null;
@@ -116,6 +122,7 @@ export default function RaiseDisputeModal({
     open,
     onOpenChange,
     onSubmit,
+    shootOptions = [],
 }: RaiseDisputeModalProps) {
     const [formData, setFormData] = useState<RaiseDisputeData>({
         shootId: "",
@@ -132,21 +139,9 @@ export default function RaiseDisputeModal({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Sample shoot IDs - replace with actual data
-    const shootIds = [
-        { id: "BK-001", name: "Corporate Headshots Session" },
-        { id: "BK-002", name: "Wedding Photography Package" },
-        { id: "BK-003", name: "Product Photography - E-commerce" },
-        { id: "BK-004", name: "Real Estate Virtual Tour" },
-        { id: "BK-005", name: "Event Coverage - Conference" },
-    ];
-
     const disputeTypes = [
         "Payment Not Received",
         "Incorrect Amount",
-        "Service Quality Issue",
-        "Delivery Delay",
-        "Contract Discrepancy",
         "Other",
     ];
 
@@ -185,15 +180,16 @@ export default function RaiseDisputeModal({
 
         setIsSubmitting(true);
         try {
-            await onSubmit(formData);
-
-            // Generate random dispute ID for demo
-            const newDisputeId = `DIS-${Math.floor(100 + Math.random() * 900)}`;
-            const selectedShoot = shootIds.find((s) => s.id === formData.shootId);
+            const selectedShoot = shootOptions.find((s) => String(s.bookingId) === String(formData.shootId));
+            const result = await onSubmit({
+                ...formData,
+                creatorEarningId: selectedShoot?.creatorEarningId,
+            });
+            const submission = result || null;
 
             setSubmittedData({
-                disputeId: newDisputeId,
-                bookingId: formData.shootId,
+                disputeId: submission?.disputeId || "-",
+                bookingId: submission?.bookingId || formData.shootId,
             });
 
             setShowSuccess(true);
@@ -210,11 +206,6 @@ export default function RaiseDisputeModal({
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const handleClose = () => {
-        setShowSuccess(false);
-        onOpenChange(false);
     };
 
     return (
@@ -258,9 +249,9 @@ export default function RaiseDisputeModal({
                                         <SelectValue placeholder="Select shoot ID" />
                                     </SelectTrigger>
                                     <SelectContent className="border-white/10 bg-[#111111] text-white">
-                                        {shootIds.map((shoot) => (
-                                            <SelectItem key={shoot.id} value={shoot.id}>
-                                                {shoot.id} - {shoot.name}
+                                        {shootOptions.map((shoot) => (
+                                            <SelectItem key={String(shoot.creatorEarningId)} value={String(shoot.bookingId)}>
+                                                {shoot.label}{shoot.amountLabel ? ` - ${shoot.amountLabel}` : ""}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import {
     AlertTriangle,
     Calendar,
-    CheckCircle2,
     Clock3,
     Download,
     File,
@@ -29,7 +28,7 @@ type DisputeTimelineEvent = {
 
 type DisputeComment = {
     author: string;
-    role: "Client" | "Admin";
+    role: "Client" | "Admin" | "CP";
     message: string;
     at: string;
 };
@@ -39,6 +38,7 @@ type Attachment = {
     size: string;
     uploadedBy: string;
     uploadedAt: string;
+    url?: string | null;
 };
 
 export type DisputeDetailsRecord = DisputeHistoryItem & {
@@ -50,6 +50,11 @@ export type DisputeDetailsRecord = DisputeHistoryItem & {
     timeline: DisputeTimelineEvent[];
     comments: DisputeComment[];
     attachments: Attachment[];
+    compensation?: {
+        total: string;
+        paid: string;
+        remaining: string;
+    };
 };
 
 interface DisputeDetailsModalProps {
@@ -197,6 +202,28 @@ export default function DisputeDetailsModal({
                         </div>
                     </div>
 
+                    {dispute.compensation ? (
+                        <div className="mb-6">
+                            <p className={`mb-3 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                CP Compensation
+                            </p>
+                            <div className={`grid grid-cols-3 gap-2 rounded-lg border p-3 ${isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
+                                <div>
+                                    <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Total</p>
+                                    <p className={`mt-1 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{dispute.compensation.total}</p>
+                                </div>
+                                <div>
+                                    <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Paid</p>
+                                    <p className="mt-1 text-sm font-medium text-[#10B981]">{dispute.compensation.paid}</p>
+                                </div>
+                                <div>
+                                    <p className={`text-xs ${isDark ? "text-[#A0A0A0]" : "text-black/50"}`}>Remaining</p>
+                                    <p className="mt-1 text-sm font-medium text-[#E8D1AB]">{dispute.compensation.remaining}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {/* Issue Type */}
                     <div className="mb-6">
                         <p className={`mb-3 text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
@@ -288,10 +315,13 @@ export default function DisputeDetailsModal({
                                         </div>
                                     </div>
                                     <button
+                                        type="button"
+                                        onClick={() => attachment.url && window.open(attachment.url, "_blank", "noopener,noreferrer")}
+                                        disabled={!attachment.url}
                                         className={`p-2 rounded transition-colors ${isDark
                                             ? "text-[#D4B896] hover:bg-[#1F1F1F]"
                                             : "text-[#B8966E] hover:bg-[#F0F0F0]"
-                                            }`}
+                                            } disabled:cursor-not-allowed disabled:opacity-40`}
                                     >
                                         <Download size={16} />
                                     </button>
@@ -320,7 +350,9 @@ export default function DisputeDetailsModal({
                                             <span
                                                 className={`rounded px-2 py-0.5 text-[10px] font-medium ${comment.role === "Client"
                                                     ? "bg-[#3B82F6]/20 text-[#3B82F6]"
-                                                    : "bg-[#10B981]/20 text-[#10B981]"
+                                                    : comment.role === "CP"
+                                                        ? "bg-[#E8D1AB]/20 text-[#E8D1AB]"
+                                                        : "bg-[#10B981]/20 text-[#10B981]"
                                                     }`}
                                             >
                                                 {comment.role}
