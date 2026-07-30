@@ -1549,7 +1549,9 @@ function CreateQuotePageContent() {
       .map((day) => calculateDurationHours(day.start_time.slice(0, 5), day.end_time.slice(0, 5)))
       .filter((duration): duration is number => typeof duration === "number" && duration > 0);
 
-    return dayDurations.length > 0 ? Math.max(...dayDurations) : null;
+    return dayDurations.length > 0
+      ? Math.round(dayDurations.reduce((total, duration) => total + duration, 0) * 100) / 100
+      : null;
   }, [effectiveBookingSchedule]);
   const convertModalInitialData = React.useMemo(
     () =>
@@ -1587,6 +1589,34 @@ function CreateQuotePageContent() {
   }, [editQuoteId]);
 
   const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
+
+  React.useEffect(() => {
+    if (bookingDurationHours === null) {
+      return;
+    }
+
+    setServiceConfigs((prev) => {
+      let hasChanges = false;
+      const nextConfigs = Object.entries(prev).reduce<typeof prev>(
+        (acc, [serviceId, config]) => {
+          if (config.duration > bookingDurationHours) {
+            hasChanges = true;
+            acc[serviceId] = {
+              ...config,
+              duration: bookingDurationHours,
+            };
+            return acc;
+          }
+
+          acc[serviceId] = config;
+          return acc;
+        },
+        {},
+      );
+
+      return hasChanges ? nextConfigs : prev;
+    });
+  }, [bookingDurationHours]);
 
   const fetchClients = async (query?: string) => {
     setLoadingClients(true);

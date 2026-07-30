@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { hasModulePermission } from "@/lib/permissions";
+import { getBrowserTimeZoneLabel } from "@/lib/timezone";
 import EmptyMeetingState from "./EmptyMeetingState";
 import {
   Tooltip,
@@ -69,13 +70,14 @@ const formatDateTime = (value?: string) => {
   if (!value) return "No schedule";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "No schedule";
-  return date.toLocaleString([], {
+  const dateTime = date.toLocaleString([], {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${dateTime} (${getBrowserTimeZoneLabel(date)})`;
 };
 
 const getShootLink = (role: RoleVariant, meeting: MeetingItem) => {

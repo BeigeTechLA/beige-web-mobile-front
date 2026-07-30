@@ -23,23 +23,11 @@ type ProjectAssignment = {
   crew_member?: CrewMember | null;
   acceptance_status?: string | null;
   status?: string | null;
-  responded_at?: TimestampValue;
-  updated_at?: TimestampValue;
-  assigned_date?: TimestampValue;
-  created_at?: TimestampValue;
-};
-
-type LeadActivity = {
-  created_at?: TimestampValue;
-  updated_at?: TimestampValue;
 };
 
 type LeadDetails = {
   client_name?: string | null;
   last_activity_at?: TimestampValue;
-  updated_at?: TimestampValue;
-  created_at?: TimestampValue;
-  activities?: LeadActivity[] | null;
 };
 
 type ProjectLike = {
@@ -59,7 +47,6 @@ type ProjectLike = {
   client?: { name?: string | null } | null;
   client_name?: string | null;
   country?: string | null;
-  created_at?: TimestampValue;
   event_date?: string | null;
   event_location?: string | null;
   event_start_time?: string | null;
@@ -75,13 +62,11 @@ type ProjectLike = {
   status?: number | string | null;
   timeline_status?: number | string | null;
   time_zone?: string | null;
-  updated_at?: TimestampValue;
 };
 
 type ProjectDetailsResponse = {
   assignedCrew?: ProjectAssignment[] | null;
   lead_details?: LeadDetails | null;
-  updated_at?: TimestampValue;
 };
 
 type ShootOverviewTabProps = {
@@ -111,17 +96,20 @@ export default function ShootOverviewTab({ project, apiResponse, currentCrewMemb
   );
   const isCancelled = timelineStage === TIMELINE_STAGE.CANCELLED;
   const lastUpdatedText = useMemo(() => {
-    const latestDate = getLatestProjectActivityDate(project, apiResponse);
-    if (!latestDate) return "N/A";
+    const lastActivityAt = apiResponse?.lead_details?.last_activity_at;
+    if (!lastActivityAt) return "N/A";
 
-    return latestDate.toLocaleString("en-US", {
+    const lastActivityDate = new Date(String(lastActivityAt));
+    if (Number.isNaN(lastActivityDate.getTime())) return "N/A";
+
+    return lastActivityDate.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
       hour: "numeric",
       minute: "2-digit",
     });
-  }, [project, apiResponse]);
+  }, [apiResponse?.lead_details?.last_activity_at]);
   const clientName =
     apiResponse?.lead_details?.client_name ||
     project?.client?.name ||
@@ -439,47 +427,6 @@ function StatusStep({ label, completed, active, isDark }: {
       </span>
     </div>
   );
-}
-
-function getLatestProjectActivityDate(
-  project?: ProjectLike | null,
-  apiResponse?: ProjectDetailsResponse | null,
-): Date | null {
-  const dates: Date[] = [];
-
-  const addDate = (value: unknown) => {
-    if (!value) return;
-    const date = new Date(String(value));
-    if (!Number.isNaN(date.getTime())) {
-      dates.push(date);
-    }
-  };
-
-  const leadDetails = apiResponse?.lead_details || project?.lead_details;
-  const assignedCrew = getAssignedCrew(project, apiResponse);
-  const activities = Array.isArray(leadDetails?.activities) ? leadDetails.activities : [];
-
-  addDate(project?.updated_at);
-  addDate(apiResponse?.updated_at);
-  addDate(leadDetails?.last_activity_at);
-  addDate(leadDetails?.updated_at);
-  addDate(project?.created_at);
-  addDate(leadDetails?.created_at);
-
-  assignedCrew.forEach((assignment) => {
-    addDate(assignment?.responded_at);
-    addDate(assignment?.updated_at);
-    addDate(assignment?.assigned_date);
-    addDate(assignment?.created_at);
-  });
-
-  activities.forEach((activity) => {
-    addDate(activity?.created_at);
-    addDate(activity?.updated_at);
-  });
-
-  if (dates.length === 0) return null;
-  return dates.reduce((latest, date) => (date.getTime() > latest.getTime() ? date : latest));
 }
 
 function getAssignedCrew(

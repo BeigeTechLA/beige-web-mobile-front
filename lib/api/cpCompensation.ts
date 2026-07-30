@@ -331,6 +331,7 @@ export const cpCompensationApi = {
     transaction_reference?: string;
     notes?: string;
     payment_scope?: "advance" | "final";
+    advance_id?: number;
   }) {
     return apiClient.post<ApiEnvelope<unknown>>(`finance/cp-compensation/${earningId}/payment`, payload);
   },

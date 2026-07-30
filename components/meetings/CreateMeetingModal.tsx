@@ -29,7 +29,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi } from "@/lib/meetingsApi";
 import { getMinimumMeetingEndTime, getMinimumSelectableMeetingTime } from "@/lib/meetingStatus";
 import { externalChatApi, type ExternalChatUser } from "@/lib/externalChatApi";
-import { getBrowserTimeZone } from "@/lib/timezone";
+import { getBrowserTimeZone, getBrowserTimeZoneLabel } from "@/lib/timezone";
 import { cn, getInitials } from "@/lib/utils";
 import SearchAutocomplete from "@/components/chat/SearchAutocomplete";
 import { TabsSwitcher } from "../admin/TabsSwitcher";
@@ -755,6 +755,8 @@ export default function CreateMeetingModal({
   const isToday = meetingDate
     ? new Date(meetingDate).toDateString() === new Date().toDateString()
     : false;
+  const browserTimeZone = getBrowserTimeZone();
+  const browserTimeZoneLabel = getBrowserTimeZoneLabel(meetingDate || new Date());
 
   const tabs: { label: string; value: "staff" | "cp" }[] = [
     { label: "Staff", value: "staff" },
@@ -890,6 +892,10 @@ export default function CreateMeetingModal({
                         fontSize={"text-sm lg:text-base"}
                         labelFontSize={"text-sm lg:text-base"}
                       />
+                    </div>
+
+                    <div className={`lg:col-span-2 rounded-lg border px-4 py-3 text-xs lg:text-sm ${isDark ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/10 text-white/75" : "border-[#E8D1AB]/70 bg-[#E8D1AB]/15 text-black/70"}`}>
+                      Meeting will be created in your timezone: <span className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{browserTimeZone} ({browserTimeZoneLabel})</span>
                     </div>
                   </div>
 
