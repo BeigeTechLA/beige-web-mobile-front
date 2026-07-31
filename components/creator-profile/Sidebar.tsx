@@ -162,9 +162,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
     { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", isPublic: false },
     { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", isPublic: false },
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
-    { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },
-    { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
-    {
+    { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },    {
       label: 'Finances',
       icon: CircleDollarSign,
       isPublic: false,
@@ -173,6 +171,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
         { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
       ],
     },
+    { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
   ];
 
   return (

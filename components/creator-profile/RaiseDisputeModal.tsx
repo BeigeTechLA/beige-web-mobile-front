@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import {
     Dialog,
@@ -17,11 +17,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { X, Upload, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface RaiseDisputeModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: RaiseDisputeData) => Promise<{ disputeId: string; bookingId: string } | void>;
+    initialShootId?: string | number | null;
+    lockShootSelection?: boolean;
     shootOptions?: Array<{
         creatorEarningId: number | string;
         bookingId: number | string;
@@ -116,6 +119,8 @@ export default function RaiseDisputeModal({
     open,
     onOpenChange,
     onSubmit,
+    initialShootId = null,
+    lockShootSelection = false,
     shootOptions = [],
 }: RaiseDisputeModalProps) {
     const [formData, setFormData] = useState<RaiseDisputeData>({
@@ -132,6 +137,39 @@ export default function RaiseDisputeModal({
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    const resetForm = () => {
+        setFormData({
+            shootId: "",
+            disputeType: "",
+            description: "",
+            file: null,
+        });
+        setIsDragging(false);
+    };
+
+    useEffect(() => {
+        if (!open) {
+            resetForm();
+            setSubmittedData({
+                disputeId: "",
+                bookingId: "",
+            });
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const nextShootId = initialShootId === null || initialShootId === undefined
+            ? ""
+            : String(initialShootId);
+
+        setFormData((prev) => ({
+            ...prev,
+            shootId: nextShootId,
+        }));
+    }, [initialShootId, lockShootSelection, open]);
 
     const disputeTypes = [
         "Payment Not Received",
@@ -189,15 +227,13 @@ export default function RaiseDisputeModal({
             onOpenChange(false);
             setShowSuccess(true);
 
-            // Reset form
-            setFormData({
-                shootId: "",
-                disputeType: "",
-                description: "",
-                file: null,
-            });
+            resetForm();
         } catch (error) {
-            console.error("Error submitting dispute:", error);
+            toast.error(
+                error instanceof Error && error.message
+                    ? error.message
+                    : "Failed to submit dispute"
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -239,6 +275,7 @@ export default function RaiseDisputeModal({
                                 <Select
                                     value={formData.shootId}
                                     onValueChange={(value) => handleInputChange("shootId", value)}
+                                    disabled={lockShootSelection}
                                 >
                                     <SelectTrigger className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180">
                                         <SelectValue placeholder="Select shoot ID" />

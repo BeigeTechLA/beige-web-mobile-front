@@ -22,23 +22,16 @@ import { useDebounce } from "@/hooks/use-debounce";
 import Topbar from "@/components/admin/Topbar";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import RaiseDisputeModal from "@/components/creator-profile/RaiseDisputeModal";
+import RaiseDisputeModal, { type RaiseDisputeData } from "@/components/creator-profile/RaiseDisputeModal";
+import { financeTransactionsApi, type AdminFinanceDisputeDetailsApiRow } from "@/lib/api/financeTransactions";
 
 const EARNINGS_PAGE_LIMIT = 10;
 
-const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
-      // TODO: Implement API call to submit dispute
-      console.log("Submitting dispute:", data);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // In real implementation, you would:
-      // 1. Send data to your backend
-      // 2. Get response with dispute ID
-      // 3. Update the disputes list
-      // 4. Show success modal (already handled in the component)
-  };
+const CATEGORY_BY_TYPE: Record<string, string> = {
+  "Payment Not Received": "payment_delay",
+  "Incorrect Amount": "payout_issues",
+  Other: "other",
+};
 
 const toLocalDateString = (date: Date) => {
   const year = date.getFullYear();
@@ -117,6 +110,7 @@ interface CompensationItem {
 
 interface CreatorEarningRow {
   creator_earning_id: number | string;
+  booking_id?: number | string;
   shoot_name: string;
   client_name: string;
   status?: EarningsCardData["status"];
@@ -156,6 +150,24 @@ interface CreatorEarningsDashboardData {
     total: number;
   }>;
 }
+
+type RaiseDisputeOption = {
+  creatorEarningId: number | string;
+  bookingId: number | string;
+  label: string;
+  amountLabel?: string;
+};
+
+const formatShootId = (value: number | string | null | undefined) => {
+  const normalized = String(value || "")
+    .replace(/^BK-/i, "")
+    .replace(/^SH-/i, "")
+    .replace(/^#/, "")
+    .replace(/^0+/, "")
+    .trim();
+
+  return normalized ? `#${normalized}` : "-";
+};
 
 interface PaymentProofData {
   id?: string | number;
@@ -403,6 +415,7 @@ export default function RequestsShootsPage() {
   const [status] = useState('all');
 
   const [isRaiseDisputeOpen, setIsRaiseDisputeOpen] = useState(false);
+  const [selectedDisputeShootId, setSelectedDisputeShootId] = useState<string | number | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -420,11 +433,41 @@ export default function RequestsShootsPage() {
 
   const [dashboardData, setDashboardData] = useState<CreatorEarningsDashboardData | null>(null);
   const [rawEarnings, setRawEarnings] = useState<CreatorEarningRow[]>([]);
+  const [creatorDisputes, setCreatorDisputes] = useState<AdminFinanceDisputeDetailsApiRow[]>([]);
   const [selectedShootData, setSelectedShootData] = useState<SelectedShootData | null>(null);
 
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [paymentReceipts, setPaymentReceipts] = useState<PaymentReceiptItem[]>([]);
+  const [disputeRefreshKey, setDisputeRefreshKey] = useState(0);
+
+  const activeDisputeEarningIds = useMemo(() => (
+    new Set(
+      creatorDisputes
+        .filter((dispute) => !["resolved", "rejected"].includes(String(dispute.status || "").toLowerCase()))
+        .map((dispute) => String(dispute.cp_compensation?.creator_earning_id || ""))
+        .filter(Boolean)
+    )
+  ), [creatorDisputes]);
+
+  const shootOptions = useMemo<RaiseDisputeOption[]>(() => (
+    rawEarnings
+      .filter((earning) => !activeDisputeEarningIds.has(String(earning.creator_earning_id)))
+      .map((earning) => {
+        const bookingId = earning.booking_id;
+        if (bookingId === undefined || bookingId === null || String(bookingId).trim() === "") {
+          return null;
+        }
+
+        return {
+          creatorEarningId: earning.creator_earning_id,
+          bookingId,
+          label: `${formatShootId(bookingId)} - ${earning.shoot_name || `Shoot #${bookingId}`}`,
+          amountLabel: formatCurrency(earning.total_compensation),
+        };
+      })
+      .filter((item): item is RaiseDisputeOption => Boolean(item))
+  ), [activeDisputeEarningIds, rawEarnings]);
 
   const earningsDateParams = useMemo(
     () => buildEarningsDateParams(range, selectedDate),
@@ -489,6 +532,36 @@ export default function RequestsShootsPage() {
   }, [currentPage, debouncedSearchQuery, status, earningsDateParams]);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const fetchDisputes = async () => {
+      try {
+        const response = await financeTransactionsApi.listCreatorDisputes({
+          page: 1,
+          limit: 100,
+          sort_by: "created_at",
+          sort_dir: "DESC",
+        });
+
+        if (!isCancelled) {
+          setCreatorDisputes(response.data?.rows || []);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Error fetching creator disputes:", error);
+          setCreatorDisputes([]);
+        }
+      }
+    };
+
+    fetchDisputes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [disputeRefreshKey]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchQuery, status, range, selectedDate]);
 
@@ -521,6 +594,25 @@ export default function RequestsShootsPage() {
       console.error("Error fetching payment receipts:", error);
     }
   }
+
+  const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+    const payload = new FormData();
+    payload.append("booking_id", data.shootId);
+    if (data.creatorEarningId) payload.append("creator_earning_id", String(data.creatorEarningId));
+    payload.append("category", CATEGORY_BY_TYPE[data.disputeType] || "other");
+    payload.append("subject", data.disputeType);
+    payload.append("description", data.description.trim());
+    if (data.file) payload.append("attachments", data.file);
+
+    const response = await financeTransactionsApi.createCreatorDispute(payload);
+    const dispute = response.data;
+    setDisputeRefreshKey((current) => current + 1);
+
+    return {
+      disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
+      bookingId: formatShootId(dispute.booking_id || data.shootId),
+    };
+  };
 
   const totalPages = Math.max(1, pagination.total_pages);
   const safeCurrentPage = Math.min(Math.max(pagination.page || currentPage, 1), totalPages);
@@ -592,7 +684,10 @@ export default function RequestsShootsPage() {
     <Topbar pathname={pathname}
      actions={
       <Button
-          onClick={() => setIsRaiseDisputeOpen(true)}
+          onClick={() => {
+            setSelectedDisputeShootId(null);
+            setIsRaiseDisputeOpen(true);
+          }}
           className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
       >
           Raise New Dispute
@@ -685,7 +780,11 @@ export default function RequestsShootsPage() {
                 handleClick={() => handleViewEarnings(row)}
                 onRaiseDispute={(e) => {
                   e.stopPropagation(); // Prevents triggering any card-level clicks
-                  setSelectedEarningId(Number(row.creator_earning_id));
+                  if (activeDisputeEarningIds.has(String(row.creator_earning_id))) {
+                    toast.error("An active dispute already exists for this compensation");
+                    return;
+                  }
+                  setSelectedDisputeShootId(row.booking_id ?? null);
                   setIsRaiseDisputeOpen(true);
                 }}
               />
@@ -777,6 +876,9 @@ export default function RequestsShootsPage() {
         open={isRaiseDisputeOpen}
         onOpenChange={setIsRaiseDisputeOpen}
         onSubmit={handleRaiseDisputeSubmit}
+        initialShootId={selectedDisputeShootId}
+        lockShootSelection={selectedDisputeShootId !== null}
+        shootOptions={shootOptions}
       />
     </>
   );
