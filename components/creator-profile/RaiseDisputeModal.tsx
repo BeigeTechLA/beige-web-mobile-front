@@ -281,11 +281,17 @@ export default function RaiseDisputeModal({
                                         <SelectValue placeholder="Select shoot ID" />
                                     </SelectTrigger>
                                     <SelectContent className="border-white/10 bg-[#111111] text-white">
-                                        {shootOptions.map((shoot) => (
-                                            <SelectItem key={String(shoot.creatorEarningId)} value={String(shoot.bookingId)}>
-                                                {shoot.label}{shoot.amountLabel ? ` - ${shoot.amountLabel}` : ""}
+                                        {shootOptions.length > 0 ? (
+                                            shootOptions.map((shoot) => (
+                                                <SelectItem key={String(shoot.creatorEarningId)} value={String(shoot.bookingId)}>
+                                                    {shoot.label}{shoot.amountLabel ? ` - ${shoot.amountLabel}` : ""}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="__no_eligible_shoots__" disabled>
+                                                No eligible shoots available for dispute
                                             </SelectItem>
-                                        ))}
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </fieldset>
