@@ -509,6 +509,74 @@ export const WEDDING_IMAGES = [
 export const REAL_ESTATE_IMAGES = [
   {
     name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09694.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09742.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09794.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09555.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09559.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09673.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09682.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00427.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09803.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09764.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00441.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00512.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09487.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09501.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00531.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00549.jpg"
+  },
+  {
+    name: "",
+    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09529.jpg"
+  },
+  {
+    name: "",
     src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00253_editedv1.jpg"
   },
   {
@@ -558,74 +626,6 @@ export const REAL_ESTATE_IMAGES = [
   {
     name: "",
     src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DJI_20250818134421_0069_D_AHH.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00427.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00441.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00512.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09487.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09501.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00531.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC00549.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09529.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09555.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09559.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09673.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09682.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09694.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09742.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09764.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09794.jpg"
-  },
-  {
-    name: "",
-    src: "https://d2jhn32fsulyac.cloudfront.net/assets/UseCase_Web/Photos/Real-Estate/DSC09803.jpg"
   },
 ];
 
@@ -882,6 +882,11 @@ export const MUSIC_VIDEOS = [
     title: "David Fait - Count the Stars | Official Music Video",
     description: "",
     video: "1001667460",
+  },
+  {
+    title: "James Berdine Music Video v3",
+    description: "",
+    video: "1214322179",
   },
 ];
 
