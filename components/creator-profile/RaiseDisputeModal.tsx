@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import {
     Dialog,
@@ -17,11 +17,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { X, Upload, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface RaiseDisputeModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: RaiseDisputeData) => Promise<{ disputeId: string; bookingId: string } | void>;
+    onSubmit: (data: RaiseDisputeData) => Promise<DisputeSubmissionDetails | void>;
+    initialShootId?: string | number | null;
+    lockShootSelection?: boolean;
     shootOptions?: Array<{
         creatorEarningId: number | string;
         bookingId: number | string;
@@ -41,17 +44,39 @@ export interface RaiseDisputeData {
 interface SuccessModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    details: DisputeSubmissionDetails;
+}
+
+type DisputeSubmissionDetails = {
     disputeId: string;
     bookingId: string;
-}
+    shootLabel?: string;
+    disputeType?: string;
+    status?: string;
+};
+
+const DEFAULT_SUBMISSION_DETAILS: DisputeSubmissionDetails = {
+    disputeId: "",
+    bookingId: "",
+    shootLabel: "",
+    disputeType: "",
+    status: "",
+};
 
 // Success Modal Component
 function DisputeSuccessModal({
     open,
     onOpenChange,
-    disputeId,
-    bookingId,
+    details,
 }: SuccessModalProps) {
+    const summaryRows = [
+        { label: "Dispute ID", value: details.disputeId || "-" },
+        { label: "Booking ID", value: details.bookingId || "-" },
+        { label: "Shoot", value: details.shootLabel || "-" },
+        { label: "Dispute Type", value: details.disputeType || "-" },
+        { label: "Status", value: details.status || "Dispute Open", isStatus: true },
+    ];
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="w-[calc(100vw-24px)] max-w-[440px] overflow-hidden rounded-[22px] border border-white/15 bg-[#050505] p-0 text-white shadow-[0_30px_90px_rgba(0,0,0,0.6)] [&>button]:hidden">
@@ -80,20 +105,21 @@ function DisputeSuccessModal({
 
                     <div className="mt-5 rounded-[14px] border border-white/5 bg-[#121212] px-5 py-4">
                         <div className="space-y-2.5">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-white/40">Dispute ID</span>
-                                <span className="text-xs font-medium text-white">{disputeId}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-white/40">Booking ID</span>
-                                <span className="text-xs font-medium text-white">{bookingId}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-white/40">Status</span>
-                                <span className="rounded-full border border-[#E26E67]/20 bg-[#E26E67]/10 px-2.5 py-0.5 text-xs font-medium text-[#E26E67]">
-                                    Dispute Open
-                                </span>
-                            </div>
+                            {summaryRows.map((row) => (
+                                <div key={row.label} className="flex items-center justify-between gap-4">
+                                    <span className="shrink-0 text-xs text-white/40">{row.label}</span>
+                                    <span
+                                        className={`max-w-[220px] truncate text-right text-xs font-medium ${
+                                            row.isStatus
+                                                ? "rounded-full border border-[#E26E67]/20 bg-[#E26E67]/10 px-2.5 py-0.5 text-[#E26E67]"
+                                                : "text-white"
+                                        }`}
+                                        title={row.value}
+                                    >
+                                        {row.value}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -116,6 +142,8 @@ export default function RaiseDisputeModal({
     open,
     onOpenChange,
     onSubmit,
+    initialShootId = null,
+    lockShootSelection = false,
     shootOptions = [],
 }: RaiseDisputeModalProps) {
     const [formData, setFormData] = useState<RaiseDisputeData>({
@@ -126,12 +154,40 @@ export default function RaiseDisputeModal({
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [submittedData, setSubmittedData] = useState({
-        disputeId: "",
-        bookingId: "",
-    });
+    const [submittedData, setSubmittedData] = useState<DisputeSubmissionDetails>(DEFAULT_SUBMISSION_DETAILS);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    const resetForm = () => {
+        setFormData({
+            shootId: "",
+            disputeType: "",
+            description: "",
+            file: null,
+        });
+        setIsDragging(false);
+    };
+
+    useEffect(() => {
+        if (open) {
+            setSubmittedData(DEFAULT_SUBMISSION_DETAILS);
+        } else {
+            resetForm();
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const nextShootId = initialShootId === null || initialShootId === undefined
+            ? ""
+            : String(initialShootId);
+
+        setFormData((prev) => ({
+            ...prev,
+            shootId: nextShootId,
+        }));
+    }, [initialShootId, lockShootSelection, open]);
 
     const disputeTypes = [
         "Payment Not Received",
@@ -184,20 +240,21 @@ export default function RaiseDisputeModal({
             setSubmittedData({
                 disputeId: submission?.disputeId || "-",
                 bookingId: submission?.bookingId || formData.shootId,
+                shootLabel: submission?.shootLabel || selectedShoot?.label || formData.shootId,
+                disputeType: submission?.disputeType || formData.disputeType,
+                status: submission?.status || "Dispute Open",
             });
 
             onOpenChange(false);
             setShowSuccess(true);
 
-            // Reset form
-            setFormData({
-                shootId: "",
-                disputeType: "",
-                description: "",
-                file: null,
-            });
+            resetForm();
         } catch (error) {
-            console.error("Error submitting dispute:", error);
+            toast.error(
+                error instanceof Error && error.message
+                    ? error.message
+                    : "Failed to submit dispute"
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -239,6 +296,7 @@ export default function RaiseDisputeModal({
                                 <Select
                                     value={formData.shootId}
                                     onValueChange={(value) => handleInputChange("shootId", value)}
+                                    disabled={lockShootSelection}
                                 >
                                     <SelectTrigger className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180">
                                         <SelectValue placeholder="Select shoot ID" />
@@ -352,10 +410,12 @@ export default function RaiseDisputeModal({
                 open={showSuccess}
                 onOpenChange={(isOpen) => {
                     setShowSuccess(isOpen);
-                    if (!isOpen) onOpenChange(false);
+                    if (!isOpen) {
+                        setSubmittedData(DEFAULT_SUBMISSION_DETAILS);
+                        onOpenChange(false);
+                    }
                 }}
-                disputeId={submittedData.disputeId}
-                bookingId={submittedData.bookingId}
+                details={submittedData}
             />
         </>
     );
