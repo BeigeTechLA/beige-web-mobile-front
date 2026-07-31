@@ -340,6 +340,7 @@ export default function DisputesPage() {
   }, [disputeItems, disputes.length]);
 
   const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+    const selectedShoot = shootOptions.find((shoot) => String(shoot.bookingId) === String(data.shootId));
     const payload = new FormData();
     payload.append("booking_id", data.shootId);
     if (data.creatorEarningId) payload.append("creator_earning_id", String(data.creatorEarningId));
@@ -354,6 +355,9 @@ export default function DisputesPage() {
     return {
       disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
       bookingId: formatShootId(dispute.booking_id || data.shootId),
+      shootLabel: selectedShoot?.label || formatShootId(dispute.booking_id || data.shootId),
+      disputeType: data.disputeType,
+      status: "Dispute Open",
     };
   };
 
@@ -639,7 +643,7 @@ export default function DisputesPage() {
               </div>
             </div>
           </div>
-
+{/* 
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-5">
               <TrendingUp size={20} className="text-[#10B981]" />
@@ -659,7 +663,7 @@ export default function DisputesPage() {
                 <p className="text-xl text-[#E8D1AB] font-normal">{String(shootOptions.length).padStart(2, "0")}</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <RaiseDisputeModal

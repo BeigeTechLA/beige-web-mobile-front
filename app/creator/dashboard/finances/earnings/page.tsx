@@ -441,14 +441,21 @@ export default function RequestsShootsPage() {
   const [paymentReceipts, setPaymentReceipts] = useState<PaymentReceiptItem[]>([]);
   const [disputeRefreshKey, setDisputeRefreshKey] = useState(0);
 
-  const activeDisputeEarningIds = useMemo(() => (
-    new Set(
+  const activeDisputeByEarningId = useMemo(() => (
+    new Map(
       creatorDisputes
         .filter((dispute) => !["resolved", "rejected"].includes(String(dispute.status || "").toLowerCase()))
-        .map((dispute) => String(dispute.cp_compensation?.creator_earning_id || ""))
-        .filter(Boolean)
+        .map((dispute) => {
+          const earningId = String(dispute.cp_compensation?.creator_earning_id || "");
+          return earningId ? [earningId, dispute] as const : null;
+        })
+        .filter((item): item is readonly [string, AdminFinanceDisputeDetailsApiRow] => Boolean(item))
     )
   ), [creatorDisputes]);
+
+  const activeDisputeEarningIds = useMemo(() => (
+    new Set(activeDisputeByEarningId.keys())
+  ), [activeDisputeByEarningId]);
 
   const shootOptions = useMemo<RaiseDisputeOption[]>(() => (
     rawEarnings
@@ -596,6 +603,7 @@ export default function RequestsShootsPage() {
   }
 
   const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+    const selectedShoot = shootOptions.find((shoot) => String(shoot.bookingId) === String(data.shootId));
     const payload = new FormData();
     payload.append("booking_id", data.shootId);
     if (data.creatorEarningId) payload.append("creator_earning_id", String(data.creatorEarningId));
@@ -611,6 +619,9 @@ export default function RequestsShootsPage() {
     return {
       disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
       bookingId: formatShootId(dispute.booking_id || data.shootId),
+      shootLabel: selectedShoot?.label || formatShootId(dispute.booking_id || data.shootId),
+      disputeType: data.disputeType,
+      status: "Dispute Open",
     };
   };
 
@@ -773,22 +784,24 @@ export default function RequestsShootsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
             </div>
           ) : rawEarnings.length > 0 ? (
-            rawEarnings.map((row) => (
-              <EarningsCard
-                key={`key_${row.creator_earning_id}`}
-                data={mapRowToCard(row)}
-                handleClick={() => handleViewEarnings(row)}
-                onRaiseDispute={(e) => {
-                  e.stopPropagation(); // Prevents triggering any card-level clicks
-                  if (activeDisputeEarningIds.has(String(row.creator_earning_id))) {
-                    toast.error("An active dispute already exists for this compensation");
-                    return;
-                  }
-                  setSelectedDisputeShootId(row.booking_id ?? null);
-                  setIsRaiseDisputeOpen(true);
-                }}
-              />
-            ))
+            rawEarnings.map((row) => {
+              const activeDispute = activeDisputeByEarningId.get(String(row.creator_earning_id));
+
+              return (
+                <EarningsCard
+                  key={`key_${row.creator_earning_id}`}
+                  data={mapRowToCard(row)}
+                  handleClick={() => handleViewEarnings(row)}
+                  hasActiveDispute={Boolean(activeDispute)}
+                  activeDisputeLabel={activeDispute ? "Dispute Active" : undefined}
+                  onRaiseDispute={(e) => {
+                    e.stopPropagation(); // Prevents triggering any card-level clicks
+                    setSelectedDisputeShootId(row.booking_id ?? null);
+                    setIsRaiseDisputeOpen(true);
+                  }}
+                />
+              );
+            })
           ) : (
             <p className="col-span-2 text-center text-white/50 py-10">No earnings found.</p>
           )}
