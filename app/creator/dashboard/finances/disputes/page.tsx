@@ -300,8 +300,8 @@ export default function DisputesPage() {
     return mapDisputeRow(dispute, earning);
   }), [disputes, earningById]);
 
-  const filteredDisputes = useMemo(() => {
-    const search = searchQuery.trim().toLowerCase();
+  const filteredDisputes = (() => {
+    const search = searchQueuseMemory.trim().toLowerCase();
     return disputeItems.filter((dispute) => {
       const statusMatches = disputedStatus === "all" || dispute.status.toLowerCase().replace(/\s+/g, "_") === disputedStatus;
       const closedMatches = disputedStat === "all" ||
