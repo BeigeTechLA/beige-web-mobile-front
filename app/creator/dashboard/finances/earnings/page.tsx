@@ -21,8 +21,17 @@ import { getCreatorEarningDetails, getCreatorEarningsDashboard, getCreatorEarnin
 import { useDebounce } from "@/hooks/use-debounce";
 import Topbar from "@/components/admin/Topbar";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import RaiseDisputeModal, { type RaiseDisputeData } from "@/components/creator-profile/RaiseDisputeModal";
+import { financeTransactionsApi, type AdminFinanceDisputeDetailsApiRow } from "@/lib/api/financeTransactions";
 
 const EARNINGS_PAGE_LIMIT = 10;
+
+const CATEGORY_BY_TYPE: Record<string, string> = {
+  "Payment Not Received": "payment_delay",
+  "Incorrect Amount": "payout_issues",
+  Other: "other",
+};
 
 const toLocalDateString = (date: Date) => {
   const year = date.getFullYear();
@@ -101,6 +110,7 @@ interface CompensationItem {
 
 interface CreatorEarningRow {
   creator_earning_id: number | string;
+  booking_id?: number | string;
   shoot_name: string;
   client_name: string;
   status?: EarningsCardData["status"];
@@ -140,6 +150,24 @@ interface CreatorEarningsDashboardData {
     total: number;
   }>;
 }
+
+type RaiseDisputeOption = {
+  creatorEarningId: number | string;
+  bookingId: number | string;
+  label: string;
+  amountLabel?: string;
+};
+
+const formatShootId = (value: number | string | null | undefined) => {
+  const normalized = String(value || "")
+    .replace(/^BK-/i, "")
+    .replace(/^SH-/i, "")
+    .replace(/^#/, "")
+    .replace(/^0+/, "")
+    .trim();
+
+  return normalized ? `#${normalized}` : "-";
+};
 
 interface PaymentProofData {
   id?: string | number;
@@ -386,6 +414,9 @@ export default function RequestsShootsPage() {
   const [range, setRange] = useState('all');
   const [status] = useState('all');
 
+  const [isRaiseDisputeOpen, setIsRaiseDisputeOpen] = useState(false);
+  const [selectedDisputeShootId, setSelectedDisputeShootId] = useState<string | number | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -402,11 +433,48 @@ export default function RequestsShootsPage() {
 
   const [dashboardData, setDashboardData] = useState<CreatorEarningsDashboardData | null>(null);
   const [rawEarnings, setRawEarnings] = useState<CreatorEarningRow[]>([]);
+  const [creatorDisputes, setCreatorDisputes] = useState<AdminFinanceDisputeDetailsApiRow[]>([]);
   const [selectedShootData, setSelectedShootData] = useState<SelectedShootData | null>(null);
 
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [paymentReceipts, setPaymentReceipts] = useState<PaymentReceiptItem[]>([]);
+  const [disputeRefreshKey, setDisputeRefreshKey] = useState(0);
+
+  const activeDisputeByEarningId = useMemo(() => (
+    new Map(
+      creatorDisputes
+        .filter((dispute) => !["resolved", "rejected"].includes(String(dispute.status || "").toLowerCase()))
+        .map((dispute) => {
+          const earningId = String(dispute.cp_compensation?.creator_earning_id || "");
+          return earningId ? [earningId, dispute] as const : null;
+        })
+        .filter((item): item is readonly [string, AdminFinanceDisputeDetailsApiRow] => Boolean(item))
+    )
+  ), [creatorDisputes]);
+
+  const activeDisputeEarningIds = useMemo(() => (
+    new Set(activeDisputeByEarningId.keys())
+  ), [activeDisputeByEarningId]);
+
+  const shootOptions = useMemo<RaiseDisputeOption[]>(() => (
+    rawEarnings
+      .filter((earning) => !activeDisputeEarningIds.has(String(earning.creator_earning_id)))
+      .map((earning) => {
+        const bookingId = earning.booking_id;
+        if (bookingId === undefined || bookingId === null || String(bookingId).trim() === "") {
+          return null;
+        }
+
+        return {
+          creatorEarningId: earning.creator_earning_id,
+          bookingId,
+          label: `${formatShootId(bookingId)} - ${earning.shoot_name || `Shoot #${bookingId}`}`,
+          amountLabel: formatCurrency(earning.total_compensation),
+        };
+      })
+      .filter((item): item is RaiseDisputeOption => Boolean(item))
+  ), [activeDisputeEarningIds, rawEarnings]);
 
   const earningsDateParams = useMemo(
     () => buildEarningsDateParams(range, selectedDate),
@@ -471,6 +539,36 @@ export default function RequestsShootsPage() {
   }, [currentPage, debouncedSearchQuery, status, earningsDateParams]);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const fetchDisputes = async () => {
+      try {
+        const response = await financeTransactionsApi.listCreatorDisputes({
+          page: 1,
+          limit: 100,
+          sort_by: "created_at",
+          sort_dir: "DESC",
+        });
+
+        if (!isCancelled) {
+          setCreatorDisputes(response.data?.rows || []);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Error fetching creator disputes:", error);
+          setCreatorDisputes([]);
+        }
+      }
+    };
+
+    fetchDisputes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [disputeRefreshKey]);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearchQuery, status, range, selectedDate]);
 
@@ -503,6 +601,29 @@ export default function RequestsShootsPage() {
       console.error("Error fetching payment receipts:", error);
     }
   }
+
+  const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+    const selectedShoot = shootOptions.find((shoot) => String(shoot.bookingId) === String(data.shootId));
+    const payload = new FormData();
+    payload.append("booking_id", data.shootId);
+    if (data.creatorEarningId) payload.append("creator_earning_id", String(data.creatorEarningId));
+    payload.append("category", CATEGORY_BY_TYPE[data.disputeType] || "other");
+    payload.append("subject", data.disputeType);
+    payload.append("description", data.description.trim());
+    if (data.file) payload.append("attachments", data.file);
+
+    const response = await financeTransactionsApi.createCreatorDispute(payload);
+    const dispute = response.data;
+    setDisputeRefreshKey((current) => current + 1);
+
+    return {
+      disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
+      bookingId: formatShootId(dispute.booking_id || data.shootId),
+      shootLabel: selectedShoot?.label || formatShootId(dispute.booking_id || data.shootId),
+      disputeType: data.disputeType,
+      status: "Dispute Open",
+    };
+  };
 
   const totalPages = Math.max(1, pagination.total_pages);
   const safeCurrentPage = Math.min(Math.max(pagination.page || currentPage, 1), totalPages);
@@ -571,8 +692,29 @@ export default function RequestsShootsPage() {
 
   return (
     <>
-    <Topbar pathname={pathname} />
-    <div className="overflow-hidden p-4 pb-12 text-white lg:px-10 lg:py-9">
+    <Topbar pathname={pathname}
+     actions={
+      <Button
+          onClick={() => {
+            setSelectedDisputeShootId(null);
+            setIsRaiseDisputeOpen(true);
+          }}
+          className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+      >
+          Raise New Dispute
+      </Button>
+      } />
+    <div 
+  className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
+    ${isDark 
+      ? `bg-[#0A0A0A] 
+         border border-[#E8D1AB]/30 
+         shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+      : "bg-white border-zinc-200 shadow-sm"
+    }`}
+>
+  {/* Inner Padding - p-10 lg:p-16 ensures cards don't hit the 40px rounded corners */}
+  <div className="p-8 lg:p-16 space-y-8 lg:space-y-12 pb-24">
     <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between lg:mb-6">
@@ -642,13 +784,24 @@ export default function RequestsShootsPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#E8D1AB]" />
             </div>
           ) : rawEarnings.length > 0 ? (
-            rawEarnings.map((row) => (
-              <EarningsCard
-                key={`key_${row.creator_earning_id}`}
-                data={mapRowToCard(row)}
-                handleClick={() => handleViewEarnings(row)}
-              />
-            ))
+            rawEarnings.map((row) => {
+              const activeDispute = activeDisputeByEarningId.get(String(row.creator_earning_id));
+
+              return (
+                <EarningsCard
+                  key={`key_${row.creator_earning_id}`}
+                  data={mapRowToCard(row)}
+                  handleClick={() => handleViewEarnings(row)}
+                  hasActiveDispute={Boolean(activeDispute)}
+                  activeDisputeLabel={activeDispute ? "Dispute Active" : undefined}
+                  onRaiseDispute={(e) => {
+                    e.stopPropagation(); // Prevents triggering any card-level clicks
+                    setSelectedDisputeShootId(row.booking_id ?? null);
+                    setIsRaiseDisputeOpen(true);
+                  }}
+                />
+              );
+            })
           ) : (
             <p className="col-span-2 text-center text-white/50 py-10">No earnings found.</p>
           )}
@@ -731,6 +884,15 @@ export default function RequestsShootsPage() {
       />
     </div>
     </div>
+    </div>
+      <RaiseDisputeModal
+        open={isRaiseDisputeOpen}
+        onOpenChange={setIsRaiseDisputeOpen}
+        onSubmit={handleRaiseDisputeSubmit}
+        initialShootId={selectedDisputeShootId}
+        lockShootSelection={selectedDisputeShootId !== null}
+        shootOptions={shootOptions}
+      />
     </>
   );
 }

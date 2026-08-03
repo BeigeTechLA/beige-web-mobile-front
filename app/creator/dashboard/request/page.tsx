@@ -400,10 +400,17 @@ export default function RequestsShootsPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8">
-        {/* Header */}
-        <div className="space-y-4 lg:space-y-8">
-          {/* 1. Simple Header: Title & Description */}
+      <div 
+        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
+          ${isDark 
+            ? `bg-[#0A0A0A] 
+              border border-[#E8D1AB]/30 
+              shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+            : "bg-white border-zinc-200 shadow-sm"
+          }`}
+      >
+        <div className="p-8 lg:p-12 space-y-6 lg:space-y-10">
+            {/* 1. Simple Header: Title & Description */}
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
             <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Manage your production schedule and requests</p>
@@ -599,11 +606,11 @@ export default function RequestsShootsPage() {
           {filteredProjects.length > 0 ? (
             view === "grid" ? (
               /* --- DYNAMIC GRID VIEW --- */
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredProjects.map((item) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
+                  {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
-                    className={`border rounded-lg lg:rounded-xl p-4 lg:p-6 transition-all group ${isDark
+                    className={`border rounded-2xl p-4 lg:p-6 transition-all group ${isDark
                       ? "bg-[#111] border-white/5 hover:border-[#E8D1AB]/40"
                       : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/60 shadow-sm"
                       }`}

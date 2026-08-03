@@ -162,16 +162,16 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
     { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", isPublic: false },
     { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", isPublic: false },
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
-    { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },
-    { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
-    {
+    { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },    {
       label: 'Finances',
       icon: CircleDollarSign,
       isPublic: false,
       children: [
         { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
+        { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
       ],
     },
+    { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
   ];
 
   return (
@@ -274,8 +274,8 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
                           key={child.label}
                           onClick={() => handleNavigation(child.href)}
                           className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${childActive
-                              ? (isDark ? "text-white font-medium bg-zinc-900" : "text-[#101010] font-bold bg-zinc-100")
-                              : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            ? (isDark ? "text-white font-medium bg-zinc-900" : "text-[#101010] font-bold bg-zinc-100")
+                            : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}
                         >
                           {child.label}

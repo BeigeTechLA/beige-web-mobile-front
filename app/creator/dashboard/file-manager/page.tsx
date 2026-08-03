@@ -243,7 +243,17 @@ export default function CreatorFileManagerPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
+<div 
+  className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
+    ${isDark 
+      ? `bg-[#0A0A0A] 
+         border border-[#E8D1AB]/30 
+         shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+      : "bg-white border-zinc-200 shadow-sm"
+    }`}
+>
+    <div className="p-8 lg:p-12 space-y-6 lg:space-y-10 pb-20">
+
         <div className="mb-3 flex items-center justify-between lg:mb-6">
           <div className="text-white">
             <h1 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>File Manager</h1>
@@ -501,6 +511,7 @@ export default function CreatorFileManagerPage() {
               </div>
             </div>
           )}
+        </div>
         </div>
 
         {menuAnchor && (

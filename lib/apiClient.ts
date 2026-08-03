@@ -51,6 +51,7 @@ class ApiClient {
       (error: AxiosError<ApiError>) => {
         if (error.response) {
           const { status, data } = error.response;
+          const message = data?.message || 'Unknown error';
 
           // Handle specific status codes
           switch (status) {
@@ -71,16 +72,21 @@ class ApiClient {
               console.error('Forbidden: Insufficient permissions');
               break;
             case 404:
-              console.error('Not found:', data?.message || 'Resource not found');
+              console.error('Not found:', message || 'Resource not found');
               break;
             case 500:
-              console.error('Server error:', data?.message || 'Internal server error');
+              console.error('Server error:', message || 'Internal server error');
+              break;
+            case 409:
+            case 422:
+            case 400:
+              // Expected validation / conflict responses are surfaced to the UI instead of spamming the console.
               break;
             default:
-              console.error('API Error:', data?.message || 'Unknown error');
+              console.error('API Error:', message);
           }
 
-          const apiError: ApiClientError = new Error(data?.message || 'An error occurred');
+          const apiError: ApiClientError = new Error(message || 'An error occurred');
           apiError.status = status;
           apiError.details = data?.details;
           return Promise.reject(apiError);
