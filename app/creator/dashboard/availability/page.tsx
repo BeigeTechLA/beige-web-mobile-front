@@ -37,6 +37,55 @@ import { toast } from "sonner";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 
+type SlotValue = Date | string | null;
+
+type AvailabilitySlot = {
+  id?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+type AvailabilityDay = {
+  available?: boolean | null;
+  projectAssigned?: boolean;
+  projectDetails?: {
+    project_id?: number;
+    project_name?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    event_location?: string | null;
+  } | null;
+  customAvailabilityStatus?: number | null;
+  is_full_day?: number | null;
+  slots?: AvailabilitySlot[];
+  start_time?: string | null;
+  end_time?: string | null;
+  recurrence?: number | null;
+  recurrence_days?: string[] | string | null;
+  recurrence_until?: string | null;
+  recurrence_day_of_month?: number | null;
+  notes?: string | null;
+  slotCount?: number;
+  hasMixedAvailability?: boolean;
+};
+
+type AvailabilityFormSlot = {
+  id?: number | null;
+  startTime: SlotValue;
+  endTime: SlotValue;
+};
+
+type AvailabilityFormData = {
+  type: string;
+  recurrence: string;
+  includeWeekends: boolean;
+  repeatOn: string[];
+  monthlyDay: string;
+  untilDate: Date | null;
+  slots: AvailabilityFormSlot[];
+  notes: string;
+};
+
 // --- HELPERS ---
 const formatLocation = (locationInput) => {
   if (!locationInput) return "Location TBD";
@@ -70,15 +119,15 @@ const formatDate = (dateString) => {
   });
 };
 
-const getDefaultFormData = () => ({
+const getDefaultFormData = (): AvailabilityFormData => ({
   type: "1",
   recurrence: "1",
   includeWeekends: false,
   repeatOn: [],
   monthlyDay: "",
   untilDate: null,
-  startTime: null,
-  endTime: null,
+  slots: [{ startTime: null,
+  endTime: null}],
   notes: "",
 });
 
@@ -144,6 +193,16 @@ const addMinutesToTime = (value, minutesToAdd = 60) => {
   return date;
 };
 
+const parseTimeToDate = (timeString) => {
+  if (!timeString) return null;
+  if (timeString instanceof Date) return timeString;
+  
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
 const hasMinimumOneHourGap = (startValue, endValue) => {
   const startMinutes = timeToMinutes(startValue);
   const endMinutes = timeToMinutes(endValue);
@@ -158,8 +217,9 @@ const hasMinimumOneHourGap = (startValue, endValue) => {
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDateLocked, setIsDateLocked] = useState(false);
   const [isAllDay, setIsAllDay] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState<SlotValue>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [upcomingShoots, setUpcomingShoots] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -168,9 +228,9 @@ export default function AvailabilityPage() {
   const pathname = usePathname();
   const { isDark } = useResolvedTheme();
 
-  const [formData, setFormData] = useState(getDefaultFormData);
+  const [formData, setFormData] = useState<AvailabilityFormData>(getDefaultFormData());
 
-  const [availability, setAvailability] = useState({});
+  const [availability, setAvailability] = useState<Record<string, AvailabilityDay>>({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [summaryData, setSummaryData] = useState({
@@ -179,6 +239,7 @@ export default function AvailabilityPage() {
     timeOff: 0,
   });
   const [hoveredProject, setHoveredProject] = useState(null);
+  const [hoveredSlots, setHoveredSlots] = useState(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -335,35 +396,66 @@ export default function AvailabilityPage() {
     }
 
     const formattedDate = format(selectedDateValue, "yyyy-MM-dd");
-    const startTime = formatTimeForApi(formData.startTime);
-    const endTime = formatTimeForApi(formData.endTime);
-    const hasTimeRange = Boolean(startTime && endTime);
+    const formattedSlots = formData.slots
+      .map((slot) => ({
+        id: slot.id ?? null,
+        start_time: formatTimeForApi(slot.startTime),
+        end_time: formatTimeForApi(slot.endTime),
+      }))
+      .filter((s) => s.start_time && s.end_time);
 
-    if (
-      !isAllDay &&
-      !hasMinimumOneHourGap(formData.startTime, formData.endTime)
-    ) {
-      toast.error(
-        "End time must be at least 1 hour after the start time"
-      );
-      return;
+    if (!isAllDay) {
+      if (formattedSlots.length === 0) {
+        toast.error("Please add at least one time slot");
+        return;
+      }
+
+      for (let i = 0; i < formattedSlots.length; i += 1) {
+        const left = {
+          start: timeToMinutes(formattedSlots[i].start_time),
+          end: timeToMinutes(formattedSlots[i].end_time),
+        };
+
+        if (left.start === null || left.end === null || left.start >= left.end) {
+          toast.error("Start time must be before end time.");
+          return;
+        }
+
+        for (let j = i + 1; j < formattedSlots.length; j += 1) {
+          const right = {
+            start: timeToMinutes(formattedSlots[j].start_time),
+            end: timeToMinutes(formattedSlots[j].end_time),
+          };
+
+          if (
+            left.start < right.end &&
+            right.start < left.end
+          ) {
+            toast.error("This time is already covered by another slot. Please choose a different range.");
+            return;
+          }
+        }
+      }
     }
 
-    const payload = {
+    // 3. Construct Payload (replace the day's slots on save)
+    const payload: Record<string, unknown> = {
       crew_member_id: crewMemberId,
       date: formattedDate,
       availability_status: Number(formData.type),
-      is_full_day: isAllDay || !hasTimeRange ? 1 : 0,
-      start_time: isAllDay ? null : startTime,
-      end_time: isAllDay ? null : endTime,
+      is_full_day: isAllDay || formattedSlots.length === 0 ? 1 : 0,
+      slots: isAllDay ? [] : formattedSlots, 
       recurrence: Number(formData.recurrence),
       notes: formData.notes || "",
+      recurrence_until: undefined,
+      recurrence_days: undefined,
+      recurrence_day_of_month: undefined,
     };
 
     if (formData.recurrence !== "1") {
       if (formData.untilDate) {
         payload.recurrence_until = format(
-          new Date(formData.untilDate),
+          new Date(formData.untilDate), 
           "yyyy-MM-dd"
         );
       }
@@ -373,9 +465,8 @@ export default function AvailabilityPage() {
           payload.recurrence_days = ["mon", "tue", "wed", "thu", "fri"];
         }
       } else if (formData.recurrence === "3") {
-        payload.recurrence_days = (formData.repeatOn || []).map((day) =>
-          day.toLowerCase()
-        );
+        payload.recurrence_days = (formData.repeatOn || []).map((day) => 
+          day.toLowerCase());
       } else if (formData.recurrence === "4") {
         payload.recurrence_day_of_month = Number(formData.monthlyDay);
       }
@@ -383,12 +474,13 @@ export default function AvailabilityPage() {
 
     setIsSubmitting(true);
 
-    try {
-      await AddAvailability(payload);
-      setIsModalOpen(false);
+      try {
+        await AddAvailability(payload);
+        setIsModalOpen(false);
+        setSelectedDate(null);
 
-      toast.success("Availability Updated", {
-        description: "Your schedule has been successfully updated.",
+        toast.success("Availability Updated", {
+          description: "Your schedule has been successfully updated.",
       });
 
       const response = await getCrewAvailability({
@@ -400,29 +492,80 @@ export default function AvailabilityPage() {
       if (response?.data?.data?.availability) {
         setAvailability(response.data.data.availability);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding availability:", error);
-      const errorData = error?.response?.data;
+      const typedError = error as {
+        response?: {
+          status?: number;
+          data?: {
+            message?: string;
+            data?: {
+              conflicts?: Array<{
+                project_id?: number;
+                project_name?: string;
+                date?: string;
+              }>;
+            };
+          };
+        };
+      };
+      const errorData = typedError.response?.data;
 
-      if (error?.response?.status === 409 || errorData?.data?.conflicts?.length) {
+      if (typedError.response?.status === 409 || errorData?.data?.conflicts?.length) {
         showAvailabilityConflictToast(
           errorData?.message,
           errorData?.data?.conflicts || []
         );
       } else {
-        toast.error(
-          errorData?.message ||
-          "Something went wrong while updating availability"
-        );
+        toast.error(errorData?.message || "Something went wrong while updating availability");
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleModalOpen = () => {
-    setFormData(getDefaultFormData());
-    setIsAllDay(false);
+  const handleModalOpen = (
+    dateValue: SlotValue = null,
+    dayData: AvailabilityDay | null = null,
+    lockDate = false
+  ) => {
+    const hasExistingSlots = Array.isArray(dayData?.slots) && dayData.slots.length > 0;
+    const existingSlots = hasExistingSlots
+      ? dayData!.slots!.map((slot) => ({
+          id: slot.id ?? null,
+          startTime: parseTimeToDate(slot.start_time),
+          endTime: parseTimeToDate(slot.end_time),
+        }))
+      : dayData?.start_time || dayData?.end_time
+        ? [
+            {
+              id: null,
+              startTime: parseTimeToDate(dayData.start_time),
+              endTime: parseTimeToDate(dayData.end_time),
+            },
+          ]
+        : [
+            {
+              id: null,
+              startTime: null,
+              endTime: null,
+            },
+          ];
+
+    setFormData({
+      ...getDefaultFormData(),
+      type: dayData?.customAvailabilityStatus?.toString() || (dayData?.available === false ? "2" : "1"),
+      recurrence: String(dayData?.recurrence || 1),
+      includeWeekends: false,
+      repeatOn: [],
+      monthlyDay: "",
+      untilDate: dayData?.recurrence_until ? parseLocalDate(dayData.recurrence_until) : null,
+      slots: existingSlots,
+      notes: dayData?.notes || "",
+    });
+    setSelectedDate(dateValue);
+    setIsDateLocked(lockDate);
+    setIsAllDay(Boolean(dayData?.is_full_day));
     setIsModalOpen(true);
     setIsAnimating(true);
   };
@@ -432,6 +575,8 @@ export default function AvailabilityPage() {
     setTimeout(() => {
       setIsModalOpen(false);
       setFormData(getDefaultFormData());
+      setSelectedDate(null);
+      setIsDateLocked(false);
       setIsAllDay(false);
     }, 300);
   };
@@ -444,68 +589,54 @@ export default function AvailabilityPage() {
   };
 
   const handleAllDayChange = () => {
-    setIsAllDay(!isAllDay);
-    if (!isAllDay) {
-      setFormData({ ...formData, startTime: null, endTime: null });
-    }
+      const nextAllDay = !isAllDay;
+      setIsAllDay(nextAllDay);
+      if (!nextAllDay) {
+          setFormData({ ...formData, slots: [{ startTime: null, endTime: null }] });
+      }
   };
 
-  const handleTimeChange = (time, field) => {
+const addSlot = () => {
+    setFormData(prev => ({
+      ...prev,
+      slots: [...prev.slots, { startTime: null, endTime: null }]
+    }));
+  };
+
+  const removeSlot = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      slots: prev.slots.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSlotChange = (time: SlotValue, field: "startTime" | "endTime", index: number) => {
     setIsAllDay(false);
+    const newSlots = [...formData.slots];
+    
+    if (field === "startTime") {
+      newSlots[index].startTime = time;
+      
+      // Calculate the minimum allowed end time (+1 hour)
+      const minEnd = addMinutesToTime(time, 60);
+      
+      // Get numeric minutes for comparison, defaulting to 0 if null
+      const currentEndMin = timeToMinutes(newSlots[index].endTime) ?? 0;
+      const minEndMin = timeToMinutes(minEnd) ?? 0;
 
-    setFormData((prevData) => {
-      if (field === "startTime") {
-        const minimumEndTime = addMinutesToTime(time, 60);
-
-        const currentEndMinutes = timeToMinutes(prevData.endTime);
-        const minimumEndMinutes = timeToMinutes(minimumEndTime);
-
-        /*
-         * If the existing end time becomes invalid after changing start time,
-         * automatically reset it to one hour after the new start time.
-         */
-        const shouldUpdateEndTime =
-          time &&
-          (
-            currentEndMinutes === null ||
-            minimumEndMinutes === null ||
-            currentEndMinutes < minimumEndMinutes
-          );
-
-        return {
-          ...prevData,
-          startTime: time,
-          endTime: shouldUpdateEndTime
-            ? minimumEndTime
-            : prevData.endTime,
-        };
+      if (!newSlots[index].endTime || currentEndMin < minEndMin) {
+        newSlots[index].endTime = minEnd;
       }
-
-      if (field === "endTime") {
-        if (
-          prevData.startTime &&
-          time &&
-          !hasMinimumOneHourGap(prevData.startTime, time)
-        ) {
-          toast.error(
-            "End time must be at least 1 hour after the start time"
-          );
-
-          return prevData;
-        }
-
-        return {
-          ...prevData,
-          endTime: time,
-        };
-      }
-
-      return {
-        ...prevData,
-        [field]: time,
-      };
-    });
+    } else {
+      newSlots[index].endTime = time;
+    }
+    
+    setFormData((prev) => ({
+      ...prev,
+      slots: newSlots
+    }));
   };
+
   const handleMonthChange = (direction) => {
     if (direction === "prev") {
       setCurrentMonth((prevMonth) => (prevMonth === 1 ? 12 : prevMonth - 1));
@@ -522,6 +653,7 @@ export default function AvailabilityPage() {
 
   const handleDateLeave = () => {
     setHoveredProject(null);
+    setHoveredSlots(null); 
   };
 
   const getFirstDayOfMonth = (month, year) => {
@@ -560,8 +692,6 @@ export default function AvailabilityPage() {
         availabilityStatus?.projectAssigned === true;
       const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
       const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
-      const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
-
       const isPastDate = dateString < todayDateString;
       const isToday = dateString === todayDateString;
 
@@ -575,7 +705,7 @@ export default function AvailabilityPage() {
         : (isAvailable ? "text-black" : "text-black/30");
       const borderColor = isDark ? "border-white/5" : "border-[#E5E5E5]";
 
-      const handleDateClick = () => {
+    const handleDateClick = () => {
         if (isAssigned) {
           showAvailabilityConflictToast(
             "Availability cannot be changed because you have an assigned shoot on this date.",
@@ -592,20 +722,28 @@ export default function AvailabilityPage() {
 
         if (isPastDate) return;
 
-        setSelectedDate(dateString);
-        handleModalOpen();
+        handleModalOpen(dateString, availabilityStatus ?? null, true);
       };
-
       const handleDateHover = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setHoverPosition({
+          x: rect.right + 10,
+          y: rect.top,
+        });
+
+        // If it's a project, show project details
         if (isAssigned && availabilityStatus?.projectDetails) {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setHoverPosition({
-            x: rect.right + 10,
-            y: rect.top,
-          });
           setHoveredProject({
             date: dateString,
             ...availabilityStatus.projectDetails,
+          });
+        } 
+        // If it's availability with slots, show slots tooltip
+        else if (availabilityStatus?.slots?.length > 2) {
+          setHoveredSlots({
+            date: dateString,
+            slots: availabilityStatus.slots,
+            type: availabilityValue ? "Available" : "Not Available"
           });
         }
       };
@@ -653,10 +791,29 @@ export default function AvailabilityPage() {
                   <span className="hidden lg:block">Not Available</span>
                 </div>
               )}
-              {hasTimeRange && (
-                <div className={`hidden lg:flex items-center gap-1 ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
+              {/* Display Multiple Slots */}
+              {!isAssigned && availabilityStatus?.slots?.length > 0 && !availabilityStatus.is_full_day && (
+                <div className="mt-1 space-y-0.5 hidden lg:block overflow-hidden">
+                  {availabilityStatus.slots.slice(0, 2).map((slot, idx) => (
+                    <div key={idx} className={`flex items-center gap-1 text-[9px] ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
+                      <Clock size={10} className="shrink-0" />
+                      <span className="truncate">
+                        {formatTimeForDisplay(slot.start_time)} - {formatTimeForDisplay(slot.end_time)}
+                      </span>
+                    </div>
+                  ))}
+                  {/* If more than 2 slots, show a counter */}
+                  {availabilityStatus.slots.length > 2 && (
+                    <div className="text-[8px] opacity-50 pl-4">+{availabilityStatus.slots.length - 2} more</div>
+                  )}
+                </div>
+              )}
+
+              {/* Fallback: Only show the original single range if slots array is missing */}
+              {!isAssigned && !availabilityStatus?.slots && (startTimeDisplay && endTimeDisplay) && (
+                <div className={`hidden lg:flex items-center gap-1 mt-1 ${isAvailable ? (isDark ? "text-white/45" : "text-black/45") : "text-red-400/70"}`}>
                   <Clock size={11} />
-                  <span>{startTimeDisplay} - {endTimeDisplay}</span>
+                  <span className="text-[9px]">{startTimeDisplay} - {endTimeDisplay}</span>
                 </div>
               )}
             </div>
@@ -831,7 +988,7 @@ export default function AvailabilityPage() {
               className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
       ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
       ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
-      max-h-[90vh] overflow-y-auto`}
+      max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]`}
             >
               <button
                 onClick={handleModalClose}
@@ -841,7 +998,7 @@ export default function AvailabilityPage() {
               </button>
 
               <h2 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-black"}`}>
-                Add Availability
+                {isDateLocked ? "Update Availability" : "Add Availability"}
               </h2>
               <p className={`text-xs lg:text-sm mb-4 lg:mb-8 ${isDark ? "text-white/40" : "text-black/40"}`}>
                 Schedule your working hours
@@ -878,8 +1035,10 @@ export default function AvailabilityPage() {
                     value={parseLocalDate(selectedDate)}
                     minDate={new Date()}
                     isDark={isDark}
+                    disabled={isDateLocked} 
                     onChange={(d) => {
-                      setSelectedDate(d);
+                      if (isDateLocked) return;
+                      setSelectedDate(d ? format(d, "yyyy-MM-dd") : null);
                       if (formData.recurrence === "4") {
                         handleFormChange(d?.getDate().toString(), "monthlyDay");
                       }
@@ -887,35 +1046,59 @@ export default function AvailabilityPage() {
                   />
                 </div>
 
-                {!isAllDay && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                        Start Time
-                      </label>
-                      <TimePicker
-                        label=""
-                        value={formData.startTime}
-                        onChange={(time) => handleTimeChange(time, "startTime")}
-                        isDark={isDark}
-                      />
-                    </div>
-                    <div>
-                      <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                        End Time
-                      </label>
-                      <TimePicker
-                        label=""
-                        value={formData.endTime}
-                        onChange={(time) => handleTimeChange(time, "endTime")}
-                        minTime={
-                          formData.startTime
-                            ? addMinutesToTime(formData.startTime, 60)
-                            : undefined
-                        }
-                        isDark={isDark}
-                      />
-                    </div>
+               {!isAllDay && (
+                  <div className="space-y-4">
+                    {formData.slots.map((slot, index) => (
+                      <div key={index} className={`relative p-4 border rounded-xl ${isDark ? "bg-white/5 border-white/10" : "bg-black/5 border-black/10"}`}>
+                        {formData.slots.length > 1 && (
+                           <button 
+                            type="button" 
+                            onClick={() => removeSlot(index)}
+                            className={`absolute top-2 right-2 transition-colors ${
+                              isDark 
+                                ? "text-white/40 hover:text-[#E8D1AB]" 
+                                : "text-black/40 hover:text-[#cbb38b]"
+                            }`}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={`block text-[10px] font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              Start Time
+                            </label>
+                            <TimePicker
+                              label=""
+                              value={slot.startTime}
+                              onChange={(time) => handleSlotChange(time, "startTime", index)}
+                              isDark={isDark}
+                            />
+                          </div>
+                          <div>
+                            <label className={`block text-[10px] font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              End Time
+                            </label>
+                            <TimePicker
+                              label=""
+                              value={slot.endTime}
+                              onChange={(time) => handleSlotChange(time, "endTime", index)}
+                              minTime={slot.startTime ? addMinutesToTime(slot.startTime, 60) : undefined}
+                              isDark={isDark}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={addSlot}
+                      className={`w-full border-dashed border-2 py-6 rounded-xl flex items-center justify-center gap-2 ${isDark ? "border-white/10 text-white/40 hover:text-white" : "border-black/10 text-black/40 hover:text-black"}`}
+                    >
+                      <Plus size={16} />
+                      <span>Add Another Time Slot</span>
+                    </Button>
                   </div>
                 )}
 
@@ -1173,6 +1356,36 @@ export default function AvailabilityPage() {
             </div>
           </div>
         )}
+        {/* Hover Card for Multiple Time Slots */}
+{hoveredSlots && (
+  <div
+    className={`fixed z-50 pointer-events-none animate-in fade-in zoom-in duration-100 p-1.5 rounded-lg shadow-xl border ${
+      isDark 
+        ? "bg-[#1A1A1A] border-white/10 text-white/90" 
+        : "bg-white border-black/10 text-black/90"
+    }`}
+    style={{
+      top: hoverPosition.y,
+      left: hoverPosition.x,
+    }}
+  >
+    <div className="flex flex-col gap-1">
+      {hoveredSlots.slots.map((slot, idx) => (
+        <div 
+          key={idx} 
+          className={`px-2 py-1 rounded-md text-[10px] font-medium flex items-center gap-2 ${
+            isDark ? "bg-white/5" : "bg-black/5"
+          }`}
+        >
+          <Clock size={10} className="opacity-50" />
+          <span>{formatTimeForDisplay(slot.start_time)}</span>
+          <span className="opacity-30">—</span>
+          <span>{formatTimeForDisplay(slot.end_time)}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
       </div>
     </>
   );
