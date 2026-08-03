@@ -59,7 +59,7 @@ const menuItems = [
     permissionKeys: ['invoices'],
     children: [
       { name: 'Beige Credit Points', link: '/affiliate/finances' },
-      // { name: 'Transactions', link: '/affiliate/finances/transactions' },
+      { name: 'Transactions', link: '/affiliate/finances/transactions' },
     ],
   },
   { name: 'Profile', icon: Settings, link: '/affiliate/profile', permissionKeys: ['settings'] },
