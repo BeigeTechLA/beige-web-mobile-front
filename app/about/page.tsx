@@ -15,7 +15,7 @@ import { Testimonials } from "@/components/about/Testimonials";
 import { Hero } from "@/components/about/Hero";
 
 
-export default function FindCreativeWorkPage() {
+export default function AboutUsPage() {
   return (
     <main className="bg-[#010101] min-h-screen text-white font-sans selection:bg-[#ECE1CE] selection:text-black px-5 pt-15 lg:p-0 lg:pt-20">
       <Navbar />

@@ -12,11 +12,11 @@ interface FAQItem {
 
 const FAQ_ITEMS: FAQItem[] = [
   {
-    question: "What professional photography and videography services does Beige Media offer?",
+    question: "What professional photography and videography services does Beige offer?",
     answer: (
       <div className="space-y-2 lg:space-y-4">
         <p>
-          Beige Media is a leading provider of high-quality on demand photography and videography services for various industries. Our services include:
+          Beige is a leading provider of high-quality on demand photography and videography services for various industries. Our services include:
         </p>
         <ul className="list-disc pl-5 space-y-2 marker:text-[#E8D1AB] text-white">
           <li><span className="text-[#E8D1AB]">Wedding Photography & Videography:</span> Capture your special moments with cinematic storytelling.</li>
@@ -31,7 +31,7 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How can I easily book a photography or videography session?",
     answer: (
       <p>
-        Booking a professional <strong>photo shoot</strong> or <strong>video production</strong> with Beige Media is simple! Visit our{" "}
+        Booking a professional <strong>photo shoot</strong> or <strong>video production</strong> with Beige is simple! Visit our{" "}
         <a href="/book" className="text-[#E8D1AB] hover:text-[#E8D1AB]/70">Book Now</a> page, fill out your project details, and our team will confirm your booking. We offer <strong>same-day bookings</strong> and advanced scheduling options to meet your needs.
       </p>
     ),
@@ -40,7 +40,7 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What do clients say about your services?",
     answer: (
       <p>
-        Beige Media is proud of its <strong>outstanding customer satisfaction</strong>. Clients consistently praise our <strong>professionalism, creativity, and high-quality productions</strong>. You can view more testimonials on the website.
+        Beige is proud of its <strong>outstanding customer satisfaction</strong>. Clients consistently praise our <strong>professionalism, creativity, and high-quality productions</strong>. You can view more testimonials on the website.
       </p>
     ),
   },
@@ -49,7 +49,7 @@ const FAQ_ITEMS: FAQItem[] = [
     answer: (
       <div className="space-y-4">
         <p>
-          Yes, Beige Media provides comprehensive <strong>editing services</strong> for both photography and videography. Our team offers:
+          Yes, Beige provides comprehensive <strong>editing services</strong> for both photography and videography. Our team offers:
         </p>
         <ul className="list-disc pl-5 space-y-2 marker:text-[#E8D1AB] text-white">
           <li><strong>Photo retouching, color correction</strong>, and background enhancements.</li>
@@ -71,15 +71,15 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Do you provide photography and videography services internationally?",
     answer: (
       <p>
-        Beige Media offers <strong>international photography and videography services</strong>. We work with clients worldwide, including those in the U.S., Europe, and beyond. Whether it’s a destination wedding or a global commercial project, we are available to travel and capture high-quality visuals.
+        Beige offers <strong>international photography and videography services</strong>. We work with clients worldwide, including those in the U.S., Europe, and beyond. Whether it’s a destination wedding or a global commercial project, we are available to travel and capture high-quality visuals.
       </p>
     ),
   },
   {
-    question: "Has Beige Media been featured in the press or media outlets?",
+    question: "Has Beige been featured in the press or media outlets?",
     answer: (
       <p>
-        Yes, Beige Media has been featured in multiple prestigious media outlets. Our <strong>photography services</strong> and <strong>videography expertise</strong> have been recognized globally.
+        Yes, Beige has been featured in multiple prestigious media outlets. Our <strong>photography services</strong> and <strong>videography expertise</strong> have been recognized globally.
       </p>
     ),
   },
@@ -96,7 +96,7 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How can I get a custom quote for my photo or video project",
     answer: (
       <p>
-        Beige Media provides <strong>custom quotes</strong> based on your specific requirements. To receive a tailored quote, simply visit our <a href="/book" className="text-[#E8D1AB] hover:text-[#E8D1AB]/70">Booking Page</a>, fill out the project details, and we will send you a personalized proposal.
+        Beige provides <strong>custom quotes</strong> based on your specific requirements. To receive a tailored quote, simply visit our <a href="/book" className="text-[#E8D1AB] hover:text-[#E8D1AB]/70">Booking Page</a>, fill out the project details, and we will send you a personalized proposal.
       </p>
     ),
   },
