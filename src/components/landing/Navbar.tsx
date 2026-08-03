@@ -143,7 +143,7 @@ const portfolioConfig = {
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "About", href: "#about" },
+  { label: "About", href: "/about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
   { label: "Use Cases", href: "#usecases", hasDropdown: true },
 ];
@@ -200,7 +200,7 @@ export const Navbar = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
 
-      const sections = ["about", "usecases"];
+      const sections = ["usecases"];
       const scrollPosition = window.scrollY + 200;
 
       let currentHash = "";
