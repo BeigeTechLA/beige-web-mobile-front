@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   motion,
   MotionValue,
@@ -14,31 +14,31 @@ const TEAM_SET = [
     id: 1,
     name: "Kawser Khan",
     role: "CEO & Founder",
-    img: "/images/crew/CREW(1).png",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png",
   },
   {
     id: 2,
     name: "Nafisa Ahmen",
     role: "COO",
-    img: "/images/crew/CREW(2).png",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/nafisa.jpeg",
   },
   {
     id: 3,
     name: "Kimberly Neer",
     role: "Head of Partnerships",
-    img: "/images/crew/CREW(3).png",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/maggie.png",
   },
   {
     id: 4,
     name: "Maggie Perochena",
     role: "Head of Post-Production",
-    img: "/images/crew/CREW(4).png",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kimberly-new.jpg",
   },
   {
     id: 5,
     name: "Sharat Hossain",
     role: "Human Resources Manager",
-    img: "/images/crew/CREW(5).png",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/sharat-new.png",
   },
 ];
 
@@ -76,17 +76,22 @@ function TeamCard({
 interface SideColumnProps {
   cards: (typeof TEAM_SET);
   progress: MotionValue<number>;
+  isDesktop: boolean;
 }
 
 const SideColumn = ({
   cards,
   progress,
+  isDesktop,
 }: SideColumnProps) => {
-  const translateY = useTransform(
+  const animatedY = useTransform(
     progress,
     [0, 1],
     ["80%", "-47%"]
   );
+
+  // If not desktop layout, turn off translation completely
+  const translateY = isDesktop ? animatedY : "0%";
 
   return (
     <div className="w-full">
@@ -107,9 +112,21 @@ const SideColumn = ({
 
 export default function LeadershipTeam() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Listen for desktop layout size adjustments safely on mount
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024); // Matching Tailwind's 'lg' breakpoint
+    };
+
+    checkIsDesktop();
+    window.addEventListener("resize", checkIsDesktop);
+    return () => window.removeEventListener("resize", checkIsDesktop);
+  }, []);
 
   const { scrollYProgress } = useScroll({
-    target: containerRef,
+    target: isDesktop ? containerRef : undefined,
     offset: ["start start", "end end"],
   });
 
@@ -130,24 +147,25 @@ export default function LeadershipTeam() {
       <Container>
         <div
           ref={containerRef}
-          className="relative mx-auto h-[300vh] max-w-[1700px] rounded-3xl bg-[#171717]"
+          className="relative mx-auto lg:h-[300vh] max-w-[1700px] rounded-3xl bg-[#171717] overflow-hidden lg:overflow-visible p-6 lg:p-0"
         >
-          {/* Sticky viewport handles masking correctly at the container border radius */}
-          <div className="sticky top-0 h-screen overflow-hidden rounded-3xl">
-            <div className="mx-auto flex h-full max-w-[1500px] flex-col justify-between px-8 pt-12 lg:pt-20 gap-10">
+          {/* Sticky viewport structure on desktop layouts */}
+          <div className="lg:sticky top-0 lg:h-screen lg:overflow-hidden rounded-3xl">
+            <div className="mx-auto flex h-full max-w-[1500px] flex-col justify-between px-0 lg:px-8 pt-4 lg:pt-20 gap-10">
 
               {/* Heading */}
               <h2 className="text-center text-3xl md:text-5xl lg:text-[56px] font-medium leading-tight bg-gradient-to-r from-white to-white/20 bg-clip-text text-transparent">
                 Our Leadership Team
               </h2>
 
-              {/* Grid Layout - No inner overflow hidden to stop top cutting */}
-              <div className="flex-1 flex items-center w-full max-w-[1180px] mx-auto relative">
+              {/* Grid Layout - Handled responsively */}
+              <div className="hidden flex-1 lg:flex items-center w-full max-w-[1180px] mx-auto relative">
                 <div className="grid grid-cols-3 w-full justify-items-center items-start gap-6 lg:gap-8 xl:gap-10 overflow-hidden">
                   {/* LEFT COLUMN */}
                   <SideColumn
                     cards={leftCards}
                     progress={scrollYProgress}
+                    isDesktop={isDesktop}
                   />
 
                   {/* CENTER COLUMN (CEO) */}
@@ -162,12 +180,22 @@ export default function LeadershipTeam() {
                   <SideColumn
                     cards={rightCards}
                     progress={scrollYProgress}
+                    isDesktop={isDesktop}
                   />
                 </div>
               </div>
-
             </div>
           </div>
+
+          {/* Fallback layout for mobile devices */}
+          <div className="flex flex-col gap-6 mt-8 lg:hidden">
+            {TEAM_SET.map((member, index) => (
+              <div key={`teammember_${index}`}>
+                <TeamCard member={member} />
+              </div>
+            ))}
+          </div>
+
         </div>
       </Container>
     </section>

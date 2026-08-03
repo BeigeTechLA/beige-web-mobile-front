@@ -5,15 +5,16 @@ import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 
 const IMAGES_SET = [
-  { id: 1, name: "DHL", logo: "/images/crew/CREW(9).png" },
-  { id: 2, name: "RollsRoyce", logo: "/images/crew/CREW(5).png" },
-  { id: 3, name: "OrangeTheory", logo: "/images/crew/CREW(6).png" },
-  { id: 4, name: "Amazon", logo: "/images/crew/CREW(7).png" },
-  { id: 5, name: "Chase", logo: "/images/crew/CREW(8).png" },
-  { id: 6, name: "YoungLA", logo: "/images/crew/CREW(3).png" },
-  { id: 7, name: "Toyota", logo: "/images/crew/CREW(4).png" },
-  { id: 8, name: "DHL", logo: "/images/crew/CREW(2).png" },
-  { id: 9, name: "Karat", logo: "/images/crew/CREW(1).png" },
+  { id: 1, name: "Concert", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64a75d8b7818bf0dd9070e45_COVER.jpg" },
+  { id: 2, name: "Thrive Causemetics", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64ae949c75e1882ff9a483dc_COVER.jpg" },
+  { id: 3, name: "OrangeTheory Event", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/67c75fd9b0ec05e3f0998092_IMG_5103-p-800.jpg" },
+  { id: 4, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/669dcd9990a20e181981b877_DSC08499-p-800.jpg" },
+  { id: 5, name: "Start Up", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Copy+of+VID03599_editedv1.jpg" },
+  { id: 6, name: "Elevate Event", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/8.jpg" },
+  { id: 7, name: "Pet NGO", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64aebf7f0720254a756fd796_COVER-p-3200.png" },
+  { id: 8, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF08693.jpg" },
+  { id: 9, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF07790.jpg" },
+  { id: 10, name: "Corporate Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Photo 069.jpg" },
 ];
 
 const ImageCard = ({ name, logo, isAlternated }: { name: string; logo: string; isAlternated: boolean }) => (

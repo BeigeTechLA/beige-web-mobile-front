@@ -18,6 +18,16 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 };
 
+const TEAM_IMAGES = [
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/67c75fd9b6584e2ce6771c28_IMG_5099-p-800.jpg", alt: "Orange Theory event" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/DSC_4288.jpg", alt: "Walmart event" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/DSC00150.jpg", alt: "Kawser with Logan Paul" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/limitlessEvent.jpg", alt: "Limitless Event" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/HB406340.jpg", alt: "Speak you way event" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/DSC00187.jpg", alt: "Limitless Event" },
+  { src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/heroComponent/4.jpg", alt: "Elevate Event" }
+];
+
 export const Hero = () => {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
@@ -44,7 +54,7 @@ export const Hero = () => {
     <section className="py-10 md:py-20 lg:py-32 relative overflow-hidden text-white">
       <Container>
         {/* Text Hero Content */}
-        <div className="flex flex-col items-center justify-center text-center gap-3 lg:gap-6 relative z-10 ">
+        <div className="flex flex-col items-center justify-center text-center gap-3 lg:gap-6 relative z-10 mb-12 md:mb-20">
           <h2 className="text-3xl md:text-[56px] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block">
             About Us
           </h2>
@@ -65,103 +75,116 @@ export const Hero = () => {
           </Button>
         </div>
 
-        {/* 
-          Asymmetric Grid System 
-          On mobile: horizontal scrollable view for accessibility.
-          On desktop: clean layout matching the aspect-ratio calculations exactly.
-        */}
-        <div className="flex flex-row items-end justify-end md:grid md:grid-cols-[1fr_1fr_2fr_1fr_1fr] gap-[18px] max-w-[1440px] mx-auto px-4 overflow-x-auto md:overflow-visible pb-6 select-none">
+        {/* MOBILE SINGLE COLUMN LAYOUT */}
+        <div className="block md:hidden w-full max-w-sm mx-auto flex flex-col gap-5 px-4">
+          {TEAM_IMAGES.map((img, i) => (
+            <div
+              key={`mobile_img_${i}`}
+              className="relative overflow-hidden bg-[#171717] w-full aspect-[4/3] rounded-2xl border border-white/5 shadow-md"
+            >
+              <Image
+                src={img.src}
+                alt={img.alt}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP ASYMMETRIC GRID LAYOUT */}
+        <div className="hidden md:grid md:grid-cols-[1fr_1fr_2fr_1fr_1fr] gap-[18px] max-w-[1440px] mx-auto px-4 overflow-visible select-none">
 
           {/* Column 1: Far Left Stack */}
-          <div className="flex flex-col gap-[18px] shrink-0 w-[270px] md:w-full">
+          <div className="flex flex-col gap-[18px] w-full">
             <div
-              className="relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] rounded-b-xl"
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] rounded-b-xl"
               style={{ clipPath: clipPaths.col1Image1 }}
             >
               <Image
-                src="/images/crew/CREW(1).png"
-                alt="Camera Operator"
+                src={TEAM_IMAGES[0].src}
+                alt={TEAM_IMAGES[0].alt}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 270px, 20vw"
               />
             </div>
-            <div className="relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
+            <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
               <Image
-                src="/images/crew/CREW(2).png"
-                alt="Close up cinema setup"
+                src={TEAM_IMAGES[1].src}
+                alt={TEAM_IMAGES[1].alt}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 270px, 20vw"
+                sizes="(max-width: 768px) 270px,20vw"
               />
             </div>
           </div>
 
           {/* Column 2: Inner Left Tall Card */}
           <div
-            className="relative overflow-hidden bg-[#171717] shrink-0 w-[270px] md:w-full aspect-[270.24/542.67] rounded-b-xl"
+            className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] rounded-b-xl"
             style={{ clipPath: clipPaths.col2Image1 }}
           >
             <Image
-              src="/images/crew/CREW(3).png"
-              alt="Behind the scenes camera rig"
+              src={TEAM_IMAGES[2].src}
+              alt={TEAM_IMAGES[2].alt}
               fill
               className="object-cover"
-              sizes="(max-width: 768px) 270px, 20vw"
+              sizes="(max-width: 768px) 270px,20vw"
             />
           </div>
 
           {/* Column 3: Center Featured Video/Image Card */}
-          <div className="relative overflow-hidden bg-[#171717] shrink-0 w-[450px] md:w-full aspect-[554/346] rounded-[24px] shadow-2xl z-20 self-center mt-auto mb-10">
+          <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[554/346] rounded-[24px] shadow-2xl z-20 self-center mt-auto mb-10">
             <Image
-              src="/images/crew/CREW(4).png"
-              alt="Production Studio Set"
+              src={TEAM_IMAGES[3].src}
+              alt={TEAM_IMAGES[3].alt}
               fill
               className="object-cover"
-              sizes="(max-width: 768px) 450px, 40vw"
+              sizes="(max-width: 768px) 450px,40vw"
             />
           </div>
 
-          {/* Column 4: Inner Right Tall Card - Specific Top-Right Cut Angle */}
+          {/* Column 4: Inner Right Tall Card */}
           <div
-            className="relative overflow-hidden bg-[#171717] shrink-0 w-[270px] md:w-full aspect-[270.24/542.67] scale-x-[-1] rounded-b-xl"
+            className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] scale-x-[-1] rounded-b-xl"
             style={{ clipPath: clipPaths.col2Image1 }}
           >
-            {/* Embedded wrapper counter-acts flipped parents for normal text/face orientation */}
             <div className="relative w-full h-full scale-x-[-1]">
               <Image
-                src="/images/crew/CREW(5).png"
-                alt="Camera setup on rails"
+                src={TEAM_IMAGES[4].src}
+                alt={TEAM_IMAGES[4].alt}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 270px, 20vw"
+                sizes="(max-width: 768px) 270px,20vw"
               />
             </div>
           </div>
 
           {/* Column 5: Far Right Stack */}
-          <div className="flex flex-col gap-[18px] shrink-0 w-[270px] md:w-full">
+          <div className="flex flex-col gap-[18px] w-full">
             <div
-              className="relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] scale-x-[-1] rounded-b-xl"
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] scale-x-[-1] rounded-b-xl"
               style={{ clipPath: clipPaths.col1Image1 }}
             >
               <div className="relative w-full h-full scale-x-[-1]">
                 <Image
-                  src="/images/crew/CREW(6).png"
-                  alt="Color grading desk panel setup"
+                  src={TEAM_IMAGES[5].src}
+                  alt={TEAM_IMAGES[5].alt}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 270px, 20vw"
+                  sizes="(max-width: 768px) 270px,20vw"
                 />
               </div>
             </div>
-            <div className="relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
+            <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
               <Image
-                src="/images/crew/CREW(7).png"
-                alt="Cinematic production look monitor view"
+                src={TEAM_IMAGES[6].src}
+                alt={TEAM_IMAGES[6].alt}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 270px, 20vw"
+                sizes="(max-width: 768px) 270px,20vw"
               />
             </div>
           </div>

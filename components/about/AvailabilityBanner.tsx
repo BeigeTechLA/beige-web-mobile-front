@@ -25,8 +25,8 @@ export const AvailabilityBanner = () => {
   return (
     <section className="py-10 md:py-16 lg:py-24 relative overflow-hidden">
       <Container className="relative z-10">
-        <div className="mx-auto grid grid-cols-2 py-5 px-6 lg:py-0 lg:pt-11 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-lg lg:rounded-xl">
-          <div className="pl-17 lg:py-11">
+        <div className="mx-auto grid grid-cols-1 lg:grid-cols-2 py-5 px-6 lg:py-0 lg:pt-11 bg-gradient-to-b from-[#E5CFA0] to-[#C9A668] rounded-lg lg:rounded-xl">
+          <div className="lg:pl-17 lg:py-11">
             <h2 className="text-lg md:text-[56px] font-medium text-black mb-2.5 lg:mb-5 leading-[1.1] tracking-tight">
               Available in all 50 states
             </h2>
