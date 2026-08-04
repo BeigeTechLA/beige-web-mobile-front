@@ -332,20 +332,62 @@ export function LoginForm() {
             >
               {isLoginLoading ? "Signing In..." : "Sign In"}
             </Button>
-            {isGoogleConfigured && (
-              <div className="mt-4">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  text="continue_with"
-                  width="100%"
-                  useOneTap={false}
-                />
-                {isGoogleLoginLoading && (
-                  <p className="mt-2 text-center text-xs text-white/50">Signing in with Google...</p>
-                )}
+              <div className="flex items-center w-full my-10">
+                <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/70"/>  
+                <span className="px-4 text-[13px] font-normal text-[#A4A0A0] whitespace-nowrap tracking-tight">
+                  OR Sign In with Social Account
+                </span>
+                <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/70"></div>
               </div>
-            )}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Apple */}
+                  <button
+                    type="button"
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                    <Image src="\images\loginsignup\AppleLogo.svg" alt="Apple" width={20} height={20} />
+                    <span>Apple</span>
+                  </button>
+                  {/* Google */}
+                <button
+                    type="button"
+                    onClick={() => {
+                      const googleButton = document.querySelector(
+                        '#google-login-button div[role="button"]'
+                      ) as HTMLElement | null;
+
+                      googleButton?.click();
+                    }}
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                <Image src="\images\loginsignup\GoogleLogo.svg" alt="Google" width={20} height={20} />
+                  <span>Google</span>
+                </button>
+
+                  {/* Facebook */}
+                  {/* <button
+                    type="button"
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                    <Image src="\images\loginsignup\FacebookLogo.svg" alt="Facebook" width={20} height={20} />
+                    <span>Facebook</span>
+                  </button> */}
+
+                </div>
+              {isGoogleConfigured && (
+                <div className="hidden">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    text="continue_with"
+                    width="100%"
+                    useOneTap={false}
+                    containerProps={{
+                      id: "google-login-button",
+                    }}
+                  />
+                </div>
+              )}
             {/* Mobile standard divider */}
             <div className="flex items-center justify-center mt-6 lg:hidden">
               <div className="h-[1px] w-12 bg-white/10 hidden sm:block"></div>

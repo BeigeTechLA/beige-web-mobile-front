@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { pushToDataLayer } from "@/lib/gtm"
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
+import Image from "next/image"
 
 const userSignupSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -307,25 +308,77 @@ export function UserSignupForm() {
         </Button>
 
         {isGoogleConfigured && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-xs text-white/45">
-              <span className="h-px flex-1 bg-white/15" />
-              <span>or</span>
-              <span className="h-px flex-1 bg-white/15" />
-            </div>
-            <GoogleLogin
-              onSuccess={handleGoogleSignupSuccess}
-              onError={handleGoogleSignupError}
-              text="signup_with"
-              width="100%"
-              useOneTap={false}
-            />
-            {isGoogleLoginLoading && (
-              <p className="text-center text-xs text-white/50">Creating your Google account...</p>
-            )}
-          </div>
-        )}
+      <div className="hidden">
+        <GoogleLogin
+          onSuccess={handleGoogleSignupSuccess}
+          onError={handleGoogleSignupError}
+          text="signup_with"
+          width="100%"
+          useOneTap={false}
+          containerProps={{
+            id: "google-signup-button",
+          }}
+        />
+      </div>
+    )}
 
+  {/* Divider */}
+  <div className="flex items-center w-full mb-6">
+    <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/70"></div>
+    <span className="px-3 text-[14px] font-normal text-[#C4C4C4] whitespace-nowrap">
+      OR Sign Up with Social Account
+    </span>
+    <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/70"></div>
+      </div>
+      {/* Social Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Apple */}
+        <button
+          type="button"
+          className="h-12 rounded-lg border border-[#3A3A3A] bg-[#161616] flex items-center justify-center gap-2 text-white"
+        >
+          <Image
+            src="\images\loginsignup\AppleLogo.svg"
+            alt="Apple"
+            width={20}
+            height={20}
+          />
+          <span>Apple</span>
+        </button>
+        {/* Google */}
+        <button
+          type="button"
+          onClick={() => {
+            const googleButton = document.querySelector(
+              '#google-signup-button div[role="button"]'
+            ) as HTMLElement | null;
+
+            googleButton?.click();
+          }}
+          className="h-12 rounded-lg border border-[#3A3A3A] bg-[#161616] flex items-center justify-center gap-2 text-white"
+        >
+          <Image
+            src="\images\loginsignup\GoogleLogo.svg"
+            alt="Google"
+            width={20}
+            height={20}
+          />
+          <span>Google</span>
+        </button>
+        {/* Facebook */}
+        {/* <button
+          type="button"
+          className="h-12 rounded-lg border border-[#3A3A3A] bg-[#161616] flex items-center justify-center gap-2 text-white"
+        >
+          <Image
+            src="\images\loginsignup\FacebookLogo.svg"
+            alt="Facebook"
+            width={20}
+            height={20}
+          />
+          <span>Facebook</span>
+        </button> */}
+      </div>
         <div className="flex items-center justify-center mt-6 text-[#DDD] font-bold gap-2 text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
             <path d="M0 0.25C9.89091 0.25 151.455 0.25 221 0.25" stroke="url(#paint0_linear_1780_5629)" strokeWidth="0.5" />
