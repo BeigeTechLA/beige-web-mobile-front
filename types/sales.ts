@@ -105,6 +105,25 @@ export interface SalesLead {
   custom_quote_id?: number;
   custom_quote_number?: string;
   custom_quote_status?: string;
+  lead_booking_credit?: {
+    total_credit_amount: number;
+    pending_credit_amount: number;
+    available_credit_amount: number;
+    expired_credit_amount: number;
+    source: string;
+    latest_credit?: {
+      account_credit_ledger_id: number;
+      amount: number;
+      status: string;
+      source: string;
+      credit_type: string;
+      created_at: string;
+      approved_at?: string | null;
+      notes?: string;
+    } | null;
+    applied_paid_amount: number;
+    original_paid_amount: number;
+  } | null;
 }
 
 export interface SalesLeadDetails extends SalesLead {
