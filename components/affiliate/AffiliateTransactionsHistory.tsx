@@ -131,7 +131,7 @@ const isProofAttachmentType = (type: string | null | undefined) =>
 
 const statusStyles: Record<PaymentStatus, string> = {
   Paid: "bg-[#DDF9E7] text-[#178B4A] border-[#DDF9E7]",
-  "Dispute Open": "bg-[#FCE8E4] text-[#D6453D] border-[#FCE8E4]",
+  "Dispute Open": "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20",
   Pending: "bg-[#FFF2CF] text-[#B77500] border-[#FFF2CF]",
   Refunded: "bg-[#2C2C2C] text-[#8B8B8B] border-[#3A3A3A]",
   "In Review": "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
@@ -169,6 +169,12 @@ const formatShortDate = (value: string | null | undefined) => {
   const parsed = parseISO(value);
   if (Number.isNaN(parsed.getTime())) return "N/A";
   return format(parsed, "MMM d, yyyy");
+};
+
+const formatStatusLabel = (value: string | null | undefined) => {
+  const normalized = String(value || "").trim();
+  if (normalized === "Dispute Open") return "Open";
+  return normalized || "Pending";
 };
 
 const normalizePaymentStatus = (value: string | null | undefined): PaymentStatus => {
@@ -369,7 +375,7 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
     status === "Resolved" ? "Resolved" :
     status === "Rejected" ? "Rejected" :
     status === "Dispute Open" ? "Dispute - Open" :
-    "Under Review";
+    "In Review";
 
   return {
     id: row.dispute?.dispute_code || `DIS-${suffix}`,
@@ -393,7 +399,7 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
         tone: "warning",
       },
       {
-        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "Under Review",
+        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "In Review",
         by: "Support Team",
         at: `${createdAt} 14:20`,
         tone: status === "Resolved" ? "resolved" : status === "Rejected" ? "warning" : "review",
@@ -414,7 +420,7 @@ const mapClientDisputeDetails = (
   const detailStatus =
     status === "Resolved" ? "Resolved" :
     status === "Rejected" ? "Rejected" :
-    status === "In Review" ? "Under Review" :
+    status === "In Review" ? "In Review" :
     "Dispute - Open";
   const timeline = (dispute.timeline || []).map((event) => ({
     id: event.id,
@@ -793,7 +799,7 @@ export default function AffiliateTransactionsHistory({
                     ) : null}
                   </div>
                   <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[displayStatus]}`}>
-                    {displayStatus}
+                    {formatStatusLabel(displayStatus)}
                   </span>
                 </div>
               </button>
@@ -838,7 +844,7 @@ export default function AffiliateTransactionsHistory({
                     ) : null}
                   </div>
                   <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[disputeStatus]}`}>
-                    {disputeStatus}
+                    {formatStatusLabel(disputeStatus)}
                   </span>
                 </button>
               );
@@ -1028,7 +1034,7 @@ export default function AffiliateTransactionsHistory({
                     </td>
                     <td className="px-4 py-5">
                       <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-2 text-sm font-medium ${statusStyles[row.status]}`}>
-                        {row.status}
+                        {formatStatusLabel(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-5 text-right">
@@ -1156,7 +1162,7 @@ export default function AffiliateTransactionsHistory({
                     </div>
                   </div>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
-                    {row.status}
+                    {formatStatusLabel(row.status)}
                   </span>
                 </div>
 

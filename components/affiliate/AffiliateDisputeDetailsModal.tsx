@@ -112,6 +112,9 @@ const isResolutionProof = (
   file: { attachmentType?: string | null }
 ) => file.attachmentType === "refund_proof" || file.attachmentType === "payout_proof";
 
+const formatStatusLabel = (status: string) =>
+  status === "Dispute - Open" ? "Open" : status;
+
 function DetailCard({
   icon,
   label,
@@ -232,15 +235,15 @@ export default function AffiliateDisputeDetailsModal({
               {dispute.id.replace(/^DIS-/, "Dispute ID - ")}
             </p>
             <span className={`inline-flex rounded-full border px-3 py-1 text-sm ${
-              dispute.status === "Resolved"
+              formatStatusLabel(dispute.status) === "Resolved"
                 ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
-                : dispute.status === "Rejected"
+                : formatStatusLabel(dispute.status) === "Rejected"
                   ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
-                : dispute.status === "In Review"
+                : formatStatusLabel(dispute.status) === "In Review"
                   ? "border-[#3B82F6]/20 bg-[#3B82F6]/10 text-[#3B82F6]"
-                  : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
+                  : "border-[#F59E0B]/20 bg-[#F59E0B]/10 text-[#F59E0B]"
             }`}>
-              {dispute.status}
+              {formatStatusLabel(dispute.status)}
             </span>
           </div>
 
@@ -275,15 +278,15 @@ export default function AffiliateDisputeDetailsModal({
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${
-                        item.status === "Resolved"
+                        formatStatusLabel(item.status) === "Resolved"
                           ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
-                          : item.status === "Rejected"
+                          : formatStatusLabel(item.status) === "Rejected"
                             ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
-                            : item.status === "In Review"
+                            : formatStatusLabel(item.status) === "In Review"
                               ? "border-[#3B82F6]/20 bg-[#3B82F6]/10 text-[#3B82F6]" 
-                              : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
+                              : "border-[#F59E0B]/20 bg-[#F59E0B]/10 text-[#F59E0B]"
                       }`}>
-                        {item.status}
+                        {formatStatusLabel(item.status)}
                       </span>
                     </button>
                   );
