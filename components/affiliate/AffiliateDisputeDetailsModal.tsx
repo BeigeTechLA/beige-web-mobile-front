@@ -46,7 +46,7 @@ export type AffiliateDisputeDetailsRecord = {
   raisedBy: string;
   raisedRole: string;
   createdAt: string;
-  status: "Dispute - Open" | "Under Review" | "Resolved" | "Rejected";
+  status: "Dispute - Open" | "In Review" | "Resolved" | "Rejected";
   issueType: string;
   description: string;
   timeline: AffiliateDisputeTimelineEvent[];
@@ -141,6 +141,8 @@ function DetailCard({
       ? "text-white"
       : "text-black";
 
+
+
   return (
     <div className={`rounded-lg border p-3 ${finalContainerClass}`}>
       <div className={`mb-1 flex items-center gap-2 text-sm ${isDark ? "text-[#A0A0A0]" : "text-black/45"}`}>
@@ -153,6 +155,25 @@ function DetailCard({
   );
 }
 
+    const titleize = (value: string | null | undefined) =>
+    String(value || "")
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+
+    const formatIssueType = (value: string | null | undefined) => {
+    const normalized = String(value || "").toLowerCase();
+    const labels: Record<string, string> = {
+      payment_mismatch: "Payment Mismatch",
+      missing_commission: "Missing Commission",
+      wrong_amount: "Incorrect Amount",
+      duplicate_charge: "Duplicate Charge",
+      payout_delayed: "Payout Delayed",
+      other: "Other",
+    };
+    return labels[normalized] || titleize(value);
+  };
+  
 export default function AffiliateDisputeDetailsModal({
   isOpen,
   onClose,
@@ -215,8 +236,8 @@ export default function AffiliateDisputeDetailsModal({
                 ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
                 : dispute.status === "Rejected"
                   ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
-                : dispute.status === "Under Review"
-                  ? "border-[#2A4C7A] bg-[#17263D] text-[#4F93FF]"
+                : dispute.status === "In Review"
+                  ? "border-[#3B82F6]/20 bg-[#3B82F6]/10 text-[#3B82F6]"
                   : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
             }`}>
               {dispute.status}
@@ -250,7 +271,7 @@ export default function AffiliateDisputeDetailsModal({
                       <div className="min-w-0">
                         <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{item.label}</p>
                         <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {item.issueType} · {item.createdAt}
+                            {formatIssueType(item.issueType)} · {item.createdAt}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${
@@ -258,8 +279,8 @@ export default function AffiliateDisputeDetailsModal({
                           ? "border-[#1F5B49] bg-[#10352A] text-[#22C55E]"
                           : item.status === "Rejected"
                             ? "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
-                            : item.status === "Under Review"
-                              ? "border-[#2A4C7A] bg-[#17263D] text-[#4F93FF]"
+                            : item.status === "In Review"
+                              ? "border-[#3B82F6]/20 bg-[#3B82F6]/10 text-[#3B82F6]" 
                               : "border-[#8F2525] bg-[#2A1717] text-[#E26E67]"
                       }`}>
                         {item.status}
@@ -355,7 +376,7 @@ export default function AffiliateDisputeDetailsModal({
             <div>
               <p className={`mb-3.5 text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Issue Type</p>
               <div className={`h-14 rounded-lg px-4 py-3.5 text-base ${isDark ? "bg-[#1F1F1F] text-white" : "bg-[#F3F4F6] text-black/90"}`}>
-                {dispute.issueType}
+                {formatIssueType(dispute.issueType)}
               </div>
             </div>
 
