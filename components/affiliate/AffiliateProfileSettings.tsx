@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { updateUser } from "@/lib/redux/features/auth/authSlice";
+import { useAppDispatch } from "@/lib/redux/hooks";
 
-import { useChangePasswordClientMutation } from "@/lib/redux/features/auth/authApi";
+import { useChangePasswordClientMutation, useGetCurrentUserQuery } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import Cookies from "js-cookie";
@@ -16,6 +18,7 @@ import { affiliateApi } from "@/lib/api";
 export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }) => {
   const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
   const { user } = useAuth();
+  const dispatch = useAppDispatch();
   const [clientId, setClientId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -23,6 +26,16 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { data: currentUserData } = useGetCurrentUserQuery(undefined, {
+    skip: !user,
+  });
+  const hasPassword = (currentUserData?.has_password ?? user?.has_password) !== false;
+
+  useEffect(() => {
+    if (currentUserData?.has_password !== undefined) {
+      dispatch(updateUser({ has_password: currentUserData.has_password }));
+    }
+  }, [currentUserData?.has_password, dispatch]);
 
   useEffect(() => {
     const loadAffiliateClientId = async () => {
@@ -53,6 +66,11 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       return;
     }
 
+    if (hasPassword && !currentPassword) {
+      toast.error("Current password is required");
+      return;
+    }
+
     try {
       const userData = localStorage.getItem("revure_user");
       const parsedUser = userData ? JSON.parse(userData) : null;
@@ -64,12 +82,13 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       }
 
       const response = await changePasswordClient({
-        currentPassword: currentPassword,
+        currentPassword: hasPassword ? currentPassword : undefined,
         newPassword: newPassword,
         user_id: userId
       }).unwrap();
 
       toast.success(response.message || "Password changed successfully");
+      dispatch(updateUser({ has_password: true }));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -118,14 +137,14 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
               </span>
             </div>
           </div> */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <p className={`text-xs font-bold uppercase tracking-widest mb-1 transition-colors ${
               isDark ? "text-white/40" : "text-zinc-400"
             }`}>User ID</p>
             <p className={`font-mono lg:text-lg tracking-wider transition-colors ${
               isDark ? "text-white/50" : "text-zinc-500"
             }`}>#{clientId || user?.id}</p>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -136,38 +155,45 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
         <h2 className={`lg:text-xl font-bold tracking-tight mb-4 lg:mb-8 transition-colors ${
           isDark ? "text-white" : "text-[#171717]"
         }`}>
-          Security Settings
+          {hasPassword ? "Security Settings" : "Set Password"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-8 max-w-2xl">
           <div className="space-y-4 lg:space-y-6">
-            <div className="space-y-3">
-              <Label className={`text-sm font-medium transition-colors ${
-                isDark ? "text-white/60" : "text-zinc-500"
-              }`}>Current Password</Label>
-              <div className="relative">
-                <Input
-                  type={showCurrentPassword ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
-                    isDark 
-                      ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
-                      : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
-                  }`}
-                  placeholder="Enter current password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${
-                    isDark ? "text-white/40 hover:text-white" : "text-zinc-400 hover:text-black"
-                  }`}
-                >
-                  {showCurrentPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                </button>
+            {!hasPassword && (
+              <p className={`text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                Your account was created with Google. Set a password here to use email and password login too.
+              </p>
+            )}
+            {hasPassword && (
+              <div className="space-y-3">
+                <Label className={`text-sm font-medium transition-colors ${
+                  isDark ? "text-white/60" : "text-zinc-500"
+                }`}>Current Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className={`pr-12 h-10 lg:h-14 lg:text-lg rounded-lg lg:rounded-xl transition-all ${
+                      isDark 
+                        ? "bg-[#1A1A1A] border-white/10 text-white focus:border-[#E8D1AB]/50" 
+                        : "bg-[#F9F9F9] border-zinc-200 text-black focus:border-[#E8D1AB]"
+                    }`}
+                    placeholder="Enter current password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${
+                      isDark ? "text-white/40 hover:text-white" : "text-zinc-400 hover:text-black"
+                    }`}
+                  >
+                    {showCurrentPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-3">
               <Label className={`text-sm font-medium transition-colors ${
@@ -236,7 +262,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
               disabled={isLoading}
               className="h-10 lg:h-14 lg:h-[72px] bg-[#E8D1AB] text-black font-medium lg:text-lg rounded-lg lg:rounded-xl flex-1 min-w-[140px] lg:min-w-[240px]"
             >
-              {isLoading ? "Updating Password..." : "Update Password"}
+              {isLoading ? (hasPassword ? "Updating Password..." : "Setting Password...") : (hasPassword ? "Update Password" : "Set Password")}
             </Button>
           </div>
         </form>

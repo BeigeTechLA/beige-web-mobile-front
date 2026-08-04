@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { pushToDataLayer } from "@/lib/gtm"
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 
 const userSignupSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -30,10 +31,23 @@ const userSignupSchema = z.object({
 
 type UserSignupFormValues = z.infer<typeof userSignupSchema>
 
+type AuthError = {
+  data?: {
+    message?: string
+  }
+  message?: string
+}
+
+const getAuthErrorMessage = (error: unknown, fallback: string) => {
+  const authError = error as AuthError
+  return authError?.data?.message || authError?.message || fallback
+}
+
 export function UserSignupForm() {
   const [showPassword, setShowPassword] = React.useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
-  const { register: registerUser, isRegisterLoading } = useAuth()
+  const { register: registerUser, googleLogin, isRegisterLoading, isGoogleLoginLoading } = useAuth()
+  const isGoogleConfigured = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnTo = React.useMemo(() => {
@@ -83,8 +97,6 @@ export function UserSignupForm() {
       }));
 
       // --- GA4 SIGNUP TRACKING ---
-      const userTypeName = "Client";
-
       // pushToDataLayer("sign_up_completed_user", {
       //   custom_user_id: result?.userId || null,
       //   email: data.email, // using form data
@@ -110,10 +122,54 @@ export function UserSignupForm() {
       if (returnTo) verifyParams.set("returnTo", returnTo)
       if (bookingEmail) verifyParams.set("bookingEmail", bookingEmail)
       router.push(`/verify-email?${verifyParams.toString()}`)
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
-      toast.error(errorMessage)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error, "Registration failed. Please try again."))
     }
+  }
+
+  const handleGoogleSignupSuccess = async (credentialResponse: CredentialResponse) => {
+    try {
+      if (!credentialResponse.credential) {
+        toast.error("Google did not return a valid credential.")
+        return
+      }
+
+      const phone = form.getValues("phone").trim()
+
+      const result = await googleLogin({
+        credential: credentialResponse.credential,
+        mode: "signup",
+        phone_number: phone || undefined,
+      })
+
+      toast.success(result.message || "Google signup successful")
+
+      const user = result.user
+      const signedUpEmail = String(user?.email || "").trim().toLowerCase()
+
+      pushToDataLayer("sign_up", {
+        method: "google",
+        user_id: user?.id || null,
+        user_type: "Client",
+        page_name: "User Signup Page",
+        location_in_website: "signup_user_page",
+        duration_on_page: performance.now() / 1000,
+        email: user?.email || null,
+      })
+
+      if (returnTo && (!bookingEmail || bookingEmail === signedUpEmail)) {
+        router.replace(returnTo)
+        return
+      }
+
+      router.push("/affiliate/dashboard")
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error, "Google signup failed. Please try again."))
+    }
+  }
+
+  const handleGoogleSignupError = () => {
+    toast.error("Google signup was cancelled or failed.")
   }
 
   return (
@@ -245,10 +301,30 @@ export function UserSignupForm() {
         <Button
           type="submit"
           className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-1"
-          disabled={isRegisterLoading}
+          disabled={isRegisterLoading || isGoogleLoginLoading}
         >
           {isRegisterLoading ? "Creating Account..." : "Create Account"}
         </Button>
+
+        {isGoogleConfigured && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-xs text-white/45">
+              <span className="h-px flex-1 bg-white/15" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-white/15" />
+            </div>
+            <GoogleLogin
+              onSuccess={handleGoogleSignupSuccess}
+              onError={handleGoogleSignupError}
+              text="signup_with"
+              width="100%"
+              useOneTap={false}
+            />
+            {isGoogleLoginLoading && (
+              <p className="text-center text-xs text-white/50">Creating your Google account...</p>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-center mt-6 text-[#DDD] font-bold gap-2 text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">

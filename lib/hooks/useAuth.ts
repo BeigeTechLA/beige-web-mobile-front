@@ -9,6 +9,7 @@ import { salesApi } from '../redux/features/sales/salesApi';
 import { persistor } from '../redux/store';
 import {
   useLoginMutation,
+  useGoogleClientAuthMutation,
   useRegisterMutation,
   useQuickRegisterMutation,
   useSendOTPMutation,
@@ -23,6 +24,7 @@ import {
 } from '../redux/features/auth/authApi';
 import type { 
   LoginCredentials, 
+  GoogleClientAuthData,
   RegisterData, 
   QuickRegisterData,
   VerifyEmailData,
@@ -35,6 +37,7 @@ export const useAuth = () => {
   const { user, token, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [loginMutation, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
+  const [googleClientAuthMutation, { isLoading: isGoogleLoginLoading }] = useGoogleClientAuthMutation();
   const [registerMutation, { isLoading: isRegisterLoading, error: registerError }] = useRegisterMutation();
   const [quickRegisterMutation, { isLoading: isQuickRegisterLoading }] = useQuickRegisterMutation();
   const [sendOTPMutation, { isLoading: isSendOTPLoading }] = useSendOTPMutation();
@@ -81,60 +84,36 @@ export const useAuth = () => {
     return result;
   }, [loginMutation, dispatch]);
 
-  const googleLogin = useCallback(async (googleToken: string) => {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_ENDPOINT}/auth/google`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        token: googleToken,
-      }),
-    }
-  );
+  const googleLogin = useCallback(async (data: GoogleClientAuthData) => {
+    const result = await googleClientAuthMutation(data).unwrap();
 
-  const result = await response.json();
+    if (result.token && result.user) {
+      const user = {
+        ...result.user,
+        permissions_version: result.permissions_version ?? result.user.permissions_version,
+      };
 
-  if (!response.ok) {
-    throw result;
-  }
+      Cookies.set('revure_token', result.token, { expires: 7 });
 
-  if (result.token && result.user) {
-    const user = {
-      ...result.user,
-      permissions_version:
-        result.permissions_version ?? result.user.permissions_version,
-    };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('revure_user', JSON.stringify(user));
+      }
 
-    Cookies.set("revure_token", result.token, { expires: 7 });
+      dispatch(authApi.util.resetApiState());
+      dispatch(salesApi.util.resetApiState());
+      dispatch(setCredentials({ user, token: result.token }));
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("revure_user", JSON.stringify(user));
+      try {
+        await fetchAndCommitUserPermissions(dispatch, user.id, {
+          broadcast: false,
+        });
+      } catch (error) {
+        console.error("Failed to fetch permissions during Google auth:", error);
+      }
     }
 
-    dispatch(authApi.util.resetApiState());
-    dispatch(salesApi.util.resetApiState());
-
-    dispatch(
-      setCredentials({
-        user,
-        token: result.token,
-      })
-    );
-
-    try {
-      await fetchAndCommitUserPermissions(dispatch, user.id, {
-        broadcast: false,
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  return result;
-}, [dispatch]);
+    return result;
+  }, [googleClientAuthMutation, dispatch]);
 
   const register = useCallback(async (data: RegisterData) => {
     const result = await registerMutation(data).unwrap();
@@ -230,8 +209,9 @@ export const useAuth = () => {
     user,
     token,
     isAuthenticated,
-    isLoading: isLoading || isLoginLoading || isRegisterLoading || isQuickRegisterLoading,
+    isLoading: isLoading || isLoginLoading || isGoogleLoginLoading || isRegisterLoading || isQuickRegisterLoading,
     isLoginLoading,
+    isGoogleLoginLoading,
     isRegisterLoading,
     isSendOTPLoading,
     isResendOTPLoading,

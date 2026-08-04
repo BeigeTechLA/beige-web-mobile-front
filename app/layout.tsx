@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
 import { PermissionsVersionWatcher } from "@/components/common/PermissionsVersionWatcher";
 import { ThemeProvider } from "@/components/theme-provider";
-import {GoogleOAuthProvider } from "@react-oauth/google";
+import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
 
 import "./globals.css";
 import Script from "next/script";
@@ -132,9 +132,7 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-        <GoogleOAuthProvider
-          clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}
-        >
+        <GoogleAuthProvider>
           <ReduxProvider>
           <ThemeProvider
             attribute="class"
@@ -147,7 +145,7 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
         </ReduxProvider>
-      </GoogleOAuthProvider>
+      </GoogleAuthProvider>
       </body>
     </html>
   );

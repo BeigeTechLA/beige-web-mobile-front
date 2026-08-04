@@ -28,6 +28,7 @@ export interface User {
   };
   user_type_id?: number;
   permissions_version?: number | string;
+  has_password?: boolean;
 }
 
 export interface AuthTokens {
@@ -45,6 +46,12 @@ export interface LoginResponse {
   token: string;
   user: User;
   permissions_version?: number | string;
+}
+
+export interface GoogleClientAuthData {
+  credential: string;
+  mode?: 'login' | 'signup';
+  phone_number?: string;
 }
 
 export interface RegisterData {
