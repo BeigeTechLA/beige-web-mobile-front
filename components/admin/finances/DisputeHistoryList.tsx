@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
 
 export type DisputeStatus = "Open" | "In Review" | "Resolved" | "Rejected" | "Escalated";
 
@@ -73,6 +74,37 @@ const buildPaginationItems = (
   }
 
   return range.filter((val, index, arr) => val !== "..." || arr[index - 1] !== "...");
+};
+
+const TruncatedDescription = ({ text, isDark }: { text: string; isDark: boolean }) => {
+  const [isTruncated, setIsTruncated] = React.useState(false);
+  const textRef = React.useRef<HTMLParagraphElement>(null);
+
+  React.useEffect(() => {
+    const element = textRef.current;
+    if (element) {
+      setIsTruncated(element.scrollHeight > element.clientHeight);
+    }
+  }, [text]);
+
+  const content = (
+    <p ref={textRef} className={`text-sm lg:text-base line-clamp-2 ${isDark ? "text-white" : "text-[#171717]"}`}>
+      {text}
+    </p>
+  );
+
+  if (!isTruncated) return content;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className={`max-w-[450px] p-4 text-sm shadow-2xl border rounded-lg ${isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200 text-black"}`}>
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 export default function DisputeHistoryList({
@@ -218,9 +250,7 @@ export default function DisputeHistoryList({
                     <span>{item.category}</span>
                   </div>
 
-                  <p className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>
-                    {item.description}
-                  </p>
+                 <TruncatedDescription text={item.description} isDark={isDark} />
                 </div>
 
                 <hr className={`lg:hidden border-t my-0 ${isDark ? "border-[#262626]" : "border-[#000000]/30"}`} />

@@ -155,7 +155,7 @@ const buildResolutionSummary = (
   const isCreditResolution = resolutionType === "credit_compensation";
   const details = [
     { label: "Status", value: status },
-    { label: status === "Rejected" ? "Reason" : "Resolution Type", value: status === "Rejected" ? metadataValue("rejection_reason") : formatResolutionType(resolutionType) },
+    { label: status === "Rejected" ? "Reason" : "Resolution Type", value: status === "Rejected" ? titleize(metadataValue("rejection_reason")) : formatResolutionType(resolutionType) },
     { label: "Amount", value: metadataValue("resolution_amount") || metadataValue("credit_amount") || metadataValue("refund_amount") },
     { label: "Payment Method", value: metadataValue("payment_method") },
     { label: "Transaction ID", value: metadataValue("transaction_id") },

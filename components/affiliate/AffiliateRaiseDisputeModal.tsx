@@ -47,6 +47,7 @@ type AffiliateRaiseDisputeModalProps = {
   isOpen: boolean;
   onClose: () => void;
   initialShootId?: string | null;
+  initialShootName?: string | null;
   onSubmitted?: () => void;
 };
 
@@ -88,6 +89,7 @@ export default function AffiliateRaiseDisputeModal({
   isOpen,
   onClose,
   initialShootId,
+  initialShootName,
   onSubmitted,
 }: AffiliateRaiseDisputeModalProps) {
   const { isDark } = useResolvedTheme();
@@ -102,13 +104,20 @@ export default function AffiliateRaiseDisputeModal({
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [successDetails, setSuccessDetails] = useState<AffiliateDisputeSuccessDetails | null>(null);
   const previewUrlsRef = useRef<Set<string>>(new Set());
+  const lockedShootId = normalizeShootId(initialShootId);
+  const isLocked = Boolean(lockedShootId);
+  const resolvedShootId = lockedShootId || form.shootId;
+  const lockedShootDisplayLabel = useMemo(() => {
+    if (!isLocked) return "";
+    const suffix = String(initialShootName || "").trim();
+    return suffix ? `${formatShootLabel(lockedShootId)} - ${suffix}` : formatShootLabel(lockedShootId);
+  }, [initialShootName, isLocked, lockedShootId]);
 
   useEffect(() => {
     if (isOpen) {
-      const initialBookingId = normalizeShootId(initialShootId);
       setForm((current) => ({
         ...DEFAULT_FORM_STATE,
-        shootId: initialBookingId || current.shootId,
+        shootId: lockedShootId || current.shootId,
       }));
       setSubmitError(null);
       return;
@@ -128,13 +137,13 @@ export default function AffiliateRaiseDisputeModal({
       return [];
     });
     setIsDragging(false);
-  }, [isOpen, initialShootId]);
+  }, [isOpen, lockedShootId]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     let isCancelled = false;
-    const initialBookingId = normalizeShootId(initialShootId);
+    const initialBookingId = lockedShootId;
 
     const fetchShootOptions = async () => {
       setIsLoadingShoots(true);
@@ -164,7 +173,7 @@ export default function AffiliateRaiseDisputeModal({
         setShootOptions(options);
         setForm((current) => ({
           ...current,
-          shootId: current.shootId || options[0]?.bookingId || "",
+          shootId: initialBookingId || current.shootId || options[0]?.bookingId || "",
         }));
       } catch (error) {
         console.error("Failed to fetch dispute shoot options:", error);
@@ -191,7 +200,7 @@ export default function AffiliateRaiseDisputeModal({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, initialShootId]);
+  }, [isOpen, lockedShootId]);
 
   useEffect(() => {
     const previewUrls = previewUrlsRef.current;
@@ -241,13 +250,17 @@ export default function AffiliateRaiseDisputeModal({
   };
 
   const selectedShoot = useMemo(
-    () => shootOptions.find((option) => option.bookingId === form.shootId),
-    [form.shootId, shootOptions]
+    () => shootOptions.find((option) => option.bookingId === resolvedShootId),
+    [resolvedShootId, shootOptions]
+  );
+  const lockedShootOption = useMemo(
+    () => (isLocked ? shootOptions.find((option) => option.bookingId === lockedShootId) || null : null),
+    [isLocked, lockedShootId, shootOptions]
   );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!form.shootId || !form.disputeType) {
+    if (!resolvedShootId || !form.disputeType) {
       setSubmitError("Please select a shoot and dispute type.");
       return;
     }
@@ -257,7 +270,7 @@ export default function AffiliateRaiseDisputeModal({
 
     try {
       const payload = new FormData();
-      payload.append("booking_id", form.shootId);
+      payload.append("booking_id", resolvedShootId);
       payload.append("category", DISPUTE_CATEGORY_BY_TYPE[form.disputeType] || "other");
       payload.append("subject", form.disputeType);
       payload.append("description", form.description.trim());
@@ -268,7 +281,7 @@ export default function AffiliateRaiseDisputeModal({
 
       setSuccessDetails({
         disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
-        bookingId: formatShootLabel(dispute.booking_id || form.shootId),
+        bookingId: formatShootLabel(dispute.booking_id || resolvedShootId),
         status: "Dispute Open",
       });
       setIsSuccessOpen(true);
@@ -338,11 +351,13 @@ export default function AffiliateRaiseDisputeModal({
                   <Select
                     value={form.shootId}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, shootId: value }))}
-                    disabled={isLoadingShoots || isSubmitting}
+                    disabled={isLocked || isLoadingShoots || isSubmitting}
                   >
-                    <SelectTrigger className={`h-auto min-h-[42px] border-0 bg-transparent px-0 py-1 shadow-none focus:ring-0 [&>span]:line-clamp-none ${isDark ? "text-white" : "text-black"}`}>
-                      <span className="min-w-0 flex-1 truncate text-left text-sm">
-                        {selectedShoot?.displayLabel || (isLoadingShoots ? "Loading shoots..." : "Select a shoot")}
+                    <SelectTrigger className={`h-auto min-h-[52px] items-start border-0 bg-transparent px-0 py-2 shadow-none focus:ring-0 [&>span]:line-clamp-none ${isDark ? "text-white" : "text-black"}${isLocked ? "cursor-not-allowed opacity-70" : ""}`}>
+                      <span className="block min-w-0 flex-1 text-left text-sm leading-tight whitespace-normal">
+                        {isLocked
+                          ? (lockedShootOption?.displayLabel || lockedShootDisplayLabel || formatShootLabel(lockedShootId))
+                          : (selectedShoot?.displayLabel || (isLoadingShoots ? "Loading shoots..." : "Select a shoot"))}
                       </span>
                     </SelectTrigger>
                     <SelectContent
@@ -496,7 +511,7 @@ export default function AffiliateRaiseDisputeModal({
               <div className="p-[18px] pt-0">
                 <Button
                   type="submit"
-                  disabled={isLoadingShoots || isSubmitting || !form.shootId || !form.disputeType}
+                  disabled={isLoadingShoots || isSubmitting || !resolvedShootId || !form.disputeType}
                   className="h-12 w-full rounded-lg bg-[#E8D1AB] text-black hover:bg-[#d9c08a]"
                 >
                   <Plus size={16} className="mr-2" />
