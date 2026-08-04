@@ -1,72 +1,53 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { ProjectSwitcher } from "@/app/creatives/components/ProjectSwitcher";
 import { Loader, Minus, Plus, Rss } from "lucide-react";
+import { getAllPosts, parseWordPressContent } from "@/app/press-blogs/lib/posts";
+import { BlogPost } from "@/app/press-blogs/lib/types";
 
-const DUMMY_CATS = ["Trends & Inspo", "Tips & Tutorial", "Industry Insights", "Beige Updates"];
-
-interface BlogItem {
-  id: number;
-  title: string;
-  category: string;
-  desc: string;
-  imgSrc: string;
-  date: string;
-  icon: string;
-}
-
-const MOCK_BLOGS: BlogItem[] = [
-  {
-    id: 1,
-    title: "Why Your Restaurant Video Ads Not Working?",
-    category: "Tips & Tutorial",
-    desc: `"Raising funds can be one of the most overwhelming parts of building a startup — but this firm made it collaborative, transparent, and even inspiring. Their due diligence was tough but fair, and they helped us refine both our business model and pitch. It's rare to find investors who truly care about founder success. We found that here."`,
-    imgSrc: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png", // Replace with actual image path
-    date: "09 / 2022",
-    icon: "✨",
-  },
-  {
-    id: 2,
-    title: "7 Restaurant Video Advertising Ideas That Will Drive Customers",
-    category: "Tips & Tutorial",
-    desc: `"Raising funds can be one of the most overwhelming parts of building a startup — but this firm made it collaborative, transparent, and even inspiring. Their due diligence was tough but fair, and they helped us refine both our business model and pitch."`,
-    imgSrc: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png",
-    date: "10 / 2022",
-    icon: "📷",
-  },
-  {
-    id: 3,
-    title: "7 Restaurant Video Advertising Ideas That Will Drive Customers",
-    category: "Tips & Tutorial",
-    desc: `"Raising funds can be one of the most overwhelming parts of building a startup — but this firm made it collaborative, transparent, and even inspiring. Their due diligence was tough but fair, and they helped us refine both our business model and pitch."`,
-    imgSrc: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png",
-    date: "11 / 2022",
-    icon: "🎬",
-  },
-  {
-    id: 4,
-    title: "7 Restaurant Video Advertising Ideas That Will Drive Customers",
-    category: "Tips & Tutorial",
-    desc: `"Raising funds can be one of the most overwhelming parts of building a startup — but this firm made it collaborative, transparent, and even inspiring. Their due diligence was tough but fair, and they helped us refine both our business model and pitch."`,
-    imgSrc: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png",
-    date: "12 / 2022",
-    icon: "⚙️",
-  },
+const BLOG_CATEGORIES = [
+  "Trends and Inspos",
+  "Tips and Tutorials",
+  "Industry Insights",
+  "Beige Updates",
 ];
+
+// Helper function to extract a clean text description from HTML content
+const extractPlainText = (htmlContent: string, maxLength = 220): string => {
+  if (!htmlContent) return "";
+  const plainText = htmlContent.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return plainText.length > maxLength
+    ? `${plainText.substring(0, maxLength)}...`
+    : plainText;
+};
+
+// Helper function to extract the first image URL from content if thumbnail is missing
+const extractFirstImage = (htmlContent: string): string => {
+  if (!htmlContent) return "/images/misc/placeholder.png";
+  const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : "/images/misc/placeholder.png";
+};
 
 export const Blogs = () => {
   const router = useRouter();
-  const [activeProject, setActiveProject] = useState<string>("Tips & Tutorial");
+  const [activeProject, setActiveProject] = useState<string>("Tips and Tutorials");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
-  const tabCategories = DUMMY_CATS
-  // Filter blogs based on active category switcher
-  const filteredBlogs = MOCK_BLOGS.filter((blog) => blog.category === activeProject);
+  // Fetch all post data
+  const posts: BlogPost[] = getAllPosts();
+  console.log(posts);
+
+  // 1. Filter posts based on active category
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      const categoryName = post.category?.["#text"] || post.category;
+      return categoryName === activeProject;
+    });
+  }, [posts, activeProject]);
 
   const toggleAccordion = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index);
@@ -94,131 +75,157 @@ export const Blogs = () => {
 
         {/* Category Switcher */}
         <ProjectSwitcher
-          projects={tabCategories}
+          projects={BLOG_CATEGORIES}
           active={activeProject}
           onChange={(tab) => {
             setActiveProject(tab);
-            setExpandedIndex(0); // Reset or auto-open first item of new tab
+            setExpandedIndex(0); // Auto-open first item of newly selected tab
           }}
           className="mx-auto mb-10"
         />
 
         {/* Accordion Blog List */}
-        <div className="w-full max-w-6xl mx-auto flex flex-col">
-          {filteredBlogs.map((blog, index) => {
-            const isExpanded = expandedIndex === index;
+        <div className="w-full mx-auto flex flex-col">
+          {filteredPosts.length === 0 ? (
+            <div className="text-center py-12 text-white/60">
+              No articles found for "{activeProject}".
+            </div>
+          ) : (
+            filteredPosts.map((post, index) => {
+              const isExpanded = expandedIndex === index;
+              const postCategory = post.category?.["#text"] || activeProject;
+              const postSlug = String(post["wp:post_name"]);
+              const postDescription = extractPlainText(post["content:encoded"]);
+              const postImage = extractFirstImage(post["content:encoded"]);
+              const postDate = new Date(post.pubDate).toLocaleDateString("en-US", {
+                month: "2-digit",
+                year: "numeric",
+              });
 
-            return (
-              <div
-                key={blog.id}
-                className="w-full transition-colors duration-300"
-              >
-                {/* Header Row (Visible when closed) */}
-                {!isExpanded && (
-                  <button
-                    onClick={() => toggleAccordion(index)}
-                    className="w-full flex items-center justify-between p-8 text-left group hover:text-[#E8D1AB] transition-colors border-b border-[#111111]/40 "
-                  >
-                    <div className="flex items-center gap-4 md:gap-6 flex-1 pr-4">
-                      <span className="bg-white text-[#111111]/40 w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
-                       <Loader />
-                      </span>
-                      <h3 className="text-sm lg:text-2xl font-medium line-clamp-1 max-w-xl">
-                        {blog.title}
-                      </h3>
-                    </div>
-
-                    <div className="flex items-center justify-between w-1/3 md:w-1/4 lg:w-1/5">
-                      <span className="text-2xl text-white hidden lg:block">
-                        {blog.category}
-                      </span>
-                      <span className="text-white group-hover:text-[#E8D1AB]">
-                        <Plus size={16} />
-                      </span>
-                    </div>
-                  </button>
-                )}
-
-                {/* Expanded Card Layout */}
-                <AnimatePresence initial={false}>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.4, ease: "easeInOut" }}
-                      className="overflow-hidden"
+              return (
+                <div
+                  key={String(post["wp:post_id"] || index)}
+                  className="w-full transition-colors duration-300"
+                >
+                  {/* Collapsed View: Title and Category Visible */}
+                  {!isExpanded && (
+                    <button
+                      onClick={() => toggleAccordion(index)}
+                      className="w-full flex items-center justify-between p-8 text-left group hover:text-[#E8D1AB] transition-colors border-b border-[#111111]/40"
                     >
-                      <div className="bg-[#E8D1AB] text-black rounded-2xl p-3 md:p-7 relative flex flex-col md:flex-row justify-between gap-4 lg:gap-8 items-stretch">
-                        {/* Left Column: Details */}
-                        <div className="flex-1 flex flex-col justify-between max-w-xl lg:w-2/5 relative">
-                          <div className="w-full flex justify-between items-start">
-                            <div className="flex items-start gap-4 mb-6">
-                              <span className="bg-black text-white w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
-                                <Rss size={18} />
-                              </span>
-                              <h3 className="text-sm md:text-2xl font-medium capitalize">
-                                {blog.title}
-                              </h3>
-                            </div>
-                            <button
-                              onClick={() => toggleAccordion(index)}
-                              className="lg:hidden text-xl font-light text-[#111111] hover:text-black z-20"
-                            >
-                              <Minus />
-                            </button>
-                          </div>
-                          <p className="text-xs md:text-lg text-[#111111] ">
-                            {blog.desc}
-                          </p>
-                        </div>
-
-                        {/* Right Column: Asset Preview */}
-                        <div className="flex flex-col lg:w-3/5 shrink-0 gap-7">
-                          <div className="hidden lg:flex justify-between w-full">
-                            <span className="text-2xl text-[#111111]">
-                              {blog.category}
-                            </span>
-                            <button
-                              onClick={() => toggleAccordion(index)}
-                              className="text-[#111111] hover:text-black z-20"
-                            >
-                              <Minus size={16} />
-                            </button>
-                          </div>
-
-                          <div className="flex-1 flex gap-2 ">
-                            <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden">
-                              <Image
-                                src={blog.imgSrc}
-                                alt={blog.title}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                            <div className="flex items-end justify-between w-full">
-                              <span className="text-xs lg:text-sm text-[#111111]">
-                                {blog.date}
-                              </span>
-
-                              {/* Giant stylized static quotes matching layout preview */}
-                              <Image
-                                src={"/images/misc/blackQuotes.svg"}
-                                alt={"Black Quotes"}
-                                width={80}
-                                height={64}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
+                      <div className="flex items-center gap-4 md:gap-6 flex-1 pr-4">
+                        <span className="bg-white text-[#111111]/40 w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
+                          <Loader className="w-4 h-4" />
+                        </span>
+                        <h3 className="text-sm lg:text-2xl font-medium line-clamp-1 max-w-xl">
+                          {post.title}
+                        </h3>
                       </div>
-                    </motion.div>
+
+                      <div className="flex items-center justify-between w-1/3 md:w-1/4 lg:w-1/5">
+                        <span className="text-2xl text-white hidden lg:block">
+                          {postCategory}
+                        </span>
+                        <span className="text-white group-hover:text-[#E8D1AB]">
+                          <Plus size={16} />
+                        </span>
+                      </div>
+                    </button>
                   )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
+
+                  {/* Expanded View: Full Post Content & Interactive Navigation */}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.4, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-[#E8D1AB] text-black rounded-2xl p-3 md:p-7 relative flex flex-col md:flex-row justify-between gap-4 lg:gap-8 items-stretch">
+                          {/* Left Column: Details */}
+                          <div className="flex-1 flex flex-col justify-between max-w-xl lg:w-2/5 relative">
+                            <div className="w-full flex justify-between items-start">
+                              <div className="flex items-start gap-4 mb-6">
+                                <span className="bg-black text-white w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
+                                  <Rss size={18} />
+                                </span>
+                                <h3
+                                  onClick={() => router.push(`/press-blogs/${postSlug}`)}
+                                  className="text-sm md:text-2xl font-medium capitalize cursor-pointer hover:underline"
+                                >
+                                  {post.title}
+                                </h3>
+                              </div>
+                              <button
+                                onClick={() => toggleAccordion(index)}
+                                className="lg:hidden text-xl font-light text-[#111111] hover:text-black z-20"
+                              >
+                                <Minus />
+                              </button>
+                            </div>
+                            <p className="text-xs md:text-lg text-[#111111] line-clamp-4">
+                              "{postDescription}"
+                            </p>
+
+                            <button
+                              onClick={() => router.push(`/press-blogs/${postSlug}`)}
+                              className="mt-4 text-xs md:text-sm font-semibold text-black underline tracking-wide w-fit hover:opacity-80 transition-opacity"
+                            >
+                              Read Full Post &rarr;
+                            </button>
+                          </div>
+
+                          {/* Right Column: Asset Preview */}
+                          <div className="flex flex-col lg:w-3/5 shrink-0 gap-7">
+                            <div className="hidden lg:flex justify-between w-full">
+                              <span className="text-2xl text-[#111111]">
+                                {postCategory}
+                              </span>
+                              <button
+                                onClick={() => toggleAccordion(index)}
+                                className="text-[#111111] hover:text-black z-20"
+                              >
+                                <Minus size={16} />
+                              </button>
+                            </div>
+
+                            <div className="flex-1 flex gap-2">
+                              <div
+                                className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden cursor-pointer"
+                                onClick={() => router.push(`/press-blogs/${postSlug}`)}
+                              >
+                                {/* Changed from <Image> to <img> */}
+                                <img
+                                  src={postImage}
+                                  alt={post.title || "Blog cover image"}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="flex items-end justify-between w-full">
+                                <span className="text-xs lg:text-sm text-[#111111]">
+                                  {postDate}
+                                </span>
+
+                                {/* Changed from <Image> to <img> */}
+                                <img
+                                  src="/images/misc/blackQuotes.svg"
+                                  alt="Black Quotes"
+                                  width="80"
+                                  height="64"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
+          )}
         </div>
       </Container>
     </section>

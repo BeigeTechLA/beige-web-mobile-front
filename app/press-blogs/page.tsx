@@ -8,8 +8,8 @@ import { PressCoverage } from "@/components/press-blogs/PressCoverage";
 import { NewsletterSubscribe } from "@/components/press-blogs/NewsletterSubscribe";
 import { Blogs } from "@/components/press-blogs/Blogs";
 
-
 export default function PressBlogPage() {
+
   return (
     <main className="bg-[#010101] min-h-screen text-white font-sans selection:bg-[#ECE1CE] selection:text-black px-5 pt-15 lg:p-0 lg:pt-20">
       <Navbar />
@@ -20,7 +20,7 @@ export default function PressBlogPage() {
       <PressCoverage />
 
       <Separator />
-<NewsletterSubscribe />
+      <NewsletterSubscribe />
 
       <Separator />
       <Blogs />
