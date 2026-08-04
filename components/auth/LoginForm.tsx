@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { pushToDataLayer } from "@/lib/gtm"
+import { GoogleLogin } from "@react-oauth/google"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -41,7 +42,7 @@ const mobileEventImgUrl = "/images/login-event-mobile-2.png"
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
-  const { login, isLoginLoading } = useAuth()
+  const { login, googleLogin, isLoginLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasShownAdminOnlyToast = React.useRef(false)
@@ -137,6 +138,28 @@ export function LoginForm() {
       toast.error(errorMessage)
     }
   }
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const result = await googleLogin(credentialResponse.credential);
+
+      toast.success(result.message);
+
+      const user = result.user;
+
+      if (user.user_type_id !== 3) {
+        toast.error("Google login is currently available only for Affiliate accounts.");
+        return;
+      }
+
+      router.push("/affiliate/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "Google login failed");
+    }
+  };
+  const handleGoogleError = () => {
+    console.log("Google Login Failed");
+  };
 
   return (
     <div className="w-full">
@@ -282,7 +305,12 @@ export function LoginForm() {
             >
               {isLoginLoading ? "Signing In..." : "Sign In"}
             </Button>
-
+            <div className="mt-4">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+            />
+            </div>
             {/* Mobile standard divider */}
             <div className="flex items-center justify-center mt-6 lg:hidden">
               <div className="h-[1px] w-12 bg-white/10 hidden sm:block"></div>

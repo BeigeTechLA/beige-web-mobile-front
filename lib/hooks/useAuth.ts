@@ -81,6 +81,61 @@ export const useAuth = () => {
     return result;
   }, [loginMutation, dispatch]);
 
+  const googleLogin = useCallback(async (googleToken: string) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_ENDPOINT}/auth/google`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: googleToken,
+      }),
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw result;
+  }
+
+  if (result.token && result.user) {
+    const user = {
+      ...result.user,
+      permissions_version:
+        result.permissions_version ?? result.user.permissions_version,
+    };
+
+    Cookies.set("revure_token", result.token, { expires: 7 });
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("revure_user", JSON.stringify(user));
+    }
+
+    dispatch(authApi.util.resetApiState());
+    dispatch(salesApi.util.resetApiState());
+
+    dispatch(
+      setCredentials({
+        user,
+        token: result.token,
+      })
+    );
+
+    try {
+      await fetchAndCommitUserPermissions(dispatch, user.id, {
+        broadcast: false,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  return result;
+}, [dispatch]);
+
   const register = useCallback(async (data: RegisterData) => {
     const result = await registerMutation(data).unwrap();
     // Backend returns { message, userId, verificationCode }
@@ -187,6 +242,7 @@ export const useAuth = () => {
     loginError,
     registerError,
     login,
+    googleLogin,
     register,
     quickRegister,
     sendOTP,
