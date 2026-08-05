@@ -8,6 +8,7 @@ import { ProjectSwitcher } from "@/app/creatives/components/ProjectSwitcher";
 import { Loader, Minus, Plus, Rss } from "lucide-react";
 import { getAllPosts, parseWordPressContent } from "@/app/press-blogs/lib/posts";
 import { BlogPost } from "@/app/press-blogs/lib/types";
+import { extractPlainText, extractFirstImage } from "@/lib/utils/blogUtils";
 
 const BLOG_CATEGORIES = [
   "Trends and Inspos",
@@ -16,38 +17,23 @@ const BLOG_CATEGORIES = [
   "Beige Updates",
 ];
 
-// Helper function to extract a clean text description from HTML content
-const extractPlainText = (htmlContent: string, maxLength = 220): string => {
-  if (!htmlContent) return "";
-  const plainText = htmlContent.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-  return plainText.length > maxLength
-    ? `${plainText.substring(0, maxLength)}...`
-    : plainText;
-};
-
-// Helper function to extract the first image URL from content if thumbnail is missing
-const extractFirstImage = (htmlContent: string): string => {
-  if (!htmlContent) return "/images/misc/placeholder.png";
-  const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : "/images/misc/placeholder.png";
-};
 
 export const Blogs = () => {
   const router = useRouter();
-  const [activeProject, setActiveProject] = useState<string>("Tips and Tutorials");
+  const [activeCategory, setActiveCategory] = useState<string>("Tips and Tutorials");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   // Fetch all post data
   const posts: BlogPost[] = getAllPosts();
   console.log(posts);
 
-  // 1. Filter posts based on active category
+  // Filter posts based on active category
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
       const categoryName = post.category?.["#text"] || post.category;
-      return categoryName === activeProject;
+      return categoryName === activeCategory;
     });
-  }, [posts, activeProject]);
+  }, [posts, activeCategory]);
 
   const toggleAccordion = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index);
@@ -76,9 +62,9 @@ export const Blogs = () => {
         {/* Category Switcher */}
         <ProjectSwitcher
           projects={BLOG_CATEGORIES}
-          active={activeProject}
+          active={activeCategory}
           onChange={(tab) => {
-            setActiveProject(tab);
+            setActiveCategory(tab);
             setExpandedIndex(0); // Auto-open first item of newly selected tab
           }}
           className="mx-auto mb-10"
@@ -88,15 +74,16 @@ export const Blogs = () => {
         <div className="w-full mx-auto flex flex-col">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-12 text-white/60">
-              No articles found for "{activeProject}".
+              No articles found for "{activeCategory}".
             </div>
           ) : (
             filteredPosts.map((post, index) => {
               const isExpanded = expandedIndex === index;
-              const postCategory = post.category?.["#text"] || activeProject;
+              const postCategory = post.category?.["#text"] || activeCategory;
               const postSlug = String(post["wp:post_name"]);
               const postDescription = extractPlainText(post["content:encoded"]);
-              const postImage = extractFirstImage(post["content:encoded"]);
+              const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));
+
               const postDate = new Date(post.pubDate).toLocaleDateString("en-US", {
                 month: "2-digit",
                 year: "numeric",

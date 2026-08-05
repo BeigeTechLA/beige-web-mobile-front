@@ -1,24 +1,44 @@
 import { notFound } from "next/navigation";
 import { getAllPosts, getPostBySlug, parseWordPressContent } from "../lib/posts";
+import { Navbar } from "@/src/components/landing/Navbar";
+import { Container } from "@/src/components/landing/ui/container";
+import { Clock, Calendar } from "lucide-react";
+import { BackButton } from "@/components/common/BackButton";
+import { calculateReadTime, extractFirstImage } from "@/lib/utils/blogUtils";
+import { CustomBlogRenderer } from "@/components/press-blogs/CustomBlogRender";
+import { Separator } from "@/src/components/landing/Separator";
+import { Footer } from "@/src/components/landing/Footer";
+import { RecommendedBlogs } from "@/components/press-blogs/RecommendedBlog";
 
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
+function generateStaticParams(category?: string) {
   const posts = getAllPosts();
+  console.log(posts)
 
-  return posts
-    .filter((post) => post["wp:post_name"] !== undefined && post["wp:post_name"] !== null)
-    .map((post) => ({
-      slug: String(post["wp:post_name"]), // Convert number or string safely
-    }));
+  const moreContent = posts.filter((post) => {
+    const categoryName = post.category?.["#text"] || post.category;
+    return categoryName === category;
+  });
+
+  return moreContent;
+
+  // return posts
+  //   .filter((post) => post["wp:post_name"] !== undefined && post["wp:post_name"] !== null)
+  //   .map((post) => ({
+  //     slug: String(post["wp:post_name"]), // Convert number or string safely
+  //   }));
 }
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params; // Next.js 15 requires awaiting params
   const post = getPostBySlug(slug);
+  const moreContent = generateStaticParams(post?.category["#text"] || "");
+
+  console.log(post);
 
   if (!post) {
     notFound();
@@ -26,23 +46,59 @@ export default async function BlogPostPage({ params }: Props) {
 
   const formattedContent = parseWordPressContent(post["content:encoded"]);
 
-  return (
-    <main className="max-w-3xl mx-auto py-12 px-4">
-      <header className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-4">{post.title}</h1>
-        <div className="flex items-center space-x-4 text-sm text-gray-500">
-          <time dateTime={post.pubDate}>
-            {new Date(post.pubDate).toLocaleDateString("en-US", {
-              dateStyle: "long",
-            })}
-          </time>
-        </div>
-      </header>
+  // console.log( formattedContent);
+  const readTime = calculateReadTime(formattedContent);
+  const blogImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BeigeLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));
 
-      <div
-        className="prose dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: formattedContent }}
-      />
+  console.log(formattedContent);
+  console.log(blogImage);
+
+  return (
+    <main className="min-h-screen text-white py-10 lg:py-20 lg:py-35 relative overflow-hidden ">
+      <Navbar />
+
+      <Container>
+        <BackButton />
+        <div className="my-10 lg:mt-30 lg:mb-15 space-y-4 lg:space-y-8">
+          <div className="flex items-center gap-4 mb-4 text-[#818181] text-sm lg:text-lg">
+            <div className="flex gap-1 items-center">
+              <Clock size={20} />
+              <span className="ml-2">{readTime}</span>
+            </div>
+            <div className="flex gap-1 items-center">
+              <Calendar size={20} />
+              <span className="ml-2">{new Date(post.pubDate).toLocaleDateString("en-US", { dateStyle: "long" })}</span>
+            </div>
+            {/* This will show the blog post author*/}
+            <div>
+              By Beige Media
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-30 items-start">
+            <h1 className="w-full lg:w-2/3 text-xl lg:text-6xl font-bold">{post.title}</h1>
+
+            <img src={blogImage} alt={post.title} className="w-full lg:w-1/3 h-auto object-cover rounded-2xl" />
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-8 mb-10 lg:mb-40">
+          <div className="w-full lg:w-1/4">
+            Discover more content
+          </div>
+          {/* <div
+            className="prose dark:prose-invert max-w-none w-full lg:w-3/4 font-yrsa"
+            dangerouslySetInnerHTML={{ __html: formattedContent }}
+          /> */}
+          <CustomBlogRenderer rawContent={formattedContent} />
+        </div>
+
+        <Separator />
+        <RecommendedBlogs moreContent={moreContent}  />
+
+        <Separator />
+        <Footer />
+      </Container>
     </main>
   );
 }
