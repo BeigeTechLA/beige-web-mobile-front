@@ -67,8 +67,6 @@ import Topbar from "@/components/admin/Topbar";
 import { getFormattedDateString } from "@/lib/utils";
 import { useRequireModulePermission } from "@/lib/hooks/useRequireModulePermission";
 
-const INITIAL_COUNT = 6;
-
 const TEAM_ROLES = [
   { id: "videographer", label: "Videographer", price: 250, icon: <Video size={28} /> },
   { id: "photographer", label: "Photographer", price: 250, icon: <Camera size={28} /> },
@@ -143,7 +141,6 @@ const STUDIO_BOOKING_TYPES = [
   { key: "event", value: "Event" }
 ];
 
-const LOAD_MORE_COUNT = 3;
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
 const mapCatalogStudio = (studio: StudioCatalogListItem) => ({
@@ -254,7 +251,6 @@ function ClientDetailPage() {
   const [bookingFor, setBookingFor] = useState<"production" | "audio" | "event" | string>(formData.bookingFor || "");
   const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
   const [studioLoading, setStudioLoading] = useState(false);
-  const [visibleStudioCount, setVisibleStudioCount] = useState(INITIAL_COUNT);
 
   const selectedStudios = useMemo(
     () =>
@@ -417,7 +413,7 @@ function ClientDetailPage() {
 
         const response = await studioCatalogApi.list({
           page: 1,
-          limit: visibleStudioCount,
+          limit: 1000,
           search: searchQuery.trim() || undefined,
           booking_for: bookingForParam,
         });
@@ -438,7 +434,7 @@ function ClientDetailPage() {
     return () => {
       isActive = false;
     };
-  }, [bookingFor, searchQuery, visibleStudioCount]);
+  }, [bookingFor, searchQuery]);
 
   const handleStudioToggle = useCallback((studio: ReturnType<typeof mapCatalogStudio>) => {
     const existing = selectedStudios.find((item) => item.studioId === studio.slug);
@@ -1524,7 +1520,7 @@ function ClientDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
-              {studioData.slice(0, visibleStudioCount).map((studio, index) => (
+              {studioData.map((studio, index) => (
                 <StudioCard
                   key={index}
                   {...studio}
@@ -1533,28 +1529,6 @@ function ClientDetailPage() {
                 />
               ))}
             </div>
-            {studioData.length > visibleStudioCount && (
-              <button
-                onClick={() => setVisibleStudioCount((prev) => prev + LOAD_MORE_COUNT)}
-                className={`flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg ${isDark ? "bg-[#171717]" : "bg-[#F4F5F7]"}`}
-              >
-                <span className="text-lg lg:text-xl pl-7">View More</span>
-                <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="26"
-                    height="32"
-                    viewBox="0 0 32 26"
-                    fill="none"
-                  >
-                    <path
-                      d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
-                      fill="#1D1D1B"
-                    />
-                  </svg>
-                </div>
-              </button>
-            )}
           </div>
         )}
 

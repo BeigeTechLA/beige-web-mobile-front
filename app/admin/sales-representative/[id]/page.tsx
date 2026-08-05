@@ -2344,11 +2344,20 @@ export default function LeadDetailPage() {
                       {additionalPaymentDetails.additionalAmount < 0 ? "-" : "+"}{formatCurrencyValue(Math.abs(additionalPaymentDetails.additionalAmount))}
                     </span>
                   </div>
-                  {additionalPaymentDetails.isDecrease && (
+                  {lead?.lead_booking_credit ? (
+                    <div className="text-right text-[10px] mt-1 space-y-0.5">
+                      <p className={isDark ? "text-emerald-400" : "text-emerald-700 font-medium"}>
+                        Beige Credits: {formatCurrencyValue(lead.lead_booking_credit.total_credit_amount)}
+                      </p>
+                      <p className="text-amber-500 font-medium">
+                        Pending Approval: {formatCurrencyValue(lead.lead_booking_credit.pending_credit_amount)}
+                      </p>
+                    </div>
+                  ) : additionalPaymentDetails.isDecrease ? (
                     <p className={`text-[10px] font-medium text-right ${isDark ? "text-[#E8D1AB]/80" : "text-[#7A5A00]/80"}`}>
                       Added as Beige Credits after approval
                     </p>
-                  )}
+                  ) : null}
                 </div>
               )}
               <div className={`h-[1px] w-full ${isDark ? "bg-[#3D3D3D]" : "bg-[#E5E5E5]"}`} />
@@ -2370,6 +2379,22 @@ export default function LeadDetailPage() {
                   <span className="text-sm lg:text-base font-semibold text-[#E8D1AB]">
                     ${effectiveManualPaymentSummary.pendingAmount.toLocaleString()}
                   </span>
+                </div>
+              )}
+              {lead?.lead_booking_credit && (lead.lead_booking_credit.total_credit_amount > 0 || lead.lead_booking_credit.pending_credit_amount > 0) && (
+                <div className="p-4 lg:px-9 lg:py-4 flex flex-col gap-1.5 border-t border-dashed border-white/10">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className={`font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Credit Amount</span>
+                    <span className={`font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
+                      {formatCurrencyValue(lead.lead_booking_credit.total_credit_amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className={`font-medium ${isDark ? "text-white/70" : "text-black/70"}`}>Pending Credit Amount</span>
+                    <span className="font-semibold text-amber-500">
+                      {formatCurrencyValue(lead.lead_booking_credit.pending_credit_amount)}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -2612,6 +2637,14 @@ export default function LeadDetailPage() {
                       Paid: <span className="font-semibold text-emerald-500">{formatCurrencyValue(effectiveManualPaymentSummary.paidAmount)}</span>
                       {" · "}
                       Pending: <span className="font-semibold text-amber-500">{formatCurrencyValue(effectiveManualPaymentSummary.pendingAmount)}</span>
+                      {lead?.lead_booking_credit && (lead.lead_booking_credit.total_credit_amount > 0 || lead.lead_booking_credit.pending_credit_amount > 0) && (
+                        <>
+                          {" · "}
+                          Credit: <span className={`font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>{formatCurrencyValue(lead.lead_booking_credit.total_credit_amount)}</span>
+                          {" · "}
+                          Pending Credit: <span className="font-semibold text-amber-500">{formatCurrencyValue(lead.lead_booking_credit.pending_credit_amount)}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
@@ -2880,7 +2913,11 @@ export default function LeadDetailPage() {
                           )
                         )}
                       </span>
-                      {additionalPaymentDetails?.isDecrease && (
+                      {lead?.lead_booking_credit ? (
+                        <span className="ml-1 text-[10px] text-emerald-400 font-medium block mt-1">
+                          (Beige Credits: {formatCurrencyValue(lead.lead_booking_credit.total_credit_amount)} · Pending: {formatCurrencyValue(lead.lead_booking_credit.pending_credit_amount)})
+                        </span>
+                      ) : additionalPaymentDetails?.isDecrease && (
                         <span className="ml-1 text-[10px] text-golden italic">
                           (This reduced amount will be added as Beige Credits after approval)
                         </span>

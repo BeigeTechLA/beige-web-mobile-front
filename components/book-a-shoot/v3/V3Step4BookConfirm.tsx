@@ -52,6 +52,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
+import { getBrowserTimeZone } from "@/lib/timezone";
 
 // Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -160,10 +161,25 @@ type CreatorQuotePayload = {
   studio_items?: Array<{
     studio_id: string;
     name: string;
-    quantity: number;
-    unit_price: number;
-    total: number;
+    location?: string;
+    image?: string;
     pricing_mode: "hourly" | "weekend";
+    pricing_category?: string;
+    pricing_label?: string;
+    unit_price: number;
+    quantity: number;
+    total: number;
+    price_label?: string;
+    selected_date?: string;
+    start_time?: string;
+    end_time?: string;
+    time_zone?: string;
+    studio_booking_type?: "single_day" | "multi_day";
+    booking_days?: Array<Record<string, unknown>>;
+    cast_and_crew_count?: number;
+    update_studio_datetime?: boolean;
+    lat?: number;
+    lng?: number;
   }>;
   content_type?: string;
   shoot_hours?: number;
@@ -555,21 +571,58 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
             ? { editor: 1 }
             : useContentHouseInclusivePricing && !hasSelectedCreatorPricing
               ? {}
-              : data.roleCounts,
+              : (data.selectedCrewIds && data.selectedCrewIds.length > 0)
+                ? data.selectedCrewIds.reduce<Record<string, number>>((acc, id) => {
+                    const role = data.selectedCrewRoles?.[id];
+                    if (role) {
+                      const normalizedRole = role.toLowerCase() === "video" ? "videographer" : role.toLowerCase() === "photo" ? "photographer" : role.toLowerCase();
+                      acc[normalizedRole] = (acc[normalizedRole] || 0) + 1;
+                    }
+                    return acc;
+                  }, {})
+                : data.roleCounts,
           event_type: data.shootType || "general",
           video_edit_types: buildEditTypeCounts(data.videoEditTypes),
           photo_edit_types: buildEditTypeCounts(data.photoEditTypes),
           skip_discount: true,
           skip_margin: true,
           studio_total: selectedStudiosTotal || 0,
-          studio_items: selectedStudios.map((studio) => ({
-            studio_id: studio.studioId,
-            name: studio.name,
-            quantity: studio.quantity,
-            unit_price: studio.unitPrice,
-            total: studio.totalPrice,
-            pricing_mode: studio.pricingMode,
-          })),
+          studio_items: selectedStudios.map((studio) => {
+            const timeZone = getBrowserTimeZone();
+            return {
+              studio_id: studio.studioId,
+              name: studio.name,
+              location: studio.location,
+              image: studio.image,
+              pricing_mode: studio.pricingMode,
+              pricing_category: studio.pricingCategory,
+              pricing_label: studio.pricingLabel,
+              unit_price: studio.unitPrice,
+              quantity: studio.quantity,
+              total: studio.totalPrice,
+              price_label: studio.priceLabel,
+              selected_date: studio.selectedDate,
+              start_time: studio.startTime,
+              end_time: studio.endTime,
+              time_zone: timeZone,
+              studio_booking_type: data.bookingType || "single_day",
+              booking_days: data.bookingType === "multi_day"
+                ? (data.bookingDays || []).map((day) => ({
+                    date: day.date,
+                    start_time: day.startTime || "",
+                    end_time: day.endTime || "",
+                    duration_hours: day.durationHours || 0,
+                    time_zone: day.timeZone || timeZone,
+                  }))
+                : [],
+              cast_and_crew_count: data.crewCount || 0,
+              update_studio_datetime: (studio as any).update_studio_datetime !== undefined
+                ? (studio as any).update_studio_datetime
+                : ((data as any).update_studio_datetime !== undefined ? (data as any).update_studio_datetime : false),
+              lat: studio.lat,
+              lng: studio.lng,
+            };
+          }),
         };
 
         if (isEditingOnly) {
