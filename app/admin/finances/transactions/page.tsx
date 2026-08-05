@@ -25,7 +25,7 @@ import {
 
 type TransactionView = "Transactions ID" | "Shoot ID";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
 
 const STATUS_OPTIONS: Record<string, string | undefined> = {
   All: undefined,
