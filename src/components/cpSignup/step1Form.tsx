@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft,
-  ArrowRight,
   Eye,
   EyeOff,
   Camera,
@@ -27,20 +26,48 @@ import { useRegisterCreatorStep1Mutation } from "@/lib/redux/features/auth/authA
 import { toast } from "sonner";
 import { compressImage } from "@/lib/utils";
 import { pushToDataLayer } from "@/lib/gtm";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { GoogleCreatorOnboardingModal } from "./GoogleCreatorOnboardingModal";
 
 interface SelectedImageState {
   file: File;
   preview: string;
 }
 
-export default function Step1Form({ data, setData, nextStep, prevStep }) {
+type AuthStepError = {
+  data?: {
+    message?: string;
+  };
+  message?: string;
+}
+
+const getAuthStepErrorMessage = (error: unknown, fallback: string) => {
+  const authError = error as AuthStepError;
+  return authError?.data?.message || authError?.message || fallback;
+};
+
+type GoogleOnboardingData = {
+  user_id: number;
+  crew_member_id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+};
+
+export default function Step1Form({ data, setData, nextStep, prevStep, completeSignup }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [googleOnboardingOpen, setGoogleOnboardingOpen] = useState(false);
+  const [googleOnboardingData, setGoogleOnboardingData] = useState<GoogleOnboardingData | null>(null);
 
   const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
+  const { googleLogin, isGoogleLoginLoading } = useAuth();
+  const isGoogleConfigured = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   const inputClasses = "h-14 lg:h-[82px] w-full rounded-[12px] border border-white/20 p-4 text-white outline-none focus:border-[#E8D1AB] focus-visible:ring-0 focus-visible:ring-offset-0 bg-[#101010] text-sm lg:text-base";
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
@@ -87,6 +114,56 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const handleCropSave = (croppedBlob: Blob, croppedPreview: string) => {
     setData({ ...data, profileImage: croppedBlob, profilePreview: croppedPreview });
     setCropModalOpen(false);
+  };
+
+  const getNameParts = (name = "") => {
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: parts.shift() || "",
+      lastName: parts.join(" ") || "",
+    };
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    try {
+      if (!credentialResponse.credential) {
+        toast.error("Google did not return a valid credential.");
+        return;
+      }
+
+      const result = await googleLogin({
+        credential: credentialResponse.credential,
+        mode: "signup",
+        account_type: "creator",
+      });
+
+      const user = result.user;
+      const nameParts = getNameParts(user?.name || "");
+      const crewMemberId = result.crew_member_id || user?.crew_member_id;
+
+      if (!crewMemberId || !user?.id || !user?.email) {
+        toast.error("Google signup started, but creator details were missing. Please contact support.");
+        return;
+      }
+
+      setGoogleOnboardingData({
+        firstName: nameParts.firstName || data.firstName || "Creative",
+        lastName: nameParts.lastName || data.lastName || "Partner",
+        email: user.email,
+        phoneNumber: user.phone_number || data.phoneNumber || "",
+        crew_member_id: crewMemberId,
+        user_id: user.id,
+      });
+      setGoogleOnboardingOpen(true);
+
+      toast.success("Google verified. Complete the quick onboarding to submit your application.");
+    } catch (error: unknown) {
+      toast.error(getAuthStepErrorMessage(error, "Google signup failed"));
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error("Google signup was cancelled or failed.");
   };
 
   const handleNext = async () => {
@@ -172,8 +249,8 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
 
       toast.success("Step 1 completed!");
       nextStep();
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Registration failed");
+    } catch (err: unknown) {
+      toast.error(getAuthStepErrorMessage(err, "Registration failed"));
     }
   };
 
@@ -332,7 +409,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           <button
             type="button"
             onClick={handleNext}
-            disabled={isLoading}
+            disabled={isLoading || isGoogleLoginLoading}
             className={`px-4 lg:px-10 h-14 lg:h-[76px] flex-1 flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50`}
           >
             {isLoading ? (
@@ -343,6 +420,27 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             )}
           </button>
         </div>
+
+        {isGoogleConfigured && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-xs text-white/40">
+              <div className="h-px flex-1 bg-white/15" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-white/15" />
+            </div>
+
+            <div className={isGoogleLoginLoading ? "pointer-events-none opacity-60" : ""}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                text="signup_with"
+                theme="filled_black"
+                size="large"
+                width="100%"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-center mt-4 text-[#DDD] font-bold gap-2 text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="221" height="1" viewBox="0 0 221 1" fill="none">
@@ -376,6 +474,17 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
           onSave={handleCropSave}
         />
       )}
+
+      <GoogleCreatorOnboardingModal
+        open={googleOnboardingOpen}
+        initialData={googleOnboardingData}
+        onClose={() => setGoogleOnboardingOpen(false)}
+        onComplete={(completedData) => {
+          setData({ ...data, ...completedData });
+          setGoogleOnboardingOpen(false);
+          completeSignup();
+        }}
+      />
     </div>
   );
 }

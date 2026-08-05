@@ -46,12 +46,15 @@ export interface LoginResponse {
   token: string;
   user: User;
   permissions_version?: number | string;
+  crew_member_id?: number | null;
+  creator_onboarding_required?: boolean;
 }
 
 export interface GoogleClientAuthData {
   credential: string;
   mode?: 'login' | 'signup';
   phone_number?: string;
+  account_type?: 'client' | 'creator';
 }
 
 export interface RegisterData {

@@ -47,6 +47,26 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
+const getDashboardPathForUserType = (userTypeId?: number) => {
+  if (userTypeId === 1 || userTypeId === 8) {
+    return "/admin/dashboard"
+  }
+  if (userTypeId === 2) {
+    return "/creator/dashboard"
+  }
+  if (userTypeId === 3) {
+    return "/affiliate/dashboard"
+  }
+  if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
+    return "/sales/dashboard"
+  }
+  if (userTypeId === 6) {
+    return "/production-manager/dashboard"
+  }
+
+  return "/admin/dashboard"
+}
+
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
   const { login, googleLogin, isLoginLoading, isGoogleLoginLoading } = useAuth()
@@ -125,22 +145,7 @@ export function LoginForm() {
         return
       }
 
-      // Logic for conditional redirection
-      if (userTypeId === 1 || userTypeId === 8) {
-        router.push('/admin/dashboard')
-      } else if (userTypeId === 2) {
-        router.push('/creator/dashboard')
-      } else if (userTypeId === 3) {
-        router.push('/affiliate/dashboard')
-      } else if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
-        router.push('/sales/dashboard')
-      }
-      else if (userTypeId === 6) {
-        router.push('/production-manager/dashboard')
-      } else {
-        // Fallback in case user_type_id is missing or different
-        router.push('/admin/dashboard')
-      }
+      router.push(getDashboardPathForUserType(userTypeId))
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error, "Login failed. Please check your credentials."))
     }
@@ -161,13 +166,15 @@ export function LoginForm() {
       toast.success(result.message || "Google login successful")
 
       const user = result.user
+      const userTypeId = user?.user_type_id
+      const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown"
       const loggedInEmail = String(user?.email || "").trim().toLowerCase()
 
       pushToDataLayer("login", {
         method: "google",
         user_id: user?.id || null,
         email: user?.email || null,
-        user_type: "Client",
+        user_type: userTypeName,
         page_name: "Login Page",
         location_in_website: "login_page",
         duration_on_page: performance.now() / 1000,
@@ -179,7 +186,7 @@ export function LoginForm() {
         return
       }
 
-      router.push("/affiliate/dashboard")
+      router.push(getDashboardPathForUserType(userTypeId))
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error, "Google login failed"))
     }
