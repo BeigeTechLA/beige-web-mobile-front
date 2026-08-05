@@ -83,8 +83,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }));
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Users"]);
+  const [profileImageError, setProfileImageError] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setProfileImageError(false);
+  }, [user?.profile_image]);
 
   useEffect(() => {
     if (pathname.startsWith("/affiliate/finances")) {
@@ -141,6 +146,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     });
     router.push('/book-a-shoot')
   }
+  const profileInitial = user?.name?.trim()?.[0]?.toUpperCase() || "A";
+  const showProfileImage = Boolean(user?.profile_image) && !profileImageError;
 
   return (
     <aside className={`
@@ -262,8 +269,22 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       {/* User Profile and Logout */}
       <div className={`pt-6 border-t flex-shrink-0 transition-colors ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-zinc-200 bg-white"}`}>
         <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0">
-            {user?.name?.[0] || "A"}
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center">
+            {showProfileImage ? (
+              <Image
+                src={user.profile_image}
+                alt={user?.name || "User"}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                unoptimized
+                onError={() => setProfileImageError(true)}
+              />
+            ) : (
+              <span className="text-black font-bold text-lg">
+                {profileInitial}
+              </span>
+            )}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{user?.name || "Affiliate"}</p>

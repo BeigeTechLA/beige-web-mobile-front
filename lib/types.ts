@@ -14,6 +14,7 @@ export interface User {
   email: string;
   phone_number?: string;
   instagram_handle?: string;
+  profile_image?: string | null;
   userTypeId: number;
   userRole: string;
   role_id?: number | string;

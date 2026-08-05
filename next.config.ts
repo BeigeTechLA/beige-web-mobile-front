@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
         hostname: "drive.google.com",
       },
       {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
         protocol: "http",
         hostname: "localhost",
       },
