@@ -56,6 +56,33 @@ const formatDate = (value: string | null | undefined) => {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 };
 
+const getSelectedDateKey = (value: Date | null | undefined) => {
+  if (!value || Number.isNaN(value.getTime())) return "";
+
+  // Use the calendar date selected in SortDateButton. Do not convert the
+  // selected day to UTC because that can move it to the previous/next date.
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getApiCreatedDateKey = (value: string | null | undefined) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  // created_at is returned in UTC (the trailing Z), but the date picker and
+  // displayed dates use the user's system timezone. Convert the timestamp to
+  // the same local calendar date before comparing it with the selected date.
+  // Example in India: 2026-08-04T18:39:29.000Z becomes 2026-08-05.
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -193,6 +220,23 @@ const disputeOriginTabs = [
   { label: "Creator/CP", value: "Creator" },
 ];
 
+const DISPUTES_PER_PAGE = 3;
+const DATE_FILTER_FETCH_LIMIT = 100;
+
+type DisputePaginationState = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+const initialDisputePagination: DisputePaginationState = {
+  page: 1,
+  limit: DISPUTES_PER_PAGE,
+  total: 0,
+  totalPages: 1,
+};
+
 const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => ({
   disputeId: item.dispute_id || item.dispute_code || "",
   rawStatus: item.status || "open",
@@ -277,6 +321,8 @@ export default function AdminDisputesPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<DisputePaginationState>(initialDisputePagination);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
   const [disputeItems, setDisputeItems] = useState<DisputeHistoryItem[]>([]);
@@ -298,30 +344,131 @@ export default function AdminDisputesPage() {
   useEffect(() => {
     let isCancelled = false;
 
+    const fetchDisputeList = async () => {
+      const commonParams = {
+        search: searchQuery.trim() || undefined,
+        status: statusApiValue[statusFilter],
+        raised_by_type: roleApiValue[typeFilter],
+        sort_by: "created_at" as const,
+        sort_dir: "DESC" as const,
+      };
+
+      if (!selectedDate) {
+        const response = await financeTransactionsApi.listAdminDisputes({
+          ...commonParams,
+          page: currentPage,
+          limit: DISPUTES_PER_PAGE,
+        });
+        return response.data;
+      }
+
+      // The shared date button provides a single date, while the dispute API
+      // currently exposes pagination but no confirmed date parameter. Load the
+      // matching filtered result set, then paginate it locally so date filtering
+      // and pagination remain accurate together.
+      const firstResponse = await financeTransactionsApi.listAdminDisputes({
+        ...commonParams,
+        page: 1,
+        limit: DATE_FILTER_FETCH_LIMIT,
+      });
+      const firstData = firstResponse.data;
+      const firstRows = firstData?.rows || [];
+      const firstPagination = firstData?.pagination as
+        | {
+          total_pages?: number;
+          totalPages?: number;
+        }
+        | undefined;
+      const apiTotalPages = Math.max(
+        1,
+        Number(firstPagination?.total_pages ?? firstPagination?.totalPages ?? 1)
+      );
+
+      const remainingResponses = apiTotalPages > 1
+        ? await Promise.all(
+          Array.from({ length: apiTotalPages - 1 }, (_, index) =>
+            financeTransactionsApi.listAdminDisputes({
+              ...commonParams,
+              page: index + 2,
+              limit: DATE_FILTER_FETCH_LIMIT,
+            })
+          )
+        )
+        : [];
+
+      const allRows = [
+        ...firstRows,
+        ...remainingResponses.flatMap((response) => response.data?.rows || []),
+      ];
+      const selectedDateKey = getSelectedDateKey(selectedDate);
+      const matchingRows = allRows.filter(
+        (row) => getApiCreatedDateKey(row.created_at) === selectedDateKey
+      );
+      const filteredTotalPages = Math.max(
+        1,
+        Math.ceil(matchingRows.length / DISPUTES_PER_PAGE)
+      );
+      const safeFilteredPage = Math.min(currentPage, filteredTotalPages);
+      const startIndex = (safeFilteredPage - 1) * DISPUTES_PER_PAGE;
+
+      return {
+        rows: matchingRows.slice(startIndex, startIndex + DISPUTES_PER_PAGE),
+        pagination: {
+          page: safeFilteredPage,
+          limit: DISPUTES_PER_PAGE,
+          total: matchingRows.length,
+          total_pages: filteredTotalPages,
+        },
+      };
+    };
+
     const fetchDisputes = async () => {
       setLoading(true);
       try {
-        const [dashboardResponse, listResponse] = await Promise.all([
+        const [dashboardResponse, listData] = await Promise.all([
           financeTransactionsApi.getAdminDisputesDashboard(),
-          financeTransactionsApi.listAdminDisputes({
-            page: 1,
-            limit: 100,
-            search: searchQuery.trim() || undefined,
-            status: statusApiValue[statusFilter],
-            raised_by_type: roleApiValue[typeFilter],
-            sort_by: "created_at",
-            sort_dir: "DESC",
-          }),
+          fetchDisputeList(),
         ]);
 
         if (isCancelled) return;
+
+        const rows = listData?.rows || [];
+        const responsePagination = listData?.pagination as
+          | {
+            page?: number;
+            limit?: number;
+            total?: number;
+            total_pages?: number;
+            totalPages?: number;
+          }
+          | undefined;
+        const responseTotalPages = Math.max(
+          1,
+          Number(responsePagination?.total_pages ?? responsePagination?.totalPages ?? 1)
+        );
+        const responsePage = Math.min(
+          Math.max(Number(responsePagination?.page ?? currentPage), 1),
+          responseTotalPages
+        );
+
         setDashboard(dashboardResponse.data || null);
-        setDisputeItems((listResponse.data?.rows || []).map(mapDisputeItem));
+        setDisputeItems(rows.map(mapDisputeItem));
+        setPagination({
+          page: responsePage,
+          limit: Number(responsePagination?.limit ?? DISPUTES_PER_PAGE),
+          total: Number(responsePagination?.total ?? rows.length),
+          totalPages: responseTotalPages,
+        });
+
+        if (responsePage !== currentPage) {
+          setCurrentPage(responsePage);
+        }
       } catch (error) {
         console.error("Failed to fetch admin disputes:", error);
         if (!isCancelled) {
           setDashboard(null);
           setDisputeItems([]);
+          setPagination(initialDisputePagination);
         }
       } finally {
         if (!isCancelled) setLoading(false);
@@ -336,7 +483,7 @@ export default function AdminDisputesPage() {
       isCancelled = true;
       window.clearTimeout(timer);
     };
-  }, [refreshKey, searchQuery, statusFilter, typeFilter]);
+  }, [currentPage, refreshKey, searchQuery, selectedDate, statusFilter, typeFilter]);
 
   const { isDark } = useResolvedTheme();
 
@@ -413,6 +560,36 @@ export default function AdminDisputesPage() {
     [disputeItems]
   );
 
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleMonthChange = (value: string) => {
+    setMonthFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleTypeChange = (value: string) => {
+    setTypeFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    const nextPage = Math.min(Math.max(page, 1), pagination.totalPages);
+    if (nextPage !== currentPage) setCurrentPage(nextPage);
+  };
+
   const openDisputeDetails = async (item: DisputeHistoryItem) => {
     if (!item.disputeId) return;
     setSelectedDispute({
@@ -440,21 +617,21 @@ export default function AdminDisputesPage() {
       const response =
         action === "review"
           ? await financeTransactionsApi.updateAdminDispute(dispute.disputeId, {
-              status: "in_review",
-              notes: "Marked in review by admin",
-            })
+            status: "in_review",
+            notes: "Marked in review by admin",
+          })
           : action === "resolve"
-          ? await financeTransactionsApi.resolveAdminDispute(dispute.disputeId, {
+            ? await financeTransactionsApi.resolveAdminDispute(dispute.disputeId, {
               resolution_type: "payout_release",
               release_payout_holds: true,
               notes: "Resolved by admin",
             })
-          : action === "reject"
-            ? await financeTransactionsApi.rejectOrRefundAdminDispute(dispute.disputeId, {
+            : action === "reject"
+              ? await financeTransactionsApi.rejectOrRefundAdminDispute(dispute.disputeId, {
                 resolution_type: "no_action",
                 notes: "Rejected by admin",
               })
-            : await financeTransactionsApi.escalateAdminDispute(dispute.disputeId, {
+              : await financeTransactionsApi.escalateAdminDispute(dispute.disputeId, {
                 priority: "high",
                 notes: "Escalated by admin",
               });
@@ -514,10 +691,10 @@ export default function AdminDisputesPage() {
         disputeToResolve.raisedRole === "CP"
           ? "payout_adjustment"
           : resolutionFormData?.resolutionType === "credits"
-          ? "credit_compensation"
-          : resolutionFormData?.resolutionType === "manual"
-            ? resolutionFormData.amountType === "partial" ? "partial_refund" : "refund"
-            : "payout_release";
+            ? "credit_compensation"
+            : resolutionFormData?.resolutionType === "manual"
+              ? resolutionFormData.amountType === "partial" ? "partial_refund" : "refund"
+              : "payout_release";
       const resolutionAmount = parseMoneyValue(resolutionData.amount || disputeToResolve.disputedAmount);
       const creditAmount = parseMoneyValue(resolutionFormData?.creditAmount || resolutionData.creditAmount);
       const response = await financeTransactionsApi.resolveAdminDispute(disputeToResolve.disputeId, {
@@ -646,7 +823,7 @@ export default function AdminDisputesPage() {
               Resolve disputes linked to Shoot and Invoice IDs
             </p>
           </div>
-          <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
+          <SortDateButton selectedDate={selectedDate} onDateChange={handleDateChange} />
         </div>
 
         <DisputeMetricCards
@@ -664,14 +841,13 @@ export default function AdminDisputesPage() {
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setTypeFilter(tab.value)}
-                className={`h-10 flex-1 rounded-md px-4 text-sm font-medium transition-colors sm:flex-none ${
-                  isActive
-                    ? "bg-[#E8D1AB] text-black"
-                    : isDark
-                      ? "text-white/65 hover:bg-white/5 hover:text-white"
-                      : "text-black/60 hover:bg-black/5 hover:text-black"
-                }`}
+                onClick={() => handleTypeChange(tab.value)}
+                className={`h-10 flex-1 rounded-md px-4 text-sm font-medium transition-colors sm:flex-none ${isActive
+                  ? "bg-[#E8D1AB] text-black"
+                  : isDark
+                    ? "text-white/65 hover:bg-white/5 hover:text-white"
+                    : "text-black/60 hover:bg-black/5 hover:text-black"
+                  }`}
               >
                 {tab.label}
               </button>
@@ -683,13 +859,18 @@ export default function AdminDisputesPage() {
           items={filteredItems}
           loading={loading}
           searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           statusValue={statusFilter}
-          onStatusChange={setStatusFilter}
+          onStatusChange={handleStatusChange}
           monthValue={monthFilter}
-          onMonthChange={setMonthFilter}
+          onMonthChange={handleMonthChange}
           typeValue={typeFilter}
-          onTypeChange={setTypeFilter}
+          onTypeChange={handleTypeChange}
+          currentPage={currentPage}
+          totalItems={pagination.total}
+          totalPages={pagination.totalPages}
+          itemsPerPage={pagination.limit}
+          onPageChange={handlePageChange}
           onViewDetails={(item) => void openDisputeDetails(item)}
         />
 
@@ -733,9 +914,9 @@ export default function AdminDisputesPage() {
           shootId: disputeToResolve.shootId,
           amount: disputeToResolve.raisedRole === "CP"
             ? (() => {
-                const remainingValue = disputeToResolve.compensationSummary?.details.find((item) => item.label === "Remaining Balance")?.value;
-                return parseMoneyValue(remainingValue) > 0 ? remainingValue : disputeToResolve.disputedAmount;
-              })()
+              const remainingValue = disputeToResolve.compensationSummary?.details.find((item) => item.label === "Remaining Balance")?.value;
+              return parseMoneyValue(remainingValue) > 0 ? remainingValue : disputeToResolve.disputedAmount;
+            })()
             : disputeToResolve.disputedAmount,
           recipient: disputeToResolve.raisedBy,
         } : null}

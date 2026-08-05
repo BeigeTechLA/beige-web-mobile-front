@@ -118,6 +118,10 @@ export default function ResolveDisputeModal({
     setUploadedFiles(Array.from(event.target.files || []));
   };
 
+  const handleFileDrop = (files: FileList) => {
+    setUploadedFiles(Array.from(files));
+  };
+
   const removeFile = (indexToRemove: number) => {
     setUploadedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
@@ -331,6 +335,7 @@ export default function ResolveDisputeModal({
                     files={uploadedFiles}
                     disabled={isSubmitting}
                     onFileChange={handleFileChange}
+                    onFileDrop={handleFileDrop}
                     onRemove={removeFile}
                   />
 
@@ -418,7 +423,7 @@ function AmountTypePicker({
           className={`rounded-md border p-2.5 text-center transition-all ${amountType === option.value
             ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/20" : "border-[#D9C49E] bg-[#F0E6D2]"
             : "border-transparent bg-transparent"
-          }`}
+            }`}
         >
           <span className="block text-sm text-[#A0A0A0] lg:text-base">{option.label}</span>
           <span className={`text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>{option.helper}</span>
@@ -526,7 +531,7 @@ function InfoBox({
     <div className={`flex items-start gap-3 rounded-xl border p-4 ${beige
       ? isDark ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/5" : "border-[#E8DFD0] bg-[#FAF7F2]"
       : isDark ? "border-[#3B82F6]/20 bg-[#3B82F6]/5" : "border-[#D0DDF0] bg-[#EEF2F6]"
-    }`}>
+      }`}>
       <Info className={`h-4 w-4 shrink-0 lg:h-5 lg:w-5 ${beige ? "text-[#E8D1AB]" : "text-[#3B82F6]"}`} />
       <div>
         <p className={`text-sm ${isDark ? "text-white" : "text-black"}`}>{title}</p>
@@ -541,29 +546,97 @@ function ProofUpload({
   files,
   disabled,
   onFileChange,
+  onFileDrop,
   onRemove,
 }: {
   isDark: boolean;
   files: File[];
   disabled: boolean;
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileChange: (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => void;
+  onFileDrop: (files: FileList) => void;
   onRemove: (index: number) => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (
+    event: React.DragEvent<HTMLLabelElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (disabled) return;
+
+    event.dataTransfer.dropEffect = "copy";
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (
+    event: React.DragEvent<HTMLLabelElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setIsDragging(false);
+  };
+
+  const handleDrop = (
+    event: React.DragEvent<HTMLLabelElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setIsDragging(false);
+
+    if (disabled || event.dataTransfer.files.length === 0) {
+      return;
+    }
+
+    onFileDrop(event.dataTransfer.files);
+  };
+
   return (
     <div className="relative">
-      <span className={`mb-1.5 block text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"}`}>
-        Upload Proof <span className="text-[#E8D1AB]">(Optional)</span>
+      <span
+        className={`mb-1.5 block text-sm font-medium lg:text-base ${isDark ? "text-white" : "text-black"
+          }`}
+      >
+        Upload Proof{" "}
+        <span className="text-[#E8D1AB]">(Optional)</span>
       </span>
+
       {files.length === 0 ? (
         <>
           <label
             htmlFor="resolve-proof-upload"
-            className={`flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-6 text-center transition lg:h-30 ${isDark ? "border-white/50 hover:bg-[#1C1A1A]" : "border-[#CCCCCC] hover:bg-[#F0F0F0]"}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`flex items-center justify-center rounded-xl border border-dashed p-6 text-center transition lg:h-30 ${disabled
+              ? "cursor-not-allowed opacity-50"
+              : "cursor-pointer"
+              } ${isDragging
+                ? "border-[#E8D1AB] bg-[#E8D1AB]/10"
+                : isDark
+                  ? "border-white/50 hover:bg-[#1C1A1A]"
+                  : "border-[#CCCCCC] hover:bg-[#F0F0F0]"
+              }`}
           >
-            <p className="text-xs text-[#A0A0A0] lg:text-sm">
-              Drag & Drop Your File Here Or <span className="font-semibold text-[#E8D1AB]">Upload</span>
+            <p className="pointer-events-none text-xs text-[#A0A0A0] lg:text-sm">
+              {isDragging ? (
+                "Drop Your File Here"
+              ) : (
+                <>
+                  Drag & Drop Your File Here Or{" "}
+                  <span className="font-semibold text-[#E8D1AB]">
+                    Upload
+                  </span>
+                </>
+              )}
             </p>
           </label>
+
           <input
             id="resolve-proof-upload"
             type="file"
@@ -579,15 +652,28 @@ function ProofUpload({
           {files.map((file, index) => (
             <div
               key={`${file.name}-${index}`}
-              className={`flex items-center justify-between rounded-xl border p-4 ${isDark ? "border-[#262626] bg-[#0A0A0A]" : "border-black/10 bg-[#F9F9F9] text-black"}`}
+              className={`flex items-center justify-between rounded-xl border p-4 ${isDark
+                ? "border-[#262626] bg-[#0A0A0A]"
+                : "border-black/10 bg-[#F9F9F9] text-black"
+                }`}
             >
               <div className="flex min-w-0 items-center gap-3">
                 <FileText className="h-5 w-5 shrink-0 text-[#E8D1AB]" />
+
                 <div className="min-w-0">
-                  <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{file.name}</p>
-                  <p className="mt-0.5 text-xs text-[#A0A0A0]">{(file.size / 1024).toFixed(2)} KB</p>
+                  <p
+                    className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"
+                      }`}
+                  >
+                    {file.name}
+                  </p>
+
+                  <p className="mt-0.5 text-xs text-[#A0A0A0]">
+                    {(file.size / 1024).toFixed(2)} KB
+                  </p>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => onRemove(index)}

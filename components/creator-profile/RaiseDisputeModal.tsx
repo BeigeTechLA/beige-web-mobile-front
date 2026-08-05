@@ -301,7 +301,11 @@ export default function RaiseDisputeModal({
                                     <SelectTrigger className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180">
                                         <SelectValue placeholder="Select shoot ID" />
                                     </SelectTrigger>
-                                    <SelectContent className="border-white/10 bg-[#111111] text-white">
+                                    <SelectContent 
+                                        position="popper" 
+                                        sideOffset={4}
+                                        className="z-[220] max-h-[280px] w-[var(--radix-select-trigger-width)] overflow-y-auto border-white/10 bg-[#111111] text-white shadow-[0_18px_50px_rgba(0,0,0,0.65)]"
+                                    >
                                         {shootOptions.length > 0 ? (
                                             shootOptions.map((shoot) => (
                                                 <SelectItem key={String(shoot.creatorEarningId)} value={String(shoot.bookingId)}>
@@ -329,7 +333,11 @@ export default function RaiseDisputeModal({
                                     <SelectTrigger className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180">
                                         <SelectValue placeholder="Select dispute type" />
                                     </SelectTrigger>
-                                    <SelectContent className="border-white/10 bg-[#111111] text-white">
+                                    <SelectContent 
+                                        position="popper" 
+                                        sideOffset={4}
+                                        className="z-[220] w-[var(--radix-select-trigger-width)] border-white/10 bg-[#111111] text-white shadow-[0_18px_50px_rgba(0,0,0,0.65)]"
+                                    >
                                         {disputeTypes.map((type) => (
                                             <SelectItem key={type} value={type}>
                                                 {type}

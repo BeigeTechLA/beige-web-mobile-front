@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,TooltipPortal  } from "@radix-ui/react-tooltip";
 
 export type DisputeStatus = "Open" | "In Review" | "Resolved" | "Rejected" | "Escalated";
 
@@ -41,6 +41,10 @@ interface DisputeHistoryListProps {
   onMonthChange: (value: string) => void;
   typeValue: string;
   onTypeChange: (value: string) => void;
+  currentPage?: number;
+  totalItems?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
   onViewDetails?: (item: DisputeHistoryItem) => void;
   itemsPerPage?: number;
 }
@@ -95,13 +99,25 @@ const TruncatedDescription = ({ text, isDark }: { text: string; isDark: boolean 
 
   if (!isTruncated) return content;
 
-  return (
+ return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
-        <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent side="bottom" align="start" className={`max-w-[450px] p-4 text-sm shadow-2xl border rounded-lg ${isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200 text-black"}`}>
-          {text}
-        </TooltipContent>
+        <TooltipTrigger asChild>
+          <div className="cursor-pointer">{content}</div>
+        </TooltipTrigger>
+        
+        <TooltipPortal>
+          <TooltipContent 
+            side="bottom" 
+            align="start" 
+            sideOffset={8}
+            className={`z-50 w-[calc(100vw-40px)] lg:max-w-[1000px] p-4 text-sm shadow-2xl border rounded-lg break-words whitespace-normal ${
+              isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200 text-black"
+            }`}
+          >
+            {text}
+          </TooltipContent>
+        </TooltipPortal>
       </Tooltip>
     </TooltipProvider>
   );
@@ -118,24 +134,48 @@ export default function DisputeHistoryList({
   onMonthChange,
   typeValue,
   onTypeChange,
+  currentPage: controlledPage,
+  totalItems: controlledTotalItems,
+  totalPages: controlledTotalPages,
+  onPageChange,
   onViewDetails,
   itemsPerPage = 3,
 }: DisputeHistoryListProps) {
   const { isDark } = useResolvedTheme();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
+  const isControlledPagination =
+    typeof controlledPage === "number" && typeof onPageChange === "function";
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [items, searchValue, statusValue, monthValue, typeValue]);
+    if (!isControlledPagination) setInternalPage(1);
+  }, [isControlledPagination, items, searchValue, statusValue, monthValue, typeValue]);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
+  const resolvedTotalItems = Math.max(0, controlledTotalItems ?? items.length);
+  const resolvedTotalPages = Math.max(
+    1,
+    controlledTotalPages ?? Math.ceil(resolvedTotalItems / itemsPerPage)
+  );
+  const requestedPage = isControlledPagination ? controlledPage : internalPage;
+  const safePage = Math.min(Math.max(requestedPage ?? 1, 1), resolvedTotalPages);
   const startIndex = (safePage - 1) * itemsPerPage;
   const visibleItems = useMemo(
-    () => items.slice(startIndex, startIndex + itemsPerPage),
-    [items, startIndex, itemsPerPage]
+    () =>
+      isControlledPagination
+        ? items
+        : items.slice(startIndex, startIndex + itemsPerPage),
+    [isControlledPagination, items, startIndex, itemsPerPage]
   );
-  const paginationItems = buildPaginationItems(safePage, totalPages);
+  const endIndex = Math.min(startIndex + visibleItems.length, resolvedTotalItems);
+  const paginationItems = buildPaginationItems(safePage, resolvedTotalPages);
+
+  const changePage = (page: number) => {
+    const nextPage = Math.min(Math.max(page, 1), resolvedTotalPages);
+    if (isControlledPagination) {
+      onPageChange?.(nextPage);
+      return;
+    }
+    setInternalPage(nextPage);
+  };
 
   return (
     <section
@@ -214,80 +254,80 @@ export default function DisputeHistoryList({
           visibleItems.map((item) => {
             const isClosed = isClosedDisputeStatus(item.status);
             return (
-            <article
-              key={item.id}
-              className={`rounded-2xl border p-0 lg:p-6 transition-colors duration-200 ${isDark
-                ? isClosed
-                  ? "border-[#333333] bg-[#0D0D0D] hover:border-[#444444] hover:bg-[#111111]"
-                  : "border-[#E8D1AB] bg-[#0D0D0D] hover:border-[#E8D1AB]/80 hover:bg-[#0D0D0D]/80"
-                : isClosed
-                  ? "border-[#E5E5E5] bg-white hover:border-[#D1D1D1] hover:bg-[#FAFAFA]"
-                  : "border-[#E5D5B8] bg-[#FFFCF7] hover:border-[#D7C199] hover:bg-[#FFF8EF]"
-                }`}
-            >
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-                <div className="p-4 lg:p-0 space-y-3 flex-1">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h4 className={`lg:text-lg font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                      {item.id}
-                    </h4>
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${disputeStatusStyles[item.status]}`}>
-                      {item.status}
-                    </span>
+              <article
+                key={item.id}
+                className={`rounded-2xl border p-0 lg:p-6 transition-colors duration-200 ${isDark
+                  ? isClosed
+                    ? "border-[#333333] bg-[#0D0D0D] hover:border-[#444444] hover:bg-[#111111]"
+                    : "border-[#E8D1AB] bg-[#0D0D0D] hover:border-[#E8D1AB]/80 hover:bg-[#0D0D0D]/80"
+                  : isClosed
+                    ? "border-[#E5E5E5] bg-white hover:border-[#D1D1D1] hover:bg-[#FAFAFA]"
+                    : "border-[#E5D5B8] bg-[#FFFCF7] hover:border-[#D7C199] hover:bg-[#FFF8EF]"
+                  }`}
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+                  <div className="p-4 lg:p-0 space-y-3 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h4 className={`lg:text-lg font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+                        {item.id}
+                      </h4>
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${disputeStatusStyles[item.status]}`}>
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className={`flex flex-wrap items-center gap-3 text-xs lg:text-sm  ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
+                      <span className={`flex items-center gap-2 ${isDark ? "text-[#E8D1AB]" : "text-[#E5D5B8]"}`}>
+                        <FileText size={16} />
+                        {item.shootId}
+                      </span>
+                      {/* <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span> */}
+                      <span className={`flex items-center gap-2 `}>
+                        <FileText size={16} />
+                        {item.invoiceId}
+                      </span>
+                      <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span>
+                      <span>{item.category}</span>
+                    </div>
+
+                    <TruncatedDescription text={item.description} isDark={isDark} />
                   </div>
 
-                  <div className={`flex flex-wrap items-center gap-3 text-xs lg:text-sm  ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
-                    <span className={`flex items-center gap-2 ${isDark ? "text-[#E8D1AB]" : "text-[#E5D5B8]"}`}>
-                      <FileText size={16} />
-                      {item.shootId}
-                    </span>
-                    {/* <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span> */}
-                    <span className={`flex items-center gap-2 `}>
-                      <FileText size={16} />
-                      {item.invoiceId}
-                    </span>
+                  <hr className={`lg:hidden border-t my-0 ${isDark ? "border-[#262626]" : "border-[#000000]/30"}`} />
+
+                  <div className="p-4 lg:p-0 shrink-0 lg:text-right lg:min-w-[180px]">
+                    <div className="flex justify-between lg:hidden text-[#F59E0B] text-xs lg:text-sm">
+                      <span> Payout Hold:</span> <span>{item.payoutHold}</span>
+                    </div>
+
+                    <div className="flex flex-row-reverse justify-between items-center lg:block">
+                      <p className="text-[#F98A84] text-lg font-semibold">{item.disputedAmount}</p>
+                      <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
+                        Disputed Amount
+                      </p>
+
+                    </div>
+                    <p className="hidden lg:block mt-3 text-[#F59E0B] text-xs lg:text-sm">Payout Hold: {item.payoutHold}</p>
+                  </div>
+                </div>
+
+                <hr className={`border-t my-0 lg:mt-5 lg:my-4 ${isDark ? "border-[#262626]" : "border-[#000000]/30"}`} />
+
+                <div className={`p-4 lg:p-0 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 `}>
+                  <div className={`flex gap-2 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
+                    <p>Raised by: <span className={isDark ? "text-white" : "text-[#171717]"}>{item.raisedBy}</span> ({item.raisedRole}){" "}</p>
                     <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span>
-                    <span>{item.category}</span>
+                    <span>{item.raisedDate}</span>
                   </div>
-
-                 <TruncatedDescription text={item.description} isDark={isDark} />
+                  <button
+                    type="button"
+                    onClick={() => onViewDetails?.(item)}
+                    className="inline-flex items-center gap-2 text-[#E8D1AB] text-sm lg:text-base font-medium"
+                  >
+                    View Details <ArrowRight size={16} />
+                  </button>
                 </div>
-
-                <hr className={`lg:hidden border-t my-0 ${isDark ? "border-[#262626]" : "border-[#000000]/30"}`} />
-
-                <div className="p-4 lg:p-0 shrink-0 lg:text-right lg:min-w-[180px]">
-                  <div className="flex justify-between lg:hidden text-[#F59E0B] text-xs lg:text-sm">
-                    <span> Payout Hold:</span> <span>{item.payoutHold}</span>
-                  </div>
-
-                  <div className="flex flex-row-reverse justify-between items-center lg:block">
-                    <p className="text-[#F98A84] text-lg font-semibold">{item.disputedAmount}</p>
-                    <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
-                      Disputed Amount
-                    </p>
-
-                  </div>
-                  <p className="hidden lg:block mt-3 text-[#F59E0B] text-xs lg:text-sm">Payout Hold: {item.payoutHold}</p>
-                </div>
-              </div>
-
-              <hr className={`border-t my-0 lg:mt-5 lg:my-4 ${isDark ? "border-[#262626]" : "border-[#000000]/30"}`} />
-
-              <div className={`p-4 lg:p-0 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 `}>
-                <div className={`flex gap-2 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
-                  <p>Raised by: <span className={isDark ? "text-white" : "text-[#171717]"}>{item.raisedBy}</span> ({item.raisedRole}){" "}</p>
-                  <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span>
-                  <span>{item.raisedDate}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onViewDetails?.(item)}
-                  className="inline-flex items-center gap-2 text-[#E8D1AB] text-sm lg:text-base font-medium"
-                >
-                  View Details <ArrowRight size={16} />
-                </button>
-              </div>
-            </article>
+              </article>
             );
           })
         ) : (
@@ -297,15 +337,15 @@ export default function DisputeHistoryList({
         )}
       </div>
 
-      {!loading && items.length > 0 && (
+      {!loading && resolvedTotalItems > 0 && (
         <div className={`flex justify-center lg:justify-between items-center p-6 border-t transition-colors duration-300 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
           <div className={`hidden lg:block text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-            Page {startIndex + 1} to {Math.min(startIndex + itemsPerPage, items.length)}
+            Showing {startIndex + 1} to {endIndex} of {resolvedTotalItems}
           </div>
           <div className="flex gap-2 items-center">
             <button
-              onClick={() => setCurrentPage(safePage - 1)}
-              disabled={safePage === 1}
+              onClick={() => changePage(safePage - 1)}
+              disabled={loading || safePage === 1}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"
                 }`}
             >
@@ -321,7 +361,7 @@ export default function DisputeHistoryList({
                 ) : (
                   <button
                     key={page}
-                    onClick={() => setCurrentPage(page)}
+                    onClick={() => changePage(page)}
                     className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safePage === page
                       ? isDark
                         ? "bg-[#E5D5B8] text-black"
@@ -337,8 +377,8 @@ export default function DisputeHistoryList({
               )}
             </div>
             <button
-              onClick={() => setCurrentPage(safePage + 1)}
-              disabled={safePage === totalPages}
+              onClick={() => changePage(safePage + 1)}
+              disabled={loading || safePage === resolvedTotalPages}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
             >
               <span className="hidden lg:block">Next</span>
