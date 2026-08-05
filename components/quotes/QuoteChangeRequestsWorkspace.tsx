@@ -258,11 +258,15 @@ const TableRow = ({
     <React.Fragment>
       <tr
         onClick={() => {
-          if (window.innerWidth < 1024) onToggle();
+          if (window.matchMedia("(max-width: 1023px)").matches) {
+            onToggle();
+          }
         }}
-        className={`border-t transition-colors lg:cursor-default ${window.innerWidth < 1024 ? "cursor-pointer" : ""} ${isDark
-          ? (isExpanded ? "bg-[#202020]" : "border-white/[0.05] hover:bg-white/[0.02]")
-          : "border-[#E3E3E3] hover:bg-black/[0.02]"
+        className={`cursor-pointer border-t transition-colors lg:cursor-default ${isDark
+            ? isExpanded
+              ? "bg-[#202020]"
+              : "border-white/[0.05] hover:bg-white/[0.02]"
+            : "border-[#E3E3E3] hover:bg-black/[0.02]"
           }`}
       >
         <td className="px-4 py-4">
@@ -286,30 +290,49 @@ const TableRow = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {window.innerWidth < 1024 ? (
-                <div className="flex items-center gap-2">
-                  <div className={`flex w-5 h-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center overflow-hidden rounded-md lg:rounded-lg text-[9px] lg:text-sm font-semibold ${getAvatarClass(clientName)}`}>
-                    {getInitials(clientName)}
+              {/* Mobile content: Client */}
+              <div className="flex min-w-0 items-center gap-2 lg:hidden">
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[9px] font-semibold ${getAvatarClass(
+                    clientName
+                  )}`}
+                >
+                  {getInitials(clientName)}
+                </div>
+
+                <div className="min-w-0">
+                  <div
+                    className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"
+                      }`}
+                  >
+                    {clientName}
                   </div>
-                  <div>
-                    <div className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                      {clientName}
-                    </div>
-                    <div className={`mt-0.5 text-xs lg:hidden ${isDark ? "text-white/40" : "text-black/40"}`}>
-                      {`Booking ID #${request.booking_id ?? "1234"}`}
-                    </div>
+
+                  <div
+                    className={`mt-0.5 truncate text-xs ${isDark ? "text-white/40" : "text-black/40"
+                      }`}
+                  >
+                    Booking ID #{request.booking_id ?? "-"}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <div className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                    {quoteLabel}
-                  </div>
-                  <div className={`mt-1 text-sm hidden lg:block ${isDark ? "text-white/40" : "text-black/40"}`}>
-                    {`Activity #${request.activity_id ?? "-"}`}
-                  </div>
+              </div>
+
+              {/* Desktop content: Quote */}
+              <div className="hidden min-w-0 lg:block">
+                <div
+                  className={`truncate text-base font-medium ${isDark ? "text-white" : "text-black"
+                    }`}
+                >
+                  {quoteLabel}
                 </div>
-              )}
+
+                <div
+                  className={`mt-1 text-sm ${isDark ? "text-white/40" : "text-black/40"
+                    }`}
+                >
+                  Activity #{request.activity_id ?? "-"}
+                </div>
+              </div>
             </div>
           </div>
         </td>
@@ -381,70 +404,72 @@ const TableRow = ({
             <Eye size={17} />
           </button>
         </td>
-      </tr>
+      </tr >
 
       {/* Mobile Expanded Details Section */}
-      {isExpanded && (
-        <tr className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"}`}>
-          <td
-            colSpan={2}
-            className={`px-4 py-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
-              }`}
-          >
-            <div className="pl-14 space-y-4">
-              <div className="flex flex-col gap-y-4">
-                <div>
-                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
-                    Quote
-                  </p>
-                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
-                    {quoteLabel}
-                  </p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
-                    Changes
-                  </p>
-                  <p className={`text-sm ${requestTypeMeta.amountClass}`}>
-                    <TrendingUp size={16} className="inline mr-1" /> {formatCurrency(changeAmount)} / <span className={isDark ? "text-white/40" : "text-black/50"}>{requestTypeMeta.label}</span>
-                  </p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
-                    Total Amount
-                  </p>
-                  <div className={`text-xs leading-relaxed ${isDark ? "text-[#A1A1A1]" : "text-black/70"}`}>
-                    Before: {formatCurrency(request.previous_total)} / After: {formatCurrency(request.new_total)}
+      {
+        isExpanded && (
+          <tr className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"}`}>
+            <td
+              colSpan={2}
+              className={`px-4 py-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
+                }`}
+            >
+              <div className="pl-14 space-y-4">
+                <div className="flex flex-col gap-y-4">
+                  <div>
+                    <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                      Quote
+                    </p>
+                    <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
+                      {quoteLabel}
+                    </p>
+                  </div>
+                  <div>
+                    <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                      Changes
+                    </p>
+                    <p className={`text-sm ${requestTypeMeta.amountClass}`}>
+                      <TrendingUp size={16} className="inline mr-1" /> {formatCurrency(changeAmount)} / <span className={isDark ? "text-white/40" : "text-black/50"}>{requestTypeMeta.label}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                      Total Amount
+                    </p>
+                    <div className={`text-xs leading-relaxed ${isDark ? "text-[#A1A1A1]" : "text-black/70"}`}>
+                      Before: {formatCurrency(request.previous_total)} / After: {formatCurrency(request.new_total)}
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
+                      Requested At
+                    </p>
+                    <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
+                      {formatDateTime(request.created_at)}
+                    </p>
                   </div>
                 </div>
                 <div>
                   <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
-                    Requested At
+                    Action
                   </p>
-                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
-                    {formatDateTime(request.created_at)}
-                  </p>
+                  <button
+                    onClick={onView}
+                    className={`w-full rounded-xl font-medium text-sm transition-all text-left p-0 ${isDark
+                      ? "text-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                      : " text-black hover:bg-black hover:text-white"
+                      }`}
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
-              <div>
-                <p className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"}`}>
-                  Action
-                </p>
-                <button
-                  onClick={onView}
-                  className={`w-full rounded-xl font-medium text-sm transition-all text-left p-0 ${isDark
-                    ? "text-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
-                    : " text-black hover:bg-black hover:text-white"
-                    }`}
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </React.Fragment>
+            </td>
+          </tr>
+        )
+      }
+    </React.Fragment >
   );
 };
 
