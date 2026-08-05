@@ -220,7 +220,7 @@ const disputeOriginTabs = [
   { label: "Creator/CP", value: "Creator" },
 ];
 
-const DISPUTES_PER_PAGE = 3;
+const DISPUTES_PER_PAGE = 10;
 const DATE_FILTER_FETCH_LIMIT = 100;
 
 type DisputePaginationState = {

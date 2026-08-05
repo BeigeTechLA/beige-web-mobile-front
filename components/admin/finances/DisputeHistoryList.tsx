@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,TooltipPortal  } from "@radix-ui/react-tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, TooltipPortal } from "@radix-ui/react-tooltip";
 
 export type DisputeStatus = "Open" | "In Review" | "Resolved" | "Rejected" | "Escalated";
 
@@ -99,21 +99,20 @@ const TruncatedDescription = ({ text, isDark }: { text: string; isDark: boolean 
 
   if (!isTruncated) return content;
 
- return (
+  return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="cursor-pointer">{content}</div>
         </TooltipTrigger>
-        
+
         <TooltipPortal>
-          <TooltipContent 
-            side="bottom" 
-            align="start" 
+          <TooltipContent
+            side="bottom"
+            align="start"
             sideOffset={8}
-            className={`z-50 w-[calc(100vw-40px)] lg:max-w-[1000px] p-4 text-sm shadow-2xl border rounded-lg break-words whitespace-normal ${
-              isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200 text-black"
-            }`}
+            className={`z-50 w-[calc(100vw-40px)] lg:max-w-[1000px] p-4 text-sm shadow-2xl border rounded-lg break-words whitespace-normal ${isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200 text-black"
+              }`}
           >
             {text}
           </TooltipContent>
@@ -139,7 +138,7 @@ export default function DisputeHistoryList({
   totalPages: controlledTotalPages,
   onPageChange,
   onViewDetails,
-  itemsPerPage = 3,
+  itemsPerPage = 10,
 }: DisputeHistoryListProps) {
   const { isDark } = useResolvedTheme();
   const [internalPage, setInternalPage] = useState(1);
