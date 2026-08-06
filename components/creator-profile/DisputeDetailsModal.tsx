@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
     AlertTriangle,
     Calendar,
@@ -62,6 +62,9 @@ interface DisputeDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     dispute: DisputeDetailsRecord | null;
+    onAddComment?: (dispute: DisputeDetailsRecord, body: string) => void;
+    onAddAttachment?: (dispute: DisputeDetailsRecord, files: File[]) => void;
+    actionLoading?: boolean;
 }
 
 const timelineStyles: Record<
@@ -86,11 +89,38 @@ export default function DisputeDetailsModal({
     isOpen,
     onClose,
     dispute,
+    onAddComment,
+    onAddAttachment,
+    actionLoading = false,
 }: DisputeDetailsModalProps) {
     const { isDark } = useResolvedTheme();
     const [commentText, setCommentText] = useState("");
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     if (!isOpen || !dispute) return null;
+
+    const handlePickFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setPendingFiles(Array.from(event.target.files || []));
+    };
+
+    const removeFile = (indexToRemove: number) => {
+        setPendingFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    };
+
+    const handleSendComment = () => {
+        const body = commentText.trim();
+        if (!body || actionLoading) return;
+        onAddComment?.(dispute, body);
+        setCommentText("");
+    };
+
+    const handleUploadFiles = () => {
+        if (!pendingFiles.length || actionLoading) return;
+        onAddAttachment?.(dispute, pendingFiles);
+        setPendingFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm">
@@ -383,7 +413,6 @@ export default function DisputeDetailsModal({
                     className={`border-t px-6 py-5 ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-black/10 bg-white"
                         }`}
                 >
-                    {/* Comment Input */}
                     <div className="mb-4">
                         <label className={`mb-2 block text-xs font-medium ${isDark ? "text-[#A0A0A0]" : "text-black/60"}`}>
                             Comment
@@ -400,10 +429,38 @@ export default function DisputeDetailsModal({
                         />
                     </div>
 
-                    {/* Action Buttons */}
+                    {pendingFiles.length > 0 ? (
+                        <div className="mb-3 space-y-2">
+                            {pendingFiles.map((file, index) => (
+                                <div
+                                    key={`${file.name}-${index}`}
+                                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${isDark ? "border-[#2A2A2A] bg-[#171717]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}
+                                >
+                                    <span className="truncate">{file.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(index)}
+                                        className={`ml-3 text-xs ${isDark ? "text-white/60" : "text-black/50"}`}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handlePickFiles}
+                    />
+
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             type="button"
+                            onClick={() => fileInputRef.current?.click()}
                             className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isDark
                                 ? "border-[#2A2A2A] bg-[#171717] text-white hover:bg-[#1F1F1F]"
                                 : "border-[#E5E5E5] bg-[#F9F9F9] text-black hover:bg-[#F0F0F0]"
@@ -414,12 +471,26 @@ export default function DisputeDetailsModal({
                         </button>
                         <button
                             type="button"
-                            className="flex items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] px-4 py-3 text-sm font-medium text-black transition-colors hover:bg-[#F5EBD8]"
+                            onClick={handleSendComment}
+                            disabled={!commentText.trim() || actionLoading}
+                            className="flex items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] px-4 py-3 text-sm font-medium text-black transition-colors hover:bg-[#F5EBD8] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <Send size={16} />
                             Send Comments
                         </button>
                     </div>
+
+                    {pendingFiles.length > 0 ? (
+                        <button
+                            type="button"
+                            onClick={handleUploadFiles}
+                            disabled={actionLoading}
+                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#E8D1AB]/40 bg-[#E8D1AB]/10 px-4 py-3 text-sm font-medium text-[#E8D1AB] transition-colors hover:bg-[#E8D1AB]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <Upload size={16} />
+                            Upload Selected Files
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </div>
