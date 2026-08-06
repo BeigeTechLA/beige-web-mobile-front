@@ -271,6 +271,29 @@ export default function AdminStudiosDetailsPage() {
   };
 
   const handleSaveStudio = async () => {
+    let dynamicAddress = studioPayload.address;
+    if (typeof window !== "undefined") {
+      const savedAddress = localStorage.getItem("add_studio_address");
+      if (savedAddress) {
+        try {
+          const parsed = JSON.parse(savedAddress);
+          dynamicAddress = {
+            country: parsed.country || "United States",
+            line1: parsed.address || "845 S Los Angeles St, Suite 302",
+            line2: parsed.apartment || "",
+            city: parsed.city || "Los Angeles",
+            state: parsed.state || "CA",
+            zipCode: parsed.zipCode || "90014",
+            latitude: parsed.latitude || 34.0401,
+            longitude: parsed.longitude || -118.2542,
+            timezone: "America/Los_Angeles",
+          };
+        } catch (e) {
+          console.error("Failed to parse saved address from localStorage", e);
+        }
+      }
+    }
+
     const selectedFiles = mediaFiles.filter((file) => file.file);
 
     if (selectedFiles.length > 0) {
@@ -299,6 +322,15 @@ export default function AdminStudiosDetailsPage() {
 
         const payload = {
           ...studioPayload,
+          address: dynamicAddress,
+          latitude: String(dynamicAddress.latitude),
+          longitude: String(dynamicAddress.longitude),
+          address_line1: dynamicAddress.line1,
+          address_line2: dynamicAddress.line2,
+          city: dynamicAddress.city,
+          state: dynamicAddress.state,
+          zip_code: dynamicAddress.zipCode,
+          country: dynamicAddress.country,
           media: [
             ...mediaFiles.filter((file) => !file.file && !file.url.startsWith("blob:")).map((file) => ({ url: file.url })),
             ...uploadedUrls.map((url) => ({ url })),
@@ -306,6 +338,9 @@ export default function AdminStudiosDetailsPage() {
         };
 
         await studioAdminApi.createStudio(payload);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("add_studio_address");
+        }
         toast.success("Studio created successfully", { id: "studio-save" });
         router.push("/admin/studio-management");
       } catch (error) {
@@ -320,7 +355,22 @@ export default function AdminStudiosDetailsPage() {
     try {
       setIsSaving(true);
       toast.loading("Creating studio...", { id: "studio-save" });
-      await studioAdminApi.createStudio(studioPayload);
+      const payload = {
+        ...studioPayload,
+        address: dynamicAddress,
+        latitude: String(dynamicAddress.latitude),
+        longitude: String(dynamicAddress.longitude),
+        address_line1: dynamicAddress.line1,
+        address_line2: dynamicAddress.line2,
+        city: dynamicAddress.city,
+        state: dynamicAddress.state,
+        zip_code: dynamicAddress.zipCode,
+        country: dynamicAddress.country,
+      };
+      await studioAdminApi.createStudio(payload);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("add_studio_address");
+      }
       toast.success("Studio created successfully", { id: "studio-save" });
       router.push("/admin/studio-management");
     } catch (error) {

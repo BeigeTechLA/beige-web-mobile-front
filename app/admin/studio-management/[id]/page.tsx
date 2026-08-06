@@ -237,7 +237,7 @@ export default function AdminStudiosDetailsPage() {
                 <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
                 <div className="p-4 lg:p-9">
                   {activeTab === "Overview" ? (
-                    <StudioInformation isDark={isDark} />
+                    <StudioInformation isDark={isDark} information={studio} />
                   ) : activeTab === "Availability" ? (
                     <StudioAvailability isDark={isDark} />
                   ) : (
