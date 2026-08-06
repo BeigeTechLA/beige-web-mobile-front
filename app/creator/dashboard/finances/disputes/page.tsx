@@ -76,6 +76,8 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
   Other: "other",
 };
 
+const DISPUTES_PER_PAGE = 10;
+
 const titleize = (value: string | null | undefined) =>
   String(value || "")
     .replace(/_/g, " ")
@@ -252,6 +254,7 @@ export default function DisputesPage() {
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [actionLoading, setActionLoading] = useState<"comment" | "attachment" | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let isCancelled = false;
@@ -317,6 +320,17 @@ export default function DisputesPage() {
       return statusMatches && closedMatches && searchMatches;
     });
   }, [disputeItems, disputedStat, disputedStatus, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDisputes.length / DISPUTES_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const paginatedDisputes = useMemo(() => {
+    const start = (currentPage - 1) * DISPUTES_PER_PAGE;
+    return filteredDisputes.slice(start, start + DISPUTES_PER_PAGE);
+  }, [currentPage, filteredDisputes]);
 
   const shootOptions = useMemo(() => earnings
     .filter((earning) => !activeDisputeEarningIds.has(String(earning.creator_earning_id)))
@@ -564,7 +578,7 @@ export default function DisputesPage() {
                 <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">Loading disputes...</div>
               ) : filteredDisputes.length === 0 ? (
                 <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">No CP disputes found.</div>
-              ) : filteredDisputes.map((dispute) => (
+              ) : paginatedDisputes.map((dispute) => (
                 <div key={dispute.id} className={`rounded-2xl overflow-hidden bg-[#0D0D0D] ${expandedId === dispute.id ? "border-[0.5px] border-[#E8D1AB]" : "border-[0.5px] border-[#262626]"}`}>
                   <div
                     onClick={() => setExpandedId(expandedId === dispute.id ? null : dispute.id)}
@@ -663,13 +677,29 @@ export default function DisputesPage() {
             </div>
 
             <div className="flex items-center justify-between px-3.5 py-5 border-t border-[#3D3D3D] border-b-0 bg-[#101010]">
-              <p className="text-sm text-gray-500">Showing {filteredDisputes.length} disputes</p>
+              <p className="text-sm text-gray-500">
+                Showing {(currentPage - 1) * DISPUTES_PER_PAGE + 1} to{" "}
+                {Math.min(currentPage * DISPUTES_PER_PAGE, filteredDisputes.length)} of{" "}
+                {filteredDisputes.length}
+              </p>
               <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <ChevronLeft size={16} />
                 </button>
-                <button className="w-9 h-9 rounded-lg bg-[#E5D5B8] text-black font-medium text-sm">1</button>
-                <button className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors">
+                <button className="w-9 h-9 rounded-lg bg-[#E5D5B8] text-black font-medium text-sm">
+                  {currentPage}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <ChevronRight size={16} />
                 </button>
               </div>
