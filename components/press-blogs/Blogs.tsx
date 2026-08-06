@@ -16,11 +16,11 @@ const BLOG_CATEGORIES = [
   "Industry Insights",
   "Beige Updates",
 ];
-
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 
 export const Blogs = () => {
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState<string>("Tips and Tutorials");
+  const [activeCategory, setActiveCategory] = useState<string>("Trends and Inspos");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   // Fetch all post data
@@ -30,7 +30,7 @@ export const Blogs = () => {
   // Filter posts based on active category
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
-      const categoryName = post.category?.["#text"] || post.category;
+      const categoryName = post.category?.title || post.category;
       return categoryName === activeCategory;
     });
   }, [posts, activeCategory]);
@@ -79,19 +79,21 @@ export const Blogs = () => {
           ) : (
             filteredPosts.map((post, index) => {
               const isExpanded = expandedIndex === index;
-              const postCategory = post.category?.["#text"] || activeCategory;
-              const postSlug = String(post["wp:post_name"]);
+              const postCategory = post.category?.title || activeCategory;
+              const postSlug = String(post["post_name"]);
               const postDescription = extractPlainText(post["content:encoded"]);
-              const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));
-
-              const postDate = new Date(post.pubDate).toLocaleDateString("en-US", {
-                month: "2-digit",
-                year: "numeric",
-              });
+              const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : `${S3_PREFIX}${extractFirstImage(post["content:encoded"])}`);
+              const dateString = post.pubDate || post.post_date || "";
+              const postDate = dateString
+                ? new Date(dateString).toLocaleDateString("en-US", {
+                  month: "2-digit",
+                  year: "numeric",
+                })
+                : "N/A";
 
               return (
                 <div
-                  key={String(post["wp:post_id"] || index)}
+                  key={String(post["post_id"] || index)}
                   className="w-full transition-colors duration-300"
                 >
                   {/* Collapsed View: Title and Category Visible */}

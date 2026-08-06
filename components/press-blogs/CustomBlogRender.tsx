@@ -3,6 +3,8 @@
 import React from "react";
 import parse, { HTMLReactParserOptions, Element, domToReact, DOMNode } from "html-react-parser";
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
 interface BlogRendererProps {
   rawContent: string;
 }
@@ -17,7 +19,7 @@ const containsOnlyMedia = (nodes: DOMNode[]): boolean => {
 
     if (node instanceof Element) {
       // If it's an image, video, or iframe, continue checking siblings
-      if (["img", "iframe", "video", "figure"].includes(node.name)) {
+      if (["img", "iframe", "video", "figure", "svg"].includes(node.name)) {
         continue;
       }
       // If it's a inline wrapper like <a>, <span>, or <div>, recursively check its children
@@ -80,7 +82,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         return (
           <div className="my-6 overflow-hidden rounded-2xl">
             <img
-              src={src}
+              src={`${S3_PREFIX}${src}`}
               srcSet={srcset}
               sizes={sizes}
               alt={alt || ""}
@@ -97,7 +99,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
 
         // Only render figure if it contains valid content (e.g. <img>, caption, text)
         if (!isFigureNotEmpty) {
-          return null; // Don't render empty figure tags
+          return null;
         }
 
         return (
@@ -190,6 +192,75 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
             {domToReact(domNode.children as Element[], options)}
           </li>
         );
+      }
+
+      // 9. Tables and Table Components
+      if (domNode.name === "table") {
+        return (
+          <div className="my-8 w-full overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-2">
+            <table className="w-full min-w-full text-left border-collapse text-white/90">
+              {domToReact(domNode.children as Element[], options)}
+            </table>
+          </div>
+        );
+      }
+
+      if (domNode.name === "thead") {
+        return (
+          <thead className="bg-[#E8D1AB]/20 border-b border-white/20 text-[#E8D1AB]">
+            {domToReact(domNode.children as Element[], options)}
+          </thead>
+        );
+      }
+
+      if (domNode.name === "tbody") {
+        return (
+          <tbody className="divide-y divide-white/10">
+            {domToReact(domNode.children as Element[], options)}
+          </tbody>
+        );
+      }
+
+      if (domNode.name === "tr") {
+        return (
+          <tr className="hover:bg-white/5 transition-colors">
+            {domToReact(domNode.children as Element[], options)}
+          </tr>
+        );
+      }
+
+      if (domNode.name === "th") {
+        return (
+          <th className="px-4 py-3 font-semibold text-xs lg:text-xl border-b border-white/20">
+            {domToReact(domNode.children as Element[], options)}
+          </th>
+        );
+      }
+
+      if (domNode.name === "td") {
+        return (
+          <td className="px-4 py-3 font-['Yrsa'] text-xs lg:text-xl text-white/80 align-top">
+            {domToReact(domNode.children as Element[], options)}
+          </td>
+        );
+      }
+
+      // 10. SVG Handling
+      if (domNode.name === "svg") {
+        // Apply max dimensions via Tailwind classes
+        domNode.attribs.class = `${domNode.attribs.class || ""} max-w-[20px] max-h-[20px]`.trim();
+
+        // Cap explicit attributes if they exceed 20
+        if (domNode.attribs.width && parseInt(domNode.attribs.width, 10) > 20) {
+          domNode.attribs.width = "20";
+        }
+        if (domNode.attribs.height && parseInt(domNode.attribs.height, 10) > 20) {
+          domNode.attribs.height = "20";
+        }
+
+        // Return undefined to let html-react-parser natively handle the modified node. 
+        // This safely maps tricky attributes like `viewBox` or `fill-rule` to React format.
+        return;
       }
     },
   };

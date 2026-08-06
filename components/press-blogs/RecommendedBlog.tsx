@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination, Autoplay } from "swiper/modules";
 
-export interface BlogPost {
-  "wp:post_id"?: string | number;
-  "wp:post_name"?: string;
-  title: string;
-  pubDate: string;
-  category?: { "#text": string } | string;
-  "content:encoded"?: string;
-  author?: string;
-  featuredImage?: string;
-}
+// Import central type definition
+import { BlogPost } from "@/app/press-blogs/lib/types";
+
+// Import Swiper styles
+import "swiper/css";
+import "swiper/css/pagination";
 
 interface RecommendedBlogsProps {
   moreContent: BlogPost[];
@@ -28,10 +26,10 @@ function extractFirstImage(htmlContent?: string): string {
     ? "/images/misc/BlackLogoPlaceholder.png"
     : foundSrc;
 }
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 
 export const RecommendedBlogs: React.FC<RecommendedBlogsProps> = ({ moreContent }) => {
   const router = useRouter();
-  const [activeIndex, setActiveIndex] = useState(1);
 
   if (!moreContent || moreContent.length === 0) return null;
 
@@ -43,78 +41,123 @@ export const RecommendedBlogs: React.FC<RecommendedBlogsProps> = ({ moreContent 
           Recommended <span className="text-white/40">Blogs</span>
         </h2>
 
-        {/* Blog Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {moreContent.slice(0, 3).map((post, idx) => {
-            // Field extractions matching your data structure
-            const postCategory =
-              (typeof post.category === "object" ? post.category?.["#text"] : post.category) ||
-              "GENERAL";
-            const postSlug = String(post["wp:post_name"] || "");
-            const postImage =
-              post.featuredImage || extractFirstImage(post["content:encoded"]);
-            const postDate = post.pubDate
-              ? new Date(post.pubDate).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-              }).replace(/\//g, "-")
-              : "";
+        {/* Swiper Carousel */}
+        <div className="w-full">
+          <Swiper
+            modules={[Pagination, Autoplay]}
+            spaceBetween={24}
+            slidesPerView={1}
+            breakpoints={{
+              640: {
+                slidesPerView: 2,
+                spaceBetween: 24,
+              },
+              1024: {
+                slidesPerView: 3,
+                spaceBetween: 32,
+              },
+            }}
+            pagination={{
+              clickable: true,
+              el: ".custom-swiper-pagination",
+              bulletClass: "custom-swiper-bullet",
+              bulletActiveClass: "custom-swiper-bullet-active",
+            }}
+            autoplay={{
+              delay: 9000,
+              disableOnInteraction: true,
+            }}
+            className="w-full !pb-12"
+          >
+            {moreContent.map((post, idx) => {
+              const postCategory =
+                typeof post.category === "object"
+                  ? post.category?.title
+                  : post.category || "GENERAL";
+              const postSlug = String(post["post_name"] || "");
 
-            return (
-              <div
-                key={String(post["wp:post_id"] || idx)}
-                onClick={() => postSlug && router.push(`/press-blogs/${postSlug}`)}
-                className="group flex flex-col space-y-4 lg:space-y-10 cursor-pointer transition-transform duration-200 hover:-translate-y-1"
-              >
-                {/* Image Container */}
-                <div className="relative w-full aspect-[16/10] overflow-hidden rounded-2xl bg-zinc-900 border border-white/5">
-                  <img
-                    src={postImage}
-                    alt={post.title || "Blog cover image"}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
+              const rawImage = extractFirstImage(post["content:encoded"]);
 
-                {/* Content Details */}
-                <div className="flex flex-col flex-1 justify-between space-y-3 lg:space-y-10 text-white ">
-                  <div className="space-y-2 lg:space-y-5">
-                    {/* Category */}
-                    <p className="text-[10px] lg:text-base uppercase tracking-wider">
-                      {postCategory}
-                    </p>
+              // Check if rawImage is a local placeholder or missing
+              const postImage = rawImage.startsWith("/images/misc/")
+                ? "/images/misc/BeigeLogoPlaceholder.png"
+                : `${S3_PREFIX}${rawImage}`;
 
-                    {/* Title */}
-                    <h3 className="text-sm lg:text-[28px] font-medium line-clamp-3 leading-snug group-hover:text-white/80 transition-colors">
-                      {post.title}
-                    </h3>
+              console.log(postImage, postSlug)
+
+              const dateString = post.pubDate || post.post_date;
+              const postDate = dateString
+                ? new Date(dateString)
+                  .toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  })
+                  .replace(/\//g, "-")
+                : "";
+
+              return (
+                <SwiperSlide key={String(post["post_id"] || idx)}>
+                  <div
+                    onClick={() => postSlug && router.push(`/press-blogs/${postSlug}`)}
+                    className="group flex flex-col space-y-4 lg:space-y-10 cursor-pointer transition-transform duration-200 hover:-translate-y-1 h-full"
+                  >
+                    {/* Image Container */}
+                    <div className="relative w-full aspect-[16/10] overflow-hidden rounded-2xl bg-zinc-900 border border-white/5">
+                      <img
+                        src={postImage}
+                        alt={post.title || "Blog cover image"}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+
+                    {/* Content Details */}
+                    <div className="flex flex-col flex-1 justify-between space-y-3 lg:space-y-10 text-white">
+                      <div className="space-y-2 lg:space-y-5">
+                        {/* Category */}
+                        <p className="text-[10px] lg:text-base uppercase tracking-wider">
+                          {postCategory}
+                        </p>
+
+                        {/* Title */}
+                        <h3 className="text-sm lg:text-[28px] font-medium line-clamp-3 leading-snug group-hover:text-white/80 transition-colors">
+                          {post.title}
+                        </h3>
+                      </div>
+
+                      {/* Author & Date Footer */}
+                      <p className="text-xs lg:text-base">
+                        By {post.creator || "Beige Media"}{postDate ? `, ${postDate}` : ""}
+                      </p>
+                    </div>
                   </div>
+                </SwiperSlide>
+              );
+            })}
+          </Swiper>
 
-                  {/* Author & Date Footer */}
-                  <p className="text-xs lg:text-base">
-                    By {post.author || "Beige Media"}{postDate ? `, ${postDate}` : ""}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Carousel / Pagination Indicator */}
-        <div className="flex justify-center items-center gap-2 pt-6">
-          {[0, 1, 2, 3].map((index) => (
-            <button
-              key={index}
-              onClick={() => setActiveIndex(index)}
-              className={`h-[2px] rounded-full transition-all duration-300 ${activeIndex === index
-                  ? "w-12 bg-[#E8D1AB]"
-                  : "w-8 bg-zinc-800 hover:bg-zinc-700"
-                }`}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
+          {/* Custom Pagination Container */}
+          <div className="custom-swiper-pagination flex justify-center items-center gap-2 pt-6" />
         </div>
       </div>
+
+      {/* Global CSS overrides for the custom pagination indicators */}
+      <style jsx global>{`
+        .custom-swiper-bullet {
+          width: 32px;
+          height: 2px;
+          background-color: #27272a; /* bg-zinc-800 */
+          border-radius: 9999px;
+          display: inline-block;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .custom-swiper-bullet-active {
+          width: 48px;
+          background-color: #e8d1ab;
+        }
+      `}</style>
     </section>
   );
 };

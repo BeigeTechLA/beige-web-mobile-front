@@ -10,7 +10,6 @@ import { Separator } from "@/src/components/landing/Separator";
 import { Footer } from "@/src/components/landing/Footer";
 import { RecommendedBlogs } from "@/components/press-blogs/RecommendedBlog";
 
-
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -20,7 +19,7 @@ function generateStaticParams(category?: string) {
   console.log(posts)
 
   const moreContent = posts.filter((post) => {
-    const categoryName = post.category?.["#text"] || post.category;
+    const categoryName = post.category?.["title"] || post.category;
     return categoryName === category;
   });
 
@@ -33,10 +32,12 @@ function generateStaticParams(category?: string) {
   //   }));
 }
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
+
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params; // Next.js 15 requires awaiting params
   const post = getPostBySlug(slug);
-  const moreContent = generateStaticParams(post?.category["#text"] || "");
+  const moreContent = generateStaticParams(post.category?.["title"] || "");
 
   console.log(post);
 
@@ -48,7 +49,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   // console.log( formattedContent);
   const readTime = calculateReadTime(formattedContent);
-  const blogImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BeigeLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));
+  const blogImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BeigeLogoPlaceholder.png" : `${S3_PREFIX}${extractFirstImage(post["content:encoded"])}`);
 
   console.log(formattedContent);
   console.log(blogImage);
@@ -94,9 +95,8 @@ export default async function BlogPostPage({ params }: Props) {
         </div>
 
         <Separator />
-        <RecommendedBlogs moreContent={moreContent}  />
+        <RecommendedBlogs moreContent={moreContent} />
 
-        <Separator />
         <Footer />
       </Container>
     </main>
