@@ -1,11 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Menu } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
+import { useRouter } from "next/navigation";
 
 interface TopbarProps {
   pathname: string;
@@ -20,6 +21,10 @@ interface TopbarProps {
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+   const isNotificationsPage =
+  pathname === "/admin/dashboard/notifications";
+    const router = useRouter();
+  
 
   useEffect(() => setMounted(true), []);
 
@@ -31,8 +36,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     .filter((path) => path)
     .filter((path) => path !== "admin");
 
-  const pathSegments = pathname.replace(/\/$/, "").split("/");
-  const isDashboardRoot = pathSegments[pathSegments.length - 1] === "dashboard";
+  const isDashboardSection = pathname.startsWith("/admin/dashboard"); 
 
   const isShootsPage = pathname.includes("shoots");
 
@@ -146,10 +150,34 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
         {/* Right: Desktop Actions */}
         <div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar">
-          {actions}
-
           {
-            (isDashboardRoot) && (
+            isDashboardSection && (
+              <>
+              {/* <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        isNotificationsPage
+                          ? "/admin/dashboard"
+                          : "/admin/dashboard/notifications"
+                      )
+                    }
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
+                      isNotificationsPage
+                        ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                        : isDark
+                        ? "bg-zinc-800 border-zinc-700 hover:bg-zinc-700"
+                        : "bg-zinc-100 border-zinc-200 hover:bg-zinc-200"
+                    }`}
+                  >
+                  <Bell className="w-5 h-5" />
+                </button> */}
+                </>
+                      )
+                }
+                {actions}
+                  {
+            isDashboardSection && (
               <>
                 <ModeToggle />
                 <div className={`relative shrink-0 w-12 h-12 rounded-full overflow-hidden cursor-pointer border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
