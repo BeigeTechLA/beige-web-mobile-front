@@ -126,9 +126,13 @@ export default function ResolveDisputeModal({
     setUploadedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  const isFormInvalid = 
+  (tab === "credits" && !creditAmount) || 
+  (tab === "manual" && (!paymentMethod || !transactionId || (amountType === "partial" && !amount)));
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (tab === "auto") return;
+    if (tab === "auto" || isFormInvalid) return;
     onSubmit({
       resolutionType: tab,
       amountType,
@@ -363,7 +367,7 @@ export default function ResolveDisputeModal({
             <Button
               type="submit"
               variant="beige"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isFormInvalid}
               className="h-12 rounded-sm bg-[#E8D1AB] text-sm font-semibold text-black hover:bg-[#e0c594]"
             >
               {isSubmitting ? "Submitting..." : "Resolve & Process Payment"}

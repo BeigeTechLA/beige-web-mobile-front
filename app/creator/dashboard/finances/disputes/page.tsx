@@ -11,7 +11,6 @@ import {
   DollarSign,
   HandCoins,
   Search,
-  TrendingUp,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -58,6 +57,7 @@ type CreatorDisputeItem = {
   title: string;
   status: DisputeStatus;
   payoutStatus: string;
+  createdAt: string;
   payoutDate: string;
   totalEarnings: number;
   paidAmount: number;
@@ -161,6 +161,7 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
     title: cp.shoot_name || fallback?.shoot_name || dispute.project?.name || `Shoot ${formatShootId(bookingId)}`,
     status: mapDisputeStatus(dispute.status),
     payoutStatus: fallback?.status_label || titleize(fallback?.status) || "Compensation Added",
+    createdAt: formatDate(dispute.created_at),
     payoutDate: formatDate(fallback?.due_date || dispute.created_at),
     totalEarnings: compensationAmount,
     paidAmount,
@@ -230,7 +231,6 @@ const mapDetails = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Creato
       remaining: formatCurrency(row.remainingBalance),
       extra: row.extraAmount > 0 ? formatCurrency(row.extraAmount) : undefined,
     },
-    ...(fallback ? { raisedDate: fallback.payoutDate } : {}),
   };
 };
 
@@ -251,6 +251,7 @@ export default function DisputesPage() {
   const [disputes, setDisputes] = useState<AdminFinanceDisputeDetailsApiRow[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [actionLoading, setActionLoading] = useState<"comment" | "attachment" | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -380,7 +381,7 @@ export default function DisputesPage() {
         remaining_balance: dispute.remainingBalance,
         extra_amount: dispute.extraAmount,
       },
-      created_at: dispute.payoutDate,
+      created_at: dispute.createdAt,
       raised_by: { type: "creator", name: dispute.raisedBy },
     }, dispute));
 
@@ -392,10 +393,41 @@ export default function DisputesPage() {
     }
   };
 
-  const completedBookings = earnings.filter((earning) => String(earning.status || "").toLowerCase() === "paid").length;
-  const averageEarnings = earnings.length
-    ? earnings.reduce((sum, earning) => sum + parseMoneyValue(earning.total_compensation), 0) / earnings.length
-    : 0;
+  const refreshSelectedDispute = async (disputeId?: string | number) => {
+    if (!disputeId) return;
+    const response = await financeTransactionsApi.getCreatorDisputeDetails(disputeId);
+    setSelectedDispute(mapDetails(response.data));
+  };
+
+  const handleAddComment = async (dispute: DisputeDetailsRecord, body: string) => {
+    if (!dispute.disputeId) return;
+    setActionLoading("comment");
+    try {
+      await financeTransactionsApi.addCreatorDisputeComment(dispute.disputeId, body);
+      await refreshSelectedDispute(dispute.disputeId);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add creator dispute comment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAddAttachment = async (dispute: DisputeDetailsRecord, files: File[]) => {
+    if (!dispute.disputeId || !files.length) return;
+    setActionLoading("attachment");
+    try {
+      const payload = new FormData();
+      files.forEach((file) => payload.append("attachments", file));
+      await financeTransactionsApi.addCreatorDisputeAttachment(dispute.disputeId, payload);
+      await refreshSelectedDispute(dispute.disputeId);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add creator dispute attachment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <>
@@ -597,7 +629,7 @@ export default function DisputesPage() {
                             </div>
                             <div className="flex justify-between text-base">
                               <span className="text-[#A0A0A0]">Created</span>
-                              <span>{dispute.payoutDate}</span>
+                              <span>{dispute.createdAt}</span>
                             </div>
                             <div className="flex justify-between text-base">
                               <span className="text-[#A0A0A0]">Reason</span>
@@ -677,6 +709,9 @@ export default function DisputesPage() {
           isOpen={!!selectedDispute}
           onClose={() => setSelectedDispute(null)}
           dispute={selectedDispute}
+          onAddComment={(dispute, body) => void handleAddComment(dispute, body)}
+          onAddAttachment={(dispute, files) => void handleAddAttachment(dispute, files)}
+          actionLoading={Boolean(actionLoading)}
         />
         </div>
       </div>
