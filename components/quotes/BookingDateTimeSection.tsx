@@ -574,7 +574,7 @@ export default function BookingDateTimeSection({
             <h3 className={`mb-3 text-base font-medium lg:mb-6 lg:text-xl ${isDark ? "text-white/90" : "text-black/80"}`}>
               Shoot Date & Time
             </h3>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
               <DatePicker
                 label="Select Date"
                 value={selectedShootDate}
