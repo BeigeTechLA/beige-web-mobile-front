@@ -228,6 +228,12 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
       }));
   }, [profile?.files]);
 
+  const randomImage = useMemo(() => {
+    if (!dynamicPortfolioImages || dynamicPortfolioImages.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * dynamicPortfolioImages.length);
+    return dynamicPortfolioImages[randomIndex];
+  }, [dynamicPortfolioImages]);
+
   const handleBack = () => {
     router.back();
   };
@@ -312,7 +318,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                   }}
                 >
                   <img
-                    src={dynamicPortfolioImages[0] || profileImg}
+                    src={randomImage || profileImg}
                     alt="Portfolio Preview"
                     className="w-full h-full object-cover brightness-95"
                   />
