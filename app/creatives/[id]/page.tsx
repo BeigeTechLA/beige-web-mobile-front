@@ -3,11 +3,10 @@
 import React, { useState, Suspense, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 
 import type { Swiper as SwiperType } from "swiper";
-// import { antonio } from "@/app/layout";
-import { ArrowLeft, ArrowUpRight, FileText } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -60,41 +59,61 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
     offset: ["start start", "end end"]
   });
 
+  // Smooth out raw scroll progression to eliminate jitter
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 24,
+    restDelta: 0.001
+  });
+
   /**
-   * FINE-TUNED INTERPOLATION GEOMETRY FOR 530px x 757px CARD
+   * REFINED INTERPOLATION TIMELINE FOR SMOOTH SECTION FLIPPING
    * 
-   * - 0.0 to 0.16  : Stays centered in Section 1.
-   * - 0.16 to 0.33 : Card shifts right to 480px, scales down/up slightly, and flips to back view.
-   * - 0.33 to 0.50 : Resting in Section 2 (Maintains position, remains flipped).
-   * - 0.50 to 0.66 : Card unflips back to front view while tracking smoothly.
-   * - 0.66 to 1.0  : Rests in Section 3 layout context.
+   * 1. Section 1 -> Section 2 (0.00 -> 0.33):
+   *    - Translates rightwards (0px -> 340px)
+   *    - Flips 180deg (0deg -> 180deg) to show BACK view (Work/Portfolio)
+   *    - Tilts slightly (-5deg rotateZ)
+   * 
+   * 2. Section 2 (0.33 -> 0.66):
+   *    - Remains parked at 340px
+   *    - Stays flipped on BACK view (180deg)
+   *    - Holds tilt angle (-5deg)
+   * 
+   * 3. Section 3 (0.66 -> 0.85):
+   *    - Flips AGAIN (180deg -> 360deg) back to FRONT view (Profile photo)
+   *    - Un-tilts smoothly (-5deg -> 0deg)
+   *    - Holds final position on the right
    */
+  // 1. Horizontal position tracking (Moves right into position by progress 0.20)
   const cardX = useTransform(
-    scrollYProgress,
-    [0, 0.16, 0.33, 0.50, 0.66, 1],
-    ["0px", "0px", "340px", "340px", "340px", "340px"]
+    smoothProgress,
+    [0, 0.20, 1],
+    ["0px", "340px", "340px"]
   );
 
-  const cardRotate = useTransform(
-    scrollYProgress,
-    [0, 0.16, 0.33, 0.50, 0.66, 1],
-    [0, 0, -3, 3, 0, 0]
-  );
-
-  const cardScale = useTransform(
-    scrollYProgress,
-    [0, 0.16, 0.25, 0.33, 0.50, 0.58, 0.66, 1],
-    [1, 1, 0.96, 1.02, 1.02, 0.97, 1, 1]
-  );
-
+  // 2. 3D Y-Axis Flip (Flip 1: 0deg -> 180deg between Sec 1 & 2 | Flip 2: 180deg -> 360deg between Sec 2 & 3)
   const cardRotateY = useTransform(
-    scrollYProgress,
-    [0, 0.16, 0.33, 0.50, 0.66, 1],
-    [0, 0, 180, 180, 0, 0]
+    smoothProgress,
+    [0, 0.20, 0.50, 0.70, 1],
+    [0, 180, 180, 360, 360]
   );
 
-  const bubbleScale = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
-  const bubbleOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+  // 3. Dynamic 2D Tilt / Rotation (0deg -> +5deg [Tilts Right] -> +5deg -> 0deg)
+  const cardRotate = useTransform(
+    smoothProgress,
+    [0, 0.20, 0.50, 0.70, 1],
+    [0, 5, 5, 0, 0]
+  );
+
+  // 4. Depth Compression during rotational spins
+  const cardScale = useTransform(
+    smoothProgress,
+    [0, 0.10, 0.20, 0.50, 0.60, 0.70, 1],
+    [1, 0.94, 1, 1, 0.94, 1, 1]
+  );
+
+  const bubbleScale = useTransform(smoothProgress, [0, 0.10], [1, 0]);
+  const bubbleOpacity = useTransform(smoothProgress, [0, 0.10], [1, 0]);
 
   useEffect(() => {
     const fromPage = searchParams.get('from');
@@ -159,14 +178,12 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
     );
   }, [creatorId, isLoadingProfile, isModalView, profile, profileError]);
 
-  // Fetch recommended creators (using search API)
-  const { data: recommendedData } = useSearchCreatorsQuery({
+  useSearchCreatorsQuery({
     page: 1,
     limit: 4
   });
 
   // --- DYNAMIC DATA PROCESSING ---
-  // 1. Process Video Links from API (file_type: "link")
   const dynamicVideos = useMemo(() => {
     if (!profile?.files) return [];
     return profile.files
@@ -177,7 +194,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
       }));
   }, [profile?.files]);
 
-  // 2. Process Recent Work Images & Dynamic Categories for ProjectSwitcher
   const { dynamicCategories, dynamicPortfolioImages } = useMemo(() => {
     if (!profile?.files) return { dynamicCategories: ["All"], dynamicPortfolioImages: [] };
 
@@ -297,8 +313,8 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                 >
                   <img
                     src={dynamicPortfolioImages[0] || profileImg}
-                    alt="Portfolio Alternate Preview"
-                    className="w-full h-full object-cover brightness-90"
+                    alt="Portfolio Preview"
+                    className="w-full h-full object-cover brightness-95"
                   />
                 </div>
 
@@ -318,7 +334,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
 
           {/* SECTION 1: HERO CONTAINER */}
           <section className="relative flex items-center justify-center z-10 lg:pb-20 lg:min-h-[700px]">
-            {/* Desktop View: Completely Unchanged Layout & Sizes */}
+            {/* Desktop View */}
             <div className={`hidden md:grid font-[family-name:var(--font-antonio)] w-full grid-cols-3 items-center justify-between gap-4 pointer-events-none select-none relative z-10`}>
               <div className="text-left">
                 <span className="text-xl lg:text-6xl uppercase text-white block mb-4 lg:mb-8">
@@ -339,15 +355,11 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               </div>
             </div>
 
-            {/* Mobile View: Custom sequence stack without the sub-description bio text */}
+            {/* Mobile View */}
             <div className={`flex md:hidden flex-col items-center text-center w-full font-[family-name:var(--font-antonio)] relative z-10 px-4 pt-4`}>
               <span className="text-2xl uppercase tracking-wider text-white/80 font-light mb-2">
                 {profile?.firstName} {profile?.lastName}
               </span>
-
-              <h1 className="text-6xl uppercase text-white tracking-tight mb-4">
-                Creative
-              </h1>
 
               {/* Mobile Card Render */}
               <div className="relative w-[280px] aspect-[3/4.2] rounded-3xl overflow-visible shadow-xl border border-white/10 my-4 bg-neutral-900">
@@ -363,7 +375,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               </div>
 
               <h1 className="text-6xl uppercase text-white tracking-tight mt-4">
-                Partner
+                Creative Partner
               </h1>
             </div>
           </section>
@@ -374,7 +386,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
 
           {/* SECTION 2: CREATOR DETAILS & SKILLS LIST */}
           <section className="relative flex items-center px-8 md:px-24 z-10 bg-[#0F0F0F]/40 backdrop-blur-sm lg:min-h-[700px]">
-            <div className="w-full md:w-[45%] space-y-8 lg:space-y-18">
+            <div className="w-full md:w-[45%] space-y-4 lg:space-y-18">
               <div className="space-y-4">
                 <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight text-left">
                   Creator Role
@@ -463,7 +475,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
 
         {/* Featured Works */}
         <section className="mt-14 lg:my-20 overflow-hidden">
-          <div className=" mx-auto relative overflow-hidden px-5 lg:px-0">
+          <div className="mx-auto relative overflow-hidden px-5 lg:px-0">
             <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight">
                 Featured Works
@@ -477,7 +489,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                 onChange={(tab) => {
                   setActiveProject(tab);
                 }}
-                className="mx-auto mb-10"
+                className="mx-auto lg:mb-10"
               />
             )}
 
@@ -565,7 +577,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
             <CenteredSeparator />
             <section id="video-portfolio" className="relative w-full">
               <StackedVideoScroll videos={dynamicVideos} />
-              <CenteredSeparator />
             </section>
           </>
         )}
