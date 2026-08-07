@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2, Pencil } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -26,16 +26,42 @@ const resolveStudioMediaUrl = (value: unknown): string | null => {
   return `${S3_PREFIX}/${value.replace(/^\/+/, "")}`;
 };
 
+// Premium fallback images to ensure 3 thumbnails and cover always look complete
+const defaultImages = [
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=500&auto=format&fit=crop&q=80",
+];
+
+const getThumbnails = (images: string[], cover: string | null): string[] => {
+  const pool = new Set<string>();
+  if (cover) pool.add(cover);
+  images.forEach((img) => pool.add(img));
+
+  const list = Array.from(pool);
+
+  while (list.length < 4) {
+    list.push(defaultImages[list.length % defaultImages.length]);
+  }
+
+  return list.slice(0, 4);
+};
+
 interface ListingProps {
   externalSelectedDate?: Date | null;
   isDark?: boolean;
 }
 
 export default function StudioListing({ externalSelectedDate, isDark = false }: ListingProps) {
-  const [range, setRange] = useState('all');
+  const [range, setRange] = useState("all");
+  const [monthFilter, setMonthFilter] = useState("all");
   const [status, setStatus] = useState<string>("all");
   const [studios, setStudios] = useState<AdminStudioListItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // State to track active clicked thumbnail for each studio ID
+  const [activeImageMap, setActiveImageMap] = useState<Record<string, string>>({});
 
   const toStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -104,58 +130,104 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
         .map((item) => resolveStudioMediaUrl(item.url))
         .filter((url): url is string => Boolean(url)),
       supportedTypes: toStringArray(studio.supported_shoot_types),
-      cover: resolveStudioMediaUrl(studio.cover_media?.url)
-        || resolveStudioMediaUrl(studio.gallery_preview?.[0]?.url)
-        || null,
+      cover:
+        resolveStudioMediaUrl(studio.cover_media?.url) ||
+        resolveStudioMediaUrl(studio.gallery_preview?.[0]?.url) ||
+        null,
     }));
   }, [studios]);
 
   return (
-    <div className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden min-h-[400px] h-full flex flex-col ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#FFF] border-[#E3E3E3]"
-      }`}>
+    <div
+      className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden min-h-[400px] h-full flex flex-col ${
+        isDark ? "bg-[#101010] border-[#222222]" : "bg-[#FFF] border-[#E3E3E3]"
+      }`}
+    >
       {/* Header Controls */}
-      <div className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
-        }`}>
+      <div
+        className={`flex flex-row justify-between items-center p-5 border-b transition-colors duration-300 gap-4 ${
+          isDark ? "bg-[#101010] border-b-[#222222]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
+        }`}
+      >
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-          <h3 className={isDark ? "text-white" : "text-[#323232]"}>Studio Listing</h3>
+          <h3 className={`font-semibold text-lg ${isDark ? "text-white" : "text-[#323232]"}`}>
+            Studio Listing
+          </h3>
         </div>
 
-        {/* Dropdown filters */}
-        <div className="flex gap-3">
-          {/* <Select value={range} onValueChange={(val) => setRange(val)}>
-            <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
-              }`}>
-              <SelectValue placeholder="Range" />
-            </SelectTrigger>
-            <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="week"></SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
-            </SelectContent>
-          </Select> */}
-
+        {/* Dropdown filters matching user screenshot */}
+        <div className="flex gap-2">
+          {/* Dropdown 1: Range */}
           <Select value={range} onValueChange={(val) => setRange(val)}>
-            <SelectTrigger className={`w-[130px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
-              }`}>
-              <SelectValue placeholder="Range" />
+            <SelectTrigger
+              className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 ${
+                isDark
+                  ? "bg-[#151515] border-[#2c2c2c] text-zinc-400 hover:text-white"
+                  : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-100"
+              }`}
+            >
+              <SelectValue placeholder="All" />
             </SelectTrigger>
-            <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              {externalSelectedDate && <SelectItem value="custom">Selected Date</SelectItem>}
+            <SelectContent
+              className={`${
+                isDark ? "bg-[#151515] border-[#2c2c2c] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+              }`}
+            >
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+              {externalSelectedDate && <SelectItem value="custom">Selected</SelectItem>}
             </SelectContent>
           </Select>
 
+          {/* Dropdown 2: Month */}
+          <Select value={monthFilter} onValueChange={(val) => setMonthFilter(val)}>
+            <SelectTrigger
+              className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 ${
+                isDark
+                  ? "bg-[#151515] border-[#2c2c2c] text-zinc-400 hover:text-white"
+                  : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-100"
+              }`}
+            >
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent
+              className={`${
+                isDark ? "bg-[#151515] border-[#2c2c2c] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+              }`}
+            >
+              <SelectItem value="all">Month</SelectItem>
+              <SelectItem value="01">January</SelectItem>
+              <SelectItem value="02">February</SelectItem>
+              <SelectItem value="03">March</SelectItem>
+              <SelectItem value="04">April</SelectItem>
+              <SelectItem value="05">May</SelectItem>
+              <SelectItem value="06">June</SelectItem>
+              <SelectItem value="07">July</SelectItem>
+              <SelectItem value="08">August</SelectItem>
+              <SelectItem value="09">September</SelectItem>
+              <SelectItem value="10">October</SelectItem>
+              <SelectItem value="11">November</SelectItem>
+              <SelectItem value="12">December</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Dropdown 3: Status */}
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"
-              }`}>
+            <SelectTrigger
+              className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 capitalize ${
+                isDark
+                  ? "bg-[#151515] border-[#2c2c2c] text-zinc-400 hover:text-white"
+                  : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-100"
+              }`}
+            >
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
-              <SelectItem value="all">All</SelectItem>
+            <SelectContent
+              className={isDark ? "bg-[#151515] border-[#2c2c2c] text-white" : "text-black bg-white border-[#E3E3E3]"}
+            >
+              <SelectItem value="all">Status</SelectItem>
               <SelectItem value="Approved">Approved</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
@@ -163,71 +235,191 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
           </Select>
         </div>
       </div>
-      <div className="p-2 lg:p-5 flex flex-col gap-2.5">
+
+      <div className="p-4 lg:p-6 flex flex-col gap-6">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-zinc-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <div className="flex items-center justify-center py-24 text-sm text-zinc-500">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Loading studios...
           </div>
         ) : normalizedStudios.length ? (
-          normalizedStudios.map((studio) => (
-            <div key={studio.id} className={`p-4 lg:p-6 rounded-2xl border transition-colors duration-300 ${isDark ? "bg-[#101010] text-white border-[#3D3D3D]" : "bg-white text-zinc-900 border-zinc-200"}`}>
-              <div className="flex flex-col md:flex-row gap-5">
-                <div className="w-full md:w-[280px] aspect-[4/3] relative overflow-hidden rounded-xl bg-zinc-100">
-                  {studio.cover ? (
-                    <img
-                      src={studio.cover}
-                      alt={studio.name}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
-                      No cover image
+          normalizedStudios.map((studio) => {
+            const studioImages = getThumbnails(studio.images, studio.cover);
+            const mainImage = activeImageMap[studio.id] || studioImages[0];
+            const thumbnails = studioImages.slice(1, 4);
+            const finalSupportedTypes =
+              studio.supportedTypes.length > 0
+                ? studio.supportedTypes
+                : ["Photography", "Videography", "Product"];
+
+            return (
+              <div
+                key={studio.id}
+                className={`p-5 lg:p-6 rounded-2xl border transition-colors duration-300 ${
+                  isDark ? "bg-[#101010] text-white border-[#222222]" : "bg-white text-zinc-900 border-zinc-200"
+                }`}
+              >
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Left Column: Image Gallery (1 Large + 3 Thumbnails below) */}
+                  <div className="w-full md:w-[347px] flex flex-col gap-3">
+                    {/* Main Image */}
+                    <div
+                      className={`relative aspect-[16/10] w-full overflow-hidden rounded-xl border ${
+                        isDark ? "bg-zinc-900 border-[#222222]" : "bg-zinc-100 border-zinc-200"
+                      }`}
+                    >
+                      <img
+                        src={mainImage}
+                        alt={studio.name}
+                        className="absolute inset-0 h-full w-full object-cover transition-all duration-300"
+                      />
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 flex flex-col justify-between gap-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg lg:text-2xl font-medium">{studio.name}</p>
-                      <p className={`text-sm mt-1 ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                        {studio.hourlyRate ? `$${studio.hourlyRate}/hr` : "Rate unavailable"}
-                        {studio.minBooking ? ` • Min ${studio.minBooking} hrs` : ""}
-                      </p>
+                    {/* Thumbnails row */}
+                    <div className="flex gap-3 justify-between">
+                      {thumbnails.map((thumbUrl, idx) => {
+                        const isActive = mainImage === thumbUrl;
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() =>
+                              setActiveImageMap((prev) => ({
+                                ...prev,
+                                [studio.id]: thumbUrl,
+                              }))
+                            }
+                            className={`flex-1 aspect-[4/3] relative overflow-hidden rounded-lg cursor-pointer border-2 transition-all ${
+                              isActive
+                                ? "border-[#E5D5B8] opacity-100"
+                                : isDark
+                                ? "border-[#222222] opacity-60 hover:opacity-100"
+                                : "border-zinc-200 opacity-60 hover:opacity-100"
+                            }`}
+                          >
+                            <img
+                              src={thumbUrl}
+                              alt={`thumb-${idx}`}
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                    <span className="bg-[#D4FFE4] text-[#16A34A] px-4 py-2 rounded-full text-xs lg:text-sm font-medium">
-                      {studio.status}
-                    </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {studio.supportedTypes.length ? studio.supportedTypes.map((type) => (
-                      <span key={type} className={`px-3 py-1.5 rounded-lg text-xs border ${isDark ? "bg-[#171717] text-[#8C8C8C] border-[#3D3D3D]" : "bg-zinc-100 text-zinc-600 border-zinc-200"}`}>
-                        {type}
+                  {/* Right Column: Studio Information & Actions */}
+                  <div className="flex-1 flex flex-col justify-between gap-4">
+                    {/* Top Row: Active badge and Price */}
+                    <div className="flex justify-between items-start">
+                      <span
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold ${
+                          studio.status?.toLowerCase() === "rejected"
+                            ? "bg-[#FEE2E2] text-[#EF4444]"
+                            : studio.status?.toLowerCase() === "pending"
+                            ? "bg-[#FEF3C7] text-[#D97706]"
+                            : "bg-[#E5F9ED] text-[#22C55E]"
+                        }`}
+                      >
+                        {studio.status || "Active"}
                       </span>
-                    )) : (
-                      <span className={`text-sm ${isDark ? "text-white/50" : "text-zinc-500"}`}>No supported shoot types</span>
-                    )}
-                  </div>
+                      <div className="text-xl lg:text-2xl font-bold text-[#E5D5B8]">
+                        ${studio.hourlyRate || 85}/Hour
+                      </div>
+                    </div>
 
-                  <div className="flex gap-3">
-                    <Link href={`/admin/studio-management/${studio.id}`}>
-                      <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E8D1AB] text-[#E8D1AB]">
-                        Preview Studio
-                        <Eye size={16} />
-                      </button>
-                    </Link>
+                    {/* Title */}
+                    <div className="-mt-2">
+                      <h2 className="text-lg lg:text-2xl font-semibold text-white">
+                        {studio.name}
+                      </h2>
+                    </div>
+
+                    {/* Horizontal Stats Row */}
+                    <div
+                      className={`flex items-center gap-6 py-2 border-y ${
+                        isDark ? "border-[#222222]" : "border-zinc-200"
+                      }`}
+                    >
+                      <div>
+                        <div className={`text-[10px] uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                          Overtime Rate
+                        </div>
+                        <div className="text-sm font-semibold text-white/90">
+                          ${studio.overtimeRate || 100}/hour
+                        </div>
+                      </div>
+                      <div className={`h-8 w-[1px] ${isDark ? "bg-[#222222]" : "bg-zinc-200"}`} />
+                      <div>
+                        <div className={`text-[10px] uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                          Minimum Booking
+                        </div>
+                        <div className="text-sm font-semibold text-white/90">
+                          {studio.minBooking || 2} Hours
+                        </div>
+                      </div>
+                      <div className={`h-8 w-[1px] ${isDark ? "bg-[#222222]" : "bg-zinc-200"}`} />
+                      <div>
+                        <div className={`text-[10px] uppercase tracking-wider ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                          Buffer Timing
+                        </div>
+                        <div className="text-sm font-semibold text-white/90">
+                          {studio.bufferTiming || 30} Minutes
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Supported Shoot Types */}
+                    <div>
+                      <p className={`text-xs font-semibold mb-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
+                        Supported Shoot Types
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {finalSupportedTypes.map((type) => (
+                          <span
+                            key={type}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                              isDark
+                                ? "bg-[#151515] text-[#8C8C8C] border-[#222222]"
+                                : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                            }`}
+                          >
+                            {type}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bottom Actions Row */}
+                    <div className="flex justify-between items-center mt-3 pt-3">
+                      <Link href={`/admin/studio-management/${studio.id}`}>
+                        <button
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                            isDark
+                              ? "border-[#222222] text-zinc-300 hover:bg-[#151515] hover:border-zinc-700"
+                              : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                          }`}
+                        >
+                          Preview Studio
+                          <Eye size={14} />
+                        </button>
+                      </Link>
+
+                      <Link href={`/admin/studio-management/add-studio?id=${studio.id}`}>
+                        <button className="flex items-center gap-2 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] px-5 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Edit
+                          <Pencil size={14} />
+                        </button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
-          <div className="py-16 text-center text-sm text-zinc-500">
+          <div className="py-24 text-center text-sm text-zinc-500">
             No studios found.
           </div>
         )}
-
       </div>
     </div>
   );

@@ -439,9 +439,9 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
 
       </div>
 
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
+      {/* <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} /> */}
       {/* Reviews */}
-      <ReviewsComponent isDark={isDark} />
+      {/* <ReviewsComponent isDark={isDark} /> */}
 
     </section>
   );

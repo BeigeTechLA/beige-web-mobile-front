@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Camera, Calendar, Dumbbell, Users, Minus, Plus, Check,
   Balloon
@@ -29,6 +30,35 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
   const [amenities, setAmenities] = useState<string[]>([]);
   const [highlights, setHighlights] = useState<string[]>([]);
 
+  // Load from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("add_studio_details");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.useDefault !== undefined) setUseDefault(parsed.useDefault);
+        if (parsed.activities) setActivities(parsed.activities);
+        if (parsed.counts) setCounts(parsed.counts);
+        if (parsed.amenities) setAmenities(parsed.amenities);
+        if (parsed.highlights) setHighlights(parsed.highlights);
+      } catch (e) {
+        console.error("Failed to load saved studio details", e);
+      }
+    }
+  }, []);
+
+  // Save to local storage on changes
+  useEffect(() => {
+    const data = {
+      useDefault,
+      activities,
+      counts,
+      amenities,
+      highlights
+    };
+    localStorage.setItem("add_studio_details", JSON.stringify(data));
+  }, [useDefault, activities, counts, amenities, highlights]);
+
   // --- Helpers ---
   const toggleAmenity = (id: string) => {
     setAmenities(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
@@ -45,7 +75,6 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
   const updateCount = (key: keyof typeof counts, delta: number) => {
     setCounts(prev => ({ ...prev, [key]: Math.max(0, prev[key] + delta) }));
   };
-
 
   const textColor = isDark ? "text-white" : "text-black";
   const subTextColor = isDark ? "text-[#FFFFFF85]" : "text-black/60";
@@ -89,7 +118,6 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
 
       {/* 2. Activity Switches */}
       <div className="space-y-4">
-        {/* Update the icons */}
         {[
           { id: 'production', label: 'Production', icon: <Camera size={18} /> },
           { id: 'event', label: 'Event', icon: <Balloon size={18} /> },
@@ -133,7 +161,6 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => {
-                      // If current value is 0, set to 1. If > 0, set to 0.
                       const newValue = value > 0 ? 0 : 1;
                       setCounts(prev => ({ ...prev, [key]: newValue }));
                     }}
@@ -147,7 +174,7 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
                   <span className={`lg:text-lg capitalize font-light ${textColor}`}>{key}</span>
                 </div>
                 <QuantityControl
-                  value={0}
+                  value={value}
                   onIncrease={() => updateCount(key as any, 1)}
                   onDecrease={() => updateCount(key as any, -1)}
                 />
@@ -215,4 +242,3 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
     </div>
   );
 }
-

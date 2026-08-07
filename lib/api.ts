@@ -331,6 +331,10 @@ export const studioAdminApi = {
     const response = await api.post("/admin/studios", payload);
     return response;
   },
+  updateStudio: async (id: string | number, payload: Record<string, unknown>) => {
+    const response = await api.put(`/admin/studios/${id}`, payload);
+    return response;
+  },
 };
 
 export const reviewApi = {
@@ -2222,6 +2226,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch studio details',
+      };
+    }
+  },
+  updateStudio: async (studioId: string | number, payload: Record<string, unknown>) => {
+    try {
+      const response = await api.put(`/admin/studios/${studioId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio details',
       };
     }
   },

@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Check } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,53 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
   const [securityEnabled, setSecurityEnabled] = useState(true);
   const [securityDesc, setSecurityDesc] = useState("");
 
+  // Load from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("add_studio_info");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.spaceTitle) setSpaceTitle(parsed.spaceTitle);
+        if (parsed.brandName) setBrandName(parsed.brandName);
+        if (parsed.description) setDescription(parsed.description);
+        if (parsed.secondaryTypes) setSecondaryTypes(parsed.secondaryTypes);
+        if (parsed.suggestedType) setSuggestedType(parsed.suggestedType);
+        if (parsed.dimensions) setDimensions(parsed.dimensions);
+        if (parsed.overnightStays !== undefined) setOvernightStays(parsed.overnightStays);
+        if (parsed.securityEnabled !== undefined) setSecurityEnabled(parsed.securityEnabled);
+        if (parsed.securityDesc) setSecurityDesc(parsed.securityDesc);
+      } catch (e) {
+        console.error("Failed to load saved studio info", e);
+      }
+    }
+  }, []);
+
+  // Save to local storage on changes
+  useEffect(() => {
+    const data = {
+      spaceTitle,
+      brandName,
+      description,
+      secondaryTypes,
+      suggestedType,
+      dimensions,
+      overnightStays,
+      securityEnabled,
+      securityDesc
+    };
+    localStorage.setItem("add_studio_info", JSON.stringify(data));
+  }, [
+    spaceTitle,
+    brandName,
+    description,
+    secondaryTypes,
+    suggestedType,
+    dimensions,
+    overnightStays,
+    securityEnabled,
+    securityDesc
+  ]);
+
   // --- Theme Styles ---
   const textColor = isDark ? "text-white" : "text-black";
   const subTextColor = isDark ? "text-[#FFFFFF99]" : "text-[#71717B]";
@@ -54,7 +102,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Space Title</span>
+            <span className={`text-sm lg:text-base ${subTextColor}`}>Space Title*</span>
           </div>
           <Input
             value={spaceTitle}

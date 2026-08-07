@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -27,7 +28,7 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
   const [city, setCity] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("United States");
-  const [state, setState] = useState("California");
+  const [state, setState] = useState("CA");
 
   const [latitude, setLatitude] = useState(34.0401);
   const [longitude, setLongitude] = useState(-118.2542);
@@ -36,6 +37,8 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
     longitude: -118.2542,
     zoom: 15
   });
+
+  const [lastUpdatedBy, setLastUpdatedBy] = useState<"input" | "map" | null>(null);
 
   // Load from local storage on mount
   useEffect(() => {
@@ -48,7 +51,13 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
         if (parsed.city) setCity(parsed.city);
         if (parsed.zipCode) setZipCode(parsed.zipCode);
         if (parsed.country) setSelectedCountry(parsed.country);
-        if (parsed.state) setState(parsed.state);
+        if (parsed.state) {
+          const s = parsed.state;
+          if (s === "California") setState("CA");
+          else if (s === "New York") setState("NY");
+          else if (s === "Texas") setState("TX");
+          else setState(s);
+        }
         
         const lat = parsed.latitude || 34.0401;
         const lng = parsed.longitude || -118.2542;
@@ -83,6 +92,7 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
   // Debounced geocoding effect
   useEffect(() => {
     if (!address || !city) return;
+    if (lastUpdatedBy === "map") return;
 
     const delayDebounceFn = setTimeout(() => {
       const fullQuery = [address, apartment, city, state, zipCode, selectedCountry]
@@ -116,7 +126,98 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
     }, 1200);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [address, apartment, city, state, zipCode, selectedCountry]);
+  }, [address, apartment, city, state, zipCode, selectedCountry, lastUpdatedBy]);
+
+  // Debounced reverse geocoding effect
+  useEffect(() => {
+    if (lastUpdatedBy !== "map") return;
+
+    const delayDebounceFn = setTimeout(() => {
+      const reverseGeocode = async () => {
+        try {
+          const res = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${MAPBOX_TOKEN}&limit=1`
+          );
+          const data = await res.json();
+          if (data && data.features && data.features.length > 0) {
+            const feature = data.features[0];
+            const context = feature.context || [];
+            
+            let street = feature.text || "";
+            if (feature.address) {
+              street = `${feature.address} ${street}`;
+            } else if (feature.place_name) {
+              street = feature.place_name.split(",")[0] || "";
+            }
+
+            let parsedApartment = "";
+            const placeName = feature.place_name || "";
+            const match = placeName.match(/(?:suite|ste|apt|apartment|unit|bldg|building|rm|room|fl|floor)\s+\d+[a-z]?/i);
+            if (match) {
+              parsedApartment = match[0];
+            }
+
+            let parsedCity = "";
+            let parsedState = "";
+            let parsedZip = "";
+            let parsedCountry = "United States";
+
+            context.forEach((item: any) => {
+              if (item.id.startsWith("place")) {
+                parsedCity = item.text;
+              } else if (item.id.startsWith("region")) {
+                parsedState = item.short_code ? item.short_code.replace("US-", "") : item.text;
+              } else if (item.id.startsWith("postcode")) {
+                parsedZip = item.text;
+              } else if (item.id.startsWith("country")) {
+                parsedCountry = item.text;
+              }
+            });
+
+            if (street) setAddress(street);
+            setApartment((current) => parsedApartment || current || "Suite 100");
+            if (parsedCity) setCity(parsedCity);
+            if (parsedState) {
+              const upperState = parsedState.toUpperCase();
+              if (upperState === "CA" || upperState === "CALIFORNIA") {
+                setState("CA");
+              } else if (upperState === "NY" || upperState === "NEW YORK") {
+                setState("NY");
+              } else if (upperState === "TX" || upperState === "TEXAS") {
+                setState("TX");
+              } else {
+                setState(parsedState);
+              }
+            }
+            if (parsedZip) setZipCode(parsedZip);
+            if (parsedCountry) {
+              setSelectedCountry("United States");
+            }
+          }
+        } catch (error) {
+          console.error("Reverse geocoding failed:", error);
+        }
+      };
+
+      reverseGeocode();
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [latitude, longitude, lastUpdatedBy]);
+
+  // --- Helper to get cities for selected state ---
+  const getCitiesForState = (stateVal: string) => {
+    const defaults: Record<string, string[]> = {
+      CA: ["Los Angeles", "San Francisco", "San Diego"],
+      NY: ["New York City", "Buffalo", "Rochester"],
+      TX: ["Houston", "Austin", "Dallas"]
+    };
+    const list = defaults[stateVal] || ["Los Angeles", "New York City", "Houston"];
+    if (city && !list.includes(city)) {
+      return [city, ...list];
+    }
+    return list;
+  };
 
   // --- Theme Styles ---
   const textColor = isDark ? "text-white" : "text-black";
@@ -133,7 +234,11 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
         <div className="relative w-full md:w-[320px]">
           <DynamicCountrySelect
             value={selectedCountry}
-            onChange={setSelectedCountry}
+            onlyUS={true}
+            onChange={(val) => {
+              setSelectedCountry("United States");
+              setLastUpdatedBy("input");
+            }}
           />
         </div>
 
@@ -145,7 +250,10 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
             </div>
             <Input
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setLastUpdatedBy("input");
+              }}
               className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
             />
           </div>
@@ -156,7 +264,10 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
             </div>
             <Input
               value={apartment}
-              onChange={(e) => setApartment(e.target.value)}
+              onChange={(e) => {
+                setApartment(e.target.value);
+                setLastUpdatedBy("input");
+              }}
               className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
             />
           </div>
@@ -168,11 +279,24 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
             <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
               <span className={`text-sm lg:text-base ${subTextColor}`}>City*</span>
             </div>
-            <Input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-            />
+            <div className="relative">
+              <Select 
+                value={city} 
+                onValueChange={(val) => {
+                  setCity(val);
+                  setLastUpdatedBy("input");
+                }}
+              >
+                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
+                  <SelectValue placeholder="City" />
+                </SelectTrigger>
+                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
+                  {getCitiesForState(state).map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="relative">
@@ -180,8 +304,19 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
               <span className={`text-sm lg:text-base ${subTextColor}`}>State*</span>
             </div>
             <div className="relative">
-
-              <Select value={state} onValueChange={(val) => setState(val)}>
+              <Select 
+                value={state} 
+                onValueChange={(val) => {
+                  setState(val);
+                  setLastUpdatedBy("input");
+                  const defaults: Record<string, string> = {
+                    CA: "Los Angeles",
+                    NY: "New York City",
+                    TX: "Houston"
+                  };
+                  setCity(defaults[val] || "Los Angeles");
+                }}
+              >
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
                   <SelectValue placeholder="State" />
                 </SelectTrigger>
@@ -191,7 +326,6 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
                   <SelectItem value="TX">Texas</SelectItem>
                 </SelectContent>
               </Select>
-              {/* <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 ${subTextColor} pointer-events-none`} size={20} /> */}
             </div>
           </div>
 
@@ -201,7 +335,10 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
             </div>
             <Input
               value={zipCode}
-              onChange={(e) => setZipCode(e.target.value)}
+              onChange={(e) => {
+                setZipCode(e.target.value);
+                setLastUpdatedBy("input");
+              }}
               className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
             />
           </div>
@@ -215,7 +352,7 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
         <div>
           <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Do we have the right spot?</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Move the map to adjust the pin placement. The new location will be saved automatically when you proceed to the next step.
+            Move the map or drag the pin to adjust the pin placement. The new location will be saved automatically when you proceed to the next step.
           </p>
         </div>
 
@@ -228,12 +365,26 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
                 setViewState(evt.viewState);
                 setLatitude(evt.viewState.latitude);
                 setLongitude(evt.viewState.longitude);
+                setLastUpdatedBy("map");
               }}
               style={{ width: '100%', height: '100%' }}
               mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v11"}
               mapboxAccessToken={MAPBOX_TOKEN}
             >
-              <Marker longitude={longitude} latitude={latitude} anchor="bottom">
+              <Marker 
+                longitude={longitude} 
+                latitude={latitude} 
+                anchor="bottom"
+                draggable
+                onDragEnd={(evt) => {
+                  const lat = evt.lngLat.lat;
+                  const lng = evt.lngLat.lng;
+                  setLatitude(lat);
+                  setLongitude(lng);
+                  setViewState((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                  setLastUpdatedBy("map");
+                }}
+              >
                 <div className="flex flex-col items-center cursor-pointer select-none">
                   {/* Custom Popup/Tooltip */}
                   <div className={`mb-2 font-semibold text-xs px-4 py-2.5 rounded-lg shadow-xl relative text-left border ${

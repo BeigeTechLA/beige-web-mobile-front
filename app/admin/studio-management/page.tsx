@@ -189,7 +189,7 @@ export default function AdminStudiosPage() {
 
         <div className={`flex items-center gap-1 p-1.5 rounded-full w-fit border transition-colors mt-6 lg:mt-12 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#F0F0F0] border-[#E3E3E3]"
           }`}>
-          {(["Operations", "My Studios", "Studio Requests"] as string[]).map((tab) => (
+          {(["Operations", "Beige Studios", "Studio Requests"] as string[]).map((tab) => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab) }}
@@ -211,7 +211,7 @@ export default function AdminStudiosPage() {
                 <OverallBookingsStack isDark={isDark} cards={dashboard?.bookings ? [...(dashboard.bookings.upcoming || []), ...(dashboard.bookings.completed || []), ...(dashboard.bookings.cancelled || [])] : []} />
                 <EarningsTable isDark={isDark} records={dashboard?.earnings_ledger || []} />
               </div>
-            ) : activeTab === "My Studios" ? (
+            ) : activeTab === "Beige Studios" ? (
               <>
                 <StudioListing isDark={isDark} />
               </>

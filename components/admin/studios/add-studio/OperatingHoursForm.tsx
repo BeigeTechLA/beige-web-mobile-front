@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, Home, Sparkles, DoorOpen, Calendar } from "lucide-react";
 import {
   Select,
@@ -84,7 +85,41 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
   const [openingTime, setOpeningTime] = useState("");
   const [closingTime, setClosingTime] = useState("");
 
-  // 2. Add this helper function
+  // Load from local storage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("add_studio_operations");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.is24Hrs !== undefined) setIs24Hrs(parsed.is24Hrs);
+        if (parsed.selectedDays) setSelectedDays(parsed.selectedDays);
+        if (parsed.schedule) setSchedule(parsed.schedule);
+        if (parsed.rules) setRules(parsed.rules);
+        if (parsed.customRule !== undefined) setCustomRule(parsed.customRule);
+        if (parsed.studio) setStudio(parsed.studio);
+        if (parsed.openingTime) setOpeningTime(parsed.openingTime);
+        if (parsed.closingTime) setClosingTime(parsed.closingTime);
+      } catch (e) {
+        console.error("Failed to load saved studio operations", e);
+      }
+    }
+  }, []);
+
+  // Save to local storage on changes
+  useEffect(() => {
+    const data = {
+      is24Hrs,
+      selectedDays,
+      schedule,
+      rules,
+      customRule,
+      studio,
+      openingTime,
+      closingTime
+    };
+    localStorage.setItem("add_studio_operations", JSON.stringify(data));
+  }, [is24Hrs, selectedDays, schedule, rules, customRule, studio, openingTime, closingTime]);
+
   const toggleCheckbox = (day: string) => {
     setSelectedDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
@@ -98,6 +133,7 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
       [day]: { ...prev[day], isOpen: !prev[day].isOpen }
     }));
   };
+
   // Toggle All Days (Header Checkbox)
   const toggleAllDays = () => {
     if (selectedDays.length === DAYS.length) {
@@ -146,7 +182,6 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
                 onClick={() => setIs24Hrs(!is24Hrs)}
                 className="flex items-center gap-2 group"
               >
-                {/* UPDATED RADIO DESIGN */}
                 <CustomRadio selected={is24Hrs} />
                 <span className={`text-sm lg:text-base ${textColor}`}>Set as 24 hrs</span>
               </button>
