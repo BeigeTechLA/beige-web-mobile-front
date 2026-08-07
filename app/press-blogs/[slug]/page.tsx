@@ -15,42 +15,59 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-function generateStaticParams(category?: string) {
-  const posts = getAllPosts();
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
-  const moreContent = posts.filter((post) => {
-    const categoryName = post.category?.["title"] || post.category;
-    return categoryName === category;
-  });
+// Exported function serving Next.js SSG build and internal category filtering
+export async function generateStaticParams(category?: string) {
+  try {
+    const posts = getAllPosts();
+    if (!Array.isArray(posts)) return [];
 
-  return moreContent;
+    // Filter by category when called inside the page component
+    if (category) {
+      return posts.filter((post) => {
+        const categoryName = post.category?.["title"] || post.category;
+        return categoryName === category;
+      });
+    }
+
+    // Default Next.js SSG behavior: map all slugs
+    return posts.map((post) => ({
+      slug: String(post.post_name),
+    }));
+  } catch (error) {
+    console.error("Error in generateStaticParams:", error);
+    return [];
+  }
 }
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
-
 export default async function BlogPostPage({ params }: Props) {
-  const { slug } = await params; // Next.js 15 requires awaiting params
+  const { slug } = await params;
   const post = getPostBySlug(slug);
-
-  console.log(post);
 
   if (!post) {
     notFound();
   }
+  
+const categoryTitle = typeof post.category === "object" 
+  ? post.category?.title 
+  : post.category;
 
-  const moreContent = generateStaticParams(post.category?.["title"] || "");
-  const formattedContent = parseWordPressContent(post["content:encoded"]);
+const moreContent = await generateStaticParams(categoryTitle);
+  const formattedContent = parseWordPressContent(post["content:encoded"] || "");
 
   // Extract highest level headings and inject IDs into content
   const { contentWithIds, headings } = extractAndInjectHeadings(formattedContent);
 
   const readTime = calculateReadTime(formattedContent);
-  const rawImage = extractFirstImage(post["content:encoded"]);
+  const rawImage = extractFirstImage(post["content:encoded"] || "");
   const blogImage = rawImage.startsWith("/images/misc/")
     ? "/images/misc/BeigeLogoPlaceholder.png"
     : `${S3_PREFIX}${rawImage}`;
 
-  console.log("Headings extracted:", headings);
+  const formattedDate = post.pubDate && !isNaN(Date.parse(post.pubDate))
+    ? new Date(post.pubDate).toLocaleDateString("en-US", { dateStyle: "long" })
+    : "";
 
   return (
     <main className="min-h-screen text-white py-10 lg:py-20 lg:py-35 relative overflow-hidden">
@@ -64,13 +81,13 @@ export default async function BlogPostPage({ params }: Props) {
               <Clock size={20} />
               <span className="ml-2">{readTime}</span>
             </div>
-            <div className="flex gap-1 items-center">
-              <Calendar size={20} />
-              <span className="ml-2">{new Date(post.pubDate).toLocaleDateString("en-US", { dateStyle: "long" })}</span>
-            </div>
-            <div>
-              By Beige Media
-            </div>
+            {formattedDate && (
+              <div className="flex gap-1 items-center">
+                <Calendar size={20} />
+                <span className="ml-2">{formattedDate}</span>
+              </div>
+            )}
+            <div>By Beige Media</div>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-30 items-start">
@@ -85,13 +102,11 @@ export default async function BlogPostPage({ params }: Props) {
         </div>
 
         <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-8 mb-10 lg:mb-40">
-          {
-            headings.length > 0 && (
-              <div className="w-full lg:w-1/4">
-                <BlogTableOfContents headings={headings} />
-              </div>
-            )
-          }
+          {headings.length > 0 && (
+            <div className="w-full lg:w-1/4">
+              <BlogTableOfContents headings={headings} />
+            </div>
+          )}
 
           {/* <div
             className="prose dark:prose-invert max-w-none w-full lg:w-3/4 font-yrsa"
