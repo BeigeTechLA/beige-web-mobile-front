@@ -475,7 +475,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
 
         {/* Featured Works */}
         <section className="mt-14 lg:my-20 overflow-hidden">
-          <div className=" mx-auto relative overflow-hidden px-5 lg:px-0">
+          <div className="mx-auto relative overflow-hidden px-5 lg:px-0">
             <div className="flex flex-col items-center justify-center mb-4 lg:mb-8 pb-4">
               <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight">
                 Featured Works
@@ -489,7 +489,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                 onChange={(tab) => {
                   setActiveProject(tab);
                 }}
-                className="mx-auto mb-10"
+                className="mx-auto lg:mb-10"
               />
             )}
 
