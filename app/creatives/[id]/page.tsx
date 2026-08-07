@@ -376,7 +376,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           <section className="relative flex items-center px-8 md:px-24 z-10 bg-[#0F0F0F]/40 backdrop-blur-sm lg:min-h-[700px]">
             <div className="w-full md:w-[45%] space-y-8 lg:space-y-18">
               <div className="space-y-4">
-                <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight text-center lg:text-left">
+                <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block tracking-tight text-left">
                   Creator Role
                 </h2>
 
@@ -406,7 +406,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
           <section className="relative flex items-center px-8 md:px-24 z-10 lg:min-h-[700px]">
             <div className="w-full md:w-[45%] space-y-4 lg:space-y-8">
               <div className="space-y-4">
-                <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[95%] bg-clip-text text-transparent select-text block tracking-tight text-center lg:text-left">
+                <h2 className="text-3xl md:text-[56px] leading-[1.1] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[95%] bg-clip-text text-transparent select-text block tracking-tight text-left">
                   About Creator
                 </h2>
                 <p className="text-white text-base lg:text-lg leading-relaxed max-w-md">
@@ -492,7 +492,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
         </section>
 
         {/* Certificates */}
-        {
+        {/* {
           dynamicCertificates.length > 0 && (
             <>
               <CenteredSeparator />
@@ -504,7 +504,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                     </h2>
                   </div>
 
-                  {/* Infinite Marquee Track Container */}
                   <div className="relative w-full overflow-hidden border-y border-white/70 flex [mask-image:linear-gradient(to_right,transparent,white_15%,white_85%,transparent)]">
                     <motion.div
                       className="flex whitespace-nowrap min-w-full shrink-0 items-center justify-around gap-0"
@@ -515,7 +514,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                         repeat: Infinity,
                       }}
                     >
-                      {/* Duplicating array elements creates a perfectly loopable seamless seam */}
                       {[...dynamicCertificates, ...dynamicCertificates].map((certificate: CertificateItem, index: number) => {
                         const isPDF = certificate.url.toLowerCase().endsWith('.pdf');
                         const fileUrl = `${S3_PREFIX}${certificate.url}`;
@@ -525,7 +523,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                             <div
                               className="flex items-center justify-center shrink-0 w-[280px] md:w-[360px] h-30 md:h-[220px] relative px-6 md:px-12 group"
                             >
-                              {/* Content Display Zone */}
                               <div className="relative w-20 h-20 lg:w-32 lg:h-32 flex items-center justify-center rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
                                 {isPDF ? (
                                   <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-900 border border-white/5 text-white/20 rounded-xl">
@@ -542,8 +539,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                                   />
                                 )}
                               </div>
-
-                              {/* Floating Text Title */}
                               {certificate.title && (
                                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                   <p className="text-[10px] md:text-xs font-medium text-white/70 tracking-wide bg-black/80 px-2 py-0.5 rounded-md backdrop-blur-sm whitespace-normal max-w-[200px]">
@@ -552,8 +547,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                                 </div>
                               )}
                             </div>
-
-                            {/* Custom Vertical Gradient SVG Divider */}
                             <VerticalSeparatorDesktop />
                           </React.Fragment>
                         );
@@ -564,7 +557,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               </section>
             </>
           )
-        }
+        } */}
 
         {/* Video Portfolio Section */}
         {dynamicVideos.length > 0 && (

@@ -146,7 +146,7 @@ const navLinks = [
   { label: "About", href: "/about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
   { label: "Use Cases", href: "#usecases", hasDropdown: true },
-  // { label: "Press & Blogs", href: "/press-blogs" },
+  { label: "Press & Blogs", href: "/press-blogs" },
 ];
 
 export const Navbar = () => {
