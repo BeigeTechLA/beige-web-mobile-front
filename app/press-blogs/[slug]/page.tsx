@@ -4,8 +4,9 @@ import { Navbar } from "@/src/components/landing/Navbar";
 import { Container } from "@/src/components/landing/ui/container";
 import { Clock, Calendar } from "lucide-react";
 import { BackButton } from "@/components/common/BackButton";
-import { calculateReadTime, extractFirstImage } from "@/lib/utils/blogUtils";
+import { calculateReadTime, extractFirstImage, extractAndInjectHeadings } from "@/lib/utils/blogUtils";
 import { CustomBlogRenderer } from "@/components/press-blogs/CustomBlogRender";
+import { BlogTableOfContents } from "@/components/press-blogs/BlogTableOfContents";
 import { Separator } from "@/src/components/landing/Separator";
 import { Footer } from "@/src/components/landing/Footer";
 import { RecommendedBlogs } from "@/components/press-blogs/RecommendedBlog";
@@ -16,7 +17,6 @@ interface Props {
 
 function generateStaticParams(category?: string) {
   const posts = getAllPosts();
-  console.log(posts)
 
   const moreContent = posts.filter((post) => {
     const categoryName = post.category?.["title"] || post.category;
@@ -24,12 +24,6 @@ function generateStaticParams(category?: string) {
   });
 
   return moreContent;
-
-  // return posts
-  //   .filter((post) => post["wp:post_name"] !== undefined && post["wp:post_name"] !== null)
-  //   .map((post) => ({
-  //     slug: String(post["wp:post_name"]), // Convert number or string safely
-  //   }));
 }
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
@@ -37,7 +31,6 @@ const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params; // Next.js 15 requires awaiting params
   const post = getPostBySlug(slug);
-  const moreContent = generateStaticParams(post.category?.["title"] || "");
 
   console.log(post);
 
@@ -45,21 +38,26 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
+  const moreContent = generateStaticParams(post.category?.["title"] || "");
   const formattedContent = parseWordPressContent(post["content:encoded"]);
 
-  // console.log( formattedContent);
-  const readTime = calculateReadTime(formattedContent);
-  const blogImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BeigeLogoPlaceholder.png" : `${S3_PREFIX}${extractFirstImage(post["content:encoded"])}`);
+  // Extract highest level headings and inject IDs into content
+  const { contentWithIds, headings } = extractAndInjectHeadings(formattedContent);
 
-  console.log(formattedContent);
-  console.log(blogImage);
+  const readTime = calculateReadTime(formattedContent);
+  const rawImage = extractFirstImage(post["content:encoded"]);
+  const blogImage = rawImage.startsWith("/images/misc/")
+    ? "/images/misc/BeigeLogoPlaceholder.png"
+    : `${S3_PREFIX}${rawImage}`;
+
+  console.log("Headings extracted:", headings);
 
   return (
-    <main className="min-h-screen text-white py-10 lg:py-20 lg:py-35 relative overflow-hidden ">
+    <main className="min-h-screen text-white py-10 lg:py-20 lg:py-35 relative overflow-hidden">
       <Navbar />
 
       <Container>
-        <BackButton />
+        <BackButton backLink="/press-blogs" />
         <div className="my-10 lg:mt-30 lg:mb-15 space-y-4 lg:space-y-8">
           <div className="flex items-center gap-4 mb-4 text-[#818181] text-sm lg:text-lg">
             <div className="flex gap-1 items-center">
@@ -70,7 +68,6 @@ export default async function BlogPostPage({ params }: Props) {
               <Calendar size={20} />
               <span className="ml-2">{new Date(post.pubDate).toLocaleDateString("en-US", { dateStyle: "long" })}</span>
             </div>
-            {/* This will show the blog post author*/}
             <div>
               By Beige Media
             </div>
@@ -79,19 +76,30 @@ export default async function BlogPostPage({ params }: Props) {
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-30 items-start">
             <h1 className="w-full lg:w-2/3 text-xl lg:text-6xl font-bold">{post.title}</h1>
 
-            <img src={blogImage} alt={post.title} className="w-full lg:w-1/3 h-auto object-cover rounded-2xl" />
+            <img
+              src={blogImage}
+              alt={post.title}
+              className="w-full lg:w-1/3 h-auto object-cover rounded-2xl"
+            />
           </div>
         </div>
 
         <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-8 mb-10 lg:mb-40">
-          <div className="w-full lg:w-1/4">
-            Discover more content
-          </div>
+          {
+            headings.length > 0 && (
+              <div className="w-full lg:w-1/4">
+                <BlogTableOfContents headings={headings} />
+              </div>
+            )
+          }
+
           {/* <div
             className="prose dark:prose-invert max-w-none w-full lg:w-3/4 font-yrsa"
             dangerouslySetInnerHTML={{ __html: formattedContent }}
           /> */}
-          <CustomBlogRenderer rawContent={formattedContent} />
+          <div className={`w-full ${headings.length > 0 ? "lg:w-3/4" : ""}`}>
+            <CustomBlogRenderer rawContent={contentWithIds} />
+          </div>
         </div>
 
         <Separator />

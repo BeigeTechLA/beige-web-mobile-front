@@ -4,12 +4,16 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-export function BackButton() {
+interface BackButtonProps {
+  backLink?: string;
+}
+
+export function BackButton({ backLink }: BackButtonProps) {
   const router = useRouter();
 
   return (
     <button
-      onClick={() => router.back()}
+      onClick={() => backLink ? router.push(backLink) : router.back()}
       type="button"
       className=" flex gap-2 items-center justify-center transition-all text-white/70 hover:text-white text-sm lg:text-lg mb-6"
     >

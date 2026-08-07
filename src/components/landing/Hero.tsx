@@ -71,7 +71,7 @@ export const Hero = () => {
               className="flex max-w-[360px] flex-wrap items-center justify-center gap-x-3 gap-y-3 sm:max-w-none sm:flex-nowrap lg:gap-6"
             >
               <Button
-                className="h-7 rounded-full bg-[#ECE1CE] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
+                className="h-7 rounded-full bg-[#E8D1AB] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
                 onClick={() => {
                   pushToDataLayer("book_shoot_started", {
                     type: "Action Tracking",
@@ -88,7 +88,7 @@ export const Hero = () => {
                 Start Your Shoot
               </Button>
               <Button
-                className="h-7 rounded-full bg-[#ECE1CE] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
+                className="h-7 rounded-full bg-[#E8D1AB] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
                 onClick={() => {
                   pushToDataLayer("book_studio_started", {
                     type: "Action Tracking",
@@ -106,7 +106,7 @@ export const Hero = () => {
               </Button>
               {!isAuthenticated && (
                 <Button
-                  className="h-7 rounded-full bg-[#ECE1CE] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
+                  className="h-7 rounded-full bg-[#E8D1AB] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
                   onClick={() => router.push('/login')}
                 >
                   Sign Up

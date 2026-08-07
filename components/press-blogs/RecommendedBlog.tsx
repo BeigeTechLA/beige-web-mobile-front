@@ -83,8 +83,6 @@ export const RecommendedBlogs: React.FC<RecommendedBlogsProps> = ({ moreContent 
                 ? "/images/misc/BeigeLogoPlaceholder.png"
                 : `${S3_PREFIX}${rawImage}`;
 
-              console.log(postImage, postSlug)
-
               const dateString = post.pubDate || post.post_date;
               const postDate = dateString
                 ? new Date(dateString)
