@@ -546,7 +546,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 Preview Quote
               </Button>
             ) : null}
-            <Button
+            {/* <Button
               type="button"
               onClick={() => setIsNotesDrawerOpen(true)}
               variant="outline"
@@ -557,7 +557,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <MessageCirclePlus className="w-4 h-4" />
               {notesButtonText}
+            </Button> */}
+            <Button
+              variant="outline"
+              onClick={() => router.push(`${shootBasePath}/${id}/edit-add-ons`)}
+              className={`rounded-lg h-12 px-4 lg:px-7 gap-2 font-semibold transition-all ${
+                isDark
+                  ? "bg-white text-black border-white hover:bg-zinc-200"
+                  : "bg-white border-[#E3E3E3] text-black hover:bg-zinc-50 shadow-sm"
+              }`}
+            >
+              Add & Edit Add-Ons
             </Button>
+
             <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
@@ -624,6 +636,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               hasFormDetails={hasFormDetails}
               onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
               onScheduleUpdated={() => fetchProjectAndSkills(false)}
+              notesCount={notesCount}
+              onOpenNotes={() => setIsNotesDrawerOpen(true)}
             />
           </div>
 
@@ -839,11 +853,22 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               <Eye size={18} /> Preview Quote
             </Button>
           ) : null}
-          <Button
+          {/* <Button
             onClick={() => setIsNotesDrawerOpen(true)}
             className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${isDark ? 'bg-[#111] text-[#E5D5B8] hover:bg-[#151515] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.5)]' : 'bg-[#F3F3F3] text-zinc-600 hover:bg-[#EAEAEA] border border-[#E3E3E3]'}`}
           >
             <MessageCirclePlus size={18} /> {notesButtonText}
+          </Button> */}
+
+           <Button
+              onClick={() => router.push(`${shootBasePath}/${id}/add-ons`)}          
+              className={`w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${
+              isDark 
+                ? 'bg-white text-black hover:bg-zinc-200 border border-white shadow-[0_4px_12px_rgba(255,255,255,0.1)]' 
+                : 'bg-white text-black hover:bg-zinc-50 border border-[#D1D1D1] shadow-sm'
+            }`}
+          >
+            Add & Edit Add-Ons
           </Button>
           <div className="flex gap-2 w-full">
             <Button

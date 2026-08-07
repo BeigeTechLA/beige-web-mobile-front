@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, CalendarClock, Eye, Loader2, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Eye, Loader2, MessageCircle, MessageCirclePlus, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -182,6 +182,8 @@ interface ShootHeaderProps {
   missingFields?: string[];
   onOpenMissingFields?: () => void;
   onScheduleUpdated?: () => void | Promise<void>;
+  notesCount?: number;
+  onOpenNotes?: () => void;
 }
 
 const getBrowserTimeZone = () =>
@@ -308,6 +310,8 @@ export default function ShootHeader({
   convertedSalesQuoteId = null,
   hasFormDetails = false,
   onScheduleUpdated,
+  notesCount = 0,
+  onOpenNotes,
 }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -968,6 +972,31 @@ export default function ShootHeader({
               <div className="flex items-center justify-between gap-3 min-w-0">
                 <span className="whitespace-nowrap">Shoot Files :</span>
                 <span title={shootFilesText} className={`whitespace-nowrap truncate text-right ${isDark ? "text-white" : "text-black"}`}>{shootFilesText}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <span className="whitespace-nowrap">Notes :</span>
+                <button
+                  type="button"
+                  onClick={onOpenNotes}
+                  className="inline-flex items-center gap-1 transition-opacity hover:opacity-70 outline-none"
+                >
+                  <MessageCircle 
+                    size={15} 
+                    className={isDark ? "text-white" : "text-black"} 
+                  />       
+                  <div className="flex flex-col items-center justify-center">
+                    <span className={cn(
+                      "text-base leading-none translate-y-[1px]",
+                      isDark ? "text-white" : "text-black"
+                    )}>
+                      {String(notesCount || 0).padStart(2, '0')}
+                    </span>
+                    <div className={cn(
+                      "w-full h-[1.5px] mt-0.5", 
+                      isDark ? "bg-white" : "bg-black"
+                    )} />
+                  </div>
+                </button>
               </div>
             </div>
           </div>
