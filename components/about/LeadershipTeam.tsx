@@ -8,37 +8,38 @@ import {
   useTransform,
 } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 
 const TEAM_SET = [
   {
     id: 1,
     name: "Kawser Khan",
     role: "CEO & Founder",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kawser-new.png",
+    img: "assets/Team/kawser-new.png",
   },
   {
     id: 2,
     name: "Nafisa Ahmen",
     role: "COO",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/nafisa.jpeg",
+    img: "assets/Team/nafisa.jpeg",
   },
   {
     id: 3,
     name: "Kimberly Neer",
     role: "Head of Partnerships",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/maggie.png",
+    img: "assets/Team/maggie.png",
   },
   {
     id: 4,
     name: "Maggie Perochena",
     role: "Head of Post-Production",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kimberly-new.jpg",
+    img: "assets/Team/kimberly-new.jpg",
   },
   {
     id: 5,
     name: "Sharat Hossain",
     role: "Human Resources Manager",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/sharat-new.png",
+    img: "assets/Team/sharat-new.png",
   },
 ];
 
@@ -56,7 +57,7 @@ function TeamCard({
       className={` relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#1f1f1f] border border-white/5 shadow-xl ${className} `}
     >
       <img
-        src={member.img}
+        src={`${S3_PREFIX}${member.img}`}
         alt={member.name}
         className="w-full h-full object-cover object-top"
       />

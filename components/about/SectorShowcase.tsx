@@ -156,7 +156,7 @@ function Card({
   };
 }) {
   return (
-    <div className="bg-[#171717] rounded-2xl p-8 h-auto min-h-[400px] lg:h-[460px] flex flex-col justify-between shadow-2xl border border-white/5">
+    <div className="bg-[#171717] rounded-xl lg:rounded-2xl p-4 lg:p-8 h-auto lg:min-h-[400px] lg:h-[460px] flex flex-col justify-between shadow-2xl border border-white/5">
       <div className="w-[72px] h-[72px] flex items-center justify-center mb-6 lg:mb-8">
         <Image
           src={card.imgSrc}
@@ -167,7 +167,7 @@ function Card({
       </div>
 
       <div>
-        <h3 className="text-[#E8D1AB] text-2xl font-medium mb-2">
+        <h3 className="text-[#E8D1AB] text-lg lg:text-2xl font-medium mb-2">
           {card.title}
         </h3>
         <p className="text-white/70 text-sm leading-relaxed lg:text-base">
