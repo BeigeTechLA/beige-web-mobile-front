@@ -33,3 +33,62 @@ export const extractFirstImage = (htmlContent: string): string => {
   const match = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
   return match ? match[1] : "/images/misc/placeholder.png";
 };
+
+export interface BlogHeading {
+  id: string;
+  text: string;
+}
+
+export function extractAndInjectHeadings(htmlContent: string): {
+  contentWithIds: string;
+  headings: BlogHeading[];
+} {
+  if (!htmlContent) return { contentWithIds: "", headings: [] };
+
+  // Determine highest order heading present in content
+  let targetTag = "";
+  if (/<h1\b[^>]*>/i.test(htmlContent)) {
+    targetTag = "h1";
+  } else if (/<h2\b[^>]*>/i.test(htmlContent)) {
+    targetTag = "h2";
+  } else if (/<h3\b[^>]*>/i.test(htmlContent)) {
+    targetTag = "h3";
+  } else {
+    return { contentWithIds: htmlContent, headings: [] };
+  }
+
+  const headings: BlogHeading[] = [];
+
+  // 2. Extract target headings
+  const regex = new RegExp(`<${targetTag}\\b([^>]*)>([\\s\\S]*?)</${targetTag}>`, "gi");
+
+  const contentWithIds = htmlContent.replace(regex, (match, existingAttrs, innerContent) => {
+    // Strip HTML tags and collapse whitespace
+    const cleanText = innerContent.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+
+    if (!cleanText) return match;
+
+    // Check for existing ID
+    const existingIdMatch = existingAttrs.match(/id=["']([^"']+)["']/i);
+    let id = "";
+
+    if (existingIdMatch && existingIdMatch[1]) {
+      id = existingIdMatch[1];
+    } else {
+      // Generate URL-safe slug
+      id = cleanText
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-");
+
+      existingAttrs = `${existingAttrs} id="${id}"`;
+    }
+
+    headings.push({ id, text: cleanText });
+
+    return `<${targetTag}${existingAttrs}>${innerContent}</${targetTag}>`;
+  });
+
+  return { contentWithIds, headings };
+}
