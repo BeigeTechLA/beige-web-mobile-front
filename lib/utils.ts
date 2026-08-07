@@ -474,4 +474,4 @@ export const getDateColorThreshold = (dateParam: string | Date): string => {
 };
 
 // Basic numeric formatter to convert numbers to 2 digit values
-export const  formatter = new Intl.NumberFormat('en-US', { minimumIntegerDigits: 2 });
+export const formatter = new Intl.NumberFormat('en-US', { minimumIntegerDigits: 2 });

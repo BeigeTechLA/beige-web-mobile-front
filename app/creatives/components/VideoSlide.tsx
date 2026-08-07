@@ -16,10 +16,9 @@ const getYouTubeId = (u: string) => {
     if (urlObj.hostname.includes("youtu.be")) return urlObj.pathname.slice(1);
     return urlObj.searchParams.get("v");
   } catch {
-    // Fallback for non-standard URLs
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = u.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    return match && match[2].length === 11 ? match[2] : null;
   }
 };
 
@@ -28,31 +27,34 @@ const getVimeoId = (u: string) => {
     const regExp = /vimeo\.com\/(?:video\/)?([0-9]+)/;
     const match = u.match(regExp);
     return match ? match[1] : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 function buildEmbedUrl(url: string, isPlaying: boolean): string | null {
   if (!isPlaying) return null;
-  
+
   const yt = getYouTubeId(url);
   if (yt) return `https://www.youtube.com/embed/${yt}?autoplay=1&rel=0&modestbranding=1`;
-  
+
   const vimeo = getVimeoId(url);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo}?autoplay=1&badge=0&byline=0&portrait=0&title=0&dnt=1`;
-  
+  if (vimeo)
+    return `https://player.vimeo.com/video/${vimeo}?autoplay=1&badge=0&byline=0&portrait=0&title=0&dnt=1`;
+
   return null;
 }
 
 export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [device, setDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+  const [device, setDevice] = useState<"mobile" | "tablet" | "desktop">("desktop");
 
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      if (width < 768) setDevice('mobile');
-      else if (width < 1024) setDevice('tablet');
-      else setDevice('desktop');
+      if (width < 768) setDevice("mobile");
+      else if (width < 1024) setDevice("tablet");
+      else setDevice("desktop");
     };
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -61,26 +63,45 @@ export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) 
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start start", "end end"]
+    offset: ["start start", "end end"],
   });
 
   const getTrackHeight = () => {
-    if (device === 'mobile') return `120vh`; // More runway for mobile
-    if (device === 'tablet') return `150vh`;
-    return `${videos.length * 180}vh`; 
+    if (device === "tablet") return `150vh`;
+    return `${videos.length * 180}vh`;
   };
 
+  // --- MOBILE VIEW: Simple vertical list ---
+  if (device === "mobile") {
+    return (
+      <div className="w-full px-5 py-8 space-y-6">
+        <div className="w-full text-center mb-6">
+          <h2 className="text-3xl font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent">
+            Video Portfolio
+          </h2>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {videos.map((video, index) => (
+            <div key={index} className="relative w-full aspect-video">
+              <MobileVideoCard video={video} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- DESKTOP & TABLET VIEW: Stacked Scroll Animation ---
   return (
     <div
       ref={containerRef}
       className="relative w-full"
       style={{ height: getTrackHeight() }}
     >
-      <div className={`sticky top-0 w-full flex flex-col items-center justify-center overflow-hidden px-5 ${device === 'desktop' ? 'h-screen' : 'h-[60vh] md:h-[70vh]'
-        }`}>
-
+      <div className="sticky top-0 w-full flex flex-col items-center justify-center overflow-hidden px-5 h-screen">
         <div className="z-[100] w-full text-center mb-6 md:mb-10">
-          <h2 className="text-center text-3xl md:text-[56px] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block">
+          <h2 className="lg:mt-30 2xl:mt-0 text-center text-3xl md:text-[56px] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block">
             Video Portfolio
           </h2>
         </div>
@@ -102,25 +123,91 @@ export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) 
   );
 }
 
-function VideoCard({ video, index, total, progress, device }: {
-  video: VideoItem; index: number; total: number; progress: any; device: string
+// Mobile-specific simplified Video Card
+function MobileVideoCard({ video }: { video: VideoItem }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const displayThumbnail = useMemo(() => {
+    if (video.thumbnail) return video.thumbnail;
+    const ytId = getYouTubeId(video.url);
+    if (ytId) return `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
+    return null;
+  }, [video.url, video.thumbnail]);
+
+  const embedUrl = useMemo(() => buildEmbedUrl(video.url, isPlaying), [video.url, isPlaying]);
+
+  return (
+    <div className="relative w-full h-full rounded-[20px] overflow-hidden border border-[#FFFFFF5C] bg-black">
+      {isPlaying ? (
+        <iframe
+          src={embedUrl!}
+          className="absolute inset-0 w-full h-full border-0"
+          allow="autoplay; fullscreen"
+          allowFullScreen
+        />
+      ) : (
+        <div
+          className="absolute inset-0 w-full h-full flex items-center justify-center group cursor-pointer"
+          onClick={() => setIsPlaying(true)}
+        >
+          {displayThumbnail ? (
+            <img
+              src={displayThumbnail}
+              alt="Video Thumbnail"
+              className="absolute inset-0 w-full h-full object-cover opacity-80"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black" />
+          )}
+
+          <div className="absolute inset-0 bg-black/20" />
+
+          <button className="z-20 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl">
+            <Play className="text-black fill-black ml-0.5 w-5 h-5" />
+          </button>
+
+          <div className="absolute bottom-4 left-4 text-white/40 text-[10px] font-mono">
+            {video.url.includes("youtube")
+              ? "YOUTUBE"
+              : video.url.includes("vimeo")
+                ? "VIMEO"
+                : "VIDEO"}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Desktop / Tablet Video Card with Stacked Scroll Transforms
+function VideoCard({
+  video,
+  index,
+  total,
+  progress,
+  device,
+}: {
+  video: VideoItem;
+  index: number;
+  total: number;
+  progress: any;
+  device: string;
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Auto-generate Thumbnail if not provided by API
   const displayThumbnail = useMemo(() => {
     if (video.thumbnail) return video.thumbnail;
-    
+
     // Auto-fetch YouTube Thumbnail
     const ytId = getYouTubeId(video.url);
     if (ytId) return `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
-    
+
     // For Vimeo, we can't get it via URL alone without API, 
     // but we return null to trigger the fallback gradient
     return null;
   }, [video.url, video.thumbnail]);
 
-  const firstSegmentEnd = device === 'desktop' ? 0.1 : 0.15;
+  const firstSegmentEnd = device === "desktop" ? 0.1 : 0.15;
   const remainingSpace = 1 - firstSegmentEnd;
   const otherSegments = remainingSpace / (total - 1 || 1);
 
@@ -134,8 +221,8 @@ function VideoCard({ video, index, total, progress, device }: {
   );
 
   const y = useSpring(yValue, {
-    stiffness: device === 'desktop' ? 70 : 50,
-    damping: 25
+    stiffness: device === "desktop" ? 70 : 50,
+    damping: 25,
   });
 
   const scale = useTransform(progress, [startAnim, endAnim], [1, 0.94]);
@@ -146,31 +233,32 @@ function VideoCard({ video, index, total, progress, device }: {
       style={{
         y,
         scale: index === total - 1 ? 1 : scale,
-        zIndex: index + 10
+        zIndex: index + 10,
       }}
       className="absolute inset-0 w-full h-full"
     >
       <div className="relative w-full h-full rounded-[24px] md:rounded-[32px] overflow-hidden border border-[#FFFFFF5C] bg-black">
         {isPlaying ? (
-          <iframe 
-            src={embedUrl!} 
-            className="absolute inset-0 w-full h-full border-0" 
-            allow="autoplay; fullscreen" 
+          <iframe
+            src={embedUrl!}
+            className="absolute inset-0 w-full h-full border-0"
+            allow="autoplay; fullscreen"
             allowFullScreen
           />
         ) : (
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center group cursor-pointer" onClick={() => setIsPlaying(true)}>
+          <div
+            className="absolute inset-0 w-full h-full flex items-center justify-center group cursor-pointer"
+            onClick={() => setIsPlaying(true)}
+          >
             {displayThumbnail ? (
-              <img 
-                src={displayThumbnail} 
-                alt="Video Thumbnail" 
-                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500" 
+              <img
+                src={displayThumbnail}
+                alt="Video Thumbnail"
+                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
               />
             ) : (
-              // Fallback if no thumbnail is found (especially for Vimeo)
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black" />
             )}
-            
             {/* Overlay to make the Play button pop */}
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
 
@@ -179,10 +267,14 @@ function VideoCard({ video, index, total, progress, device }: {
             >
               <Play className="text-black fill-black ml-1 w-6 h-6 md:w-10 md:h-10" />
             </button>
-            
+
             {/* Optional: Video Link Hint */}
             <div className="absolute bottom-6 left-6 text-white/40 text-xs font-mono group-hover:text-white/80 transition-colors">
-              {video.url.includes('youtube') ? 'YOUTUBE' : video.url.includes('vimeo') ? 'VIMEO' : 'VIDEO'}
+              {video.url.includes("youtube")
+                ? "YOUTUBE"
+                : video.url.includes("vimeo")
+                  ? "VIMEO"
+                  : "VIDEO"}
             </div>
           </div>
         )}
