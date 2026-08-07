@@ -1,12 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Bell, Menu } from "lucide-react";
+import { Bell, ChevronRight, Menu, Settings } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
 import { useRouter } from "next/navigation";
+import { cn } from "@/src/components/landing/lib/utils";
+import { createPortal } from "react-dom";
+import { Button } from "../ui/button";
 
 interface TopbarProps {
   pathname: string;
@@ -24,9 +27,30 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
    const isNotificationsPage =
   pathname === "/admin/dashboard/notifications";
     const router = useRouter();
-  
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const settingsBtnRef = React.useRef<HTMLButtonElement>(null);
+  const settingsMenuRef = React.useRef<HTMLDivElement>(null);  
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+      if (!showSettingsMenu) return;
+      const handleClick = (e: MouseEvent) => {
+        if (
+          !settingsMenuRef.current?.contains(e.target as Node) &&
+          !settingsBtnRef.current?.contains(e.target as Node)
+        ) {
+          setShowSettingsMenu(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }, [showSettingsMenu]);
+    useEffect(() => {
+    if (!showSettingsMenu) return;
+    const close = () => setShowSettingsMenu(false);
+    window.addEventListener("scroll", close, true);
+    return () => window.removeEventListener("scroll", close, true);
+  }, [showSettingsMenu]);
 
   const { setIsOpen } = useSidebar();
 
@@ -150,10 +174,86 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
         {/* Right: Desktop Actions */}
         <div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar">
-          {
-            isDashboardSection && (
+           {
+            false && isDashboardSection && (
               <>
-              {/* <button
+                  <div className="relative">
+                    {/* Settings Button */}
+                    <Button
+                      ref={settingsBtnRef}
+                      type="button"
+                      onClick={() => setShowSettingsMenu((prev) => !prev)}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
+                        showSettingsMenu
+                          ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                          : isDark
+                          ? "bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white"
+                          : "bg-zinc-100 border-zinc-200 hover:bg-zinc-200 text-black"
+                      }`}
+                    >
+                      <Settings className="w-5 h-5" />
+                    </Button>
+
+                    {/* Settings Menu  */}
+                  {showSettingsMenu &&
+                  mounted &&
+                  createPortal(
+                    <div
+                      ref={settingsMenuRef}
+                      style={{
+                        position: "fixed",
+                        top: settingsBtnRef.current
+                          ? settingsBtnRef.current.getBoundingClientRect().bottom + 8
+                          : 0,
+                        left: settingsBtnRef.current
+                          ? settingsBtnRef.current.getBoundingClientRect().right - 400
+                          : 0,
+                      }}
+                      className={cn(
+                        "z-[9999] w-[400px] overflow-hidden rounded-xl border shadow-2xl",
+                        isDark ? "border-[#343434] bg-[#1A1A1A]" : "border-gray-200 bg-white"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
+                          isDark ? "hover:bg-white/5 text-white" : "hover:bg-gray-100 text-black"
+                        )}
+                      >
+                        <Settings className="h-4 w-4 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">General Settings</p>
+                          <p className="text-xs opacity-60">Manage Language, Time Zone and other Personal Preferences</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 opacity-60 mt-0.5 shrink-0" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSettingsMenu(false);
+                          router.push("/admin/dashboard/NotificationPreferences");
+                        }}
+                        className={cn(
+                          "flex w-full items-start gap-3 border-t px-4 py-3 text-left transition-colors",
+                          isDark
+                            ? "border-white/10 hover:bg-white/5 text-white"
+                            : "border-gray-200 hover:bg-gray-100 text-black"
+                        )}
+                      >
+                        <Bell className="h-4 w-4 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">Notification Preferences</p>
+                          <p className="text-xs opacity-60">Manage how and when you receive notifications</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 opacity-60 mt-0.5 shrink-0" />
+                      </button>
+                    </div>,
+                    document.body
+                  )}
+                  </div>
+                <Button
                     type="button"
                     onClick={() =>
                       router.push(
@@ -171,10 +271,10 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
                     }`}
                   >
                   <Bell className="w-5 h-5" />
-                </button> */}
+                </Button> 
                 </>
                       )
-                }
+                } 
                 {actions}
                   {
             isDashboardSection && (

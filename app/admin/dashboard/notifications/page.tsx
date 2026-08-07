@@ -10,11 +10,14 @@ import {
   ReceiptText,
   FolderOpen,
   Camera,
+  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import NotificationDetailsModal from "@/components/admin/NotificationDetailsModal";
+import { useRouter } from "next/navigation";
 
 const notifications = [
   {
@@ -70,22 +73,177 @@ const notifications = [
     action: "View Details",
     avatar: "/images/avatar.png",
   },
+  {
+    id: 5,
+    title: "Sarah Wilson approved your quote for Corporate Event Coverage",
+    message: "Quote #QT-3921 has been approved and is ready to proceed.",
+    time: "2h ago",
+    unread: false,
+    icon: ReceiptText,
+    accent: "border-l-[#4CAF50]",
+    category: "Quotes",
+    priority: "Medium",
+    action: "View Quote",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 6,
+    title: "Payment of $8,750 received from TechVision Inc.",
+    message: "The payment has been successfully credited to your account.",
+    time: "3h ago",
+    unread: true,
+    icon: ReceiptText,
+    accent: "border-l-[#4CAF50]",
+    category: "Payments",
+    priority: "High",
+    action: "View Payment",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 7,
+    title: "Alex Carter uploaded final project files",
+    message: "All deliverables for Fashion Campaign are now available.",
+    time: "4h ago",
+    unread: false,
+    icon: Camera,
+    accent: "border-l-[#2D7FF9]",
+    category: "Files",
+    priority: "Medium",
+    action: "View Files",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 8,
+    title: "Reminder: Client meeting starts in 30 minutes",
+    message: "Creative strategy discussion with Bright Media.",
+    time: "5h ago",
+    unread: true,
+    icon: MessageSquare,
+    accent: "border-l-[#F5B83D]",
+    category: "Meetings",
+    priority: "High",
+    action: "Join Meeting",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 9,
+    title: "Jessica Lee replied to your message",
+    message: '"Please include an additional lifestyle shoot option."',
+    time: "6h ago",
+    unread: false,
+    icon: MessageSquare,
+    accent: "border-l-[#2D7FF9]",
+    category: "Messages",
+    priority: "Low",
+    action: "Reply",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 10,
+    title: "Invoice #INV-3158 requires your attention",
+    message: "The client requested clarification regarding the invoice.",
+    time: "8h ago",
+    unread: true,
+    icon: ReceiptText,
+    accent: "border-l-[#EF4444]",
+    category: "Payments",
+    priority: "High",
+    action: "Review",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 11,
+    title: "Michael Brown invited you to collaborate",
+    message: "Invitation to join the Summer Campaign 2026 project.",
+    time: "10h ago",
+    unread: false,
+    icon: MessageSquare,
+    accent: "border-l-[#2D7FF9]",
+    category: "Projects",
+    priority: "Medium",
+    action: "Accept Invite",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 12,
+    title: "Product Photography Session updated",
+    message: "Shoot timing has been changed to 2:00 PM.",
+    time: "12h ago",
+    unread: false,
+    icon: Camera,
+    accent: "border-l-[#4CAF50]",
+    category: "Shoots",
+    priority: "Low",
+    action: "View Details",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 13,
+    title: "Client shared new reference images",
+    message: "12 new inspiration images have been added to the project.",
+    time: "14h ago",
+    unread: true,
+    icon: Camera,
+    accent: "border-l-[#F5B83D]",
+    category: "Files",
+    priority: "Medium",
+    action: "View Images",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 14,
+    title: "Weekly activity report is available",
+    message: "Check your latest project and payment summary.",
+    time: "1d ago",
+    unread: false,
+    icon: ReceiptText,
+    accent: "border-l-[#2D7FF9]",
+    category: "Reports",
+    priority: "Low",
+    action: "View Report",
+    avatar: "/images/avatar.png",
+  },
+  {
+    id: 15,
+    title: "System maintenance scheduled",
+    message: "Scheduled maintenance will take place on May 28 from 1:00 AM to 3:00 AM.",
+    time: "2d ago",
+    unread: false,
+    icon: MessageSquare,
+    accent: "border-l-[#9CA3AF]",
+    category: "System",
+    priority: "Low",
+    action: "Learn More",
+    avatar: "/images/avatar.png",
+  },
+
 ];
 
 const tabs = [
-  { label: "All", count: 10 },
-  { label: "Unread", count: 2 },
-  { label: "Mentions", count: 1 },
-  { label: "Payments", count: 2 },
-  { label: "Projects", count: 2 },
-  { label: "Files", count: 2 },
-] as const;
+  { label: "All", count: notifications.length },
+  { label: "Unread", count: notifications.filter(n => n.unread).length },
+  { label: "Mentions", count: notifications.filter(n => n.category === "Messages").length },
+  { label: "Payments", count: notifications.filter(n => n.category === "Payments").length },
+  { label: "Projects", count: notifications.filter(n => n.category === "Projects" || n.category === "Shoots").length },
+  { label: "Files", count: notifications.filter(n => n.category === "Files").length },
+];
 
-export default function NotificationsPage() {
+  interface NotificationsPageProps {
+    onBack?: () => void;
+  }
+export default function NotificationsPage({ onBack }: NotificationsPageProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["label"]>("All");
   const [query, setQuery] = useState("");
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
+  const [openModal, setOpenModal] = useState(false);
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, query]);
 
   useEffect(() => setMounted(true), []);
 
@@ -108,10 +266,50 @@ export default function NotificationsPage() {
       `${item.title} ${item.message} ${item.category}`.toLowerCase().includes(query.toLowerCase())
     );
 
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filteredNotifications.length / itemsPerPage)
+      );
+
+      const safePage = Math.min(currentPage, totalPages);
+      const router = useRouter();
+      
+      const handleBack = onBack ?? (() => router.back());
+
+
+      const startIndex = (safePage - 1) * itemsPerPage;
+
+      const paginatedNotifications  = filteredNotifications.slice(
+        startIndex,
+        startIndex + itemsPerPage
+      );
+
+      const displayStart =
+        filteredNotifications.length === 0 ? 0 : startIndex + 1;
+
+      const displayEnd = Math.min(
+        startIndex + itemsPerPage,
+        filteredNotifications.length
+      );
+
+      const getPaginationRange = (current: number, total: number) => {
+      const range: (number | string)[] = [];
+      const delta = 1;
+
+      for (let i = 1; i <= total; i++) {
+        if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+          range.push(i);
+        } else if (range[range.length - 1] !== "...") {
+          range.push("...");
+        }
+      }
+      return range;
+    };
+
   return (
     <div className="flex flex-col min-h-screen w-full">
-      {/* 1. STICKY HEADER SECTION */}
-      <div className="sticky top-0 z-50 flex flex-col w-full">
+      {/* 1.  HEADER SECTION */}
+      <div className="top-0 z-50 flex flex-col w-full">
         <Topbar
           pathname="/admin/dashboard/notifications"
           breadcrumbOverrides={{
@@ -144,24 +342,30 @@ export default function NotificationsPage() {
             </p>
         </div>
 
-        {/* Right Side: Action Buttons (Moved out of the first div) */}
-        <div className="hidden sm:flex items-center gap-4">
-            <button
-            type="button"
-            className="flex items-center gap-2 text-xs font-medium opacity-70 hover:opacity-100 transition"
-            >
-            <Archive className="h-3.5 w-3.5" />
-            Archive All
-            </button>
-            <div className="h-4 w-[1px] bg-current/20" /> {/* Replaced border-l with a vertical divider */}
-            <button
-            type="button"
-            className="flex items-center gap-2 text-xs font-medium opacity-70 hover:opacity-100 transition"
-            >
-            <BellOff className="h-3.5 w-3.5" />
-            Mute
-            </button>
-        </div>
+        {/* Right Side: Action Buttons*/}
+          <div className="hidden sm:flex items-center gap-6">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-100",
+                    isDark ? "text-white opacity-90" : "text-[#2D2415] opacity-80"
+                  )}
+                >
+                  <Archive className="h-4 w-4" />
+                  Archive
+                </button>
+
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-100",
+                    isDark ? "text-white opacity-90" : "text-[#2D2415] opacity-80"
+                  )}
+                >
+                <BellOff className="h-4 w-4" />
+                Mute
+              </button>
+          </div>
         </div>
       </div>
 
@@ -171,6 +375,15 @@ export default function NotificationsPage() {
         isDark ? "bg-[#111111]" : "bg-[#F6F1E8]"
       )}>
         <div className="mx-auto max-w-[1120px] space-y-6">
+          <button
+            onClick={handleBack}
+            className={`mb-6 flex items-center gap-2 text-sm transition-colors ${
+              isDark ? "text-white/70 hover:text-white" : "text-black/60 hover:text-black"
+            }`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
           
           {/* Search Bar */}
           <div className="relative">
@@ -221,14 +434,22 @@ export default function NotificationsPage() {
             </div>
 
             <div className="divide-y divide-white/5">
-              {filteredNotifications.length > 0 ? (
-                filteredNotifications.map((item) => {
+              {paginatedNotifications.length > 0 ? (
+                paginatedNotifications.map((item,index) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.id} className={cn(
+                    <div key={`${item.id}-${index}`} 
+                    onClick={() => {
+                      setSelectedNotification(item);
+                      setOpenModal(true);
+                    }}
+                    className={cn(
                       "relative flex gap-4 border-l-4 px-4 py-6 lg:px-5 transition-colors",
                       item.accent,
-                      isDark ? "bg-[#1F1F1F] hover:bg-[#252525]" : "bg-white hover:bg-gray-50"
+                        isDark 
+                        ? (item.unread ? "bg-[#1C1C1C]" : "bg-transparent") 
+                        : (item.unread ? "bg-[#F9F6F0]" : "bg-white"),     
+                       isDark ? "hover:bg-[#222222]" : "hover:bg-gray-50"    
                     )}>
                       <div className="flex w-full items-start gap-4">
                         <div className="relative shrink-0">
@@ -249,7 +470,10 @@ export default function NotificationsPage() {
                             </div>
                             <div className="flex shrink-0 items-center gap-2 text-xs text-white/55">
                               <span>{item.time}</span>
-                              <span className={cn("h-2 w-2 rounded-full", item.unread ? "bg-[#E8D1AB]" : "bg-white/20")} />
+                            <span className={cn(
+                                "h-2 w-2 rounded-full", 
+                                item.unread ? "bg-[#E8D1AB]" : "bg-[#444444]" 
+                              )} />         
                             </div>
                           </div>
 
@@ -284,8 +508,72 @@ export default function NotificationsPage() {
               )}
             </div>
           </div>
+          <div
+            className={cn(
+              "flex items-center justify-between border-t px-6 py-4",
+              isDark ? "border-white/10" : "border-gray-200"
+            )}
+          >
+            <p className="text-sm text-white/60">
+              Showing {displayStart} to {displayEnd} of {filteredNotifications.length}
+            </p>
+
+         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={isDark ? "border-white/10 text-white hover:bg-white/5" : ""}
+            disabled={safePage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+          >
+            Previous
+          </Button>
+
+          {getPaginationRange(safePage, totalPages).map((page, index) => {
+            if (page === "...") {
+              return <span key={index} className="px-2 text-white/40">...</span>;
+            }
+
+            return (
+              <Button
+                key={index} 
+                size="sm"
+                variant={safePage === page ? "default" : "outline"}
+                className={cn(
+                  "w-9 h-9 p-0", // Makes the button square like your image
+                  safePage === page 
+                    ? "bg-[#E8D1AB] text-black hover:bg-[#d8bd91]" 
+                    : isDark ? "border-white/10 text-white hover:bg-white/5" : ""
+                )}
+                onClick={() => setCurrentPage(Number(page))}
+              >
+                {page}
+              </Button>
+            );
+          })}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className={isDark ? "border-white/10 text-white hover:bg-white/5" : ""}
+            disabled={safePage === totalPages}
+            onClick={() => setCurrentPage((p) => p + 1)}
+          >
+            Next
+          </Button>
         </div>
       </div>
+    </div>
+  </div>
+  <NotificationDetailsModal
+    open={openModal}
+    notification={selectedNotification}
+    onClose={() => {
+      setOpenModal(false);
+      setSelectedNotification(null);
+    }}
+    isDark={isDark}
+  />
     </div>
   );
 }
