@@ -382,17 +382,41 @@ const SALES_REP_PAGE_FILTERS_KEY = "sales-rep-management-filters";
 const SALES_REP_PRESERVE_KEY = "sales-rep-management-preserve";
 const LEADS_FILTER_ALL_LIMIT = 5000;
 
-const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
-  "Signed Up - Lead Created",
-  "Book a shoot - Lead Created",
-  "Manual - Lead Created",
-  "Booking In Progress",
-  "Proposal Sent",
-  "Ready for Payment",
-  "Payment Sent",
-  "Booked",
-  "Closed - Lost",
-];
+const BOOKING_STATUS_OPTIONS = [
+  { label: "All", value: "All" },
+  { label: "Booking In Progress", value: "booking_in_progress" },
+  { label: "Ready for Payment", value: "ready_for_payment" },
+  { label: "Payment Link Sent", value: "payment_link_sent" },
+  { label: "Partially Paid", value: "partially_paid" },
+  { label: "Paid", value: "paid" },
+  { label: "Closed - Lost", value: "closed_lost" },
+] as const;
+
+const BOOKING_STATUS_FILTER_LABELS = new Map(
+  BOOKING_STATUS_OPTIONS.map((option) => [option.value, option.label])
+);
+
+const normalizeBookingStatusFilterValue = (value: unknown): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw || raw.toLowerCase() === "all") return "All";
+
+  const normalized = raw
+    .replace(/\u2013|\u2014/g, "-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (["payment_sent", "proposal_sent", "payment_invoice_sent"].includes(normalized)) {
+    return "payment_link_sent";
+  }
+  if (["booked", "paid"].includes(normalized)) return "paid";
+  if (["closed_lost", "closed_lost_", "cancelled", "abandoned"].includes(normalized)) return "closed_lost";
+  if (["partial_paid", "partially_paid", "approval_pending"].includes(normalized)) return "partially_paid";
+  if (["booking_in_progress", "in_progress"].includes(normalized)) return "booking_in_progress";
+  if (normalized === "ready_for_payment") return "ready_for_payment";
+
+  return BOOKING_STATUS_FILTER_LABELS.has(normalized) ? normalized : "All";
+};
 
 const SHOOT_STAGE_OPTIONS = [
   { label: "All Shoot Stages", value: "all" },
@@ -488,7 +512,7 @@ export default function AdminSaleRepManagerPage() {
 
   // Filters state
   const [leadTypeFilter, setLeadTypeFilter] = useState("All Leads");
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
   const [intentFilter, setIntentFilter] = useState<"All" | "Hot" | "Warm" | "Cold">("All");
   const [shootStageFilter, setShootStageFilter] = useState<string>("all");
   const [assignedRepIdFilter, setAssignedRepIdFilter] = useState<string>("all");
@@ -599,7 +623,7 @@ export default function AdminSaleRepManagerPage() {
       if (parsed.activeTab) setActiveTab(parsed.activeTab);
       if (typeof parsed.searchQuery === "string") setSearchQuery(parsed.searchQuery);
       if (parsed.leadTypeFilter) setLeadTypeFilter(parsed.leadTypeFilter);
-      if (parsed.statusFilter) setStatusFilter(parsed.statusFilter);
+      if (parsed.statusFilter) setStatusFilter(normalizeBookingStatusFilterValue(parsed.statusFilter));
       if (parsed.intentFilter) setIntentFilter(parsed.intentFilter);
       if (parsed.shootStageFilter) setShootStageFilter(parsed.shootStageFilter);
       if (parsed.assignedRepIdFilter) setAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.assignedRepIdFilter));
@@ -738,9 +762,9 @@ export default function AdminSaleRepManagerPage() {
       status:
         leadsViewMode === "grid" && shootStageFilter !== "all"
           ? shootStageFilter
-          : statusFilter === "All"
+            : statusFilter === "All"
             ? undefined
-            : statusFilter,
+            : normalizeBookingStatusFilterValue(statusFilter),
       assigned_to:
         normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
           ? undefined
@@ -858,7 +882,9 @@ export default function AdminSaleRepManagerPage() {
     }
 
     let isCancelled = false;
-    const statuses = BOOKING_STATUS_OPTIONS.map((status) => String(status));
+    const statuses = BOOKING_STATUS_OPTIONS
+      .filter((option) => option.value !== "All")
+      .map((option) => option.label);
 
     setGridBoardBootstrapping(true);
     setGridColumnsState(
@@ -1048,7 +1074,7 @@ export default function AdminSaleRepManagerPage() {
     }
 
     if (isBoardAllStatusesMode) {
-      const merged = BOOKING_STATUS_OPTIONS.flatMap((status) => gridColumnsState[String(status)]?.items || []);
+      const merged = BOOKING_STATUS_OPTIONS.flatMap((option) => gridColumnsState[option.label]?.items || []);
       setDisplayLeads(merged);
       return;
     }
@@ -1295,8 +1321,8 @@ export default function AdminSaleRepManagerPage() {
                 <BasicDropdown
                   label="All Statuses"
                   value={statusFilter}
-                  options={["All", ...BOOKING_STATUS_OPTIONS]}
-                  onChange={(val) => setStatusFilter(val as any)}
+                  options={BOOKING_STATUS_OPTIONS as any}
+                  onChange={(val) => setStatusFilter(normalizeBookingStatusFilterValue(val))}
                   openAlign={"right"}
                 />
               </div>
@@ -1359,8 +1385,8 @@ export default function AdminSaleRepManagerPage() {
                   <BasicDropdown
                     label="All Statuses"
                     value={statusFilter}
-                    options={["All", ...BOOKING_STATUS_OPTIONS]}
-                    onChange={(val) => setStatusFilter(val as any)}
+                    options={BOOKING_STATUS_OPTIONS as any}
+                    onChange={(val) => setStatusFilter(normalizeBookingStatusFilterValue(val))}
                     openAlign={"right"}
                   />
                 </div>
@@ -1383,7 +1409,7 @@ export default function AdminSaleRepManagerPage() {
                   totalPages={leadsTotalPages}
                   totalRecords={leadsTotalRecords}
                   limit={leadsLimit}
-                  activeStatusFilter={statusFilter}
+                  activeStatusFilter={(BOOKING_STATUS_FILTER_LABELS.get(statusFilter) || "All") as BookingStatus | "All"}
                   viewMode={leadsViewMode}
                   showViewSwitcher={false}
                   onViewModeChange={setLeadsViewMode}
@@ -1425,7 +1451,7 @@ export default function AdminSaleRepManagerPage() {
               headers={["User ID", "User Info", "Type", "Intent", "Status", "Contact Info", "Action"]}
               onPageChange={(page) => setUsersCurrentPage(page)}
               enableKanbanView
-              kanbanStatuses={activeTab === "Creative Partner" ? ["Approved", "Rejected", "Pending"] : [...BOOKING_STATUS_OPTIONS, "Unknown"]}
+              kanbanStatuses={activeTab === "Creative Partner" ? ["Approved", "Rejected", "Pending"] : [...BOOKING_STATUS_OPTIONS.map((option) => option.label), "Unknown"]}
               getItemId={(user) => user.id}
               getItemStatus={(user) => user.bookingStatus || user.status}
               viewMode={leadsViewMode}

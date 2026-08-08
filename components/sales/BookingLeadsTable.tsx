@@ -76,17 +76,14 @@ const normalizeBookingStatus = (value?: string) => {
   if (normalized === "booking in progress" || normalized === "in-progress") {
     return "Booking In Progress";
   }
-  if (normalized === "proposal sent" || normalized === "payment link sent" || normalized === "link sent") {
-    return "Proposal Sent";
+  if (normalized === "proposal sent" || normalized === "payment link sent" || normalized === "payment sent" || normalized === "link sent") {
+    return "Payment Link Sent";
   }
   if (normalized === "ready for payment") {
     return "Ready for Payment";
   }
-  if (normalized === "payment sent") {
-    return "Payment Sent";
-  }
   if (normalized === "booked" || normalized === "paid") {
-    return "Booked";
+    return "Paid";
   }
   if (normalized.includes("closed - lost") || normalized === "cancelled") {
     return "Closed - Lost";
@@ -194,13 +191,10 @@ export default function LeadsTable({
 
     const masterStatusList = [
       "Booking In Progress",
-      "Booked",
-      "Signed Up - Lead Created",
-      "Book a shoot - Lead Created",
-      "Manual - Lead Created",
-      "Proposal Sent",
       "Ready for Payment",
-      "Payment Sent",
+      "Payment Link Sent",
+      "Partially Paid",
+      "Paid",
       "Closed - Lost",
     ].map(status => normalizeBookingStatus(status));
 
@@ -310,7 +304,7 @@ export default function LeadsTable({
     return () => observer.disconnect();
   }, [onGridColumnEndReached, gridColumnLoadingByStatus, gridColumnHasMoreByStatus, currentViewMode, data]);
 
-  if (loading && data.length === 0) {
+  if ((loading || isFetching) && data.length === 0) {
     return (
       <div
         className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"
