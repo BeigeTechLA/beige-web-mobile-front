@@ -2188,6 +2188,38 @@ export const adminApi = {
       };
     }
   },
+  updateShootAddOns: async (
+    shootId: string | number,
+    payload: {
+      quote_id?: string | number;
+      line_items: Record<string, unknown>[];
+      manual_payment?: {
+        payment_type: "full" | "partial";
+        amount?: number;
+        payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+        other_payment_mode?: string;
+        proof_url: string;
+        proof_file_path?: string | null;
+        proof_file_name?: string | null;
+        notes?: string;
+        transaction_id?: string;
+      };
+      edit_reason?: string;
+      ops_review_confirmed?: boolean;
+    }
+  ) => {
+    try {
+      const response = await api.put(`admin/shoots/${shootId}/add-ons`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Add-Ons Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot add-ons',
+      };
+    }
+  },
 
   getCrewMemberDetail: async (id: string) => {
     try {
