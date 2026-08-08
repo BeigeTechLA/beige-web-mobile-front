@@ -274,6 +274,11 @@ export default function AddOnsPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleSave = async (manualPayment: ManualPaymentPayload) => {
+    if (!quoteId) {
+      toast.error("Linked quote not found for this shoot");
+      return;
+    }
+
     if (!selectedItems.length) {
       toast.error("Please select at least one add-on");
       return;
@@ -293,7 +298,7 @@ export default function AddOnsPage({ params }: { params: Promise<{ id: string }>
       }
 
       const response = await adminApi.updateShootAddOns(id, {
-        quote_id: quoteId ?? undefined,
+        quote_id: quoteId,
         line_items: selectedItems.map((item, index) => ({
           catalog_item_id: item.catalogItemId,
           section_type: "addon",
