@@ -798,9 +798,19 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
     const isLocalBrowser = typeof window !== "undefined" && /^localhost$|^127\.0\.0\.1$/i.test(window.location.hostname);
     const isLocalApi = /localhost:5001|127\.0\.0\.1:5001/i.test(apiEndpoint);
+    const isProductionApi = /(^|\/\/)revure-api\.beige\.app(\/|$)/i.test(apiEndpoint);
+    const isDevApi = /(^|\/\/)api\.dev\.beige\.app(\/|$)/i.test(apiEndpoint);
 
     if (isLocalBrowser && isLocalApi) {
       return "http://localhost:5002";
+    }
+
+    if (isProductionApi) {
+      return "https://api2.prod.beige.app";
+    }
+
+    if (isDevApi) {
+      return "https://api2.dev.beige.app";
     }
 
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
