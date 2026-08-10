@@ -346,7 +346,7 @@ export default function LeadDetailPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -2558,7 +2558,7 @@ export default function LeadDetailPage() {
                       <Select
                         value={manualPaymentMode}
                         onValueChange={(value) => {
-                          const nextMode = value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+                          const nextMode = value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
                           setManualPaymentMode(nextMode);
                           if (nextMode === "net30") {
                             setManualPaymentType("full");
@@ -2589,6 +2589,7 @@ export default function LeadDetailPage() {
                           <SelectItem value="venmo">Venmo</SelectItem>
                           <SelectItem value="cashapp">CashApp</SelectItem>
                           <SelectItem value="applepay">ApplePay</SelectItem>
+                          <SelectItem value="stripe">Stripe</SelectItem>
                           <SelectItem value="net30">Net 30</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
