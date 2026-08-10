@@ -185,6 +185,9 @@ export const authApi = createApi({
       query: (crewMemberId) => `auth/crew-member/${crewMemberId}`,
       transformResponse: (response: { error: boolean; data: { step1: unknown; step2: unknown; step3: unknown } }) => response.data,
     }),
+    getOnboardingStatus: builder.query<{ onboardingMissingDetail: boolean }, void>({
+      query: () => 'auth/onboarding-status',
+    }),
   }),
 });
 
@@ -207,4 +210,5 @@ export const {
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
   useGetCrewMemberDetailsQuery,
+  useGetOnboardingStatusQuery,
 } = authApi;

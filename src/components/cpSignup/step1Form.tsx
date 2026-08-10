@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
@@ -28,7 +29,6 @@ import { compressImage } from "@/lib/utils";
 import { pushToDataLayer } from "@/lib/gtm";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { GoogleCreatorOnboardingModal } from "./GoogleCreatorOnboardingModal";
 import Image from "next/image";
 
 interface SelectedImageState {
@@ -57,14 +57,13 @@ type GoogleOnboardingData = {
   phoneNumber?: string;
 };
 
-export default function Step1Form({ data, setData, nextStep, prevStep, completeSignup }) {
+export default function Step1Form({ data, setData, nextStep, prevStep }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
-  const [googleOnboardingOpen, setGoogleOnboardingOpen] = useState(false);
-  const [googleOnboardingData, setGoogleOnboardingData] = useState<GoogleOnboardingData | null>(null);
 
   const [registerStep1, { isLoading }] = useRegisterCreatorStep1Mutation();
   const { googleLogin, isGoogleLoginLoading } = useAuth();
@@ -147,17 +146,27 @@ export default function Step1Form({ data, setData, nextStep, prevStep, completeS
         return;
       }
 
-      setGoogleOnboardingData({
+      const onboardingData: GoogleOnboardingData = {
         firstName: nameParts.firstName || data.firstName || "Creative",
         lastName: nameParts.lastName || data.lastName || "Partner",
         email: user.email,
         phoneNumber: user.phone_number || data.phoneNumber || "",
         crew_member_id: crewMemberId,
         user_id: user.id,
-      });
-      setGoogleOnboardingOpen(true);
+      };
 
-      toast.success("Google verified. Complete the quick onboarding to submit your application.");
+      const shouldOpenGoogleOnboarding = result.creator_onboarding_required !== false;
+
+      if (shouldOpenGoogleOnboarding && typeof window !== "undefined") {
+        sessionStorage.setItem("creator_google_onboarding", JSON.stringify(onboardingData));
+      }
+
+      toast.success("Google verified. Opening your profile to finish onboarding.");
+      router.push(
+        shouldOpenGoogleOnboarding
+          ? "/creator/dashboard/profile?google_onboarding=1"
+          : "/creator/dashboard/profile"
+      );
     } catch (error: unknown) {
       toast.error(getAuthStepErrorMessage(error, "Google signup failed"));
     }
@@ -523,17 +532,6 @@ export default function Step1Form({ data, setData, nextStep, prevStep, completeS
           onSave={handleCropSave}
         />
       )}
-
-      <GoogleCreatorOnboardingModal
-        open={googleOnboardingOpen}
-        initialData={googleOnboardingData}
-        onClose={() => setGoogleOnboardingOpen(false)}
-        onComplete={(completedData) => {
-          setData({ ...data, ...completedData });
-          setGoogleOnboardingOpen(false);
-          completeSignup();
-        }}
-      />
     </div>
   );
 }

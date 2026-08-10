@@ -353,3 +353,4 @@ export interface RawCreator {
   role: null;
   status: string;
 }
+export interface OnboardingStatusResponse { onboardingMissingDetail: boolean; }

@@ -364,7 +364,7 @@ export function GoogleCreatorOnboardingModal({
                   <SelectTrigger className="h-12 border-white/20 bg-[#151515] text-white">
                     <SelectValue placeholder="Select travel radius" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-white/20 text-white">
+                  <SelectContent position="popper" className="bg-[#1A1A1A] border-white/20 text-white z-[110]">
                     {distanceOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
