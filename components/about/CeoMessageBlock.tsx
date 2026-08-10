@@ -11,7 +11,7 @@ import { Play } from "lucide-react";
 export default function CeoMessageBlock() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const vimeoUrl = `https://player.vimeo.com/video/837736935?api=1&autoplay=1&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
+  const vimeoUrl = `https://player.vimeo.com/video/837736935?api=1&autoplay=0&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
 
   return (
     <section className="py-10 md:py-20 lg:py-32 relative overflow-hidden">
@@ -39,7 +39,7 @@ export default function CeoMessageBlock() {
               ref={iframeRef}
               src={vimeoUrl}
               className="absolute inset-0 w-full h-full z-10"
-              allow="autoplay; fullscreen"
+              allow="fullscreen"
             />
             {/* <Button className="!absolute rounded-full w-12 h-12 lg:w-17 lg:h-17 bg-black z-30 top-10 right-10">
               <Play size={16} className="text-white fill-white" />

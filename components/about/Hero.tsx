@@ -50,6 +50,11 @@ export const Hero = () => {
     col2Image1: "path('M 0 522.678 C 0 533.724 8.954 542.678 20 542.678 H 250.242 C 261.288 542.678 270.242 533.724 270.242 522.678 V 80.67 C 270.242 69.624 261.288 60.67 250.242 60.67 H 159.557 C 152.845 60.67 147.405 55.229 147.405 48.518 C 147.405 43.228 143.983 38.546 138.943 36.94 L 26.074 0.959 C 13.173 -3.153 0 6.474 0 20.015 Z')"
   };
 
+  const hoverBounce = {
+    whileHover: { y: -8, scale: 1.02 },
+    transition: { type: "spring", stiffness: 300, damping: 18 }
+  } as const;
+
   return (
     <section className="py-10 md:py-20 lg:py-32 relative overflow-hidden text-white">
       <Container>
@@ -63,24 +68,25 @@ export const Hero = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-10% 0px" }}
             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-            className="max-w-xl text-white/70 font-light text-sm md:text-base"
+            className="max-w-3xl text-white/70 font-light text-sm md:text-base"
           >
-            Beige creates high-quality videos that grab attention for your business. We are available to help you anytime and anywhere.
+            Beige is an AI-powered content production platform that helps businesses, brands, and creators book high-quality photo and video shoots with ease. Choose your content type, get matched with the right creative team instantly, and manage your entire production in one place from booking to final delivery.
           </motion.p>
           <Button
             onClick={handleJoinUs}
-            className="w-fit h-7 lg:h-15 px-5 lg:px-8 rounded-lg bg-[#ECE1CE] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
+            className="w-fit h-7 lg:h-15 px-5 lg:px-8 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
           >
-            Start Your Shoot
+            Book Now
           </Button>
         </div>
 
         {/* MOBILE SINGLE COLUMN LAYOUT */}
         <div className="block md:hidden w-full max-w-sm mx-auto flex flex-col gap-5 px-4">
           {TEAM_IMAGES.map((img, i) => (
-            <div
+            <motion.div
               key={`mobile_img_${i}`}
-              className="relative overflow-hidden bg-[#171717] w-full aspect-[4/3] rounded-2xl border border-white/5 shadow-md"
+              {...hoverBounce}
+              className="relative overflow-hidden bg-[#171717] w-full aspect-[4/3] rounded-2xl border border-white/5 shadow-md cursor-pointer"
             >
               <Image
                 src={img.src}
@@ -89,17 +95,18 @@ export const Hero = () => {
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw"
               />
-            </div>
+            </motion.div>
           ))}
         </div>
 
         {/* DESKTOP ASYMMETRIC GRID LAYOUT */}
-        <div className="hidden md:grid md:grid-cols-[1fr_1fr_2fr_1fr_1fr] gap-[18px] max-w-[1440px] mx-auto px-4 overflow-visible select-none">
+        <div className="hidden md:grid md:grid-cols-[1fr_1fr_2fr_1fr_1fr] gap-[18px] max-w-[1440px] mx-auto px-4 items-end overflow-visible select-none">
 
           {/* Column 1: Far Left Stack */}
-          <div className="flex flex-col gap-[18px] w-full">
-            <div
-              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] rounded-b-xl"
+          <div className="flex flex-col gap-[18px] w-full h-full justify-end">
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] rounded-b-xl cursor-pointer"
               style={{ clipPath: clipPaths.col1Image1 }}
             >
               <Image
@@ -109,63 +116,78 @@ export const Hero = () => {
                 className="object-cover"
                 sizes="(max-width: 768px) 270px, 20vw"
               />
-            </div>
-            <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
+            </motion.div>
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px] cursor-pointer"
+            >
               <Image
                 src={TEAM_IMAGES[1].src}
                 alt={TEAM_IMAGES[1].alt}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 270px,20vw"
+                sizes="(max-width: 768px) 270px, 20vw"
               />
-            </div>
+            </motion.div>
           </div>
 
           {/* Column 2: Inner Left Tall Card */}
-          <div
-            className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] rounded-b-xl"
-            style={{ clipPath: clipPaths.col2Image1 }}
-          >
-            <Image
-              src={TEAM_IMAGES[2].src}
-              alt={TEAM_IMAGES[2].alt}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 270px,20vw"
-            />
+          <div className="flex flex-col justify-end w-full h-full">
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] rounded-b-xl cursor-pointer"
+              style={{ clipPath: clipPaths.col2Image1 }}
+            >
+              <Image
+                src={TEAM_IMAGES[2].src}
+                alt={TEAM_IMAGES[2].alt}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 270px, 20vw"
+              />
+            </motion.div>
           </div>
 
           {/* Column 3: Center Featured Video/Image Card */}
-          <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[554/346] rounded-[24px] shadow-2xl z-20 self-center mt-auto mb-10">
-            <Image
-              src={TEAM_IMAGES[3].src}
-              alt={TEAM_IMAGES[3].alt}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 450px,40vw"
-            />
+          <div className="flex flex-col justify-end w-full h-full">
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[554/346] rounded-[24px] shadow-2xl z-20 cursor-pointer mb-10"
+            >
+              <Image
+                src={TEAM_IMAGES[3].src}
+                alt={TEAM_IMAGES[3].alt}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 450px, 40vw"
+              />
+            </motion.div>
           </div>
 
           {/* Column 4: Inner Right Tall Card */}
-          <div
-            className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] scale-x-[-1] rounded-b-xl"
-            style={{ clipPath: clipPaths.col2Image1 }}
-          >
-            <div className="relative w-full h-full scale-x-[-1]">
-              <Image
-                src={TEAM_IMAGES[4].src}
-                alt={TEAM_IMAGES[4].alt}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 270px,20vw"
-              />
-            </div>
+          <div className="flex flex-col justify-end w-full h-full">
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/542.67] scale-x-[-1] rounded-b-xl cursor-pointer"
+              style={{ clipPath: clipPaths.col2Image1 }}
+            >
+              <div className="relative w-full h-full scale-x-[-1]">
+                <Image
+                  src={TEAM_IMAGES[4].src}
+                  alt={TEAM_IMAGES[4].alt}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 270px, 20vw"
+                />
+              </div>
+            </motion.div>
           </div>
 
           {/* Column 5: Far Right Stack */}
-          <div className="flex flex-col gap-[18px] w-full">
-            <div
-              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] scale-x-[-1] rounded-b-xl"
+          <div className="flex flex-col gap-[18px] w-full h-full justify-end">
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/443.25] scale-x-[-1] rounded-b-xl cursor-pointer"
               style={{ clipPath: clipPaths.col1Image1 }}
             >
               <div className="relative w-full h-full scale-x-[-1]">
@@ -174,21 +196,23 @@ export const Hero = () => {
                   alt={TEAM_IMAGES[5].alt}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 270px,20vw"
+                  sizes="(max-width: 768px) 270px, 20vw"
                 />
               </div>
-            </div>
-            <div className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px]">
+            </motion.div>
+            <motion.div
+              {...hoverBounce}
+              className="shrink-0 relative overflow-hidden bg-[#171717] w-full aspect-[270.24/177.02] rounded-[20px] cursor-pointer"
+            >
               <Image
                 src={TEAM_IMAGES[6].src}
                 alt={TEAM_IMAGES[6].alt}
                 fill
                 className="object-cover"
-                sizes="(max-width: 768px) 270px,20vw"
+                sizes="(max-width: 768px) 270px, 20vw"
               />
-            </div>
+            </motion.div>
           </div>
-
         </div>
       </Container>
     </section>
