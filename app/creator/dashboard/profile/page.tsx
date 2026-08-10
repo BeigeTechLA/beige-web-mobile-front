@@ -2118,6 +2118,7 @@ export default function ProfilePage() {
         <GoogleCreatorOnboardingModal
           open={isGoogleOnboardingOpen}
           initialData={googleOnboardingData}
+          profileData={profile}
           onClose={() => setIsGoogleOnboardingOpen(false)}
           onComplete={async () => {
             setIsGoogleOnboardingOpen(false);

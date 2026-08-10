@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Camera, Loader2, Check, CircleDollarSign, Plus, Trash2, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,9 @@ import FeaturedWork, { type FeaturedWorkItem } from "./FeaturedWork";
 import SocialLinksModal from "./SocialLinksModal";
 import { SOCIAL_ICONS } from "@/app/data/staticData";
 
+const S3_BASE_URL =
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+
 type LocationValue = {
   address?: string;
   lat?: number;
@@ -54,6 +57,7 @@ type GoogleOnboardingData = {
 type GoogleCreatorOnboardingModalProps = {
   open: boolean;
   initialData: GoogleOnboardingData | null;
+  profileData?: Record<string, any> | null;
   onClose: () => void;
   onComplete: (data: Record<string, unknown>) => void;
 };
@@ -87,9 +91,192 @@ const mergeUniqueSkills = (...lists: Array<Array<{ value: string; label: string;
   return Array.from(map.values());
 };
 
+const parseMaybeJson = (value: unknown) => {
+  if (typeof value !== "string") return value;
+
+  let current: unknown = value;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (typeof current !== "string") return current;
+
+    const trimmed = current.trim();
+    if (!trimmed) return "";
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed === current) return parsed;
+      current = parsed;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return current;
+};
+
+const asStringArray = (value: unknown) => {
+  const parsed = parseMaybeJson(value);
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (parsed == null || parsed === "") {
+    return [];
+  }
+
+  return [String(parsed).trim()].filter(Boolean);
+};
+
+const normalizeLocationValue = (value: unknown): LocationValue => {
+  const parsed = parseMaybeJson(value);
+
+  if (!parsed) return null;
+
+  if (typeof parsed === "object") {
+    const location = parsed as Record<string, unknown>;
+    return {
+      address: String(location.address || location.formatted_address || location.label || "").trim() || undefined,
+      lat: typeof location.lat === "number" ? location.lat : typeof location.latitude === "number" ? location.latitude : undefined,
+      lng: typeof location.lng === "number" ? location.lng : typeof location.longitude === "number" ? location.longitude : undefined,
+    };
+  }
+
+  return String(parsed);
+};
+
+const normalizeSocialLinks = (value: unknown): SocialLinkItem[] => {
+  const parsed = parseMaybeJson(value);
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return [];
+  }
+
+  return Object.entries(parsed as Record<string, unknown>)
+    .filter(([, url]) => Boolean(url && String(url).trim()))
+    .map(([platform, url], index) => {
+      const platformInfo = SOCIAL_ICONS.find((item) => item.id === platform.toLowerCase());
+      return {
+        id: `${platform}-${index}`,
+        platform,
+        url: String(url),
+        name: platformInfo?.label || platform,
+      };
+    });
+};
+
+const getProfilePhotoPreview = (profileData?: Record<string, any> | null) => {
+  const directPhoto = profileData?.profile_photo || profileData?.profilePhoto;
+
+  if (typeof directPhoto === "string" && directPhoto.trim()) {
+    return directPhoto.startsWith("http") ? directPhoto : `${S3_BASE_URL}${directPhoto.replace(/^\//, "")}`;
+  }
+
+  const files = Array.isArray(profileData?.crew_member_files) ? profileData?.crew_member_files : [];
+  const profileFile = files.find((file) => file?.file_type === "profile_photo" && file?.file_path);
+
+  if (!profileFile?.file_path) {
+    return "";
+  }
+
+  const path = String(profileFile.file_path);
+  return path.startsWith("http") ? path : `${S3_BASE_URL}${path.replace(/^\//, "")}`;
+};
+
+const normalizeFeaturedWork = (profileData?: Record<string, any> | null): FeaturedWorkItem[] => {
+  const files = Array.isArray(profileData?.crew_member_files) ? profileData?.crew_member_files : [];
+  const workFiles = files.filter((file) => ["recent_work", "work_sample"].includes(String(file?.file_type || "")));
+
+  if (!workFiles.length) {
+    return [];
+  }
+
+  const grouped = new Map<string, FeaturedWorkItem & { files: NonNullable<FeaturedWorkItem["files"]> }>();
+
+  workFiles.forEach((file, index) => {
+    const title = String(file?.title || file?.tag || "Featured work").trim();
+    const key = `${title.toLowerCase()}-${String(file?.tag || "").toLowerCase()}`;
+    const preview = file?.file_path
+      ? String(file.file_path).startsWith("http")
+        ? String(file.file_path)
+        : `${S3_BASE_URL}${String(file.file_path).replace(/^\//, "")}`
+      : "";
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        id: file?.crew_files_id ?? `${key}-${index}`,
+        title,
+        tags: file?.tag ? [String(file.tag)] : [],
+        previews: [],
+        files: [],
+      });
+    }
+
+    const current = grouped.get(key);
+    if (!current) return;
+
+    if (preview) {
+      current.previews = [...(current.previews || []), preview];
+    }
+
+    current.files = [
+      ...(current.files || []),
+      {
+        crewFilesId: file?.crew_files_id,
+        file_path: file?.file_path,
+      },
+    ];
+  });
+
+  return Array.from(grouped.values());
+};
+
+const normalizeRoleIds = (value: unknown) => asStringArray(value);
+
+const normalizeSkillIds = (value: unknown) => {
+  const parsed = parseMaybeJson(value);
+  if (Array.isArray(parsed)) {
+    return parsed
+      .map((skill) => {
+        if (skill && typeof skill === "object") {
+          const item = skill as Record<string, unknown>;
+          return String(item.id ?? item.value ?? item.skill_id ?? item.name ?? "").trim();
+        }
+        return String(skill).trim();
+      })
+      .filter(Boolean);
+  }
+
+  return asStringArray(parsed);
+};
+
+const normalizeEquipment = (value: unknown) => {
+  const parsed = parseMaybeJson(value);
+
+  if (Array.isArray(parsed)) {
+    return parsed.map((item) => {
+      if (item && typeof item === "object") {
+        const equipment = item as Record<string, unknown>;
+        return {
+          id: equipment.equipment_id ?? equipment.id ?? equipment.value ?? "",
+          name: String(equipment.equipment_name ?? equipment.name ?? "").trim(),
+        };
+      }
+
+      return {
+        id: item,
+        name: String(item).trim(),
+      };
+    });
+  }
+
+  return [];
+};
+
 export function GoogleCreatorOnboardingModal({
   open,
   initialData,
+  profileData,
   onClose,
   onComplete,
 }: GoogleCreatorOnboardingModalProps) {
@@ -99,6 +286,7 @@ export function GoogleCreatorOnboardingModal({
   const [workingDistance, setWorkingDistance] = useState("");
   const [profileImage, setProfileImage] = useState<File | Blob | null>(null);
   const [profilePreview, setProfilePreview] = useState("");
+  const [hasExistingProfilePhoto, setHasExistingProfilePhoto] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [yoe, setYoe] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -125,6 +313,34 @@ export function GoogleCreatorOnboardingModal({
     return listsToMerge.length ? mergeUniqueSkills(...listsToMerge) : [];
   }, [roles]);
 
+  useEffect(() => {
+    if (!open || !initialData) return;
+
+    const source = profileData || {};
+    const profileSkills = normalizeSkillIds(source.skills);
+    const profileEquipment = normalizeEquipment(source.equipment || source.equipment_ownership);
+    const profilePhotoPreview = getProfilePhotoPreview(source);
+
+    setStep(1);
+    setPhoneNumber(String(source.phone || source.phone_number || initialData.phoneNumber || "").trim());
+    setLocation(normalizeLocationValue(source.location));
+    setWorkingDistance(String(source.workingDistance || source.working_distance || "").trim());
+    setProfileImage(null);
+    setProfilePreview(profilePhotoPreview);
+    setHasExistingProfilePhoto(Boolean(profilePhotoPreview));
+    setRoles(normalizeRoleIds(source.primary_role || source.role));
+    setYoe(String(source.experience || source.years_of_experience || "").trim());
+    setHourlyRate(String(source.price || source.hourly_rate || "").trim());
+    setBio(String(source.bio || "").trim());
+    setSkills(profileSkills);
+    setEquipments(profileEquipment.map((item) => item.id).filter(Boolean) as Array<string | number>);
+    setEquipmentNames(profileEquipment.map((item) => item.name || String(item.id)).filter(Boolean));
+    setLinks(normalizeSocialLinks(source.social_media_links || source.socialMedia));
+    setFeaturedWork(normalizeFeaturedWork(source));
+    setSocialModalOpen(false);
+    setIsProcessingImage(false);
+  }, [open, initialData, profileData]);
+
   if (!open || !initialData) {
     return null;
   }
@@ -149,6 +365,7 @@ export function GoogleCreatorOnboardingModal({
       const compressed = await compressImage(file);
       setProfileImage(compressed);
       setProfilePreview(URL.createObjectURL(compressed));
+      setHasExistingProfilePhoto(true);
     } catch {
       toast.error("Failed to process image.");
     } finally {
@@ -157,7 +374,7 @@ export function GoogleCreatorOnboardingModal({
   };
 
   const submitBasics = async () => {
-    if (!phoneNumber || !location || !workingDistance || !profileImage) {
+    if (!phoneNumber || !location || !workingDistance || (!profileImage && !hasExistingProfilePhoto)) {
       toast.error("Please complete the required onboarding details.");
       return;
     }
@@ -178,7 +395,9 @@ export function GoogleCreatorOnboardingModal({
     formData.append("phone_number", phoneNumber);
     formData.append("location", locationAddress || "");
     formData.append("working_distance", workingDistance);
-    formData.append("profile_photo", profileImage, "profile-picture.jpg");
+    if (profileImage) {
+      formData.append("profile_photo", profileImage, "profile-picture.jpg");
+    }
     if (typeof locationLat === "number") formData.append("lat", String(locationLat));
     if (typeof locationLng === "number") formData.append("lng", String(locationLng));
 
@@ -374,7 +593,7 @@ export function GoogleCreatorOnboardingModal({
                 </Select>
               </div>
 
-              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
                 <Label className="mb-3 block text-sm text-white/60">Profile picture *</Label>
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-black">
