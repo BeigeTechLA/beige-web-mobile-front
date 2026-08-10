@@ -25,6 +25,16 @@ type QuoteLineItem = {
   is_active?: number | string | null;
 };
 
+type ProjectAddOnItem = QuoteLineItem & {
+  id?: number | string | null;
+  sales_quote_line_item_id?: number | string | null;
+  name?: string | null;
+  price?: number | string | null;
+  amount?: number | string | null;
+  cost?: number | string | null;
+  total?: number | string | null;
+};
+
 type CatalogAddonApiItem = {
   catalog_item_id?: number | string | null;
   name?: string | null;
@@ -77,6 +87,42 @@ const money = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+
+const getProjectAddOnItems = (project: unknown): ProjectAddOnItem[] => {
+  const record = asRecord(project);
+  const candidates = [record?.add_ons, record?.shoot_add_ons, record?.line_items];
+  const items = candidates.find((value) => Array.isArray(value) && value.length > 0);
+  return Array.isArray(items) ? (items as ProjectAddOnItem[]) : [];
+};
+
+const getResolvedQuoteId = (project: Record<string, unknown> | null, primaryQuote: Record<string, unknown> | null) => {
+  const quoteId = Number(
+    project?.converted_sales_quote_id ||
+    primaryQuote?.quote_id ||
+    primaryQuote?.sales_quote_id ||
+    0
+  );
+
+  return Number.isFinite(quoteId) && quoteId > 0 ? quoteId : 0;
+};
+
+const normalizeProjectAddOnItem = (item: ProjectAddOnItem): QuoteLineItem => ({
+  line_item_id: item.line_item_id ?? item.sales_quote_line_item_id ?? item.id ?? null,
+  catalog_item_id: item.catalog_item_id ?? null,
+  section_type: item.section_type ?? "addon",
+  source_type: item.source_type ?? (item.catalog_item_id != null ? "catalog" : "custom"),
+  item_name: item.item_name ?? item.name ?? null,
+  description: item.description ?? null,
+  quantity: item.quantity ?? 1,
+  unit_rate: item.unit_rate ?? item.estimated_pricing ?? item.price ?? item.amount ?? item.cost ?? item.line_total ?? item.total ?? 0,
+  estimated_pricing: item.estimated_pricing ?? item.unit_rate ?? item.price ?? item.amount ?? item.cost ?? 0,
+  line_total: item.line_total ?? item.total ?? null,
+  sort_order: item.sort_order ?? null,
+  is_active: item.is_active ?? 1,
+});
 
 const buildDrafts = (
   catalog: Array<{ id: string; catalogItemId: number | null; name: string; price: number }>,
@@ -161,20 +207,29 @@ export default function AddOnsPage({ params }: { params: Promise<{ id: string }>
         ]);
 
         const project = projectRes?.data?.project || projectRes?.data || null;
-        const primaryQuote = project?.primary_quote || null;
-        const resolvedQuoteId = Number(project?.converted_sales_quote_id || project?.sales_quote_id || project?.quote_id || primaryQuote?.quote_id || 0);
-        let lineItems: Array<QuoteLineItem | QuoteDetailLineItem> = [];
+        const projectRecord = asRecord(project);
+        const primaryQuote = asRecord(projectRecord?.primary_quote);
+        const resolvedQuoteId = getResolvedQuoteId(projectRecord, primaryQuote);
+        const projectAddOns = getProjectAddOnItems(project).map(normalizeProjectAddOnItem);
+        let lineItems: Array<QuoteLineItem | QuoteDetailLineItem> = projectAddOns;
 
-        if (resolvedQuoteId > 0) {
-          const quoteRes = await salesApi.getQuoteDetail(resolvedQuoteId);
-          const quoteDetail = unwrapSalesQuoteDetail(quoteRes?.data ?? null);
-          if (Array.isArray(quoteDetail?.line_items) && quoteDetail.line_items.length > 0) {
-            lineItems = quoteDetail.line_items;
+        if (!lineItems.length && resolvedQuoteId > 0) {
+          try {
+            const quoteRes = await salesApi.getQuoteDetail(resolvedQuoteId);
+            if (quoteRes && quoteRes.success === false) {
+              throw new Error(quoteRes.message || quoteRes.error || "Quote details unavailable");
+            }
+            const quoteDetail = unwrapSalesQuoteDetail(quoteRes?.data ?? null);
+            if (Array.isArray(quoteDetail?.line_items) && quoteDetail.line_items.length > 0) {
+              lineItems = quoteDetail.line_items;
+            }
+          } catch (error) {
+            console.warn("Linked quote details unavailable, using project add-ons fallback", error);
           }
         }
 
         if (!lineItems.length && Array.isArray(primaryQuote?.line_items)) {
-          lineItems = primaryQuote.line_items;
+          lineItems = primaryQuote.line_items as Array<QuoteLineItem | QuoteDetailLineItem>;
         }
 
         const catalog = Array.isArray(catalogRes?.data?.addon)
@@ -274,11 +329,6 @@ export default function AddOnsPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleSave = async (manualPayment: ManualPaymentPayload) => {
-    if (!quoteId) {
-      toast.error("Linked quote not found for this shoot");
-      return;
-    }
-
     if (!selectedItems.length) {
       toast.error("Please select at least one add-on");
       return;
@@ -298,7 +348,7 @@ export default function AddOnsPage({ params }: { params: Promise<{ id: string }>
       }
 
       const response = await adminApi.updateShootAddOns(id, {
-        quote_id: quoteId,
+        ...(quoteId ? { quote_id: quoteId } : {}),
         line_items: selectedItems.map((item, index) => ({
           catalog_item_id: item.catalogItemId,
           section_type: "addon",
