@@ -68,15 +68,15 @@ export const Hero = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-10% 0px" }}
             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-            className="max-w-xl text-white/70 font-light text-sm md:text-base"
+            className="max-w-3xl text-white/70 font-light text-sm md:text-base"
           >
-            Beige creates high-quality videos that grab attention for your business. We are available to help you anytime and anywhere.
+            Beige is an AI-powered content production platform that helps businesses, brands, and creators book high-quality photo and video shoots with ease. Choose your content type, get matched with the right creative team instantly, and manage your entire production in one place from booking to final delivery.
           </motion.p>
           <Button
             onClick={handleJoinUs}
             className="w-fit h-7 lg:h-15 px-5 lg:px-8 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dcb98a] text-sm lg:text-xl"
           >
-            Start Your Shoot
+            Book Now
           </Button>
         </div>
 
