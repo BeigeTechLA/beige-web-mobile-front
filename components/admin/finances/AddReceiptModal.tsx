@@ -33,6 +33,7 @@ const PAYMENT_METHODS = [
   { value: "venmo", label: "Venmo" },
   { value: "cashapp", label: "CashApp" },
   { value: "applepay", label: "ApplePay" },
+  { value: "stripe", label: "Stripe" },
   { value: "net30", label: "Net 30" },
   { value: "other", label: "Other" },
 ];
