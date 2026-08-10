@@ -40,7 +40,7 @@ export default function MessagesTab({
 
   return (
     <>
-      {role === "admin" ? (
+      {role === "admin" && hasChatRoom === false ? (
         <div className="mb-5 flex items-center justify-end">
           <button
             type="button"
