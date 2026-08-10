@@ -1798,6 +1798,13 @@ export default function QuoteDetailsPage({
     }),
     [quoteId]
   );
+  const handleBack = useCallback(() => {
+    if (searchParams.get("from") === "shift-management") {
+      router.push("/admin/sales-representative/shift-management");
+      return;
+    }
+    router.push(baseHref);
+  }, [baseHref, router, searchParams]);
 
   const handleRejectQuote = async () => {
     if (!canDelete) return;
@@ -2245,7 +2252,7 @@ export default function QuoteDetailsPage({
         <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <button
             type="button"
-            onClick={() => router.push(baseHref)}
+            onClick={handleBack}
             className="flex items-center gap-2 text-sm lg:text-base text-[#D4D4D4] transition-colors hover:text-white"
           >
             <ArrowLeft size={18} />
