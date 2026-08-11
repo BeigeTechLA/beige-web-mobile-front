@@ -331,9 +331,9 @@ export function UserSignupForm() {
     <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/70"></div>
       </div>
       {/* Social Buttons */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {/* Apple */}
-        <button
+        {/* <button
           type="button"
           className="h-12 rounded-lg border border-[#3A3A3A] bg-[#161616] flex items-center justify-center gap-2 text-white"
         >
@@ -344,7 +344,7 @@ export function UserSignupForm() {
             height={20}
           />
           <span>Apple</span>
-        </button>
+        </button> */}
         {/* Google */}
         <button
           type="button"

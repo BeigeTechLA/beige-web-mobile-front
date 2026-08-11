@@ -346,15 +346,15 @@ export function LoginForm() {
                 </span>
                 <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/70"></div>
               </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {/* Apple */}
-                  <button
+                  {/* <button
                     type="button"
                     className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
                   >
                     <Image src="\images\loginsignup\AppleLogo.svg" alt="Apple" width={20} height={20} />
                     <span>Apple</span>
-                  </button>
+                  </button> */}
                   {/* Google */}
                 <button
                     type="button"

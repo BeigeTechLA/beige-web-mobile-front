@@ -185,7 +185,20 @@ export const authApi = createApi({
       query: (crewMemberId) => `auth/crew-member/${crewMemberId}`,
       transformResponse: (response: { error: boolean; data: { step1: unknown; step2: unknown; step3: unknown } }) => response.data,
     }),
-    getOnboardingStatus: builder.query<{ onboardingMissingDetail: boolean }, void>({
+    getOnboardingStatus: builder.query<{
+      onboardingMissingDetail: boolean;
+      completed_count: number;
+      total_required: number;
+      missing_count: number;
+      progress_percent: number;
+      missing_fields: string[];
+      required_groups: Array<{
+        key: string;
+        label: string;
+        total: number;
+        completed: number;
+      }>;
+    }, void>({
       query: () => 'auth/onboarding-status',
     }),
   }),

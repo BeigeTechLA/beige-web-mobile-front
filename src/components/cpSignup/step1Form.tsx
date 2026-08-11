@@ -454,9 +454,9 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
             </div>
 
             {/* 3. Custom Social Grid */}
-            <div className={`grid grid-cols-2 gap-3 ${isGoogleLoginLoading ? "pointer-events-none opacity-60" : ""}`}>
+            <div className={`grid grid-cols-1 gap-3 ${isGoogleLoginLoading ? "pointer-events-none opacity-60" : ""}`}>
               {/* Apple Button */}
-              <button
+              {/* <button
                 type="button"
                 className="h-12 rounded-lg border border-[#3A3A3A] bg-[#161616] flex items-center justify-center gap-2 text-white transition-colors hover:bg-[#222]"
               >
@@ -467,7 +467,7 @@ export default function Step1Form({ data, setData, nextStep, prevStep }) {
                   height={20}
                 />
                 <span>Apple</span>
-              </button>
+              </button> */}
 
               {/* Google Button (Custom Trigger) */}
               <button

@@ -264,11 +264,11 @@ export default function ProfilePage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: onboardingData } = useGetOnboardingStatusQuery();
-  const isDetailMissing = onboardingData?.onboardingMissingDetail;
+  const { data: onboardingStatus, isSuccess: hasOnboardingStatus } = useGetOnboardingStatusQuery();
   const { isDark } = useResolvedTheme();
   const hasOpenedGoogleOnboardingRef = useRef(false);
   const [activeTab, setActiveTab] = useState("Overview");
+  const [hasProfileLoaded, setHasProfileLoaded] = useState(false);
 
   // Modal & Edit States
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
@@ -337,7 +337,10 @@ export default function ProfilePage() {
     const user = userStr ? JSON.parse(userStr) : null;
     const crewMemberId = user?.crew_member_id;
 
-    if (!crewMemberId) return;
+    if (!crewMemberId) {
+      setHasProfileLoaded(true);
+      return;
+    }
     try {
       const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
       if (response.data && response.data.error === false) {
@@ -345,6 +348,8 @@ export default function ProfilePage() {
       }
     } catch (err) {
       console.error("Fetching Error:", err);
+    } finally {
+      setHasProfileLoaded(true);
     }
   };
 
@@ -439,6 +444,12 @@ export default function ProfilePage() {
   const featuredWorks = profile.crew_member_files?.filter(
     (file: any) => file.file_type === "recent_work"
   ) || [];
+
+  const progressPercent = onboardingStatus?.progress_percent ?? 0;
+  const completedCount = onboardingStatus?.completed_count ?? 0;
+  const totalRequired = onboardingStatus?.total_required ?? 0;
+  const missingCount = onboardingStatus?.missing_count ?? 0;
+  const showOnboardingBanner = hasProfileLoaded && hasOnboardingStatus && missingCount > 0;
 
   const handleSavePersonalInfo = async () => {
     // 1. Get the ID from localStorage (similar to how you did in useEffect)
@@ -1098,28 +1109,50 @@ export default function ProfilePage() {
   return (
     <>
       <Topbar pathname={pathname} />
-        {isDetailMissing && (
-                <div
-                  className={`flex items-center justify-between gap-4 border-b px-4 py-3 sm:px-6 lg:px-8 ${
-                    isDark
-                      ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
-                      : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
-                  }`}
-                >
-                  <p className="min-w-0 truncate text-sm font-medium sm:text-base">
-                    Onboarding Incomplete
-                  </p>
+{showOnboardingBanner && (
+        <div
+          className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${
+            isDark
+              ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
+              : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-6">
+            
+            {/* Left Side: Title + Progress Bar (Takes full available space up to the button) */}
+            <div className="flex-1 min-w-0 mr-4">
+              <p className="truncate text-xs font-medium sm:text-sm">
+                Onboarding Incomplete
+              </p>
 
-                  <button
-                    type="button"
-                    onClick={handleOpenOnboarding} 
-                    className="shrink-0 flex items-center rounded-md bg-black px-5 py-2.5 text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
-                  >
-                    <AlertCircle size={16} className="mr-2" />
-                    Complete Profile
-                  </button>
+              {/* Progress bar and text container */}
+              <div className="mt-2">
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? "bg-black/30" : "bg-black/10"}`}>
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#E8D1AB] via-[#D7BC8A] to-[#FFF3D6] transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
                 </div>
-              ) }
+                
+                <div className={`mt-1 text-[10px] font-medium ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  {completedCount}/{totalRequired} Required Fields | {missingCount} Remaining | Complete all required details to become eligible for shoot assignments
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Complete Profile Button (Vertically Centered) */}
+            <button
+              type="button"
+              onClick={handleOpenOnboarding}
+              className="shrink-0 flex items-center rounded-md bg-black px-4 py-2 text-xs sm:text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+            >
+              <AlertCircle size={14} className="mr-1.5" />
+              Complete Profile
+            </button>
+
+          </div>
+        </div>
+      )}
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
       
         <div className="mx-auto space-y-4 lg:space-y-8">
