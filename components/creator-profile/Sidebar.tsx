@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
@@ -54,10 +55,16 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const { user, logout } = useAuth();
   const { isDark } = useResolvedTheme();
   const displayName = capitalizeName(user?.name) || "Creator";
+  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const { data: onboardingStatus } = useGetOnboardingStatusQuery(undefined, {
+    skip: !isCreatorUser,
+  });
 
   const initialPath = useRef(pathname);
   const [isVerified, setIsVerified] = useState(false);
+  const [isRegistrationComplete, setIsRegistrationComplete] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Finances"]);
+  const isUnlocked = isVerified && isRegistrationComplete;
 
   // Auto-expand dynamic parent routes on load/change
   useEffect(() => {
@@ -100,9 +107,15 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
         const response = await CheckVerificationStatus({ crew_member_id: crewId });
         if (response && !response?.error && response.data?.data) {
           const status = Number(response.data.data.is_crew_verified);
+          const registrationComplete = Number(response.data.data.is_registration_complete) === 1;
           setIsVerified(status === 1);
+          setIsRegistrationComplete(registrationComplete);
 
-          const updatedUser = { ...localUser, is_crew_verified: status };
+          const updatedUser = {
+            ...localUser,
+            is_crew_verified: status,
+            is_registration_complete: registrationComplete ? 1 : 0,
+          };
           localStorage.setItem("revure_user", JSON.stringify(updatedUser));
         }
       } catch (err) {
@@ -112,6 +125,16 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
 
     syncStatus();
   }, [handleLogout, pathname, user]);
+
+  useEffect(() => {
+    if (!onboardingStatus) return;
+
+    const registrationComplete =
+      onboardingStatus.is_registration_complete === 1 ||
+      onboardingStatus.onboardingMissingDetail === false;
+
+    setIsRegistrationComplete(registrationComplete);
+  }, [onboardingStatus]);
 
   useEffect(() => {
     if (onClose && pathname !== initialPath.current) {
@@ -158,7 +181,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const menuItems: MenuItem[] = [
     { href: "/creator/dashboard", icon: LayoutDashboard, label: "Dashboard", isPublic: true },
     { href: "/creator/dashboard/request", icon: Camera, label: "Request & Shoots", isPublic: false },
-    { href: "/creator/dashboard/file-manager", icon: FolderOpen, label: "File Manager", isPublic: true },
+    { href: "/creator/dashboard/file-manager", icon: FolderOpen, label: "File Manager", isPublic: false },
     { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", isPublic: false },
     { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", isPublic: false },
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
@@ -211,7 +234,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expanded.includes(item.label);
             const active = isParentActive(item);
-            const locked = !isVerified && !item.isPublic;
+            const locked = !isUnlocked && !item.isPublic;
 
             const baseClass = `w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-sm font-medium`;
             const activeClass = "bg-[#E5D5B8] text-[#171717]";
@@ -260,7 +283,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
                   <div className={`mt-1 ml-4 border-l pl-4 space-y-1 ${isDark ? "border-zinc-800" : "border-zinc-200"}`}>
                     {item.children!.map((child) => {
                       const childActive = isChildActive(child.href);
-                      const childLocked = !isVerified && !child.isPublic;
+                      const childLocked = !isUnlocked && !child.isPublic;
 
                       if (childLocked) {
                         return (

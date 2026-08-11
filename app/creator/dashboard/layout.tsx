@@ -3,17 +3,16 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { CheckVerificationStatus, CheckCPStatus } from "@/lib/api";
+import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { fetchAndCommitUserPermissions } from "@/lib/permissionsActions";
 import {
   canAccessPortalPath,
   getFirstAllowedPortalPath,
-  hasModulePermission,
-  type PermissionsMap,
 } from "@/lib/permissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
@@ -37,12 +36,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { logout, user } = useAuth();
+  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const { data: onboardingStatus } = useGetOnboardingStatusQuery(undefined, {
+    skip: !isCreatorUser,
+  });
   
   const { permissions, permissionsVersion } = useAppSelector((state) => ({
     permissions: state.auth.permissions,
     permissionsVersion: state.auth.permissionsVersion,
   }));
   const [mounted, setMounted] = useState(false);
+  const [isCreatorVerified, setIsCreatorVerified] = useState<boolean | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -99,6 +103,77 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     checkCpStatus();
   }, [pathname, logout, router]);
 
+  useEffect(() => {
+    const syncCreatorVerification = async () => {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem("revure_user") : null;
+      const localUser = userStr ? JSON.parse(userStr) : null;
+      const crewId = (user as any)?.crew_member_id || localUser?.crew_member_id;
+
+      if (!crewId) {
+        setIsCreatorVerified(false);
+        return;
+      }
+
+      try {
+        const response = await CheckVerificationStatus({ crew_member_id: crewId });
+        if (response && !response?.error && response.data?.data) {
+          const verified = Number(response.data.data.is_crew_verified) === 1;
+          const registrationComplete = Number(response.data.data.is_registration_complete) === 1;
+          setIsCreatorVerified(verified);
+
+          const updatedUser = {
+            ...localUser,
+            is_crew_verified: verified ? 1 : Number(response.data.data.is_crew_verified || 0),
+            is_registration_complete: registrationComplete ? 1 : 0,
+          };
+          localStorage.setItem("revure_user", JSON.stringify(updatedUser));
+          return;
+        }
+      } catch (error) {
+        console.error("Creator verification sync error:", error);
+      }
+
+      setIsCreatorVerified(Number((user as any)?.is_crew_verified ?? localUser?.is_crew_verified) === 1);
+    };
+
+    if (!mounted || !isCreatorUser) return;
+    syncCreatorVerification();
+  }, [isCreatorUser, mounted, pathname, user]);
+
+  useEffect(() => {
+    if (!mounted || !isCreatorUser) return;
+
+    const publicCreatorPaths = new Set([
+      "/creator/dashboard",
+      "/creator/dashboard/profile",
+    ]);
+
+    if (publicCreatorPaths.has(pathname)) return;
+    if (!onboardingStatus || isCreatorVerified === null) return;
+
+    const registrationComplete =
+      onboardingStatus.is_registration_complete === 1 ||
+      onboardingStatus.onboardingMissingDetail === false;
+
+    if (!registrationComplete || !isCreatorVerified) {
+      router.replace("/creator/dashboard");
+    }
+  }, [isCreatorUser, isCreatorVerified, mounted, onboardingStatus, pathname, router]);
+
+  const publicCreatorPaths = new Set([
+    "/creator/dashboard",
+    "/creator/dashboard/profile",
+  ]);
+  const isPublicCreatorPath = publicCreatorPaths.has(pathname);
+  const isRegistrationComplete =
+    onboardingStatus?.is_registration_complete === 1 ||
+    onboardingStatus?.onboardingMissingDetail === false;
+  const shouldHoldProtectedCreatorPath =
+    mounted &&
+    isCreatorUser &&
+    !isPublicCreatorPath &&
+    (!onboardingStatus || isCreatorVerified === null || !isRegistrationComplete || !isCreatorVerified);
+
   return (
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
       isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
@@ -132,7 +207,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar">
-        {children}
+        {shouldHoldProtectedCreatorPath ? (
+          <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#E8D1AB]" />
+          </div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

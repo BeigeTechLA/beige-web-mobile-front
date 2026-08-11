@@ -2,15 +2,16 @@ import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout"
 import { UserSignupForm } from "@/components/auth/UserSignupForm"
 
 type UserSignupPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     returnTo?: string
     bookingEmail?: string
-  }
+  }>
 }
 
-export default function UserSignupPage({ searchParams }: UserSignupPageProps) {
-  const returnTo = String(searchParams?.returnTo || "").trim()
-  const bookingEmail = String(searchParams?.bookingEmail || "").trim()
+export default async function UserSignupPage({ searchParams }: UserSignupPageProps) {
+  const resolvedSearchParams = await searchParams
+  const returnTo = String(resolvedSearchParams?.returnTo || "").trim()
+  const bookingEmail = String(resolvedSearchParams?.bookingEmail || "").trim()
   const params = new URLSearchParams()
   if (returnTo.startsWith("/")) {
     params.set("returnTo", returnTo)

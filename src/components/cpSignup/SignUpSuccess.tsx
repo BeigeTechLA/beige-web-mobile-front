@@ -176,6 +176,11 @@ export default function SignupSuccess({ data }) {
   const equipmentLabels = data?.equipmentNames?.length > 0 ? data.equipmentNames.join(", ") : null;
 
   const handleGoToDashboard = async () => {
+    if (data?.googleSignup || data?.authProvider === "google") {
+      router.push("/creator/dashboard");
+      return;
+    }
+
     if (!data?.email || !data?.password) {
       toast.error("Missing credentials. Please try logging in manually.");
       router.push("/login");
