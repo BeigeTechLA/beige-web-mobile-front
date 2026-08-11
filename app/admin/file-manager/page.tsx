@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
+import WorkspaceAccessModal from "@/components/admin/file-manager/WorkspaceAccessModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { getFileManagerRouteState, getFileManagerRouteStateKey, setFileManagerRouteState } from "@/lib/fileManagerRouteState";
@@ -121,6 +122,7 @@ export default function AdminFolderManagerPage() {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
@@ -760,6 +762,10 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);
                   }}
+                  onAccess={folder.category !== "Common Event" ? () => {
+                    setSelectedFolder(folder);
+                    setIsAccessModalOpen(true);
+                  } : undefined}
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
@@ -809,6 +815,10 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsShareModalOpen(true);
                   }}
+                  onAccess={folder.category !== "Common Event" ? () => {
+                    setSelectedFolder(folder);
+                    setIsAccessModalOpen(true);
+                  } : undefined}
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
@@ -994,6 +1004,7 @@ export default function AdminFolderManagerPage() {
             href={selectedFolder?.href}
             onDownload={handleDownloadSelectedFolder}
             onShare={() => setIsShareModalOpen(true)}
+            onAccess={selectedFolder?.category !== "Common Event" ? () => setIsAccessModalOpen(true) : undefined}
             onDelete={() => setIsDeleteModalOpen(true)}
             onEditVisibility={
               selectedFolder?.category === "Common Event" && selectedFolder
@@ -1062,6 +1073,19 @@ export default function AdminFolderManagerPage() {
             selectedFolder
               ? {
                 resourceType: "workspace",
+                externalId: String(selectedFolder.id || ""),
+                label: selectedFolder.title || "Workspace",
+              }
+              : null
+          }
+        />
+
+        <WorkspaceAccessModal
+          isOpen={isAccessModalOpen}
+          onClose={() => setIsAccessModalOpen(false)}
+          resource={
+            selectedFolder
+              ? {
                 externalId: String(selectedFolder.id || ""),
                 label: selectedFolder.title || "Workspace",
               }

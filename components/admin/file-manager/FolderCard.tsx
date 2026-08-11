@@ -41,10 +41,12 @@ interface FolderCardProps {
   onDelete?: () => void;
   onRename?: () => void;
   onShare?: () => void;
+  onAccess?: () => void;
   onEditVisibility?: () => void;
   downloadDisabled?: boolean;
   deleteDisabled?: boolean;
   shareDisabled?: boolean;
+  accessDisabled?: boolean;
   editVisibilityDisabled?: boolean;
   visibilityExpired?: boolean;
 }
@@ -64,10 +66,12 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   onDelete,
   onRename,
   onShare,
+  onAccess,
   onEditVisibility,
   downloadDisabled = false,
   deleteDisabled = false,
   shareDisabled = false,
+  accessDisabled = false,
   editVisibilityDisabled = false,
   visibilityExpired = false
 }) => {
@@ -219,12 +223,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             onOpen={onOpen}
             onDownload={onDownload}
             onShare={onShare}
+            onAccess={onAccess}
             onDelete={onDelete}
             onRename={onRename}
             onEditVisibility={onEditVisibility}
             downloadDisabled={downloadDisabled}
             deleteDisabled={deleteDisabled}
             shareDisabled={shareDisabled}
+            accessDisabled={accessDisabled}
             editVisibilityDisabled={editVisibilityDisabled}
             isDark={isDark}
           />

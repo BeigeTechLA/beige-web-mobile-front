@@ -11,7 +11,7 @@ interface ManageParticipantsModalProps {
   roomId?: string;
   roomSnapshot?: ExternalChatRoom | null;
   existingParticipantIds?: string[];
-  onAdded?: () => void;
+  onAdded?: () => void | Promise<void>;
   defaultTab?: ModalTab;
   canManage?: boolean;
   currentUserId?: string | null;
@@ -69,6 +69,7 @@ const normalizeCurrentParticipants = (data: any) => {
     ...(data?.cps || []),
     ...(data?.production || []),
     ...(data?.pm ? [data.pm] : []),
+    ...(data?.clients || []),
     ...(data?.client ? [data.client] : []),
   ];
 
@@ -81,6 +82,7 @@ const normalizeCurrentParticipants = (data: any) => {
         role: item?.role || "member",
         profileImage: item?.profileImage || null,
         subtitle: item?.subtitle || null,
+        is_primary_client: Boolean(item?.is_primary_client),
       };
 
       return {
@@ -103,6 +105,7 @@ const normalizeSnapshotParticipants = (room?: ExternalChatRoom | null) => {
     ...(room.cp_ids || []),
     ...(room.production_ids || []),
     ...(room.pm_id ? [room.pm_id] : []),
+    ...(room.client_ids || []),
     ...(room.client_snapshot ? [room.client_snapshot] : []),
     ...(room.client_id ? [room.client_id] : []),
   ];
@@ -115,6 +118,7 @@ const normalizeSnapshotParticipants = (room?: ExternalChatRoom | null) => {
         email: item?.email || null,
         role: item?.role || "member",
         profileImage: item?.profileImage || null,
+        is_primary_client: Boolean(item?.is_primary_client),
       };
 
       return {
@@ -256,8 +260,10 @@ export default function ManageParticipantsModal({
         }))
       );
       toast.success("Participants added");
-      onAdded?.();
-      onClose();
+      setSelectedIds([]);
+      await loadParticipants();
+      await onAdded?.();
+      setActiveTab("current");
     } catch (error: any) {
       toast.error(error?.message || "Failed to add participants");
     } finally {
@@ -267,8 +273,8 @@ export default function ManageParticipantsModal({
 
   const removeParticipant = async (member: ExternalChatUser) => {
     if (!roomId || !member?.id || !canManage) return;
-    if (member.role === "client") {
-      toast.error("Client cannot be removed");
+    if (member.role === "client" && member.is_primary_client) {
+      toast.error("Primary booking client cannot be removed");
       return;
     }
 
@@ -277,7 +283,7 @@ export default function ManageParticipantsModal({
       await externalChatApi.removeParticipant(roomId, String(member.id), String(member.role || "manager"));
       toast.success("Participant removed");
       await loadParticipants();
-      onAdded?.();
+      await onAdded?.();
     } catch (error: any) {
       toast.error(error?.message || "Failed to remove participant");
     } finally {
@@ -396,7 +402,7 @@ export default function ManageParticipantsModal({
                           </div>
 
                           <div className="flex items-center justify-end gap-2.5 lg:gap-3 shrink-0">
-                            {canManage && member.role !== "client" && !isCurrentUser ? (
+                            {canManage && !(member.role === "client" && member.is_primary_client) && !isCurrentUser ? (
                               <button
                                 type="button"
                                 onClick={() => removeParticipant(member)}
