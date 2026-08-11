@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -345,7 +346,7 @@ export default function ShiftManagementPage() {
   const [recentAssignmentRows, setRecentAssignmentRows] = useState<RecentAssignmentRow[]>([]);
   const [leadVolumeRows, setLeadVolumeRows] = useState<LeadVolumeRow[]>(() => normalizeLeadVolumeRows([]));
   const [salespeopleOptions, setSalespeopleOptions] = useState<SalespeopleOption[]>([]);
-  const [selectedSalespersonId, setSelectedSalespersonId] = useState("");
+  const [selectedSalespersonIds, setSelectedSalespersonIds] = useState<string[]>([]);
   const [isSalespersonDropdownOpen, setIsSalespersonDropdownOpen] = useState(false);
   const [salespersonSearch, setSalespersonSearch] = useState("");
   const [shiftName, setShiftName] = useState("");
@@ -358,9 +359,9 @@ export default function ShiftManagementPage() {
   const salespersonDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const activeNow = useMemo(() => activeNowRows, [activeNowRows]);
-  const selectedSalespersonOption = useMemo(
-    () => salespeopleOptions.find((person) => person.sales_rep_id === selectedSalespersonId),
-    [salespeopleOptions, selectedSalespersonId]
+  const selectedSalespersonOptions = useMemo(
+    () => salespeopleOptions.filter((person) => selectedSalespersonIds.includes(person.sales_rep_id)),
+    [salespeopleOptions, selectedSalespersonIds]
   );
   const filteredSalespeopleOptions = useMemo(
     () =>
@@ -607,10 +608,13 @@ export default function ShiftManagementPage() {
   }, [isSalespersonDropdownOpen]);
 
   useEffect(() => {
-    if (!selectedSalespersonId) return;
-    if (salespeopleOptions.some((person) => person.sales_rep_id === selectedSalespersonId)) return;
-    setSelectedSalespersonId("");
-  }, [salespeopleOptions, selectedSalespersonId]);
+    if (!selectedSalespersonIds.length) return;
+    const validIds = new Set(salespeopleOptions.map((person) => person.sales_rep_id));
+    const filteredIds = selectedSalespersonIds.filter((id) => validIds.has(id));
+    if (filteredIds.length !== selectedSalespersonIds.length) {
+      setSelectedSalespersonIds(filteredIds);
+    }
+  }, [salespeopleOptions, selectedSalespersonIds]);
 
   useEffect(() => {
     if (!selectedShift) return;
@@ -650,6 +654,7 @@ export default function ShiftManagementPage() {
               type="button"
               onClick={() => {
                 setAddSalespeopleShift(selectedShift);
+                setSelectedSalespersonIds([]);
                 setIsAddSalespeopleOpen(true);
               }}
               className="rounded-lg bg-[#E5D5B8] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
@@ -806,8 +811,8 @@ export default function ShiftManagementPage() {
                     <td className="px-5 py-4">{shift.hours}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
-                        {shift.days.map((day, index) => (
-                          <span key={day} className={`rounded px-1.5 py-1 text-[10px] ${index % 3 === 1 ? "bg-[#333] text-white/55" : "bg-[#E5D5B8] text-black"}`}>{day}</span>
+                        {shift.days.map((day) => (
+                          <span key={day} className="rounded bg-[#E5D5B8] px-1.5 py-1 text-[10px] text-black">{day}</span>
                         ))}
                       </div>
                     </td>
@@ -820,6 +825,7 @@ export default function ShiftManagementPage() {
                         extra={shift.extra}
                         onAdd={() => {
                           setAddSalespeopleShift(shift);
+                          setSelectedSalespersonIds([]);
                           setIsAddSalespeopleOpen(true);
                         }}
                       />
@@ -828,7 +834,10 @@ export default function ShiftManagementPage() {
                       <div className="flex justify-end gap-4 text-white/70">
                         <button
                           type="button"
-                          onClick={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void openEditShiftModal(shift);
+                          }}
                           aria-label={`Edit ${shift.name}`}
                         >
                           <Edit2 size={16} />
@@ -1230,6 +1239,7 @@ export default function ShiftManagementPage() {
                   setAddSalespeopleShift(null);
                   setIsSalespersonDropdownOpen(false);
                   setSalespersonSearch("");
+                  setSelectedSalespersonIds([]);
                 }}
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2A2527] text-white transition hover:bg-[#343033]"
                 aria-label="Close add salespeople"
@@ -1255,8 +1265,10 @@ export default function ShiftManagementPage() {
                     isSalespersonDropdownOpen ? "border-[#E5D5B8] ring-1 ring-[#E5D5B8]/25" : "border-[#3D3D3D] hover:border-[#E5D5B8]/50"
                   }`}
                 >
-                  <span className={selectedSalespersonOption ? "text-white" : "text-white/45"}>
-                    {selectedSalespersonOption?.name || "Select Salespeople Name"}
+                  <span className={selectedSalespersonOptions.length ? "text-white" : "text-white/45"}>
+                    {selectedSalespersonOptions.length
+                      ? selectedSalespersonOptions.map((person) => person.name).join(", ")
+                      : "Select Salespeople Name"}
                   </span>
                   <ChevronRight
                     size={18}
@@ -1292,15 +1304,17 @@ export default function ShiftManagementPage() {
                     <div className="no-scrollbar max-h-[150px] overflow-y-auto p-2.5">
                       {filteredSalespeopleOptions.length ? (
                         filteredSalespeopleOptions.map((person) => {
-                          const isSelected = selectedSalespersonId === person.sales_rep_id;
+                          const isSelected = selectedSalespersonIds.includes(person.sales_rep_id);
                           return (
                             <button
                               key={person.sales_rep_id}
                               type="button"
                               onClick={() => {
-                                setSelectedSalespersonId(person.sales_rep_id);
-                                setIsSalespersonDropdownOpen(false);
-                                setSalespersonSearch("");
+                                setSelectedSalespersonIds((current) =>
+                                  current.includes(person.sales_rep_id)
+                                    ? current.filter((id) => id !== person.sales_rep_id)
+                                    : [...current, person.sales_rep_id]
+                                );
                               }}
                               className={`group mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm transition-all ${
                                 isSelected
@@ -1335,7 +1349,7 @@ export default function ShiftManagementPage() {
                   onClick={() => {
                     setIsAddSalespeopleOpen(false);
                     setAddSalespeopleShift(null);
-                    setSelectedSalespersonId("");
+                    setSelectedSalespersonIds([]);
                     setIsSalespersonDropdownOpen(false);
                     setSalespersonSearch("");
                   }}
@@ -1347,21 +1361,26 @@ export default function ShiftManagementPage() {
                   type="button"
                   disabled={isAddingSalesperson}
                   onClick={async () => {
-                    if (!addSalespeopleShift?.id || !selectedSalespersonId) {
-                      toast.error("Please select shift and salesperson");
+                    if (!addSalespeopleShift?.id || !selectedSalespersonIds.length) {
+                      toast.error("Please select shift and salespeople");
                       return;
                     }
                     setIsAddingSalesperson(true);
-                    const response = await shiftManagementApi.addSalespersonToShift(addSalespeopleShift.id, selectedSalespersonId);
+                    const responses = await Promise.all(
+                      selectedSalespersonIds.map((salespersonId) =>
+                        shiftManagementApi.addSalespersonToShift(addSalespeopleShift.id, salespersonId)
+                      )
+                    );
                     setIsAddingSalesperson(false);
-                    if (!response.success) {
-                      toast.error(response.error || "Failed to add salesperson");
+                    const failedResponse = responses.find((response) => !response.success);
+                    if (failedResponse) {
+                      toast.error(failedResponse.error || "Failed to add salespeople");
                       return;
                     }
-                    toast.success("Salesperson added successfully");
+                    toast.success("Salespeople added successfully");
                     setIsAddSalespeopleOpen(false);
                     setAddSalespeopleShift(null);
-                    setSelectedSalespersonId("");
+                    setSelectedSalespersonIds([]);
                     setIsSalespersonDropdownOpen(false);
                     setSalespersonSearch("");
                     if (selectedShift?.id && String(selectedShift.id) === String(addSalespeopleShift.id)) {

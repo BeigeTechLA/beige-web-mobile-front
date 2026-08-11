@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -9,11 +10,8 @@ import {
   Copy,
   DollarSign,
   FileText,
-  Grid2X2,
-  List,
   MoreVertical,
   Search,
-  SlidersHorizontal,
   SquarePen,
   Trash2,
   XCircle,
@@ -22,6 +20,7 @@ import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import DottedDivider from "@/components/admin/DottedDivider";
+import { SortDateButton } from "@/components/admin/SortDateButton";
 import { useDebounce } from "@/hooks/use-debounce";
 import { salesApi, shiftManagementApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -46,6 +45,18 @@ function getInitials(name?: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function getTodayDate() {
+  return new Date();
+}
+
+function formatApiDate(date: Date | null) {
+  if (!date) return undefined;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatLocation(location?: string) {
@@ -312,8 +323,9 @@ export default function SalespeopleDetailView({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"booking" | "quotes">("booking");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const viewMode: "list" | "grid" = "list";
   const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<Date | null>(getTodayDate);
   const debouncedSearch = useDebounce(search, 300);
   const [leadRows, setLeadRows] = useState<any[]>([]);
   const [salesQuoteRows, setSalesQuoteRows] = useState<any[]>([]);
@@ -481,6 +493,7 @@ export default function SalespeopleDetailView({
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
           status: filters.status === "Status" ? undefined : filters.status,
+          date: formatApiDate(dateFilter),
           page: leadPage,
           limit: 10,
         });
@@ -519,6 +532,7 @@ export default function SalespeopleDetailView({
           search: debouncedSearch || undefined,
           status: filters.status === "All Status" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
+          date: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
         });
@@ -549,7 +563,7 @@ export default function SalespeopleDetailView({
       }
     };
     void load();
-  }, [activeTab, salesRepId, debouncedSearch, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
+  }, [activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
 
   useEffect(() => {
     if (activeTab === "booking") {
@@ -557,7 +571,7 @@ export default function SalespeopleDetailView({
     } else {
       setQuotePage(1);
     }
-  }, [activeTab, debouncedSearch, filters.lead, filters.status, filters.booking, filters.cp]);
+  }, [activeTab, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
 
   useEffect(() => {
     setFilters((current) => ({
@@ -587,16 +601,19 @@ export default function SalespeopleDetailView({
             <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{profile.lastActivity || "N/A"}</span></p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <StatusBadge value={profile.status || (profile.enabled ? "Active" : "In Active")} />
-          <button
-            type="button"
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F05454] text-white transition hover:bg-[#E04040]"
-            aria-label={`Remove ${profile.name} from shift`}
-          >
-            <Trash2 size={14} />
-          </button>
+        <div className="flex flex-col items-end gap-4">
+          <div className="flex items-center gap-3">
+            <StatusBadge value={profile.status || (profile.enabled ? "Active" : "In Active")} />
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F05454] text-white transition hover:bg-[#E04040]"
+              aria-label={`Remove ${profile.name} from shift`}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <SortDateButton selectedDate={dateFilter} onDateChange={setDateFilter} />
         </div>
       </div>
       <DottedDivider className="my-6 lg:my-6" />
@@ -611,15 +628,10 @@ export default function SalespeopleDetailView({
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/28" />
           <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-12 w-full rounded-lg border border-[#2D2D2D] bg-[#242424] pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/35" placeholder="Search" />
         </label>
-        <button className="flex h-12 items-center gap-2 rounded-lg bg-[#242424] px-5 text-sm font-medium text-white"><SlidersHorizontal size={16} />Filters</button>
-        <div className="flex rounded-lg bg-[#242424] p-1">
-          <button onClick={() => setViewMode("list")} className={`flex h-10 w-12 items-center justify-center rounded-md ${viewMode === "list" ? "bg-[#E5D5B8] text-black" : "text-white/65"}`}><List size={17} /></button>
-          <button onClick={() => setViewMode("grid")} className={`flex h-10 w-12 items-center justify-center rounded-md ${viewMode === "grid" ? "bg-[#E5D5B8] text-black" : "text-white/65"}`}><Grid2X2 size={17} /></button>
-        </div>
       </div>
 
       <div className="mt-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} />
           {activeTab === "booking" ? (
             <BasicDropdown label="All Lead" value={filters.lead} options={["All Lead", "Hot", "Warm", "Cold"]} onChange={(value) => setFilters((current) => ({ ...current, lead: value }))} />
