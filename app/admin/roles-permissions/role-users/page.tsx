@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
+import { ExportUsersButton } from "@/components/admin/roles-permissions/ExportUsersButton";
 
 const formatDate = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -167,7 +168,7 @@ export default function RoleUsersPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-stretch">
                 <div className="rounded-[24px] border border-white/10 bg-white/[0.03] px-5 py-4">
                   <p className="text-sm text-white/45">Role Name</p>
                   <p className="mt-1 text-[18px] font-semibold text-white">{roleName}</p>
@@ -176,6 +177,12 @@ export default function RoleUsersPage() {
                   <p className="text-sm text-white/45">Total Users</p>
                   <p className="mt-1 text-[18px] font-semibold text-white">{totalUsers}</p>
                 </div>
+                <ExportUsersButton
+                  roleId={roleId}
+                  roleName={roleName}
+                  isDark
+                  className="w-full self-center sm:col-span-2 lg:col-span-1 lg:w-auto"
+                />
               </div>
             </div>
 

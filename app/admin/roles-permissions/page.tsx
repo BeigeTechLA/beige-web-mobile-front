@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RolesPermissionsPage } from "@/components/admin/RolesPermissionsPage";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
+import { ExportUsersButton } from "@/components/admin/roles-permissions/ExportUsersButton";
 
 export default function AdminRolesPermissionsRoute() {
   const pathname = usePathname();
@@ -16,7 +17,6 @@ export default function AdminRolesPermissionsRoute() {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { canCreate } = usePermissions("roles_permissions");
   const { canCreate: canCreateUser } = usePermissions("users");
 
   useEffect(() => {
@@ -55,11 +55,8 @@ export default function AdminRolesPermissionsRoute() {
               />
             </div>
 
-            {/* Export button intentionally commented out for now */}
-            {/* <Button className="h-12 rounded-xl border border-white/10 bg-[#202020] px-5 text-white hover:bg-white/10">
-              <ArrowUpToLine size={18} />
-              Export
-            </Button> */}
+            <ExportUsersButton isDark={isDark} />
+
             {/* <Button
               onClick={() => router.push("/admin/roles-permissions/add-new-role")}
               disabled={!canCreate}
