@@ -7,6 +7,7 @@ import { RoleEditDetailsPage } from "@/components/admin/roles-permissions/RoleEd
 import { UpdateRoleModal } from "@/components/admin/roles-permissions/UpdateRoleModal";
 import { RoleUpdatedSuccessModal } from "@/components/admin/roles-permissions/RoleUpdatedSuccessModal";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
+import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import {
   adminApi,
   type AdminRoleRecord,
@@ -143,6 +144,7 @@ export default function AdminRoleEditDetailsRoute() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteSuccessModalOpen, setIsDeleteSuccessModalOpen] = useState(false);
   const [isAccessWarningOpen, setIsAccessWarningOpen] = useState(false);
   const [accessWarningMessage, setAccessWarningMessage] = useState("");
   const [error, setError] = useState("");
@@ -458,14 +460,14 @@ export default function AdminRoleEditDetailsRoute() {
     const response = await adminApi.deleteUser(userId);
     setIsDeleting(false);
 
-    if (response?.success === false) {
-      setError(response?.error || response?.message || "Failed to delete user");
+    if (response?.success === false || response?.error === true) {
+      setError(response?.message || "Failed to delete user");
       setIsDeleteModalOpen(false);
       return;
     }
 
     setIsDeleteModalOpen(false);
-    router.push("/admin/roles-permissions");
+    setIsDeleteSuccessModalOpen(true);
   };
 
   const handleDelete = async () => {
@@ -526,11 +528,9 @@ export default function AdminRoleEditDetailsRoute() {
             </button> */}
             <button
               onClick={() => setIsDeleteModalOpen(true)}
-              disabled={mode !== "role" || !canDelete}
+              disabled={!canDelete}
               title={
-                mode !== "role"
-                  ? "Delete is only available for roles"
-                  : !canDelete
+                !canDelete
                     ? "Delete permission not allowed"
                     : deleteLabel
               }
@@ -606,6 +606,17 @@ export default function AdminRoleEditDetailsRoute() {
         tone="danger"
         confirmLabel={isDeleting ? "Deleting..." : deleteLabel}
         isLoading={isDeleting}
+      />
+
+      <ActionSuccessModal
+        isOpen={isDeleteSuccessModalOpen}
+        onSubmit={() => {
+          setIsDeleteSuccessModalOpen(false);
+          router.push("/admin/roles-permissions");
+        }}
+        title="User Deleted Successfully"
+        subtext={`${userName} has been deleted successfully.`}
+        buttonText="Done"
       />
 
       <ActionModal
