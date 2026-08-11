@@ -2526,7 +2526,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         });
                         const isSystem = message.message_type === "system";
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
-                        const canDeleteMessage = isOwn || isAdminView;
+                        const canDeleteMessage = !message.is_deleted && (isOwn || isAdminView);
                         const isEditing = editingMessageId === messageId;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
