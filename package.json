@@ -34,7 +34,6 @@
     "date-fns": "^2.30.0",
     "emoji-picker-react": "^4.12.2",
     "framer-motion": "^12.23.26",
-    "html-react-parser": "^6.1.5",
     "i18n-iso-countries": "^7.14.0",
     "js-cookie": "^3.0.5",
     "lottie-react": "^2.4.1",

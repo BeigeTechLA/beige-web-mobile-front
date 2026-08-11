@@ -278,7 +278,7 @@ export default function PaymentTransactionModal({
                 <BasicDropdown
                   label="Payment Mode"
                   value={paymentMode}
-                  onChange={(value) => setPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other")}
+                  onChange={(value) => setPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other")}
                   options={PAYMENT_MODE_OPTIONS}
                   width="w-full"
                 />

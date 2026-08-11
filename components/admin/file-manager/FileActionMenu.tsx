@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   CalendarClock,
   FolderOpen,
+  UserRoundPlus,
   Share2,
   Download,
   Trash2
@@ -22,10 +23,12 @@ interface FileActionMenuProps {
   onDelete?: () => void;
   onRename?: () => void;
   onShare?: () => void;
+  onAccess?: () => void;
   onEditVisibility?: () => void;
   downloadDisabled?: boolean;
   deleteDisabled?: boolean;
   shareDisabled?: boolean;
+  accessDisabled?: boolean;
   editVisibilityDisabled?: boolean;
   isDark?: boolean;
 }
@@ -40,10 +43,12 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   onDownload,
   onDelete,
   onShare,
+  onAccess,
   onEditVisibility,
   downloadDisabled = false,
   deleteDisabled = false,
   shareDisabled = false,
+  accessDisabled = false,
   editVisibilityDisabled = false,
   isDark = true
 }) => {
@@ -130,6 +135,19 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
 
         {/* Section 2: Sharing */}
         <div className="flex flex-col p-1.5">
+          {(onAccess || accessDisabled) ? (
+            <MenuButton
+              icon={<UserRoundPlus size={18} />}
+              label="Access"
+              onClick={() => {
+                if (accessDisabled) return;
+                onAccess?.();
+                onClose();
+              }}
+              disabled={accessDisabled}
+              isDark={isDark}
+            />
+          ) : null}
           {(onShare || shareDisabled) ? (
             <MenuButton
               icon={<Share2 size={18} />}
