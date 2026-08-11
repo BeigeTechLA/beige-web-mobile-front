@@ -11,10 +11,17 @@ export function GoogleAuthProvider({ children }: GoogleAuthProviderProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return
+    const hostname = window.location.hostname
+    const shouldLog =
+      process.env.NODE_ENV !== "production" ||
+      hostname === "dev.beige.app" ||
+      hostname === "beige.app"
+
+    if (!shouldLog) return
 
     console.info("[Google Auth Env] frontend NEXT_PUBLIC_GOOGLE_CLIENT_ID", {
       configured: Boolean(clientId),
+      hostname,
       length: clientId?.length || 0,
     })
   }, [clientId])
