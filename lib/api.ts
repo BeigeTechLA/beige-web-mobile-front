@@ -185,6 +185,11 @@ export type AdminUserRoleRecord = {
   restored_at?: string | null;
 };
 
+export type AdminUsersExportResponse = {
+  blob: Blob;
+  contentDisposition?: string;
+};
+
 export type ArchiveHistoryRecord = {
   history_id: number;
   target_type: string;
@@ -3089,6 +3094,28 @@ export const adminApi = {
         error: error.response?.data?.message || 'Failed to fetch users with roles',
       };
     }
+  },
+
+  exportUsers: async (): Promise<AdminUsersExportResponse> => {
+    const response = await api.get('admin/users/export', {
+      responseType: 'blob',
+    });
+
+    return {
+      blob: response.data,
+      contentDisposition: response.headers['content-disposition'],
+    };
+  },
+
+  exportRoleUsers: async (roleId: number | string): Promise<AdminUsersExportResponse> => {
+    const response = await api.get(`admin/roles/${roleId}/users/export`, {
+      responseType: 'blob',
+    });
+
+    return {
+      blob: response.data,
+      contentDisposition: response.headers['content-disposition'],
+    };
   },
 
   getRoleById: async (id: number | string) => {
