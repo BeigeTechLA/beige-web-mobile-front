@@ -34,7 +34,7 @@ import { IntentBadge } from "@/components/sales/IntentBadge";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
-type TabType = "Booking" | "Client" | "Creative Partner";
+type TabType = "Booking" | "Client" | "Creative Partner" | "Studio";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 
 const CreativePartnerStatusBadge = ({ status }: { status: "Approved" | "Pending" | "Rejected" }) => {
@@ -209,7 +209,11 @@ const formatRelativeTime = (dateString: string): string => {
   if (diffInDays < 7) {
     return `${diffInDays} days ago`;
   }
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 const OverviewFilters = ["All Time", "Month", "Week"];
@@ -376,6 +380,7 @@ const tabs: { label: string; value: TabType }[] = [
   { label: "Booking Leads", value: "Booking" },
   { label: "Client Signup", value: "Client" },
   { label: "Creative Partner Signup", value: "Creative Partner" },
+  { label:"Studio leads" , value: "Studio" }
 ];
 
 const SALES_REP_PAGE_FILTERS_KEY = "sales-rep-management-filters";
@@ -557,6 +562,7 @@ export default function AdminSaleRepManagerPage() {
 
   const [usersStatusFilter, setUsersStatusFilter] = useState<string>("all");
   const [showBookingGridFilters, setShowBookingGridFilters] = useState(true);
+  const isStudioTab = activeTab === "Studio";
 
   const [metrics, setMetrics] = useState<OverviewMetric[]>(() => getDefaultOverviewMetrics());
   const [activeMetric, setActiveMetric] = useState('total_active');
@@ -728,15 +734,16 @@ export default function AdminSaleRepManagerPage() {
   ]);
 
   // --- LEADS API CALL WITH FILTERS ---
-  const leadsQueryArgs = token && !isBoardAllStatusesMode
+  const leadsQueryArgs = token && (activeTab === "Booking" || isStudioTab) && !isBoardAllStatusesMode
     ? {
       page: leadsCurrentPage,
       limit: leadsLimit,
       search: debouncedSearch || undefined,
       // Mapping the filters to API keys
       lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-      status:
-        leadsViewMode === "grid" && shootStageFilter !== "all"
+      status: isStudioTab
+        ? "studio_shoots"
+        : leadsViewMode === "grid" && shootStageFilter !== "all"
           ? shootStageFilter
           : statusFilter === "All"
             ? undefined
@@ -1372,13 +1379,13 @@ export default function AdminSaleRepManagerPage() {
         {/* <DottedDivider className="lg:hidden" /> */}
 
         {
-          activeTab === "Booking" ? (
+          activeTab === "Booking" || activeTab === "Studio" ? (
             <div className="flex flex-col gap-4">
               <div>
                 <LeadsTable
                   data={displayLeads}
-                  loading={isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsLoading}
-                  isFetching={isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsFetching}
+                  loading={activeTab === "Booking" && isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsLoading}
+                  isFetching={activeTab === "Booking" && isBoardAllStatusesMode ? gridBoardBootstrapping : leadsIsFetching}
                   currentPage={leadsCurrentPage}
                   totalPages={leadsTotalPages}
                   totalRecords={leadsTotalRecords}

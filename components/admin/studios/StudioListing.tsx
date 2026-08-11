@@ -214,7 +214,7 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
           </Select>
 
           {/* Dropdown 3: Status */}
-          <Select value={status} onValueChange={setStatus}>
+          {/* <Select value={status} onValueChange={setStatus}>
             <SelectTrigger
               className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 capitalize ${
                 isDark
@@ -232,7 +232,7 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
       </div>
 
