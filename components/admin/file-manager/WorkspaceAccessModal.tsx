@@ -290,7 +290,7 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
           </div>
 
           <div>
-            <p className={`mb-3 text-sm font-bold ${isDark ? "text-white/85" : "text-black/85"}`}>Extra Clients</p>
+            <p className={`mb-3 text-sm font-bold ${isDark ? "text-white/85" : "text-black/85"}`}>Other Clients</p>
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="animate-spin text-[#E8D1AB]" size={24} />
