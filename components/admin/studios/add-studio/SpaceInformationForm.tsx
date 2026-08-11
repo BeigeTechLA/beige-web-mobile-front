@@ -102,7 +102,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Space Title*</span>
+          <span className={`text-sm lg:text-base ${subTextColor}`}>Space title*</span>
           </div>
           <Input
             value={spaceTitle}
@@ -114,7 +114,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
 
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Add Brand Name (optional)</span>
+          <span className={`text-sm lg:text-base ${subTextColor}`}>Brand name (optional)</span>
           </div>
           <Input
             value={brandName}
@@ -145,9 +145,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 3. Secondary Types Selection */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Secondary Types</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Secondary types</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Select types that match your space. Each type is unique parameters that we&apos;ll ask about while your listing gets created.
+            Select the types that match your space. Each type has unique details we&apos;ll ask about while creating your listing.
           </p>
         </div>
 
@@ -175,15 +175,15 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 4. Suggest Type Section */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Suggest Type (Optional)</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Suggest a type (optional)</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            If you didn&apos;t find a suitable secondary location type in the list above, Please suggest one here.
+            If you didn&apos;t find a suitable type in the list above, please suggest one here.
           </p>
         </div>
 
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Suggest Type</span>
+            <span className={`text-sm lg:text-base ${subTextColor}`}>Suggested type</span>
           </div>
           <Input
             value={suggestedType}
@@ -198,19 +198,19 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 5. Dimensions Section */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>How Big is the space guests can book?</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>How big is the space guests can book?</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Please only include the size of the space that guests can use during their booking.
+            Please include only the space guests can use during their booking.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-y-5 gap-x-3 lg:gap-y-9 lg:gap-x-6">
           {[
-            { id: 'propertySize', label: 'Property Size (sq ft)', col: 'md:col-span-1' },
+            { id: 'propertySize', label: 'Property size (sq ft)', col: 'md:col-span-1' },
             { id: 'height', label: 'Height', col: '' },
             { id: 'width', label: 'Width', col: '' },
             { id: 'length', label: 'Length', col: '' },
-            { id: 'floorNumber', label: 'Main Floor Number (if applicable)', col: 'md:col-span-1' }
+            { id: 'floorNumber', label: 'Floor number (if applicable)', col: 'md:col-span-1' }
           ].map((field) => (
             <div key={field.id} className={`relative ${field.col}`}>
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
@@ -230,9 +230,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 6. Overnight Stays */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Do you offer overnight stays at this Space</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Do you offer overnight stays at this space?</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Select <span className={`font-bold ${textColor}`}>&apos;Yes&apos;</span> if your space is listed on sites like Beige and other platform to established that’s subject to lodging taxes.
+            Select <span className={`font-bold ${textColor}`}>&apos;Yes&apos;</span> if your space can be booked overnight. Include it only if the listing is subject to lodging taxes or similar local rules.
           </p>
         </div>
         <div className="flex gap-4">
@@ -274,7 +274,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
 
         <div className="relative mt-5 lg:mt-9">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Description</span>
+            <span className={`text-sm lg:text-base ${subTextColor}`}>Security description</span>
           </div>
           <textarea
             value={securityDesc}
@@ -295,7 +295,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             </div>
           </div>
           <p className={`text-xs lg:text-sm ${isDark ? "text-[#FFDE96]" : "text-[#E8D1AB]"}`}>
-            Recording Device in bathrooms or dressing rooms are prohibited by the Beige Service Agreement.
+            Recording devices in bathrooms or dressing rooms are prohibited by the Beige Service Agreement.
           </p>
         </div>
       </section>

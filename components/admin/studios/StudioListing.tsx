@@ -49,14 +49,34 @@ const getThumbnails = (images: string[], cover: string | null): string[] => {
 };
 
 interface ListingProps {
-  externalSelectedDate?: Date | null;
   isDark?: boolean;
 }
 
-export default function StudioListing({ externalSelectedDate, isDark = false }: ListingProps) {
-  const [range, setRange] = useState("all");
+type StudioSortKey = "created_at" | "name" | "price" | "status";
+type StudioSortOrder = "ASC" | "DESC";
+type StudioPeriod = "all" | "week" | "month";
+
+const MONTH_OPTIONS = [
+  { label: "January", value: "January" },
+  { label: "February", value: "February" },
+  { label: "March", value: "March" },
+  { label: "April", value: "April" },
+  { label: "May", value: "May" },
+  { label: "June", value: "June" },
+  { label: "July", value: "July" },
+  { label: "August", value: "August" },
+  { label: "September", value: "September" },
+  { label: "October", value: "October" },
+  { label: "November", value: "November" },
+  { label: "December", value: "December" },
+] as const;
+
+export default function StudioListing({ isDark = false }: ListingProps) {
+  const [period, setPeriod] = useState<StudioPeriod>("all");
   const [monthFilter, setMonthFilter] = useState("all");
-  const [status, setStatus] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<StudioSortKey>("created_at");
+  const [sortOrder, setSortOrder] = useState<StudioSortOrder>("DESC");
+  const [status] = useState<string>("all");
   const [studios, setStudios] = useState<AdminStudioListItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -91,6 +111,10 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
         page: 1,
         limit: 50,
         status,
+        period,
+        ...(monthFilter !== "all" ? { month: monthFilter } : {}),
+        sort_by: sortBy,
+        sort_order: sortOrder,
       });
 
       if (!active) return;
@@ -115,7 +139,7 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
     return () => {
       active = false;
     };
-  }, [status]);
+  }, [monthFilter, period, sortBy, sortOrder, status]);
 
   const normalizedStudios = useMemo(() => {
     return studios.map((studio) => ({
@@ -159,7 +183,7 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
         {/* Dropdown filters matching user screenshot */}
         <div className="flex gap-2">
           {/* Dropdown 1: Range */}
-          <Select value={range} onValueChange={(val) => setRange(val)}>
+          <Select value={period} onValueChange={(val) => setPeriod(val as StudioPeriod)}>
             <SelectTrigger
               className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 ${
                 isDark
@@ -177,7 +201,6 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="week">Week</SelectItem>
               <SelectItem value="month">Month</SelectItem>
-              {externalSelectedDate && <SelectItem value="custom">Selected</SelectItem>}
             </SelectContent>
           </Select>
 
@@ -198,41 +221,40 @@ export default function StudioListing({ externalSelectedDate, isDark = false }: 
               }`}
             >
               <SelectItem value="all">Month</SelectItem>
-              <SelectItem value="01">January</SelectItem>
-              <SelectItem value="02">February</SelectItem>
-              <SelectItem value="03">March</SelectItem>
-              <SelectItem value="04">April</SelectItem>
-              <SelectItem value="05">May</SelectItem>
-              <SelectItem value="06">June</SelectItem>
-              <SelectItem value="07">July</SelectItem>
-              <SelectItem value="08">August</SelectItem>
-              <SelectItem value="09">September</SelectItem>
-              <SelectItem value="10">October</SelectItem>
-              <SelectItem value="11">November</SelectItem>
-              <SelectItem value="12">December</SelectItem>
+              {MONTH_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          {/* Dropdown 3: Status */}
-          {/* <Select value={status} onValueChange={setStatus}>
+          <Select value={`${sortBy}:${sortOrder}`} onValueChange={(val) => {
+            const [nextSortBy, nextSortOrder] = val.split(":") as [StudioSortKey, StudioSortOrder];
+            setSortBy(nextSortBy);
+            setSortOrder(nextSortOrder);
+          }}>
             <SelectTrigger
-              className={`w-[85px] lg:w-[100px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 capitalize ${
+              className={`w-[110px] lg:w-[120px] rounded-full h-8 text-[11px] lg:text-xs focus:ring-0 ${
                 isDark
                   ? "bg-[#151515] border-[#2c2c2c] text-zinc-400 hover:text-white"
                   : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-100"
               }`}
             >
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent
-              className={isDark ? "bg-[#151515] border-[#2c2c2c] text-white" : "text-black bg-white border-[#E3E3E3]"}
+              className={`${
+                isDark ? "bg-[#151515] border-[#2c2c2c] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"
+              }`}
             >
-              <SelectItem value="all">Status</SelectItem>
-              <SelectItem value="Approved">Approved</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Rejected">Rejected</SelectItem>
+              <SelectItem value="created_at:DESC">Newest</SelectItem>
+              <SelectItem value="name:ASC">Name A-Z</SelectItem>
+              <SelectItem value="price:ASC">Price Low-High</SelectItem>
+              <SelectItem value="status:ASC">Status</SelectItem>
             </SelectContent>
-          </Select> */}
+          </Select>
+
         </div>
       </div>
 

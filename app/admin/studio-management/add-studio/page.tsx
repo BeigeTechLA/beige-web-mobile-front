@@ -31,7 +31,7 @@ const VIEW_CONFIG = {
   },
   information: {
     title: "Space Information",
-    subtitle: "Everything you need to know about the space — what&apos;s included, what’s allowed, and how it’s set up for your shoot.",
+    subtitle: "Everything you need to know about the space — what’s included, what’s allowed, and how it’s set up for your shoot.",
     component: <SpaceInformationForm />,
   },
   features: {

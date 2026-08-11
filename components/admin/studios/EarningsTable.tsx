@@ -30,80 +30,47 @@ interface EarningsRecord {
   netEarning: number;
   date: string;
 }
-// Placehoolder data
-export const earningsData: EarningsRecord[] = [
-  {
-    id: "SR-1001",
-    customerName: "Ava Johnson",
-    bookingId: "BK-84721",
-    hours: "4h",
-    baseRevenue: 1800,
-    overtime: 100,
-    platformFee: 180,
-    netEarning: 1620,
-    date: "2026-03-12",
-  },
-  {
-    id: "SR-1002",
-    customerName: "Noah Williams",
-    bookingId: "BK-84736",
-    hours: "6h",
-    baseRevenue: 2600,
-    overtime: 0,
-    platformFee: 260,
-    netEarning: 2340,
-    date: "2026-03-18",
-  },
-  {
-    id: "SR-1003",
-    customerName: "Sophia Martinez",
-    bookingId: "BK-84802",
-    hours: "3h",
-    baseRevenue: 1200,
-    overtime: 100,
-    platformFee: 120,
-    netEarning: 1080,
-    date: "2026-03-22",
-  },
-  {
-    id: "SR-1004",
-    customerName: "Liam Brown",
-    bookingId: "BK-84844",
-    hours: "8h",
-    baseRevenue: 3400,
-    overtime: 240,
-    platformFee: 340,
-    netEarning: 3060,
-    date: "2026-03-28",
-  },
-  {
-    id: "SR-1005",
-    customerName: "Mia Davis",
-    bookingId: "BK-84910",
-    hours: "5h",
-    baseRevenue: 2100,
-    overtime: 0,
-    platformFee: 210,
-    netEarning: 1890,
-    date: "2026-04-02",
-  },
-  {
-    id: "SR-1006",
-    customerName: "Ethan Carter",
-    bookingId: "BK-84955",
-    hours: "2h",
-    baseRevenue: 900,
-    overtime: 0,
-    platformFee: 90,
-    netEarning: 810,
-    date: "2026-04-06",
-  },
-];
+type EarningsLedgerEntry = {
+  studio_booking_id?: number;
+  id?: string | number;
+  booking_id?: string | number;
+  customerName?: string | null;
+  customer_name?: string | null;
+  user_name?: string | null;
+  studio_name?: string | null;
+  bookingId?: string | null;
+  hours?: string | null;
+  duration_hours?: string | number | null;
+  baseRevenue?: string | number | null;
+  base_revenue?: string | number | null;
+  base_amount?: string | number | null;
+  overtime?: string | number | null;
+  overtime_amount?: string | number | null;
+  platformFee?: string | number | null;
+  platform_fee?: string | number | null;
+  netEarning?: string | number | null;
+  net_earnings?: string | number | null;
+  net_amount?: string | number | null;
+  date?: string | null;
+  booking_date?: string | null;
+  metadata?: string | { name?: string; image?: string; crew_count?: number } | null;
+};
 
-export const EarningsTable = ({ isDark, records }: { isDark: boolean; records?: Array<any> }) => {
+const safeParseMetadata = (metadata?: string | { name?: string; image?: string; crew_count?: number } | null) => {
+  if (!metadata) return null;
+  if (typeof metadata === "object") return metadata;
+  try {
+    const parsed = JSON.parse(metadata);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const EarningsTable = ({ isDark, records }: { isDark: boolean; records?: EarningsLedgerEntry[] }) => {
   const router = useRouter();
 
-  const [studios, setShoots] = useState<EarningsRecord[]>(records?.length ? records.map(normalizeRecord) : earningsData);
+  const [studios, setShoots] = useState<EarningsRecord[]>(records?.length ? records.map(normalizeRecord) : []);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -121,7 +88,7 @@ export const EarningsTable = ({ isDark, records }: { isDark: boolean; records?: 
   const [endDate, setEndDate] = useState<Date | null>(null);
 
   useEffect(() => {
-    setShoots(records?.length ? records.map(normalizeRecord) : earningsData);
+    setShoots(records?.length ? records.map(normalizeRecord) : []);
   }, [records]);
 
   const totalPages = Math.ceil(studios.length / itemsPerPage);
@@ -408,10 +375,11 @@ export const EarningsTable = ({ isDark, records }: { isDark: boolean; records?: 
   );
 };
 
-function normalizeRecord(record: any): EarningsRecord {
+function normalizeRecord(record: EarningsLedgerEntry): EarningsRecord {
+  const metadata = safeParseMetadata(record.metadata);
   return {
     id: String(record.studio_booking_id || record.id || record.booking_id || Math.random()),
-    customerName: record.customerName || record.customer_name || record.user_name || record.studio_name || 'Customer',
+    customerName: record.customerName || record.customer_name || record.user_name || record.studio_name || String(metadata?.name || 'Customer'),
     bookingId: record.bookingId || record.booking_id || `BK-${String(record.studio_booking_id || record.id || '').replace(/\D/g, '') || '0000'}`,
     hours: record.hours || `${record.duration_hours || 0}h`,
     baseRevenue: Number(record.baseRevenue || record.base_revenue || record.base_amount || 0),

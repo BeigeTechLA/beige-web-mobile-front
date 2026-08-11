@@ -58,6 +58,34 @@ import OverallBookingsStack from "@/components/admin/studios/OverallBookings";
 import StudioListing from "@/components/admin/studios/StudioListing";
 import { adminApi } from "@/lib/api";
 
+type StudioDashboardBooking = {
+  studio_booking_id?: number;
+  studio_id?: string | number | null;
+  studio_name?: string | null;
+  stream_project_booking_id?: number | null;
+  user_id?: number | null;
+  booking_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  duration_hours?: string | number | null;
+  time_zone?: string | null;
+  status?: string | null;
+  base_amount?: string | number | null;
+  overtime_amount?: string | number | null;
+  platform_fee?: string | number | null;
+  net_amount?: string | number | null;
+  source?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  customer_name?: string | null;
+  user_name?: string | null;
+  image_url?: string | null;
+  space_name?: string | null;
+  project_name?: string | null;
+  cast_and_crew_count?: number | null;
+};
+
 type StudioDashboardResponse = {
   success: boolean;
   data?: {
@@ -71,12 +99,27 @@ type StudioDashboardResponse = {
     };
     chart?: Array<{ period?: string; total_revenue?: number; net_earnings?: number; bookings?: number }>;
     bookings?: {
-      upcoming?: any[];
-      completed?: any[];
-      cancelled?: any[];
+      upcoming?: StudioDashboardBooking[];
+      completed?: StudioDashboardBooking[];
+      cancelled?: StudioDashboardBooking[];
     };
-    earnings_ledger?: any[];
+    earnings_ledger?: Array<Record<string, unknown>>;
   } | null;
+};
+
+type StudioDashboardEntry = StudioDashboardBooking & {
+  metadata?: Record<string, unknown> | null;
+};
+
+const safeParseMetadata = (metadata: StudioDashboardBooking["metadata"]): Record<string, unknown> | null => {
+  if (!metadata) return null;
+  if (typeof metadata === "object") return metadata;
+  try {
+    const parsed = JSON.parse(metadata);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 export default function AdminStudiosPage() {
@@ -96,14 +139,29 @@ export default function AdminStudiosPage() {
     return format(source, "yyyy-MM");
   }, [selectedDate]);
 
+  const dashboardBookings = useMemo<StudioDashboardEntry[]>(() => {
+    const upcoming = dashboard?.bookings?.upcoming || [];
+    const completed = dashboard?.bookings?.completed || [];
+    const cancelled = dashboard?.bookings?.cancelled || [];
+    return [...upcoming, ...completed, ...cancelled].map((booking) => ({
+      ...booking,
+      metadata: safeParseMetadata(booking.metadata),
+    }));
+  }, [dashboard]);
+
   useEffect(() => {
     let active = true;
     const loadDashboard = async () => {
       setIsDashboardLoading(true);
-      const response = (await adminApi.getStudioDashboard(dashboardMonth)) as StudioDashboardResponse;
-      if (!active) return;
-      setDashboard(response?.data || null);
-      setIsDashboardLoading(false);
+      try {
+        const response = (await adminApi.getStudioDashboard(dashboardMonth)) as StudioDashboardResponse;
+        if (!active) return;
+        setDashboard(response?.data || null);
+      } finally {
+        if (active) {
+          setIsDashboardLoading(false);
+        }
+      }
     };
 
     loadDashboard().catch(() => {
@@ -208,7 +266,7 @@ export default function AdminStudiosPage() {
             activeTab === "Operations" ? (
               <div className="space-y-3 lg:space-y-5">
                 <OverviewChart isDark={isDark} loading={isDashboardLoading} dashboard={dashboard} externalSelectedDate={selectedDate} />
-                <OverallBookingsStack isDark={isDark} cards={dashboard?.bookings ? [...(dashboard.bookings.upcoming || []), ...(dashboard.bookings.completed || []), ...(dashboard.bookings.cancelled || [])] : []} />
+                <OverallBookingsStack isDark={isDark} cards={dashboardBookings} />
                 <EarningsTable isDark={isDark} records={dashboard?.earnings_ledger || []} />
               </div>
             ) : activeTab === "Beige Studios" ? (

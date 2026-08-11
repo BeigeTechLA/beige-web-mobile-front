@@ -2181,6 +2181,10 @@ export const adminApi = {
     limit?: number;
     search?: string;
     status?: string;
+    period?: "week" | "month" | "all";
+    month?: string;
+    sort_by?: string;
+    sort_order?: "ASC" | "DESC";
   } = {}) => {
     try {
       const response = await api.get('/admin/studios', { params });

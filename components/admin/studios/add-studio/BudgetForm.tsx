@@ -295,7 +295,7 @@ export default function BudgetForm({ isDark = true }: Props) {
       {/* Equipment Section */}
       <section className={`space-y-5 lg:space-y-9 `}>
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>What would u like to add Equipment's?</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>What equipment would you like to add?</h2>
           <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>List the equipment you provide to help users understand what&apos;s included.</p>
         </div>
 
