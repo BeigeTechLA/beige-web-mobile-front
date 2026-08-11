@@ -15,31 +15,44 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [inputValue, setInputValue] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef(null);
+
+  const getSuggestionList = (response) => {
+    const payload = response?.data ?? response;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.data?.data)) return payload.data.data;
+    if (Array.isArray(payload?.suggestions)) return payload.suggestions;
+    return [];
+  };
 
   useEffect(() => {
     const trimmed = inputValue.trim();
     if (!trimmed) {
       setSuggestions([]);
       setOpen(false);
+      setIsSearching(false);
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    setOpen(true);
+    setIsSearching(true);
 
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await getEquipmentSuggestions({ query: trimmed });
-        const list = res?.data?.data ?? res?.data ?? [];
+        const list = getSuggestionList(res);
         const uniqueSuggestions = list.filter(
-          (item) => !value.includes(item.equipment_id)
+          (item) => item?.equipment_id && !value.map(String).includes(String(item.equipment_id))
         );
         setSuggestions(uniqueSuggestions);
-        setOpen(uniqueSuggestions.length > 0);
       } catch (err) {
         console.error(err);
         setSuggestions([]);
-        setOpen(false);
+      } finally {
+        setIsSearching(false);
       }
     }, 300);
 
@@ -81,7 +94,13 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
             type="text"
             placeholder="Please type the equipment name to search"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onFocus={() => {
+              if (inputValue.trim()) setOpen(true);
+            }}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              if (e.target.value.trim()) setOpen(true);
+            }}
             onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
             className="h-12 w-full bg-[#111111] border-[#333333] text-white placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0"
           />
@@ -90,24 +109,33 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
         <PopoverContent
           align="start"
           side="bottom"
-          className="p-0 w-[var(--radix-popover-trigger-width)] bg-[#111111] border-[#333333] text-white shadow-md overflow-hidden"
+          sideOffset={6}
+          className="z-[130] p-0 w-[var(--radix-popover-trigger-width)] bg-[#111111] border-[#333333] text-white shadow-xl overflow-hidden"
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <Command className="bg-transparent text-white">
             <CommandList className="max-h-64 border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-                No equipment found.
-              </CommandEmpty>
-              {suggestions.map((equipment) => (
-                <CommandItem
-                  key={equipment.equipment_id}
-                  onSelect={() => handleSelectSuggestion(equipment)}
-                  className="px-3 py-2 cursor-pointer text-white aria-selected:bg-neutral-800 aria-selected:text-white"
-                >
-                  {equipment.equipment_name}
-                </CommandItem>
-              ))}
+              {isSearching ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Searching equipment...
+                </div>
+              ) : suggestions.length === 0 ? (
+                <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+                  No equipment found.
+                </CommandEmpty>
+              ) : (
+                suggestions.map((equipment) => (
+                  <CommandItem
+                    key={equipment.equipment_id}
+                    value={equipment.equipment_name}
+                    onSelect={() => handleSelectSuggestion(equipment)}
+                    className="px-3 py-2 cursor-pointer text-white aria-selected:bg-neutral-800 aria-selected:text-white"
+                  >
+                    {equipment.equipment_name}
+                  </CommandItem>
+                ))
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

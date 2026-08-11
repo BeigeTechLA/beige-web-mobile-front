@@ -187,6 +187,7 @@ export const authApi = createApi({
     }),
     getOnboardingStatus: builder.query<{
       onboardingMissingDetail: boolean;
+      is_registration_complete: number;
       completed_count: number;
       total_required: number;
       missing_count: number;

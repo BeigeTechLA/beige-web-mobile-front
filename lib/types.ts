@@ -20,6 +20,8 @@ export interface User {
   role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
+  is_crew_verified?: number | null;
+  is_registration_complete?: number | null;
   created_at?: string;
   temp_event_popup?: {
     show?: boolean;
@@ -349,8 +351,12 @@ export interface RawCreator {
   updated_at: string;
   social_media_links: string | null;
   is_crew_verified: number;
+  is_registration_complete: number;
   crew_member_files: CrewMemberFile[];
   role: null;
   status: string;
 }
-export interface OnboardingStatusResponse { onboardingMissingDetail: boolean; }
+export interface OnboardingStatusResponse {
+  onboardingMissingDetail: boolean;
+  is_registration_complete: number;
+}

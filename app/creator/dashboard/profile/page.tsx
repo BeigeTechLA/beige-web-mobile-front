@@ -264,7 +264,11 @@ export default function ProfilePage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: onboardingStatus, isSuccess: hasOnboardingStatus } = useGetOnboardingStatusQuery();
+  const {
+    data: onboardingStatus,
+    isSuccess: hasOnboardingStatus,
+    refetch: refetchOnboardingStatus,
+  } = useGetOnboardingStatusQuery();
   const { isDark } = useResolvedTheme();
   const hasOpenedGoogleOnboardingRef = useRef(false);
   const [activeTab, setActiveTab] = useState("Overview");
@@ -1134,7 +1138,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 
-                <div className={`mt-1 text-[10px] font-medium ${isDark ? "text-white/45" : "text-black/45"}`}>
+                <div className={`mt-1.5 text-xs font-semibold sm:text-[13px] ${isDark ? "text-white/55" : "text-black/55"}`}>
                   {completedCount}/{totalRequired} Required Fields | {missingCount} Remaining | Complete all required details to become eligible for shoot assignments
                 </div>
               </div>
@@ -2156,6 +2160,7 @@ export default function ProfilePage() {
           onComplete={async () => {
             setIsGoogleOnboardingOpen(false);
             await loadProfile();
+            await refetchOnboardingStatus();
           }}
         />
       </div>
