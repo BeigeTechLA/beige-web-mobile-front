@@ -170,6 +170,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
       isPublic: false,
       children: [
         { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
+        // { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
       ],
     },
   ];
@@ -274,8 +275,8 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
                           key={child.label}
                           onClick={() => handleNavigation(child.href)}
                           className={`block w-full text-left px-4 py-2 text-sm rounded-lg transition-colors ${childActive
-                              ? (isDark ? "text-white font-medium bg-zinc-900" : "text-[#101010] font-bold bg-zinc-100")
-                              : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
+                            ? (isDark ? "text-white font-medium bg-zinc-900" : "text-[#101010] font-bold bg-zinc-100")
+                            : (isDark ? "text-zinc-500 hover:text-gray-300" : "text-[#00000066] hover:text-[#101010]")
                             }`}
                         >
                           {child.label}

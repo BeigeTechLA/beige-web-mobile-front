@@ -21,8 +21,24 @@ import { getCreatorEarningDetails, getCreatorEarningsDashboard, getCreatorEarnin
 import { useDebounce } from "@/hooks/use-debounce";
 import Topbar from "@/components/admin/Topbar";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import RaiseDisputeModal from "@/components/creator-profile/RaiseDisputeModal";
 
 const EARNINGS_PAGE_LIMIT = 10;
+
+const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+      // TODO: Implement API call to submit dispute
+      console.log("Submitting dispute:", data);
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // In real implementation, you would:
+      // 1. Send data to your backend
+      // 2. Get response with dispute ID
+      // 3. Update the disputes list
+      // 4. Show success modal (already handled in the component)
+  };
 
 const toLocalDateString = (date: Date) => {
   const year = date.getFullYear();
@@ -386,6 +402,8 @@ export default function RequestsShootsPage() {
   const [range, setRange] = useState('all');
   const [status] = useState('all');
 
+  const [isRaiseDisputeOpen, setIsRaiseDisputeOpen] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -571,8 +589,26 @@ export default function RequestsShootsPage() {
 
   return (
     <>
-    <Topbar pathname={pathname} />
-    <div className="overflow-hidden p-4 pb-12 text-white lg:px-10 lg:py-9">
+    <Topbar pathname={pathname}
+     actions={
+      <Button
+          onClick={() => setIsRaiseDisputeOpen(true)}
+          className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+      >
+          Raise New Dispute
+      </Button>
+      } />
+    <div 
+  className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
+    ${isDark 
+      ? `bg-[#0A0A0A] 
+         border border-[#E8D1AB]/30 
+         shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+      : "bg-white border-zinc-200 shadow-sm"
+    }`}
+>
+  {/* Inner Padding - p-10 lg:p-16 ensures cards don't hit the 40px rounded corners */}
+  <div className="p-8 lg:p-16 space-y-8 lg:space-y-12 pb-24">
     <div className="mx-auto w-full max-w-[1800px] space-y-4 lg:space-y-8">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between lg:mb-6">
@@ -647,6 +683,11 @@ export default function RequestsShootsPage() {
                 key={`key_${row.creator_earning_id}`}
                 data={mapRowToCard(row)}
                 handleClick={() => handleViewEarnings(row)}
+                onRaiseDispute={(e) => {
+                  e.stopPropagation(); // Prevents triggering any card-level clicks
+                  setSelectedEarningId(Number(row.creator_earning_id));
+                  setIsRaiseDisputeOpen(true);
+                }}
               />
             ))
           ) : (
@@ -731,6 +772,12 @@ export default function RequestsShootsPage() {
       />
     </div>
     </div>
+    </div>
+      <RaiseDisputeModal
+        open={isRaiseDisputeOpen}
+        onOpenChange={setIsRaiseDisputeOpen}
+        onSubmit={handleRaiseDisputeSubmit}
+      />
     </>
   );
 }

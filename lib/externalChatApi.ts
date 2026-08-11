@@ -9,6 +9,7 @@ export interface ExternalChatUser {
   source?: string;
   subtitle?: string | null;
   profileImage?: string | null;
+  is_primary_client?: boolean;
 }
 
 export interface ExternalChatParticipantItem {
@@ -38,6 +39,7 @@ export interface ExternalChatRoom {
   } | null;
   client_id?: ExternalChatUser | string | number | null;
   client_snapshot?: ExternalChatUser | null;
+  client_ids?: ExternalChatParticipantItem[];
   manager_ids?: ExternalChatParticipantItem[];
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
@@ -111,6 +113,7 @@ interface RoomResponse {
   external_order_ref?: string;
   client_id?: ExternalChatUser | string | number | null;
   client_snapshot?: ExternalChatUser | null;
+  client_ids?: ExternalChatParticipantItem[];
   manager_ids?: ExternalChatParticipantItem[];
   cp_ids?: ExternalChatParticipantItem[];
   pm_id?: ExternalChatUser | string | number | null;
@@ -148,12 +151,14 @@ interface ParticipantResponse {
   success?: boolean;
   data?: {
     client?: ExternalChatUser | null;
+    clients?: ExternalChatParticipantItem[];
     cps?: ExternalChatParticipantItem[];
     pm?: ExternalChatUser | null;
     production?: ExternalChatParticipantItem[];
     managers?: ExternalChatParticipantItem[];
   };
   client?: ExternalChatUser | null;
+  clients?: ExternalChatParticipantItem[];
   cps?: ExternalChatParticipantItem[];
   pm?: ExternalChatUser | null;
   production?: ExternalChatParticipantItem[];
@@ -185,6 +190,7 @@ export interface ExternalChatRoomListParams {
 
 export interface ExternalParticipantsPayload {
   client?: ExternalChatUser | null;
+  clients?: ExternalChatParticipantItem[];
   cps?: ExternalChatParticipantItem[];
   pm?: ExternalChatUser | null;
   production?: ExternalChatParticipantItem[];
@@ -268,7 +274,7 @@ export const externalChatApi = {
     return this.extractRoom(response);
   },
 
-  async getMessages(roomId: string, params?: { page?: number; limit?: number; sortBy?: string }) {
+  async getMessages(roomId: string, params?: { page?: number; limit?: number; sortBy?: string; search?: string }) {
     const response = await apiClient.get<MessageListResponse>(`external-chat/messages/${roomId}`, params);
     return response.data?.results || response.data?.messages || response.results || [];
   },
@@ -281,6 +287,7 @@ export const externalChatApi = {
     ) {
       return {
         client: response.client || null,
+        clients: response.clients || [],
         cps: response.cps || [],
         pm: response.pm || null,
         production: response.production || [],

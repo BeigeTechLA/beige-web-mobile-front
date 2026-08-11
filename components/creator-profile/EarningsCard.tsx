@@ -23,9 +23,10 @@ export interface EarningsCardData {
 interface EarningsCardProps {
   data: EarningsCardData;
   handleClick: () => void;
+  onRaiseDispute: (e: React.MouseEvent) => void;
 }
 
-export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
+export default function EarningsCard({ data, handleClick ,onRaiseDispute }: EarningsCardProps) {
   const { isDark } = useResolvedTheme();
   const hasDate = Boolean(data.date?.trim());
   const hasAddress = Boolean(data.address?.trim());
@@ -96,16 +97,26 @@ export default function EarningsCard({ data, handleClick }: EarningsCardProps) {
         </div>
       </div>
       <hr className={`border-t my-4 lg:my-5 ${isDark ? "border-[#3D3D3D]" : "border-[#000000]/30"}`} />
-      <Button
-        className={`w-full flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap border ${isDark
-          ? "bg-[#1F1F1F] text-[#E8D1AB] border-[#262626] hover:bg-black/90"
-          : "bg-[#F5F5F5] border-[#e5e5e5] hover:bg-black/5 text-black"
-          }`}
-        onClick={handleClick}
-      >
-        <Eye />
-        View Earnings
-      </Button>
+      
+      {/* 50/50 SPLIT BUTTONS */}
+      <div className="flex items-center gap-3 w-full">
+        <Button
+          className="flex-1 bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90 font-bold h-10 lg:h-12 rounded-lg text-sm transition-all active:scale-95"
+          onClick={onRaiseDispute}
+        >
+          Raise Dispute
+        </Button>
+        <Button
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 border ${isDark
+            ? "bg-[#1F1F1F] text-[#E8D1AB] border-[#262626] hover:bg-black/90"
+            : "bg-[#F5F5F5] border-[#e5e5e5] hover:bg-black/5 text-black"
+            }`}
+          onClick={handleClick}
+        >
+          <Eye size={18} />
+          View Earnings
+        </Button>
+      </div>
     </div>
   );
 }

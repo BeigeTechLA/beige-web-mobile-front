@@ -18,6 +18,9 @@ type HistoryEntry = {
   title: string;
   subtitle: string;
   amount: string;
+  extraAmount: number;
+  extraAmountLabel?: string | null;
+  originalCompensation?: number | null;
   dateLabel: string;
   dateSortKey: number;
   receiptUrl?: string | null;
@@ -32,6 +35,7 @@ type CreatorHistoryGroup = {
   total: string;
   paid: string;
   remaining: string;
+  extraPaid: string | null;
   entries: HistoryEntry[];
 };
 
@@ -88,19 +92,37 @@ const buildReceiptViewUrl = (url: string, filename: string, bookingId?: string |
   return `/admin/finances/cpCompensation/receipt-view?${params.toString()}`;
 };
 
+const parseMoneyValue = (value?: string | number | null) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const getDisputeExtraAmount = (item: CpPaymentHistoryItem) => {
+  const explicit = parseMoneyValue(item.dispute_extra_amount);
+  if (explicit > 0) return explicit;
+  const noteMatch = String(item.notes || "").match(/(?:extra\s*)?\$?([0-9][0-9,]*(?:\.\d{1,2})?)\s*extra/i);
+  return noteMatch ? parseMoneyValue(noteMatch[1]) : 0;
+};
+
 const mapPaymentEntry = (item: CpPaymentHistoryItem, index: number): HistoryEntry => {
   const amount = Number(item.amount || 0);
+  const extraAmount = getDisputeExtraAmount(item);
+  const originalCompensation = parseMoneyValue(item.dispute_original_compensation) || null;
   const title = String(item.method || item.type || "Payment").replace(/_/g, " ");
   const rawReceiptValue = item.receipt_url || item.receipt_download_url || null;
-      const proofFileName = item.proof_file_name || (rawReceiptValue ? getReceiptFileName(rawReceiptValue) : null);
-      const receiptUrl = resolveReceiptUrl(item.receipt_url || item.receipt_download_url, proofFileName);
-      const receiptDownloadUrl = receiptUrl ? withDownloadDisposition(receiptUrl, proofFileName || "receipt.pdf") : null;
+  const proofFileName = item.proof_file_name || (rawReceiptValue ? getReceiptFileName(rawReceiptValue) : null);
+  const receiptUrl = resolveReceiptUrl(item.receipt_url || item.receipt_download_url, proofFileName);
+  const receiptDownloadUrl = receiptUrl ? withDownloadDisposition(receiptUrl, proofFileName || "receipt.pdf") : null;
 
   return {
     id: String(item.id || `payment-${index}`),
-    title: item.type === "partial_payment" ? "Applied as partial payment" : title,
+    title: extraAmount > 0 ? "Dispute resolution payment" : item.type === "partial_payment" ? "Applied as partial payment" : title,
     subtitle: String(item.notes || item.status || "Payment recorded"),
     amount: formatCurrency(amount),
+    extraAmount,
+    extraAmountLabel: extraAmount > 0 ? formatCurrency(extraAmount) : null,
+    originalCompensation,
     dateLabel: formatHistoryDate(item.paid_at),
     dateSortKey: item.paid_at ? new Date(item.paid_at).getTime() : 0,
     receiptUrl,
@@ -181,6 +203,12 @@ export default function CpCompensationHistoryPage() {
       const role = normalizeCpRoleLabel(creator.cp_role) || "Creative Partner";
 
       const paymentEntries = (creator.payment_history || []).map(mapPaymentEntry);
+      const paidTotal = parseMoneyValue(creator.paid_total);
+      const extraPaidAmount = paymentEntries.reduce((sum, entry) => sum + entry.extraAmount, 0);
+      const originalCompensation = paymentEntries.find((entry) => entry.originalCompensation)?.originalCompensation;
+      const baseCompensation = originalCompensation || Math.max(parseMoneyValue(creator.total_compensation) - extraPaidAmount, 0);
+      const basePaidAmount = Math.max(paidTotal - extraPaidAmount, 0);
+      const remainingAmount = Math.max(baseCompensation - basePaidAmount, 0);
 
       const advances = (creator.advances || []).map((advance, index) => {
         const paidAt = advance.processed_at || null;
@@ -189,6 +217,9 @@ export default function CpCompensationHistoryPage() {
           title: "Applied as partial payment",
           subtitle: `${creatorName} - ${role}`,
           amount: formatCurrency(advance.amount || 0),
+          extraAmount: 0,
+          extraAmountLabel: null,
+          originalCompensation: null,
           dateLabel: formatHistoryDate(paidAt),
           dateSortKey: paidAt ? new Date(paidAt).getTime() : 0,
           receiptUrl: null,
@@ -203,6 +234,9 @@ export default function CpCompensationHistoryPage() {
           title: event.label || event.event_type || "Payment activity",
           subtitle: event.sub_label || creatorName,
           amount: event.amount != null ? formatCurrency(event.amount) : formatCurrency(creator.total_compensation || 0),
+          extraAmount: 0,
+          extraAmountLabel: null,
+          originalCompensation: null,
           dateLabel: formatHistoryDate(eventDate),
           dateSortKey: eventDate ? new Date(eventDate).getTime() : 0,
           receiptUrl: null,
@@ -210,16 +244,22 @@ export default function CpCompensationHistoryPage() {
         };
       });
 
-      const entries = (paymentEntries.length > 0 ? paymentEntries : [...advances, ...timeline])
+      const unmatchedAdvances = advances.filter((advance) => !paymentEntries.some((entry) => (
+        Math.abs(parseMoneyValue(entry.amount) - parseMoneyValue(advance.amount)) < 0.01 &&
+        entry.title.toLowerCase().includes("partial")
+      )));
+
+      const entries = (paymentEntries.length > 0 ? [...paymentEntries, ...unmatchedAdvances] : [...unmatchedAdvances, ...timeline])
         .sort((left, right) => right.dateSortKey - left.dateSortKey);
 
       return {
         id: String(creator.creator_earning_id),
         creatorName,
         role,
-        total: formatCurrency(creator.total_compensation || 0),
-        paid: formatCurrency(creator.paid_total || 0),
-        remaining: formatCurrency(Math.max(Number(creator.remaining_balance || 0), 0)),
+        total: formatCurrency(baseCompensation || 0),
+        paid: formatCurrency(paidTotal || 0),
+        remaining: formatCurrency(remainingAmount),
+        extraPaid: extraPaidAmount > 0 ? formatCurrency(extraPaidAmount) : null,
         entries,
       };
     });
@@ -358,6 +398,11 @@ export default function CpCompensationHistoryPage() {
                           <span className={`whitespace-nowrap ${isDark ? "text-white/50" : "text-black/50"}`}>
                             Paid <b className="text-[#10B981]">{group.paid}</b>
                           </span>
+                          {group.extraPaid ? (
+                            <span className="whitespace-nowrap text-[#7DB0FF]">
+                              + {group.extraPaid} Extra due to dispute
+                            </span>
+                          ) : null}
                           <span className={`whitespace-nowrap ${isDark ? "text-white/50" : "text-black/50"}`}>
                             Remaining <b className={isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}>{group.remaining}</b>
                           </span>
@@ -432,6 +477,11 @@ export default function CpCompensationHistoryPage() {
                               <span className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A3D]"}`}>
                                 {entry.amount || "-"}
                               </span>
+                              {entry.extraAmountLabel ? (
+                                <span className="text-xs font-medium text-[#7DB0FF]">
+                                  Includes {entry.extraAmountLabel} extra due to dispute
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         )) : (
