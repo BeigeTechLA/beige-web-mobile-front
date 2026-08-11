@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Eye, EyeOff, Star, ArrowUpRight } from "lucide-react"
+import { Eye, EyeOff, ArrowUpRight } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { pushToDataLayer } from "@/lib/gtm"
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -24,6 +25,18 @@ const loginSchema = z.object({
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
+
+type AuthError = {
+  data?: {
+    message?: string
+  }
+  message?: string
+}
+
+const getAuthErrorMessage = (error: unknown, fallback: string) => {
+  const authError = error as AuthError
+  return authError?.data?.message || authError?.message || fallback
+}
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -34,14 +47,30 @@ const USER_TYPE: Record<number, string> = {
   6: "Production Manager"
 }
 
-// const eventImgUrl = "https://d1pgtgqp0jru64.cloudfront.net/Frame-2147226676.png"
-const eventImgUrl = "/images/login-event.jpeg"
-// const mobileEventImgUrl = "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/assets/coachella+/image1.jpeg"
-const mobileEventImgUrl = "/images/login-event-mobile-2.png"
+const getDashboardPathForUserType = (userTypeId?: number) => {
+  if (userTypeId === 1 || userTypeId === 8) {
+    return "/admin/dashboard"
+  }
+  if (userTypeId === 2) {
+    return "/creator/dashboard"
+  }
+  if (userTypeId === 3) {
+    return "/affiliate/dashboard"
+  }
+  if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
+    return "/sales/dashboard"
+  }
+  if (userTypeId === 6) {
+    return "/production-manager/dashboard"
+  }
+
+  return "/admin/dashboard"
+}
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false)
-  const { login, isLoginLoading } = useAuth()
+  const { login, googleLogin, isLoginLoading, isGoogleLoginLoading } = useAuth()
+  const isGoogleConfigured = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasShownAdminOnlyToast = React.useRef(false)
@@ -116,27 +145,55 @@ export function LoginForm() {
         return
       }
 
-      // Logic for conditional redirection
-      if (userTypeId === 1 || userTypeId === 8) {
-        router.push('/admin/dashboard')
-      } else if (userTypeId === 2) {
-        router.push('/creator/dashboard')
-      } else if (userTypeId === 3) {
-        router.push('/affiliate/dashboard')
-      } else if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
-        router.push('/sales/dashboard')
-      }
-      else if (userTypeId === 6) {
-        router.push('/production-manager/dashboard')
-      } else {
-        // Fallback in case user_type_id is missing or different
-        router.push('/admin/dashboard')
-      }
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Login failed. Please check your credentials."
-      toast.error(errorMessage)
+      router.push(getDashboardPathForUserType(userTypeId))
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error, "Login failed. Please check your credentials."))
     }
   }
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    try {
+      if (!credentialResponse.credential) {
+        toast.error("Google did not return a valid credential.")
+        return
+      }
+
+      const result = await googleLogin({
+        credential: credentialResponse.credential,
+        mode: "login",
+      })
+
+      toast.success(result.message || "Google login successful")
+
+      const user = result.user
+      const userTypeId = user?.user_type_id
+      const userTypeName = userTypeId ? USER_TYPE[userTypeId as keyof typeof USER_TYPE] : "Unknown"
+      const loggedInEmail = String(user?.email || "").trim().toLowerCase()
+
+      pushToDataLayer("login", {
+        method: "google",
+        user_id: user?.id || null,
+        email: user?.email || null,
+        user_type: userTypeName,
+        page_name: "Login Page",
+        location_in_website: "login_page",
+        duration_on_page: performance.now() / 1000,
+        phone: user?.phone_number || null,
+      })
+
+      if (returnTo && (!bookingEmail || bookingEmail === loggedInEmail)) {
+        router.replace(returnTo)
+        return
+      }
+
+      router.push(getDashboardPathForUserType(userTypeId))
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error, "Google login failed"))
+    }
+  };
+  const handleGoogleError = () => {
+    toast.error("Google login was cancelled or failed.")
+  };
 
   return (
     <div className="w-full">
@@ -278,24 +335,79 @@ export function LoginForm() {
             <Button
               type="submit"
               className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] rounded-md lg:rounded-[8px] h-11 lg:h-[76px] text-base lg:text-xl font-semibold"
-              disabled={isLoginLoading}
+              disabled={isLoginLoading || isGoogleLoginLoading}
             >
               {isLoginLoading ? "Signing In..." : "Sign In"}
             </Button>
+              <div className="flex items-center w-full my-10">
+                <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-white/70"/>  
+                <span className="px-4 text-[13px] font-normal text-[#A4A0A0] whitespace-nowrap tracking-tight">
+                  OR Sign In with Social Account
+                </span>
+                <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-white/70"></div>
+              </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Apple */}
+                  {/* <button
+                    type="button"
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                    <Image src="\images\loginsignup\AppleLogo.svg" alt="Apple" width={20} height={20} />
+                    <span>Apple</span>
+                  </button> */}
+                  {/* Google */}
+                <button
+                    type="button"
+                    onClick={() => {
+                      const googleButton = document.querySelector(
+                        '#google-login-button div[role="button"]'
+                      ) as HTMLElement | null;
 
+                      googleButton?.click();
+                    }}
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                <Image src="\images\loginsignup\GoogleLogo.svg" alt="Google" width={20} height={20} />
+                  <span>Google</span>
+                </button>
+
+                  {/* Facebook */}
+                  {/* <button
+                    type="button"
+                    className="h-12 rounded-lg border border-white/20 bg-[#161616] flex items-center justify-center gap-2 text-white hover:border-[#E8D1AB] transition"
+                  >
+                    <Image src="\images\loginsignup\FacebookLogo.svg" alt="Facebook" width={20} height={20} />
+                    <span>Facebook</span>
+                  </button> */}
+
+                </div>
+              {isGoogleConfigured && (
+                <div className="hidden">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    text="continue_with"
+                    width="100%"
+                    useOneTap={false}
+                    containerProps={{
+                      id: "google-login-button",
+                    }}
+                  />
+                </div>
+              )}
             {/* Mobile standard divider */}
             <div className="flex items-center justify-center mt-6 lg:hidden">
               <div className="h-[1px] w-12 bg-white/10 hidden sm:block"></div>
               <p className="text-xs text-[#878787] px-4 flex items-center gap-4">
                 <span className="h-[1px] w-12 bg-[#878787]/30"></span>
-                Don't have an account?
+                Don&apos;t have an account?
                 <span className="h-[1px] w-12 bg-[#878787]/30"></span>
               </p>
             </div>
 
             {/* Desktop original style */}
             <p className="text-sm text-[#DDD] mt-6 hidden lg:block">
-              <b>Don't have an account yet?</b> Create your Beige account by
+              <b>Don&apos;t have an account yet?</b> Create your Beige account by
             </p>
           </div>
 

@@ -9,6 +9,7 @@ import { useEffect, useState, useRef } from "react";
 import { Separator } from "./Separator";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getDashboardPathForUser } from "@/lib/auth-routing";
+import type { User as AuthUser } from "@/lib/types";
 
 const realEstateImg = "/images/misc/RealEstate.svg";
 
@@ -148,6 +149,20 @@ const navLinks = [
   { label: "Use Cases", href: "#usecases", hasDropdown: true },
 ];
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
+const resolveProfileImageSrc = (profileImage?: string | null) => {
+  const image = profileImage?.trim();
+  if (!image) return "";
+
+  if (/^(https?:|data:|blob:)/i.test(image) || image.startsWith("/")) {
+    return image;
+  }
+
+  const prefix = S3_PREFIX.replace(/\/+$/, "");
+  return prefix ? `${prefix}/${image.replace(/^\/+/, "")}` : `/${image.replace(/^\/+/, "")}`;
+};
+
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -161,13 +176,18 @@ export const Navbar = () => {
 
   const [activeCategory, setActiveCategory] = useState<"photos" | "videos">("photos");
   const [activeSector, setActiveSector] = useState("corporate");
-  const [localUser, setLocalUser] = useState<any>(null);
+  const [localUser, setLocalUser] = useState<AuthUser | null>(null);
+  const [profileImageError, setProfileImageError] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { logout } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const portfolioRef = useRef<HTMLDivElement>(null);
+  const currentUser = authUser || localUser;
+  const profileImageSrc = !profileImageError
+    ? resolveProfileImageSrc(currentUser?.profile_image)
+    : "";
 
   const showCartIcon = pathname?.startsWith("/search-results");
 
@@ -188,6 +208,11 @@ export const Navbar = () => {
   };
 
   useEffect(() => {
+    if (authUser) {
+      setLocalUser(authUser);
+      return;
+    }
+
     const storedUser = localStorage.getItem("revure_user");
     if (storedUser) {
       try {
@@ -237,7 +262,11 @@ export const Navbar = () => {
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [pathname]);
+  }, [pathname, authUser]);
+
+  useEffect(() => {
+    setProfileImageError(false);
+  }, [currentUser?.profile_image]);
 
   const handleNavClick = (href: string) => {
     if (href === "#usecases") {
@@ -326,8 +355,34 @@ export const Navbar = () => {
     setMobileOpen(false);
     setShowProfileDropdown(false);
 
-    const dashboardPath = getDashboardPathForUser(localUser);
+    const dashboardPath = getDashboardPathForUser(currentUser);
     router.push(dashboardPath);
+  };
+
+  const renderProfileAvatar = (size: "desktop" | "mobile" = "desktop") => {
+    const isMobile = size === "mobile";
+    const wrapperClass = isMobile
+      ? "w-12 h-12 rounded-full bg-[#E8D1AB] overflow-hidden flex items-center justify-center text-black shrink-0"
+      : "w-10 h-10 rounded-full bg-[#E8D1AB] overflow-hidden flex items-center justify-center text-black shrink-0";
+    const imageSize = isMobile ? 48 : 40;
+
+    return (
+      <div className={wrapperClass}>
+        {profileImageSrc ? (
+          <Image
+            src={profileImageSrc}
+            alt={currentUser?.name || "User"}
+            width={imageSize}
+            height={imageSize}
+            className="h-full w-full object-cover"
+            unoptimized
+            onError={() => setProfileImageError(true)}
+          />
+        ) : (
+          <User size={isMobile ? 24 : 20} />
+        )}
+      </div>
+    );
   };
 
   // Helper function dynamically rendering Lucide Icons or an Image masked element inheriting parent color text
@@ -493,7 +548,7 @@ export const Navbar = () => {
 
           {/* Right Side Auth */}
           <div className="hidden md:flex items-center gap-4">
-            {!localUser ? (
+            {!currentUser ? (
               <button
                 onClick={handleLogin}
                 className="text-white hover:text-[#ECE1CE] xl:text-lg font-medium transition-colors p-3 xl:px-6 xl:py-3 border border-white/30 hover:border-[#ECE1CE]/50 rounded-[10px]"
@@ -506,12 +561,10 @@ export const Navbar = () => {
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                   className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2 rounded-xl hover:bg-white/10 transition-all"
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#E8D1AB] flex items-center justify-center text-black">
-                    <User size={20} />
-                  </div>
+                  {renderProfileAvatar()}
                   <div className="flex flex-col items-start">
                     <span className="text-white text-sm font-medium leading-none">
-                      {localUser.name}
+                      {currentUser.name}
                     </span>
                   </div>
                   <ChevronDown
@@ -693,7 +746,7 @@ export const Navbar = () => {
                 <Separator />
 
                 {/* Mobile Auth Sections */}
-                {!localUser ? (
+                {!currentUser ? (
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={handleLogin}
@@ -705,12 +758,10 @@ export const Navbar = () => {
                 ) : (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                      <div className="w-12 h-12 rounded-full bg-[#E8D1AB] flex items-center justify-center text-black">
-                        <User size={24} />
-                      </div>
+                      {renderProfileAvatar("mobile")}
                       <div>
                         <p className="text-white font-semibold text-lg">
-                          {localUser.name}
+                          {currentUser.name}
                         </p>
                       </div>
                     </div>

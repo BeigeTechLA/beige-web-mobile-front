@@ -24,6 +24,7 @@ import ShareResourceModal from "@/components/admin/file-manager/ShareResourceMod
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
+import { CheckVerificationStatus } from "@/lib/api";
 import {
   fileManagerApi,
   isCommonEventWorkspaceId,
@@ -39,10 +40,17 @@ import {
   getFileManagerRouteStateKey,
   setFileManagerRouteState,
 } from "@/lib/fileManagerRouteState";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 
 export default function CreatorFileManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const { data: onboardingStatus, isLoading: isOnboardingStatusLoading } = useGetOnboardingStatusQuery(undefined, {
+    skip: !isCreatorUser,
+  });
   const routeStateKey = getFileManagerRouteStateKey(pathname);
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,7 +78,48 @@ export default function CreatorFileManagerPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [routeStateReady, setRouteStateReady] = useState(false);
+  const [isAccessAllowed, setIsAccessAllowed] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const hasSkippedInitialFilterResetRef = React.useRef(false);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!onboardingStatus) return;
+
+      const userStr = typeof window !== "undefined" ? localStorage.getItem("revure_user") : null;
+      const localUser = userStr ? JSON.parse(userStr) : null;
+      const crewId = (user as any)?.crew_member_id || localUser?.crew_member_id;
+      const registrationComplete =
+        onboardingStatus.is_registration_complete === 1 ||
+        onboardingStatus.onboardingMissingDetail === false;
+
+      if (!crewId || !registrationComplete) {
+        setIsAccessAllowed(false);
+        setIsCheckingAccess(false);
+        router.replace("/creator/dashboard");
+        return;
+      }
+
+      try {
+        const response = await CheckVerificationStatus({ crew_member_id: crewId });
+        const verified = response && !response?.error && Number(response.data?.data?.is_crew_verified) === 1;
+
+        setIsAccessAllowed(verified);
+        if (!verified) {
+          router.replace("/creator/dashboard");
+        }
+      } catch (error) {
+        console.error("File manager access check failed:", error);
+        setIsAccessAllowed(false);
+        router.replace("/creator/dashboard");
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    if (isOnboardingStatusLoading) return;
+    checkAccess();
+  }, [isOnboardingStatusLoading, onboardingStatus, router, user]);
 
   useEffect(() => {
     const savedState = getFileManagerRouteState(routeStateKey);
@@ -112,6 +161,8 @@ export default function CreatorFileManagerPage() {
   ];
 
   const loadProjects = async () => {
+    if (!isAccessAllowed) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -137,11 +188,13 @@ export default function CreatorFileManagerPage() {
       await loadProjects();
     };
 
-    load();
+    if (isAccessAllowed) {
+      load();
+    }
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isAccessAllowed]);
 
   const filteredFolders = useMemo(() => {
     let items = [...projects];
@@ -239,6 +292,16 @@ export default function CreatorFileManagerPage() {
     setIsOpen(false);
   };
 
+  if (isCheckingAccess || isOnboardingStatusLoading || !isAccessAllowed) {
+    return (
+      <>
+        <Topbar pathname={pathname} />
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#E8D1AB]" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
