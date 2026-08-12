@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
+import { useRouter } from "next/navigation";
 
 interface TopbarProps {
   pathname: string;
@@ -19,6 +20,7 @@ interface TopbarProps {
 
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { theme } = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -152,7 +154,12 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
             (isDashboardRoot) && (
               <>
                 <ModeToggle />
-                <div className={`relative shrink-0 w-12 h-12 rounded-full overflow-hidden cursor-pointer border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
+                <div
+                onClick={()=>{router.push('profile')}}
+                className={`relative shrink-0 w-12 h-12 rounded-full overflow-hidden cursor-pointer border 
+                  ${isDark 
+                    ? "bg-zinc-800 border-zinc-700" 
+                    : "bg-zinc-100 border-zinc-200"
                   }`}>
                   <Image width={48} height={48} className="object-contain" src="/images/avatar.png" alt="User" />
                 </div>
