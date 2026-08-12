@@ -18,6 +18,7 @@ export default function CpSignupPage() {
     firstName: "",
     lastName: "",
     email: "",
+    phoneNumber: "",
     password: "",
     location: null,
     workingDistance: "",
@@ -34,10 +35,14 @@ export default function CpSignupPage() {
     resume: null,
     portfolio: [],
     crew_member_id: null, // Add crew_member_id to the state
+    user_id: null,
+    googleSignup: false,
+    authProvider: "",
   });
 
   const nextStep = () => setStep((s) => s + 1);
   const prevStep = () => setStep((s) => s - 1);
+  const completeSignup = () => setStep(4);
 
   const handleBack = () => {
     if (step === 1) {
@@ -66,6 +71,7 @@ export default function CpSignupPage() {
             setData={setData}
             nextStep={nextStep}
             prevStep={handleBack}
+            completeSignup={completeSignup}
             crew_member_id={data.crew_member_id} // Pass crew_member_id if it exists
           />
         );

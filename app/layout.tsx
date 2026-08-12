@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Sans, Antonio, Yrsa } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Sans, Antonio } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
 import { PermissionsVersionWatcher } from "@/components/common/PermissionsVersionWatcher";
 import { ThemeProvider } from "@/components/theme-provider";
+import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
+
 import "./globals.css";
 import Script from "next/script";
 
@@ -24,11 +26,6 @@ const instrumentSans = Instrument_Sans({
 
 const antonio = Antonio({
   variable: "--font-antonio",
-  subsets: ["latin"],
-});
-
-const yrsa = Yrsa({
-  variable: "--font-yrsa",
   subsets: ["latin"],
 });
 
@@ -124,7 +121,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${antonio.variable} ${yrsa.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${antonio.variable} antialiased`}
       >
         {/* GTM NoScript Fallback */}
         <noscript>
@@ -135,8 +132,8 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
-
-        <ReduxProvider>
+        <GoogleAuthProvider>
+          <ReduxProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
@@ -148,6 +145,7 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
         </ReduxProvider>
+      </GoogleAuthProvider>
       </body>
     </html>
   );

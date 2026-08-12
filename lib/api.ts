@@ -185,6 +185,11 @@ export type AdminUserRoleRecord = {
   restored_at?: string | null;
 };
 
+export type AdminUsersExportResponse = {
+  blob: Blob;
+  contentDisposition?: string;
+};
+
 export type ArchiveHistoryRecord = {
   history_id: number;
   target_type: string;
@@ -3112,6 +3117,28 @@ export const adminApi = {
     }
   },
 
+  exportUsers: async (): Promise<AdminUsersExportResponse> => {
+    const response = await api.get('admin/users/export', {
+      responseType: 'blob',
+    });
+
+    return {
+      blob: response.data,
+      contentDisposition: response.headers['content-disposition'],
+    };
+  },
+
+  exportRoleUsers: async (roleId: number | string): Promise<AdminUsersExportResponse> => {
+    const response = await api.get(`admin/roles/${roleId}/users/export`, {
+      responseType: 'blob',
+    });
+
+    return {
+      blob: response.data,
+      contentDisposition: response.headers['content-disposition'],
+    };
+  },
+
   getRoleById: async (id: number | string) => {
     try {
       const response = await api.get(`admin/roles/${id}`);
@@ -4310,7 +4337,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -4333,7 +4360,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;

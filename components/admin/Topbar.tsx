@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface TopbarProps {
   pathname: string;
@@ -20,8 +21,14 @@ interface TopbarProps {
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [profileImageError, setProfileImageError] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setProfileImageError(false);
+  }, [user?.profile_image]);
 
   const { setIsOpen } = useSidebar();
 
@@ -38,6 +45,9 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
   const isStudiosPage = pathname.includes("studio-management/");
 
   const isDark = !mounted || theme === "dark";
+  const profileImageSrc = !profileImageError && user?.profile_image
+    ? user.profile_image
+    : "/images/avatar.png";
 
   // 2. Add a helper for the breadcrumb display to avoid repetition
   const renderBreadcrumbs = (isMobile: boolean) => {
@@ -125,7 +135,15 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           <div className="flex items-center gap-3">
             <ModeToggle />
             <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"}`}>
-              <Image width={32} height={32} src="/images/avatar.png" alt="User" />
+              <Image
+                width={32}
+                height={32}
+                src={profileImageSrc}
+                alt={user?.name || "User"}
+                className="w-full h-full object-cover"
+                unoptimized
+                onError={() => setProfileImageError(true)}
+              />
             </div>
           </div>
         </div>
@@ -182,7 +200,15 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
                 <ModeToggle />
                 <div className={`relative shrink-0 w-12 h-12 rounded-full overflow-hidden cursor-pointer border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
                   }`}>
-                  <Image width={48} height={48} className="object-contain" src="/images/avatar.png" alt="User" />
+                  <Image
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                    src={profileImageSrc}
+                    alt={user?.name || "User"}
+                    unoptimized
+                    onError={() => setProfileImageError(true)}
+                  />
                 </div>
               </>
             )

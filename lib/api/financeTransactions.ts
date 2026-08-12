@@ -193,6 +193,20 @@ export type AdminFinanceDisputeApiRow = {
     name?: string | null;
     email?: string | null;
   } | null;
+  metadata?: Record<string, unknown> | null;
+  cp_compensation?: {
+    creator_earning_id?: number | string | null;
+    booking_id?: number | string | null;
+    creator_id?: number | string | null;
+    creator_name?: string | null;
+    shoot_name?: string | null;
+    total_compensation?: number | string | null;
+    paid_amount?: number | string | null;
+    advance_paid?: number | string | null;
+    remaining_balance?: number | string | null;
+    disputed_amount?: number | string | null;
+    extra_amount?: number | string | null;
+  } | null;
   created_at?: string | null;
   updated_at?: string | null;
   actions?: {
@@ -383,6 +397,44 @@ export const financeTransactionsApi = {
   async addClientDisputeAttachment(disputeId: number | string, payload: FormData) {
     const response = await apiClient.getInstance().post<ApiEnvelope<unknown>>(
       `finance/client/disputes/${disputeId}/attachments`,
+      payload,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  },
+
+  listCreatorDisputes(params: AdminFinanceDisputeListParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceListResponse<AdminFinanceDisputeDetailsApiRow>>>(
+      "finance/creator/disputes",
+      cleanParams(params)
+    );
+  },
+
+  async createCreatorDispute(payload: FormData) {
+    const response = await apiClient.getInstance().post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
+      "finance/creator/disputes",
+      payload,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  },
+
+  getCreatorDisputeDetails(disputeId: number | string) {
+    return apiClient.get<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
+      `finance/creator/disputes/${disputeId}`
+    );
+  },
+
+  addCreatorDisputeComment(disputeId: number | string, body: string) {
+    return apiClient.post<ApiEnvelope<unknown>>(
+      `finance/creator/disputes/${disputeId}/comments`,
+      { body }
+    );
+  },
+
+  async addCreatorDisputeAttachment(disputeId: number | string, payload: FormData) {
+    const response = await apiClient.getInstance().post<ApiEnvelope<unknown>>(
+      `finance/creator/disputes/${disputeId}/attachments`,
       payload,
       { headers: { "Content-Type": "multipart/form-data" } }
     );

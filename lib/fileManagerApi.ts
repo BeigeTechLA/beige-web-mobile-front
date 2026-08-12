@@ -215,6 +215,46 @@ interface CreateCommonEventResponse {
   };
 }
 
+interface WorkspaceAccessItem {
+  accessId: number;
+  externalId: string;
+  userId: number;
+  clientId?: number | null;
+  name?: string | null;
+  email?: string | null;
+  grantedByUserId?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface RegisteredClientSearchItem {
+  clientId: number;
+  userId: number;
+  name?: string | null;
+  email?: string | null;
+  phoneNumber?: string | null;
+}
+
+interface RegisteredClientSearchResponse {
+  success: boolean;
+  data: RegisteredClientSearchItem[];
+}
+
+interface WorkspaceAccessResponse {
+  success: boolean;
+  data: {
+    externalId: string;
+    owner?: {
+      userId?: number | null;
+      clientId?: number | null;
+      name?: string | null;
+      email?: string | null;
+      projectName?: string | null;
+    } | null;
+    access: WorkspaceAccessItem[];
+  };
+}
+
 interface FaceScanResponse {
   success: boolean;
   data: {
@@ -722,6 +762,48 @@ export const fileManagerApi = {
     const response = await apiClient.patch<CreateCommonEventResponse>(
       `external-file-manager/common-events/${eventExternalId}`,
       { visibleUntil: visibleUntil || null }
+    );
+    return response.data;
+  },
+
+  async listWorkspaceAccess(externalId: string | number) {
+    const response = await apiClient.get<WorkspaceAccessResponse>(
+      "external-file-manager/workspace-access",
+      { externalId: String(externalId) }
+    );
+    return response.data;
+  },
+
+  async searchRegisteredClients(search: string = "") {
+    const response = await apiClient.get<RegisteredClientSearchResponse>(
+      "external-file-manager/workspace-access/clients",
+      { search, limit: 20 }
+    );
+    return response.data || [];
+  },
+
+  async grantWorkspaceAccess(payload: {
+    externalId: string | number;
+    email?: string;
+    clientId?: string | number;
+    clientUserId?: string | number;
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      message?: string;
+      data?: WorkspaceAccessItem;
+    }>("external-file-manager/workspace-access", {
+      externalId: String(payload.externalId),
+      email: payload.email,
+      clientId: payload.clientId,
+      clientUserId: payload.clientUserId,
+    });
+    return response.data;
+  },
+
+  async revokeWorkspaceAccess(accessId: string | number) {
+    const response = await apiClient.getInstance().delete(
+      `external-file-manager/workspace-access/${accessId}`
     );
     return response.data;
   },

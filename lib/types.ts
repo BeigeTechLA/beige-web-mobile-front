@@ -14,11 +14,14 @@ export interface User {
   email: string;
   phone_number?: string;
   instagram_handle?: string;
+  profile_image?: string | null;
   userTypeId: number;
   userRole: string;
   role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
+  is_crew_verified?: number | null;
+  is_registration_complete?: number | null;
   created_at?: string;
   temp_event_popup?: {
     show?: boolean;
@@ -28,6 +31,7 @@ export interface User {
   };
   user_type_id?: number;
   permissions_version?: number | string;
+  has_password?: boolean;
 }
 
 export interface AuthTokens {
@@ -45,6 +49,15 @@ export interface LoginResponse {
   token: string;
   user: User;
   permissions_version?: number | string;
+  crew_member_id?: number | null;
+  creator_onboarding_required?: boolean;
+}
+
+export interface GoogleClientAuthData {
+  credential: string;
+  mode?: 'login' | 'signup';
+  phone_number?: string;
+  account_type?: 'client' | 'creator';
 }
 
 export interface RegisterData {
@@ -338,7 +351,12 @@ export interface RawCreator {
   updated_at: string;
   social_media_links: string | null;
   is_crew_verified: number;
+  is_registration_complete: number;
   crew_member_files: CrewMemberFile[];
   role: null;
   status: string;
+}
+export interface OnboardingStatusResponse {
+  onboardingMissingDetail: boolean;
+  is_registration_complete: number;
 }

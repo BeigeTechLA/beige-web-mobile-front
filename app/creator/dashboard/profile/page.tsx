@@ -32,16 +32,18 @@ import {
   Phone,
   Loader2,
   EyeOff,
-  Pause, Volume2, VolumeX
+  Pause, Volume2, VolumeX,
+  AlertCircle
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useChangePasswordMutation } from "@/lib/redux/features/auth/authApi";
+import { useChangePasswordMutation, useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
+import { GoogleCreatorOnboardingModal } from "@/src/components/cpSignup/GoogleCreatorOnboardingModal";
 import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
@@ -56,6 +58,16 @@ import { formatCreatorRoles, normalizeCreatorRoleIds } from "@/lib/creatorRoles"
 
 // --- CONSTANTS ---
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
+const GOOGLE_ONBOARDING_STORAGE_KEY = "creator_google_onboarding";
+
+type GoogleOnboardingData = {
+  user_id: number;
+  crew_member_id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+};
 
 // --- REUSABLE SUB-COMPONENTS ---
 const StatBox = ({ value, sublabel, isDark }: { value: string, sublabel: string, isDark?: boolean }) => (
@@ -250,13 +262,24 @@ const FileItem = ({ file, onRemove, isDark }: { file: File, onRemove: () => void
 
 export default function ProfilePage() {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    data: onboardingStatus,
+    isSuccess: hasOnboardingStatus,
+    refetch: refetchOnboardingStatus,
+  } = useGetOnboardingStatusQuery();
   const { isDark } = useResolvedTheme();
+  const hasOpenedGoogleOnboardingRef = useRef(false);
   const [activeTab, setActiveTab] = useState("Overview");
+  const [hasProfileLoaded, setHasProfileLoaded] = useState(false);
 
   // Modal & Edit States
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
   const [editingFeaturedWork, setEditingFeaturedWork] = useState<any | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(false);
+  const [isGoogleOnboardingOpen, setIsGoogleOnboardingOpen] = useState(false);
+  const [googleOnboardingData, setGoogleOnboardingData] = useState<GoogleOnboardingData | null>(null);
 
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
   const [isPortfolioLinksModalOpen, setIsPortfolioLinksModalOpen] = useState(false);
@@ -313,24 +336,56 @@ export default function ProfilePage() {
 
   const tabs = ["Overview", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
 
-  useEffect(() => {
+  const loadProfile = async () => {
     const userStr = localStorage.getItem("revure_user");
     const user = userStr ? JSON.parse(userStr) : null;
     const crewMemberId = user?.crew_member_id;
 
-    const fetchProfile = async () => {
-      if (!crewMemberId) return;
-      try {
-        const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
-        if (response.data && response.data.error === false) {
-          setProfile(response.data.data);
-        }
-      } catch (err) {
-        console.error("Fetching Error:", err);
+    if (!crewMemberId) {
+      setHasProfileLoaded(true);
+      return;
+    }
+    try {
+      const response = await GetMyProfile({ crew_member_id: parseInt(crewMemberId) });
+      if (response.data && response.data.error === false) {
+        setProfile(response.data.data);
       }
-    };
-    fetchProfile();
+    } catch (err) {
+      console.error("Fetching Error:", err);
+    } finally {
+      setHasProfileLoaded(true);
+    }
+  };
+
+  useEffect(() => {
+    void loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (hasOpenedGoogleOnboardingRef.current) return;
+    if (searchParams.get("google_onboarding") !== "1") return;
+
+    const storedOnboarding =
+      typeof window !== "undefined" ? sessionStorage.getItem(GOOGLE_ONBOARDING_STORAGE_KEY) : null;
+    if (!storedOnboarding) {
+      router.replace(pathname);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedOnboarding) as GoogleOnboardingData;
+      setGoogleOnboardingData(parsed);
+      setIsGoogleOnboardingOpen(true);
+      hasOpenedGoogleOnboardingRef.current = true;
+    } catch (error) {
+      console.error("Failed to parse Google onboarding data:", error);
+    } finally {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(GOOGLE_ONBOARDING_STORAGE_KEY);
+      }
+      router.replace(pathname);
+    }
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     if (profile.social_media_links) {
@@ -393,6 +448,12 @@ export default function ProfilePage() {
   const featuredWorks = profile.crew_member_files?.filter(
     (file: any) => file.file_type === "recent_work"
   ) || [];
+
+  const progressPercent = onboardingStatus?.progress_percent ?? 0;
+  const completedCount = onboardingStatus?.completed_count ?? 0;
+  const totalRequired = onboardingStatus?.total_required ?? 0;
+  const missingCount = onboardingStatus?.missing_count ?? 0;
+  const showOnboardingBanner = hasProfileLoaded && hasOnboardingStatus && missingCount > 0;
 
   const handleSavePersonalInfo = async () => {
     // 1. Get the ID from localStorage (similar to how you did in useEffect)
@@ -1031,12 +1092,73 @@ export default function ProfilePage() {
     index: 0
   });
 
+  const handleOpenOnboarding = () => {
+  if (!googleOnboardingData) {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+
+  setGoogleOnboardingData({
+      user_id: user?.id || 0,
+      crew_member_id: user?.crew_member_id || profile.crew_member_id,
+      firstName: profile.first_name || "",
+      lastName: profile.last_name || "",
+      email: profile.email || "",
+      phoneNumber: profile.phone_number || "",
+    });
+  }
+  setIsGoogleOnboardingOpen(true);
+};
+
 
   return (
     <>
       <Topbar pathname={pathname} />
+{showOnboardingBanner && (
+        <div
+          className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${
+            isDark
+              ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
+              : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-6">
+            
+            {/* Left Side: Title + Progress Bar (Takes full available space up to the button) */}
+            <div className="flex-1 min-w-0 mr-4">
+              <p className="truncate text-xs font-medium sm:text-sm">
+                Onboarding Incomplete
+              </p>
 
+              {/* Progress bar and text container */}
+              <div className="mt-2">
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? "bg-black/30" : "bg-black/10"}`}>
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#E8D1AB] via-[#D7BC8A] to-[#FFF3D6] transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                
+                <div className={`mt-1.5 text-xs font-semibold sm:text-[13px] ${isDark ? "text-white/55" : "text-black/55"}`}>
+                  {completedCount}/{totalRequired} Required Fields | {missingCount} Remaining | Complete all required details to become eligible for shoot assignments
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Complete Profile Button (Vertically Centered) */}
+            <button
+              type="button"
+              onClick={handleOpenOnboarding}
+              className="shrink-0 flex items-center rounded-md bg-black px-4 py-2 text-xs sm:text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+            >
+              <AlertCircle size={14} className="mr-1.5" />
+              Complete Profile
+            </button>
+
+          </div>
+        </div>
+      )}
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
+      
         <div className="mx-auto space-y-4 lg:space-y-8">
 
           {/* TOP PROFILE CARD */}
@@ -2029,6 +2151,18 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        <GoogleCreatorOnboardingModal
+          open={isGoogleOnboardingOpen}
+          initialData={googleOnboardingData}
+          profileData={profile}
+          onClose={() => setIsGoogleOnboardingOpen(false)}
+          onComplete={async () => {
+            setIsGoogleOnboardingOpen(false);
+            await loadProfile();
+            await refetchOnboardingStatus();
+          }}
+        />
       </div>
     </>
   );

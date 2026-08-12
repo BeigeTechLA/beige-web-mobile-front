@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner"; // Using sonner for the high-end look of the first code
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useGetCurrentUserQuery } from "@/lib/redux/features/auth/authApi";
+import { useGetCurrentUserQuery, useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import Topbar from "@/components/admin/Topbar";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -361,6 +361,13 @@ export default function CreatorDashboardPage() {
   const { data: currentUserData, refetch: refetchCurrentUser } = useGetCurrentUserQuery(undefined, {
     skip: !isCreatorUser,
   });
+  const {
+    data: onboardingStatus,
+    isLoading: isOnboardingStatusLoading,
+    isFetching: isOnboardingStatusFetching,
+  } = useGetOnboardingStatusQuery(undefined, {
+    skip: !isCreatorUser,
+  });
   const tempEventLocation = currentUserData?.temp_event_popup?.event_location?.address;
 
   // Basic Top Counts State
@@ -494,7 +501,11 @@ export default function CreatorDashboardPage() {
           setVerificationStatus(latestStatus);
 
           // 3. Update LocalStorage (Unlocks the Sidebar links)
-          const updatedUser = { ...localUser, is_crew_verified: latestStatus };
+          const updatedUser = {
+            ...localUser,
+            is_crew_verified: latestStatus,
+            is_registration_complete: response.data.data.is_registration_complete ?? localUser?.is_registration_complete ?? 0,
+          };
           localStorage.setItem("revure_user", JSON.stringify(updatedUser));
 
           console.log("Status synced from backend:", latestStatus);
@@ -663,10 +674,11 @@ export default function CreatorDashboardPage() {
   }, [currentMonth, currentYear]);
 
   // Helper Component for Pending/Rejected States
-  function VerificationStatusOverlay({ status }: { status: number }) {
+  function VerificationStatusOverlay({ status, isRegistrationComplete }: { status: number; isRegistrationComplete: boolean }) {
     const isPending = status === 0;
+    const isIncomplete = !isRegistrationComplete;
 
-    if (isSyncing) {
+    if (isSyncing || isOnboardingStatusLoading || isOnboardingStatusFetching) {
       return (
         <div className="min-h-screen bg-[#111] flex flex-col items-center justify-center">
           <div className="w-10 h-10 border-4 border-[#E8D1AB]/20 border-t-[#E8D1AB] rounded-full animate-spin mb-4" />
@@ -676,10 +688,10 @@ export default function CreatorDashboardPage() {
     }
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
+      <div className="flex flex-col items-center justify-center min-h-screen text-center px-6">
         <div className="mb-8 relative">
           <div className="w-24 h-24 rounded-full bg-[#E8D1AB]/5 border border-[#E8D1AB]/20 flex items-center justify-center animate-pulse">
-            {isPending ? (
+            {isIncomplete || isPending ? (
               <Clock size={40} className="text-[#E8D1AB]" />
             ) : (
               <AlertTriangle size={40} className="text-red-500" />
@@ -688,12 +700,14 @@ export default function CreatorDashboardPage() {
         </div>
 
         <h2 className="text-3xl font-bold text-white mb-4">
-          {isPending ? "Application Under Review" : "Application Status"}
+          {isIncomplete ? "Your Onboarding Form Is Pending" : isPending ? "Application Under Review" : "Application Status"}
         </h2>
 
         <p className="text-white/60 max-w-md leading-relaxed mb-8">
-          {isPending
-            ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
+          {isIncomplete
+            ? "Please complete all required profile details before we send your application to the Beige curation team for review."
+            : isPending
+              ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
             : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
           }
         </p>
@@ -701,14 +715,23 @@ export default function CreatorDashboardPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 max-w-sm w-full">
           <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#E8D1AB] mb-2">Next Steps</h4>
           <p className="text-sm text-white/80">
-            {isPending
-              ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
+            {isIncomplete
+              ? "Open your profile and fill the missing required fields. Once everything is complete, your application will move under review."
+              : isPending
+                ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
               : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
             }
           </p>
         </div>
 
-        {isPending && (
+        {isIncomplete ? (
+          <Button
+            className="mt-8 bg-[#E8D1AB] text-black hover:bg-[#d8c39d]"
+            onClick={() => router.push("/creator/dashboard/profile")}
+          >
+            Complete Profile
+          </Button>
+        ) : isPending && (
           <Button
             variant="outline"
             className="mt-8 border-white/10 hover:bg-white/5 text-white/40"
@@ -841,8 +864,10 @@ export default function CreatorDashboardPage() {
 
   if (verificationStatus === null) return null;
 
-  if (verificationStatus !== 1) {
-    return <VerificationStatusOverlay status={verificationStatus} />;
+  const isRegistrationComplete = onboardingStatus?.is_registration_complete === 1 || onboardingStatus?.onboardingMissingDetail === false;
+
+  if (!isRegistrationComplete || verificationStatus !== 1) {
+    return <VerificationStatusOverlay status={verificationStatus} isRegistrationComplete={isRegistrationComplete} />;
   }
 
   // ----------------------
@@ -851,12 +876,17 @@ export default function CreatorDashboardPage() {
   return (
     <>
       <Topbar pathname={pathname} />
+    <div 
+      className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
+        ${isDark 
+          ? `bg-[#0A0A0A] 
+            border border-[#E8D1AB]/40 
+            shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+          : "bg-white border-zinc-200 shadow-sm"
+        }`}
+    >
 
-      <div
-        className="overflow-hidden pb-30 p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-5"
-        style={{ fontFamily: "var(--font-instrument-sans)" }}
-      >
-
+        <div className="p-6 lg:p-10 space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div>
@@ -865,6 +895,29 @@ export default function CreatorDashboardPage() {
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Performance overview and shoot schedule</p>
           </div>
         </div>
+          {/* <div 
+            className={`w-full rounded-[24px] p-6 flex flex-col md:flex-row items-center justify-between gap-8 border transition-all duration-300 
+              ${isDark 
+                ? "bg-[#111111] border-[#E8D1AB]/20 shadow-[0_4px_20px_rgba(0,0,0,0.4)]" 
+                : "bg-[#F9F9F9] border-zinc-200 shadow-sm"
+              }`}
+          >
+            <div className="flex-1 w-full">
+            <div className="flex justify-between items-end mb-3">
+              <h4 className="text-sm font-medium text-white/90">Profile Setup - 43% Complete</h4>
+              <span className="text-xs text-[#E8D1AB] font-mono">3/5</span>
+            </div>
+            <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+              <div className="h-full bg-[#E8D1AB] w-[43%] rounded-full shadow-[0_0_15px_rgba(232,209,171,0.3)]" />
+            </div>
+            <p className="mt-4 text-[10px] uppercase tracking-[0.2em] text-white/30">
+              3/4 Required Fields | 3/7 Total Fields | 0/3 Completion Needs
+            </p>
+          </div>
+          <Button className="bg-[#E8D1AB] hover:bg-[#d4be9a] text-black px-10 py-7 rounded-2xl font-bold transition-all">
+            Complete Now
+          </Button>
+        </div>  */}
 
         {/* Stats Cards (Luxury Style) */}
         {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1463,6 +1516,7 @@ export default function CreatorDashboardPage() {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
     </>
   );
 }

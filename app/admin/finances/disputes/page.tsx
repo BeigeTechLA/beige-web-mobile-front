@@ -20,7 +20,6 @@ import AddEditDisputeModal from "@/components/admin/finances/AddEditDisputeModal
 import DisputeDetailsModal, {
   type DisputeDetailsRecord,
 } from "@/components/admin/finances/DisputeDetailsModal";
-import { usePermissions } from "@/lib/hooks/usePermissions";
 import ResolveDisputeModal, {
   type ResolveDisputeFormData,
 } from "@/components/admin/finances/ResolveDisputeModal";
@@ -102,6 +101,12 @@ const titleize = (value: string | null | undefined) =>
     .replace(/\b\w/g, (char) => char.toUpperCase())
     .trim();
 
+const formatRaisedRole = (value: string | null | undefined) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "creator") return "CP";
+  return titleize(value) || "Admin";
+};
+
 const formatResolutionType = (value: string | null | undefined) => {
   const normalized = String(value || "").toLowerCase();
   const labels: Record<string, string> = {
@@ -182,6 +187,12 @@ const roleApiValue: Record<string, string | undefined> = {
   Admin: "admin",
 };
 
+const disputeOriginTabs = [
+  { label: "All", value: "All" },
+  { label: "Client", value: "Client" },
+  { label: "Creator/CP", value: "Creator" },
+];
+
 const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => ({
   disputeId: item.dispute_id || item.dispute_code || "",
   rawStatus: item.status || "open",
@@ -191,7 +202,7 @@ const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => 
   category: item.issue_type || titleize(item.category) || "Other",
   description: item.description || item.subject || "-",
   raisedBy: item.raised_by?.name || item.client?.name || item.creator?.name || "-",
-  raisedRole: titleize(item.raised_by?.type) || "Admin",
+  raisedRole: formatRaisedRole(item.raised_by?.type),
   raisedDate: formatDate(item.created_at),
   disputedAmount: formatCurrency(item.disputed_amount),
   payoutHold: formatCurrency(item.impacted_payout_amount ?? item.payout_hold_amount),
@@ -201,6 +212,8 @@ const mapDisputeItem = (item: AdminFinanceDisputeApiRow): DisputeHistoryItem => 
 const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetailsRecord => {
   const row = mapDisputeItem(item);
   const status = inferRejectedFromResolution(item) ? "Rejected" : row.status;
+  const isCreatorDispute = String(item.raised_by?.type || "").toLowerCase() === "creator";
+  const cpCompensation = item.cp_compensation || null;
   const payoutHoldAmount = parseMoneyValue(row.payoutHold);
   const timeline = (item.timeline || []).map((event) => ({
     id: event.id,
@@ -221,6 +234,7 @@ const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetai
     ...row,
     status,
     createdAt: formatDate(item.created_at),
+    hideImpactedPayout: isCreatorDispute,
     payoutNote: payoutHoldAmount > 0
       ? status === "Resolved" ? "Hold released after resolution" : status === "Rejected" ? "Hold reviewed with dispute" : "On hold until resolved"
       : "No payout currently impacted",
@@ -239,13 +253,22 @@ const mapDisputeDetails = (item: AdminFinanceDisputeDetailsApiRow): DisputeDetai
     })),
     attachments,
     resolutionProofs: attachments.filter((attachment) => isProofAttachmentType(attachment.attachmentType)),
+    compensationSummary: isCreatorDispute ? {
+      label: "CP Compensation",
+      details: [
+        { label: "Creative Partner", value: item.creator?.name || item.raised_by?.name || "-" },
+        { label: "Creator Earning ID", value: cpCompensation?.creator_earning_id ? `CE-${cpCompensation.creator_earning_id}` : "-" },
+        { label: "Total Compensation", value: formatCurrency(cpCompensation?.total_compensation ?? item.disputed_amount) },
+        { label: "Paid To CP", value: formatCurrency(cpCompensation?.paid_amount) },
+        { label: "Remaining Balance", value: formatCurrency(cpCompensation?.remaining_balance) },
+      ],
+    } : null,
     resolutionSummary: buildResolutionSummary(item, status),
   };
 };
 
 export default function AdminDisputesPage() {
   const pathname = usePathname();
-  const { canCreate } = usePermissions("finances");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("open");
@@ -488,7 +511,9 @@ export default function AdminDisputesPage() {
     setActionLoading("resolve");
     try {
       const apiResolutionType =
-        resolutionFormData?.resolutionType === "credits"
+        disputeToResolve.raisedRole === "CP"
+          ? "payout_adjustment"
+          : resolutionFormData?.resolutionType === "credits"
           ? "credit_compensation"
           : resolutionFormData?.resolutionType === "manual"
             ? resolutionFormData.amountType === "partial" ? "partial_refund" : "refund"
@@ -632,6 +657,28 @@ export default function AdminDisputesPage() {
           onRangeChange={setMetricRange}
         />
 
+        <div className={`inline-flex w-full gap-1 rounded-lg border p-1 sm:w-fit ${isDark ? "border-white/10 bg-[#101010]" : "border-black/10 bg-white"}`}>
+          {disputeOriginTabs.map((tab) => {
+            const isActive = typeFilter === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setTypeFilter(tab.value)}
+                className={`h-10 flex-1 rounded-md px-4 text-sm font-medium transition-colors sm:flex-none ${
+                  isActive
+                    ? "bg-[#E8D1AB] text-black"
+                    : isDark
+                      ? "text-white/65 hover:bg-white/5 hover:text-white"
+                      : "text-black/60 hover:bg-black/5 hover:text-black"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         <DisputeHistoryList
           items={filteredItems}
           loading={loading}
@@ -684,9 +731,15 @@ export default function AdminDisputesPage() {
         disputeData={disputeToResolve ? {
           disputeId: disputeToResolve.id,
           shootId: disputeToResolve.shootId,
-          amount: disputeToResolve.disputedAmount,
+          amount: disputeToResolve.raisedRole === "CP"
+            ? (() => {
+                const remainingValue = disputeToResolve.compensationSummary?.details.find((item) => item.label === "Remaining Balance")?.value;
+                return parseMoneyValue(remainingValue) > 0 ? remainingValue : disputeToResolve.disputedAmount;
+              })()
+            : disputeToResolve.disputedAmount,
           recipient: disputeToResolve.raisedBy,
         } : null}
+        creatorDispute={disputeToResolve?.raisedRole === "CP"}
         onClose={() => setResolveModalOpen(false)}
         onSubmit={handleResolveModalSubmit}
       />

@@ -658,7 +658,7 @@ export default function AdminFinancesPage() {
     }
   };
 
-  const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+  const handleAdvanceSubmit = async (payload: { reason: string; advanceAmount: string; paymentDate: Date | null; proofFile?: File | null }) => {
     if (!canEdit) {
       toast.error("Edit permission not allowed");
       return;
@@ -671,13 +671,32 @@ export default function AdminFinancesPage() {
         toast.error("Select a compensation record and enter a valid advance amount");
         return;
       }
-      await cpCompensationApi.addAdvance(earningId, {
+      if (!payload.proofFile) {
+        toast.error("Upload payment proof before saving an advance payment");
+        return;
+      }
+      const bookingId = selectedRow?.bookingId || (selectedRow?.id ? Number(selectedRow.id) : null);
+      const uploadedProof = await cpCompensationApi.uploadPaymentProof(payload.proofFile, { bookingId, earningId });
+      await cpCompensationApi.processPayment(earningId, {
         amount,
-        payment_date: payload.paymentDate ? formatDateForApi(payload.paymentDate) : undefined,
+        payment_method: "outside_platform",
+        payment_mode: "advance_payment",
+        proof_url: uploadedProof?.proof_url || uploadedProof?.file_path || payload.proofFile.name,
+        proof_file_path: uploadedProof?.file_path || undefined,
+        proof_file_name: payload.proofFile.name,
+        transaction_reference: `ADV-${earningId}-${Date.now()}`,
         notes: payload.reason,
+        payment_scope: "advance",
+        payment_date: payload.paymentDate ? formatDateForApi(payload.paymentDate) : undefined,
       });
       setIsAdvanceOpen(false);
       await loadHistory(dataType);
+      if (selectedRow?.bookingId || selectedRow?.id) {
+        const bookingId = selectedRow.bookingId || Number(selectedRow.id);
+        if (bookingId) {
+          setDetails(await cpCompensationApi.details(bookingId));
+        }
+      }
       setSuccessTitle("Advance Added Successfully");
       setSuccessSubtext("The advance payment record has been added.");
       setSuccessButtonText("");
@@ -841,6 +860,7 @@ export default function AdminFinancesPage() {
           shoots={pendingShoots}
           loading={pendingShootsLoading}
           isSubmitting={isAddSubmitting}
+          enableAdvanceProofUpload
           onSubmit={handleAddSubmit}
         />
 
@@ -907,6 +927,8 @@ export default function AdminFinancesPage() {
           onClose={() => setIsAdvanceOpen(false)}
           rowContext={selectedRow}
           isSubmitting={isModifySubmitting}
+          showProofUpload
+          requireProofUpload
           onSubmit={handleAdvanceSubmit}
         />
       </div>

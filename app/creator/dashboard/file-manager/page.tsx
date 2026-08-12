@@ -24,6 +24,7 @@ import ShareResourceModal from "@/components/admin/file-manager/ShareResourceMod
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
+import { CheckVerificationStatus } from "@/lib/api";
 import {
   fileManagerApi,
   isCommonEventWorkspaceId,
@@ -39,10 +40,17 @@ import {
   getFileManagerRouteStateKey,
   setFileManagerRouteState,
 } from "@/lib/fileManagerRouteState";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 
 export default function CreatorFileManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const { data: onboardingStatus, isLoading: isOnboardingStatusLoading } = useGetOnboardingStatusQuery(undefined, {
+    skip: !isCreatorUser,
+  });
   const routeStateKey = getFileManagerRouteStateKey(pathname);
   const [selectedTab, setSelectedTab] = useState("All Files");
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,7 +78,48 @@ export default function CreatorFileManagerPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [routeStateReady, setRouteStateReady] = useState(false);
+  const [isAccessAllowed, setIsAccessAllowed] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const hasSkippedInitialFilterResetRef = React.useRef(false);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!onboardingStatus) return;
+
+      const userStr = typeof window !== "undefined" ? localStorage.getItem("revure_user") : null;
+      const localUser = userStr ? JSON.parse(userStr) : null;
+      const crewId = (user as any)?.crew_member_id || localUser?.crew_member_id;
+      const registrationComplete =
+        onboardingStatus.is_registration_complete === 1 ||
+        onboardingStatus.onboardingMissingDetail === false;
+
+      if (!crewId || !registrationComplete) {
+        setIsAccessAllowed(false);
+        setIsCheckingAccess(false);
+        router.replace("/creator/dashboard");
+        return;
+      }
+
+      try {
+        const response = await CheckVerificationStatus({ crew_member_id: crewId });
+        const verified = response && !response?.error && Number(response.data?.data?.is_crew_verified) === 1;
+
+        setIsAccessAllowed(verified);
+        if (!verified) {
+          router.replace("/creator/dashboard");
+        }
+      } catch (error) {
+        console.error("File manager access check failed:", error);
+        setIsAccessAllowed(false);
+        router.replace("/creator/dashboard");
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    if (isOnboardingStatusLoading) return;
+    checkAccess();
+  }, [isOnboardingStatusLoading, onboardingStatus, router, user]);
 
   useEffect(() => {
     const savedState = getFileManagerRouteState(routeStateKey);
@@ -112,6 +161,8 @@ export default function CreatorFileManagerPage() {
   ];
 
   const loadProjects = async () => {
+    if (!isAccessAllowed) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -137,11 +188,13 @@ export default function CreatorFileManagerPage() {
       await loadProjects();
     };
 
-    load();
+    if (isAccessAllowed) {
+      load();
+    }
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isAccessAllowed]);
 
   const filteredFolders = useMemo(() => {
     let items = [...projects];
@@ -239,11 +292,31 @@ export default function CreatorFileManagerPage() {
     setIsOpen(false);
   };
 
+  if (isCheckingAccess || isOnboardingStatusLoading || !isAccessAllowed) {
+    return (
+      <>
+        <Topbar pathname={pathname} />
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#E8D1AB]" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="overflow-x-hidden overflow-y-auto p-4 pb-20 lg:px-10 lg:py-9">
+<div 
+  className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
+    ${isDark 
+      ? `bg-[#0A0A0A] 
+         border border-[#E8D1AB]/30 
+         shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
+      : "bg-white border-zinc-200 shadow-sm"
+    }`}
+>
+    <div className="p-8 lg:p-12 space-y-6 lg:space-y-10 pb-20">
+
         <div className="mb-3 flex items-center justify-between lg:mb-6">
           <div className="text-white">
             <h1 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>File Manager</h1>
@@ -501,6 +574,7 @@ export default function CreatorFileManagerPage() {
               </div>
             </div>
           )}
+        </div>
         </div>
 
         {menuAnchor && (

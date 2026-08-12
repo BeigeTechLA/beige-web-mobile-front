@@ -4,14 +4,13 @@ import type {
   User,
   LoginCredentials,
   LoginResponse,
+  GoogleClientAuthData,
   RegisterData,
   RegisterResponse,
   QuickRegisterData,
   VerifyEmailData,
-  CreatorRegistrationStep1Data,
   CreatorRegistrationStep1Response,
   CreatorRegistrationStep2Data,
-  CreatorRegistrationStep3Data,
 } from '@/lib/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5001/v1/';
@@ -37,6 +36,16 @@ export const authApi = createApi({
         body: credentials,
       }),
       // Backend returns { message, token, user } directly
+      transformResponse: (response: LoginResponse) => response,
+    }),
+
+    // Login or sign up a client with a verified Google ID token
+    googleClientAuth: builder.mutation<LoginResponse, GoogleClientAuthData>({
+      query: (data) => ({
+        url: 'auth/google',
+        method: 'POST',
+        body: data,
+      }),
       transformResponse: (response: LoginResponse) => response,
     }),
 
@@ -79,7 +88,7 @@ export const authApi = createApi({
     }),
 
     // Verify email with verification code
-    verifyEmail: builder.mutation<{ success: boolean; message: string; token?: string; user?: any }, VerifyEmailData>({
+    verifyEmail: builder.mutation<{ success: boolean; message: string; token?: string; user?: unknown }, VerifyEmailData>({
       query: (data) => ({
         url: 'auth/verify-email',
         method: 'POST',
@@ -136,7 +145,7 @@ export const authApi = createApi({
     }),
 
     // Change password for Client (Special Endpoint)
-    changePasswordClient: builder.mutation<{ message: string }, { clientId: number; currentPassword: string; newPassword: string }>({
+    changePasswordClient: builder.mutation<{ message: string; has_password?: boolean }, { clientId?: number; user_id?: number; currentPassword?: string; newPassword: string }>({
       query: (data) => ({
         url: 'auth/change-password-client',
         method: 'POST',
@@ -176,11 +185,29 @@ export const authApi = createApi({
       query: (crewMemberId) => `auth/crew-member/${crewMemberId}`,
       transformResponse: (response: { error: boolean; data: { step1: unknown; step2: unknown; step3: unknown } }) => response.data,
     }),
+    getOnboardingStatus: builder.query<{
+      onboardingMissingDetail: boolean;
+      is_registration_complete: number;
+      completed_count: number;
+      total_required: number;
+      missing_count: number;
+      progress_percent: number;
+      missing_fields: string[];
+      required_groups: Array<{
+        key: string;
+        label: string;
+        total: number;
+        completed: number;
+      }>;
+    }, void>({
+      query: () => 'auth/onboarding-status',
+    }),
   }),
 });
 
 export const {
   useLoginMutation,
+  useGoogleClientAuthMutation,
   useRegisterMutation,
   useQuickRegisterMutation,
   useSendOTPMutation,
@@ -197,4 +224,5 @@ export const {
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
   useGetCrewMemberDetailsQuery,
+  useGetOnboardingStatusQuery,
 } = authApi;

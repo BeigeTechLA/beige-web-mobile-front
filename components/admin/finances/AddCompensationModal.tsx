@@ -5,7 +5,7 @@ import { Check, ChevronDown, TrendingUp, Minus, Plus, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { cpCompensationApi, normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import AdvancePaymentModal from "./AdvancePaymentModal";
 
 interface AddCompensationModalProps {
@@ -15,6 +15,7 @@ interface AddCompensationModalProps {
   loading?: boolean;
   isSubmitting?: boolean;
   onSubmit: (payload: AddCpCompensationPayload) => Promise<void>;
+  enableAdvanceProofUpload?: boolean;
 }
 
 type TabType = "equal" | "role" | "manual";
@@ -34,6 +35,7 @@ type CreatorFormState = {
   advanceAmount: string;
   advancePaymentDate: string;
   advanceNotes: string;
+  advanceProofFile: File | null;
 };
 
 const methodToApi = (method: TabType): AddCpCompensationPayload["compensation_method"] => {
@@ -223,6 +225,7 @@ const getCreatorFormDefaults = (creatorHourlyRate = "", baseTarget = "0"): Creat
   advanceAmount: "",
   advancePaymentDate: "",
   advanceNotes: "",
+  advanceProofFile: null,
 });
 
 export default function AddCompensationModal({
@@ -231,7 +234,8 @@ export default function AddCompensationModal({
   shoots,
   loading = false,
   isSubmitting = false,
-  onSubmit
+  onSubmit,
+  enableAdvanceProofUpload = false
 }: AddCompensationModalProps) {
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
@@ -328,6 +332,7 @@ export default function AddCompensationModal({
         advanceAmount: current.advanceAmount || "",
         advancePaymentDate: current.advancePaymentDate || "",
         advanceNotes: current.advanceNotes || "",
+        advanceProofFile: current.advanceProofFile || null,
       };
 
       acc[id] = nextForm;
@@ -525,7 +530,7 @@ export default function AddCompensationModal({
   const activeAdvanceTotal = advanceCreatorId ? getCreatorTotal(advanceCreatorId) : 0;
   const activeAdvanceDate = parseLocalDate(activeAdvanceForm?.advancePaymentDate);
 
-  const handleAdvanceSubmit = (payload: { reason: string; advanceAmount: string; paymentDate: Date | null }) => {
+  const handleAdvanceSubmit = (payload: { reason: string; advanceAmount: string; paymentDate: Date | null; proofFile?: File | null }) => {
     if (!advanceCreatorId) return;
 
     setCreatorForms((prev) => ({
@@ -535,6 +540,7 @@ export default function AddCompensationModal({
         advanceAmount: normalizeMoneyInput(payload.advanceAmount),
         advancePaymentDate: payload.paymentDate ? formatLocalDateForApi(payload.paymentDate) : "",
         advanceNotes: payload.reason,
+        advanceProofFile: enableAdvanceProofUpload ? payload.proofFile || null : null,
       },
     }));
     setAdvanceCreatorId(null);
@@ -548,6 +554,7 @@ export default function AddCompensationModal({
         advanceAmount: "",
         advancePaymentDate: "",
         advanceNotes: "",
+        advanceProofFile: null,
       },
     }));
   };
@@ -579,7 +586,7 @@ export default function AddCompensationModal({
   const handleFormSubmit = async () => {
     if (!currentShoot) return;
 
-    const creators = selectedCreators.map((creatorId) => {
+    const creators = await Promise.all(selectedCreators.map(async (creatorId) => {
       const form = creatorForms[creatorId] || {
         baseTarget: "0",
         base: "0",
@@ -595,9 +602,17 @@ export default function AddCompensationModal({
         advanceAmount: "",
         advancePaymentDate: "",
         advanceNotes: "",
+        advanceProofFile: null,
       };
       const breakdown = getCreatorBreakdownForForm(form, form.rateType);
       const advanceAmount = parseAmount(form.advanceAmount || "0");
+      const uploadedProof = enableAdvanceProofUpload && advanceAmount > 0 && form.advanceProofFile
+        ? await cpCompensationApi.uploadPaymentProof(form.advanceProofFile, {
+            bookingId: currentShoot.booking_id,
+            earningId: creatorId,
+          })
+        : null;
+
       return {
         creator_id: Number(creatorId),
         rate_type: form.rateType,
@@ -614,11 +629,16 @@ export default function AddCompensationModal({
                 amount: advanceAmount,
                 payment_date: form.advancePaymentDate || undefined,
                 notes: form.advanceNotes || undefined,
+                proof_url: uploadedProof?.proof_url || uploadedProof?.file_path || undefined,
+                proof_file_path: uploadedProof?.file_path || undefined,
+                proof_file_name: form.advanceProofFile?.name || undefined,
+                payment_mode: uploadedProof ? "advance_payment" : undefined,
+                transaction_reference: uploadedProof ? `ADV-${creatorId}-${Date.now()}` : undefined,
               },
             }
           : {}),
       };
-    });
+    }));
 
     await onSubmit({
       booking_id: currentShoot.booking_id,
@@ -807,6 +827,7 @@ export default function AddCompensationModal({
                     advanceAmount: "",
                     advancePaymentDate: "",
                     advanceNotes: "",
+                    advanceProofFile: null,
                   };
 
                   return (
@@ -1116,6 +1137,8 @@ export default function AddCompensationModal({
         initialAdvanceAmount={activeAdvanceForm?.advanceAmount || null}
         initialPaymentDate={activeAdvanceDate}
         initialNotes={activeAdvanceForm?.advanceNotes || null}
+        showProofUpload={enableAdvanceProofUpload}
+        requireProofUpload={enableAdvanceProofUpload}
         onSubmit={handleAdvanceSubmit}
       />
     </div>

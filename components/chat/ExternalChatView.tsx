@@ -134,6 +134,7 @@ const normalizeParticipantItem = (
 
 const buildParticipantStateFromRoom = (room: ExternalChatRoom | null) => ({
   client: room?.client_snapshot || room?.client_id || null,
+  clients: room?.client_ids || [],
   cps: room?.cp_ids || [],
   pm: room?.pm_id || null,
   production: room?.production_ids || [],
@@ -198,6 +199,7 @@ const getRoomParticipantCount = (room?: ExternalChatRoom | null) => {
 
   const rawParticipants = [
     room.client_snapshot || room.client_id,
+    ...(room.client_ids || []),
     room.pm_id,
     ...(room.manager_ids || []),
     ...(room.cp_ids || []),
@@ -228,6 +230,7 @@ const getRoomParticipantSummary = (room?: ExternalChatRoom | null, currentUserId
 
   const roomParticipants = [
     normalizeParticipantItem(room.client_snapshot || room.client_id),
+    ...(room.client_ids || []).map((item) => normalizeParticipantItem(item)),
     normalizeParticipantItem(room.pm_id),
     ...(room.manager_ids || []).map((item) => normalizeParticipantItem(item)),
     ...(room.cp_ids || []).map((item) => normalizeParticipantItem(item)),
@@ -616,7 +619,10 @@ const roomMatchesRoleUser = (room: ExternalChatRoom, appUser: any, role: RoleVar
   if (role === "admin") return true;
   if (role === "sales") return roomMatchesSalesUser(room, appUser);
   if (role === "client") {
-    return participantMatchesAppUser(room.client_snapshot || room.client_id, appUser);
+    return (
+      participantMatchesAppUser(room.client_snapshot || room.client_id, appUser) ||
+      (room.client_ids || []).some((participant) => participantMatchesAppUser(participant, appUser))
+    );
   }
   if (role === "cp") {
     return (room.cp_ids || []).some((participant) => participantMatchesAppUser(participant, appUser));
@@ -702,6 +708,44 @@ export interface ExternalChatViewRef {
   triggerComposerOpen: () => void;
 }
 
+const RoomListSkeleton = ({ isDark = true, count = 6 }: { isDark?: boolean; count?: number }) => (
+  <div className="space-y-3">
+    {Array.from({ length: count }).map((_, index) => (
+      <div
+        key={`room-skeleton-${index}`}
+        className={`rounded-xl lg:rounded-2xl px-3 py-4 ${isDark ? "bg-[#171717]" : "bg-white"}`}
+      >
+        <div className="flex items-start gap-2 lg:gap-4">
+          <div className={`h-11 w-11 lg:h-16 lg:w-16 shrink-0 rounded-full animate-pulse ${isDark ? "bg-white/10" : "bg-zinc-200"}`} />
+          <div className="min-w-0 flex-1 space-y-3 pt-1">
+            <div className={`h-4 w-2/3 rounded-full animate-pulse ${isDark ? "bg-white/12" : "bg-zinc-200"}`} />
+            <div className={`h-3 w-full rounded-full animate-pulse ${isDark ? "bg-white/8" : "bg-zinc-100"}`} />
+            <div className={`h-3 w-1/2 rounded-full animate-pulse ${isDark ? "bg-white/8" : "bg-zinc-100"}`} />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const MessageThreadSkeleton = ({ isDark = true }: { isDark?: boolean }) => (
+  <div className="space-y-5">
+    {[0, 1, 2, 3].map((item) => {
+      const isOwn = item % 2 === 1;
+      return (
+        <div key={`message-skeleton-${item}`} className={`flex items-end gap-3 ${isOwn ? "justify-end" : "justify-start"}`}>
+          {!isOwn ? <div className={`h-10 w-10 rounded-full animate-pulse ${isDark ? "bg-white/10" : "bg-zinc-200"}`} /> : null}
+          <div className={`w-[68%] max-w-[520px] rounded-3xl px-4 py-3 ${isDark ? "bg-[#191919]" : "bg-white border border-zinc-200"}`}>
+            <div className={`mb-3 h-3 w-28 rounded-full animate-pulse ${isDark ? "bg-white/12" : "bg-zinc-200"}`} />
+            <div className={`h-4 w-full rounded-full animate-pulse ${isDark ? "bg-white/10" : "bg-zinc-100"}`} />
+            <div className={`mt-2 h-4 w-3/5 rounded-full animate-pulse ${isDark ? "bg-white/8" : "bg-zinc-100"}`} />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
 export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatViewProps>((
   {
     role,
@@ -730,6 +774,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [messages, setMessages] = useState<ExternalChatMessage[]>([]);
   const [participants, setParticipants] = useState<{
     client?: ExternalChatUser | null;
+    clients?: ExternalChatParticipantItem[];
     cps?: ExternalChatParticipantItem[];
     pm?: ExternalChatUser | null;
     production?: ExternalChatParticipantItem[];
@@ -744,6 +789,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [activating, setActivating] = useState(false);
   const [loadingRoomData, setLoadingRoomData] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
   const [sending, setSending] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isManageOpen, setIsManageOpen] = useState(false);
@@ -780,6 +827,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const roomsRef = useRef<ExternalChatRoom[]>([]);
   const selectedRoomRef = useRef<ExternalChatRoom | null>(null);
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
+  const roomListRequestRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
@@ -798,9 +846,19 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
     const isLocalBrowser = typeof window !== "undefined" && /^localhost$|^127\.0\.0\.1$/i.test(window.location.hostname);
     const isLocalApi = /localhost:5001|127\.0\.0\.1:5001/i.test(apiEndpoint);
+    const isProductionApi = /(^|\/\/)revure-api\.beige\.app(\/|$)/i.test(apiEndpoint);
+    const isDevApi = /(^|\/\/)api\.dev\.beige\.app(\/|$)/i.test(apiEndpoint);
 
     if (isLocalBrowser && isLocalApi) {
       return "http://localhost:5002";
+    }
+
+    if (isProductionApi) {
+      return "https://api2.prod.beige.app";
+    }
+
+    if (isDevApi) {
+      return "https://api2.dev.beige.app";
     }
 
     const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
@@ -832,10 +890,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     const managerUsers = (participants.managers || []).map((item) => normalizeParticipantItem(item)).filter(Boolean);
     const cpUsers = (participants.cps || []).map((item) => normalizeParticipantItem(item)).filter(Boolean);
     const productionUsers = (participants.production || []).map((item) => normalizeParticipantItem(item)).filter(Boolean);
+    const extraClientUsers = (participants.clients || []).map((item) => normalizeParticipantItem(item)).filter(Boolean);
     const pmUser = normalizeUser(participants.pm);
     const clientUser = normalizeUser(participants.client);
 
-    return [clientUser, pmUser, ...managerUsers, ...cpUsers, ...productionUsers].filter(
+    return [clientUser, ...extraClientUsers, pmUser, ...managerUsers, ...cpUsers, ...productionUsers].filter(
       (item, index, array) =>
         item &&
         !(
@@ -876,26 +935,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       return roomSortOrder === "latest" ? right - left : left - right;
     });
 
-    if (!search.trim()) return sortedRooms;
-    const query = search.trim().toLowerCase();
-    return sortedRooms.filter((room) =>
-      [getRoomDisplayName(room), room.name, room.chat_id, room.last_message?.message]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [scopedRooms, search, roomSortOrder]);
+    return sortedRooms;
+  }, [scopedRooms, roomSortOrder]);
 
   const visibleMessages = useMemo(() => {
-    const query = threadSearch.trim().toLowerCase();
-    if (!query) return messages;
-
-    return messages.filter((message) => {
-      const sender = normalizeUser(message.sent_by);
-      return [getMessageText(message), sender?.name, sender?.email]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
-  }, [messages, threadSearch]);
+    return messages;
+  }, [messages]);
 
   const memberIds = participantList.map((participant) => String(participant.id || ""));
   const participantCount = participantList.length;
@@ -1015,6 +1060,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
             : item
         )
       );
+      const refreshedSelectedRoom = roomList.find((item) => getRoomId(item) === activeSelectedRoomId) || null;
+      if (refreshedSelectedRoom) {
+        setSelectedRoom(refreshedSelectedRoom);
+        selectedRoomRef.current = refreshedSelectedRoom;
+      }
       if (activeSelectedRoomId && !roomList.some((item) => getRoomId(item) === activeSelectedRoomId)) {
         clearSelectedConversation("You no longer have access to this conversation.");
       }
@@ -1026,6 +1076,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       page: 1,
       limit: refreshLimit,
       sortBy: "updatedAt:desc",
+      search: debouncedSearch || undefined,
     });
     setRoomListPage(Math.max(1, Math.ceil(roomListResult.rooms.length / ROOM_LIST_PAGE_SIZE)));
     setRoomListHasMore(roomListResult.hasMore);
@@ -1080,6 +1131,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       return next;
     });
     setRooms(mergedRooms);
+    const refreshedSelectedRoom = mergedRooms.find((item) => getRoomId(item) === activeSelectedRoomId) || null;
+    if (refreshedSelectedRoom) {
+      setSelectedRoom(refreshedSelectedRoom);
+      selectedRoomRef.current = refreshedSelectedRoom;
+    }
     if (activeSelectedRoomId && !mergedRooms.some((item) => getRoomId(item) === activeSelectedRoomId)) {
       clearSelectedConversation("You no longer have access to this conversation.");
     }
@@ -1142,7 +1198,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
   const loadRoomDetails = async (
     room: ExternalChatRoom | null,
-    options?: { silent?: boolean; preserveRoomUnread?: boolean }
+    options?: { silent?: boolean; preserveRoomUnread?: boolean; showLoader?: boolean }
   ) => {
     const roomId = getRoomId(room);
     const previousSelectedRoomId = getRoomId(selectedRoom);
@@ -1194,14 +1250,30 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setPendingInitialScroll(shouldStartAtBottom ? "bottom" : "unread");
     }
 
-    if (!options?.silent) {
+    if (!options?.silent || options?.showLoader) {
       setLoadingRoomData(true);
     }
     try {
       const [messageData, participantData] = await Promise.all([
-        externalChatApi.getMessages(roomId, { page: 1, limit: 100, sortBy: "createdAt:asc" }),
+        externalChatApi.getMessages(roomId, {
+          page: 1,
+          limit: 100,
+          sortBy: "createdAt:asc",
+          search: debouncedThreadSearch || undefined,
+        }),
         externalChatApi.getParticipants(roomId),
       ]);
+      const refreshedRoom: ExternalChatRoom = {
+        ...(roomWithClearedUnread || {}),
+        client_id: participantData?.client || room?.client_snapshot || room?.client_id || null,
+        client_ids: (participantData?.clients && participantData.clients.length ? participantData.clients : room?.client_ids) || [],
+        cp_ids: (participantData?.cps && participantData.cps.length ? participantData.cps : room?.cp_ids) || [],
+        pm_id: participantData?.pm || room?.pm_id || null,
+        production_ids:
+          (participantData?.production && participantData.production.length ? participantData.production : room?.production_ids) || [],
+        manager_ids:
+          (participantData?.managers && participantData.managers.length ? participantData.managers : room?.manager_ids) || [],
+      };
       const sortedMessages = sortMessagesAsc(messageData);
       const existingMessages = isSwitchingRooms ? [] : messagesRef.current;
       const knownMessageIds = new Set(existingMessages.map((item) => getMessageId(item)).filter(Boolean));
@@ -1213,7 +1285,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           : 0;
 
       setMessages(sortedMessages);
-      syncRoomSnapshot(roomWithClearedUnread, sortedMessages);
+      setSelectedRoom(refreshedRoom);
+      selectedRoomRef.current = refreshedRoom;
+      syncRoomSnapshot(refreshedRoom, sortedMessages);
       const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
       await externalChatApi.markRoomAsRead(roomId, currentSender).catch(() => undefined);
       if (latestSeenTimestamp) {
@@ -1243,15 +1317,16 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         setActiveThreadUnreadCount((current) => current + incomingUnreadCount);
       }
       setParticipants({
-        ...buildParticipantStateFromRoom(room),
+        ...buildParticipantStateFromRoom(refreshedRoom),
         ...participantData,
-        client: participantData?.client || room?.client_snapshot || room?.client_id || null,
-        cps: (participantData?.cps && participantData.cps.length ? participantData.cps : room?.cp_ids) || [],
-        pm: participantData?.pm || room?.pm_id || null,
+        client: refreshedRoom.client_id || null,
+        clients: refreshedRoom.client_ids || [],
+        cps: refreshedRoom.cp_ids || [],
+        pm: refreshedRoom.pm_id || null,
         production:
-          (participantData?.production && participantData.production.length ? participantData.production : room?.production_ids) || [],
+          refreshedRoom.production_ids || [],
         managers:
-          (participantData?.managers && participantData.managers.length ? participantData.managers : room?.manager_ids) || [],
+          refreshedRoom.manager_ids || [],
       });
     } catch (err: any) {
       if (err?.status === 403 || err?.status === 404) {
@@ -1265,7 +1340,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         toast.error(err?.message || "Failed to load chat room details");
       }
     } finally {
-      if (!options?.silent) {
+      if (!options?.silent || options?.showLoader) {
         setLoadingRoomData(false);
       }
     }
@@ -1322,6 +1397,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   });
 
   const loadRooms = async () => {
+    const requestId = roomListRequestRef.current + 1;
+    roomListRequestRef.current = requestId;
     setLoading(true);
     setLoadingMoreRooms(false);
     setRoomListPage(1);
@@ -1330,6 +1407,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       if (bookingId) {
         const room = await externalChatApi.getRoomByBooking(bookingId);
         const roomList = room ? await hydrateRoomPreviews([room]) : [];
+        if (requestId !== roomListRequestRef.current) return;
         roomList.forEach((item) => {
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
@@ -1345,8 +1423,10 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           page: 1,
           limit: ROOM_LIST_PAGE_SIZE,
           sortBy: "updatedAt:desc",
+          search: debouncedSearch || undefined,
         });
         const hydratedRooms = await hydrateRoomPreviews(roomListResult.rooms);
+        if (requestId !== roomListRequestRef.current) return;
         hydratedRooms.forEach((item) => {
           roomActivityRef.current[getRoomId(item)] = getRoomActivityTimestamp(item);
         });
@@ -1357,6 +1437,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         clearSelectedConversation();
       }
     } catch (err: any) {
+      if (requestId !== roomListRequestRef.current) return;
       if (bookingId && (err?.status === 404 || err?.response?.status === 404)) {
         setRooms([]);
         onRoomAvailabilityChange?.(false);
@@ -1365,7 +1446,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       }
       toast.error(err?.message || "Failed to load chat rooms");
     } finally {
-      setLoading(false);
+      if (requestId === roomListRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1378,6 +1461,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         page: roomListPage + 1,
         limit: ROOM_LIST_PAGE_SIZE,
         sortBy: "updatedAt:desc",
+        search: debouncedSearch || undefined,
       });
       const hydratedRooms = await hydrateRoomPreviews(roomListResult.rooms);
       hydratedRooms.forEach((item) => {
@@ -1427,8 +1511,29 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   }, [userId]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedThreadSearch(threadSearch.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [threadSearch]);
+
+  useEffect(() => {
     loadRooms();
-  }, [bookingId, shouldUseDirectRoom, role]);
+  }, [bookingId, shouldUseDirectRoom, role, debouncedSearch]);
+
+  useEffect(() => {
+    if (!selectedRoom) return;
+    loadRoomDetails(selectedRoom, { silent: true, preserveRoomUnread: true, showLoader: true });
+  }, [debouncedThreadSearch]);
 
   useEffect(() => {
     selectedRoomRef.current = selectedRoom;
@@ -2028,15 +2133,45 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                   onScroll={handleRoomListScroll}
                   className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  {loading ? (
-                    <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
-                      <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+                  <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
+                    <div className="relative flex-1 min-w-0">
+                      <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white" : "text-black/80"}`} />
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search Conversation"
+                        className={`h-10  w-full rounded-full border-0 pl-12 pr-4 text-sm lg:text-base transition-colors ${isDark
+                          ? "bg-[#202020] text-white placeholder:text-white/50"
+                          : "bg-[#F0F0F0] text-black placeholder:text-black/50"
+                          }`}
+                      />
                     </div>
+                    {isAdminView && !bookingId ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!canCreateMessageRoom) return;
+                          setIsComposerOpen(true);
+                        }}
+                        disabled={!canCreateMessageRoom}
+                        title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-[#E8D1AB] text-black hover:bg-[#d8c49e]`}
+                      >
+                        <Plus size={24} />
+                      </button>
+                    ) : null}
+                  </div>
+                  {loading ? (
+                    <RoomListSkeleton isDark={isDark} />
                   ) : filteredRooms.length === 0 ? (
                     <div className={`rounded-3xl border border-dashed p-3 lg:p-5 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-[#F9F9F9]"}`}>
-                      <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>No active conversation yet</p>
+                      <p className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                        {debouncedSearch ? "No conversations found" : "No active conversation yet"}
+                      </p>
                       <p className={`mt-2 text-sm ${isDark ? "text-white/45" : "text-black/50"}`}>
-                        {bookingId ? "This shoot does not have a chat room yet." : "No chat rooms were returned for this view."}
+                        {debouncedSearch
+                          ? "Try a different client name, chat number, or conversation name."
+                          : bookingId ? "This shoot does not have a chat room yet." : "No chat rooms were returned for this view."}
                       </p>
                       {allowActivation && bookingId ? (
                         <Button
@@ -2051,36 +2186,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-                        <div className="relative flex-1 min-w-0">
-                          <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white" : "text-black/80"}`} />
-                          <Input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search Conversation"
-                            className={`h-10  w-full rounded-full border-0 pl-12 pr-4 text-sm lg:text-base transition-colors ${isDark
-                              ? "bg-[#202020] text-white placeholder:text-white/50"
-                              : "bg-[#F0F0F0] text-black placeholder:text-black/50"
-                              }`}
-                          />
-                        </div>
-                        {isAdminView && !bookingId ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!canCreateMessageRoom) return;
-                              setIsComposerOpen(true);
-                            }}
-                            disabled={!canCreateMessageRoom}
-                            title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-[#E8D1AB] text-black hover:bg-[#d8c49e]`}
-                          >
-                            {/* <span className="text-xl lg:text-4xl font-light leading-none -mt-0.5 lg:-mt-1">+</span> */}
-                            <Plus size={24} />
-                          </button>
-                        ) : null}
-                      </div>
-
                       {filteredRooms.map((room) => {
                         const roomId = getRoomId(room);
                         const roomDisplayName = getRoomDisplayName(room);
@@ -2356,22 +2461,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                   className={`min-h-0 h-full overflow-y-auto px-5 py-6 lg:px-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDark ? "bg-[#111111]" : "bg-white"}`}
                 >
                   {isDirectRoomLoading ? (
-                    <div className="flex h-full min-h-[260px] items-center justify-center">
-                      <div className={`flex flex-col items-center gap-3 rounded-3xl border px-8 py-7 ${isDark ? "border-white/10 bg-[#202020]" : "border-zinc-200 bg-white"}`}>
-                        <Loader2 className="h-8 w-8 animate-spin text-[#BFA780]" />
-                        <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                          Loading project chat...
-                        </p>
-                      </div>
+                    <div className="h-full min-h-[260px] py-2">
+                      <MessageThreadSkeleton isDark={isDark} />
                     </div>
                   ) : loadingRoomData ? (
-                    <div className="flex h-full min-h-[260px] items-center justify-center">
-                      <div className={`flex flex-col items-center gap-3 rounded-3xl border px-8 py-7 ${isDark ? "border-white/10 bg-[#202020]" : "border-zinc-200 bg-white"}`}>
-                        <Loader2 className="h-8 w-8 animate-spin text-[#BFA780]" />
-                        <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
-                          Loading messages...
-                        </p>
-                      </div>
+                    <div className="h-full min-h-[260px] py-2">
+                      <MessageThreadSkeleton isDark={isDark} />
                     </div>
                   ) : !selectedRoom ? (
                     <div className="flex h-full items-center justify-center">
@@ -2431,6 +2526,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         });
                         const isSystem = message.message_type === "system";
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
+                        const canDeleteMessage = !message.is_deleted && (isOwn || isAdminView);
                         const isEditing = editingMessageId === messageId;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
@@ -2550,7 +2646,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                     >
                                       <Reply className="h-4 w-4" />
                                     </button>
-                                    {isOwn ? (
+                                    {canDeleteMessage ? (
                                       <div className="relative">
                                         <button
                                           type="button"
@@ -2567,14 +2663,16 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                         </button>
                                         {openMessageMenuId === messageId ? (
                                           <div className={`absolute bottom-[calc(100%+6px)] lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 z-20 min-w-[130px] lg:min-w-[150px] rounded-2xl border p-1.5 lg:p-2 shadow-2xl right-0 lg:right-[calc(100%+8px)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
-                                            <button
-                                              type="button"
-                                              onClick={() => startEditingMessage(message)}
-                                              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm transition ${isDark ? "text-white/80 hover:bg-[#3D3D3D]" : "text-zinc-700 hover:bg-zinc-50"}`}
-                                            >
-                                              <Pencil className="h-4 w-4" />
-                                              Edit
-                                            </button>
+                                            {isOwn ? (
+                                              <button
+                                                type="button"
+                                                onClick={() => startEditingMessage(message)}
+                                                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm transition ${isDark ? "text-white/80 hover:bg-[#3D3D3D]" : "text-zinc-700 hover:bg-zinc-50"}`}
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                                Edit
+                                              </button>
+                                            ) : null}
                                             <button
                                               type="button"
                                               onClick={() => {
@@ -2881,7 +2979,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           canManage={isAdminView}
           currentUserId={userId}
           onAdded={async () => {
-            await loadRoomDetails(selectedRoom);
+            const activeRoom = selectedRoomRef.current || selectedRoom;
+            await loadRoomDetails(activeRoom, { silent: true, preserveRoomUnread: true });
             await refreshRoomListSnapshot();
           }}
           isDark={isDark}

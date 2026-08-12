@@ -34,6 +34,18 @@ interface CreatorFormData {
   socialLinks?: Record<string, string>;
 }
 
+type AuthFlowError = {
+  data?: {
+    message?: string;
+  };
+  message?: string;
+}
+
+const getAuthFlowErrorMessage = (error: unknown, fallback: string) => {
+  const authError = error as AuthFlowError
+  return authError?.data?.message || authError?.message || fallback
+}
+
 export function CreatorSignupFlow() {
   const router = useRouter()
   const { verifyEmail, registerCreatorStep2, registerCreatorStep3 } = useAuth()
@@ -41,9 +53,9 @@ export function CreatorSignupFlow() {
   const [formData, setFormData] = React.useState<CreatorFormData>({})
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const handleBasicInfoSubmit = (data: { crew_member_id: number; email: string }) => {
+  const handleBasicInfoSubmit = (data: { crew_member_id: number; email: string; googleVerified?: boolean }) => {
     setFormData((prev) => ({ ...prev, ...data }))
-    setStep(CreatorStep.VERIFY_EMAIL)
+    setStep(data.googleVerified ? CreatorStep.SPECIALTIES : CreatorStep.VERIFY_EMAIL)
   }
 
   const handleVerifySubmit = async (code: string) => {
@@ -57,9 +69,8 @@ export function CreatorSignupFlow() {
       await verifyEmail({ email: formData.email, verificationCode: code })
       toast.success("Email verified successfully!")
       setStep(CreatorStep.SPECIALTIES)
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Verification failed. Please try again."
-      toast.error(errorMessage)
+    } catch (error: unknown) {
+      toast.error(getAuthFlowErrorMessage(error, "Verification failed. Please try again."))
     } finally {
       setIsSubmitting(false)
     }
@@ -100,9 +111,8 @@ export function CreatorSignupFlow() {
 
       toast.success("Professional details saved!")
       setStep(CreatorStep.PROFILE)
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Failed to save professional details."
-      toast.error(errorMessage)
+    } catch (error: unknown) {
+      toast.error(getAuthFlowErrorMessage(error, "Failed to save professional details."))
     } finally {
       setIsSubmitting(false)
     }
@@ -139,9 +149,8 @@ export function CreatorSignupFlow() {
 
       toast.success("Profile completed! Welcome to Beige!")
       router.push("/login") // Redirect to login to sign in with new credentials
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Failed to complete profile."
-      toast.error(errorMessage)
+    } catch (error: unknown) {
+      toast.error(getAuthFlowErrorMessage(error, "Failed to complete profile."))
     } finally {
       setIsSubmitting(false)
     }

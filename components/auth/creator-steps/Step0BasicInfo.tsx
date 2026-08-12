@@ -7,12 +7,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
+import { useGoogleClientAuthMutation } from "@/lib/redux/features/auth/authApi"
 
 const creatorSignupSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -30,14 +32,28 @@ const creatorSignupSchema = z.object({
 
 type CreatorSignupFormValues = z.infer<typeof creatorSignupSchema>
 
+type AuthStepError = {
+  data?: {
+    message?: string;
+  };
+  message?: string;
+}
+
+const getAuthStepErrorMessage = (error: unknown, fallback: string) => {
+  const authError = error as AuthStepError
+  return authError?.data?.message || authError?.message || fallback
+}
+
 interface Step0BasicInfoProps {
-  onNext: (data: { crew_member_id: number; email: string }) => void;
+  onNext: (data: { crew_member_id: number; email: string; googleVerified?: boolean }) => void;
 }
 
 export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
   const [showPassword, setShowPassword] = React.useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
   const { registerCreatorStep1, isCreatorRegistrationLoading } = useAuth()
+  const [googleCreatorSignup, { isLoading: isGoogleSignupLoading }] = useGoogleClientAuthMutation()
+  const isGoogleConfigured = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
 
   const form = useForm<CreatorSignupFormValues>({
     resolver: zodResolver(creatorSignupSchema),
@@ -75,10 +91,44 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
         crew_member_id: result.crew_member_id,
         email: data.email
       })
-    } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Registration failed. Please try again."
-      toast.error(errorMessage)
+    } catch (error: unknown) {
+      toast.error(getAuthStepErrorMessage(error, "Registration failed. Please try again."))
     }
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    try {
+      if (!credentialResponse.credential) {
+        toast.error("Google did not return a valid credential.")
+        return
+      }
+
+      const result = await googleCreatorSignup({
+        credential: credentialResponse.credential,
+        mode: "signup",
+        account_type: "creator",
+      }).unwrap()
+
+      const crewMemberId = result.crew_member_id || result.user?.crew_member_id
+
+      if (!crewMemberId || !result.user?.email) {
+        toast.error("Google signup started, but creator details were missing. Please contact support.")
+        return
+      }
+
+      toast.success("Google verified. Please complete your creator application.")
+      onNext({
+        crew_member_id: crewMemberId,
+        email: result.user.email,
+        googleVerified: true,
+      })
+    } catch (error: unknown) {
+      toast.error(getAuthStepErrorMessage(error, "Google signup failed. Please try again."))
+    }
+  }
+
+  const handleGoogleError = () => {
+    toast.error("Google signup was cancelled or failed.")
   }
 
   return (
@@ -236,10 +286,31 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
         <Button
           type="submit"
           className="w-full bg-[#E8D1AB] text-black hover:bg-[#DCD1BE] h-9 lg:h-[76px] text-sm md:text-xl font-medium mt-1"
-          disabled={isCreatorRegistrationLoading}
+          disabled={isCreatorRegistrationLoading || isGoogleSignupLoading}
         >
           {isCreatorRegistrationLoading ? "Creating Account..." : "Create Account"}
         </Button>
+
+        {isGoogleConfigured && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-xs text-white/40">
+              <div className="h-px flex-1 bg-white/15" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-white/15" />
+            </div>
+
+            <div className={isGoogleSignupLoading ? "pointer-events-none opacity-60" : ""}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                text="signup_with"
+                theme="filled_black"
+                size="large"
+                width="100%"
+              />
+            </div>
+          </div>
+        )}
       </form>
     </div>
   )
