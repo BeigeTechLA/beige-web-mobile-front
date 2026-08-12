@@ -1,7 +1,7 @@
 "use client";
 
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronUp, GripVertical, Search } from "lucide-react";
 import { shiftManagementApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -32,10 +32,38 @@ export default function RoundRobinConfigurationView({
   const [search, setSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const nextAssignee = rows.find((item: any) => String(item.id) === String(nextAssigneeId)) || rows[0];
-  const visibleRows = useMemo(
+ const visibleRows = useMemo(
     () => rows.filter((item) => item.name.toLowerCase().includes(search.toLowerCase())),
     [rows, search]
   );
+  const dragIdRef = useRef<number | string | null>(null);
+  const [draggingId, setDraggingId] = useState<number | string | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | string | null>(null);
+
+  const moveAssignee = (id: number | string, direction: "up" | "down") => {
+    setRows((prev) => {
+      const i = prev.findIndex((r) => r.id === id);
+      const j = direction === "up" ? i - 1 : i + 1;
+      if (i === -1 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+const reorderByDrag = (draggedId: number | string, targetId: number | string) => {
+    if (draggedId === targetId) return;
+    setRows((prev) => {
+      const fromIndex = prev.findIndex((r) => r.id === draggedId);
+      const toIndex = prev.findIndex((r) => r.id === targetId);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+
+      const next = [...prev];
+      const [movedItem] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, movedItem);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -118,37 +146,90 @@ export default function RoundRobinConfigurationView({
           </div>
 
           <div className="mt-4 space-y-3">
-            {visibleRows.map((assignee, index) => (
+          {visibleRows.map((assignee, index) => {
+            const isDragging = draggingId === assignee.id;
+            const isOver = dragOverId === assignee.id && !isDragging;
+
+            return (
               <div
-                key={assignee.name}
-                className="flex h-[52px] items-center justify-between rounded-lg border border-[#2D2D2D] bg-[#151515] px-4"
+                key={assignee.id}
+                draggable
+                onDragStart={(e) => {
+                  dragIdRef.current = assignee.id;
+                  setDraggingId(assignee.id);
+                  
+                  const img = new Image();
+                  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // 1x1 transparent pixel
+                  e.dataTransfer.setDragImage(img, 0, 0);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragOverId !== assignee.id) setDragOverId(assignee.id);
+                  if (draggingId && draggingId !== assignee.id) {
+                    reorderByDrag(draggingId, assignee.id);
+                  }
+                }}
+                onDragLeave={() => setDragOverId(null)}
+                onDragEnd={() => {
+                  setDraggingId(null);
+                  setDragOverId(null);
+                  dragIdRef.current = null;
+                }}
+                className={`group relative flex h-[58px] items-center justify-between rounded-xl border px-4 transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] cursor-grab active:cursor-grabbing ${
+                  isDragging
+                    ? "border-[#E5D5B8] bg-[#1c1a15] opacity-50 scale-[0.98] z-0" 
+                    : isOver
+                    ? "border-[#E5D5B8] bg-[#242424] -translate-y-1 shadow-[0_10px_20px_rgba(0,0,0,0.4)] z-10"
+                    : "border-[#2D2D2D] bg-[#151515] hover:border-[#E5D5B8]/30"
+                }`}
               >
                 <div className="flex items-center gap-3">
-                  <GripVertical size={16} className="text-white/55" />
-                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
-                    index === 0 ? "bg-[#E5D5B8] text-black" : "bg-[#303030] text-white/55"
+                  <GripVertical 
+                    size={16} 
+                    className={`transition-colors ${isDragging ? "text-[#E5D5B8]" : "text-white/20 group-hover:text-white/50"}`} 
+                  />
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-300 ${
+                    index === 0 ? "bg-[#E5D5B8] text-black scale-110" : "bg-[#303030] text-white/55"
                   }`}>
                     {index + 1}
                   </span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#303030] text-[10px] font-semibold text-white/60">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#222] border border-white/5 text-[10px] font-semibold text-white/80">
                     {assignee.initials}
                   </span>
-                  <span className="text-sm text-white/75">{assignee.name}</span>
+                  <span className={`text-sm font-medium transition-colors ${isDragging ? "text-[#E5D5B8]" : "text-white/90"}`}>
+                    {assignee.name}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {index === 0 ? (
-                    <span className="rounded-full bg-[#E5D5B8] px-3 py-1 text-[10px] font-semibold text-black">
-                      Next
-                    </span>
-                  ) : null}
-                  <div className="flex flex-col text-white/35">
-                    <ChevronUp size={13} />
-                    <ChevronDown size={13} />
+                  {/* DROP INDICATOR LINE */}
+                  {isOver && (
+                    <div className="absolute inset-x-0 -bottom-1 h-0.5 bg-[#E5D5B8] rounded-full shadow-[0_0_8px_#E5D5B8]" />
+                  )}
+
+                  <div className="flex flex-col gap-0.5 text-white/20">
+                    <button
+                      type="button"
+                      onClick={() => moveAssignee(assignee.id, "up")}
+                      disabled={index === 0}
+                      className="rounded p-1 hover:bg-white/10 hover:text-white/70 disabled:opacity-0"
+                    >
+                      <ChevronUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveAssignee(assignee.id, "down")}
+                      disabled={index === visibleRows.length - 1}
+                      className="rounded p-1 hover:bg-white/10 hover:text-white/70 disabled:opacity-0"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       </section>
