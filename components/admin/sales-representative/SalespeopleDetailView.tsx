@@ -21,6 +21,7 @@ import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationMo
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { LeadsStatusBadge, type BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { salesApi, shiftManagementApi } from "@/lib/api";
 import { toast } from "sonner";
@@ -45,6 +46,44 @@ function getInitials(name?: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function firstText(...values: Array<unknown>) {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text && !["n/a", "null", "undefined"].includes(text.toLowerCase())) return text;
+  }
+  return "";
+}
+
+function clientDisplayName(row: any) {
+  return firstText(
+    row?.client_name,
+    row?.name,
+    row?.full_name,
+    row?.client?.name,
+    row?.guest_email,
+    row?.client_email,
+    row?.email_id,
+    row?.email,
+    row?.client?.email
+  ) || "Unknown Client";
+}
+
+function clientEmail(row: any) {
+  return firstText(
+    row?.guest_email,
+    row?.client_email,
+    row?.email_id,
+    row?.email,
+    row?.client?.email
+  ) || "No email";
+}
+
+function cleanParams(params: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+  );
 }
 
 function getTodayDate() {
@@ -211,6 +250,17 @@ const quoteBookingTypeParam: Record<string, string> = {
   "Multi Day": "multi_day",
 };
 
+const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
+  "Signed Up - Lead Created",
+  "Book a shoot - Lead Created",
+  "Manual - Lead Created",
+  "Booking In Progress",
+  "Proposal Sent",
+  "Ready for Payment",
+  "Payment Sent",
+  "Booked",
+  "Closed - Lost",
+];
 
 function Pagination() {
   return (
@@ -354,12 +404,12 @@ export default function SalespeopleDetailView({
   const [filters, setFilters] = useState({
     all: "All",
     lead: "All Lead",
-    status: "Status",
+    status: "All",
     booking: "Booking Type",
     cp: "Creative Partners",
   });
   const statusOptions = activeTab === "booking"
-    ? ["Status", "Booking In Progress", "Book a Shoot - Lead Created", "Booked", "Manual - Lead Created", "Signed Up - Lead Created", "Ready for Payment", "Closed - Lost"]
+    ? ["All", ...BOOKING_STATUS_OPTIONS]
     : ["All Status", "Accepted", "Draft", "Pending", "Rejected", "Sent", "Paid", "Partially Paid", "Expired"];
   const bookingTypeOptions = activeTab === "booking"
     ? ["Booking Type", "Self-Serve", "Sales Assisted", "Manual"]
@@ -370,7 +420,7 @@ export default function SalespeopleDetailView({
     const statuses = Array.from(new Set([...baseStatuses, ...leadRows.map((row) => row.status || "N/A")]));
     return statuses
       .map((status) => ({ status, items: leadRows.filter((row) => (row.status || "N/A") === status) }))
-      .filter((column) => column.items.length > 0 || filters.status === "Status");
+      .filter((column) => column.items.length > 0 || filters.status === "All");
   }, [leadRows, filters.status]);
   const quoteGridColumns = useMemo(() => {
     const baseStatuses = ["Accepted", "Draft", "Pending", "Rejected", "Sent", "Paid", "Partially Paid", "Expired"];
@@ -488,15 +538,15 @@ export default function SalespeopleDetailView({
       if (!repId) return;
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
-        const response = await shiftManagementApi.getSalesRepLeads(repId, {
+        const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
           search: debouncedSearch || undefined,
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
-          status: filters.status === "Status" ? undefined : filters.status,
+          status: filters.status === "All" ? undefined : filters.status,
           date: formatApiDate(dateFilter),
           page: leadPage,
           limit: 10,
-        });
+        }));
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
         const filteredList = filters.cp === "Assigned"
@@ -513,29 +563,32 @@ export default function SalespeopleDetailView({
         });
         setLeadRows(filteredList
           .filter((row: any) => !(row?.sales_quote_id && !row?.lead_id && !row?.email_id && !row?.booking_status))
-          .map((row: any) => ({
-            lead_id: row.lead_id || row.id || row.email_id || row.client_name,
-            bookingId: row.booking_id || row.bookingId || row.lead_id || row.id,
-            name: row.client_name || "Unknown Client",
-            meta: row.date || "",
-            email: row.email_id || "No email",
-            type: row.lead_type || "N/A",
-            intent: row.intent || "N/A",
-            status: row.booking_status || "N/A",
-            activity: row.last_activity || "N/A",
-            initials: row.initials || getInitials(row.client_name),
-            color: row.color || "#F5E9D5",
-          })));
+          .map((row: any) => {
+            const displayName = clientDisplayName(row);
+            return {
+              lead_id: row.lead_id || row.id || row.email_id || row.guest_email || row.client_name,
+              bookingId: row.booking_id || row.bookingId || row.lead_id || row.id,
+              name: displayName,
+              meta: row.date || "",
+              email: clientEmail(row),
+              type: row.lead_type || "N/A",
+              intent: row.intent || "N/A",
+              status: row.booking_status || "N/A",
+              activity: row.last_activity || "N/A",
+              initials: row.initials || getInitials(displayName),
+              color: row.color || "#F5E9D5",
+            };
+          }));
       } else {
         setLeadRows([]);
-        const response = await shiftManagementApi.getSalesRepQuotes(repId, {
+        const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
           search: debouncedSearch || undefined,
           status: filters.status === "All Status" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
           date: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
-        });
+        }));
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
         const pagination = data?.pagination || {};
@@ -547,19 +600,22 @@ export default function SalespeopleDetailView({
         });
         setSalesQuoteRows(list
           .filter((row: any) => !(row?.lead_id && !row?.sales_quote_id && !row?.project && !row?.quote_status))
-          .map((row: any) => ({
-            sales_quote_id: row.sales_quote_id || row.id || row.project || row.client_name,
-            lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
-            quoteNumber: row.quote_number || row.sales_quote_id || row.id,
-            name: row.client_name || "Unknown Client",
-            meta: formatLocation(row.client_location),
-            project: row.project || "Untitled project",
-            amount: row.amount || "0.00",
-            status: row.quote_status || "Draft",
-            valid: row.valid_until || "N/A",
-            initials: row.initials || getInitials(row.client_name),
-            color: row.color || "#F5E9D5",
-          })));
+          .map((row: any) => {
+            const displayName = clientDisplayName(row);
+            return {
+              sales_quote_id: row.sales_quote_id || row.id || row.project || row.client_name || row.guest_email,
+              lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
+              quoteNumber: row.quote_number || row.sales_quote_id || row.id,
+              name: displayName,
+              meta: formatLocation(row.client_location),
+              project: row.project || "Untitled project",
+              amount: row.amount || "0.00",
+              status: row.quote_status || "Draft",
+              valid: row.valid_until || "N/A",
+              initials: row.initials || getInitials(displayName),
+              color: row.color || "#F5E9D5",
+            };
+          }));
       }
     };
     void load();
@@ -577,7 +633,7 @@ export default function SalespeopleDetailView({
     setFilters((current) => ({
       ...current,
       lead: "All Lead",
-      status: activeTab === "booking" ? "Status" : "All Status",
+      status: activeTab === "booking" ? "All" : "All Status",
       booking: "Booking Type",
       cp: "Creative Partners",
     }));
@@ -756,7 +812,7 @@ export default function SalespeopleDetailView({
                   onClick={() => row.lead_id && router.push(`/admin/sales-representative/${row.lead_id}`)}
                   className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/5"
                 >
-                  <td className="px-5 py-3"><AvatarName {...row} /></td><td>{row.email}</td><td>{row.type}</td><td><StatusBadge value={row.intent} /></td><td><StatusBadge value={row.status} /></td><td>{row.activity}</td><td className="pr-5 text-right">
+                  <td className="px-5 py-3"><AvatarName {...row} /></td><td>{row.email}</td><td>{row.type}</td><td><StatusBadge value={row.intent} /></td><td><LeadsStatusBadge status={row.status} /></td><td>{row.activity}</td><td className="pr-5 text-right">
                     <button
                       type="button"
                       onClick={(event) => openLeadActionMenu(event, row)}

@@ -1,27 +1,52 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 
 import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, Search, SlidersHorizontal } from "lucide-react";
 import { BasicDropdown, type DropdownOption } from "@/components/admin/BasicDropdown";
+import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import DatePicker from "@/components/ui/Datepicker";
 import { shiftManagementApi } from "@/lib/api";
 
 type HistoryItem = {
+  id: string;
   company: string;
   person: string;
   shift: string;
   source: string;
   status: string;
+  date: string;
   time: string;
   initials: string;
 };
 
 function asText(value: any, fallback: string) {
   if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "string" && ["n/a", "null", "undefined"].includes(value.trim().toLowerCase())) return fallback;
   if (typeof value === "string" || typeof value === "number") return String(value);
   return String(value.name || value.shift_name || value.sales_rep_name || value.client_name || fallback);
+}
+
+function normalizeBookingStatusLabel(value: any) {
+  const text = asText(value, "");
+  const normalized = text.replace(/[–—]/g, "-").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    "book a shoot - lead created": "Book a shoot - Lead Created",
+    "manual - lead created": "Manual - Lead Created",
+    "signed up - lead created": "Signed Up - Lead Created",
+    "booking in progress": "Booking In Progress",
+    "ready for payment": "Ready for Payment",
+    "proposal sent": "Proposal Sent",
+    "payment sent": "Payment Sent",
+    "payment link sent": "Payment Link Sent",
+    booked: "Booked",
+    paid: "Paid",
+    "partially paid": "Partially Paid",
+    "closed - lost": "Closed - Lost",
+  };
+  return labels[normalized] || text || "Unknown";
 }
 
 function getInitials(name: string) {
@@ -34,35 +59,53 @@ function getInitials(name: string) {
     .toUpperCase() || "NA";
 }
 
+function ordinalDay(day: number) {
+  if (day > 3 && day < 21) return `${day}th`;
+  switch (day % 10) {
+    case 1: return `${day}st`;
+    case 2: return `${day}nd`;
+    case 3: return `${day}rd`;
+    default: return `${day}th`;
+  }
+}
+
+function parseAssignmentDate(item: any) {
+  const localValue = item.assigned_time_local || item.assigned_at_local;
+  if (localValue) {
+    const parsedLocal = new Date(String(localValue));
+    if (!Number.isNaN(parsedLocal.getTime())) return parsedLocal;
+  }
+
+  if (!item.assigned_at) return null;
+  const parsed = new Date(item.assigned_at);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatLongDate(value: Date | null) {
+  if (!value) return "N/A";
+  return `${ordinalDay(value.getDate())} ${value.toLocaleString("en-US", { month: "long" })} ${value.getFullYear()}`;
+}
+
+function formatAssignmentTime(item: any) {
+  const parsed = parseAssignmentDate(item);
+  return parsed
+    ? parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+    : asText(item.time, "N/A");
+}
+
 function convertDateForApi(date: string) {
-  if (!date || date === "DD-MM-YYYY") return undefined;
+  if (!date || date === "Select Date") return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
   const [dd, mm, yyyy] = date.split("-");
   if (!dd || !mm || !yyyy) return undefined;
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    "Signed Up - Lead Created": "bg-[#D7C4FF] text-[#6E4BD9]",
-    "Book a Shoot - Lead Created": "bg-[#BFE0FF] text-[#1E65C8]",
-    "Manual - Lead Created": "bg-[#9DEBFA] text-[#12788B]",
-    "Booking In Progress": "bg-[#FFF2C5] text-[#B97300]",
-    "Closed - Lost": "bg-[#FFC6C6] text-[#D13B3B]",
-    "Ready for Payment": "bg-[#FFE0B8] text-[#B56A17]",
-  };
-
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${styles[status] || "bg-[#2B2B2B] text-white/60"}`}>
-      {status}
-    </span>
-  );
 }
 
 export default function AssignmentHistoryView({ onBack }: { onBack: () => void }) {
   const [filters, setFilters] = useState({
     shift: "Select Shift",
     person: "Sales Person",
-    date: "DD-MM-YYYY",
+    date: "Select Date",
     status: "Status",
   });
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -70,7 +113,7 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
   const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "Sales Person", value: "Sales Person" }]);
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const selectedDateLabel = selectedDate ? format(selectedDate, "dd-MM-yyyy") : "DD-MM-YYYY";
+  const selectedDateLabel = selectedDate ? formatLongDate(selectedDate) : "Select Date";
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -117,15 +160,18 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
       });
       const data = response?.data?.data || response?.data;
       const list = Array.isArray(data?.rows) ? data.rows : [];
-      setItems(list.map((item: any) => {
+      setItems(list.map((item: any, index: number) => {
         const person = asText(item.sales_rep_name || item.sales_rep || item.person || item.salesperson_name, "Unassigned");
+        const assignedDate = parseAssignmentDate(item);
         return {
-          company: asText(item.client_name || item.company || item.lead_name || item.lead, "Unknown Company"),
+          id: String(item.id || item.assignment_id || `${item.lead_id || "lead"}-${item.sales_rep_id || "rep"}-${item.assigned_at || index}`),
+          company: asText(item.client_name || item.company || item.lead_name || item.client_email || item.guest_email || item.lead, "Unknown Client"),
           person,
           shift: asText(item.shift_name || item.shift, "N/A"),
           source: asText(item.source || item.lead_source, "N/A"),
-          status: asText(item.status || item.assignment_status, "Booking In Progress"),
-          time: item.time || (item.assigned_at ? new Date(item.assigned_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "N/A"),
+          status: normalizeBookingStatusLabel(item.status || item.assignment_status),
+          date: formatLongDate(assignedDate),
+          time: formatAssignmentTime(item),
           initials: getInitials(person),
         };
       }));
@@ -176,15 +222,15 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
                 label=""
                 value={selectedDate}
                 onChange={(date) => {
-                  const nextDateLabel = date ? format(date, "dd-MM-yyyy") : "DD-MM-YYYY";
+                  const nextDateLabel = date ? format(date, "yyyy-MM-dd") : "Select Date";
                   setSelectedDate(date);
                   setFilters((current) => ({
                     ...current,
                     date: nextDateLabel,
                   }));
                 }}
-                format="dd-MM-yyyy"
-                placeholder="DD-MM-YYYY"
+                format="do MMMM yyyy"
+                placeholder="Select Date"
                 isDark
                 disablePortal
                 colors={{
@@ -203,7 +249,7 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
               />
             </div>
           </div>
-          <BasicDropdown label="Status" value={filters.status} options={["Status", "Signed Up - Lead Created", "Book a Shoot - Lead Created", "Manual - Lead Created", "Booking In Progress", "Closed - Lost", "Ready for Payment"]} onChange={(value) => setFilters((current) => ({ ...current, status: value }))} styles="text-white/70 text-xs" />
+          <BasicDropdown label="Status" value={filters.status} options={["Status", "Signed Up - Lead Created", "Book a shoot - Lead Created", "Manual - Lead Created", "Booking In Progress", "Proposal Sent", "Ready for Payment", "Payment Sent", "Booked", "Closed - Lost"]} onChange={(value) => setFilters((current) => ({ ...current, status: value }))} styles="text-white/70 text-xs" />
         </div>
       </section>
 
@@ -212,7 +258,7 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
           <div className="absolute left-[7px] top-4 h-[calc(100%-32px)] w-px bg-[#2D2D2D]" />
           <div className="space-y-3">
             {items.map((item) => (
-              <div key={`${item.company}-${item.time}`} className="relative pl-7">
+              <div key={item.id} className="relative pl-7">
                 <span className="absolute left-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[#E5D5B8]" />
                 <div className="flex min-h-[58px] items-center justify-between gap-4 rounded-xl border border-[#2D2D2D] bg-[#111] px-5 py-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -220,7 +266,7 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
                     <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-white">{item.company}</p>
-                      <StatusBadge status={item.status} />
+                      <LeadsStatusBadge status={item.status} />
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/45">
                       <span>{item.person}</span>
@@ -229,7 +275,10 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
                     </div>
                     </div>
                   </div>
-                  <span className="shrink-0 text-xs text-white/45">{item.time}</span>
+                  <span className="shrink-0 text-right text-xs text-white/45">
+                    <span className="block">{item.date}</span>
+                    <span className="mt-1 block">{item.time}</span>
+                  </span>
                 </div>
               </div>
             ))}

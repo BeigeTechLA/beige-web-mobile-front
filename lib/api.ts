@@ -208,8 +208,8 @@ export const shiftManagementApi = {
     shiftRequest<any>('post', `/admin/shifts/${shiftId}/salespeople`, { data: { sales_rep_id } }, 'Failed to add salesperson'),
   getShiftSalespeople: (shiftId: number | string, params?: Record<string, unknown>) =>
     shiftRequest<any>('get', `/admin/shifts/${shiftId}/salespeople`, { params }, 'Failed to fetch shift salespeople'),
-  toggleShiftSalesperson: (shiftId: number | string, salesRepId: number | string) =>
-    shiftRequest<any>('patch', `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`, undefined, 'Failed to toggle salesperson'),
+  toggleShiftSalesperson: (shiftId: number | string, salesRepId: number | string, user_status?: boolean) =>
+    shiftRequest<any>('patch', `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`, { data: user_status === undefined ? {} : { user_status } }, 'Failed to toggle salesperson'),
   removeShiftSalesperson: (shiftId: number | string, salesRepId: number | string) =>
     shiftRequest<any>('delete', `/admin/shifts/${shiftId}/salespeople/${salesRepId}`, undefined, 'Failed to remove salesperson'),
   getRoundRobin: (shiftId: number | string) =>

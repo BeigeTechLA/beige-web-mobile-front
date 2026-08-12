@@ -15,13 +15,13 @@ import {
   Search,
   Settings2,
   Users,
-  WalletCards,
 } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Legend, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import DottedDivider from "@/components/admin/DottedDivider";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
 import { SortDateButton } from "@/components/admin/SortDateButton";
+import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import TimePicker from "@/components/ui/Timepicker";
 import Topbar from "@/components/admin/Topbar";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -52,14 +52,17 @@ type ShiftRow = {
 };
 
 type RecentAssignmentRow = {
+  id: string;
   company: string;
   person: string;
   status: string;
 };
 
 type LeadVolumeRow = {
+  hour: number;
   time: string;
   leads: number;
+  quotes: number;
 };
 
 type ShiftPagination = {
@@ -77,7 +80,7 @@ type SalespeopleOption = {
 const metrics: Metric[] = [
   { id: "active", label: "Active Shifts", value: "00", delta: "0%", icon: Clock3 },
   { id: "assigned", label: "Leads Assigned Today", value: "0", delta: "0%", icon: BriefcaseBusiness },
-  { id: "pending", label: "Pending Leads", value: "00", delta: "0%", icon: WalletCards },
+  { id: "quotes", label: "Total Quote Created Today", value: "0", delta: "0%", icon: BriefcaseBusiness },
   { id: "people", label: "Active Salespeople", value: "0", delta: "0%", icon: Users },
 ];
 
@@ -119,11 +122,83 @@ const getInitials = (name?: string) =>
     .slice(0, 2)
     .toUpperCase();
 
+const firstNonEmpty = (...values: unknown[]) => {
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (text && text.toLowerCase() !== "n/a" && text.toLowerCase() !== "null") return text;
+  }
+  return "";
+};
+
+const normalizeBookingStatusLabel = (value: unknown) => {
+  const text = firstNonEmpty(value);
+  const normalized = text.replace(/[–—]/g, "-").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    "book a shoot - lead created": "Book a shoot - Lead Created",
+    "manual - lead created": "Manual - Lead Created",
+    "signed up - lead created": "Signed Up - Lead Created",
+    "booking in progress": "Booking In Progress",
+    "ready for payment": "Ready for Payment",
+    "proposal sent": "Proposal Sent",
+    "payment sent": "Payment Sent",
+    "payment link sent": "Payment Link Sent",
+    booked: "Booked",
+    paid: "Paid",
+    "partially paid": "Partially Paid",
+    "closed - lost": "Closed - Lost",
+  };
+  return labels[normalized] || text || "Unknown";
+};
+
 const formatChartHour = (hour: number) => {
   if (hour === 0) return "12AM";
   if (hour === 12) return "12PM";
   if (hour < 12) return `${hour}AM`;
   return `${hour - 12}PM`;
+};
+
+const parseChartHour = (value: unknown) => {
+  if (typeof value === "number") return value;
+  const text = String(value || "").trim();
+  const numeric = Number(text);
+  if (Number.isFinite(numeric)) return numeric;
+
+  const match = text.match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (!match) return Number.NaN;
+  let hour = Number(match[1]);
+  const meridiem = match[2].toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return hour;
+};
+
+const isSameLocalDate = (date: Date | null, compareDate = new Date()) => (
+  Boolean(date) &&
+  date?.getFullYear() === compareDate.getFullYear() &&
+  date.getMonth() === compareDate.getMonth() &&
+  date.getDate() === compareDate.getDate()
+);
+
+const getLeadVolumeEndHour = (selectedDate: Date | null, dataMaxHour: number) => {
+  const currentHour = new Date().getHours();
+  if (!selectedDate || isSameLocalDate(selectedDate)) {
+    return Math.min(23, Math.max(currentHour, dataMaxHour, 1));
+  }
+  return 23;
+};
+
+const getLeadVolumeTicks = (rows: LeadVolumeRow[]) => {
+  if (!rows.length) return [];
+  const interval = rows.length <= 12 ? 1 : rows.length <= 18 ? 2 : 3;
+  const tickSet = new Set<string>();
+
+  rows.forEach((row, index) => {
+    if (index === 0 || index === rows.length - 1 || row.hour % interval === 0 || row.leads > 0) {
+      tickSet.add(row.time);
+    }
+  });
+
+  return rows.filter((row) => tickSet.has(row.time)).map((row) => row.time);
 };
 
 const formatDisplayTime = (time?: string) => {
@@ -142,21 +217,33 @@ const formatDisplayTime = (time?: string) => {
   return `${displayHour}:${minute} ${displayMeridiem}`;
 };
 
-const normalizeLeadVolumeRows = (rows: any[]): LeadVolumeRow[] => {
-  const fullDay = Array.from({ length: 24 }, (_, hour) => ({
-    time: formatChartHour(hour),
-    leads: 0,
-  }));
+const normalizeLeadVolumeRows = (rows: any[], selectedDate: Date | null = null, quoteRows: any[] = []): LeadVolumeRow[] => {
+  const leadCountByHour = new Map<number, number>();
+  const quoteCountByHour = new Map<number, number>();
+  let dataMaxHour = 0;
 
-  rows.forEach((item) => {
+  const addCountByHour = (items: any[], target: Map<number, number>) => {
+    items.forEach((item) => {
     const rawHour = item?.hour ?? item?.time ?? item?.label;
-    const hour = Number(rawHour);
+    const hour = parseChartHour(rawHour);
     if (!Number.isFinite(hour) || hour < 0 || hour > 23) return;
 
-    fullDay[hour].leads = Number(item?.count ?? item?.leads ?? item?.lead_count ?? 0);
-  });
+    const safeHour = Math.trunc(hour);
+    dataMaxHour = Math.max(dataMaxHour, safeHour);
+      target.set(safeHour, Number(item?.count ?? item?.leads ?? item?.quotes ?? item?.lead_count ?? item?.quote_count ?? 0));
+    });
+  };
 
-  return fullDay;
+  addCountByHour(rows, leadCountByHour);
+  addCountByHour(quoteRows, quoteCountByHour);
+
+  const endHour = getLeadVolumeEndHour(selectedDate, dataMaxHour);
+  return Array.from({ length: endHour + 1 }, (_, hour) => ({
+    hour,
+    time: formatChartHour(hour),
+    leads: leadCountByHour.get(hour) || 0,
+    quotes: quoteCountByHour.get(hour) || 0,
+  }));
 };
 
 const normalizeSalespeopleOptions = (rows: any[]): SalespeopleOption[] => {
@@ -359,6 +446,7 @@ export default function ShiftManagementPage() {
   const salespersonDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const activeNow = useMemo(() => activeNowRows, [activeNowRows]);
+  const leadVolumeTicks = useMemo(() => getLeadVolumeTicks(leadVolumeRows), [leadVolumeRows]);
   const selectedSalespersonOptions = useMemo(
     () => salespeopleOptions.filter((person) => selectedSalespersonIds.includes(person.sales_rep_id)),
     [salespeopleOptions, selectedSalespersonIds]
@@ -442,13 +530,13 @@ export default function ShiftManagementPage() {
     const overview = unwrapData(overviewRes) || {};
     const activeShiftsStat = getOverviewStat(overview, "active_shifts_count", ["active_shifts", "total_active_shifts", "active"], ["active_shifts_change", "active_change"], 0, 0);
     const assignedTodayStat = getOverviewStat(overview, "leads_assigned_today", ["assigned_today"], ["leads_assigned_change", "assigned_change"], 0, 0);
-    const pendingLeadsStat = getOverviewStat(overview, "pending_leads", ["pending"], ["pending_leads_change", "pending_change"], 0, 0);
+    const quotesCreatedTodayStat = getOverviewStat(overview, "total_quote_created_today", ["quotes_created_today", "total_quotes_created_today"], ["quotes_created_change", "quotes_change"], 0, 0);
     const activePeopleStat = getOverviewStat(overview, "active_salespeople_count", ["active_salespeople", "active_sales_people"], ["active_salespeople_change", "people_change"], 0, 0);
 
     setOverviewMetrics([
       { id: "active", label: "Active Shifts", value: String(activeShiftsStat.count).padStart(2, "0"), delta: `${activeShiftsStat.change}%`, icon: Clock3 },
       { id: "assigned", label: "Leads Assigned Today", value: String(assignedTodayStat.count), delta: `${assignedTodayStat.change}%`, icon: BriefcaseBusiness },
-      { id: "pending", label: "Pending Leads", value: String(pendingLeadsStat.count).padStart(2, "0"), delta: `${pendingLeadsStat.change}%`, icon: WalletCards },
+      { id: "quotes", label: "Total Quote Created Today", value: String(quotesCreatedTodayStat.count), delta: `${quotesCreatedTodayStat.change}%`, icon: BriefcaseBusiness },
       { id: "people", label: "Active Salespeople", value: String(activePeopleStat.count), delta: `${activePeopleStat.change}%`, icon: Users },
     ]);
   };
@@ -542,14 +630,19 @@ export default function ShiftManagementPage() {
     ]);
 
     const apiRecent = unwrapList(recentRes, ["assignments", "items", "rows"]);
-    setRecentAssignmentRows(apiRecent.map((item: any) => ({
-        company: item.company || item.client_name || item.lead_name || "Unknown Company",
-        person: item.person || item.salesperson_name || item.sales_rep_name || "Unassigned",
-        status: item.status || item.assignment_status || "Contacted",
+    setRecentAssignmentRows(apiRecent.map((item: any, index: number) => ({
+        id: String(item.id || item.assignment_id || `${item.lead_id || "lead"}-${item.sales_rep_id || "rep"}-${item.assigned_at || index}`),
+        company: firstNonEmpty(item.company, item.client_name, item.lead_name, item.client_email, item.guest_email) || "Unknown Client",
+        person: firstNonEmpty(item.person, item.salesperson_name, item.sales_rep_name, item.sales_rep?.name, item.sales_rep_email, item.sales_rep?.email) || "Unassigned",
+        status: normalizeBookingStatusLabel(item.status || item.assignment_status),
     })));
 
-    const apiChart = unwrapList(chartRes, ["chart", "items", "data"]);
-    setLeadVolumeRows(normalizeLeadVolumeRows(apiChart));
+    const chartData = unwrapData(chartRes);
+    const apiChart = Array.isArray(chartData)
+      ? chartData
+      : unwrapList(chartRes, ["leads", "chart", "items", "data"]);
+    const apiQuoteChart = Array.isArray(chartData?.quotes) ? chartData.quotes : [];
+    setLeadVolumeRows(normalizeLeadVolumeRows(apiChart, selectedDate, apiQuoteChart));
 
     const apiPeopleData = allSalespeopleRes?.data;
     const apiPeople = Array.isArray(apiPeopleData?.rows) ? apiPeopleData.rows : [];
@@ -929,15 +1022,15 @@ export default function ShiftManagementPage() {
               {recentAssignmentRows.length ? (
                 <div className="no-scrollbar flex-1 space-y-3 overflow-y-auto p-3">
                   {recentAssignmentRows.map((item) => (
-                    <div key={`${item.company}-${item.person}-${item.status}`} className="flex items-center justify-between gap-3">
+                    <div key={item.id} className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2A2A2A] text-[10px] text-white/65">{item.person.split(" ").map((part) => part[0]).join("")}</span>
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2A2A2A] text-[10px] text-white/65">{getInitials(item.person)}</span>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{item.company}</p>
                           <p className="truncate text-xs text-white/45">{item.person}</p>
                         </div>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-[10px] ${item.status === "Converted" ? "bg-emerald-500/15 text-emerald-400" : item.status === "Pending" ? "bg-yellow-500/15 text-yellow-400" : item.status === "Lost" ? "bg-red-500/15 text-red-400" : "bg-blue-500/15 text-blue-400"}`}>{item.status}</span>
+                      <LeadsStatusBadge status={item.status} size="compact" />
                     </div>
                   ))}
                 </div>
@@ -950,7 +1043,7 @@ export default function ShiftManagementPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-sm font-semibold">Hourly Lead Volume</h2>
+            <h2 className="mb-3 text-sm font-semibold">Hourly Lead & Quote Volume</h2>
             <div className="h-[254px] rounded-xl border border-[#2D2D2D] bg-[#171717] p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={leadVolumeRows} margin={{ left: -18, right: 4, top: 8, bottom: 0 }}>
@@ -959,28 +1052,50 @@ export default function ShiftManagementPage() {
                       <stop offset="0%" stopColor="#E5D5B8" stopOpacity={0.24} />
                       <stop offset="100%" stopColor="#E5D5B8" stopOpacity={0.03} />
                     </linearGradient>
+                    <linearGradient id="quoteVolume" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#9DDDF8" stopOpacity={0.20} />
+                      <stop offset="100%" stopColor="#9DDDF8" stopOpacity={0.02} />
+                    </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="time"
                     axisLine={false}
+                    ticks={leadVolumeTicks}
                     interval={0}
+                    minTickGap={8}
                     tickLine={false}
                     tick={{ fill: "rgba(255,255,255,.28)", fontSize: 8 }}
                   />
                   <YAxis
                     axisLine={false}
-                    domain={[0, 24]}
-                    ticks={[0, 6, 12, 18, 24]}
+                    allowDecimals={false}
+                    domain={[0, (dataMax: number) => Math.max(1, dataMax)]}
                     tickLine={false}
                     tick={{ fill: "rgba(255,255,255,.28)", fontSize: 10 }}
                   />
                   <Area
                     type="monotone"
                     dataKey="leads"
+                    name="Leads"
                     stroke="#E5D5B8"
                     strokeWidth={2}
                     fill="url(#leadVolume)"
                     dot={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="quotes"
+                    name="Quotes"
+                    stroke="#9DDDF8"
+                    strokeWidth={2}
+                    fill="url(#quoteVolume)"
+                    dot={false}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    iconType="circle"
+                    wrapperStyle={{ color: "rgba(255,255,255,.55)", fontSize: 11, paddingBottom: 6 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>

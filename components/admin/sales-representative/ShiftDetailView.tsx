@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 
 
 import React, { useEffect, useState } from "react";
@@ -16,6 +17,7 @@ import { shiftManagementApi } from "@/lib/api";
 import { useDebounce } from "@/hooks/use-debounce";
 import RoundRobinConfigurationView from "@/components/admin/sales-representative/RoundRobinConfigurationView";
 import SalespeopleDetailView, { type SalespeopleProfile } from "@/components/admin/sales-representative/SalespeopleDetailView";
+import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { toast } from "sonner";
 
 export type ShiftDetail = {
@@ -134,6 +136,31 @@ function getInitials(name?: string) {
     .toUpperCase();
 }
 
+function ordinalDay(day: number) {
+  if (day > 3 && day < 21) return `${day}th`;
+  switch (day % 10) {
+    case 1: return `${day}st`;
+    case 2: return `${day}nd`;
+    case 3: return `${day}rd`;
+    default: return `${day}th`;
+  }
+}
+
+function parseDateValue(value?: string | null) {
+  if (!value || String(value).trim().toLowerCase() === "n/a") return null;
+  const normalized = String(value).includes("T") ? String(value) : String(value).replace(" ", "T");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatLongDateTime(value?: string | null) {
+  const parsed = parseDateValue(value);
+  if (!parsed) return "N/A";
+  const date = `${ordinalDay(parsed.getDate())} ${parsed.toLocaleString("en-US", { month: "long" })} ${parsed.getFullYear()}`;
+  const time = parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${date}, ${time}`;
+}
+
 function normalizeStatus(value: any): "Active" | "In Active" {
   return String(value || "").toLowerCase() === "active" || value === true ? "Active" : "In Active";
 }
@@ -168,9 +195,9 @@ function formatShiftHours(detail: any, fallbackHours?: string) {
   return rawHours || "N/A";
 }
 
-function DayPill({ day, muted }: { day: string; muted: boolean }) {
+function DayPill({ day }: { day: string }) {
   return (
-    <span className={`rounded px-1.5 py-1 text-[10px] font-medium ${muted ? "bg-[#333] text-white/55" : "bg-[#E5D5B8] text-black"}`}>
+    <span className="rounded bg-[#E5D5B8] px-1.5 py-1 text-[10px] font-medium text-black">
       {day}
     </span>
   );
@@ -215,8 +242,6 @@ export default function ShiftDetailView({
   refreshKey?: number;
 }) {
   const [statusFilter, setStatusFilter] = useState("Status");
-  const [monthFilter, setMonthFilter] = useState("Month");
-  const [allFilter, setAllFilter] = useState("All");
   const [isConfiguringOrder, setIsConfiguringOrder] = useState(false);
   const [selectedSalesperson, setSelectedSalesperson] = useState<SalespeopleProfile | null>(null);
   const [shiftDetail, setShiftDetail] = useState(shift);
@@ -224,6 +249,8 @@ export default function ShiftDetailView({
   const [memberSearch, setMemberSearch] = useState("");
   const [memberPage, setMemberPage] = useState(1);
   const [memberPagination, setMemberPagination] = useState<PaginationState>({ page: 1, limit: 10, total: 0, pages: 1 });
+  const [deleteMember, setDeleteMember] = useState<SalesMember | null>(null);
+  const [isDeletingMember, setIsDeletingMember] = useState(false);
   const debouncedMemberSearch = useDebounce(memberSearch, 350);
 
   const handleConfigureChange = (nextValue: boolean) => {
@@ -234,6 +261,21 @@ export default function ShiftDetailView({
   const handleSalespersonChange = (profile: SalespeopleProfile | null) => {
     setSelectedSalesperson(profile);
     onSalespersonChange?.(Boolean(profile));
+  };
+
+  const handleConfirmRemoveSalesperson = async () => {
+    if (!shift.id || !deleteMember?.sales_rep_id) return;
+    setIsDeletingMember(true);
+    const response = await shiftManagementApi.removeShiftSalesperson(shift.id, deleteMember.sales_rep_id);
+    setIsDeletingMember(false);
+    if (!response.success) {
+      toast.error(response.error || "Failed to remove salesperson");
+      return;
+    }
+    toast.success("Salesperson removed");
+    setDeleteMember(null);
+    await loadShiftDetail();
+    await onRefresh?.();
   };
 
   useEffect(() => {
@@ -279,18 +321,22 @@ export default function ShiftDetailView({
       pages: Number(pagination.pages || Math.max(1, Math.ceil(Number(pagination.total || list.length || 0) / Number(pagination.limit || 10)))),
     });
     setSalesMembers(
-      list.map((person: any, index: number) => ({
-        id: person.id || person.sales_rep_id || person.user_id,
-        sales_rep_id: person.sales_rep_id || person.id || person.user_id,
-        name: person.name || person.salesperson_name || "Unnamed",
-        email: person.email || "No email",
-        status: normalizeStatus(person.status ?? person.is_active),
-        enabled: Boolean(person.user_status ?? person.enabled ?? person.is_enabled ?? person.is_active),
-        lastActivity: person.last_activity || person.last_activity_at || "N/A",
-        initials: person.initials || getInitials(person.name),
-        color: person.color || avatarColors[index % avatarColors.length],
-        overlap: Boolean(person.shift_overlapping || person.overlap),
-      }))
+      list.map((person: any, index: number) => {
+        const email = person.email || "No email";
+        const name = person.name || person.salesperson_name || email;
+        return {
+          id: person.id || person.sales_rep_id || person.user_id,
+          sales_rep_id: person.sales_rep_id || person.id || person.user_id,
+          name,
+          email,
+          status: normalizeStatus(person.status ?? person.is_active),
+          enabled: Boolean(person.user_status ?? person.enabled ?? person.is_enabled ?? person.is_active),
+          lastActivity: formatLongDateTime(person.last_activity || person.last_activity_at),
+          initials: person.initials || getInitials(name),
+          color: person.color || avatarColors[index % avatarColors.length],
+          overlap: Boolean(person.shift_overlapping || person.overlap),
+        };
+      })
     );
   };
 
@@ -358,7 +404,7 @@ export default function ShiftDetailView({
                   <span>Active Days :</span>
                   <div className="flex gap-1">
                     {shiftDetail.days.map((day, index) => (
-                      <DayPill key={day} day={day} muted={index > 4} />
+                      <DayPill key={`${day}-${index}`} day={day} />
                     ))}
                   </div>
                 </div>
@@ -394,8 +440,6 @@ export default function ShiftDetailView({
             </div>
             <div className="flex flex-wrap gap-2">
               <BasicDropdown label="Status" value={statusFilter} options={["Status", "Active", "In Active"]} onChange={setStatusFilter} roundedFull styles="text-white/70 text-xs" />
-              <BasicDropdown label="Month" value={monthFilter} options={["Month", "Week", "Year"]} onChange={setMonthFilter} roundedFull styles="text-white/70 text-xs" />
-              <BasicDropdown label="All" value={allFilter} options={["All", "Assigned", "Unassigned"]} onChange={setAllFilter} roundedFull styles="text-white/70 text-xs" />
             </div>
           </div>
 
@@ -447,11 +491,19 @@ export default function ShiftDetailView({
                         onClick={async (event) => {
                           event.stopPropagation();
                           if (!shift.id || !member.sales_rep_id) return;
-                          const response = await shiftManagementApi.toggleShiftSalesperson(shift.id, member.sales_rep_id);
+                          const nextUserStatus = !member.enabled;
+                          const response = await shiftManagementApi.toggleShiftSalesperson(shift.id, member.sales_rep_id, nextUserStatus);
                           if (!response.success) {
                             toast.error(response.error || "Failed to toggle salesperson");
                             return;
                           }
+                          setSalesMembers((current) =>
+                            current.map((item) =>
+                              String(item.sales_rep_id) === String(member.sales_rep_id)
+                                ? { ...item, enabled: nextUserStatus }
+                                : item
+                            )
+                          );
                           toast.success("Salesperson updated");
                           await loadShiftDetail();
                         }}
@@ -462,17 +514,11 @@ export default function ShiftDetailView({
                       <div className="flex justify-end gap-5 text-white/80">
                         <button
                           type="button"
-                          onClick={async (event) => {
+                          onClick={(event) => {
                             event.stopPropagation();
-                            if (!shift.id || !member.sales_rep_id) return;
-                            const response = await shiftManagementApi.removeShiftSalesperson(shift.id, member.sales_rep_id);
-                            if (!response.success) {
-                              toast.error(response.error || "Failed to remove salesperson");
-                              return;
-                            }
-                            toast.success("Salesperson removed");
-                            await loadShiftDetail();
+                            setDeleteMember(member);
                           }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-[#F05454]/15 hover:text-[#F05454]"
                           aria-label={`Remove ${member.name}`}
                         >
                           <Trash2 size={19} />
@@ -502,6 +548,16 @@ export default function ShiftDetailView({
           <TablePagination pagination={memberPagination} onPageChange={setMemberPage} />
         </section>
       </div>
+      <DeleteConfirmationModal
+        isOpen={Boolean(deleteMember)}
+        onClose={() => setDeleteMember(null)}
+        onConfirm={handleConfirmRemoveSalesperson}
+        title="Remove Salesperson"
+        description={`Are you sure you want to remove ${deleteMember?.name || "this salesperson"} from this shift?`}
+        confirmLabel="Remove"
+        loadingLabel="Removing..."
+        isLoading={isDeletingMember}
+      />
     </div>
   );
 }
