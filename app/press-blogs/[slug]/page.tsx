@@ -15,8 +15,6 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
-
 // Exported function serving Next.js SSG build and internal category filtering
 export async function generateStaticParams(category?: string) {
   try {
@@ -63,7 +61,7 @@ const moreContent = await generateStaticParams(categoryTitle);
   const rawImage = extractFirstImage(post["content:encoded"] || "");
   const blogImage = rawImage.startsWith("/images/misc/")
     ? "/images/misc/BeigeLogoPlaceholder.png"
-    : `${S3_PREFIX}${rawImage}`;
+    : `${rawImage}`;
 
   const formattedDate = post.pubDate && !isNaN(Date.parse(post.pubDate))
     ? new Date(post.pubDate).toLocaleDateString("en-US", { dateStyle: "long" })
@@ -108,10 +106,6 @@ const moreContent = await generateStaticParams(categoryTitle);
             </div>
           )}
 
-          {/* <div
-            className="prose dark:prose-invert max-w-none w-full lg:w-3/4 font-yrsa"
-            dangerouslySetInnerHTML={{ __html: formattedContent }}
-          /> */}
           <div className={`w-full ${headings.length > 0 ? "lg:w-3/4" : ""}`}>
             <CustomBlogRenderer rawContent={contentWithIds} />
           </div>

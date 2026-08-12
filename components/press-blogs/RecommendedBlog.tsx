@@ -26,7 +26,6 @@ function extractFirstImage(htmlContent?: string): string {
     ? "/images/misc/BlackLogoPlaceholder.png"
     : foundSrc;
 }
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 
 export const RecommendedBlogs: React.FC<RecommendedBlogsProps> = ({ moreContent }) => {
   const router = useRouter();
@@ -81,7 +80,7 @@ export const RecommendedBlogs: React.FC<RecommendedBlogsProps> = ({ moreContent 
               // Check if rawImage is a local placeholder or missing
               const postImage = rawImage.startsWith("/images/misc/")
                 ? "/images/misc/BeigeLogoPlaceholder.png"
-                : `${S3_PREFIX}${rawImage}`;
+                : `${rawImage}`;
 
               const dateString = post.pubDate || post.post_date;
               const postDate = dateString

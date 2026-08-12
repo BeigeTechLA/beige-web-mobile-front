@@ -16,7 +16,6 @@ const BLOG_CATEGORIES = [
   "Industry Insights",
   "Beige Updates",
 ];
-const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || ""
 
 export const Blogs = () => {
   const router = useRouter();
@@ -82,7 +81,7 @@ export const Blogs = () => {
               const postCategory = post.category?.title || activeCategory;
               const postSlug = String(post["post_name"]);
               const postDescription = extractPlainText(post["content:encoded"]);
-              const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : `${S3_PREFIX}${extractFirstImage(post["content:encoded"])}`);
+              const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));
               const dateString = post.pubDate || post.post_date || "";
               const postDate = dateString
                 ? new Date(dateString).toLocaleDateString("en-US", {
@@ -103,8 +102,8 @@ export const Blogs = () => {
                       className="w-full flex items-center justify-between p-8 text-left group hover:text-[#E8D1AB] transition-colors border-b border-[#111111]/40"
                     >
                       <div className="flex items-center gap-4 md:gap-6 flex-1 pr-4">
-                        <span className="bg-white text-[#111111]/40 w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
-                          <Loader className="w-4 h-4" />
+                        <span className="bg-white text-[#111111] w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
+                          <Rss className="w-5 h-5" />
                         </span>
                         <h3 className="text-sm lg:text-2xl font-medium line-clamp-1 max-w-xl">
                           {post.title}
@@ -138,7 +137,7 @@ export const Blogs = () => {
                             <div className="w-full flex justify-between items-start">
                               <div className="flex items-start gap-4 mb-6">
                                 <span className="bg-black text-white w-8 h-8 rounded-sm flex items-center justify-center border border-black/10 shrink-0">
-                                  <Rss size={18} />
+                                  <Rss size={20} />
                                 </span>
                                 <h3
                                   onClick={() => router.push(`/press-blogs/${postSlug}`)}
