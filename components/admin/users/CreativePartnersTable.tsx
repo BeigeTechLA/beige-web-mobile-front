@@ -52,6 +52,7 @@ import { useTheme } from 'next-themes';
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
 import { getLatestProfilePhoto } from "@/lib/crewFiles";
+import Link from "next/link";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
 
@@ -386,6 +387,11 @@ export const CreativePartnersTable = () => {
 
     const cleanId = id.replace('#', '');
     router.push(`/admin/users/creative-partners/${cleanId}`);
+  };
+
+  const getCreativePartnerDetailHref = (id: string) => {
+    const cleanId = id.replace('#', '');
+    return `/admin/users/creative-partners/${cleanId}`;
   };
 
   const showSuccessToast = () => {
@@ -966,15 +972,20 @@ export const CreativePartnersTable = () => {
                     </td>
                   </tr>
                 ) : (
-                  users.map((user, idx) => (
+                  users.map((user, idx) => {
+                    const partnerDetailHref = getCreativePartnerDetailHref(user.id);
+                    return (
                     <tr
                       key={user.id || idx}
-                      onClick={(e) => handleRowClick(user.id, e)}
-                      className={`${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
+                      className={`relative ${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
                     >
-                      <td className="py-3 px-6 truncate">{user.id}</td>
-                      <td className="py-3 px-6">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <td className="relative py-3 px-6 truncate">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{user.id}</span>
+                      </td>                      
+                      <td className="relative py-3 px-6">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none flex items-center gap-3 min-w-0">
                           {/* Avatar: Show image if available, otherwise show initials */}
                           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold border overflow-hidden ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {user.imageUrl ? (
@@ -1003,11 +1014,23 @@ export const CreativePartnersTable = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-6 truncate">{user.email}</td>
-                      <td className="py-3 px-6">{user.role}</td>
-                      <td className="py-3 px-6 whitespace-nowrap">{user.location}</td>
-                      <td className="py-3 px-6 text-center">
-                        <StatusBadge status={user.status} />
+                      <td className="relative py-3 px-6 truncate">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{user.email}</span>
+                      </td>
+                      <td className="relative py-3 px-6">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{user.role}</span>
+                      </td>
+                      <td className="relative py-3 px-6 whitespace-nowrap">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{user.location}</span>
+                      </td>
+                      <td className="relative py-3 px-6 text-center">
+                        <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none inline-block">
+                          <StatusBadge status={user.status} />
+                        </div>
                       </td>
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2 whitespace-nowrap">
@@ -1087,7 +1110,8 @@ export const CreativePartnersTable = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
