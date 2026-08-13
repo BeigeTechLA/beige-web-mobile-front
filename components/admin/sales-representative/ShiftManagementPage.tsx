@@ -294,18 +294,46 @@ const formatShiftHours = (shift: any) => {
 };
 
 const mapShift = (shift: any): ShiftRow => {
-  const rawPeople = shift?.salespeople_avatars || shift?.salespeople || shift?.sales_people || shift?.assigned_salespeople || shift?.sales_reps || [];
+  const rawPeople =
+    shift?.salespeople_avatars ||
+    shift?.salespeople ||
+    shift?.sales_people ||
+    shift?.assigned_salespeople ||
+    shift?.sales_reps ||
+    [];
+
   const salespeople = Array.isArray(rawPeople) ? rawPeople : [];
+
+  const salespeopleCount = Number(
+    shift?.salespeople_count ??
+    shift?.assigned_salespeople_count ??
+    salespeople.length ??
+    0
+  );
+
   return {
     id: shift?.id || shift?.shift_id,
     name: shift?.name || shift?.shift_name || "Untitled Shift",
     hours: formatShiftHours(shift),
     days: shift?.active_days || shift?.days || [],
-    status: formatStatus(shift?.status ?? shift?.is_enabled ?? shift?.is_active),
-    people: salespeople.slice(0, 3).map((person: any) => getInitials(person?.name || person?.salesperson_name || person?.email)),
+    status: formatStatus(
+      shift?.status ?? shift?.is_enabled ?? shift?.is_active
+    ),
+
+    people: salespeople
+      .slice(0, 3)
+      .map((person: any) =>
+        getInitials(
+          person?.name ||
+          person?.salesperson_name ||
+          person?.email
+        )
+      ),
+
     salespeople,
-    salespeopleCount: Number(shift?.salespeople_count ?? shift?.assigned_salespeople_count ?? salespeople.length ?? 0),
-    extra: Math.max(0, salespeople.length - 3),
+    salespeopleCount,
+
+    extra: Math.max(0, salespeopleCount - 3),
   };
 };
 
@@ -1149,10 +1177,15 @@ export default function ShiftManagementPage() {
                     iconColor: "#FFFFFF",
                   }}
                 />
-                <TimePicker
+               <TimePicker
                   label="End Time"
                   value={endTime}
                   onChange={setEndTime}
+                  minTime={
+                    startTime
+                      ? new Date(startTime.getTime() + 60 * 60 * 1000)
+                      : undefined
+                  }
                   isDark
                   height="72px"
                   fontSize="16px"
@@ -1164,7 +1197,7 @@ export default function ShiftManagementPage() {
                     labelText: "rgba(255,255,255,0.62)",
                     iconColor: "#FFFFFF",
                   }}
-                />
+                  />
               </div>
 
               <div>
@@ -1227,10 +1260,23 @@ export default function ShiftManagementPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={isSavingShift}
+                  disabled={
+                    isSavingShift ||
+                    !shiftName.trim() ||
+                    !startTime ||
+                    !endTime ||
+                    enabledDays.length === 0 ||
+                    (startTime && endTime && endTime < new Date(startTime.getTime() + 60 * 60 * 1000))
+                  }
                   onClick={async () => {
-                    if (!shiftName.trim() || !startTime || !endTime || enabledDays.length === 0) {
+                   if (!shiftName.trim() || !startTime || !endTime || enabledDays.length === 0) {
                       toast.error("Please fill all shift details");
+                      return;
+                    }
+
+                    const minimumEndTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+
+                    if (endTime < minimumEndTime) {
                       return;
                     }
                     setIsSavingShift(true);
