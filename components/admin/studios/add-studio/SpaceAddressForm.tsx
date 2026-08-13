@@ -9,6 +9,12 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
+const sanitizeAddressText = (value: string) => value.replace(/[^a-zA-Z0-9\s.,#'/-]/g, "");
+const sanitizeZip = (value: string, country: string) => {
+  if (country === US_COUNTRY_LABEL) return value.replace(/[^0-9]/g, "").slice(0, 5);
+  return value.replace(/[^a-zA-Z0-9\s-]/g, "").slice(0, 12);
+};
+
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 const DEFAULT_LAT = 34.0401;
 const DEFAULT_LNG = -118.2542;
@@ -84,6 +90,26 @@ const STATE_TO_LABEL: Record<string, string> = US_STATE_OPTIONS.reduce(
 
 interface Props {
   isDark?: boolean;
+  value?: {
+    country: string;
+    address: string;
+    apartment: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    latitude: number;
+    longitude: number;
+  };
+  onChange?: (next: {
+    country: string;
+    address: string;
+    apartment: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    latitude: number;
+    longitude: number;
+  }) => void;
 }
 
 type GeoAddress = {
@@ -103,15 +129,15 @@ const formatState = (rawState: string) => {
   return STATE_LOOKUP[normalized.toLowerCase()] || normalized;
 };
 
-export default function SpaceAddressForm({ isDark = true }: Props) {
-  const [address, setAddress] = useState("");
-  const [apartment, setApartment] = useState("");
-  const [city, setCity] = useState("");
-  const [zipCode, setZipCode] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState(US_COUNTRY_LABEL);
-  const [state, setState] = useState("CA");
-  const [latitude, setLatitude] = useState(DEFAULT_LAT);
-  const [longitude, setLongitude] = useState(DEFAULT_LNG);
+export default function SpaceAddressForm({ isDark = true, value, onChange }: Props) {
+  const [address, setAddress] = useState(value?.address || "");
+  const [apartment, setApartment] = useState(value?.apartment || "");
+  const [city, setCity] = useState(value?.city || "");
+  const [zipCode, setZipCode] = useState(value?.zipCode || "");
+  const [selectedCountry, setSelectedCountry] = useState(value?.country || US_COUNTRY_LABEL);
+  const [state, setState] = useState(value?.state || "CA");
+  const [latitude, setLatitude] = useState(value?.latitude ?? DEFAULT_LAT);
+  const [longitude, setLongitude] = useState(value?.longitude ?? DEFAULT_LNG);
   const [viewState, setViewState] = useState({
     latitude: DEFAULT_LAT,
     longitude: DEFAULT_LNG,
@@ -121,6 +147,7 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
   const [mapError, setMapError] = useState("");
   const [isReverseLoading, setIsReverseLoading] = useState(false);
   const [isForwardLoading, setIsForwardLoading] = useState(false);
+  const lastEmittedRef = useRef("");
 
   const mapRef = useRef<MapRef | null>(null);
   const lastValidLocationRef = useRef({ latitude: DEFAULT_LAT, longitude: DEFAULT_LNG });
@@ -134,35 +161,25 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
   const hasMountedRef = useRef(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("add_studio_address");
-    if (!saved) return;
-
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed.address) setAddress(parsed.address);
-      if (parsed.apartment !== undefined) setApartment(parsed.apartment);
-      if (parsed.city) setCity(parsed.city);
-      if (parsed.zipCode) setZipCode(parsed.zipCode);
-      if (parsed.country) setSelectedCountry(US_COUNTRY_LABEL);
-      if (parsed.state) {
-        const normalized = parsed.state.length === 2 ? parsed.state.toUpperCase() : formatState(parsed.state);
-        setState(normalized || "CA");
-      }
-
-      const lat = parsed.latitude || DEFAULT_LAT;
-      const lng = parsed.longitude || DEFAULT_LNG;
-      setLatitude(lat);
-      setLongitude(lng);
-      setViewState({
-        latitude: lat,
-        longitude: lng,
-        zoom: DEFAULT_ZOOM,
-      });
-      lastValidLocationRef.current = { latitude: lat, longitude: lng };
-    } catch (error) {
-      console.error("Failed to load saved address", error);
-    }
-  }, []);
+    if (!value) return;
+    setAddress(value.address || "");
+    setApartment(value.apartment || "");
+    setCity(value.city || "");
+    setZipCode(value.zipCode || "");
+    setSelectedCountry(value.country || US_COUNTRY_LABEL);
+    setState(value.state || "CA");
+    setLatitude(value.latitude ?? DEFAULT_LAT);
+    setLongitude(value.longitude ?? DEFAULT_LNG);
+    setViewState({
+      latitude: value.latitude ?? DEFAULT_LAT,
+      longitude: value.longitude ?? DEFAULT_LNG,
+      zoom: DEFAULT_ZOOM,
+    });
+    lastValidLocationRef.current = {
+      latitude: value.latitude ?? DEFAULT_LAT,
+      longitude: value.longitude ?? DEFAULT_LNG,
+    };
+  }, [value]);
 
   useEffect(() => {
     hasMountedRef.current = true;
@@ -170,17 +187,22 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
 
   useEffect(() => {
     const data = {
+      country: US_COUNTRY_LABEL,
       address,
       apartment,
       city,
-      zipCode,
-      country: US_COUNTRY_LABEL,
       state,
+      zipCode,
       latitude,
       longitude,
     };
+    const serialized = JSON.stringify(data);
+    if (serialized !== lastEmittedRef.current) {
+      lastEmittedRef.current = serialized;
+      onChange?.(data);
+    }
     localStorage.setItem("add_studio_address", JSON.stringify(data));
-  }, [address, apartment, city, zipCode, state, latitude, longitude]);
+  }, [address, apartment, city, zipCode, state, latitude, longitude, onChange]);
 
   const updateFromReverseGeocode = (payload: GeoAddress, coords: { latitude: number; longitude: number }) => {
     setMapError("");
@@ -441,7 +463,6 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
     if (!hasMountedRef.current) return;
     if (suppressForwardSyncRef.current) return;
     scheduleForwardGeocode();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, city, state, zipCode]);
 
   useEffect(() => {
@@ -468,28 +489,32 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
             <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
               <span className={`text-sm lg:text-base ${subTextColor}`}>Address*</span>
             </div>
-            <Input
-              value={address}
-              autoComplete="street-address"
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setMapError("");
-              }}
-              onBlur={scheduleForwardGeocode}
-              className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-            />
+          <Input
+            value={address}
+            autoComplete="street-address"
+            onChange={(e) => {
+              setAddress(sanitizeAddressText(e.target.value));
+              setMapError("");
+            }}
+            inputMode="text"
+            pattern="[A-Za-z0-9\s.,#'/-]*"
+            onBlur={scheduleForwardGeocode}
+            className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+          />
           </div>
 
           <div className="relative">
             <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-              <span className={`text-sm lg:text-base ${subTextColor}`}>Apartment, suite, etc.*</span>
+              <span className={`text-sm lg:text-base ${subTextColor}`}>Apartment, suite, etc.</span>
             </div>
-            <Input
-              value={apartment}
-              autoComplete="address-line2"
-              onChange={(e) => setApartment(e.target.value)}
-              className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-            />
+          <Input
+            value={apartment}
+            autoComplete="address-line2"
+            onChange={(e) => setApartment(sanitizeAddressText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z0-9\s.,#'/-]*"
+            className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+          />
           </div>
         </div>
 
@@ -557,9 +582,11 @@ export default function SpaceAddressForm({ isDark = true }: Props) {
               inputMode="numeric"
               autoComplete="postal-code"
               onChange={(e) => {
-                setZipCode(e.target.value);
+                setZipCode(sanitizeZip(e.target.value, selectedCountry));
                 setMapError("");
               }}
+              pattern={selectedCountry === US_COUNTRY_LABEL ? "[0-9]{5}" : "[A-Za-z0-9\\s-]{1,12}"}
+              maxLength={selectedCountry === US_COUNTRY_LABEL ? 5 : 12}
               onBlur={scheduleForwardGeocode}
               className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
             />

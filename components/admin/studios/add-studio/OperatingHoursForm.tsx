@@ -1,7 +1,7 @@
 /* eslint-disable */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Home, Sparkles, DoorOpen, Calendar } from "lucide-react";
 import {
   Select,
@@ -12,8 +12,38 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/src/components/landing/Separator";
 
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
+const timeOptions = [
+  "08:00",
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+  "18:00",
+  "19:00",
+  "20:00",
+  "21:00",
+  "22:00",
+];
+
 interface Props {
   isDark?: boolean;
+  value?: {
+    is24Hrs: boolean;
+    selectedDays: string[];
+    schedule: Record<string, { isOpen: boolean; setHours: boolean }>;
+    rules: Record<string, boolean | null>;
+    customRule: string;
+    studio: string;
+    openingTime: string;
+    closingTime: string;
+  };
+  onChange?: (next: NonNullable<Props["value"]>) => void;
 }
 
 type DayConfig = {
@@ -60,14 +90,14 @@ const CustomRadio = ({ selected }: { selected: boolean }) => {
   );
 };
 
-export default function OperatingHoursForm({ isDark = true }: Props) {
+export default function OperatingHoursForm({ isDark = true, value, onChange }: Props) {
   // --- Operating Hours State ---
-  const [is24Hrs, setIs24Hrs] = useState(false);
+  const [is24Hrs, setIs24Hrs] = useState(value?.is24Hrs ?? false);
   const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  const [selectedDays, setSelectedDays] = useState<string[]>(["Monday"]);
+  const [selectedDays, setSelectedDays] = useState<string[]>(value?.selectedDays || []);
   const [schedule, setSchedule] = useState<Record<string, { isOpen: boolean; setHours: boolean }>>(
-    DAYS.reduce((acc, day) => ({ ...acc, [day]: { isOpen: day !== "Sunday", setHours: day === "Monday" } }), {})
+    value?.schedule || {}
   );
 
   // --- Space Rules State ---
@@ -80,30 +110,33 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
     pets: null,
   });
 
-  const [customRule, setCustomRule] = useState("");
-  const [studio, setStudio] = useState("");
-  const [openingTime, setOpeningTime] = useState("");
-  const [closingTime, setClosingTime] = useState("");
+  const [customRule, setCustomRule] = useState(value?.customRule || "");
+  const [studio, setStudio] = useState(value?.studio || "");
+  const [openingTime, setOpeningTime] = useState(value?.openingTime || "");
+  const [closingTime, setClosingTime] = useState(value?.closingTime || "");
+  const [timeError, setTimeError] = useState("");
+  const hasHydratedValueRef = useRef(false);
 
-  // Load from local storage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("add_studio_operations");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.is24Hrs !== undefined) setIs24Hrs(parsed.is24Hrs);
-        if (parsed.selectedDays) setSelectedDays(parsed.selectedDays);
-        if (parsed.schedule) setSchedule(parsed.schedule);
-        if (parsed.rules) setRules(parsed.rules);
-        if (parsed.customRule !== undefined) setCustomRule(parsed.customRule);
-        if (parsed.studio) setStudio(parsed.studio);
-        if (parsed.openingTime) setOpeningTime(parsed.openingTime);
-        if (parsed.closingTime) setClosingTime(parsed.closingTime);
-      } catch (e) {
-        console.error("Failed to load saved studio operations", e);
-      }
-    }
-  }, []);
+    if (!value || hasHydratedValueRef.current) return;
+    setIs24Hrs(value.is24Hrs ?? false);
+    setSelectedDays(value.selectedDays || []);
+    setSchedule(value.schedule || {});
+    setRules(value.rules || {
+      smoking: null,
+      alcohol: null,
+      cooking: null,
+      electricity: null,
+      externalFood: null,
+      pets: null,
+    });
+    setCustomRule(value.customRule || "");
+    setStudio(value.studio || "");
+    setOpeningTime(value.openingTime || "");
+    setClosingTime(value.closingTime || "");
+    setTimeError("");
+    hasHydratedValueRef.current = true;
+  }, [value]);
 
   // Save to local storage on changes
   useEffect(() => {
@@ -117,8 +150,17 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
       openingTime,
       closingTime
     };
+    onChange?.(data);
     localStorage.setItem("add_studio_operations", JSON.stringify(data));
-  }, [is24Hrs, selectedDays, schedule, rules, customRule, studio, openingTime, closingTime]);
+  }, [is24Hrs, selectedDays, schedule, rules, customRule, studio, openingTime, closingTime, onChange]);
+
+  useEffect(() => {
+    if (!openingTime || !closingTime) {
+      setTimeError("");
+      return;
+    }
+    setTimeError(openingTime >= closingTime ? "Opening time must be before closing time." : "");
+  }, [openingTime, closingTime]);
 
   const toggleCheckbox = (day: string) => {
     setSelectedDays(prev =>
@@ -130,7 +172,7 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
   const toggleDay = (day: string) => {
     setSchedule(prev => ({
       ...prev,
-      [day]: { ...prev[day], isOpen: !prev[day].isOpen }
+      [day]: { ...prev[day], isOpen: !prev[day]?.isOpen }
     }));
   };
 
@@ -146,9 +188,11 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
   const toggleSetHours = (day: string) => {
     setSchedule(prev => ({
       ...prev,
-      [day]: { ...prev[day], setHours: !prev[day].setHours }
+      [day]: { ...prev[day], setHours: !prev[day]?.setHours }
     }));
   };
+
+  const getDayConfig = (day: string) => schedule[day] || { isOpen: false, setHours: false };
 
   const updateRule = (key: string, val: boolean) => {
     setRules(prev => ({ ...prev, [key]: val }));
@@ -231,21 +275,21 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
                 <div className="flex items-center gap-6 w-full">
                   <button
                     onClick={() => toggleDay(day)}
-                    className={`w-10 h-7 rounded-lg transition-colors relative ${schedule[day].isOpen ? "bg-[#E8D1AB]" : "bg-[#484646]"
+                    className={`w-10 h-7 rounded-lg transition-colors relative ${getDayConfig(day).isOpen ? "bg-[#E8D1AB]" : "bg-[#484646]"
                       }`}
                   >
-                    <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-md transition-transform ${schedule[day].isOpen ? "translate-x-3.5" : ""
+                    <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-md transition-transform ${getDayConfig(day).isOpen ? "translate-x-3.5" : ""
                       }`} />
                   </button>
-                  <span className={`text-sm lg:text-base ${textColor}`}>{schedule[day].isOpen ? "Open" : "Close"}</span>
+                  <span className={`text-sm lg:text-base ${textColor}`}>{getDayConfig(day).isOpen ? "Open" : "Close"}</span>
                 </div>
 
                 <div className="flex items-center gap-6 w-full">
                   {/* Set Hours Radio */}
                   {
-                    schedule[day].isOpen && (
+                    getDayConfig(day).isOpen && (
                       <div className="flex items-center gap-2 cursor-pointer w-full" onClick={() => toggleSetHours(day)}>
-                        <CustomRadio selected={schedule[day].setHours} />
+                        <CustomRadio selected={getDayConfig(day).setHours} />
                         <span className={`text-sm lg:text-base ${textColor}`}>Set Hours</span>
                       </div>
                     )
@@ -261,7 +305,7 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
           <div className={` p-5 flex flex-row items-center transition-colors duration-300 gap-2 border-b  rounded-2xl ${isDark ? "bg-[#171717] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"
             }`}>
             <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-            <p className={isDark ? "text-white" : "text-[#323232]"}>Set Custom Hours (Monday)</p>
+            <p className={isDark ? "text-white" : "text-[#323232]"}>Set Custom Hours</p>
           </div>
 
           <div className="space-y-5 lg:space-y-9 p-5 pt-9">
@@ -269,7 +313,7 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Studios</span>
               </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
+              <Select value={studio || undefined} onValueChange={(val) => setStudio(val)}>
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
                   <SelectValue placeholder="" />
                 </SelectTrigger>
@@ -283,12 +327,14 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Opening Time</span>
               </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
+              <Select value={openingTime || undefined} onValueChange={(val) => setOpeningTime(val)}>
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
+                  <SelectValue placeholder="Select time" />
                 </SelectTrigger>
                 <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
+                  {timeOptions.map((time) => (
+                    <SelectItem key={time} value={time}>{time}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -297,17 +343,26 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Closing Time</span>
               </div>
-              <Select value={studio} onValueChange={(val) => setStudio(val)}>
+              <Select value={closingTime || undefined} onValueChange={(val) => setClosingTime(val)}>
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
+                  <SelectValue placeholder="Select time" />
                 </SelectTrigger>
                 <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
+                  {timeOptions.map((time) => (
+                    <SelectItem key={time} value={time}>{time}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <button className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors">
+            {timeError && <p className="text-sm text-red-500">{timeError}</p>}
+
+            <button
+              className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors"
+              onClick={() => {
+                if (timeError) return;
+              }}
+            >
               Save
             </button>
           </div>
@@ -367,7 +422,9 @@ export default function OperatingHoursForm({ isDark = true }: Props) {
             </div>
             <textarea
               value={customRule}
-              onChange={(e) => setCustomRule(e.target.value)}
+              onChange={(e) => setCustomRule(sanitizeText(e.target.value))}
+              inputMode="text"
+              pattern="[A-Za-z\s.,'()-]*"
               className={`w-full h-[82px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
                 ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
                 : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"

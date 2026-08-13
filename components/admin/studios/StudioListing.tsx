@@ -425,7 +425,7 @@ export default function StudioListing({ isDark = false }: ListingProps) {
                         </button>
                       </Link>
 
-                      <Link href={`/admin/studio-management/add-studio?id=${studio.id}`}>
+                      <Link href={`/admin/studio-management/edit-studio/${studio.id}`}>
                         <button className="flex items-center gap-2 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] px-5 py-2 rounded-lg text-xs font-semibold transition-colors">
                           Edit
                           <Pencil size={14} />

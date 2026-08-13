@@ -125,7 +125,7 @@ export default function AdminStudiosDetailsPage() {
               Refresh
               <Loader2 size={18} />
             </Button>
-            <Link href={`/admin/studio-management/add-studio?id=${studioId}`}>
+            <Link href={`/admin/studio-management/edit-studio/${studioId}`}>
               <Button className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Edit Studio
                 <SquarePen size={18} />

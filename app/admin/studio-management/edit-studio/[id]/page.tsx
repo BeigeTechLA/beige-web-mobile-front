@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
@@ -259,7 +259,8 @@ export default function AdminStudiosDetailsPage() {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const studioId = null;
+  const params = useParams<{ id: string }>();
+  const studioId = params?.id ? String(params.id) : null;
   const hasClearedDraftRef = useRef(false);
 
   const [view, setView] = useState<keyof typeof VIEW_CONFIG>("address");

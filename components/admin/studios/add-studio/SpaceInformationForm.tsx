@@ -1,56 +1,79 @@
 /* eslint-disable */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Check } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
+const sanitizeNumber = (value: string) => value.replace(/[^0-9]/g, "");
+
 interface Props {
   isDark?: boolean;
+  value?: {
+    spaceTitle: string;
+    brandName: string;
+    description: string;
+    secondaryTypes: string[];
+    suggestedType: string;
+    dimensions: {
+      propertySize: string;
+      height: string;
+      width: string;
+      length: string;
+      floorNumber: string;
+    };
+    overnightStays: boolean;
+    securityEnabled: boolean;
+    securityDesc: string;
+  };
+  onChange?: (next: NonNullable<Props["value"]>) => void;
 }
 
-export default function SpaceInformationForm({ isDark = true }: Props) {
+export default function SpaceInformationForm({ isDark = true, value, onChange }: Props) {
+  const hasHydratedValueRef = useRef(false);
+
   // --- State Management ---
-  const [spaceTitle, setSpaceTitle] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [description, setDescription] = useState("");
-  const [secondaryTypes, setSecondaryTypes] = useState<string[]>([]);
-  const [suggestedType, setSuggestedType] = useState("");
+  const [spaceTitle, setSpaceTitle] = useState(value?.spaceTitle || "");
+  const [brandName, setBrandName] = useState(value?.brandName || "");
+  const [description, setDescription] = useState(value?.description || "");
+  const [secondaryTypes, setSecondaryTypes] = useState<string[]>(value?.secondaryTypes || []);
+  const [suggestedType, setSuggestedType] = useState(value?.suggestedType || "");
 
   // --- Second Half State ---
-  const [dimensions, setDimensions] = useState({
+  const [dimensions, setDimensions] = useState(value?.dimensions || {
     propertySize: "",
     height: "",
     width: "",
     length: "",
     floorNumber: ""
   });
-  const [overnightStays, setOvernightStays] = useState<boolean>(true);
-  const [securityEnabled, setSecurityEnabled] = useState(true);
-  const [securityDesc, setSecurityDesc] = useState("");
+  const [overnightStays, setOvernightStays] = useState<boolean>(value?.overnightStays ?? true);
+  const [securityEnabled, setSecurityEnabled] = useState(value?.securityEnabled ?? true);
+  const [securityDesc, setSecurityDesc] = useState(value?.securityDesc || "");
 
-  // Load from local storage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("add_studio_info");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.spaceTitle) setSpaceTitle(parsed.spaceTitle);
-        if (parsed.brandName) setBrandName(parsed.brandName);
-        if (parsed.description) setDescription(parsed.description);
-        if (parsed.secondaryTypes) setSecondaryTypes(parsed.secondaryTypes);
-        if (parsed.suggestedType) setSuggestedType(parsed.suggestedType);
-        if (parsed.dimensions) setDimensions(parsed.dimensions);
-        if (parsed.overnightStays !== undefined) setOvernightStays(parsed.overnightStays);
-        if (parsed.securityEnabled !== undefined) setSecurityEnabled(parsed.securityEnabled);
-        if (parsed.securityDesc) setSecurityDesc(parsed.securityDesc);
-      } catch (e) {
-        console.error("Failed to load saved studio info", e);
-      }
-    }
-  }, []);
+    if (!value || hasHydratedValueRef.current) return;
+
+    setSpaceTitle(value.spaceTitle || "");
+    setBrandName(value.brandName || "");
+    setDescription(value.description || "");
+    setSecondaryTypes(value.secondaryTypes || []);
+    setSuggestedType(value.suggestedType || "");
+    setDimensions(value.dimensions || {
+      propertySize: "",
+      height: "",
+      width: "",
+      length: "",
+      floorNumber: ""
+    });
+    setOvernightStays(value.overnightStays ?? true);
+    setSecurityEnabled(value.securityEnabled ?? true);
+    setSecurityDesc(value.securityDesc || "");
+    hasHydratedValueRef.current = true;
+  }, [value]);
 
   // Save to local storage on changes
   useEffect(() => {
@@ -65,6 +88,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       securityEnabled,
       securityDesc
     };
+    onChange?.(data);
     localStorage.setItem("add_studio_info", JSON.stringify(data));
   }, [
     spaceTitle,
@@ -75,7 +99,8 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
     dimensions,
     overnightStays,
     securityEnabled,
-    securityDesc
+    securityDesc,
+    onChange
   ]);
 
   // --- Theme Styles ---
@@ -106,7 +131,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
           </div>
           <Input
             value={spaceTitle}
-            onChange={(e) => setSpaceTitle(e.target.value)}
+            onChange={(e) => setSpaceTitle(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             placeholder="eg : Apartment, Photo Studio, Podcast Studio etc...."
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} placeholder:text-[#FFFFFF4D] focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
@@ -118,7 +145,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
           </div>
           <Input
             value={brandName}
-            onChange={(e) => setBrandName(e.target.value)}
+            onChange={(e) => setBrandName(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             placeholder="eg : Beige"
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} placeholder:text-[#FFFFFF4D] focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
@@ -132,7 +161,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
         </div>
         <textarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => setDescription(sanitizeText(e.target.value))}
           className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
             ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
             : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"
@@ -156,6 +185,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             const isActive = secondaryTypes.includes(type);
             return (
               <button
+                type="button"
                 key={type}
                 onClick={() => toggleType(type)}
                 className={`px-6 lg:text-lg h-14 lg:h-[82px] rounded-xl font-medium transition-all border text-left ${isActive
@@ -187,7 +217,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
           </div>
           <Input
             value={suggestedType}
-            onChange={(e) => setSuggestedType(e.target.value)}
+            onChange={(e) => setSuggestedType(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
         </div>
@@ -218,7 +250,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
               </div>
               <Input
                 value={dimensions[field.id as keyof typeof dimensions]}
-                onChange={(e) => updateDimension(field.id as keyof typeof dimensions, e.target.value)}
+                onChange={(e) => updateDimension(field.id as keyof typeof dimensions, field.id === "propertySize" || field.id === "floorNumber" ? sanitizeNumber(e.target.value) : e.target.value)}
+                inputMode={field.id === "propertySize" || field.id === "floorNumber" ? "numeric" : "text"}
+                pattern={field.id === "propertySize" || field.id === "floorNumber" ? "[0-9]*" : "[A-Za-z\\s.,'()-]*"}
                 className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
               />
             </div>
@@ -237,6 +271,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
         </div>
         <div className="flex gap-4">
           <button
+            type="button"
             onClick={() => setOvernightStays(true)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all duration-300 ${overnightStays ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : `bg-[#101010] border-white/30 ${textColor} opacity-60`}`}
           >
@@ -246,6 +281,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             </div>
           </button>
           <button
+            type="button"
             onClick={() => setOvernightStays(false)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all duration-300 ${!overnightStays ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : `bg-[#101010] border-white/30 ${textColor} opacity-60`}`}
           >
@@ -263,6 +299,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
         <div className="flex items-center justify-between">
           <h2 className={`text-lg lg:text-xl font-medium ${textColor}`}>Security Cameras and Recording Device</h2>
           <button
+            type="button"
             onClick={() => setSecurityEnabled(!securityEnabled)}
             className={`w-11 h-7 rounded-lg transition-colors relative ${securityEnabled ? "bg-[#E8D1AB]" : "bg-[#484646]"
               }`}
@@ -278,7 +315,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
           </div>
           <textarea
             value={securityDesc}
-            onChange={(e) => setSecurityDesc(e.target.value)}
+            onChange={(e) => setSecurityDesc(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             disabled={!securityEnabled}
             className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
               ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"

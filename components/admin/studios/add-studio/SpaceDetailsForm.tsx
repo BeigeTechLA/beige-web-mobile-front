@@ -1,7 +1,7 @@
 /* eslint-disable */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Camera, Calendar, Dumbbell, Users, Minus, Plus, Check,
   Balloon
@@ -11,41 +11,76 @@ import { QuantityControl } from "@/components/book-a-shoot";
 
 interface Props {
   isDark?: boolean;
+  value?: {
+    useDefault: boolean;
+    activities: {
+      production: boolean;
+      event: boolean;
+      recreation: boolean;
+      meetings: boolean;
+    };
+    counts: {
+      guests: number;
+      bedrooms: number;
+      beds: number;
+      bathrooms: number;
+    };
+    amenities: string[];
+    highlights: string[];
+  };
+  onChange?: (next: NonNullable<Props["value"]>) => void;
 }
 
-export default function SpaceDetailsForm({ isDark = true }: Props) {
-  const [useDefault, setUseDefault] = useState<boolean>(true);
-  const [activities, setActivities] = useState({
-    production: true,
-    event: false,
-    recreation: false,
-    meetings: false,
-  });
-  const [counts, setCounts] = useState({
-    guests: 0,
-    bedrooms: 0,
-    beds: 0,
-    bathrooms: 0,
-  });
-  const [amenities, setAmenities] = useState<string[]>([]);
-  const [highlights, setHighlights] = useState<string[]>([]);
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
+const sanitizeNumber = (value: string) => value.replace(/[^0-9]/g, "");
+
+export default function SpaceDetailsForm({ isDark = true, value, onChange }: Props) {
+  const [useDefault, setUseDefault] = useState<boolean>(value?.useDefault ?? true);
+  const [activities, setActivities] = useState(
+    value?.activities || {
+      production: true,
+      event: false,
+      recreation: false,
+      meetings: false,
+    },
+  );
+  const [counts, setCounts] = useState(
+    value?.counts || {
+      guests: 0,
+      bedrooms: 0,
+      beds: 0,
+      bathrooms: 0,
+    },
+  );
+  const [amenities, setAmenities] = useState<string[]>(value?.amenities || []);
+  const [highlights, setHighlights] = useState<string[]>(value?.highlights || []);
+  const lastSyncedValueRef = useRef<string>("");
+  const hasHydratedValueRef = useRef(false);
 
   // Load from local storage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("add_studio_details");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.useDefault !== undefined) setUseDefault(parsed.useDefault);
-        if (parsed.activities) setActivities(parsed.activities);
-        if (parsed.counts) setCounts(parsed.counts);
-        if (parsed.amenities) setAmenities(parsed.amenities);
-        if (parsed.highlights) setHighlights(parsed.highlights);
-      } catch (e) {
-        console.error("Failed to load saved studio details", e);
-      }
-    }
-  }, []);
+    if (!value || hasHydratedValueRef.current) return;
+    const serialized = JSON.stringify(value);
+    if (serialized === lastSyncedValueRef.current) return;
+
+    lastSyncedValueRef.current = serialized;
+    setUseDefault(value.useDefault ?? true);
+    setActivities(value.activities || {
+      production: true,
+      event: false,
+      recreation: false,
+      meetings: false,
+    });
+    setCounts(value.counts || {
+      guests: 0,
+      bedrooms: 0,
+      beds: 0,
+      bathrooms: 0,
+    });
+    setAmenities(value.amenities || []);
+    setHighlights(value.highlights || []);
+    hasHydratedValueRef.current = true;
+  }, [value]);
 
   // Save to local storage on changes
   useEffect(() => {
@@ -56,8 +91,10 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
       amenities,
       highlights
     };
+    lastSyncedValueRef.current = JSON.stringify(data);
+    onChange?.(data);
     localStorage.setItem("add_studio_details", JSON.stringify(data));
-  }, [useDefault, activities, counts, amenities, highlights]);
+  }, [useDefault, activities, counts, amenities, highlights, onChange]);
 
   // --- Helpers ---
   const toggleAmenity = (id: string) => {
@@ -74,6 +111,12 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
 
   const updateCount = (key: keyof typeof counts, delta: number) => {
     setCounts(prev => ({ ...prev, [key]: Math.max(0, prev[key] + delta) }));
+  };
+
+  const updateCountDirect = (key: keyof typeof counts, nextValue: string, max?: number) => {
+    const numeric = sanitizeNumber(nextValue);
+    const parsed = numeric ? Number(numeric) : 0;
+    setCounts((prev) => ({ ...prev, [key]: Math.max(0, typeof max === "number" ? Math.min(parsed, max) : parsed) }));
   };
 
   const textColor = isDark ? "text-white" : "text-black";
@@ -177,6 +220,14 @@ export default function SpaceDetailsForm({ isDark = true }: Props) {
                   value={value}
                   onIncrease={() => updateCount(key as any, 1)}
                   onDecrease={() => updateCount(key as any, -1)}
+                />
+                <input
+                  value={String(value)}
+                  onChange={(e) => updateCountDirect(key as keyof typeof counts, e.target.value)}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  min="0"
+                  className="sr-only"
                 />
               </div>
               {idx !== (Object.entries(counts).length - 1) &&
