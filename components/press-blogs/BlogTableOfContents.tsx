@@ -37,6 +37,7 @@ export const BlogTableOfContents: React.FC<BlogTableOfContentsProps> = ({ headin
         <div className="space-y-6">
           {visibleHeadings.map((heading) => {
             const isActive = activeId === heading.id;
+            const headingClean = heading.text.replace(/&amp;/g, "&"); // Remove any HTML tags for display
             return (
               <div
                 key={heading.id}
@@ -49,13 +50,13 @@ export const BlogTableOfContents: React.FC<BlogTableOfContentsProps> = ({ headin
                 )}
 
                 <p
-                  className={`text-sm lg:text-base leading-snug transition-colors duration-200 ${
+                  className={`text-sm lg:text-base leading-snug transition-colors duration-200 truncate ${
                     isActive
                       ? "text-white font-medium"
                       : "text-white/40 hover:text-white/70"
                   }`}
                 >
-                  {heading.text}
+                  {headingClean}
                 </p>
               </div>
             );
