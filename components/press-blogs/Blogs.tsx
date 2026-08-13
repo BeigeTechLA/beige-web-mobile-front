@@ -6,7 +6,7 @@ import { Container } from "@/src/components/landing/ui/container";
 import { useRouter } from "next/navigation";
 import { ProjectSwitcher } from "@/app/creatives/components/ProjectSwitcher";
 import { Loader, Minus, Plus, Rss } from "lucide-react";
-import { getAllPosts, parseWordPressContent } from "@/app/press-blogs/lib/posts";
+import { getAllPosts } from "@/app/press-blogs/lib/posts";
 import { BlogPost } from "@/app/press-blogs/lib/types";
 import { extractPlainText, extractFirstImage } from "@/lib/utils/blogUtils";
 
@@ -17,6 +17,12 @@ const BLOG_CATEGORIES = [
   "Beige Updates",
 ];
 
+const getCategoryTitle = (post: BlogPost, fallback = "") => {
+  return typeof post.category === "object"
+    ? post.category?.title || fallback
+    : post.category || fallback;
+};
+
 export const Blogs = () => {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<string>("Trends and Inspos");
@@ -24,12 +30,10 @@ export const Blogs = () => {
 
   // Fetch all post data
   const posts: BlogPost[] = getAllPosts();
-  console.log(posts);
-
   // Filter posts based on active category
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
-      const categoryName = post.category?.title || post.category;
+      const categoryName = getCategoryTitle(post);
       return categoryName === activeCategory;
     });
   }, [posts, activeCategory]);
@@ -78,7 +82,7 @@ export const Blogs = () => {
           ) : (
             filteredPosts.map((post, index) => {
               const isExpanded = expandedIndex === index;
-              const postCategory = post.category?.title || activeCategory;
+              const postCategory = getCategoryTitle(post, activeCategory);
               const postSlug = String(post["post_name"]);
               const postDescription = extractPlainText(post["content:encoded"]);
               const postImage = (extractFirstImage(post["content:encoded"]) === "/images/misc/placeholder.png" ? "/images/misc/BlackLogoPlaceholder.png" : extractFirstImage(post["content:encoded"]));

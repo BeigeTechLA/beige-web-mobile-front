@@ -31,18 +31,18 @@ export const ImageTextBlock: React.FC<ImageTextBlockData> = ({
   );
 
   const imageContent = (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col w-full h-full justify-center min-h-0 relative">
       {imageSrc && (
-        <div className="w-full overflow-hidden rounded-2xl shadow-sm border border-white/10">
+        <div className="w-full h-full min-h-0 overflow-hidden rounded-2xl shadow-sm border border-white/10 relative">
           <img
             src={`${imageSrc}`}
             alt={imageAlt}
-            className="w-full h-auto object-cover block"
+            className="w-full h-full object-cover block absolute inset-0"
           />
         </div>
       )}
       {caption && (
-        <div className="mt-3 text-center text-xs lg:text-sm font-semibold text-white/70 font-['Instrument_Sans'] tracking-wide">
+        <div className="mt-3 text-center text-xs lg:text-sm font-semibold text-white/70 font-['Instrument_Sans'] tracking-wide shrink-0">
           {caption}
         </div>
       )}
@@ -50,7 +50,7 @@ export const ImageTextBlock: React.FC<ImageTextBlockData> = ({
   );
 
   return (
-    <div className="my-10 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-center w-full">
+    <div className="my-10 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-stretch w-full">
       {imageFirst ? (
         <>
           {imageContent}

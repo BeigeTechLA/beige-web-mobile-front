@@ -7,8 +7,10 @@ import { FAQ, FAQItem } from "./FAQ";
 import Cards, { CardItemData } from "./Cards";
 import { ImageTextBlock } from "./ImageTextBlock";
 import ImageGridBlock from "./ImageGridBlock";
-import { TabSwitcher } from "./TabSwitcher";
+import { TabSwitcher, TabData } from "./TabSwitcher";
 import SlideTextCarousel, { CarouselSlideItem } from "./SlideTextCarousel";
+import { Testimonials } from "../about/Testimonials";
+import { ThreePartAnimate, ThreePartAnimateItem } from "./ThreePartAnimate";
 
 interface BlogRendererProps {
   rawContent: string;
@@ -96,6 +98,19 @@ const hasContent = (nodes: DOMNode[]): boolean => {
     return false;
   });
 };
+
+/**
+ * Replaces <div id="testimonials">...</div> with <Testimonials />
+ * 
+ * @param {string} htmlContent - Raw HTML string
+ * @returns {string} Modified HTML with <Testimonials /> tag inserted
+ */
+export function replaceTestimonialsSection(htmlContent: string) {
+  // Regex matches <div id="testimonials"> up to its matching/closing context
+  const testimonialsRegex = /<div\s+id=["']testimonials["'][\s\S]*?<\/div>/gi;
+
+  return htmlContent.replace(testimonialsRegex, '<Testimonials />');
+}
 
 export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) => {
   const options: HTMLReactParserOptions = {
@@ -505,7 +520,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
             if (["h1", "h2", "h3", "h4", "h5"].includes(node.name)) {
               pushCurrentItem();
               currentItem.titleNode = node;
-            } 
+            }
             // 2. Bold / Strong Tags used as Section Titles
             else if (
               (node.name === "b" || node.name === "strong") &&
@@ -528,7 +543,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
                 currentBlock.imageFirst = true;
               }
               extractImgDetails(node, currentBlock);
-            } 
+            }
             // 4. Paragraphs
             else if (node.name === "p") {
               const innerImg = node.children.find(
@@ -551,7 +566,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
                   </React.Fragment>
                 );
               }
-            } 
+            }
             // 5. Lists & Structural Text Elements (<ul>, <ol>, <a>, etc.)
             else if (["ul", "ol", "a", "blockquote", "span", "b", "strong"].includes(node.name)) {
               currentItem.descriptionParts.push(
@@ -590,7 +605,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
                 nestedChildren.forEach((child) => processNode(child));
               }
             }
-          } 
+          }
           // 7. Bare Text Nodes
           else if (node.type === "text" || "data" in node) {
             const textContent = ((node as unknown as { data: string }).data || "").trim();
@@ -934,6 +949,66 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         return <TabSwitcher tabs={formattedTabs} />;
       }
 
+      // Intercept <div id="testimonials"> and swap it out
+      if (
+        domNode instanceof Element &&
+        domNode.name === 'div' &&
+        domNode.attribs?.id === 'testimonials'
+      ) {
+        return <div className="w-full"><Testimonials showHeaders={false} /></div>;
+      }
+
+      if (
+        domNode instanceof Element &&
+        domNode.name === "div" &&
+        domNode.attribs?.id === "three-part-animate"
+      ) {
+        const items: ThreePartAnimateItem[] = [];
+
+        // 2. Traversal & Data Extraction
+        domNode.children.forEach((child) => {
+          if (child instanceof Element && child.name === "label") {
+            const styleAttr = child.attribs?.style || "";
+            let bgImage = "";
+
+            // Extract background URL from style attribute string
+            const urlMatch = styleAttr.match(/url\(['"]?(.*?)['"]?\)/i);
+            if (urlMatch && urlMatch[1]) {
+              bgImage = urlMatch[1];
+            }
+
+            let link = "";
+            let titleText = "";
+
+            // Parse direct children inside <label>
+            child.children.forEach((labelChild) => {
+              if (
+                labelChild instanceof Element &&
+                labelChild.name === "a"
+              ) {
+                link = labelChild.attribs?.href || "";
+              } else if (labelChild.type === "text") {
+                const textVal = labelChild.data?.trim();
+                if (textVal) {
+                  titleText += textVal + " ";
+                }
+              }
+            });
+
+            if (bgImage) {
+              items.push({
+                title: titleText.trim(),
+                link: link,
+                bgImage: bgImage,
+              });
+            }
+          }
+        });
+
+        // 3. Return the dynamic component with parsed props
+        return <ThreePartAnimate items={items} />;
+      }
+
       // Paragraph handling
       if (domNode.name === "p") {
         const isMediaOnlyParagraph = containsOnlyMedia(domNode.children as DOMNode[]);
@@ -1013,7 +1088,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
       // Article Wrapper
       if (domNode.name === "article") {
         return (
-          <article className="article-wrapper space-y-6 text-white/90 font-['Yrsa'] text-sm lg:text-2xl">
+          <article className="article-wrapper space-y-6 text-white font-['Yrsa'] text-sm lg:text-2xl">
             {domToReact(domNode.children as Element[], options)}
           </article>
         );
@@ -1046,7 +1121,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         const headingText = extractCleanText(domNode);
         const headingId = domNode.attribs.id || slugify(headingText);
         return (
-          <h3 id={headingId} className="text-lg lg:text-3xl text-white/90 font-medium font-['Instrument_Sans'] mt-6 mb-3 scroll-mt-28">
+          <h3 id={headingId} className="text-lg lg:text-3xl text-white font-medium font-['Instrument_Sans'] mt-6 mb-3 scroll-mt-28">
             {domToReact(domNode.children as Element[], options)}
           </h3>
         );
@@ -1055,7 +1130,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
       // Quotes / Blockquotes
       if (domNode.name === "blockquote") {
         return (
-          <blockquote className="p-6 my-6 bg-[#E8D1AB]/10 border-l-4 border-[#E8D1AB] rounded-r-2xl italic text-white/90">
+          <blockquote className="p-6 my-6 bg-[#E8D1AB]/10 border-l-4 border-[#E8D1AB] rounded-r-2xl italic text-white">
             {domToReact(domNode.children as Element[], options)}
           </blockquote>
         );
@@ -1069,7 +1144,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
             {React.createElement(
               domNode.name,
               {
-                className: `${isOrdered ? "list-decimal" : "list-disc"} list-inside space-y-2 text-white/80`,
+                className: `${isOrdered ? "list-decimal" : "list-disc"} list-inside space-y-2 text-white`,
               },
               domToReact(domNode.children as Element[], options)
             )}
@@ -1089,7 +1164,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
       if (domNode.name === "table") {
         return (
           <div className="my-8 w-full overflow-x-auto rounded-xl border border-white/10 bg-white/5 p-2">
-            <table className="w-full min-w-full text-left border-collapse text-white/90">
+            <table className="w-full min-w-full text-left border-collapse text-white">
               {domToReact(domNode.children as Element[], options)}
             </table>
           </div>

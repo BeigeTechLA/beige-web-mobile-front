@@ -88,7 +88,7 @@ export const ImageGridBlock: React.FC<ImageGridBlockProps> = ({ children }) => {
 
   return (
     <>
-      <div className={`my-8 grid ${getGridClass(itemCount)} gap-4 w-full`}>
+      <div className={`my-4 grid ${getGridClass(itemCount)} gap-5 w-full lg:max-h-[600px] lg:h-[600px]`}>
         {React.Children.map(children, (child, index) => {
           const { src, alt } = extractImageInfo(child);
 
@@ -96,9 +96,7 @@ export const ImageGridBlock: React.FC<ImageGridBlockProps> = ({ children }) => {
             <div
               key={`grid-item-${index}`}
               onClick={() => src && setActiveImage({ src, alt })}
-              className={`relative overflow-hidden rounded-xl bg-neutral-100 transition-transform duration-300 hover:scale-[1.02] ${
-                src ? "cursor-pointer" : ""
-              }`}
+              className={`relative w-full h-full min-h-0 min-w-0 overflow-hidden rounded-xl transition-transform duration-300 hover:scale-[1.02] [&_img]:w-full [&_img]:h-full [&_img]:object-cover ${src ? "cursor-pointer" : ""}`}
             >
               {child}
             </div>
