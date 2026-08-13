@@ -1,18 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useChangePasswordCrewMutation } from "@/lib/redux/features/auth/authApi";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface SecurityFormProps {
   onSuccess: () => void;
   isDark?: boolean;
 }
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "data" in error &&
+    typeof (error as { data?: { message?: unknown } }).data?.message === "string"
+  ) {
+    return (error as { data: { message: string } }).data.message;
+  }
+
+  return fallback;
+};
+
+const getStoredHasPassword = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const userData = localStorage.getItem("revure_user");
+    const parsedUser = userData ? JSON.parse(userData) : null;
+    return typeof parsedUser?.has_password === "boolean" ? parsedUser.has_password : null;
+  } catch {
+    return null;
+  }
+};
+
 const SecurityForm = ({ onSuccess, isDark = true }: SecurityFormProps) => {
+  const { user } = useAuth();
   const [changePasswordCrew, { isLoading }] = useChangePasswordCrewMutation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -20,6 +47,11 @@ const SecurityForm = ({ onSuccess, isDark = true }: SecurityFormProps) => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [hasPassword, setHasPassword] = useState(() => getStoredHasPassword() ?? (user?.has_password !== false));
+
+  useEffect(() => {
+    setHasPassword(getStoredHasPassword() ?? (user?.has_password !== false));
+  }, [user?.has_password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,19 +76,29 @@ const SecurityForm = ({ onSuccess, isDark = true }: SecurityFormProps) => {
         return;
       }
 
-      const response = await changePasswordCrew({
-        currentPassword: currentPassword,
+      const payload = {
         newPassword: newPassword,
         user_id: Number(userId),
-      }).unwrap();
+        ...(hasPassword ? { currentPassword } : {}),
+      };
 
-      toast.success(response.message || "Password changed successfully");
+      const response = await changePasswordCrew(payload).unwrap();
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("revure_user", JSON.stringify({
+          ...parsedUser,
+          has_password: true,
+        }));
+      }
+      setHasPassword(true);
+
+      toast.success(response.message || (hasPassword ? "Password changed successfully" : "Password set successfully"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       onSuccess();
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Failed to change password");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, hasPassword ? "Failed to change password" : "Failed to set password"));
     }
   };
 
@@ -75,26 +117,27 @@ const SecurityForm = ({ onSuccess, isDark = true }: SecurityFormProps) => {
     <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-500">
       <div className="space-y-4">
 
-        {/* CURRENT PASSWORD */}
-        <div className="space-y-2">
-          <Label className={labelClasses}>Current Password</Label>
-          <div className="relative">
-            <Input
-              type={showCurrentPassword ? "text" : "password"}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className={inputClasses}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              className={toggleButtonClasses}
-            >
-              {showCurrentPassword ? <Eye size={16} /> : <EyeOff size={16} />}
-            </button>
+        {hasPassword && (
+          <div className="space-y-2">
+            <Label className={labelClasses}>Current Password</Label>
+            <div className="relative">
+              <Input
+                type={showCurrentPassword ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={inputClasses}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className={toggleButtonClasses}
+              >
+                {showCurrentPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* NEW PASSWORD */}
         <div className="space-y-2">
@@ -149,7 +192,7 @@ const SecurityForm = ({ onSuccess, isDark = true }: SecurityFormProps) => {
               : "bg-[#cbb38b] hover:bg-[#bfa57c] text-white"
             }`}
         >
-          {isLoading ? "Updating..." : "Update Password"}
+          {isLoading ? (hasPassword ? "Updating..." : "Setting...") : (hasPassword ? "Update Password" : "Set Password")}
         </button>
       </div>
     </form>

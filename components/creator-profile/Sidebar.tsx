@@ -26,6 +26,7 @@ import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
+const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 interface SidebarProps {
   onClose?: () => void;
@@ -49,13 +50,21 @@ const capitalizeName = (value: unknown) => {
     .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
 };
 
+const resolveProfileImageSrc = (value?: string | null) => {
+  const image = String(value || "").trim();
+  if (!image) return "";
+  if (/^https?:\/\//i.test(image) || image.startsWith("/")) return image;
+  return `${S3_BASE_URL}${image}`;
+};
+
 export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
   const { isDark } = useResolvedTheme();
   const displayName = capitalizeName(user?.name) || "Creator";
-  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const profileImageSrc = resolveProfileImageSrc(user?.profile_image);
+  const isCreatorUser = user?.user_type_id === 2 || user?.userTypeId === 2;
   const { data: onboardingStatus } = useGetOnboardingStatusQuery(undefined, {
     skip: !isCreatorUser,
   });
@@ -64,6 +73,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const [isVerified, setIsVerified] = useState(false);
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Finances"]);
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
   const isUnlocked = isVerified && isRegistrationComplete;
 
   // Auto-expand dynamic parent routes on load/change
@@ -115,6 +125,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
             ...localUser,
             is_crew_verified: status,
             is_registration_complete: registrationComplete ? 1 : 0,
+            profile_image: user?.profile_image || localUser?.profile_image || null,
           };
           localStorage.setItem("revure_user", JSON.stringify(updatedUser));
         }
@@ -135,6 +146,10 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
 
     setIsRegistrationComplete(registrationComplete);
   }, [onboardingStatus]);
+
+  useEffect(() => {
+    setProfileImageFailed(false);
+  }, [profileImageSrc]);
 
   useEffect(() => {
     if (onClose && pathname !== initialPath.current) {
@@ -326,8 +341,21 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
       {/* User Profile and Logout Footer */}
       <div className={`pt-6 border-t flex-shrink-0 transition-colors ${isDark ? "border-white/10 bg-[#0A0A0A]" : "border-zinc-200 bg-white"}`}>
         <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0">
-            {displayName[0] || "A"}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-lg shrink-0 overflow-hidden">
+            {profileImageSrc && !profileImageFailed ? (
+              <Image
+                src={profileImageSrc}
+                alt={displayName}
+                width={40}
+                height={40}
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+                unoptimized={profileImageSrc.includes("googleusercontent.com")}
+                onError={() => setProfileImageFailed(true)}
+              />
+            ) : (
+              displayName[0] || "A"
+            )}
           </div>
           <div className="flex-1 overflow-hidden">
             <p className={`text-sm font-semibold truncate ${isDark ? "text-white" : "text-[#101010]"}`}>{displayName}</p>
