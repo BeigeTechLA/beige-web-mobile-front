@@ -7,7 +7,7 @@ import { FAQ, FAQItem } from "./FAQ";
 import Cards, { CardItemData } from "./Cards";
 import { ImageTextBlock } from "./ImageTextBlock";
 import ImageGridBlock from "./ImageGridBlock";
-import { TabSwitcher } from "./TabSwitcher";
+import { TabSwitcher, TabData } from "./TabSwitcher";
 import SlideTextCarousel, { CarouselSlideItem } from "./SlideTextCarousel";
 import { Testimonials } from "../about/Testimonials";
 import { ThreePartAnimate, ThreePartAnimateItem } from "./ThreePartAnimate";
@@ -105,7 +105,7 @@ const hasContent = (nodes: DOMNode[]): boolean => {
  * @param {string} htmlContent - Raw HTML string
  * @returns {string} Modified HTML with <Testimonials /> tag inserted
  */
-export function replaceTestimonialsSection(htmlContent) {
+export function replaceTestimonialsSection(htmlContent: string) {
   // Regex matches <div id="testimonials"> up to its matching/closing context
   const testimonialsRegex = /<div\s+id=["']testimonials["'][\s\S]*?<\/div>/gi;
 
