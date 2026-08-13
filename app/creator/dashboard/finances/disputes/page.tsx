@@ -11,7 +11,6 @@ import {
   DollarSign,
   HandCoins,
   Search,
-  TrendingUp,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -58,6 +57,7 @@ type CreatorDisputeItem = {
   title: string;
   status: DisputeStatus;
   payoutStatus: string;
+  createdAt: string;
   payoutDate: string;
   totalEarnings: number;
   paidAmount: number;
@@ -75,6 +75,8 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
   "Incorrect Amount": "payout_issues",
   Other: "other",
 };
+
+const DISPUTES_PER_PAGE = 10;
 
 const titleize = (value: string | null | undefined) =>
   String(value || "")
@@ -161,6 +163,7 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
     title: cp.shoot_name || fallback?.shoot_name || dispute.project?.name || `Shoot ${formatShootId(bookingId)}`,
     status: mapDisputeStatus(dispute.status),
     payoutStatus: fallback?.status_label || titleize(fallback?.status) || "Compensation Added",
+    createdAt: formatDate(dispute.created_at),
     payoutDate: formatDate(fallback?.due_date || dispute.created_at),
     totalEarnings: compensationAmount,
     paidAmount,
@@ -230,7 +233,6 @@ const mapDetails = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Creato
       remaining: formatCurrency(row.remainingBalance),
       extra: row.extraAmount > 0 ? formatCurrency(row.extraAmount) : undefined,
     },
-    ...(fallback ? { raisedDate: fallback.payoutDate } : {}),
   };
 };
 
@@ -251,6 +253,8 @@ export default function DisputesPage() {
   const [disputes, setDisputes] = useState<AdminFinanceDisputeDetailsApiRow[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<DisputeDetailsRecord | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [actionLoading, setActionLoading] = useState<"comment" | "attachment" | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let isCancelled = false;
@@ -317,6 +321,17 @@ export default function DisputesPage() {
     });
   }, [disputeItems, disputedStat, disputedStatus, searchQuery]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredDisputes.length / DISPUTES_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const paginatedDisputes = useMemo(() => {
+    const start = (currentPage - 1) * DISPUTES_PER_PAGE;
+    return filteredDisputes.slice(start, start + DISPUTES_PER_PAGE);
+  }, [currentPage, filteredDisputes]);
+
   const shootOptions = useMemo(() => earnings
     .filter((earning) => !activeDisputeEarningIds.has(String(earning.creator_earning_id)))
     .map((earning) => ({
@@ -340,6 +355,7 @@ export default function DisputesPage() {
   }, [disputeItems, disputes.length]);
 
   const handleRaiseDisputeSubmit = async (data: RaiseDisputeData) => {
+    const selectedShoot = shootOptions.find((shoot) => String(shoot.bookingId) === String(data.shootId));
     const payload = new FormData();
     payload.append("booking_id", data.shootId);
     if (data.creatorEarningId) payload.append("creator_earning_id", String(data.creatorEarningId));
@@ -354,6 +370,9 @@ export default function DisputesPage() {
     return {
       disputeId: dispute.dispute_code || (dispute.dispute_id ? `DIS-${dispute.dispute_id}` : "-"),
       bookingId: formatShootId(dispute.booking_id || data.shootId),
+      shootLabel: selectedShoot?.label || formatShootId(dispute.booking_id || data.shootId),
+      disputeType: data.disputeType,
+      status: "Dispute Open",
     };
   };
 
@@ -376,7 +395,7 @@ export default function DisputesPage() {
         remaining_balance: dispute.remainingBalance,
         extra_amount: dispute.extraAmount,
       },
-      created_at: dispute.payoutDate,
+      created_at: dispute.createdAt,
       raised_by: { type: "creator", name: dispute.raisedBy },
     }, dispute));
 
@@ -388,10 +407,41 @@ export default function DisputesPage() {
     }
   };
 
-  const completedBookings = earnings.filter((earning) => String(earning.status || "").toLowerCase() === "paid").length;
-  const averageEarnings = earnings.length
-    ? earnings.reduce((sum, earning) => sum + parseMoneyValue(earning.total_compensation), 0) / earnings.length
-    : 0;
+  const refreshSelectedDispute = async (disputeId?: string | number) => {
+    if (!disputeId) return;
+    const response = await financeTransactionsApi.getCreatorDisputeDetails(disputeId);
+    setSelectedDispute(mapDetails(response.data));
+  };
+
+  const handleAddComment = async (dispute: DisputeDetailsRecord, body: string) => {
+    if (!dispute.disputeId) return;
+    setActionLoading("comment");
+    try {
+      await financeTransactionsApi.addCreatorDisputeComment(dispute.disputeId, body);
+      await refreshSelectedDispute(dispute.disputeId);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add creator dispute comment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAddAttachment = async (dispute: DisputeDetailsRecord, files: File[]) => {
+    if (!dispute.disputeId || !files.length) return;
+    setActionLoading("attachment");
+    try {
+      const payload = new FormData();
+      files.forEach((file) => payload.append("attachments", file));
+      await financeTransactionsApi.addCreatorDisputeAttachment(dispute.disputeId, payload);
+      await refreshSelectedDispute(dispute.disputeId);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      console.error("Failed to add creator dispute attachment:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <>
@@ -528,7 +578,7 @@ export default function DisputesPage() {
                 <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">Loading disputes...</div>
               ) : filteredDisputes.length === 0 ? (
                 <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">No CP disputes found.</div>
-              ) : filteredDisputes.map((dispute) => (
+              ) : paginatedDisputes.map((dispute) => (
                 <div key={dispute.id} className={`rounded-2xl overflow-hidden bg-[#0D0D0D] ${expandedId === dispute.id ? "border-[0.5px] border-[#E8D1AB]" : "border-[0.5px] border-[#262626]"}`}>
                   <div
                     onClick={() => setExpandedId(expandedId === dispute.id ? null : dispute.id)}
@@ -593,7 +643,7 @@ export default function DisputesPage() {
                             </div>
                             <div className="flex justify-between text-base">
                               <span className="text-[#A0A0A0]">Created</span>
-                              <span>{dispute.payoutDate}</span>
+                              <span>{dispute.createdAt}</span>
                             </div>
                             <div className="flex justify-between text-base">
                               <span className="text-[#A0A0A0]">Reason</span>
@@ -627,19 +677,35 @@ export default function DisputesPage() {
             </div>
 
             <div className="flex items-center justify-between px-3.5 py-5 border-t border-[#3D3D3D] border-b-0 bg-[#101010]">
-              <p className="text-sm text-gray-500">Showing {filteredDisputes.length} disputes</p>
+              <p className="text-sm text-gray-500">
+                Showing {(currentPage - 1) * DISPUTES_PER_PAGE + 1} to{" "}
+                {Math.min(currentPage * DISPUTES_PER_PAGE, filteredDisputes.length)} of{" "}
+                {filteredDisputes.length}
+              </p>
               <div className="flex items-center gap-2">
-                <button className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <ChevronLeft size={16} />
                 </button>
-                <button className="w-9 h-9 rounded-lg bg-[#E5D5B8] text-black font-medium text-sm">1</button>
-                <button className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors">
+                <button className="w-9 h-9 rounded-lg bg-[#E5D5B8] text-black font-medium text-sm">
+                  {currentPage}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
           </div>
-
+{/* 
           <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-5">
               <TrendingUp size={20} className="text-[#10B981]" />
@@ -659,7 +725,7 @@ export default function DisputesPage() {
                 <p className="text-xl text-[#E8D1AB] font-normal">{String(shootOptions.length).padStart(2, "0")}</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <RaiseDisputeModal
@@ -673,6 +739,9 @@ export default function DisputesPage() {
           isOpen={!!selectedDispute}
           onClose={() => setSelectedDispute(null)}
           dispute={selectedDispute}
+          onAddComment={(dispute, body) => void handleAddComment(dispute, body)}
+          onAddAttachment={(dispute, files) => void handleAddAttachment(dispute, files)}
+          actionLoading={Boolean(actionLoading)}
         />
         </div>
       </div>

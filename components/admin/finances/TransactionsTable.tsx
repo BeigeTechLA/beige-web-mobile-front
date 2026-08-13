@@ -60,8 +60,8 @@ interface TransactionsTableProps {
   loading?: boolean;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  statusValue: string;
-  onStatusChange: (value: string) => void;
+  // statusValue: string;
+  // onStatusChange: (value: string) => void;
   monthValue: string;
   onMonthChange: (value: string) => void;
   typeValue: string;
@@ -140,7 +140,7 @@ export default function TransactionsTable({
 }: TransactionsTableProps) {
   const { isDark } = useResolvedTheme();
   const [localCurrentPage, setLocalCurrentPage] = useState(1);
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(rows[0]?.id ?? null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const isControlledPagination = typeof currentPage === "number" && typeof onPageChange === "function";
   const activePage = isControlledPagination ? Math.max(currentPage || 1, 1) : localCurrentPage;
 
@@ -149,10 +149,6 @@ export default function TransactionsTable({
       setLocalCurrentPage(1);
     }
   }, [rows, searchValue, statusValue, monthValue, typeValue, viewValue, isControlledPagination]);
-
-  useEffect(() => {
-    setExpandedRowId(rows[0]?.id ?? null);
-  }, [rows, viewValue]);
 
   const totalPages = Math.max(1, controlledTotalPages || Math.ceil(rows.length / itemsPerPage));
   const safePage = Math.min(activePage, totalPages);
@@ -355,7 +351,7 @@ export default function TransactionsTable({
             </div>
 
             <div className="flex gap-2">
-              <Select value={statusValue} onValueChange={onStatusChange}>
+              {/* <Select value={statusValue} onValueChange={onStatusChange}>
                 <SelectTrigger className={`w-[110px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -365,7 +361,7 @@ export default function TransactionsTable({
                   <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Failed">Failed</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
               <Select value={monthValue} onValueChange={onMonthChange}>
                 <SelectTrigger className={`w-[110px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>

@@ -35,7 +35,7 @@ import {
   type FinanceTransactionApiRow,
 } from "@/lib/api/financeTransactions";
 
-type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In-Progress" | "Resolved" | "Rejected";
+type PaymentStatus = "Paid" | "Dispute Open" | "Pending" | "Refunded" | "In Review" | "Resolved" | "Rejected";
 
 type PaymentRow = {
   id: string;
@@ -62,7 +62,7 @@ type PaymentRow = {
 };
 
 type AffiliateTransactionsHistoryProps = {
-  onRaiseDispute?: (bookingId?: string) => void;
+  onRaiseDispute?: (bookingId?: string, shootName?: string) => void;
   refreshKey?: number;
 };
 
@@ -131,15 +131,15 @@ const isProofAttachmentType = (type: string | null | undefined) =>
 
 const statusStyles: Record<PaymentStatus, string> = {
   Paid: "bg-[#DDF9E7] text-[#178B4A] border-[#DDF9E7]",
-  "Dispute Open": "bg-[#FCE8E4] text-[#D6453D] border-[#FCE8E4]",
+  "Dispute Open": "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20",
   Pending: "bg-[#FFF2CF] text-[#B77500] border-[#FFF2CF]",
   Refunded: "bg-[#2C2C2C] text-[#8B8B8B] border-[#3A3A3A]",
-  "In-Progress": "bg-[#D7E5FF] text-[#2457D3] border-[#D7E5FF]",
+  "In Review": "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20",
   Resolved: "bg-[#DDFCE6] text-[#159257] border-[#DDFCE6]",
   Rejected: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
 };
 
-const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In-Progress", "Resolved", "Rejected"] as const;
+const statusOptions = ["All", "Paid", "Dispute Open", "Pending", "Refunded", "In Review", "Resolved", "Rejected"] as const;
 const monthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"] as const;
 const typeOptions = ["All", "Stripe", "Bank Transfer", "Manual"] as const;
 
@@ -171,12 +171,17 @@ const formatShortDate = (value: string | null | undefined) => {
   return format(parsed, "MMM d, yyyy");
 };
 
+const formatStatusLabel = (value: string | null | undefined) => {
+  const normalized = String(value || "").trim();
+  if (normalized === "Dispute Open") return "Open";
+  return normalized || "Pending";
+};
+
 const normalizePaymentStatus = (value: string | null | undefined): PaymentStatus => {
   const normalized = String(value || "").trim().toLowerCase();
   if (["paid", "succeeded", "success", "completed", "complete"].includes(normalized)) return "Paid";
   if (normalized === "dispute_open" || normalized === "open") return "Dispute Open";
-  if (normalized === "in_progress" || normalized === "in-progress" || normalized === "in_review" || normalized === "escalated") return "In-Progress";
-  if (normalized === "resolved") return "Resolved";
+  if (normalized === "in_progress" || normalized === "in-progress" || normalized === "in_review" || normalized === "escalated") return "In Review";  if (normalized === "resolved") return "Resolved";
   if (normalized === "rejected" || normalized === "reject") return "Rejected";
   if (normalized === "refunded") return "Refunded";
   return "Pending";
@@ -184,7 +189,7 @@ const normalizePaymentStatus = (value: string | null | undefined): PaymentStatus
 
 const isActiveDisputeStatus = (value: string | null | undefined) => {
   const normalized = normalizePaymentStatus(value);
-  return normalized === "Dispute Open" || normalized === "In-Progress";
+  return normalized === "Dispute Open" ||normalized === "In Review";
 };
 
 const inferRejectedDisputeStatus = (dispute: ClientFinanceDisputeDetailsApiRow) => {
@@ -370,7 +375,7 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
     status === "Resolved" ? "Resolved" :
     status === "Rejected" ? "Rejected" :
     status === "Dispute Open" ? "Dispute - Open" :
-    "Under Review";
+    "In Review";
 
   return {
     id: row.dispute?.dispute_code || `DIS-${suffix}`,
@@ -394,7 +399,7 @@ const buildDisputeRecord = (row: PaymentRow): AffiliateDisputeDetailsRecord => {
         tone: "warning",
       },
       {
-        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "Under Review",
+        title: status === "Resolved" ? "Resolved" : status === "Rejected" ? "Rejected" : "In Review",
         by: "Support Team",
         at: `${createdAt} 14:20`,
         tone: status === "Resolved" ? "resolved" : status === "Rejected" ? "warning" : "review",
@@ -415,7 +420,7 @@ const mapClientDisputeDetails = (
   const detailStatus =
     status === "Resolved" ? "Resolved" :
     status === "Rejected" ? "Rejected" :
-    status === "In-Progress" ? "Under Review" :
+    status === "In Review" ? "In Review" :
     "Dispute - Open";
   const timeline = (dispute.timeline || []).map((event) => ({
     id: event.id,
@@ -436,7 +441,7 @@ const mapClientDisputeDetails = (
   const isCreditResolution = resolutionType === "credit_compensation";
   const resolutionDetails = [
     { label: "Status", value: detailStatus },
-    { label: detailStatus === "Rejected" ? "Reason" : "Resolution Type", value: detailStatus === "Rejected" ? metadataValue("rejection_reason") : formatResolutionType(resolutionType) },
+    { label: detailStatus === "Rejected" ? "Reason" : "Resolution Type", value: detailStatus === "Rejected" ? titleize(metadataValue("rejection_reason")) : formatResolutionType(resolutionType) },
     { label: "Amount", value: metadataValue("resolution_amount") || metadataValue("credit_amount") || metadataValue("refund_amount") },
     { label: "Payment Method", value: metadataValue("payment_method") },
     { label: "Transaction ID", value: metadataValue("transaction_id") },
@@ -492,7 +497,7 @@ const buildDisputeHistoryItems = (row: PaymentRow | null): AffiliateDisputeHisto
     const detailStatus: AffiliateDisputeHistoryItem["status"] =
       status === "Resolved" ? "Resolved" :
       status === "Rejected" ? "Rejected" :
-      status === "In-Progress" ? "Under Review" :
+      status === "In Review" ? "In Review" :
       "Dispute - Open";
 
     return {
@@ -671,7 +676,7 @@ export default function AffiliateTransactionsHistory({
     }
 
     if (action === "dispute") {
-      onRaiseDispute?.(row.bookingId);
+      onRaiseDispute?.(row.bookingId, row.shootType);
       return;
     }
   };
@@ -794,7 +799,7 @@ export default function AffiliateTransactionsHistory({
                     ) : null}
                   </div>
                   <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[displayStatus]}`}>
-                    {displayStatus}
+                    {formatStatusLabel(displayStatus)}
                   </span>
                 </div>
               </button>
@@ -823,7 +828,7 @@ export default function AffiliateTransactionsHistory({
                   key={String(dispute.dispute_id || dispute.dispute_code)}
                   type="button"
                   onClick={(event) => void openDisputeDetails(event, row, dispute)}
-                  className={`flex w-full flex-col gap-3 rounded-lg border p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
+                  className={`flex w-full flex-col cursor-pointer gap-3 rounded-lg border p-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#262626] bg-[#141414] hover:border-[#3A3A3A]" : "border-[#E5E5E5] bg-white hover:border-[#CFCFCF]"}`}
                 >
                   <div className="min-w-0">
                     <p className={`truncate text-sm font-medium sm:text-base ${isDark ? "text-white" : "text-[#171717]"}`}>
@@ -839,7 +844,7 @@ export default function AffiliateTransactionsHistory({
                     ) : null}
                   </div>
                   <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-1.5 text-xs font-medium ${statusStyles[disputeStatus]}`}>
-                    {disputeStatus}
+                    {formatStatusLabel(disputeStatus)}
                   </span>
                 </button>
               );
@@ -1029,7 +1034,7 @@ export default function AffiliateTransactionsHistory({
                     </td>
                     <td className="px-4 py-5">
                       <span className={`inline-flex min-w-[88px] justify-center rounded-full border px-3 py-2 text-sm font-medium ${statusStyles[row.status]}`}>
-                        {row.status}
+                        {formatStatusLabel(row.status)}
                       </span>
                     </td>
                     <td className="px-4 py-5 text-right">
@@ -1157,7 +1162,7 @@ export default function AffiliateTransactionsHistory({
                     </div>
                   </div>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${statusStyles[row.status]}`}>
-                    {row.status}
+                    {formatStatusLabel(row.status)}
                   </span>
                 </div>
 

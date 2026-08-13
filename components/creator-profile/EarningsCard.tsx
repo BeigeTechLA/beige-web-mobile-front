@@ -4,7 +4,7 @@ import React from 'react';
 import { useResolvedTheme } from '@/lib/useResolvedTheme';
 
 import { Button } from '../ui/button';
-import { Calendar, Clock, Eye, MapPin } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, Eye, MapPin } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
 export interface EarningsCardData {
@@ -24,9 +24,17 @@ interface EarningsCardProps {
   data: EarningsCardData;
   handleClick: () => void;
   onRaiseDispute: (e: React.MouseEvent) => void;
+  hasActiveDispute?: boolean;
+  activeDisputeLabel?: string;
 }
 
-export default function EarningsCard({ data, handleClick ,onRaiseDispute }: EarningsCardProps) {
+export default function EarningsCard({
+  data,
+  handleClick,
+  onRaiseDispute,
+  hasActiveDispute = false,
+  activeDisputeLabel = "Dispute Active",
+}: EarningsCardProps) {
   const { isDark } = useResolvedTheme();
   const hasDate = Boolean(data.date?.trim());
   const hasAddress = Boolean(data.address?.trim());
@@ -50,7 +58,7 @@ export default function EarningsCard({ data, handleClick ,onRaiseDispute }: Earn
           </div>
         </div>
 
-        <div className={`flex items-center gap-2 lg:gap-3 text-xs lg:text-sm overflow-hidden${isDark ? "text-[#8C8C8C]" : "text-[#666666]"}`}>
+        <div className={`flex items-center gap-2 lg:gap-3 text-xs lg:text-sm overflow-hidden ${isDark ? "text-[#8C8C8C]" : "text-[#666666]"}`}>
           {hasDate && (
             <div className="flex shrink-0 gap-1 items-center">
               <Calendar size={16} className="shrink-0" />
@@ -100,12 +108,25 @@ export default function EarningsCard({ data, handleClick ,onRaiseDispute }: Earn
       
       {/* 50/50 SPLIT BUTTONS */}
       <div className="flex items-center gap-3 w-full">
-        <Button
-          className="flex-1 bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90 font-bold h-10 lg:h-12 rounded-lg text-sm transition-all active:scale-95"
-          onClick={onRaiseDispute}
-        >
-          Raise Dispute
-        </Button>
+        {hasActiveDispute ? (
+          <div
+            className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-bold lg:h-12 ${
+              isDark
+                ? "border-[#F6605433] bg-[#210402] text-[#F66054]"
+                : "border-[#F6605422] bg-[#FCE8E6] text-[#C5221F]"
+            }`}
+          >
+            <AlertCircle size={17} className="shrink-0" />
+            <span className="truncate">{activeDisputeLabel}</span>
+          </div>
+        ) : (
+          <Button
+            className="flex-1 bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90 font-bold h-10 lg:h-12 rounded-lg text-sm transition-all active:scale-95"
+            onClick={onRaiseDispute}
+          >
+            Raise Dispute
+          </Button>
+        )}
         <Button
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 border ${isDark
             ? "bg-[#1F1F1F] text-[#E8D1AB] border-[#262626] hover:bg-black/90"
