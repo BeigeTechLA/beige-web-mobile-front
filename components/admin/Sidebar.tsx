@@ -109,6 +109,7 @@ const menuItems = [
   },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
+  { name: 'Profile', icon: Settings, link: '/admin/profile',},
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";

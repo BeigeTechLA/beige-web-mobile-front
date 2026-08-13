@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { TabsSwitcher } from "../TabsSwitcher";
+import Link from "next/link";
 
 type UserType = "All" | "Client" | "Creative Partner";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -400,6 +401,11 @@ export const UserManagementTabbed = () => {
     router.push(`/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`);
   };
 
+  const getUserDetailHref = (user: UserData) => {
+    const cleanId = user.id.replace('#', '');
+    return `/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`;
+  };
+
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       <div>
@@ -506,15 +512,19 @@ export const UserManagementTabbed = () => {
                   </tr>
                 ) : (
                   sortedUsers.map((user, idx) => {
+                    const userDetailHref = getUserDetailHref(user);
                     return (
                       <tr
                         key={user.id || idx}
-                        onClick={() => handleRowClick(user)}
-                        className={`${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
+                        className={`relative ${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
                       >
-                        <td className="py-3 px-6">{user.id}</td>
-                        <td className="py-3 px-6">
-                          <div className="flex items-center gap-3 min-w-0">
+                        <td className="relative py-3 px-6">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <span className="relative z-10 pointer-events-none">{user.id}</span>
+                        </td>
+                        <td className="relative py-3 px-6">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <div className="relative z-10 pointer-events-none flex items-center gap-3 min-w-0">
                             <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold border overflow-hidden ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                               {user.imageUrl ? (
                                 <img src={user.imageUrl} className="w-full h-full object-cover" alt="" />
@@ -532,34 +542,46 @@ export const UserManagementTabbed = () => {
                         </td>
                         {
                           activeTab === "All" &&
-                          <td className="py-3 px-6">
-                            <div className={`flex items-center gap-2 truncate font-medium `}>
+                          <td className="relative py-3 px-6">
+                            <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                            <div className="relative z-10 pointer-events-none flex items-center gap-2 truncate font-medium">
                               {user.type}
                             </div>
                           </td>
                         }
 
-                        <td className="py-3 px-6">
-                          <span >{user.type === "Client" ? user.phoneNumber : user.role}</span>
+                        <td className="relative py-3 px-6">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <span className="relative z-10 pointer-events-none">{user.type === "Client" ? user.phoneNumber : user.role}</span>
                         </td>
-                        <td className="py-3 px-6">
-                          <StatusBadge status={user.status} />
+                        <td className="relative py-3 px-6">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <div className="relative z-10 pointer-events-none inline-block">
+                            <StatusBadge status={user.status} />
+                          </div>
                         </td>
                         {
                           activeTab !== "Creative Partner" &&
-                          <td className="py-3 px-6">
-                            <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
+                         <td className="relative py-3 px-6">
+                            <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                            <div className="relative z-10 pointer-events-none inline-block">
+                              <ClientTypeBadge clientType={user.clientType} isDark={isDark} />
+                            </div>
                           </td>
                         }
-                        <td className="py-3 px-6 text-center">
-                          {user.referralCode ? (
-                            <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>
-                          ) : (
-                            <span className="opacity-40">—</span>
-                          )}
+                        <td className="relative py-3 px-6 text-center">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <div className="relative z-10 pointer-events-none">
+                            {user.referralCode ? (
+                              <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{user.referralCode}</span>
+                            ) : (
+                              <span className="opacity-40">—</span>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-3 px-6 text-right">
-                          <div className="flex items-center justify-end">
+                        <td className="relative py-3 px-6 text-right">
+                          <Link href={userDetailHref} className="absolute inset-0 z-20" aria-label={`Open user ${user.name}`} prefetch={false} />
+                          <div className="relative z-10 pointer-events-none flex items-center justify-end">
                             <ChevronRight size={20} className={isDark ? "text-[#666]" : "text-[#999]"} />
                           </div>
                         </td>

@@ -35,6 +35,7 @@ import { useTheme } from 'next-themes';
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { TabsSwitcher } from "../TabsSwitcher";
+import Link from "next/link";
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 type ClientsTab = "active" | "all" | "archived";
@@ -297,6 +298,10 @@ export const ClientsTable = () => {
   const handleRowClick = (id: string) => {
     const cleanId = id.replace('#', '');
     router.push(`/admin/users/clients/${cleanId}`);
+  };
+  const getClientDetailHref = (id: string) => {
+    const cleanId = id.replace('#', '');
+    return `/admin/users/clients/${cleanId}`;
   };
 
   const handleTabChange = (tab: ClientsTab) => {
@@ -838,15 +843,20 @@ export const ClientsTable = () => {
                     </td>
                   </tr>
                 ) : (
-                  clients.map((client, idx) => (
+                  clients.map((client, idx) => {
+                    const clientDetailHref = getClientDetailHref(client.id);
+                    return (
                     <tr
                       key={client.id || idx}
-                      onClick={() => handleRowClick(client.id)}
-                      className={`${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
+                      className={`relative ${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
                     >
-                      <td className="py-3 px-6">{client.id}</td>
-                      <td className="py-3 px-6">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <td className="relative py-3 px-6">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{client.id}</span>
+                      </td>
+                        <td className="relative py-3 px-6">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none flex items-center gap-3 min-w-0">
                           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold border overflow-hidden ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                             {client.imageUrl ? (
                               <img
@@ -873,20 +883,35 @@ export const ClientsTable = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-6 text-sm truncate">{client.email}</td>
-                      <td className="py-3 px-6 text-sm whitespace-nowrap">{client.phoneNumber}</td>
-                      <td className="py-3 px-6">
-                        <StatusBadge status={client.status} />
+                      <td className="relative py-3 px-6 text-sm truncate">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{client.email}</span>
                       </td>
-                      <td className="py-3 px-6">
-                        <ClientTypeBadge type={client.clientType} />
+                      <td className="relative py-3 px-6 text-sm whitespace-nowrap">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <span className="relative z-10 pointer-events-none">{client.phoneNumber}</span>
                       </td>
-                      <td className="py-3 px-6 text-center">
-                        {client.referralCode ? (
-                          <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{client.referralCode}</span>
-                        ) : (
-                          <span className="opacity-40">—</span>
-                        )}
+                      <td className="relative py-3 px-6">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none inline-block">
+                          <StatusBadge status={client.status} />
+                        </div>
+                      </td>
+                      <td className="relative py-3 px-6">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none inline-block">
+                          <ClientTypeBadge type={client.clientType} />
+                        </div>
+                      </td>
+                      <td className="relative py-3 px-6 text-center">
+                        <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
+                        <div className="relative z-10 pointer-events-none">
+                          {client.referralCode ? (
+                            <span className={`px-3 py-1 rounded-md text-xs font-mono font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#F5F0E8] text-[#8B7E66]"}`}>{client.referralCode}</span>
+                          ) : (
+                            <span className="opacity-40">—</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end">
@@ -915,7 +940,8 @@ export const ClientsTable = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
