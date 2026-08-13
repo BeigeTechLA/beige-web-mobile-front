@@ -2111,7 +2111,6 @@ export const adminApi = {
       };
     }
   },
-  //getProjects: async (params: {page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
   getProjects: async (params: GetProjectsParams = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
@@ -2193,7 +2192,6 @@ export const adminApi = {
         "Export Shoots CSV Error:",
         error
       );
-
       throw new Error(message);
     }
   },
