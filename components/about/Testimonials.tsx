@@ -42,7 +42,7 @@ const TextCard = ({ testimonial, rating = 5 }: TextCardProps) => {
   };
 
   return (
-    <div className="bg-[#171717] text-white p-4 lg:p-7 rounded-2xl h-full max-w-2xl max-h-115 font-sans flex flex-col justify-between">
+    <div className="bg-[#171717] border border-white/10 text-white p-4 lg:p-7 rounded-2xl h-full max-w-2xl max-h-115 font-sans flex flex-col justify-between">
       <div className=" flex flex-col gap-4 lg:gap-10">
         {/* 5-Star Rating */}
         <div className="flex gap-1 text-xl lg:text-2xl">
@@ -217,7 +217,7 @@ const VideoCard = ({ testimonial, onPlayClick }: VideoCardProps) => {
 const INITIAL_COUNT = 6;
 const LOAD_MORE_COUNT = 3;
 
-export const Testimonials = () => {
+export const Testimonials = ({ showHeaders = true }: { showHeaders?: boolean }) => {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const [activePopupId, setActivePopupId] = useState<string | null>(null);
 
@@ -234,33 +234,37 @@ export const Testimonials = () => {
   const isAllVisible = visibleCount >= TESTIMONIALS.length;
 
   return (
-    <section className="pb-10 md:pb-20 lg:pb-25 relative overflow-hidden">
+    <section className={`pb-10 ${showHeaders ? 'md:pb-20 lg:pb-25' : 'pt-10'} relative overflow-hidden`}>
       <Container>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-8 lg:mb-24"
-        >
-          <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
-            <p className="text-xs md:text-base text-white">Testimonial</p>
-          </div>
+        {
+          showHeaders && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-8 lg:mb-24"
+            >
+              <div className="inline-flex items-center border-b border-t border-b-white/60 border-t-white/60 w-fit px-10 py-2 text-center mb-5 md:mb-6">
+                <p className="text-xs md:text-base text-white">Testimonial</p>
+              </div>
 
-          <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
-            What our Clients Say about Beige.
-          </h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-10% 0px" }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-            className="max-w-3xl text-white/70 font-light text-sm md:text-base mx-auto"
-          >
-            See how Beige has helped clients book top creators with confidence, providing reliable talent, transparent
-            details, and seamless communication for projects of every size and style.
-          </motion.p>
-        </motion.div>
+              <h2 className="text-lg md:text-[56px] leading-[1.1] font-medium text-gradient-white mb-2.5 lg:mb-8 tracking-tight">
+                What our Clients Say about Beige.
+              </h2>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-10% 0px" }}
+                transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                className="max-w-3xl text-white/70 font-light text-sm md:text-base mx-auto"
+              >
+                See how Beige has helped clients book top creators with confidence, providing reliable talent, transparent
+                details, and seamless communication for projects of every size and style.
+              </motion.p>
+            </motion.div>
+          )
+        }
 
         {/* Masonry Layout */}
         <div className="flex flex-wrap gap-6 mb-8 lg:mb-16">
