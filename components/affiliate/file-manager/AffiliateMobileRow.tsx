@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ExternalLink, FolderOpen, Link2 } from "lucide-react";
+import { ChevronDown, ExternalLink, FolderOpen, Link2, UserRoundPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Workspace {
@@ -7,20 +7,22 @@ interface Workspace {
   title: string;
   fileCount: number | string;
   category: string;
-  lastOpened: any;
+  lastOpened: string;
 }
 
 interface MobileWorkspaceRowProps {
   workspace: Workspace;
   isDark: boolean;
   openWorkspace: (workspace: Workspace) => void;
-  formatRelativeTime: (time: any) => string;
+  onAccess?: (workspace: Workspace) => void;
+  formatRelativeTime: (time?: string) => string;
 }
 
 export const MobileWorkspaceRow = ({
   workspace,
   isDark,
   openWorkspace,
+  onAccess,
   formatRelativeTime,
 }: MobileWorkspaceRowProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -64,18 +66,33 @@ export const MobileWorkspaceRow = ({
           </div>
         </div>
 
-        {/* Workspace Open Action Trigger */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            openWorkspace(workspace);
-          }}
-          className={`p-2 rounded-lg transition-colors shrink-0 ${isDark ? "text-white/40 hover:text-white hover:bg-white/5" : "text-black/40 hover:text-black hover:bg-black/5"
-            }`}
-        >
-          <ExternalLink size={18} />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {onAccess ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAccess(workspace);
+              }}
+              className={`p-2 rounded-lg transition-colors ${isDark ? "text-white/40 hover:text-white hover:bg-white/5" : "text-black/40 hover:text-black hover:bg-black/5"
+                }`}
+              title="Manage access"
+            >
+              <UserRoundPlus size={18} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openWorkspace(workspace);
+            }}
+            className={`p-2 rounded-lg transition-colors ${isDark ? "text-white/40 hover:text-white hover:bg-white/5" : "text-black/40 hover:text-black hover:bg-black/5"
+              }`}
+          >
+            <ExternalLink size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Expandable Secondary Metadata Panel */}
