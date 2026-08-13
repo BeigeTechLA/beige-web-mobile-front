@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
+import { ScrollingRow } from "./ContentAndMarquee";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -82,7 +83,7 @@ export const Hero = () => {
 
         {/* MOBILE SINGLE COLUMN LAYOUT */}
         <div className="block md:hidden w-full max-w-sm mx-auto flex flex-col gap-5 px-4">
-          {TEAM_IMAGES.map((img, i) => (
+          {/* {TEAM_IMAGES.map((img, i) => (
             <motion.div
               key={`mobile_img_${i}`}
               {...hoverBounce}
@@ -96,7 +97,8 @@ export const Hero = () => {
                 sizes="(max-width: 768px) 100vw"
               />
             </motion.div>
-          ))}
+          ))} */}
+          <ScrollingRow items={TEAM_IMAGES} speed={25} />
         </div>
 
         {/* DESKTOP ASYMMETRIC GRID LAYOUT */}
