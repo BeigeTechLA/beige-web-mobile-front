@@ -309,10 +309,15 @@ export default function ResolveDisputeModal({
                         <SelectValue placeholder="Eg: UPI, Cash, Bank Transfer, Credit Card..." />
                       </SelectTrigger>
                       <SelectContent className={`${isDark ? "border-white/10 bg-[#111111] text-white" : "border-black/20 bg-white text-black"}`}>
-                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Credit Card</SelectItem>
-                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="wire">Wire</SelectItem>
+                        <SelectItem value="ach">ACH</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
+                        <SelectItem value="applepay">ApplePay</SelectItem>
+                        <SelectItem value="stripe">Stripe</SelectItem>
+                        <SelectItem value="net30">Net 30</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
