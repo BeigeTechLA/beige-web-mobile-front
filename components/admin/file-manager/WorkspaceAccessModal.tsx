@@ -11,6 +11,7 @@ import { Check, ChevronsUpDown, Loader2, Search, Trash2, UserRoundPlus, X } from
 interface WorkspaceAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
+  mode?: "registered-client" | "email";
   resource: {
     externalId: string;
     label: string;
@@ -19,10 +20,13 @@ interface WorkspaceAccessModalProps {
 
 type AccessItem = {
   accessId: number;
-  userId: number;
+  userId?: number | null;
   clientId?: number | null;
   name?: string | null;
   email?: string | null;
+  pending?: boolean;
+  emailSent?: boolean;
+  emailError?: string | null;
   createdAt?: string;
 };
 
@@ -45,10 +49,15 @@ type RegisteredClientItem = {
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
-export default function WorkspaceAccessModal({ isOpen, onClose, resource }: WorkspaceAccessModalProps) {
+const isValidEmail = (value: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim().toLowerCase());
+
+export default function WorkspaceAccessModal({ isOpen, onClose, mode = "registered-client", resource }: WorkspaceAccessModalProps) {
   const { isDark } = useResolvedTheme();
+  const emailMode = mode === "email";
   const clientDropdownRef = useRef<HTMLDivElement | null>(null);
   const [clientSearch, setClientSearch] = useState("");
+  const [email, setEmail] = useState("");
   const [clients, setClients] = useState<RegisteredClientItem[]>([]);
   const [selectedClient, setSelectedClient] = useState<RegisteredClientItem | null>(null);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -78,6 +87,7 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
   useEffect(() => {
     if (isOpen && resource?.externalId) {
       setClientSearch("");
+      setEmail("");
       setSelectedClient(null);
       setClientDropdownOpen(false);
       void loadAccess();
@@ -85,7 +95,7 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
   }, [isOpen, resource?.externalId]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || emailMode) return;
 
     let cancelled = false;
     const timeoutId = window.setTimeout(async () => {
@@ -104,7 +114,7 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [clientSearch, isOpen]);
+  }, [clientSearch, emailMode, isOpen]);
 
   useEffect(() => {
     if (!clientDropdownOpen) return;
@@ -128,6 +138,37 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
 
   const handleGrant = async () => {
     if (!resource?.externalId) return;
+    if (emailMode) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!isValidEmail(normalizedEmail)) {
+        toast.error("Enter a valid email address");
+        return;
+      }
+      if (access.some((item) => item.email?.toLowerCase() === normalizedEmail)) {
+        toast.info("This email already has access");
+        return;
+      }
+
+      try {
+        setSaving(true);
+        const result = await fileManagerApi.grantWorkspaceAccess({
+          externalId: resource.externalId,
+          email: normalizedEmail,
+        });
+        toast.success(result?.data?.pending ? "Invite sent. Access will appear after signup." : "Dashboard access granted");
+        if (result?.data?.emailError) {
+          toast.info("Access was saved, but the invite email could not be sent");
+        }
+        setEmail("");
+        await loadAccess();
+      } catch (error) {
+        toast.error(getErrorMessage(error, "Failed to grant dashboard access"));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     if (!selectedClient) {
       toast.error("Select a registered client first");
       return;
@@ -179,7 +220,9 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
               Dashboard Access <span className="text-[#E8D1AB]">({title})</span>
             </h2>
             <p className={`mt-2 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
-              Give logged-in clients access without changing the booking owner.
+              {emailMode
+                ? "Invite people by email to view this folder in their client dashboard."
+                : "Give logged-in clients access without changing the booking owner."}
             </p>
           </div>
           <button
@@ -192,7 +235,7 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
         </div>
 
         <div className="space-y-5 p-5">
-          {owner ? (
+          {owner && !emailMode ? (
             <div className={`rounded-lg border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
               <p className={`text-xs font-bold uppercase ${isDark ? "text-white/40" : "text-black/40"}`}>Owner</p>
               <p className="mt-2 text-sm font-semibold">{owner.name || owner.email || "Unassigned booking owner"}</p>
@@ -204,6 +247,27 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
           ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            {emailMode ? (
+              <div className="flex-1">
+                <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 ${isDark ? "border-white/25 focus-within:border-[#E8D1AB]" : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"}`}>
+                  <legend className={`px-1 text-xs font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    Email Address
+                  </legend>
+                  <input
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    type="email"
+                    inputMode="email"
+                    placeholder="name@example.com"
+                    className={`w-full bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                  />
+                </fieldset>
+                <p className="mt-2 text-xs leading-relaxed text-[#E8D1AB]">
+                  <span className="font-bold">Note:-</span>{" "}
+                  To view this folder in their dashboard, the recipient must log in or sign up with the same email address.
+                </p>
+              </div>
+            ) : (
             <div ref={clientDropdownRef} className="relative flex-1">
               <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 ${isDark ? "border-white/25 focus-within:border-[#E8D1AB]" : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"}`}>
                 <legend className={`px-1 text-xs font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
@@ -278,19 +342,20 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
                 </div>
               ) : null}
             </div>
+            )}
             <Button
               type="button"
               onClick={handleGrant}
-              disabled={saving || !selectedClient || blockedUserIds.has(Number(selectedClient.userId))}
+              disabled={saving || (emailMode ? !email.trim() : !selectedClient || blockedUserIds.has(Number(selectedClient.userId)))}
               className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] px-5 text-sm font-bold text-black hover:bg-[#dcb98a] disabled:opacity-40"
             >
               {saving ? <Loader2 className="animate-spin" size={16} /> : <UserRoundPlus size={16} />}
-              Grant
+              {emailMode ? "Invite" : "Grant"}
             </Button>
           </div>
 
           <div>
-            <p className={`mb-3 text-sm font-bold ${isDark ? "text-white/85" : "text-black/85"}`}>Other Clients</p>
+            <p className={`mb-3 text-sm font-bold ${isDark ? "text-white/85" : "text-black/85"}`}>{emailMode ? "Shared With" : "Other Clients"}</p>
             {loading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="animate-spin text-[#E8D1AB]" size={24} />
@@ -304,9 +369,9 @@ export default function WorkspaceAccessModal({ isOpen, onClose, resource }: Work
                 {access.map((item) => (
                     <div key={item.accessId} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{item.name || item.email || `User #${item.userId}`}</p>
+                        <p className="truncate text-sm font-semibold">{item.name || item.email || (item.userId ? `User #${item.userId}` : "Pending invite")}</p>
                         <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {item.clientId ? `Client #${item.clientId}` : `User #${item.userId}`}
+                          {item.pending ? "Pending signup" : item.clientId ? `Client #${item.clientId}` : item.userId ? `User #${item.userId}` : "Email invite"}
                           {item.email ? ` - ${item.email}` : ""}
                         </p>
                       </div>

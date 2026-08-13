@@ -218,10 +218,13 @@ interface CreateCommonEventResponse {
 interface WorkspaceAccessItem {
   accessId: number;
   externalId: string;
-  userId: number;
+  userId?: number | null;
   clientId?: number | null;
   name?: string | null;
   email?: string | null;
+  pending?: boolean;
+  emailSent?: boolean;
+  emailError?: string | null;
   grantedByUserId?: number | null;
   createdAt?: string;
   updatedAt?: string;
