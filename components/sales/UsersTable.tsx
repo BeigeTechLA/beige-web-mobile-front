@@ -527,21 +527,7 @@ export default function UsersTable<T>({
                       {/* Showing Count */}
                       <div className={`hidden lg:block text-sm font-medium truncate max-w-xs shrink ${isDark ? "text-white/40" : "text-[#999]"}`}>
                         {paginatedData.length > 0 ? (
-                          <>
-                            Showing{" "}
-                            <span className={isDark ? "text-white/80" : "text-black"}>
-                              {((currentPage - 1) * limit) + 1}
-                            </span>{" "}
-                            to{" "}
-                            <span className={isDark ? "text-white/80" : "text-black"}>
-                              {Math.min(((currentPage - 1) * limit) + paginatedData.length, totalRecords)}
-                            </span>{" "}
-                            of{" "}
-                            <span className={isDark ? "text-white/80" : "text-black"}>
-                              {Number(totalRecords) || 0}
-                            </span>{" "}
-                            results
-                          </>
+                          `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(((currentPage - 1) * limit) + paginatedData.length, totalRecords)} of ${Number(totalRecords) || 0} results`
                         ) : (
                           "No results found"
                         )}

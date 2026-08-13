@@ -839,7 +839,9 @@ export default function LeadsTable({
 
                   {/* Showing Count */}
                   <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#999]"}`}>
-                    Showing {data.length} leads
+                    {data.length > 0
+                      ? `Showing ${((currentPage - 1) * limit) + 1} to ${Math.min(((currentPage - 1) * limit) + data.length, totalRecords)} of ${Number(totalRecords) || 0} Leads`
+                      : "No results found"}
                   </div>
 
                   {/* Pagination Controls */}
