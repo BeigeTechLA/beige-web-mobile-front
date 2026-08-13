@@ -1636,6 +1636,18 @@ export default function LeadDetailPage() {
                   <p>
                     Lead Source : <span className={isDark ? "text-white capitalize" : "text-black capitalize"}>{formatLeadSource(lead.lead_source || lead.intent_source)}</span>
                   </p>
+                  <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
+                  <p>
+                    Lead Created : <span className={isDark ? "text-white" : "text-black"}>
+                      {lead.created_at
+                        ? (parseDate(lead.created_at) || new Date(lead.created_at)).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                        : "N/A"}
+                    </span>
+                  </p>
                   {quotePricingDetails && (
                     <>
                       <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
