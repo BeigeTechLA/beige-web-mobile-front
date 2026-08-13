@@ -849,13 +849,13 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         const tabsMap: Record<string, RawTab> = {};
         const tabOrder: string[] = [];
 
-        // 1. First pass: Register all buttons as tab items
+        // 1. First pass: Collect all buttons
         rawChildren.forEach((child) => {
           if (child instanceof Element && child.name === "button") {
-            const tabIdx = child.attribs?.["data-tab-index"] || "";
+            const tabIdx = child.attribs?.["data-tab-index"] || `${tabOrder.length + 1}`;
             const tabTitle = extractCleanText(child).trim();
 
-            if (tabIdx && !tabsMap[tabIdx]) {
+            if (!tabsMap[tabIdx]) {
               tabsMap[tabIdx] = {
                 index: tabIdx,
                 title: tabTitle,
@@ -866,29 +866,32 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
           }
         });
 
-        // 2. Second pass: Distribute child nodes based on data-content-index
-        let activeGroupIdx = tabOrder[0] || "1";
+        // 2. Second pass: Collect content nodes (divs, accordions, etc.)
+        const contentNodes: DOMNode[] = rawChildren.filter((child) => {
+          if (!(child instanceof Element)) return false;
+          // Filter out buttons & pure whitespace text nodes
+          return child.name !== "button";
+        });
 
-        rawChildren.forEach((child) => {
-          // Ignore the button elements themselves in content stream
-          if (child instanceof Element && child.name === "button") return;
+        // 3. Positional Mapping: Assign the N-th content block to the N-th Tab
+        contentNodes.forEach((contentNode, index) => {
+          let targetIdx = tabOrder[index];
 
-          // Check if explicit content index attribute is defined on node
-          if (child instanceof Element && child.attribs?.["data-content-index"]) {
-            activeGroupIdx = child.attribs["data-content-index"];
+          // Fallback: If node explicitly defines data-content-index, prioritize it
+          if (contentNode instanceof Element && contentNode.attribs?.["data-content-index"]) {
+            targetIdx = contentNode.attribs["data-content-index"];
           }
 
-          // Append node to active target tab
-          if (tabsMap[activeGroupIdx]) {
-            tabsMap[activeGroupIdx].nodes.push(child);
+          if (targetIdx && tabsMap[targetIdx]) {
+            tabsMap[targetIdx].nodes.push(contentNode);
           }
         });
 
-        // 3. Transform nodes into rendered React structures
+        // 4. Transform accumulated nodes into React structures
         const formattedTabs: TabData[] = tabOrder.map((idx) => {
           const tab = tabsMap[idx];
 
-          // If content contains image & text elements together, format with ImageTextBlock layout
+          // Check for inner ImageTextBlock criteria
           const hasImage = tab.nodes.some((n) => {
             if (!(n instanceof Element)) return false;
             return (
@@ -936,6 +939,8 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
               />
             );
           } else {
+            // General case: Let html-react-parser automatically handle child elements
+            // (like <div id="accordion">, <h5>, <p>, etc.)
             renderedContent = domToReact(tab.nodes as unknown as DOMNode[], options);
           }
 

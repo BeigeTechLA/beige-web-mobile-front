@@ -27,7 +27,7 @@ const TEAM_SET = [
     id: 3,
     name: "Cedric The Entertainer",
     role: "Advisor",
-    img: "https://drive.google.com/uc?id=16U8QBMMWyFiPQ3PEy6xj5RpeNerd3GRL",
+    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/CedricTheEntertainer.jpg",
   },
 ];
 
