@@ -5,19 +5,19 @@ import { motion } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
 
 const IMAGES_SET = [
-  { id: 1, name: "Concert", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64a75d8b7818bf0dd9070e45_COVER.jpg" },
-  { id: 2, name: "Thrive Causemetics", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64ae949c75e1882ff9a483dc_COVER.jpg" },
-  { id: 3, name: "OrangeTheory Event", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/67c75fd9b0ec05e3f0998092_IMG_5103-p-800.jpg" },
-  { id: 4, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/669dcd9990a20e181981b877_DSC08499-p-800.jpg" },
-  { id: 5, name: "Start Up", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Copy+of+VID03599_editedv1.jpg" },
-  { id: 6, name: "Elevate Event", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/8.jpg" },
-  { id: 7, name: "Pet NGO", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64aebf7f0720254a756fd796_COVER-p-3200.png" },
-  { id: 8, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF08693.jpg" },
-  { id: 9, name: "Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF07790.jpg" },
-  { id: 10, name: "Corporate Event image", logo: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Photo 069.jpg" },
+  { id: 1, alt: "Concert", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64a75d8b7818bf0dd9070e45_COVER.jpg" },
+  { id: 2, alt: "Thrive Causemetics", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64ae949c75e1882ff9a483dc_COVER.jpg" },
+  { id: 3, alt: "OrangeTheory Event", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/67c75fd9b0ec05e3f0998092_IMG_5103-p-800.jpg" },
+  { id: 4, alt: "Event image", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/669dcd9990a20e181981b877_DSC08499-p-800.jpg" },
+  { id: 5, alt: "Start Up", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Copy+of+VID03599_editedv1.jpg" },
+  { id: 6, alt: "Elevate Event", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/8.jpg" },
+  { id: 7, alt: "Pet NGO", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/64aebf7f0720254a756fd796_COVER-p-3200.png" },
+  { id: 8, alt: "Event image", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF08693.jpg" },
+  { id: 9, alt: "Event image", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/REF07790.jpg" },
+  { id: 10, alt: "Corporate Event image", src: "https://d2jhn32fsulyac.cloudfront.net/assets/aboutUs/ContentMarquee/Photo 069.jpg" },
 ];
 
-const ImageCard = ({ name, logo, isAlternated }: { name: string; logo: string; isAlternated: boolean }) => (
+const ImageCard = ({ alt, src, isAlternated }: { alt: string; src: string; isAlternated: boolean }) => (
   <div
     className={`flex flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl transition-transform duration-300
       ${isAlternated 
@@ -27,14 +27,14 @@ const ImageCard = ({ name, logo, isAlternated }: { name: string; logo: string; i
     `}
   >
     <img
-      src={logo}
-      alt={name}
+      src={src}
+      alt={alt}
       className="h-full w-full object-cover transition-opacity duration-300"
     />
   </div>
 );
 
-const ScrollingRow = ({
+export const ScrollingRow = ({
   items,
   speed = 25
 }: {
@@ -61,8 +61,8 @@ const ScrollingRow = ({
           return (
             <ImageCard
               key={`${brand.id}-${idx}`}
-              name={brand.name}
-              logo={brand.logo}
+              alt={brand.alt}
+              src={brand.src}
               isAlternated={isAlternated}
             />
           );

@@ -8,6 +8,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { Container } from "@/src/components/landing/ui/container";
+import Image from "next/image";
 
 const TEAM_SET = [
   {
@@ -18,27 +19,15 @@ const TEAM_SET = [
   },
   {
     id: 2,
-    name: "Nafisa Ahmen",
+    name: "Nafisa Ahmed",
     role: "COO",
     img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/nafisa.jpeg",
   },
   {
     id: 3,
-    name: "Kimberly Neer",
-    role: "Head of Partnerships",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/maggie.png",
-  },
-  {
-    id: 4,
-    name: "Maggie Perochena",
-    role: "Head of Post-Production",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/kimberly-new.jpg",
-  },
-  {
-    id: 5,
-    name: "Sharat Hossain",
-    role: "Human Resources Manager",
-    img: "https://d2jhn32fsulyac.cloudfront.net/assets/Team/sharat-new.png",
+    name: "Cedric The Entertainer",
+    role: "Advisor",
+    img: "https://drive.google.com/uc?id=16U8QBMMWyFiPQ3PEy6xj5RpeNerd3GRL",
   },
 ];
 
@@ -55,10 +44,12 @@ function TeamCard({
     <div
       className={` relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#1f1f1f] border border-white/5 shadow-xl ${className} `}
     >
-      <img
+      <Image
         src={member.img}
         alt={member.name}
-        className="w-full h-full object-cover object-top"
+        fill
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        className="object-cover object-top"
       />
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-6 pt-20">
@@ -134,12 +125,12 @@ export default function LeadershipTeam() {
 
   const leftCards = [
     TEAM_SET[1],
-    TEAM_SET[3],
+    // TEAM_SET[3], 
   ];
 
   const rightCards = [
     TEAM_SET[2],
-    TEAM_SET[4],
+    // TEAM_SET[4],
   ];
 
   return (
@@ -147,11 +138,11 @@ export default function LeadershipTeam() {
       <Container>
         <div
           ref={containerRef}
-          className="relative mx-auto lg:h-[300vh] max-w-[1700px] rounded-3xl bg-[#171717] overflow-hidden lg:overflow-visible p-6 lg:p-0"
+          className="relative mx-auto max-w-[1700px] rounded-3xl bg-[#171717] overflow-hidden lg:overflow-visible p-6 lg:p-0"
         >
           {/* Sticky viewport structure on desktop layouts */}
-          <div className="lg:sticky top-0 lg:h-screen lg:overflow-hidden rounded-3xl">
-            <div className="mx-auto flex h-full max-w-[1500px] flex-col justify-between px-0 lg:px-8 pt-4 lg:pt-20 gap-10">
+          <div className="rounded-3xl">
+            <div className="mx-auto flex h-full max-w-[1500px] flex-col justify-between px-0 lg:px-8 py-4 lg:py-20 gap-10">
 
               {/* Heading */}
               <h2 className="text-center text-3xl md:text-5xl lg:text-[56px] font-medium leading-tight bg-gradient-to-r from-white to-white/20 bg-clip-text text-transparent">
@@ -159,28 +150,41 @@ export default function LeadershipTeam() {
               </h2>
 
               {/* Grid Layout - Handled responsively */}
-              <div className="hidden flex-1 lg:flex items-center w-full max-w-[1180px] mx-auto relative">
+              <div className="hidden lg:flex items-center w-full max-w-[1180px] mx-auto relative">
                 <div className="grid grid-cols-3 w-full justify-items-center items-start gap-6 lg:gap-8 xl:gap-10 overflow-hidden">
+                  {/* {
+                    TEAM_SET.map((member) => (
+                      <TeamCard
+                        key={member.id}
+                        member={member}
+                      />
+                    ))
+                  } */}
                   {/* LEFT COLUMN */}
-                  <SideColumn
+                  {/* <SideColumn
                     cards={leftCards}
                     progress={scrollYProgress}
                     isDesktop={isDesktop}
+                  /> */}
+                  <TeamCard
+                    member={TEAM_SET[1]}
                   />
 
                   {/* CENTER COLUMN (CEO) */}
-                  <div className="relative z-20 w-full mt-10">
+                  {/* <div className="relative z-20 w-full mt-10"> */}
                     <TeamCard
                       member={ceoCard}
-                      className="scale-105"
                     />
-                  </div>
+                  {/* </div> */}
 
                   {/* RIGHT COLUMN */}
-                  <SideColumn
+                  {/* <SideColumn
                     cards={rightCards}
                     progress={scrollYProgress}
                     isDesktop={isDesktop}
+                  /> */}
+                  <TeamCard
+                    member={TEAM_SET[2]}
                   />
                 </div>
               </div>
