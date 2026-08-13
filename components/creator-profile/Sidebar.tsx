@@ -206,7 +206,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
       isPublic: false,
       children: [
         { label: 'My Earnings', href: '/creator/dashboard/finances/earnings', isPublic: false },
-        // { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
+        { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
       ],
     },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
