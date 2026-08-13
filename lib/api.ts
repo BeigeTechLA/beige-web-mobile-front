@@ -145,6 +145,22 @@ export type UserRoleDetailsResponse = {
   permissions: Record<string, Record<string, boolean>>;
 };
 
+type GetProjectsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  payment_status?: "pending" | "paid" | "partially_paid" | "unpaid";
+  range?: string;
+  start_date?: string;
+  end_date?: string;
+  date_on?: string;
+  category?: string;
+  cp_assignment?: "assigned" | "not_assigned";
+  production_filter?: string;
+  summary_only?: boolean;
+};
+
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
@@ -2095,7 +2111,8 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
+  //getProjects: async (params: {page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
+  getProjects: async (params: GetProjectsParams = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
@@ -2115,17 +2132,18 @@ export const adminApi = {
     }
   },
   exportShootsCsv: async (
-  params: {
-    start_date?: string;
-    end_date?: string;
-    search?: string;
-    status?: string;
-    range?: string;
-    date_on?: string;
-    category?: string;
-    cp_assignment?: string;
-    production_filter?: string;
-  }
+    params: {
+      start_date?: string;
+      end_date?: string;
+      search?: string;
+      status?: string;
+      payment_status?: "pending" | "paid" | "partially_paid" | "unpaid";
+      range?: string;
+      date_on?: string;
+      category?: string;
+      cp_assignment?: string;
+      production_filter?: string;
+    }
   ): Promise<Blob> => {
     try {
       const response = await api.get<Blob>(
@@ -2136,49 +2154,49 @@ export const adminApi = {
         }
       );
 
-    return response.data;
-  } catch (error: unknown) {
-    let message = "Failed to export shoots.";
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export shoots.";
 
-    if (axios.isAxiosError(error)) {
-      const responseData = error.response?.data;
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
 
-      if (responseData instanceof Blob) {
-        try {
-          const errorText = await responseData.text();
-          const parsedError = JSON.parse(errorText);
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+
+            message =
+              parsedError?.message ||
+              parsedError?.error ||
+              message;
+          } catch {
+            // Keep fallback message.
+          }
+        } else if (
+          responseData &&
+          typeof responseData === "object"
+        ) {
+          const data = responseData as {
+            message?: string;
+            error?: string;
+          };
 
           message =
-            parsedError?.message ||
-            parsedError?.error ||
+            data.message ||
+            data.error ||
             message;
-        } catch {
-          // Keep fallback message.
         }
-      } else if (
-        responseData &&
-        typeof responseData === "object"
-      ) {
-        const data = responseData as {
-          message?: string;
-          error?: string;
-        };
-
-        message =
-          data.message ||
-          data.error ||
-          message;
       }
+
+      console.error(
+        "Export Shoots CSV Error:",
+        error
+      );
+
+      throw new Error(message);
     }
-
-    console.error(
-      "Export Shoots CSV Error:",
-      error
-    );
-
-    throw new Error(message);
-  }
-},
+  },
 
   getProjectDetails: async (id: string) => {
     try {

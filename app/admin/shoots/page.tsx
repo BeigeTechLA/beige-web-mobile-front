@@ -558,6 +558,7 @@ export default function ShootsPage() {
                       className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
                       viewportClassName="!h-auto max-h-56 overflow-y-auto"
                     >
+                      <SelectItem value="all">All Days</SelectItem>
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                       <SelectItem value="next_15_days">Next 15 Days</SelectItem>

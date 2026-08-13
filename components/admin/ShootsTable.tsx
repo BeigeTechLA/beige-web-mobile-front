@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useCallback, useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
-import { endOfDay, format, parseISO, startOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -41,7 +40,6 @@ import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { MissingFieldsModal } from "./MissingFieldsModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
-import { meetingsApi } from "@/lib/meetingsApi";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -126,38 +124,10 @@ const PRODUCTION_GAP_FILTER_SET = new Set([
 ]);
 
 const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
-const isMeetingGapStatusFilter = (value: string) =>
-  value === "pre_production_meeting_not_done" || value === "post_production_meeting_not_done";
-const isFileGapStatusFilter = (value: string) =>
-  value === "pre_production_file_not_provided" || value === "post_production_file_not_uploaded";
-
 type PaymentFilter = "all" | "pending" | "paid";
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   value === "all" || value === "pending" || value === "paid";
-
-const matchesPaymentFilter = (shoot: ShootRecord, paymentFilter: PaymentFilter) => {
-  if (paymentFilter === "all") return true;
-  if (paymentFilter === "pending") return shoot.rawPending > 0;
-
-  return shoot.rawPending <= 0 && shoot.rawPaid > 0;
-};
-
-const normalizeStatusKey = (value: string) =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
-
-const timelineStatusKeyFromLabel = (status: ShootStatus) => {
-  const normalized = normalizeStatusKey(status);
-  if (normalized === "assetsdelivered") return "assetsdelivered";
-  return normalized;
-};
-
-const isPostProductionEligibleStatus = (status: ShootStatus) => {
-  const key = timelineStatusKeyFromLabel(status);
-  return ["postproduction", "revision", "completed", "assetsdelivered"].includes(key);
-};
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   videographer: "Videography",
@@ -317,9 +287,8 @@ export const ShootsTable = ({
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [meetingGapLoading, setMeetingGapLoading] = useState(false);
-  const [meetingGapBookingIds, setMeetingGapBookingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [hasRestoredCurrentPage, setHasRestoredCurrentPage] = useState(false);
   const [internalViewMode, setInternalViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredViewMode, setHasRestoredViewMode] = useState(false);
@@ -493,20 +462,28 @@ export const ShootsTable = ({
     }
   }, [customRangeStartDate, customRangeEndDate, externalSelectedDate, isCustomRangeOpen, range]);
 
-  const fetchRangeMode = range === "custom" ? "custom" : "all";
-
   useEffect(() => {
-    if (!filtersReady) return;
+    if (!filtersReady || !hasRestoredCurrentPage) return;
     if (!hasInitializedSearchResetRef.current) {
       hasInitializedSearchResetRef.current = true;
       return;
     }
-    setCurrentPage(1);
-  }, [debouncedSearchQuery, filtersReady]);
 
-  useEffect(() => {
     setCurrentPage(1);
-  }, [activePaymentFilter]);
+  }, [
+    filtersReady,
+    hasRestoredCurrentPage,
+    debouncedSearchQuery,
+    statusFilter,
+    activePaymentFilter,
+    productionFilter,
+    categoryFilter,
+    range,
+    activeCpAssignmentFilter,
+    externalSelectedDate,
+    customRangeStartDate,
+    customRangeEndDate,
+  ]);
 
   useEffect(() => {
     if (!hasRestoredCurrentPage) return;
@@ -518,41 +495,77 @@ export const ShootsTable = ({
   }, [currentPage, hasRestoredCurrentPage]);
 
   useEffect(() => {
+    if (!filtersReady || !hasRestoredCurrentPage) return;
+
     let isCancelled = false;
     const fetchId = ++latestFetchIdRef.current;
-    const isCustomDateRange = fetchRangeMode === "custom";
+    const isCustomDateRange = range === "custom";
 
     const fetchData = async () => {
       const hasCustomRangeSelection = Boolean(customRangeStartDate || customRangeEndDate || externalSelectedDate);
       if (isCustomDateRange && !hasCustomRangeSelection) {
+        setShoots([]);
+        setTotalRecords(0);
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        const params: any = { range: fetchRangeMode };
+        const params: {
+          page?: number;
+          limit?: number;
+          search?: string;
+          status?: string;
+          payment_status?: string;
+          range?: string;
+          start_date?: string;
+          end_date?: string;
+          date_on?: string;
+          category?: string;
+          cp_assignment?: string;
+          production_filter?: string;
+        } = {
+          range,
+        };
+
+        if (activeViewMode !== "grid") {
+          params.page = currentPage;
+          params.limit = itemsPerPage;
+        }
+
+        const normalizedSearch = debouncedSearchQuery.trim();
+        if (normalizedSearch) {
+          params.search = normalizedSearch;
+        }
+
         if (statusFilter !== "all") {
           params.status = statusFilter;
         }
-        if (productionFilter !== "all" && isFileGapStatusFilter(productionFilter)) {
+
+        if (activePaymentFilter !== "all") {
+          params.payment_status = activePaymentFilter;
+        }
+
+        if (productionFilter !== "all") {
           params.production_filter = productionFilter;
         }
+
         if (categoryFilter !== "all") {
           params.category = categoryFilter;
         }
 
         if (isCustomDateRange) {
           if (customRangeStartDate) {
-            params.start_date = format(customRangeStartDate, 'yyyy-MM-dd');
+            params.start_date = format(customRangeStartDate, "yyyy-MM-dd");
           }
 
           if (customRangeEndDate) {
-            params.end_date = format(customRangeEndDate, 'yyyy-MM-dd');
+            params.end_date = format(customRangeEndDate, "yyyy-MM-dd");
           }
 
           if (!customRangeStartDate && !customRangeEndDate && externalSelectedDate) {
-            params.date_on = format(externalSelectedDate, 'yyyy-MM-dd');
+            params.date_on = format(externalSelectedDate, "yyyy-MM-dd");
           }
         }
 
@@ -562,13 +575,14 @@ export const ShootsTable = ({
 
         const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
+        const responsePagination = projectsResponse?.data?.pagination;
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
           const customerName = project.project_name || "Untitled Project";
-          const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const initials = customerName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2);
           const extractedPhone = extractPhoneNumber(project);
           const resolvedLocation =
             typeof project.event_location === "string"
@@ -586,7 +600,6 @@ export const ShootsTable = ({
             })
             : [];
 
-          // Sorting Helpers
           const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
           const resolvedPriceSource = project.total_value_amount ?? project.total_paid_amount ?? project.budget;
           const rawPaid = parseFloat(project.paid_amount || 0);
@@ -612,7 +625,7 @@ export const ShootsTable = ({
             email: project.guest_email || "",
             phone: extractedPhone,
             initials,
-            date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            date: project.event_date ? new Date(project.event_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "No Date",
             location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
@@ -622,8 +635,8 @@ export const ShootsTable = ({
                 ? `$${parseFloat(project.budget).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : "$0.00",
             rawPrice: priceValue,
-            rawPaid: rawPaid,
-            rawPending: rawPending,
+            rawPaid,
+            rawPending,
             paidAmount: `$${rawPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             pendingAmount: `$${rawPending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             status: statusLabel,
@@ -631,16 +644,24 @@ export const ShootsTable = ({
             notesCount: Number.isFinite(notesCount) ? notesCount : 0,
             needsAttention: project.needs_attention ? {
               required: missingFields.length > 0,
-              missing_fields: missingFields
-            } : undefined
+              missing_fields: missingFields,
+            } : undefined,
           };
         });
+
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
           setShoots(mappedShoots);
+          setTotalRecords(
+            Number.isFinite(Number(responsePagination?.totalRecords))
+              ? Number(responsePagination.totalRecords)
+              : mappedShoots.length
+          );
         }
       } catch (error) {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
           console.error("Failed to fetch shoots:", error);
+          setShoots([]);
+          setTotalRecords(0);
         }
       } finally {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
@@ -653,178 +674,40 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, externalSelectedDate, customRangeStartDate, customRangeEndDate]);
+  }, [
+    filtersReady,
+    hasRestoredCurrentPage,
+    activeViewMode,
+    currentPage,
+    debouncedSearchQuery,
+    statusFilter,
+    activePaymentFilter,
+    productionFilter,
+    categoryFilter,
+    range,
+    activeCpAssignmentFilter,
+    externalSelectedDate,
+    customRangeStartDate,
+    customRangeEndDate,
+  ]);
 
-  useEffect(() => {
-    if (!isMeetingGapStatusFilter(productionFilter)) {
-      setMeetingGapBookingIds(new Set());
-      return;
-    }
 
-    let cancelled = false;
-    const loadMeetingGap = async () => {
-      try {
-        setMeetingGapLoading(true);
-        const meetingsResponse = await meetingsApi.listAll({
-          limit: 5000,
-          page: 1,
-          sortBy: "meeting_date_time:desc",
-        });
-        if (cancelled) return;
-
-        const meetings = Array.isArray(meetingsResponse?.results) ? meetingsResponse.results : [];
-        const scheduledOrderIds = new Set<string>();
-
-        meetings.forEach((meeting: any) => {
-          const type = String(meeting?.meeting_type || "").toLowerCase();
-          const status = String(meeting?.meeting_status || "").toLowerCase();
-          const orderId = String(meeting?.order?.id || "").trim();
-          if (!orderId) return;
-          if (status === "cancelled") return;
-
-          if (productionFilter === "pre_production_meeting_not_done" && type === "pre_production") {
-            scheduledOrderIds.add(orderId);
-          }
-          if (productionFilter === "post_production_meeting_not_done" && type === "post_production") {
-            scheduledOrderIds.add(orderId);
-          }
-        });
-
-        const missingMeetingIds = new Set<string>();
-        shoots.forEach((shoot) => {
-          const bookingId = String(shoot.id || "").replace("#", "").trim();
-          if (!bookingId) return;
-          if (!scheduledOrderIds.has(bookingId)) {
-            missingMeetingIds.add(bookingId);
-          }
-        });
-
-        setMeetingGapBookingIds(missingMeetingIds);
-      } catch (error) {
-        console.error("Failed to load meetings for meeting-gap filter:", error);
-        setMeetingGapBookingIds(new Set());
-      } finally {
-        if (!cancelled) setMeetingGapLoading(false);
-      }
-    };
-
-    loadMeetingGap();
-    return () => {
-      cancelled = true;
-    };
-  }, [productionFilter, shoots]);
-
-  // --- CLIENT-SIDE PROCESSING (Search + Sort) ---
+  // API handles filtering and pagination. Keep only the existing client-side table sorting.
   const processedShoots = useMemo(() => {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
-    const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
-    const next15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15).getTime();
-    const next30Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).getTime();
-    const in1Month = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime();
-    const last7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).getTime();
-    const last15Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15).getTime();
-    const last30Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30).getTime();
-    const last1Month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).getTime();
-    const in2Months = new Date(now.getFullYear(), now.getMonth() + 2, now.getDate()).getTime();
-    const in6Months = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()).getTime();
-    const in1Year = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).getTime();
+    const result = [...shoots];
 
-    const matchesRange = (shoot: ShootRecord) => {
-      if (range === "all") return true;
-      if (!Number.isFinite(shoot.rawDate) || shoot.rawDate <= 0) return false;
-
-      if (range === "custom") {
-        if (customRangeStartDate && customRangeEndDate) {
-          const start = startOfDay(customRangeStartDate).getTime();
-          const end = endOfDay(customRangeEndDate).getTime();
-          return shoot.rawDate >= start && shoot.rawDate <= end;
-        }
-
-        if (externalSelectedDate) {
-          const selectedDate = startOfDay(externalSelectedDate).getTime();
-          return shoot.rawDate >= selectedDate && shoot.rawDate < startOfTomorrow;
-        }
-
-        return true;
-      }
-
-      if (range === "today") return shoot.rawDate >= startOfToday && shoot.rawDate < startOfTomorrow;
-      if (range === "upcoming") return shoot.rawDate >= startOfToday;
-      if (range === "next_7_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next7Days;
-      if (range === "next_15_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next15Days;
-      if (range === "next_30_days") return shoot.rawDate >= startOfToday && shoot.rawDate <= next30Days;
-      if (range === "in_1_month") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Month;
-      if (range === "in_2_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in2Months;
-      if (range === "in_6_months") return shoot.rawDate >= startOfToday && shoot.rawDate <= in6Months;
-      if (range === "in_1_year") return shoot.rawDate >= startOfToday && shoot.rawDate <= in1Year;
-      if (range === "last_7_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last7Days;
-      if (range === "last_15_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last15Days;
-      if (range === "last_30_days") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last30Days;
-      if (range === "last_1_month") return shoot.rawDate <= now.getTime() && shoot.rawDate >= last1Month;
-
-      return true;
-    };
-
-    // 1. Filter
-    const normalizedSearchQuery = debouncedSearchQuery.toLowerCase();
-    const normalizedPhoneQuery = normalizedSearchQuery.replace(/[^\d+]/g, "");
-    let result = shoots.filter((shoot) => {
-      if (!matchesRange(shoot)) return false;
-
-      const normalizedPhone = shoot.phone.toLowerCase();
-      const matchesSearch =
-        shoot.customerName.toLowerCase().includes(normalizedSearchQuery) ||
-        shoot.id.toLowerCase().includes(normalizedSearchQuery) ||
-        shoot.email.toLowerCase().includes(normalizedSearchQuery) ||
-        (normalizedPhoneQuery.length > 0 && normalizedPhone.includes(normalizedPhoneQuery));
-      if (!matchesSearch) return false;
-      if (!matchesPaymentFilter(shoot, activePaymentFilter)) return false;
-
-      if (isMeetingGapStatusFilter(productionFilter)) {
-        const bookingId = String(shoot.id || "").replace("#", "").trim();
-        if (!bookingId) return false;
-        if (productionFilter === "post_production_meeting_not_done" && !isPostProductionEligibleStatus(shoot.status)) {
-          return false;
-        }
-        if (!meetingGapBookingIds.has(bookingId)) {
-          return false;
-        }
-      }
-
-      if (isProductionGapStatusFilter(productionFilter)) {
-        // Production gap filters are resolved by backend via `production_filter`.
-        // Keep allowing the row through so other filters can still narrow it down.
-      }
-
-      if (statusFilter !== "all" && timelineStatusKeyFromLabel(shoot.status) !== statusFilter) {
-        return false;
-      }
-
-      return true;
-    });
-
-    if (activeCpAssignmentFilter !== "all") {
-      result = result.filter((shoot) =>
-        activeCpAssignmentFilter === "assigned" ? shoot.hasAssignedCp : !shoot.hasAssignedCp
-      );
-    }
-
-    // 2. Sort
     if (sortConfig.direction !== null) {
       result.sort((a, b) => {
         let aValue: any;
         let bValue: any;
 
-        if (sortConfig.key === 'id') {
-          aValue = parseInt(a.id.replace('#', ''), 10);
-          bValue = parseInt(b.id.replace('#', ''), 10);
-        } else if (sortConfig.key === 'customerName') {
-          // As requested: clicking Project Name sorts by Date
+        if (sortConfig.key === "id") {
+          aValue = parseInt(a.id.replace("#", ""), 10);
+          bValue = parseInt(b.id.replace("#", ""), 10);
+        } else if (sortConfig.key === "customerName") {
           aValue = a.rawDate;
           bValue = b.rawDate;
-        } else if (sortConfig.key === 'price') {
+        } else if (sortConfig.key === "price") {
           aValue = a.rawPrice;
           bValue = b.rawPrice;
         } else {
@@ -832,27 +715,14 @@ export const ShootsTable = ({
           bValue = b[sortConfig.key];
         }
 
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
 
     return result;
-  }, [
-    shoots,
-    debouncedSearchQuery,
-    sortConfig,
-    statusFilter,
-    productionFilter,
-    activeCpAssignmentFilter,
-    activePaymentFilter,
-    meetingGapBookingIds,
-    range,
-    customRangeStartDate,
-    customRangeEndDate,
-    externalSelectedDate,
-  ]);
+  }, [shoots, sortConfig]);
 
   const requestSort = (key: keyof ShootRecord) => {
     let direction: 'asc' | 'desc' | null = 'asc';
@@ -873,9 +743,9 @@ export const ShootsTable = ({
       : <ChevronDown size={14} className={`ml-2 ${isDark ? "text-[#E8D1AB]" : "text-[#B18A00]"}`} />;
   };
 
-  const listTotalPages = Math.max(1, Math.ceil(processedShoots.length / itemsPerPage));
+  const listTotalPages = Math.max(1, Math.ceil(totalRecords / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentShoots = processedShoots.slice(startIndex, startIndex + itemsPerPage);
+  const currentShoots = processedShoots;
   const visibleKanbanStatuses = useMemo(() => {
     if (statusFilter !== "all" && !isProductionGapStatusFilter(statusFilter)) {
       const selectedStatus = FILTER_STATUS_COLUMN_MAP[statusFilter];
@@ -1113,6 +983,7 @@ export const ShootsTable = ({
       const response = await adminApi.deleteProject(cleanId);
       if (response?.success || response?.message === "Project deleted successfully") {
         setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        setTotalRecords(prev => Math.max(0, prev - 1));
         toast.success("Shoot deleted successfully");
       } else {
         toast.error(response?.error || "Failed to delete shoot");
@@ -1212,7 +1083,8 @@ export const ShootsTable = ({
                     <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#E8D1AB]">
                       Filter by Shoot Date
                     </div>
-                    <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="all">All Days</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                       <SelectItem value="next_15_days">Next 15 Days</SelectItem>
                       <SelectItem value="next_30_days">Next 30 Days</SelectItem>
@@ -1270,7 +1142,7 @@ export const ShootsTable = ({
         </div>
       )}
 
-      {loading || meetingGapLoading ? (
+      {loading ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -1950,14 +1822,14 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && !meetingGapLoading && processedShoots.length > 0 && activeViewMode !== "grid" && (
+        !loading && processedShoots.length > 0 && activeViewMode !== "grid" && (
           <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
             }`}>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
 
               {/* Pagination Entries Info */}
               <div className={`hidden lg:block shrink-0 whitespace-nowrap text-sm ${isDark ? "text-[#666666]" : "text-[#999]"}`}>
-                {`Showing ${startIndex + 1} to ${Math.min(startIndex + itemsPerPage, processedShoots.length)} of ${processedShoots.length} entries`}
+                {`Showing ${totalRecords === 0 ? 0 : startIndex + 1} to ${Math.min(startIndex + processedShoots.length, totalRecords)} of ${totalRecords} entries`}
               </div>
 
               {/* Pagination Controls Wrapper */}
