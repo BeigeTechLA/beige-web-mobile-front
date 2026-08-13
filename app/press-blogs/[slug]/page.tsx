@@ -104,12 +104,12 @@ const moreContent = getPostsByCategory(categoryTitle);
 
         <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-8 mb-10 lg:mb-40">
           {headings.length > 0 && (
-            <div className="w-full lg:w-1/4">
+            <div className="w-full lg:w-1/5">
               <BlogTableOfContents headings={headings} />
             </div>
           )}
 
-          <div className={`w-full ${headings.length > 0 ? "lg:w-3/4" : ""}`}>
+          <div className={`w-full ${headings.length > 0 ? "lg:w-4/5" : ""}`}>
             <CustomBlogRenderer rawContent={contentWithIds} />
           </div>
         </div>
