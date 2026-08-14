@@ -184,7 +184,7 @@ const shiftRequest = async <T>(
 export const shiftManagementApi = {
   getShifts: (params?: Record<string, unknown>) =>
     shiftRequest<any>('get', '/admin/shifts', { params }, 'Failed to fetch shifts'),
-  createShift: (data: { name: string; start_time: string; end_time: string; active_days: string[]; is_enabled: boolean }) =>
+  createShift: (data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
     shiftRequest<any>('post', '/admin/shifts', { data }, 'Failed to create shift'),
   getOverview: (params?: Record<string, unknown>) =>
     shiftRequest<any>('get', '/admin/shifts/overview', { params }, 'Failed to fetch shift overview'),
@@ -196,7 +196,7 @@ export const shiftManagementApi = {
     shiftRequest<any>('get', '/admin/shifts/hourly-lead-volume', { params }, 'Failed to fetch hourly lead volume'),
   getShiftDetail: (id: number | string) =>
     shiftRequest<any>('get', `/admin/shifts/${id}`, undefined, 'Failed to fetch shift detail'),
-  updateShift: (id: number | string, data: { name: string; start_time: string; end_time: string; active_days: string[]; is_enabled: boolean }) =>
+  updateShift: (id: number | string, data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
     shiftRequest<any>('put', `/admin/shifts/${id}`, { data }, 'Failed to update shift'),
   toggleShift: (id: number | string) =>
     shiftRequest<any>('patch', `/admin/shifts/${id}/toggle`, undefined, 'Failed to toggle shift'),

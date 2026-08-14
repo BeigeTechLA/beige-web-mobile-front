@@ -25,7 +25,8 @@ export type ShiftDetail = {
   name: string;
   hours: string;
   days: string[];
-  status: "Active" | "In Active";
+  status: "active" | "inactive";
+  stored_status?: "active" | "inactive";
   shift_overlapping?: boolean;
 };
 
@@ -34,7 +35,6 @@ type SalesMember = {
   sales_rep_id?: number | string;
   name: string;
   email: string;
-  status: "Active" | "In Active";
   enabled: boolean;
   lastActivity: string;
   initials: string;
@@ -161,8 +161,12 @@ function formatLongDateTime(value?: string | null) {
   return `${date}, ${time}`;
 }
 
-function normalizeStatus(value: any): "Active" | "In Active" {
-  return String(value || "").toLowerCase() === "active" || value === true ? "Active" : "In Active";
+function normalizeStatus(value: any): "active" | "inactive" {
+  return String(value || "").toLowerCase() === "active" || value === true ? "active" : "inactive";
+}
+
+function formatStatusLabel(value: any): "Active" | "In Active" {
+  return normalizeStatus(value) === "active" ? "Active" : "In Active";
 }
 
 function formatDisplayTime(time?: string) {
@@ -203,10 +207,10 @@ function DayPill({ day }: { day: string }) {
   );
 }
 
-function StatusPill({ status }: { status: "Active" | "In Active" }) {
+function StatusPill({ status }: { status: "active" | "inactive" }) {
   return (
-    <span className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${status === "Active" ? "bg-[#B9F8CF] text-[#0D542B]" : "bg-[#2B2B2B] text-white/45"}`}>
-      {status}
+    <span className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${status === "active" ? "bg-[#B9F8CF] text-[#0D542B]" : "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"}`}>
+      {formatStatusLabel(status)}
     </span>
   );
 }
@@ -241,7 +245,7 @@ export default function ShiftDetailView({
   onEditShift?: (shift: ShiftDetail) => void;
   refreshKey?: number;
 }) {
-  const [statusFilter, setStatusFilter] = useState("Status");
+  const [statusFilter, setStatusFilter] = useState("User Status");
   const [isConfiguringOrder, setIsConfiguringOrder] = useState(false);
   const [selectedSalesperson, setSelectedSalesperson] = useState<SalespeopleProfile | null>(null);
   const [shiftDetail, setShiftDetail] = useState(shift);
@@ -293,7 +297,7 @@ export default function ShiftDetailView({
       shiftManagementApi.getShiftDetail(shift.id),
       shiftManagementApi.getShiftSalespeople(shift.id, {
         search: debouncedMemberSearch || undefined,
-        status: statusFilter === "Status" ? undefined : statusFilter,
+        user_status: statusFilter === "User Status" ? undefined : statusFilter,
         page: memberPage,
         limit: 10,
       }),
@@ -306,7 +310,8 @@ export default function ShiftDetailView({
         name: detail.name || detail.shift_name || shift.name,
         hours: formatShiftHours(detail, shift.hours),
         days: detail.active_days || detail.days || shift.days,
-        status: normalizeStatus(detail.status ?? detail.is_enabled),
+        status: normalizeStatus(detail.status ?? detail.stored_status),
+        stored_status: normalizeStatus(detail.stored_status ?? detail.status),
         shift_overlapping: Boolean(detail.shift_overlapping),
       });
     }
@@ -329,7 +334,6 @@ export default function ShiftDetailView({
           sales_rep_id: person.sales_rep_id || person.id || person.user_id,
           name,
           email,
-          status: normalizeStatus(person.status ?? person.is_active),
           enabled: Boolean(person.user_status ?? person.enabled ?? person.is_enabled ?? person.is_active),
           lastActivity: formatLongDateTime(person.last_activity || person.last_activity_at),
           initials: person.initials || getInitials(name),
@@ -394,8 +398,8 @@ export default function ShiftDetailView({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold">{shiftDetail.name}</h1>
-                <StatusPill status={shiftDetail.status} />
+                <h1 className="text-2xl font-semibold capitalize">{shiftDetail.name}</h1>
+              <StatusPill status={shiftDetail.status} />
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/60">
                 <span>Working Hours : <span className="text-white">{shiftDetail.hours}</span></span>
@@ -439,7 +443,7 @@ export default function ShiftDetailView({
               <h2 className="text-lg font-medium">Manage Salespeople</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              <BasicDropdown label="Status" value={statusFilter} options={["Status", "Active", "In Active"]} onChange={setStatusFilter} roundedFull styles="text-white/70 text-xs" />
+              <BasicDropdown label="User Status" value={statusFilter} options={["User Status", "Active", "In Active"]} onChange={setStatusFilter} roundedFull styles="text-white/70 text-xs" />
             </div>
           </div>
 
@@ -484,7 +488,9 @@ export default function ShiftDetailView({
                       </div>
                     </td>
                     <td className="px-5 py-4">{member.email}</td>
-                    <td className="px-5 py-4"><StatusPill status={member.status} /></td>
+                    <td className="px-5 py-4">
+                      <StatusPill status={member.enabled ? "active" : "inactive"} />
+                    </td>
                     <td className="px-5 py-4">
                       <MemberToggle
                         enabled={member.enabled}

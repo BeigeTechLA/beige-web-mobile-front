@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { Area, AreaChart, Legend, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import DottedDivider from "@/components/admin/DottedDivider";
 import OverviewMetricCards from "@/components/admin/OverviewMetricCards";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
@@ -44,7 +43,8 @@ type ShiftRow = {
   name: string;
   hours: string;
   days: string[];
-  status: "Active" | "In Active";
+  status: "active" | "inactive";
+  stored_status?: "active" | "inactive";
   people: string[];
   salespeople?: Array<{ id?: number | string; sales_rep_id?: number | string; name?: string; initials?: string }>;
   salespeopleCount?: number;
@@ -274,9 +274,11 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
   return pages;
 };
 
-const formatStatus = (value: unknown): "Active" | "In Active" => {
-  const normalized = String(value ?? "").toLowerCase();
-  return normalized === "active" || normalized === "1" || normalized === "true" ? "Active" : "In Active";
+const normalizeShiftStatus = (value: unknown): "active" | "inactive" =>
+  String(value ?? "").toLowerCase() === "active" ? "active" : "inactive";
+
+const formatStatusLabel = (value: unknown): "Active" | "In Active" => {
+  return normalizeShiftStatus(value) === "active" ? "Active" : "In Active";
 };
 
 const formatShiftHours = (shift: any) => {
@@ -316,9 +318,8 @@ const mapShift = (shift: any): ShiftRow => {
     name: shift?.name || shift?.shift_name || "Untitled Shift",
     hours: formatShiftHours(shift),
     days: shift?.active_days || shift?.days || [],
-    status: formatStatus(
-      shift?.status ?? shift?.is_enabled ?? shift?.is_active
-    ),
+    status: normalizeShiftStatus(shift?.status ?? shift?.stored_status),
+    stored_status: normalizeShiftStatus(shift?.stored_status ?? shift?.status),
 
     people: salespeople
       .slice(0, 3)
@@ -546,7 +547,7 @@ export default function ShiftManagementPage() {
     setStartTime(parseShiftTime(detail?.start_time || detail?.startTime || editShift.hours.split("-")[0]));
     setEndTime(parseShiftTime(detail?.end_time || detail?.endTime || editShift.hours.split("-")[1]));
     setEnabledDays(Array.isArray(detail?.active_days) ? detail.active_days : editShift.days);
-    setIsShiftEnabled(formatStatus(detail?.status ?? detail?.is_enabled ?? detail?.is_active) === "Active");
+    setIsShiftEnabled(String(detail?.stored_status || detail?.status || "inactive").toLowerCase() === "active");
     setIsCreateShiftOpen(false);
   };
 
@@ -619,7 +620,7 @@ export default function ShiftManagementPage() {
             ? peopleData
             : (peopleData?.salespeople || peopleData?.sales_people || peopleData?.items || []);
         const activePeopleList = Array.isArray(peopleList)
-          ? peopleList.filter((person: any) => person?.user_status === true && String(person?.status || "").toLowerCase() === "active")
+          ? peopleList.filter((person: any) => person?.user_status === true)
           : [];
 
         if (!activePeopleList.length) {
@@ -647,7 +648,7 @@ export default function ShiftManagementPage() {
 
     const fallbackRes = await shiftManagementApi.getShifts({ page: 1, limit: 100, status: "active", ...selectedDateParams });
     const fallbackShifts = unwrapList(fallbackRes, ["shifts", "items", "rows"]).map(mapShift);
-    await enrichActiveShifts(fallbackShifts.filter((shift) => shift.status === "Active"));
+      await enrichActiveShifts(fallbackShifts.filter((shift) => shift.status === "active"));
   };
 
   const fetchSecondaryWidgets = async () => {
@@ -821,7 +822,6 @@ export default function ShiftManagementPage() {
           </div>
           <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
-        <DottedDivider />
 
         <OverviewMetricCards
           metrics={overviewMetrics.map((metric) => ({
@@ -928,7 +928,7 @@ export default function ShiftManagementPage() {
                     }}
                     className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
                   >
-                    <td className="px-5 py-4"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" />{shift.name}</td>
+                    <td className="px-5 py-4"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" /> <span className="capitalize">{shift.name}</span></td>
                     <td className="px-5 py-4">{shift.hours}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
@@ -938,7 +938,7 @@ export default function ShiftManagementPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${shift.status === "Active" ? "bg-[#B9F8CF] text-[#0D542B]" : "bg-[#2B2B2B] text-white/45"}`}>{shift.status}</span>
+                      <span className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${shift.status === "active" ? "bg-[#B9F8CF] text-[#0D542B]" : "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"}`}>{formatStatusLabel(shift.status)}</span>
                     </td>
                     <td className="px-5 py-4">
                       <AvatarStack
@@ -1028,7 +1028,7 @@ export default function ShiftManagementPage() {
                     <div key={`now-${shift.id || shift.name}`} className="rounded-xl border border-[#2D2D2D] bg-[#171717] p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-medium"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" />{shift.name}</p>
+                          <p className="text-sm font-medium"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" /><span className="capitalize">{shift.name}</span></p>
                           <p className="mt-1 text-xs text-white/45">{shift.hours}</p>
                         </div>
                         {shift.people.length ? <AvatarStack people={shift.people} extra={shift.extra} /> : null}
@@ -1285,7 +1285,7 @@ export default function ShiftManagementPage() {
                       start_time: formatApiTime(startTime),
                       end_time: formatApiTime(endTime),
                       active_days: enabledDays,
-                      is_enabled: isShiftEnabled,
+                      status: isShiftEnabled ? "active" : "inactive",
                     };
                     const response = editingShift?.id
                       ? await shiftManagementApi.updateShift(editingShift.id, payload)
@@ -1310,7 +1310,7 @@ export default function ShiftManagementPage() {
                         start_time: payload.start_time,
                         end_time: payload.end_time,
                         active_days: payload.active_days,
-                        is_enabled: payload.is_enabled,
+                        status: payload.status,
                       });
                       setSelectedShift({ ...selectedShift, ...mappedShift, id: selectedShift.id });
                     }

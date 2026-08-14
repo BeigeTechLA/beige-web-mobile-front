@@ -99,7 +99,7 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-white">Round Robin Configuration</h1>
           {shiftName ? (
-            <span className="text-lg font-semibold text-[#E5D5B8]">{shiftName}</span>
+            <span className="text-lg font-semibold text-[#E5D5B8] capitalize">{shiftName}</span>
           ) : null}
         </div>
         <p className="mt-1 text-sm text-white/45">Drag to reorder the assignment sequence</p>
