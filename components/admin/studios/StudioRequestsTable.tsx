@@ -69,9 +69,10 @@ interface Props {
   isDark?: boolean;
   searchQuery?: string;
   selectedDate?: Date | null;
+  showRangeFilter?: boolean;
 }
 
-export const StudioRequestsTable = ({ isDark = true, searchQuery = "", selectedDate }: Props) => {
+export const StudioRequestsTable = ({ isDark = true, searchQuery = "", selectedDate, showRangeFilter = true }: Props) => {
   const router = useRouter();
   const [studios, setStudios] = useState<StudioRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -167,19 +168,21 @@ export const StudioRequestsTable = ({ isDark = true, searchQuery = "", selectedD
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3 className={isDark ? "text-white" : "text-[#323232]"}>Studio Leads</h3>
         </div>
-        <div className="flex gap-3">
-          <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className={`flex-1 sm:w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
-              <SelectValue placeholder="Range" />
-            </SelectTrigger>
-            <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="year">Year</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {showRangeFilter ? (
+          <div className="flex gap-3">
+            <Select value={range} onValueChange={setRange}>
+              <SelectTrigger className={`flex-1 sm:w-[110px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+                <SelectValue placeholder="Range" />
+              </SelectTrigger>
+              <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
+                <SelectItem value="all">All time</SelectItem>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="week">Week</SelectItem>
+                <SelectItem value="year">Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </div>
 
       <div className="lg:hidden flex-grow space-y-4">

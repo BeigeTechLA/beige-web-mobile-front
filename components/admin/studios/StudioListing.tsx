@@ -50,6 +50,9 @@ const getThumbnails = (images: string[], cover: string | null): string[] => {
 
 interface ListingProps {
   isDark?: boolean;
+  searchQuery?: string;
+  statusFilter?: string;
+  panelFiltersVisible?: boolean;
 }
 
 type StudioSortKey = "created_at" | "name" | "price" | "status";
@@ -71,12 +74,11 @@ const MONTH_OPTIONS = [
   { label: "December", value: "December" },
 ] as const;
 
-export default function StudioListing({ isDark = false }: ListingProps) {
+export default function StudioListing({ isDark = false, searchQuery = "", statusFilter = "all", panelFiltersVisible = true }: ListingProps) {
   const [period, setPeriod] = useState<StudioPeriod>("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [sortBy, setSortBy] = useState<StudioSortKey>("created_at");
   const [sortOrder, setSortOrder] = useState<StudioSortOrder>("DESC");
-  const [status] = useState<string>("all");
   const [studios, setStudios] = useState<AdminStudioListItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -110,7 +112,8 @@ export default function StudioListing({ isDark = false }: ListingProps) {
       const response = await adminApi.getStudios({
         page: 1,
         limit: 50,
-        status,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        search: searchQuery.trim() || undefined,
         period,
         ...(monthFilter !== "all" ? { month: monthFilter } : {}),
         sort_by: sortBy,
@@ -139,7 +142,7 @@ export default function StudioListing({ isDark = false }: ListingProps) {
     return () => {
       active = false;
     };
-  }, [monthFilter, period, sortBy, sortOrder, status]);
+  }, [monthFilter, period, searchQuery, sortBy, sortOrder, statusFilter]);
 
   const normalizedStudios = useMemo(() => {
     return studios.map((studio) => ({
@@ -181,7 +184,8 @@ export default function StudioListing({ isDark = false }: ListingProps) {
         </div>
 
         {/* Dropdown filters matching user screenshot */}
-        <div className="flex gap-2">
+        {panelFiltersVisible ? (
+          <div className="flex gap-2">
           {/* Dropdown 1: Range */}
           <Select value={period} onValueChange={(val) => setPeriod(val as StudioPeriod)}>
             <SelectTrigger
@@ -256,6 +260,7 @@ export default function StudioListing({ isDark = false }: ListingProps) {
           </Select>
 
         </div>
+        ) : null}
       </div>
 
       <div className="p-4 lg:p-6 flex flex-col gap-6">

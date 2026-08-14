@@ -22,6 +22,7 @@ import SpaceAddressForm from "@/components/admin/studios/add-studio/SpaceAddress
 import MediaUploadForm, { type MediaFile } from "@/components/admin/studios/add-studio/MediaForm";
 import OperatingHoursForm from "@/components/admin/studios/add-studio/OperatingHoursForm";
 import BudgetForm from "@/components/admin/studios/add-studio/BudgetForm";
+import { buildStudioPayload } from "@/lib/adminStudioPayload";
 
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 
@@ -743,7 +744,7 @@ export default function AdminStudiosDetailsPage() {
     } else if (view === 'features') {
       setView('media');
     } else if (view === 'media') {
-      if (mediaFiles.filter((file) => file.status === "uploaded").length < 5) {
+      if (mediaFiles.length < 5) {
         setMediaError("Please upload at least 5 photos or videos before continuing.");
         toast.error("Please upload at least 5 photos or videos");
         return;
@@ -790,574 +791,55 @@ export default function AdminStudiosDetailsPage() {
     }
   };
 
-  const studioPayload = {
-    studio_name: "Sunset Creative Studio",
-    brand_name: "Beige",
-    description: "A bright production-ready studio space suitable for photography, video shoots, product shoots, and podcast recording.",
-    supported_shoot_types: ["Photography", "Product Shoot", "Videography", "Podcast"],
-    suggested_type: "Creative production studio",
-    square_feet: 1200,
-    height: "12 ft",
-    width: "30 ft",
-    length: "40 ft",
-    main_floor_number: "2",
-    overnight_stays_allowed: true,
-    security_recording_enabled: true,
-    security_recording_description: "Security cameras are installed in shared/common areas only. Recording devices in bathrooms or dressing rooms are prohibited.",
-    address: {
-      country: "United States",
-      line1: "845 S Los Angeles St, Suite 302",
-      line2: "",
-      city: "Los Angeles",
-      state: "CA",
-      zipCode: "90014",
-      latitude: 34.0401,
-      longitude: -118.2542,
-      timezone: "America/Los_Angeles",
-    },
-    hourly_rate: 85,
-    overtime_rate: 100,
-    minimum_booking_hours: 2,
-    buffer_time_minutes: 30,
-    parking_options: ["Free Onsite Parking", "Paid Onsite Parking", "Free Street Parking"],
-    parking_description: "Free parking available for up to 10 vehicles. Valet service available on weekends.",
-    access_features: ["Elevator", "Stairs", "Street Level"],
-    facility_features: {
-      general: ["Wifi", "Kitchen", "Restroom", "Air conditioning"],
-      photography: ["Natural light", "Backdrop", "Lighting kit"],
-      videography: ["Sound treated", "Green screen"],
-      podcast: ["Podcast table", "Microphones"],
-      product: ["Product table", "White backdrop"],
-    },
-    amenities: ["Wifi", "Kitchen", "Free washer", "Dryer", "Security cameras", "Garden view"],
-    activities: ["Production", "Event", "Recreation", "Meetings"],
-    space_basics: { guests: 25, bedrooms: 1, beds: 1, bathrooms: 1 },
-    description_tags: ["Peaceful", "Podcast Friendly", "Spacious", "Natural Lighting", "Luxury"],
-    wifi_name: "Beige Studio WiFi",
-    wifi_password: "studio-password",
-    preferred_age: "18+",
-    pricing_settings: {
-      categories: [
-        {
-          name: "Production",
-          hourly_price: 85,
-          min_hours: 2,
-          max_people_allowed: 25,
-          included_types: ["Photo Shoot", "Video Shoot", "Product Shoot"],
-        },
-      ],
-      equipment: [
-        {
-          name: "Green Screen",
-          cost: 50,
-        },
-      ],
-    },
-    house_rules: {
-      smoking_and_drugs_allowed: false,
-      alcohol_allowed: true,
-      cooking_allowed: true,
-      electricity_usage_allowed: true,
-      external_food_allowed: false,
-      pets_allowed: false,
-      custom_rules: ["No loud music after 9 PM."],
-    },
-    policies: buildPoliciesPayload({}),
-    media: [],
-    operating_hours: [
-      { day_of_week: 0, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-      { day_of_week: 1, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-    ],
-  };
-
   const handleSaveStudio = async () => {
     const isEditMode = Boolean(studioId);
-    let dynamicAddress = studioPayload.address;
-    if (typeof window !== "undefined") {
-      const savedAddress = localStorage.getItem("add_studio_address");
-      if (savedAddress) {
-        try {
-          const parsed = JSON.parse(savedAddress);
-          dynamicAddress = {
-            country: parsed.country || "United States",
-            line1: parsed.address || "845 S Los Angeles St, Suite 302",
-            line2: parsed.apartment || "",
-            city: parsed.city || "Los Angeles",
-            state: parsed.state || "CA",
-            zipCode: parsed.zipCode || "90014",
-            latitude: parsed.latitude || 34.0401,
-            longitude: parsed.longitude || -118.2542,
-            timezone: "America/Los_Angeles",
-          };
-        } catch (e) {
-          console.error("Failed to parse saved address from localStorage", e);
-        }
-      }
-    }
-
-    let dynamicBudget = {
-      hourlyRate: 85,
-      overtimeRate: 100,
-      minimumBooking: 2,
-      bufferTime: 30
-    };
-    if (typeof window !== "undefined") {
-      const savedBudget = localStorage.getItem("add_studio_budget");
-      if (savedBudget) {
-        try {
-          const parsed = JSON.parse(savedBudget);
-          dynamicBudget = {
-            hourlyRate: parsed.hourlyRate ? Number(parsed.hourlyRate) : 85,
-            overtimeRate: parsed.overtimeRate ? Number(parsed.overtimeRate) : 100,
-            minimumBooking: parsed.minimumBooking ? Number(parsed.minimumBooking) : 2,
-            bufferTime: parsed.bufferTime ? Number(parsed.bufferTime) : 30
-          };
-        } catch (e) {
-          console.error("Failed to parse saved budget from localStorage", e);
-        }
-      }
-    }
-
-    let dynamicInfo = {
-      spaceTitle: "Sunset Creative Studio",
-      brandName: "Beige",
-      description: "A bright production-ready studio space suitable for photography, video shoots, product shoots, and podcast recording.",
-      secondaryTypes: ["Photography", "Product Shoot", "Videography", "Podcast"],
-      suggestedType: "Creative production studio",
-      dimensions: {
-        propertySize: "1200",
-        height: "12 ft",
-        width: "30 ft",
-        length: "40 ft",
-        floorNumber: "2",
-      },
-      overnightStays: true,
-      securityEnabled: true,
-      securityDesc: "Security cameras are installed in shared/common areas only. Recording devices in bathrooms or dressing rooms are prohibited.",
-    };
-    if (typeof window !== "undefined") {
-      const savedInfo = localStorage.getItem("add_studio_info");
-      if (savedInfo) {
-        try {
-          const parsed = JSON.parse(savedInfo);
-          dynamicInfo = {
-            spaceTitle: parsed.spaceTitle || dynamicInfo.spaceTitle,
-            brandName: parsed.brandName || dynamicInfo.brandName,
-            description: parsed.description || dynamicInfo.description,
-            secondaryTypes: parsed.secondaryTypes || dynamicInfo.secondaryTypes,
-            suggestedType: parsed.suggestedType || dynamicInfo.suggestedType,
-            dimensions: {
-              propertySize: parsed.dimensions?.propertySize || dynamicInfo.dimensions.propertySize,
-              height: parsed.dimensions?.height || dynamicInfo.dimensions.height,
-              width: parsed.dimensions?.width || dynamicInfo.dimensions.width,
-              length: parsed.dimensions?.length || dynamicInfo.dimensions.length,
-              floorNumber: parsed.dimensions?.floorNumber || dynamicInfo.dimensions.floorNumber,
-            },
-            overnightStays: parsed.overnightStays !== undefined ? parsed.overnightStays : dynamicInfo.overnightStays,
-            securityEnabled: parsed.securityEnabled !== undefined ? parsed.securityEnabled : dynamicInfo.securityEnabled,
-            securityDesc: parsed.securityDesc || dynamicInfo.securityDesc,
-          };
-        } catch (e) {
-          console.error("Failed to parse saved info from localStorage", e);
-        }
-      }
-    }
-
-    const parkingMap: Record<string, string> = {
-      "free-onsite": "Free Onsite Parking",
-      "paid-onsite": "Paid Onsite Parking",
-      "free-street": "Free Street Parking",
-      "metered-street": "Metered Street Parking",
-      "valet": "Valet",
-      "nearby-lot": "Nearby Parking lot",
-    };
-    const accessMap: Record<string, string> = {
-      "elevator": "Elevator",
-      "stairs": "Stairs",
-      "street-level": "Street Level",
-      "freight": "Freight Elevator",
-      "handicap": "Wheelchair / Handicap access",
-    };
-    const amenityMap: Record<string, string> = {
-      "wifi": "Wifi",
-      "hot-tub": "Hot Tub",
-      "fire-pit": "Fire Pit",
-      "pool-table": "Pool Table",
-      "bbq": "BBQ Grill",
-      "fireplace": "Indoor Fireplace",
-      "gym": "Gym",
-      "patio": "Patio",
-      "pool": "Pool",
-      "dining": "Outdoor Dining Area",
-      "kitchen": "Kitchen",
-    };
-
-    let dynamicFeatures = {
-      parking: [] as string[],
-      description: "Free parking available for up to 10 vehicles. Valet service available on weekends.",
-      accessFeatures: [] as string[],
-      featureValues: {
-        general: ["Wifi", "Kitchen", "Restroom", "Air conditioning"] as string[],
-        photography: ["Natural light", "Backdrop", "Lighting kit"] as string[],
-        videography: ["Sound treated", "Green screen"] as string[],
-        podcast: ["Podcast table", "Microphones"] as string[],
-        product: ["Product table", "White backdrop"] as string[],
-      }
-    };
-    if (typeof window !== "undefined") {
-      const savedFeatures = localStorage.getItem("add_studio_features");
-      if (savedFeatures) {
-        try {
-          const parsed = JSON.parse(savedFeatures);
-          dynamicFeatures = {
-            parking: parsed.parking || dynamicFeatures.parking,
-            description: parsed.description || dynamicFeatures.description,
-            accessFeatures: parsed.accessFeatures || dynamicFeatures.accessFeatures,
-            featureValues: {
-              general: parsed.featureValues?.general || dynamicFeatures.featureValues.general,
-              photography: parsed.featureValues?.photography || dynamicFeatures.featureValues.photography,
-              videography: parsed.featureValues?.videography || dynamicFeatures.featureValues.videography,
-              podcast: parsed.featureValues?.podcast || dynamicFeatures.featureValues.podcast,
-              product: parsed.featureValues?.product || dynamicFeatures.featureValues.product,
-            }
-          };
-        } catch (e) {
-          console.error("Failed to parse saved features from localStorage", e);
-        }
-      }
-    }
-
-    const parkingOptions = dynamicFeatures.parking.map(id => parkingMap[id]).filter(Boolean);
-    const accessFeatures = dynamicFeatures.accessFeatures.map(id => accessMap[id]).filter(Boolean);
-
-    let dynamicDetails = {
-      useDefault: true,
-      activities: {
-        production: true,
-        event: false,
-        recreation: false,
-        meetings: false,
-      },
-      counts: {
-        guests: 25,
-        bedrooms: 1,
-        beds: 1,
-        bathrooms: 1,
-      },
-      amenities: ["wifi", "kitchen"] as string[],
-      highlights: ["Peaceful", "Podcast Friendly", "Spacious", "Natural Lighting", "Luxury"] as string[],
-    };
-    if (typeof window !== "undefined") {
-      const savedDetails = localStorage.getItem("add_studio_details");
-      if (savedDetails) {
-        try {
-          const parsed = JSON.parse(savedDetails);
-          dynamicDetails = {
-            useDefault: parsed.useDefault !== undefined ? parsed.useDefault : dynamicDetails.useDefault,
-            activities: parsed.activities || dynamicDetails.activities,
-            counts: parsed.counts || dynamicDetails.counts,
-            amenities: parsed.amenities || dynamicDetails.amenities,
-            highlights: parsed.highlights || dynamicDetails.highlights,
-          };
-        } catch (e) {
-          console.error("Failed to parse saved details from localStorage", e);
-        }
-      }
-    }
-
-    const activitiesList = Object.entries(dynamicDetails.activities)
-      .filter(([_, enabled]) => enabled)
-      .map(([act]) => act.charAt(0).toUpperCase() + act.slice(1));
-
-    const amenitiesList = dynamicDetails.amenities.map(id => amenityMap[id] || id).filter(Boolean);
-
-    let dynamicOperations = {
-      is24Hrs: false,
-      selectedDays: ["Monday"] as string[],
-      schedule: {} as Record<string, { isOpen: boolean; setHours: boolean }>,
-      rules: {
-        smoking: false,
-        alcohol: true,
-        cooking: true,
-        electricity: true,
-        externalFood: false,
-        pets: null as boolean | null,
-      },
-      customRule: "",
-    };
-    if (typeof window !== "undefined") {
-      const savedOperations = localStorage.getItem("add_studio_operations");
-      if (savedOperations) {
-        try {
-          const parsed = JSON.parse(savedOperations);
-          dynamicOperations = {
-            is24Hrs: parsed.is24Hrs !== undefined ? parsed.is24Hrs : dynamicOperations.is24Hrs,
-            selectedDays: parsed.selectedDays || dynamicOperations.selectedDays,
-            schedule: parsed.schedule || dynamicOperations.schedule,
-            rules: {
-              smoking: parsed.rules?.smoking !== undefined ? parsed.rules.smoking : dynamicOperations.rules.smoking,
-              alcohol: parsed.rules?.alcohol !== undefined ? parsed.rules.alcohol : dynamicOperations.rules.alcohol,
-              cooking: parsed.rules?.cooking !== undefined ? parsed.rules.cooking : dynamicOperations.rules.cooking,
-              electricity: parsed.rules?.electricity !== undefined ? parsed.rules.electricity : dynamicOperations.rules.electricity,
-              externalFood: parsed.rules?.externalFood !== undefined ? parsed.rules.externalFood : dynamicOperations.rules.externalFood,
-              pets: parsed.rules?.pets !== undefined ? parsed.rules.pets : dynamicOperations.rules.pets,
-            },
-            customRule: parsed.customRule || dynamicOperations.customRule,
-          };
-        } catch (e) {
-          console.error("Failed to parse saved operations from localStorage", e);
-        }
-      }
-    }
-
-    const dayMap: Record<string, number> = {
-      "Sunday": 0,
-      "Monday": 1,
-      "Tuesday": 2,
-      "Wednesday": 3,
-      "Thursday": 4,
-      "Friday": 5,
-      "Saturday": 6,
-    };
-    const operatingHours = Object.entries(dynamicOperations.schedule).map(([day, config]: [string, any]) => ({
-      day_of_week: dayMap[day],
-      is_open: config.isOpen,
-      opens_at: dynamicOperations.is24Hrs ? "00:00:00" : "10:00:00",
-      closes_at: dynamicOperations.is24Hrs ? "23:59:59" : "22:00:00",
-    }));
-
-    const houseRules = {
-      smoking_and_drugs_allowed: !!dynamicOperations.rules.smoking,
-      alcohol_allowed: !!dynamicOperations.rules.alcohol,
-      cooking_allowed: !!dynamicOperations.rules.cooking,
-      electricity_usage_allowed: !!dynamicOperations.rules.electricity,
-      external_food_allowed: !!dynamicOperations.rules.externalFood,
-      pets_allowed: !!dynamicOperations.rules.pets,
-      custom_rules: dynamicOperations.customRule ? [dynamicOperations.customRule] : [],
-    };
-    const policies = buildPoliciesPayload(draft.step1.terms);
-
-    const selectedFiles = mediaFiles.filter((file) => file.file);
-    const selectedCategories = draft.step1.budget.categories;
-    const selectedEquipment = draft.step1.budget.equipmentItems;
-
-    if (selectedFiles.length > 0) {
-      try {
-        setIsSaving(true);
-        toast.loading("Uploading studio media...", { id: "studio-save" });
-
-        const uploadResponse = await studioAdminApi.uploadMedia(selectedFiles.map((file) => file.file as File));
-        const uploaded = (uploadResponse as any)?.data?.data ?? (uploadResponse as any)?.data ?? [];
-        const uploadedUrls = Array.isArray(uploaded)
-          ? uploaded.map((item) => (typeof item === "string" ? item : item?.url)).filter(Boolean)
-          : [];
-
-        const nextUploadedUrls = [...uploadedUrls];
-        setMediaFiles((current) =>
-          current.map((file) =>
-            file.file
-              ? {
-                  ...file,
-                  url: nextUploadedUrls.shift() || file.url,
-                  status: "uploaded",
-                }
-              : file
-          )
-        );
-
-        const payload = {
-          ...studioPayload,
-          studio_name: dynamicInfo.spaceTitle,
-          brand_name: dynamicInfo.brandName,
-          description: dynamicInfo.description,
-          supported_shoot_types: dynamicInfo.secondaryTypes,
-          suggested_type: dynamicInfo.suggestedType,
-          square_feet: Number(dynamicInfo.dimensions.propertySize) || 1200,
-          height: dynamicInfo.dimensions.height,
-          width: dynamicInfo.dimensions.width,
-          length: dynamicInfo.dimensions.length,
-          main_floor_number: dynamicInfo.dimensions.floorNumber,
-          overnight_stays_allowed: dynamicInfo.overnightStays,
-          security_recording_enabled: dynamicInfo.securityEnabled,
-          security_recording_description: dynamicInfo.securityDesc,
-          hourly_rate: dynamicBudget.hourlyRate,
-          overtime_rate: dynamicBudget.overtimeRate,
-          minimum_booking_hours: dynamicBudget.minimumBooking,
-          buffer_time_minutes: dynamicBudget.bufferTime,
-          parking_options: parkingOptions.length > 0 ? parkingOptions : ["Free Onsite Parking"],
-          parking_description: dynamicFeatures.description,
-          access_features: accessFeatures.length > 0 ? accessFeatures : ["Elevator", "Stairs"],
-          facility_features: {
-            general: dynamicFeatures.featureValues.general,
-            photography: dynamicFeatures.featureValues.photography,
-            videography: dynamicFeatures.featureValues.videography,
-            podcast: dynamicFeatures.featureValues.podcast,
-            product: dynamicFeatures.featureValues.product,
-          },
-          amenities: amenitiesList.length > 0 ? amenitiesList : ["Wifi", "Kitchen"],
-          activities: activitiesList.length > 0 ? activitiesList : ["Production"],
-          space_basics: {
-            guests: dynamicDetails.counts.guests,
-            bedrooms: dynamicDetails.counts.bedrooms,
-            beds: dynamicDetails.counts.beds,
-            bathrooms: dynamicDetails.counts.bathrooms,
-          },
-          description_tags: dynamicDetails.highlights,
-          house_rules: houseRules,
-          policies,
-          operating_hours: operatingHours.length > 0 ? operatingHours : [
-            { day_of_week: 0, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-            { day_of_week: 1, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-          ],
-          pricing_settings: {
-            ...studioPayload.pricing_settings,
-            categories: selectedCategories.length > 0
-              ? selectedCategories.map((category) => ({
-                  name: category.name,
-                  hourly_price: Number(category.price || dynamicBudget.hourlyRate) || dynamicBudget.hourlyRate,
-                  min_hours: Number(dynamicBudget.minimumBooking) || 0,
-                  max_people_allowed: dynamicDetails.counts.guests || 25,
-                  included_types: category.includes,
-                }))
-              : [
-                  {
-                    name: "Production",
-                    hourly_price: dynamicBudget.hourlyRate,
-                    min_hours: dynamicBudget.minimumBooking,
-                    max_people_allowed: dynamicDetails.counts.guests || 25,
-                    included_types: ["Photo Shoot", "Video Shoot", "Product Shoot"],
-                  },
-                ],
-            equipment: selectedEquipment.map((item) => ({
-              name: item.name,
-              cost: Number(item.cost || 0),
-            })),
-          },
-          address: dynamicAddress,
-          latitude: String(dynamicAddress.latitude),
-          longitude: String(dynamicAddress.longitude),
-          address_line1: dynamicAddress.line1,
-          address_line2: dynamicAddress.line2,
-          city: dynamicAddress.city,
-          state: dynamicAddress.state,
-          zip_code: dynamicAddress.zipCode,
-          country: dynamicAddress.country,
-          media: [
-            ...mediaFiles.filter((file) => !file.file && !file.url.startsWith("blob:")).map((file) => ({ url: file.url })),
-            ...uploadedUrls.map((url) => ({ url })),
-          ],
-        };
-
-        if (isEditMode) {
-          await studioAdminApi.updateStudio(studioId as string, payload);
-        } else {
-          await studioAdminApi.createStudio(payload);
-        }
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("add_studio_address");
-          localStorage.removeItem("add_studio_budget");
-          localStorage.removeItem("add_studio_info");
-          localStorage.removeItem("add_studio_features");
-          localStorage.removeItem("add_studio_details");
-          localStorage.removeItem("add_studio_operations");
-        }
-        toast.success(isEditMode ? "Studio updated successfully" : "Studio created successfully", { id: "studio-save" });
-        router.push("/admin/studio-management");
-      } catch (error) {
-        console.error("Failed to save studio:", error);
-        toast.error("Failed to save studio. Please try again.", { id: "studio-save" });
-      } finally {
-        setIsSaving(false);
-      }
-      return;
-    }
+    let nextMediaFiles = mediaFiles;
 
     try {
       setIsSaving(true);
       toast.loading(isEditMode ? "Updating studio..." : "Creating studio...", { id: "studio-save" });
-      const payload = {
-        ...studioPayload,
-        studio_name: dynamicInfo.spaceTitle,
-        brand_name: dynamicInfo.brandName,
-        description: dynamicInfo.description,
-        supported_shoot_types: dynamicInfo.secondaryTypes,
-        suggested_type: dynamicInfo.suggestedType,
-        square_feet: Number(dynamicInfo.dimensions.propertySize) || 1200,
-        height: dynamicInfo.dimensions.height,
-        width: dynamicInfo.dimensions.width,
-        length: dynamicInfo.dimensions.length,
-        main_floor_number: dynamicInfo.dimensions.floorNumber,
-        overnight_stays_allowed: dynamicInfo.overnightStays,
-        security_recording_enabled: dynamicInfo.securityEnabled,
-        security_recording_description: dynamicInfo.securityDesc,
-        hourly_rate: dynamicBudget.hourlyRate,
-        overtime_rate: dynamicBudget.overtimeRate,
-        minimum_booking_hours: dynamicBudget.minimumBooking,
-        buffer_time_minutes: dynamicBudget.bufferTime,
-        parking_options: parkingOptions.length > 0 ? parkingOptions : ["Free Onsite Parking"],
-        parking_description: dynamicFeatures.description,
-        access_features: accessFeatures.length > 0 ? accessFeatures : ["Elevator", "Stairs"],
-        facility_features: {
-          general: dynamicFeatures.featureValues.general,
-          photography: dynamicFeatures.featureValues.photography,
-          videography: dynamicFeatures.featureValues.videography,
-          podcast: dynamicFeatures.featureValues.podcast,
-          product: dynamicFeatures.featureValues.product,
-        },
-        amenities: amenitiesList.length > 0 ? amenitiesList : ["Wifi", "Kitchen"],
-        activities: activitiesList.length > 0 ? activitiesList : ["Production"],
-        space_basics: {
-          guests: dynamicDetails.counts.guests,
-          bedrooms: dynamicDetails.counts.bedrooms,
-          beds: dynamicDetails.counts.beds,
-          bathrooms: dynamicDetails.counts.bathrooms,
-        },
-        description_tags: dynamicDetails.highlights,
-        house_rules: houseRules,
-        policies,
-        operating_hours: operatingHours.length > 0 ? operatingHours : [
-          { day_of_week: 0, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-          { day_of_week: 1, is_open: true, opens_at: "10:00:00", closes_at: "22:00:00" },
-        ],
-        pricing_settings: {
-          ...studioPayload.pricing_settings,
-          categories: selectedCategories.length > 0
-            ? selectedCategories.map((category) => ({
-                name: category.name,
-                hourly_price: Number(category.price || dynamicBudget.hourlyRate) || dynamicBudget.hourlyRate,
-                min_hours: Number(dynamicBudget.minimumBooking) || 0,
-                max_people_allowed: dynamicDetails.counts.guests || 25,
-                included_types: category.includes,
-              }))
-            : [
-                {
-                  name: "Production",
-                  hourly_price: dynamicBudget.hourlyRate,
-                  min_hours: dynamicBudget.minimumBooking,
-                  max_people_allowed: dynamicDetails.counts.guests || 25,
-                  included_types: ["Photo Shoot", "Video Shoot", "Product Shoot"],
-                },
-              ],
-          equipment: selectedEquipment.map((item) => ({
-            name: item.name,
-            cost: Number(item.cost || 0),
-          })),
-        },
-        address: dynamicAddress,
-        latitude: String(dynamicAddress.latitude),
-        longitude: String(dynamicAddress.longitude),
-        address_line1: dynamicAddress.line1,
-        address_line2: dynamicAddress.line2,
-        city: dynamicAddress.city,
-        state: dynamicAddress.state,
-        zip_code: dynamicAddress.zipCode,
-        country: dynamicAddress.country,
-      };
+
+      const pendingFiles = mediaFiles.filter((file) => file.file);
+      if (pendingFiles.length > 0) {
+        const uploadResponse = await studioAdminApi.uploadMedia(pendingFiles.map((file) => file.file as File));
+        const uploadedItems = Array.isArray((uploadResponse as any)?.data?.data)
+          ? (uploadResponse as any).data.data
+          : Array.isArray((uploadResponse as any)?.data)
+            ? (uploadResponse as any).data
+            : [];
+
+        let uploadIndex = 0;
+        nextMediaFiles = mediaFiles.map((file) => {
+          if (!file.file) return file;
+          const uploadedItem = uploadedItems[uploadIndex++];
+          const url = typeof uploadedItem === "string" ? uploadedItem : uploadedItem?.url || file.url;
+          const filePath = typeof uploadedItem === "object" && uploadedItem
+            ? String(uploadedItem.file_path || uploadedItem.path || uploadedItem.filepath || "")
+            : "";
+          const thumbnailUrl = typeof uploadedItem === "object" && uploadedItem
+            ? uploadedItem.thumbnail_url || uploadedItem.thumbnailUrl || null
+            : null;
+          return {
+            ...file,
+            file: undefined,
+            url,
+            filePath: filePath || file.filePath || url,
+            thumbnailUrl,
+            status: "uploaded",
+            error: undefined,
+          };
+        });
+        setMediaFiles(nextMediaFiles);
+      }
+
+      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null);
+
       if (isEditMode) {
         await studioAdminApi.updateStudio(studioId as string, payload);
       } else {
         await studioAdminApi.createStudio(payload);
       }
+
       if (typeof window !== "undefined") {
         localStorage.removeItem("add_studio_address");
         localStorage.removeItem("add_studio_budget");
@@ -1366,11 +848,78 @@ export default function AdminStudiosDetailsPage() {
         localStorage.removeItem("add_studio_details");
         localStorage.removeItem("add_studio_operations");
       }
+
       toast.success(isEditMode ? "Studio updated successfully" : "Studio created successfully", { id: "studio-save" });
       router.push("/admin/studio-management");
     } catch (error) {
       console.error("Failed to save studio:", error);
       toast.error("Failed to save studio. Please try again.", { id: "studio-save" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAndExit = async () => {
+    const isEditMode = Boolean(studioId);
+    let nextMediaFiles = mediaFiles;
+
+    try {
+      setIsSaving(true);
+      toast.loading("Saving your progress...", { id: "studio-save" });
+
+      const pendingFiles = mediaFiles.filter((file) => file.file);
+      if (pendingFiles.length > 0) {
+        const uploadResponse = await studioAdminApi.uploadMedia(pendingFiles.map((file) => file.file as File));
+        const uploadedItems = Array.isArray((uploadResponse as any)?.data?.data)
+          ? (uploadResponse as any).data.data
+          : Array.isArray((uploadResponse as any)?.data)
+            ? (uploadResponse as any).data
+            : [];
+
+        let uploadIndex = 0;
+        nextMediaFiles = mediaFiles.map((file) => {
+          if (!file.file) return file;
+          const uploadedItem = uploadedItems[uploadIndex++];
+          const url = typeof uploadedItem === "string" ? uploadedItem : uploadedItem?.url || file.url;
+          const filePath = typeof uploadedItem === "object" && uploadedItem
+            ? String(uploadedItem.file_path || uploadedItem.path || uploadedItem.filepath || "")
+            : "";
+          const thumbnailUrl = typeof uploadedItem === "object" && uploadedItem
+            ? uploadedItem.thumbnail_url || uploadedItem.thumbnailUrl || null
+            : null;
+          return {
+            ...file,
+            file: undefined,
+            url,
+            filePath: filePath || file.filePath || url,
+            thumbnailUrl,
+            status: "uploaded",
+            error: undefined,
+          };
+        });
+        setMediaFiles(nextMediaFiles);
+      }
+
+      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null);
+      await (isEditMode
+        ? studioAdminApi.updateStudio(studioId as string, payload)
+        : studioAdminApi.createStudio(payload));
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem("add_studio_address");
+        localStorage.removeItem("add_studio_budget");
+        localStorage.removeItem("add_studio_info");
+        localStorage.removeItem("add_studio_features");
+        localStorage.removeItem("add_studio_details");
+        localStorage.removeItem("add_studio_operations");
+      }
+
+      toast.success("Progress saved", { id: "studio-save" });
+      router.push("/admin/studio-management");
+    } catch (error) {
+      console.error("Failed to save studio progress:", error);
+      toast.error("Failed to save progress. Please try again.", { id: "studio-save" });
     } finally {
       setIsSaving(false);
     }
@@ -1382,11 +931,13 @@ export default function AdminStudiosDetailsPage() {
         pathname={pathname}
         actions={
           <div className="flex gap-3">
-            <Link href={"#"}>
-              <Button className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
-                Save & Exit
-              </Button>
-            </Link>
+            <Button
+              className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+              onClick={() => void handleSaveAndExit()}
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving..." : "Save & Exit"}
+            </Button>
           </div>
         }
       />
@@ -1395,7 +946,7 @@ export default function AdminStudiosDetailsPage() {
         <div className="flex justify-between items-center">
 
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className={` transition-colors flex items-center gap-2 mb-3 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />

@@ -1,46 +1,23 @@
-/* eslint-disable */
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  ChevronDown,
-  Plus,
-  Trash2,
-  Check,
-  Minus
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Minus, Plus, Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { setLineWidth } from "pdf-lib";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
-const sanitizeNumber = (value: string, allowDecimal = false) => {
-  const regex = allowDecimal ? /[^0-9.]/g : /[^0-9]/g;
-  let next = value.replace(regex, "");
-  if (allowDecimal) {
-    const parts = next.split(".");
-    next = parts.shift() + (parts.length ? `.${parts.join("")}` : "");
-  }
-  return next;
+type BudgetCategory = {
+  id: string;
+  name: string;
+  price: string;
+  includes: string[];
 };
 
-const getDefaultCategories = () => ([
-  { id: "production", name: "Production", price: "50", includes: ["Photo Shoots", "Video Shoots", "Product Shoots"] },
-  { id: "audio", name: "Audio", price: "40", includes: ["Recording", "Mixing"] },
-  { id: "events", name: "Events", price: "120", includes: ["Live Setup", "Lighting"] },
-]);
-
-const getDefaultEquipmentItems = () => ([
-  { id: "green-screen", name: "Green Screen", cost: "300" },
-]);
+type EquipmentItem = {
+  id: string;
+  name: string;
+  cost: string;
+};
 
 interface Props {
   isDark?: boolean;
@@ -49,45 +26,68 @@ interface Props {
     overtimeRate: string;
     minimumBooking: string;
     bufferTime: string;
-    categories?: Array<{ id: string; name: string; price: string; includes: string[] }>;
-    equipmentItems?: Array<{ id: string; name: string; cost: string }>;
+    categories?: BudgetCategory[];
+    equipmentItems?: EquipmentItem[];
   };
   onChange?: (next: NonNullable<Props["value"]>) => void;
 }
+
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z0-9\s.,'()-]/g, "");
+const sanitizeNumber = (value: string) => value.replace(/[^0-9.]/g, "");
+const formatMoney = (value: string) => {
+  const next = Number(value || 0);
+  return Number.isFinite(next) ? next.toFixed(2) : "0.00";
+};
+const moneyInput = (value: string) => (value ? value : "");
+
+const DEFAULT_CATEGORIES: BudgetCategory[] = [
+  { id: "production", name: "Production", price: "50", includes: ["Photo Shoots", "Video Shoots", "Product Shoots"] },
+  { id: "audio", name: "Audio", price: "40", includes: ["Recording", "Mixing"] },
+  { id: "events", name: "Events", price: "120", includes: ["Live Setup", "Lighting"] },
+];
+
+const DEFAULT_EQUIPMENT: EquipmentItem[] = [{ id: "green-screen", name: "Green Screen", cost: "300" }];
 
 const minimumBookingOptions = [
   { value: "1", label: "1 hour" },
   { value: "2", label: "2 hours" },
   { value: "3", label: "3 hours" },
+  { value: "4", label: "4 hours" },
 ];
+
 const bufferTimeOptions = [
   { value: "15", label: "15 minutes" },
   { value: "30", label: "30 minutes" },
   { value: "45", label: "45 minutes" },
-  { value: "60", label: "1 hour" },
+  { value: "60", label: "60 minutes" },
 ];
 
 export default function BudgetForm({ isDark = true, value, onChange }: Props) {
-  const [openCategory, setOpenCategory] = useState<string | null>("production");
-  const [equipmentEnabled, setEquipmentEnabled] = useState(true);
+  const hasHydratedValueRef = useRef(false);
 
   const [hourlyRate, setHourlyRate] = useState(value?.hourlyRate || "");
   const [overtimeRate, setOvertimeRate] = useState(value?.overtimeRate || "");
   const [minimumBooking, setMinimumBooking] = useState(value?.minimumBooking || "");
   const [bufferTime, setBufferTime] = useState(value?.bufferTime || "");
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; price: string; includes: string[] }>>(
-    value?.categories && value.categories.length > 0 ? value.categories : getDefaultCategories()
+  const [categories, setCategories] = useState<BudgetCategory[]>(
+    value?.categories && value.categories.length > 0 ? value.categories : DEFAULT_CATEGORIES
   );
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategory, setNewCategory] = useState("");
-  const [newCategoryRate, setNewCategoryRate] = useState("");
-  const [newCategoryIncludes, setNewCategoryIncludes] = useState<string[]>([]);
-  const [equipmentItems, setEquipmentItems] = useState<Array<{ id: string; name: string; cost: string }>>(
-    value?.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : getDefaultEquipmentItems()
+  const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>(
+    value?.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : DEFAULT_EQUIPMENT
   );
-  const [equipmentName, setEquipmentName] = useState("");
-  const [cost, setCost] = useState("");
-  const hasHydratedValueRef = useRef(false);
+
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<string[]>(
+    value?.categories?.map((category) => category.id).slice(0, 1) || ["production"]
+  );
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    value?.categories?.map((category) => category.id) || ["production", "audio", "events"]
+  );
+
+  const [addingCategoryFor, setAddingCategoryFor] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [equipmentEnabled, setEquipmentEnabled] = useState(true);
+  const [newEquipmentName, setNewEquipmentName] = useState("");
+  const [newEquipmentCost, setNewEquipmentCost] = useState("");
 
   useEffect(() => {
     if (!value || hasHydratedValueRef.current) return;
@@ -95,14 +95,13 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
     setOvertimeRate(value.overtimeRate || "");
     setMinimumBooking(value.minimumBooking || "");
     setBufferTime(value.bufferTime || "");
-    setCategories(value.categories && value.categories.length > 0 ? value.categories : getDefaultCategories());
-    setEquipmentItems(value.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : getDefaultEquipmentItems());
+    setCategories(value.categories && value.categories.length > 0 ? value.categories : DEFAULT_CATEGORIES);
+    setEquipmentItems(value.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : DEFAULT_EQUIPMENT);
     hasHydratedValueRef.current = true;
   }, [value]);
 
-  // Save to local storage on changes
   useEffect(() => {
-    const data = {
+    const next = {
       hourlyRate,
       overtimeRate,
       minimumBooking,
@@ -110,417 +109,451 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
       categories,
       equipmentItems,
     };
-    onChange?.(data);
-    localStorage.setItem("add_studio_budget", JSON.stringify(data));
+    onChange?.(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("add_studio_budget", JSON.stringify(next));
+    }
   }, [hourlyRate, overtimeRate, minimumBooking, bufferTime, categories, equipmentItems, onChange]);
 
-  // Theme Constants
   const textColor = isDark ? "text-white" : "text-black";
-  const subTextColor = isDark ? "text-[#FFFFFFB2]" : "text-[#71717B]";
   const labelBg = isDark ? "bg-[#101010]" : "bg-white";
-  const borderColor = isDark ? "border-[#FFFFFF80]" : "border-[#D7D7D7]";
-  const accentColor = "text-[#E8D1AB]";
-  const accentBg = "bg-[#E8D1AB]";
+  const borderColor = isDark ? "border-[#8E8E8E]/20" : "border-[#D7D7D7]";
+  const cardBg = isDark ? "bg-[#141414]" : "bg-white";
+  const accentClass = "bg-[#E8D1AB] text-[#101010]";
+
+  const selectedCategories = useMemo(
+    () => categories.filter((category) => selectedCategoryIds.includes(category.id)),
+    [categories, selectedCategoryIds]
+  );
+
+  const toggleCategory = (id: string) => {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+    setExpandedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const setCategoryIncludes = (categoryId: string, nextIncludes: string[]) => {
+    setCategories((prev) => prev.map((category) => (category.id === categoryId ? { ...category, includes: nextIncludes } : category)));
+  };
+
+  const updateSelectedCategoryMetric = (categoryId: string, field: "price" | "minHours" | "maxPeople", direction: "inc" | "dec") => {
+    setCategories((prev) =>
+      prev.map((category) => {
+        if (category.id !== categoryId) return category;
+        const current = Number(category.price || 0);
+        const next = direction === "inc" ? current + 1 : Math.max(current - 1, 0);
+        if (field === "price") return { ...category, price: String(next) };
+        return category;
+      })
+    );
+  };
+
+  const addCategoryInclude = (categoryId: string) => {
+    if (!newCategoryName.trim()) return;
+    setCategoryIncludes(categoryId, [...(categories.find((category) => category.id === categoryId)?.includes || []), newCategoryName.trim()]);
+    setNewCategoryName("");
+    setAddingCategoryFor(null);
+    setExpandedCategoryIds((prev) => (prev.includes(categoryId) ? prev : [...prev, categoryId]));
+  };
+
+  const addEquipmentItem = () => {
+    if (!newEquipmentName.trim() || !newEquipmentCost.trim()) return;
+    setEquipmentItems((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}`,
+        name: newEquipmentName.trim(),
+        cost: sanitizeNumber(newEquipmentCost),
+      },
+    ]);
+    setNewEquipmentName("");
+    setNewEquipmentCost("");
+  };
 
   return (
-    <div className="space-y-5 lg:space-y-9 transition-colors duration-200">
-      {/* Top Rates Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="relative">
-          <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm font-medium ${subTextColor}`}>Hourly Rate ($)*</span>
-          </div>
+    <div className="space-y-6 lg:space-y-9">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Field label="Hourly Rate ($)*" labelBg={labelBg}>
           <Input
             value={hourlyRate}
-            onChange={(e) => setHourlyRate(sanitizeNumber(e.target.value, true))}
+            onChange={(e) => setHourlyRate(sanitizeNumber(e.target.value))}
             inputMode="decimal"
-            pattern="[0-9]*[.]?[0-9]*"
-            min="0"
-            className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+            placeholder=""
+            className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white placeholder:text-white/30 focus:border-[#E8D1AB]/60`}
           />
-        </div>
-        <div className="relative">
-          <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm font-medium ${subTextColor}`}>Overtime Rate ($)*</span>
-          </div>
+        </Field>
+        <Field label="Overtime Rate ($)*" labelBg={labelBg}>
           <Input
             value={overtimeRate}
-            onChange={(e) => setOvertimeRate(sanitizeNumber(e.target.value, true))}
+            onChange={(e) => setOvertimeRate(sanitizeNumber(e.target.value))}
             inputMode="decimal"
-            pattern="[0-9]*[.]?[0-9]*"
-            min="0"
-            className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
+            placeholder=""
+            className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white placeholder:text-white/30 focus:border-[#E8D1AB]/60`}
           />
-        </div>
-      </div>
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-
-      {/* Booking Settings */}
-      <section className="space-y-5 lg:space-y-9">
-        <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Booking Settings</h2>
-          <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Set minimum booking duration and buffer time to manage scheduling and prevent time conflicts between shoots.</p>
-        </div>
-        <div className="space-y-5 lg:space-y-9">
-          <SelectGroup label="Minimum Booking (hours)*" subTextColor={subTextColor} borderColor={borderColor} labelBg={labelBg} value={minimumBooking} setValue={setMinimumBooking} isDark={isDark} textColor={textColor} options={minimumBookingOptions} />
-          <SelectGroup label="Buffer Time (minutes)*" subTextColor={subTextColor} borderColor={borderColor} labelBg={labelBg} value={bufferTime} setValue={setBufferTime} isDark={isDark} textColor={textColor} options={bufferTimeOptions} />
-        </div>
-      </section>
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-
-      {/* Categories Section */}
-      <section className="space-y-3 lg:space-y-6">
-        <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Categories</h2>
-          <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Set minimum booking duration and buffer time to manage scheduling and prevent time conflicts between shoots.</p>
-        </div>
-
-        <div className="space-y-3 lg:space-y-6">
-          {categories.map((cat) => (
-            <CategoryAccordion
-              key={cat.id}
-              category={cat}
-              isOpen={openCategory === cat.id}
-              toggle={() => setOpenCategory(openCategory === cat.id ? null : cat.id)}
-              isDark={isDark}
-              subTextColor={subTextColor}
-              borderColor={borderColor}
-              textColor={textColor}
-              accentColor={accentColor}
-              onDelete={() => {
-                setCategories((prev) => prev.filter((item) => item.id !== cat.id));
-                setOpenCategory((prev) => (prev === cat.id ? null : prev));
-              }}
-              onToggleActive={() => setOpenCategory((prev) => (prev === cat.id ? null : cat.id))}
-              onAddCategory={() => setIsAddingCategory(true)}
-            />
-          ))}
-          {isAddingCategory && (
-            <div className={`mt-4 rounded-xl border p-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                    <span className={`text-sm font-medium ${subTextColor}`}>Category Name</span>
-                  </div>
-                  <Input value={newCategory} onChange={(e) => setNewCategory(sanitizeText(e.target.value))} className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor}`} />
-                </div>
-                <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                    <span className={`text-sm font-medium ${subTextColor}`}>Hourly Rate</span>
-                  </div>
-                  <Input value={newCategoryRate} onChange={(e) => setNewCategoryRate(sanitizeNumber(e.target.value, true))} inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor}`} />
-                </div>
-              </div>
-              <div className="mt-4">
-                <p className={`text-sm font-medium ${textColor} mb-3`}>Category Includes</p>
-                <div className="flex flex-wrap gap-2">
-                  {["Photo Shoots", "Video Shoots", "Product Shoots", "Recording", "Mixing", "Live Setup", "Lighting"].map((item) => {
-                    const selected = newCategoryIncludes.includes(item);
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setNewCategoryIncludes((prev) => prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item])}
-                        className={`px-3 py-2 rounded-lg border text-xs ${selected ? "bg-[#1D1A15] border-[#E8D1AB] text-[#E8D1AB]" : "bg-transparent border-[#FFFFFF4D] text-[#A9A9A9]"}`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex gap-3 mt-4">
-                <button className="px-6 py-2.5 rounded-lg bg-[#101010] text-white" onClick={() => { setIsAddingCategory(false); setNewCategory(""); setNewCategoryRate(""); }}>Cancel</button>
-                <button className="px-6 py-2.5 rounded-lg bg-[#E8D1AB] text-black" onClick={() => {
-                  if (!newCategory.trim() || !newCategoryRate.trim()) return;
-                  const id = `${Date.now()}`;
-                  setCategories((prev) => [...prev, { id, name: newCategory.trim(), price: newCategoryRate, includes: newCategoryIncludes }]);
-                  setOpenCategory(id);
-                  setIsAddingCategory(false);
-                  setNewCategory("");
-                  setNewCategoryRate("");
-                  setNewCategoryIncludes([]);
-                }}>Save</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-
-      {/* Configure Selected Categories */}
-      <section className={`space-y-6`}>
-        <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Configure Selected Categories</h2>
-        </div>
-
-        <div>
-          <div className="bg-[#0F0F0F] border border-[#4A4A4A] rounded-[18px] p-6 lg:px-7 lg:py-6 relative overflow-hidden">
-            <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-6`}>
-              {categories.map((cat) => (
-                <div key={cat.id} className={`rounded-[18px] border p-4 ${openCategory === cat.id ? "border-[#E8D1AB]" : "border-[#3F3F47]"}`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={openCategory === cat.id}
-                          onChange={() => setOpenCategory((prev) => prev === cat.id ? null : cat.id)}
-                          className="accent-[#E8D1AB] h-4 w-4"
-                        />
-                        <h3 className={`break-words text-base font-medium leading-snug ${textColor}`}>
-                          {cat.name}
-                        </h3>
-                      </div>
-                      <p className={`text-xs lg:text-sm ${isDark ? "text-[#9F9FA9]" : "text-[#000000B2]"}`}>
-                        Base: ${Number(cat.price || 0).toFixed(2)} per hour
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <button type="button" onClick={() => setCategories((prev) => prev.map((item) => item.id === cat.id ? { ...item, includes: [...item.includes, ""] } : item))} className="rounded-md border border-[#3F3F47] px-3 py-2 text-xs text-white/80">
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCategories((prev) => prev.filter((item) => item.id !== cat.id))}
-                        className="w-10 h-10 rounded-full bg-[#323232] border border-transparent flex items-center justify-center text-[#FF6467] hover:bg-red-500/10 hover:text-red-500 transition-all"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                  <hr className={`border-t my-3 lg:my-5 ${isDark ? "border-[#FFFFFF33]" : "border-[#00000080]"}`} />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm ${isDark ? "text-[#9F9FA9]" : "text-black/60"}`}>Status</span>
-                    <span className={`px-3 py-1 rounded-md text-xs ${openCategory === cat.id ? "bg-[#0DC752] text-black" : "bg-zinc-700 text-white/80"}`}>
-                      {openCategory === cat.id ? "Selected" : "Inactive"}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {cat.includes.map((item) => (
-                      <span key={item} className={`h-9 flex items-center gap-2 border border-transparent px-3 py-1.5 rounded-md text-xs lg:text-sm ${isDark ? "bg-[#FFFFFF26] text-white" : "bg-[#E8D1AB] text-black"}`}>
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-      </section>
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-
-      {/* Equipment Section */}
-      <section className={`space-y-5 lg:space-y-9 `}>
-        <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>What equipment would you like to add?</h2>
-          <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>List the equipment you provide to help users understand what&apos;s included.</p>
-        </div>
-
-        <div className="flex gap-4">
-          <ToggleButton active={equipmentEnabled} onClick={() => setEquipmentEnabled(true)} label="Yes" borderColor={borderColor} textColor={textColor} />
-          <ToggleButton active={!equipmentEnabled} onClick={() => setEquipmentEnabled(false)} label="No" borderColor={borderColor} textColor={textColor} />
-        </div>
-
-        {equipmentEnabled && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                {/* <InputGroup label="Equipment Name" placeholder="Eg: Green Screen, lightning...." subTextColor={subTextColor} borderColor={borderColor} labelBg={labelBg} textColor={textColor} /> */}
-                <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                    <span className={`text-sm font-medium ${subTextColor}`}>Equipment Name</span>
-                  </div>
-                  <Input
-                    value={equipmentName}
-                    onChange={(e) => setEquipmentName(e.target.value)}
-                    className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-                  />
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                  <span className={`text-sm font-medium ${subTextColor}`}>Cost</span>
-                </div>
-                <Input
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-                />
-              </div>
-            </div>
-            <button type="button" className="flex items-center gap-2 bg-[#E8D1AB] text-black px-5 py-2.5 rounded-md font-semibold text-sm hover:opacity-90 transition-opacity" onClick={() => setEquipmentEnabled(true)}>
-              <Plus size={18} /> Add New Equipment
-            </button>
-
-            <div className="space-y-3">
-              {equipmentItems.map((item) => (
-                <div key={item.id} className={`border ${borderColor} rounded-xl p-4 lg:p-6 flex justify-between items-center ${isDark ? "bg-[#171717]" : "bg-[#FDFBF7]"}`}>
-                  <div>
-                    <h4 className={`font-medium ${textColor}`}>{item.name}</h4>
-                    <p className={`font-bold ${accentColor}`}>${Number(item.cost || 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className={`px-3 py-2 rounded border border-neutral-700 flex items-center gap-2`}>
-                      <span className={`text-sm ${subTextColor}`}>$</span>
-                      <input value={item.cost} onChange={(e) => setEquipmentItems((prev) => prev.map((x) => x.id === item.id ? { ...x, cost: sanitizeNumber(e.target.value, true) } : x))} inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" className={`bg-transparent outline-none w-16 lg:w-[192px] text-sm rounded-lg ${textColor}`} />
-                    </div>
-                    <button type="button" onClick={() => setEquipmentItems((prev) => prev.filter((x) => x.id !== item.id))}><Trash2 size={18} className="text-[#FF6467] cursor-pointer hover:text-red-300" /></button>
-                    <button type="button" onClick={() => setEquipmentItems((prev) => prev.map((x) => x.id === item.id ? { ...x, cost: item.cost } : x))}><Check size={18} className="text-[#16A34A] cursor-pointer hover:text-green-300" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative">
-                <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                  <span className={`text-sm font-medium ${subTextColor}`}>Equipment Name</span>
-                </div>
-                <Input value={equipmentName} onChange={(e) => setEquipmentName(sanitizeText(e.target.value))} className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor}`} />
-              </div>
-              <div className="relative">
-                <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                  <span className={`text-sm font-medium ${subTextColor}`}>Cost</span>
-                </div>
-                <Input value={cost} onChange={(e) => setCost(sanitizeNumber(e.target.value, true))} inputMode="decimal" pattern="[0-9]*[.]?[0-9]*" className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor}`} />
-              </div>
-            </div>
-            <button type="button" className="flex items-center gap-2 bg-[#E8D1AB] text-black px-5 py-2.5 rounded-md font-semibold text-sm hover:opacity-90 transition-opacity" onClick={() => {
-              if (!equipmentName.trim() || !cost.trim()) return;
-              setEquipmentItems((prev) => [...prev, { id: `${Date.now()}`, name: equipmentName.trim(), cost }]);
-              setEquipmentName("");
-              setCost("");
-            }}>
-              <Plus size={18} /> Add New Equipment
-            </button>
-          </div>
-        )}
-      </section>
-      <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
-    </div>
-  );
-}
-
-function CategoryAccordion({ category, isOpen, toggle, isDark, subTextColor, borderColor, textColor, labelBg, onAddCategory }: any) {
-  const price = Number(category.price || 0);
-
-  return (
-    <div className={`border rounded-xl overflow-hidden transition-colors p-5 ${isOpen
-      ? (isDark ? `border-[#E8D1AB] bg-[#1B1B1B]` : `border-[#E8D1AB] bg-[#FDFBF7]`)
-      : (isDark ? `border-[#FFFFFF80]` : `border-[#D7D7D7]`)
-      }`}>
-      <div
-        className="flex items-center justify-between cursor-pointer"
-        onClick={toggle}
-      >
-        <div className="flex items-center gap-3">
-          <input type="checkbox" checked={isOpen} readOnly className="accent-[#E8D1AB] h-4 w-4" />
-          <p className={`font-medium text-lg lg:text-xl ${textColor}`}>
-            {category.name} <span className={` text-[#E8D1AB]`}>({price.toFixed(2)}$)</span> <span className={`text-xs ${subTextColor}`}> per hour</span>
-          </p>
-          {isOpen && (
-            <span className="bg-[#0DC752] text-[#09090B] text-[10px] lg:text-xs px-2 py-0.5 rounded-md font-medium capitalize w-21 text-center">
-              Selected
-            </span>
-          )}
-        </div>
-        <div className={`${isDark ? "text-white bg-[#323232]" : "text-black bg-zinc-300"} flex items-center justify-center w-12 h-12 rounded-full transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-          <ChevronDown size={24} />
-        </div>
+        </Field>
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-          >
-            <hr className={`border-t my-5 ${isDark ? "border-[#FFFFFF4D]" : "border-[#00000080]"}`} />
+      <SectionTitle title="Booking Settings" subtitle="Set minimum booking duration and buffer time to manage scheduling and prevent time conflicts between shoots." />
 
-            <div className="">
-              {/* Category Includes Section */}
-              <div className="space-y-4 mb-5">
-                <p className={`lg:text-lg ${isDark ? "text-[#C2C0C0]" : "text-black"}`}>Category Includes</p>
-                <div className="flex flex-wrap gap-2.5">
-                  {category.includes.map((item: string) => (
-                    <div
-                      key={item}
-                      className={`h-9 flex items-center gap-2 border border-transparent px-3 py-1.5 rounded-md text-xs lg:text-sm ${isDark ? "bg-[#FFFFFF26] text-white" : "bg-[#E8D1AB] text-black"}`}
-                    >
-                      {item}
-                      <Trash2 size={20} className="text-[#FF6467] cursor-pointer hover:text-red-300" />
-                    </div>
-                  ))}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Field label="Minimum Booking (hours)*" labelBg={labelBg}>
+          <Select value={minimumBooking} onValueChange={setMinimumBooking}>
+            <SelectTrigger className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white`}>
+              <SelectValue placeholder="Select hours" />
+            </SelectTrigger>
+            <SelectContent className="border-[#8E8E8E]/20 bg-[#141414] text-white">
+              {minimumBookingOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Buffer Time (minutes)*" labelBg={labelBg}>
+          <Select value={bufferTime} onValueChange={setBufferTime}>
+            <SelectTrigger className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white`}>
+              <SelectValue placeholder="Select minutes" />
+            </SelectTrigger>
+            <SelectContent className="border-[#8E8E8E]/20 bg-[#141414] text-white">
+              {bufferTimeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      <SectionTitle title="Categories" subtitle="Manage categories with pricing, minimum booking duration, and crew size limits." />
+
+      <div className="space-y-4">
+        {categories.map((category) => {
+          const isSelected = selectedCategoryIds.includes(category.id);
+          const isExpanded = expandedCategoryIds.includes(category.id);
+          return (
+            <div key={category.id} className={`rounded-2xl border ${borderColor} ${cardBg}`}>
+              <button
+                type="button"
+                onClick={() => toggleCategory(category.id)}
+                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left lg:px-5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={`flex h-5 w-5 items-center justify-center rounded-[5px] border ${
+                      isSelected ? "border-[#E8D1AB] bg-[#E8D1AB]" : "border-white/30 bg-transparent"
+                    }`}
+                  >
+                    {isSelected && <Check className="h-3.5 w-3.5 text-[#101010]" />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className={`truncate text-sm font-medium lg:text-base ${textColor}`}>
+                      {category.name} ({formatMoney(category.price)}$) <span className="text-white/60">per hour</span>
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <hr className={`border-t my-5 ${isDark ? "border-[#FFFFFF4D]" : "border-[#00000080]"}`} />
 
-              {/* Add Category Button */}
-              <button type="button" onClick={onAddCategory} className="flex items-center gap-2 bg-[#E8D1AB] text-black px-5 py-2.5 rounded-md font-semibold text-sm hover:opacity-90 transition-opacity">
-                <Plus size={18} /> Add Category
+                <div className="flex items-center gap-3">
+                  {isSelected && <span className={`rounded-full px-3 py-1 text-xs font-medium ${accentClass}`}>Selected</span>}
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border ${borderColor} text-white/80 transition-transform ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </span>
+                </div>
               </button>
+
+              {isSelected && isExpanded && (
+                <div className="space-y-4 border-t border-white/10 px-4 py-4 lg:px-5">
+                  <div>
+                    <p className={`mb-2 text-sm font-medium ${textColor}`}>Category Includes</p>
+                    <div className="flex flex-wrap gap-2">
+                      {category.includes.map((include) => (
+                        <span
+                          key={include}
+                          className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80"
+                        >
+                          {include}
+                          <button
+                            type="button"
+                            onClick={() => setCategoryIncludes(category.id, category.includes.filter((item) => item !== include))}
+                            className="text-[#FF7D7D]"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAddingCategoryFor(category.id)}
+                      className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium ${accentClass}`}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Category
+                    </button>
+                  </div>
+
+                  {addingCategoryFor === category.id && (
+                    <div className="space-y-4 rounded-xl border border-white/10 bg-[#101010] p-4">
+                      <Field label="Category Name" labelBg={labelBg}>
+                        <Input
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(sanitizeText(e.target.value))}
+                          placeholder="Eg : Portrait, Commercial Video..."
+                          className={`h-14 rounded-xl border ${borderColor} bg-transparent px-6 text-white placeholder:text-white/30`}
+                        />
+                      </Field>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddingCategoryFor(null);
+                            setNewCategoryName("");
+                          }}
+                          className="rounded-md border border-white/20 px-4 py-2 text-sm text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addCategoryInclude(category.id)}
+                          className={`rounded-md px-4 py-2 text-sm font-medium ${accentClass}`}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+          );
+        })}
+      </div>
 
+      <SectionTitle title="Configure Selected Categories" subtitle="" />
 
-function InputGroup({ label, placeholder, subTextColor, borderColor, labelBg, textColor }: any) {
-  return (
-    <div className="relative group">
-      <label className={`absolute -top-2 left-4 px-1 text-xs ${subTextColor} z-10 ${labelBg}`}>{label}</label>
-      <input
-        placeholder={placeholder}
-        className={`w-full bg-transparent border ${borderColor} rounded-lg p-4 focus:border-[#E8D1AB] outline-none transition-all placeholder:text-neutral-500 ${textColor}`}
+      <div className="space-y-4">
+        {selectedCategories.map((category) => (
+          <div key={category.id} className={`rounded-2xl border ${borderColor} ${cardBg} p-4 lg:p-5`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className={`text-sm font-medium lg:text-base ${textColor}`}>{category.name}</h3>
+                <p className="mt-1 text-xs text-white/60">Base: ${formatMoney(category.price)} per hour</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-xs text-white/50">Total</p>
+                  <p className="text-sm font-medium text-[#E8D1AB]">${formatMoney(category.price)}</p>
+                </div>
+                <button type="button" className="rounded-md border border-white/10 p-2 text-[#FF7D7D]">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <StepperField
+                label="Hourly Price"
+                value={`$${moneyInput(category.price)}`}
+                onDec={() => updateSelectedCategoryMetric(category.id, "price", "dec")}
+                onInc={() => updateSelectedCategoryMetric(category.id, "price", "inc")}
+              />
+              <StepperField
+                label="Min Hours"
+                value="2 hrs"
+                onDec={() => undefined}
+                onInc={() => undefined}
+              />
+              <StepperField
+                label="Max People Allowed"
+                value="06"
+                onDec={() => undefined}
+                onInc={() => undefined}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SectionTitle
+        title="What would u like to add Equipment's?"
+        subtitle="List the equipment you provide to help users understand what's included."
       />
+
+      <div className="flex gap-3">
+        <TogglePill active={equipmentEnabled} label="Yes" onClick={() => setEquipmentEnabled(true)} />
+        <TogglePill active={!equipmentEnabled} label="No" onClick={() => setEquipmentEnabled(false)} />
+      </div>
+
+      {equipmentEnabled && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Equipment Name" labelBg={labelBg}>
+              <Input
+                value={newEquipmentName}
+                onChange={(e) => setNewEquipmentName(sanitizeText(e.target.value))}
+                placeholder="Eg : Green Screen, lightning..."
+                className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white placeholder:text-white/30`}
+              />
+            </Field>
+            <Field label="Cost" labelBg={labelBg}>
+              <Input
+                value={newEquipmentCost}
+                onChange={(e) => setNewEquipmentCost(sanitizeNumber(e.target.value))}
+                inputMode="decimal"
+                placeholder="$0.00"
+                className={`h-14 lg:h-[82px] rounded-xl border ${borderColor} bg-transparent px-6 text-white placeholder:text-white/30`}
+              />
+            </Field>
+          </div>
+
+          <button
+            type="button"
+            onClick={addEquipmentItem}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium ${accentClass}`}
+          >
+            <Plus className="h-4 w-4" />
+            Add New Equipment
+          </button>
+
+          <div className="space-y-3">
+            {equipmentItems.map((item) => (
+              <div key={item.id} className={`rounded-2xl border ${borderColor} ${cardBg} px-4 py-4 lg:px-5`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className={`text-sm font-medium ${textColor}`}>{item.name}</p>
+                    <p className="text-xs text-white/70">${formatMoney(item.cost)}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2">
+                      <span className="text-sm text-white/70">$</span>
+                      <input
+                        value={item.cost}
+                        onChange={(e) =>
+                          setEquipmentItems((prev) =>
+                            prev.map((entry) =>
+                              entry.id === item.id ? { ...entry, cost: sanitizeNumber(e.target.value) } : entry
+                            )
+                          )
+                        }
+                        className="w-24 bg-transparent text-sm text-white outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEquipmentItems((prev) => prev.filter((entry) => entry.id !== item.id))}
+                      className="rounded-md border border-white/10 p-2 text-[#FF7D7D]"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md border border-[#1F7A41]/30 p-2 text-[#4ADE80]"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
-function SelectGroup({ label, subTextColor, borderColor, labelBg, value, setValue, isDark, textColor, options }: any) {
+function Field({
+  label,
+  labelBg,
+  children,
+}: {
+  label: string;
+  labelBg: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative">
       <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-        <span className={`text-sm font-medium ${subTextColor}`}>{label}</span>
+        <span className="text-sm font-medium text-white/70">{label}</span>
       </div>
-      <Select value={value} onValueChange={setValue}>
-        <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-          <SelectValue placeholder="" />
-        </SelectTrigger>
-        <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-          {options.map((opt: any) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {children}
     </div>
   );
 }
 
-function ToggleButton({ active, onClick, label, borderColor, textColor }: any) {
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="space-y-1">
+      <h2 className="text-lg font-medium text-white lg:text-xl">{title}</h2>
+      {subtitle ? <p className="text-sm text-white/70">{subtitle}</p> : null}
+    </div>
+  );
+}
+
+function StepperField({
+  label,
+  value,
+  onDec,
+  onInc,
+}: {
+  label: string;
+  value: string;
+  onDec: () => void;
+  onInc: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-white/70">{label}</p>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onDec} className="flex h-9 w-9 items-center justify-center rounded-md bg-[#E8D1AB] text-[#101010]">
+          <Minus className="h-4 w-4" />
+        </button>
+        <div className="min-w-0 flex-1 rounded-md border border-white/10 bg-white/5 px-4 py-2 text-center text-sm text-white">
+          {value}
+        </div>
+        <button type="button" onClick={onInc} className="flex h-9 w-9 items-center justify-center rounded-md bg-[#E8D1AB] text-[#101010]">
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TogglePill({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${active ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+      className={`flex h-14 w-24 items-center justify-between rounded-2xl border px-4 text-sm font-medium transition-colors ${
+        active ? "border-transparent bg-[#E8D1AB] text-[#101010]" : "border-white/10 bg-transparent text-white/70"
+      }`}
     >
-      <span className="font-medium text-sm lg:text-lg pr-2">{label}</span>
-      <div
-        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${active ? "bg-black" : "border border-[#E5E5E5]"
-          }`}
-      >
-        {active && (
-          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-        )}
-      </div>
+      <span>{label}</span>
+      <span className={`flex h-5 w-5 items-center justify-center rounded-full ${active ? "bg-[#101010]" : "border border-white/30"}`}>
+        {active ? <span className="h-2 w-2 rounded-full bg-[#E8D1AB]" /> : null}
+      </span>
     </button>
   );
 }

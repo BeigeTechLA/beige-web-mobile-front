@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Image as ImageIcon, Plus, PlayCircle, RotateCcw, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { fileManagerApi } from "@/lib/fileManagerApi";
 
 export interface MediaFile {
   id: string;
@@ -28,8 +27,6 @@ interface Props {
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4", "video/quicktime"];
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-const BATCH_SIZE = 5;
-
 const makePreviewFile = (file: File): MediaFile => ({
   id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
   file,
@@ -38,13 +35,10 @@ const makePreviewFile = (file: File): MediaFile => ({
   status: "selected",
 });
 
-const buildFilePath = (file: File) => `${Date.now()}-${file.name}`.replace(/\s+/g, "_");
-
-const isUploaded = (item: MediaFile) => item.status === "uploaded" && Boolean(item.filePath);
-
 export default function MediaUploadForm({ isDark = true, files, onFilesChange, error, onError }: Props) {
   const [localError, setLocalError] = useState<string | null>(null);
   const [localFiles, setLocalFiles] = useState<MediaFile[]>(files);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalFiles(files);
@@ -53,102 +47,6 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
   const syncFiles = (nextFiles: MediaFile[]) => {
     setLocalFiles(nextFiles);
     onFilesChange(nextFiles);
-  };
-
-  const uploadBatch = async (incoming: MediaFile[]) => {
-    const validFiles = incoming.filter((item) => item.file);
-    if (!validFiles.length) return;
-
-    const batchRequests = validFiles.map((item) => ({
-      item,
-      file: item.file as File,
-      filepath: buildFilePath(item.file as File),
-    }));
-
-    try {
-      const policyResponse = await fileManagerApi.getExternalUploadPoliciesBatch(
-        batchRequests.map(({ filepath, file }) => ({
-          filepath,
-          fileContentType: file.type || "application/octet-stream",
-          fileSize: file.size,
-        }))
-      );
-
-      const policyItems = Array.isArray(policyResponse?.data?.items) ? policyResponse.data.items : [];
-      const policyByPath = new Map<string, { url: string; fields: Record<string, string> }>();
-
-      policyItems.forEach((item: any) => {
-        const filepath = item?.data?.filepath || item?.filepath;
-        if (item?.success && filepath && item?.data?.url && item?.data?.fields) {
-          policyByPath.set(String(filepath), {
-            url: String(item.data.url),
-            fields: item.data.fields as Record<string, string>,
-          });
-        }
-      });
-
-      for (const request of batchRequests) {
-        const { item, file, filepath } = request;
-        const policy = policyByPath.get(filepath);
-        if (!policy) {
-          syncFiles((localFiles.length ? localFiles : files).map((entry) =>
-            entry.id === item.id ? { ...entry, status: "failed", error: "Failed to prepare upload policy." } : entry
-          ));
-          continue;
-        }
-
-        syncFiles((localFiles.length ? localFiles : files).map((entry) =>
-          entry.id === item.id ? { ...entry, status: "uploading", error: undefined } : entry
-        ));
-
-        try {
-          const formData = new FormData();
-          Object.entries(policy.fields || {}).forEach(([key, value]) => formData.append(key, value));
-          formData.append("file", file);
-          await fetch(policy.url, { method: "POST", body: formData });
-
-          const finalizeResponse = await fileManagerApi.notifyExternalFilesUploadedBatch([
-            {
-              filepath,
-              fileContentType: file.type || "application/octet-stream",
-              fileSize: file.size,
-              fileName: file.name,
-            },
-          ]);
-
-          const finalizeItems = Array.isArray(finalizeResponse?.data?.items) ? finalizeResponse.data.items : [];
-          const finalized = finalizeItems.find((entry: any) => entry?.success && (entry?.data?.filepath === filepath || entry?.filepath === filepath));
-          const finalUrl = finalized?.data?.url || finalized?.url || policy.url;
-          const finalThumbnail = finalized?.data?.thumbnail_url || finalized?.thumbnail_url || null;
-
-          syncFiles((localFiles.length ? localFiles : files).map((entry) =>
-            entry.id === item.id
-              ? {
-                  ...entry,
-                  file: undefined,
-                  url: finalUrl,
-                  filePath: filepath,
-                  thumbnailUrl: finalThumbnail,
-                  status: "uploaded",
-                  error: undefined,
-                }
-              : entry
-          ));
-        } catch (uploadError) {
-          const message = uploadError instanceof Error ? uploadError.message : "Upload failed.";
-          setLocalError(message);
-          syncFiles((localFiles.length ? localFiles : files).map((entry) =>
-            entry.id === item.id ? { ...entry, status: "failed", error: message } : entry
-          ));
-        }
-      }
-    } catch (policyError) {
-      const message = policyError instanceof Error ? policyError.message : "Failed to prepare upload policy.";
-      setLocalError(message);
-      syncFiles((localFiles.length ? localFiles : files).map((entry) =>
-        entry.status === "selected" ? { ...entry, status: "failed", error: message } : entry
-      ));
-    }
   };
 
   const onDrop = async (acceptedFiles: File[]) => {
@@ -174,7 +72,6 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
     const nextFiles = [...localFiles, ...previews];
     syncFiles(nextFiles);
     setLocalError(null);
-    await uploadBatch(previews);
   };
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -192,26 +89,28 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
       URL.revokeObjectURL(target.url);
     }
 
-    if (isUploaded(target) && target.filePath) {
-      try {
-        await fileManagerApi.deleteExternalEntry(target.filePath);
-      } catch (err) {
-        setLocalError(err instanceof Error ? err.message : "Failed to delete uploaded file.");
-        return;
-      }
-    }
-
     syncFiles(localFiles.filter((file) => file.id !== id));
   };
 
   const retryUpload = async (id: string) => {
     const target = localFiles.find((file) => file.id === id);
     if (!target?.file) return;
-    await uploadBatch([{ ...target, status: "selected", error: undefined }]);
+    setLocalError("Files are uploaded when you save the studio.");
   };
 
-  const moveFile = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= localFiles.length) return;
+  const handleDragStart = (id: string) => {
+    setDraggedId(id);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLButtonElement | HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDropOnTile = (targetId: string) => {
+    if (!draggedId || draggedId === targetId) return;
+    const fromIndex = localFiles.findIndex((file) => file.id === draggedId);
+    const toIndex = localFiles.findIndex((file) => file.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
     const next = [...localFiles];
     const [item] = next.splice(fromIndex, 1);
     next.splice(toIndex, 0, item);
@@ -220,7 +119,8 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
 
   const borderColor = isDark ? "border-[#FFFFFF80]" : "border-[#D7D7D7]";
   const subTextColor = isDark ? "text-[#FFFFFFB2]" : "text-[#71717B]";
-  const uploadedCount = useMemo(() => localFiles.filter((item) => item.status === "uploaded").length, [localFiles]);
+  const uploadedCount = useMemo(() => localFiles.length, [localFiles]);
+  const tileClass = "h-[96px] w-[96px] shrink-0 rounded-lg";
 
   return (
     <div className="space-y-5 lg:space-y-9 transition-colors duration-200">
@@ -255,11 +155,22 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
 
         <div className={`p-4 border border-dashed rounded-md ${isDark ? "border-[#FFFFFF4D]" : "border-gray-300"}`}>
           <div className="mb-3 flex items-center justify-between text-xs text-white/60">
-            <span>Uploaded {uploadedCount}/{localFiles.length}</span>
+            <span>Selected {uploadedCount}/5</span>
           </div>
-          <div className="flex items-center gap-4 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex flex-nowrap items-center gap-4 overflow-x-auto pb-2 no-scrollbar">
             {localFiles.map((file) => (
-              <div key={file.id} className="relative h-[96px] w-[96px] shrink-0 overflow-hidden rounded-lg group">
+              <div
+                key={file.id}
+                draggable
+                onDragStart={() => handleDragStart(file.id)}
+                onDragOver={handleDragOver}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleDropOnTile(file.id);
+                }}
+                onDragEnd={() => setDraggedId(null)}
+                className={`relative ${tileClass} overflow-hidden rounded-lg group cursor-grab active:cursor-grabbing ring-1 ring-transparent hover:ring-[#E8D1AB]/30`}
+              >
                 {file.type === "image" ? (
                   <img src={file.thumbnailUrl || file.url} alt="preview" className="h-full w-full object-cover" />
                 ) : (
@@ -275,11 +186,6 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
                 >
                   <X size={14} className="text-white" />
                 </button>
-
-                <div className="absolute bottom-1 left-1 right-1 flex justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => moveFile(localFiles.findIndex((f) => f.id === file.id), localFiles.findIndex((f) => f.id === file.id) - 1)} className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Up</button>
-                  <button type="button" onClick={() => moveFile(localFiles.findIndex((f) => f.id === file.id), localFiles.findIndex((f) => f.id === file.id) + 1)} className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Down</button>
-                </div>
 
                 {file.status === "uploading" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -306,7 +212,7 @@ export default function MediaUploadForm({ isDark = true, files, onFilesChange, e
             <button
               type="button"
               onClick={open}
-              className="flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-lg bg-[#E8D1AB] transition hover:bg-[#E8D1AB]/80"
+              className={`flex ${tileClass} items-center justify-center rounded-lg bg-[#E8D1AB] transition hover:bg-[#E8D1AB]/80`}
             >
               <Plus className="text-black" size={28} />
             </button>

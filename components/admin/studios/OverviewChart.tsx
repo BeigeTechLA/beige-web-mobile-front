@@ -31,10 +31,10 @@ const CustomCalendarIcon = ({ size = 16 }) => (
 );
 const CustomGraphIcon = ({ size = 16 }) => (
   <img
-    src="/images/socmed/GraphUp.svg"
+    src="/images/misc/overviewicons/GraphUp.svg"
     width={size}
     height={size}
-    alt="film reel"
+    alt="trend chart"
   />
 );
 const CustomClockIcon = ({ size = 16 }) => (
@@ -71,6 +71,14 @@ export default function OverviewChart({ externalSelectedDate, isDark = true, das
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [range, setRange] = useState('all');
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
   // 1. Sync the Select UI when the external date changes
   useEffect(() => {
     if (externalSelectedDate) {
@@ -93,10 +101,10 @@ export default function OverviewChart({ externalSelectedDate, isDark = true, das
   const metrics = useMemo(() => {
     const summary = dashboard?.summary || {};
     return [
-      { id: 'revenue', label: 'Total Revenue', value: `$${Number(summary.total_revenue || 0).toFixed(2)}`, growth: 0, icon: CustomDollarIcon },
+      { id: 'revenue', label: 'Total Revenue', value: formatCurrency(Number(summary.total_revenue || 0)), growth: 0, icon: CustomDollarIcon },
       { id: 'bookings', label: 'Total Bookings', value: String(summary.total_bookings || 0).padStart(2, '0'), growth: 0, icon: CustomCalendarIcon },
-      { id: 'avg', label: 'Avg. Booking Value', value: `$${Number(summary.average_booking_value || 0).toFixed(2)}`, growth: 0, icon: CustomGraphIcon },
-      { id: 'overtime', label: 'Overtime Revenue', value: `$${Number(summary.overtime_revenue || 0).toFixed(2)}`, growth: 0, icon: CustomClockIcon },
+      { id: 'avg', label: 'Avg. Booking Value', value: formatCurrency(Number(summary.average_booking_value || 0)), growth: 0, icon: CustomGraphIcon },
+      { id: 'overtime', label: 'Overtime Revenue', value: formatCurrency(Number(summary.overtime_revenue || 0)), growth: 0, icon: CustomClockIcon },
     ];
   }, [dashboard]);
 

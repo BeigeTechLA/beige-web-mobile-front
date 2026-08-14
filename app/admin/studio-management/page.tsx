@@ -130,6 +130,7 @@ export default function AdminStudiosPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<string>("Operations");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dashboard, setDashboard] = useState<StudioDashboardResponse["data"]>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
@@ -176,6 +177,14 @@ export default function AdminStudiosPage() {
     };
   }, [dashboardMonth]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
   };
@@ -196,33 +205,6 @@ export default function AdminStudiosPage() {
                 className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors h-12 ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}
               />
             </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                // setCurrentPage(1); 
-              }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Initiated">Accepted</SelectItem>
-                <SelectItem value="PreProduction">Rejected</SelectItem>
-                <SelectItem value="Shoot Day">Pending</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              className={`h-12
-                ${isDark
-                  ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#202020]/50"
-                  : "border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"}`
-              }
-            >
-              <Download size={18} className="mr-2" />
-              Export
-            </Button>
             <Link href={"/admin/studio-management/add-studio"}>
               <Button className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Create or Add Studio
@@ -271,11 +253,21 @@ export default function AdminStudiosPage() {
               </div>
             ) : activeTab === "Beige Studios" ? (
               <>
-                <StudioListing isDark={isDark} />
+                <StudioListing
+                  isDark={isDark}
+                  searchQuery={debouncedSearchQuery}
+                  statusFilter={statusFilter}
+                  panelFiltersVisible={false}
+                />
               </>
             ) : (
               <>
-                <StudioRequestsTable isDark={isDark} searchQuery={searchQuery} selectedDate={selectedDate} />
+                <StudioRequestsTable
+                  isDark={isDark}
+                  searchQuery={debouncedSearchQuery}
+                  selectedDate={selectedDate}
+                  showRangeFilter={false}
+                />
               </>
             )
           }
