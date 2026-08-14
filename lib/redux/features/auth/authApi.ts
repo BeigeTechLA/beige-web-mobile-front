@@ -136,7 +136,7 @@ export const authApi = createApi({
     }),
 
     // Change password for Crew (Special Endpoint)
-    changePasswordCrew: builder.mutation<{ message: string }, { user_id: number; currentPassword: string; newPassword: string }>({
+    changePasswordCrew: builder.mutation<{ message: string; has_password?: boolean }, { user_id: number; currentPassword?: string; newPassword: string }>({
       query: (data) => ({
         url: 'auth/change-password-crew',
         method: 'POST',
@@ -193,12 +193,39 @@ export const authApi = createApi({
       missing_count: number;
       progress_percent: number;
       missing_fields: string[];
+      missing_fields_by_step: {
+        step1: string[];
+        step2: string[];
+        step3: string[];
+      };
       required_groups: Array<{
         key: string;
         label: string;
         total: number;
         completed: number;
       }>;
+      required_steps: Array<{
+        key: string;
+        step: number;
+        label: string;
+        total: number;
+        completed: number;
+        missing_count: number;
+        missing_fields: string[];
+      }>;
+      next_incomplete_step: number | null;
+      is_crew_verified: number;
+      can_access_dashboard: boolean;
+      should_resume_signup: boolean;
+      profile_onboarding_status: {
+        onboardingMissingDetail: boolean;
+        is_registration_complete: number;
+        completed_count: number;
+        total_required: number;
+        missing_count: number;
+        progress_percent: number;
+        missing_fields: string[];
+      };
     }, void>({
       query: () => 'auth/onboarding-status',
     }),

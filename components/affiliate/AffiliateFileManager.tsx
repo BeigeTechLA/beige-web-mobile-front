@@ -21,6 +21,7 @@ import {
   Search,
   Send,
   Upload,
+  UserRoundPlus,
 } from "lucide-react";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { MobileFolderRow } from "../admin/file-manager/MobileFolderRow";
 import { MobileWorkspaceRow } from "./file-manager/AffiliateMobileRow";
+import WorkspaceAccessModal from "@/components/admin/file-manager/WorkspaceAccessModal";
 
 interface WorkspaceCard {
   externalId: string;
@@ -174,6 +176,8 @@ export default function AffiliateFileManager() {
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
 
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceCard | null>(null);
+  const [accessWorkspace, setAccessWorkspace] = useState<WorkspaceCard | null>(null);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [workspaceFolders, setWorkspaceFolders] = useState<BrowserFolder[]>([]);
   const [selectedPhase, setSelectedPhase] = useState<"pre" | "post" | null>(null);
   const [selectedPath, setSelectedPath] = useState("");
@@ -955,6 +959,11 @@ export default function AffiliateFileManager() {
     setWorkspaceFolders([]);
   };
 
+  const handleOpenAccessModal = (workspace: WorkspaceCard) => {
+    setAccessWorkspace(workspace);
+    setIsAccessModalOpen(true);
+  };
+
   const filteredWorkspaces = useMemo(() => {
     let items = [...workspaces];
 
@@ -1148,6 +1157,19 @@ export default function AffiliateFileManager() {
                       Updated {formatRelativeTime(workspace.lastOpened)}
                     </td>
                     <td className="py-5 px-6 text-right">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenAccessModal(workspace);
+                        }}
+                        className={`mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+                          isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
+                        }`}
+                        title="Manage access"
+                      >
+                        <UserRoundPlus size={16} />
+                      </button>
                       <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                     </td>
                   </tr>
@@ -1163,6 +1185,7 @@ export default function AffiliateFileManager() {
                 workspace={workspace}
                 isDark={isDark}
                 openWorkspace={(ws) => openWorkspace(ws as WorkspaceCard)}
+                onAccess={(ws) => handleOpenAccessModal(ws as WorkspaceCard)}
                 formatRelativeTime={formatRelativeTime}
               />
             ))}
@@ -1175,9 +1198,17 @@ export default function AffiliateFileManager() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
         {pagedWorkspaces.map((workspace) => (
 
-          <button
+          <div
             key={workspace.externalId}
+            role="button"
+            tabIndex={0}
             onClick={() => openWorkspace(workspace)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openWorkspace(workspace);
+              }
+            }}
             className={`w-full h-full lg:max-w-[350px] rounded-xl lg:rounded-3xl border cursor-pointer transition-all group flex flex-col overflow-hidden ${isDark
               ? "bg-[#18181b] border-white/5 shadow-xl hover:border-white/20 hover:bg-[#1c1c20]"
               : "bg-white border-[#e3e3e3] shadow-sm hover:border-[#D7D7D7] hover:shadow-md"
@@ -1205,7 +1236,19 @@ export default function AffiliateFileManager() {
                     </p>
                   </div>
                 </div>
-                <ExternalLink className={`mt-1 shrink-0 ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenAccessModal(workspace);
+                  }}
+                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                    isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
+                  }`}
+                  title="Manage access"
+                >
+                  <UserRoundPlus size={16} />
+                </button>
               </div>
 
               <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
@@ -1233,7 +1276,7 @@ export default function AffiliateFileManager() {
                 Updated {formatRelativeTime(workspace.lastOpened)}
               </span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     );
@@ -2366,6 +2409,20 @@ export default function AffiliateFileManager() {
           }
         }}
         isDark={isDark}
+      />
+
+      <WorkspaceAccessModal
+        isOpen={isAccessModalOpen}
+        onClose={() => setIsAccessModalOpen(false)}
+        mode="email"
+        resource={
+          accessWorkspace
+            ? {
+                externalId: accessWorkspace.externalId,
+                label: accessWorkspace.title || "Workspace",
+              }
+            : null
+        }
       />
 
       <FileViewerModal

@@ -529,7 +529,7 @@ export default function ConversationComposerModal({
 
       {/* Modal Container */}
       <div
-        className={`w-full max-w-2xl overflow-hidden rounded-t-2xl sm:rounded-2xl border shadow-2xl transition-all duration-300 transform translate-y-0 flex flex-col max-h-[90vh] sm:max-h-[none] h-[90vh] sm:h-auto ${isDark ? "border-white/40 bg-black" : "border-white/40 bg-white"}`}
+        className={`w-full max-w-2xl overflow-hidden rounded-t-2xl sm:rounded-2xl border shadow-2xl transition-all duration-300 transform translate-y-0 flex flex-col h-[90vh] ${isDark ? "border-white/40 bg-black" : "border-white/40 bg-white"}`}
       >
         {/* Sticky Header */}
         <div className="flex items-center justify-between border-b p-4 lg:px-6 lg:py-5 border-[#CACACA] shrink-0">
@@ -855,7 +855,7 @@ export default function ConversationComposerModal({
                 />
               </div>
 
-              <div className={`max-h-80 lg:max-h-[460px] overflow-y-auto no-scrollbar border rounded-lg lg:rounded-xl ${isDark ? "border-white/20 bg-[#171717]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
+              <div className={`max-h-80 lg:max-h-[460px] overflow-y-auto border rounded-lg lg:rounded-xl ${isDark ? "border-white/20 bg-[#171717]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}>
                 {filteredDirectoryMembers.map((member) => {
                   const memberId = String(member.id);
                   const selected = selectedDirectoryIds.includes(memberId);
@@ -942,7 +942,7 @@ export default function ConversationComposerModal({
         </div>
 
         {/* Footer Buttons */}
-        <div className={`p-4 lg:p-6 !pt-0 mt-auto flex gap-2.5 lg:gap-3 shrink-0 bg-inherit z-10`}>
+       <div className={`p-4 lg:p-6 pt-4 lg:pt-5 mt-auto flex gap-2.5 lg:gap-3 shrink-0 bg-inherit z-10`}>
           <button
             type="button"
             onClick={() => {

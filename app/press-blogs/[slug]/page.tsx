@@ -10,26 +10,29 @@ import { BlogTableOfContents } from "@/components/press-blogs/BlogTableOfContent
 import { Separator } from "@/src/components/landing/Separator";
 import { Footer } from "@/src/components/landing/Footer";
 import { RecommendedBlogs } from "@/components/press-blogs/RecommendedBlog";
+import { BlogPost } from "../lib/types";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Exported function serving Next.js SSG build and internal category filtering
-export async function generateStaticParams(category?: string) {
+function getPostsByCategory(category?: string): BlogPost[] {
+  if (!category) return [];
+
+  return getAllPosts().filter((post) => {
+    const categoryName = typeof post.category === "object"
+      ? post.category?.title
+      : post.category;
+
+    return categoryName === category;
+  });
+}
+
+export async function generateStaticParams() {
   try {
     const posts = getAllPosts();
     if (!Array.isArray(posts)) return [];
 
-    // Filter by category when called inside the page component
-    if (category) {
-      return posts.filter((post) => {
-        const categoryName = post.category?.["title"] || post.category;
-        return categoryName === category;
-      });
-    }
-
-    // Default Next.js SSG behavior: map all slugs
     return posts.map((post) => ({
       slug: String(post.post_name),
     }));
@@ -51,7 +54,7 @@ const categoryTitle = typeof post.category === "object"
   ? post.category?.title 
   : post.category;
 
-const moreContent = await generateStaticParams(categoryTitle);
+const moreContent = getPostsByCategory(categoryTitle);
   const formattedContent = parseWordPressContent(post["content:encoded"] || "");
 
   // Extract highest level headings and inject IDs into content
@@ -101,12 +104,12 @@ const moreContent = await generateStaticParams(categoryTitle);
 
         <div className="flex flex-col-reverse lg:flex-row gap-4 lg:gap-8 mb-10 lg:mb-40">
           {headings.length > 0 && (
-            <div className="w-full lg:w-1/4">
+            <div className="w-full lg:w-1/5">
               <BlogTableOfContents headings={headings} />
             </div>
           )}
 
-          <div className={`w-full ${headings.length > 0 ? "lg:w-3/4" : ""}`}>
+          <div className={`w-full ${headings.length > 0 ? "lg:w-4/5" : ""}`}>
             <CustomBlogRenderer rawContent={contentWithIds} />
           </div>
         </div>

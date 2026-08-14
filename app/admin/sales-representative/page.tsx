@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { skipToken } from "@reduxjs/toolkit/query";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { SortDateButton } from "@/components/admin/SortDateButton";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { ChevronRight, MoreVertical, Search, Loader2, Target, ChartLine, Calendar, List, SlidersHorizontal, Users, Check, X, ArrowUpToLine, Grid2x2, ChevronDown, MoreHorizontal, ArrowUpRight, User, Camera } from "lucide-react";
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
@@ -33,6 +32,7 @@ import LeadsTable from "@/components/sales/BookingLeadsTable";
 import { IntentBadge } from "@/components/sales/IntentBadge";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import DatePicker from "@/components/ui/Datepicker";
 
 type TabType = "Booking" | "Client" | "Creative Partner" | "Studio";
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
@@ -481,6 +481,15 @@ const normalizeProductionFilterValue = (value: unknown): string => {
   return PRODUCTION_FILTER_ALLOWED_VALUES.has(raw) ? raw : "all";
 };
 
+const getSelectedLeadDateParams = (selectedDate: Date | null) => {
+  if (!selectedDate) return {};
+  const formattedDate = format(startOfDay(selectedDate), "yyyy-MM-dd");
+  return {
+    start_date: formattedDate,
+    end_date: formattedDate,
+  };
+};
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -642,6 +651,13 @@ export default function AdminSaleRepManagerPage() {
       if (parsed.clientAssignedRepIdFilter) setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(parsed.clientAssignedRepIdFilter));
       if (parsed.leadsCurrentPage) setLeadsCurrentPage(parsed.leadsCurrentPage);
       if (parsed.usersCurrentPage) setUsersCurrentPage(parsed.usersCurrentPage);
+      if (parsed.selectedDate) {
+        const restoredDate = new Date(parsed.selectedDate);
+        if (!Number.isNaN(restoredDate.getTime())) {
+          restoredDate.setHours(0, 0, 0, 0); 
+          setSelectedDate(restoredDate);
+        }
+      }
     } catch (error) {
       console.error("Failed to restore sales representative page filters:", error);
     } finally {
@@ -655,7 +671,7 @@ export default function AdminSaleRepManagerPage() {
   // Reset pagination when any lead filter changes
   useEffect(() => {
     setLeadsCurrentPage(1);
-  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode]);
+  }, [leadTypeFilter, statusFilter, intentFilter, shootStageFilter, assignedRepIdFilter, cpAssignmentFilter, productionFilter, debouncedSearch, leadsViewMode, selectedDate]);
 
   useEffect(() => {
     setUsersCurrentPage(1);
@@ -735,6 +751,7 @@ export default function AdminSaleRepManagerPage() {
           leadsViewMode,
           leadsCurrentPage,
           usersCurrentPage,
+          selectedDate: selectedDate ? selectedDate.toISOString() : null,
         })
       );
     } catch (error) {
@@ -755,6 +772,7 @@ export default function AdminSaleRepManagerPage() {
     leadsViewMode,
     leadsCurrentPage,
     usersCurrentPage,
+    selectedDate,
   ]);
 
   // --- LEADS API CALL WITH FILTERS ---
@@ -769,9 +787,11 @@ export default function AdminSaleRepManagerPage() {
         ? "studio_shoots"
         : leadsViewMode === "grid" && shootStageFilter !== "all"
           ? shootStageFilter
-            : statusFilter === "All"
-            ? undefined
-            : normalizeBookingStatusFilterValue(statusFilter),
+          : statusFilter !== "All"
+            ? normalizeBookingStatusFilterValue(statusFilter)
+            : shootStageFilter !== "all"
+              ? shootStageFilter
+              : undefined,
       assigned_to:
         normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
           ? undefined
@@ -786,6 +806,7 @@ export default function AdminSaleRepManagerPage() {
           : undefined,
       // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
       intent: intentFilter === "All" ? undefined : intentFilter,
+      ...(leadsViewMode !== "grid" ? getSelectedLeadDateParams(selectedDate) : {}),
     }
     : skipToken;
 
@@ -812,6 +833,7 @@ export default function AdminSaleRepManagerPage() {
         ? normalizeProductionFilterValue(productionFilter)
         : undefined,
     intent: intentFilter === "All" ? undefined : intentFilter,
+    ...(leadsViewMode !== "grid" ? getSelectedLeadDateParams(selectedDate) : {}),
   });
 
   const mergeBoardColumns = (
@@ -935,6 +957,7 @@ export default function AdminSaleRepManagerPage() {
     cpAssignmentFilter,
     productionFilter,
     intentFilter,
+    selectedDate,
     gridBoardRefreshNonce,
   ]);
 
@@ -949,8 +972,15 @@ export default function AdminSaleRepManagerPage() {
         limit: 200, // Try setting both to 200 to test
         page: 1,
       };
-      if (debouncedSearch) params.search = debouncedSearch;
-      if (usersStatusFilter !== "all") params.status = usersStatusFilter;
+  if (debouncedSearch) params.search = debouncedSearch;
+    if (usersStatusFilter !== "all") params.status = usersStatusFilter;
+    if (selectedDate) {
+      if (leadsViewMode !== "grid") {
+        const dateParams = getSelectedLeadDateParams(selectedDate);
+        params.start_date = dateParams.start_date;
+        params.end_date = dateParams.end_date;
+      }
+    }
       const normalizedClientAssignedRep = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
       if (activeTab === "Client" && normalizedClientAssignedRep !== "all") {
         params.assigned_to = normalizedClientAssignedRep;
@@ -1070,7 +1100,7 @@ export default function AdminSaleRepManagerPage() {
     if (activeTab !== "Booking") {
       fetchUsers();
     }
-  }, [activeTab, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
+  }, [activeTab, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter, selectedDate]);
   // }, [activeTab, usersCurrentPage, debouncedSearch, usersStatusFilter, clientAssignedRepIdFilter]);
 
   // Smooth transition effect for Leads mapping
@@ -1332,6 +1362,32 @@ export default function AdminSaleRepManagerPage() {
                   onChange={(val) => setStatusFilter(normalizeBookingStatusFilterValue(val))}
                   openAlign={"right"}
                 />
+                <div className="w-[170px]">
+                  <DatePicker
+                    value={selectedDate}
+                    onChange={handleDateSort}
+                    isDark={isDark}
+                    placeholder="Select Date"
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        padding: "12px 12px",
+                        fontSize: "13px",
+                      },
+                    }}
+                  />
+                </div>
+                {selectedDate && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(null)}
+                    className={`h-9 self-end px-2 text-xs font-medium underline ${isDark ? "text-white/60 hover:text-white" : "text-black/50 hover:text-black"}`}
+                  >
+                    Clear date
+                  </button>
+                )}
+                <div className={`flex items-center px-3 text-sm font-medium whitespace-nowrap ml-auto ${isDark ? "text-white/60" : "text-black/60"}`}>
+                  Total: {leadsTotalRecords} Leads
+                </div>
               </div>
             )}
 

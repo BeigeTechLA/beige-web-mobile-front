@@ -3375,6 +3375,84 @@ export const adminApi = {
       };
     }
   },
+
+  getAdminProfile: async (id: string | number, token: string) => {
+    try {
+      const response = await api.get(`admin/profile/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Admin Profile Error:',error.response?.data || error.message,);
+      return {
+        success: false,
+        data: null,
+        status: error.response?.status,
+        error:
+          error.response?.data?.message || error.message || 'Failed to fetch admin profile',
+      };
+    }
+  },
+
+  updateAdminProfile: async (
+    id: string | number,
+    payload: {
+      name: string;
+      phone_number: string;
+    },
+    token: string,
+  ) => {
+    try {
+      const response = await api.put(`admin/profile/${id}`, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Admin Profile Error:',error.response?.data || error.message,);
+      return {
+        success: false,
+        data: null,
+        status: error.response?.status,
+        error:
+          error.response?.data?.message || error.message || 'Failed to update admin profile', };
+    }
+  },
+
+  changeAdminPassword: async (
+    payload: {
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    },
+    token: string,
+  ) => {
+    try {
+      const response = await api.post(
+        'admin/profile/change-password',
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Change Admin Password Error:', error.response?.data || error.message,);
+      return {
+        success: false,
+        data: null,
+        status: error.response?.status,
+        error:
+          error.response?.data?.message || error.message || 'Failed to change admin password',};
+    }
+  },
 };
 
 export const GetCreatorDashboardCount = async (payload: any) => {

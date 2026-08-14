@@ -70,6 +70,13 @@ export default function AdvancePaymentModal({
     const numeric = Number(String(advanceAmount || "0").replace(/[$,]/g, ""));
     return Number.isFinite(numeric) ? numeric : 0;
   }, [advanceAmount]);
+  
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  
   const remaining = Math.max(compensation - parsedAdvanceAmount, 0);
   const isInvalidAmount = parsedAdvanceAmount <= 0 || (availableAmount > 0 && parsedAdvanceAmount > availableAmount);
   const isMissingRequiredProof = showProofUpload && requireProofUpload && !proofFile;
@@ -167,6 +174,7 @@ export default function AdvancePaymentModal({
           <DatePickerFloating
             selectedDate={paymentDate}
             onDateChange={handleDateChange}
+            minDate={today}
             width="w-full"
             classnames={`!rounded-xl h-14 lg:h-20 w-full resize-none px-0 pt-4 text-sm lg:text-base outline-none lg:text-base ${isDark ? "text-white " : "text-black "}`}
             labelClasses={`${isDark ? "bg-black text-white/60" : "bg-white text-[#727272]"} text-sm lg:text-base z-10 px-1`}

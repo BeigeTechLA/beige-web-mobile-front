@@ -55,6 +55,10 @@ import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmatio
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
 import Topbar from "@/components/admin/Topbar";
 import { formatCreatorRoles, normalizeCreatorRoleIds } from "@/lib/creatorRoles";
+import { Button } from "@/components/ui/button";
+import Lottie from "lottie-react";
+import redAnimation from "@/public/animations/Red.json";
+
 
 // --- CONSTANTS ---
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -181,6 +185,22 @@ const capitalizeName = (value: unknown) => {
     .toLowerCase()
     .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
 };
+
+  const getDisplayLocation = (value: unknown): string => {
+    if (value == null) return "";
+    if (typeof value === "object") {
+      return (value as any).address || (value as any).formatted_address || "";
+    }
+    let str = String(value).trim();
+    while (
+      (str.startsWith('"') && str.endsWith('"')) ||
+      (str.startsWith("'") && str.endsWith("'"))
+    ) {
+      str = str.slice(1, -1).trim();
+    }
+    if (str === "{}" || str === "[]" || str === "null" || str === "undefined") return "";
+    return str;
+  };
 
 const SectionHeader = ({ title, onEdit, isEditing, isDark }: { title: string, onEdit?: () => void, isEditing?: boolean, isDark?: boolean }) => (
   <div className="flex items-center justify-between mb-4 lg:mb-8">
@@ -490,18 +510,29 @@ export default function ProfilePage() {
       working_distance: profile.working_distance
     };
 
-    try {
+  try {
+      setIsPageLoading(true);
       const response = await EditMyProfile(payload);
 
       if (response.data && response.data.error === false) {
-        // Success! Close the editing mode
+        setProfile((prev: any) => ({
+          ...prev,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+          phone_number: profile.phone_number,
+          location: profile.location,
+          working_distance: profile.working_distance,
+        }));
+        await refreshProfile(crewMemberId);
         setIsEditingPersonalInfo(false);
-        // Optional: You could show a success toast here
       } else {
         console.error("API Error:", response.data.message);
       }
     } catch (err) {
       console.error("Failed to update profile:", err);
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -561,27 +592,43 @@ export default function ProfilePage() {
       return;
     }
 
-    // Construct payload with ONLY professional fields
-    // We send primary_role as a stringified array to match how your GET API returns it
+    const normalizedYears =
+      profile.years_of_experience === "" || profile.years_of_experience == null
+        ? null
+        : parseInt(profile.years_of_experience);
+
+    const normalizedRate =
+      profile.hourly_rate === "" || profile.hourly_rate == null
+        ? null
+        : profile.hourly_rate;
+
     const payload = {
       crew_member_id: parseInt(crewMemberId),
       primary_role: normalizeCreatorRoleIds(profile.primary_role),
-      years_of_experience: parseInt(profile.years_of_experience),
-      hourly_rate: profile.hourly_rate,
+      years_of_experience: normalizedYears,
+      hourly_rate: normalizedRate,
       bio: profile.bio
     };
 
     try {
+      setIsPageLoading(true);
       const response = await EditMyProfile(payload);
 
       if (response.data && response.data.error === false) {
+        setProfile((prev: any) => ({
+          ...prev,
+          years_of_experience: normalizedYears,
+          hourly_rate: normalizedRate,
+        }));
+        await refreshProfile(crewMemberId);
         setIsEditingProfessionalInfo(false);
-        // Optional: Trigger a refresh or show success message
       } else {
         console.error("API Error:", response.data.message);
       }
     } catch (err) {
       console.error("Failed to update professional profile:", err);
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -601,13 +648,20 @@ export default function ProfilePage() {
     };
 
     try {
+      setIsPageLoading(true);
       const response = await EditMyProfile(payload);
       if (response.data && response.data.error === false) {
+        setProfile((prev: any) => ({
+          ...prev,
+          skills: profile.skills,
+        }));
+        await refreshProfile(crewMemberId);
         setIsEditingSkills(false);
-        // Optional: Refresh data here
       }
     } catch (err) {
       console.error("Failed to update skills:", err);
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -1145,15 +1199,15 @@ export default function ProfilePage() {
             </div>
 
             {/* Right Side: Complete Profile Button (Vertically Centered) */}
-            <button
-              type="button"
+            <Button
               onClick={handleOpenOnboarding}
-              className="shrink-0 flex items-center rounded-md bg-black px-4 py-2 text-xs sm:text-sm font-medium text-[#E6D8B6] transition-colors hover:bg-black/90"
+              className="bg-[#E8D1AB] hover:bg-[#DDC49A] text-black h-12 px-2 lg:px-3 transition-colors flex items-center"
             >
-              <AlertCircle size={14} className="mr-1.5" />
+              <div className="w-7 h-7 shrink-0 -ml-1 -mr-2">
+                <Lottie animationData={redAnimation} loop={true} />
+              </div>
               Complete Profile
-            </button>
-
+            </Button>
           </div>
         </div>
       )}
@@ -1199,8 +1253,7 @@ export default function ProfilePage() {
                       {profile.bio || "No bio added yet"}
                     </p>
                     <div className={`flex items-center gap-1 text-xs mt-1 ${isDark ? "text-white/40" : "text-zinc-400"}`}>
-                      <MapPin size={12} /> {profile.location?.split(',').slice(-2).join(', ') || "Location not set"}
-                    </div>
+                      <MapPin size={12} /> {getDisplayLocation(profile.location).split(',').slice(-2).join(', ').trim() || "Location not set"}                    </div>
                   </div>
                 </div>
               </div>
@@ -1228,8 +1281,8 @@ export default function ProfilePage() {
               </div>
 
               <div className={`text-sm lg:text-base border rounded-lg lg:rounded-2xl flex max-w-sm justify-center capitalize ${isDark ? "bg-white/[0.02] border-white/5" : "bg-[#FDFAF7] border-[#F5EBDA]"}`}>
-                <StatBox value={`$${Math.round(profile.hourly_rate)}`} sublabel="/Hour" isDark={isDark} />
-                <StatBox value={`${profile.years_of_experience}`} sublabel="Years Exp." isDark={isDark} />
+                <StatBox value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${Math.round(profile.hourly_rate)}` : "-"} sublabel="/Hour" isDark={isDark} />                
+                <StatBox value={profile.years_of_experience ?? "-"} sublabel="Years Exp." isDark={isDark} />                
                 <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" isDark={isDark} />
               </div>
 
@@ -1367,7 +1420,7 @@ export default function ProfilePage() {
 
                   {isEditingPersonalInfo ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
-                      <PersonalInfoForm profile={profile} onChange={handleProfileUpdate} isDark={isDark} />
+                      <PersonalInfoForm profile={{ ...profile, location: getDisplayLocation(profile.location) }} onChange={handleProfileUpdate} isDark={isDark} />
                       <div className="mt-4 lg:mt-8 flex justify-end">
                         <button
                           onClick={handleSavePersonalInfo}
@@ -1379,11 +1432,11 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-20">
-                      <InfoField label="First Name" value={capitalizeName(profile.first_name)} isDark={isDark} />
-                      <InfoField label="Last Name" value={capitalizeName(profile.last_name)} isDark={isDark} />
-                      <InfoField label="Email Address" value={profile.email} isDark={isDark} />
+                      <InfoField label="First Name" value={capitalizeName(profile.first_name)} placeholder="Add first name" isDark={isDark} />
+                      <InfoField label="Last Name" value={capitalizeName(profile.last_name)} placeholder="Add last name" isDark={isDark} />
+                      <InfoField label="Email Address" value={profile.email} placeholder="Add email address" isDark={isDark} />
                       <InfoField label="Contact Phone" value={profile.phone_number} placeholder="Add phone number" isDark={isDark} />
-                      <InfoField label="Location" value={profile.location} isDark={isDark} />
+                      <InfoField label="Location" value={getDisplayLocation(profile.location)} placeholder="Add location" isDark={isDark} />
                       <InfoField label="Working Distance" value={profile.working_distance} placeholder="Add distance radius" isDark={isDark} />
                     </div>
                   )}
@@ -1414,8 +1467,18 @@ export default function ProfilePage() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-12">
                       <InfoField label="Primary Role" value={getRoleLabel(profile.primary_role)} isDark={isDark} />
-                      <InfoField label="Experience" value={`${profile.years_of_experience} Years`} isDark={isDark} />
-                      <InfoField label="Hourly Rate" value={`$${profile.hourly_rate}`} isDark={isDark} />
+                      <InfoField
+                        label="Experience"
+                        value={profile.years_of_experience !== null && profile.years_of_experience !== undefined && profile.years_of_experience !== "" ? `${profile.years_of_experience} Years` : undefined}
+                        placeholder="Add years of experience"
+                        isDark={isDark} 
+                      />
+                    <InfoField
+                      label="Hourly Rate"
+                      value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${profile.hourly_rate}` : undefined}
+                      placeholder="Add hourly rate"
+                      isDark={isDark}
+                    />
                       <div className="col-span-full">
                         <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." isDark={isDark} />
                       </div>
