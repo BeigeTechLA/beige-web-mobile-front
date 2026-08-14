@@ -2351,7 +2351,7 @@ export const adminApi = {
       };
     }
   },
-  getTopCreativePartners: async (params: { range?: string; start_date?: string; end_date?: string } = {}) => {
+  getTopCreativePartners: async (params: { filter?: "most_shoot" | "most_paid"; } = {}) => {
     try {
       const response = await api.get('admin/dashboard/top-creative-partners', {
         params,
@@ -2360,9 +2360,9 @@ export const adminApi = {
     } catch (error: any) {
       console.error('Get Top Creative Partners Error:', error.response?.data || error.message);
       return {
-        success: false,
-        data: null,
-        error: error.response?.data?.message || 'Failed to fetch top creative partners',
+        error: true,
+        data: [],
+        message: error.response?.data?.message || 'Failed to fetch top creative partners',
       };
     }
   },

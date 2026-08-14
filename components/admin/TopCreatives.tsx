@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { format } from "date-fns";
 import { useTheme } from "next-themes";
 import {
   Select,
@@ -11,79 +10,115 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Swiper imports
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow, Mousewheel } from "swiper/modules";
-
-// Swiper styles
 import "swiper/css";
 import "swiper/css/effect-coverflow";
-
 import { adminApi } from "@/lib/api";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 export const TopCreatives = () => {
   const { theme } = useTheme();
+
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(1);
   const [partners, setPartners] = useState<any[]>([]);
-  const [range, setRange] = useState<string>('all');
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [range, setRange] = useState<string>("most_shoot");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      try {
-        const params: any = { range };
-        if (range === 'custom') {
-          if (startDate) params.start_date = format(startDate, 'yyyy-MM-dd');
-          if (endDate) params.end_date = format(endDate, 'yyyy-MM-dd');
-        }
 
-        const response = await adminApi.getTopCreativePartners(params);
+      try {
+        const response = await adminApi.getTopCreativePartners({
+            filter: range as "most_shoot" | "most_paid",
+          });
+
         if (response && response.data) {
           const data = Array.isArray(response.data) ? response.data : [];
-          const mappedPartners = data.map((partner: any, index: number) => ({
-            id: partner.id || index,
-            name: partner.name || "Unknown",
-            email: partner.email || "No Email",
-            earnings: partner.total_earnings
-              ? `$${parseFloat(partner.total_earnings).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-              : "$0.00",
-            image: (() => {
-              if (partner.avatar) return `${S3_PREFIX}${partner.avatar}`;
-              if (partner.crew_member_files?.length > 0) {
-                const photo = partner.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
-                if (photo) return photo.file_url || `${S3_PREFIX}${photo.file_path}`;
-              }
-              return "/images/placeholder-user.png";
-            })(),
-            bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
-          }));
+          const mappedPartners = data.map((partner: any, index: number) => {
+              const totalShoots = Number(
+                partner.total_shoots || 0
+              );
+
+              const totalPaid = Number(
+                partner.total_paid ??
+                  partner.total_earnings ??
+                  0
+              );
+
+              const formattedAmount = `$${totalPaid.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }
+              )}`;
+
+              return {
+                id: partner.id || index,
+                rank: partner.rank || index + 1,
+                name: partner.name || "Unknown",
+                email: partner.email || "No Email",
+
+                totalShoots,
+                totalPaid,
+
+                earnings: formattedAmount,
+
+                image: (() => {
+                  if (partner.avatar) {
+                    if (
+                      String(partner.avatar).startsWith(
+                        "http"
+                      )
+                    ) {
+                      return partner.avatar;
+                    }
+
+                    return `${S3_PREFIX}${partner.avatar}`;
+                  }
+
+                  if (partner.crew_member_files?.length > 0) {
+                    const photo = partner.crew_member_files.find((f: any) => f.file_type === "profile_photo" || f.file_type === "headshot");
+                    if (photo) return photo.file_url || `${S3_PREFIX}${photo.file_path}`;
+                  }
+                  return "/images/placeholder-user.png";
+                })(),
+                bgColor: index % 3 === 0 ? "bg-blue-200" : index % 3 === 1 ? "bg-green-200" : "bg-orange-100",
+              };
+            });
 
           if (mappedPartners.length > 0) {
             setPartners(mappedPartners);
             setActiveIndex(Math.floor(mappedPartners.length / 2));
           } else {
             setPartners([]);
+            setActiveIndex(0);
           }
+        } else {
+          setPartners([]);
+          setActiveIndex(0);
         }
       } catch (error) {
         console.error("Failed to fetch top creatives:", error);
+
+        setPartners([]);
+        setActiveIndex(0);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchData();
-  }, [range, startDate, endDate]);
+  }, [range]);
 
   const isDark = !mounted || theme === "dark";
-  const activePartner = partners.length > 0 ? partners[activeIndex] : null;
+  const activePartner = partners.length > 0 ? partners[activeIndex] || partners[0] : null;
 
   return (
     <div className={`flex-1 w-full rounded-2xl overflow-hidden transition-colors duration-300 border ${
@@ -98,45 +133,15 @@ export const TopCreatives = () => {
           <h2 className="">Top Creative Partners</h2>
         </div>
         <div className="flex items-center gap-3">
-          {/* {range === 'custom' && (
-  <div className="flex items-center gap-2">
-    <div className="w-[140px]">
-      <DatePicker
-        label=""
-        value={startDate}
-        onChange={setStartDate}
-        sx={{
-          height: '36px',
-          borderRadius: '99px',
-          '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
-        }}
-      />
-    </div>
-    <div className="w-[140px]">
-      <DatePicker
-        label=""
-        value={endDate}
-        onChange={setEndDate}
-        sx={{
-          height: '36px',
-          borderRadius: '99px',
-          '& .MuiInputBase-input': { fontSize: '12px', padding: '0 12px' }
-        }}
-      />
-    </div>
-  </div>
-)} */}
           <Select value={range} onValueChange={setRange}>
             <SelectTrigger className={`w-[110px] rounded-full h-9 text-xs focus:ring-0 ${
               isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"
             }`}>
-              <SelectValue placeholder="Range" />
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="year">Year</SelectItem>
+            <SelectContent className={`${isDark? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
+              <SelectItem value="most_shoot">Most Shoots</SelectItem>
+              <SelectItem value="most_paid">Most Paid</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -150,7 +155,7 @@ export const TopCreatives = () => {
           </div>
         ) : partners.length > 0 ? (
           <Swiper
-            key={partners.length + (isDark ? "dark" : "light")} 
+            key={range + partners.length + (isDark ? "dark" : "light")}
             effect={"coverflow"}
             grabCursor={true}
             centeredSlides={true}
@@ -203,8 +208,17 @@ export const TopCreatives = () => {
             </p>
           </div>
 
-          <div className="bg-[#E8D1AB] text-black px-8 py-2 rounded-full w-fit ">
-            <span className=" font-semibold leading-tight">{activePartner.earnings}</span>
+          <div className="flex flex-col items-center gap-1">
+            <div className="bg-[#E8D1AB] text-black px-6 py-1 rounded-full w-fit">
+              <span className=" font-semibold leading-tight">{activePartner.earnings}</span>
+            </div>
+
+            {range === "most_shoot" && (
+              <span className={`text-xs ${isDark ? "text-[#E8D1AB]" : "text-[#E8D1AB]"}`}>
+                {activePartner.totalShoots}{" "}
+                {activePartner.totalShoots === 1 ? "Shoot" : "Shoots"}
+              </span>
+            )}
           </div>
         </div>
       )}
