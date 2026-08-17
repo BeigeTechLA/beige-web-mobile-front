@@ -64,6 +64,11 @@ import redAnimation from "@/public/animations/Red.json";
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 const GOOGLE_ONBOARDING_STORAGE_KEY = "creator_google_onboarding";
 
+const isValidPhoneNumber = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+};
+
 type GoogleOnboardingData = {
   user_id: number;
   crew_member_id: number;
@@ -483,6 +488,16 @@ export default function ProfilePage() {
 
     if (!crewMemberId) {
       console.error("No Crew Member ID found");
+      return;
+    }
+
+    if (!profile.phone_number) {
+      toast.error("Phone number is required.");
+      return;
+    }
+
+    if (!isValidPhoneNumber(profile.phone_number)) {
+      toast.error("Please enter a valid phone number.");
       return;
     }
 
