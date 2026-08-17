@@ -28,6 +28,7 @@ import {
   removeSelectedStudio,
   upsertSelectedStudio,
 } from "@/components/book-a-shoot/v3/studioData";
+import { buildStudioQuotePayload } from "@/components/book-a-shoot/v3/studioPayload";
 
 import {
   newshootTypes,
@@ -140,6 +141,8 @@ const STUDIO_BOOKING_TYPES = [
   { key: "audio", value: "Audio" },
   { key: "event", value: "Event" }
 ];
+
+const ENABLED_CONTENT_TYPE_KEYS = ["videographer", "photographer", "studio"] as const;
 
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
 
@@ -1154,38 +1157,45 @@ function ClientDetailPage() {
         }
         
         const quantity = Math.max(0, studioDurationHours);
-        const studioTotal = unitPrice * quantity;
-        
-        payload.studio_total = studioTotal;
-
         const pricingCategory = bookingFor || "production";
         const pricingLabel = pricingCategory === "production" ? "Production" : pricingCategory === "audio" ? "Audio" : "Event";
+        const studioPayload = buildStudioQuotePayload({
+          selectedStudios: [
+            {
+              ...studio,
+              quantity,
+              totalPrice: unitPrice * quantity,
+              selectedDate: studioStartDate,
+              startTime: studioStartTime,
+              endTime: studioEndTime,
+            },
+          ],
+          bookingType,
+          bookingDays: (payload.booking_days || []).map((day: any) => ({
+            date: day.date,
+            startTime: day.start_time,
+            endTime: day.end_time,
+            durationHours: day.duration_hours,
+            timeZone: day.time_zone,
+          })),
+        } as any);
 
-        payload.studio_items = [
-          {
-            studio_id: studio.studioId,
-            name: studio.name,
-            location: studio.location,
-            image: studio.image,
-            pricing_mode: studio.pricingMode || "hourly",
-            pricing_category: pricingCategory,
-            pricing_label: pricingLabel,
-            unit_price: unitPrice,
-            quantity: quantity,
-            total: studioTotal,
-            price_label: studio.priceLabel || `$${unitPrice}/hour`,
-            selected_date: studioStartDate,
-            start_time: studioStartTime,
-            end_time: studioEndTime,
-            time_zone: browserTimeZone,
-            studio_booking_type: bookingType,
-            booking_days: bookingType === "multi_day" ? payload.booking_days : [],
-            cast_and_crew_count: formData.crewCount || 0,
-            update_studio_datetime: true,
-            lat: formData.locationDetails?.coordinates?.lat ?? formData.locationDetails?.lat ?? undefined,
-            lng: formData.locationDetails?.coordinates?.lng ?? formData.locationDetails?.lng ?? undefined
-          }
-        ];
+        payload.studio_total = studioPayload.studio_total;
+        payload.studio_items = studioPayload.studio_items.map((item) => ({
+          ...item,
+          pricing_category: pricingCategory,
+          pricing_label: pricingLabel,
+          selected_date: studioStartDate,
+          start_time: studioStartTime,
+          end_time: studioEndTime,
+          time_zone: browserTimeZone,
+          studio_booking_type: bookingType,
+          booking_days: bookingType === "multi_day" ? payload.booking_days : [],
+          cast_and_crew_count: formData.crewCount || 0,
+          update_studio_datetime: true,
+          lat: formData.locationDetails?.coordinates?.lat ?? formData.locationDetails?.lat ?? undefined,
+          lng: formData.locationDetails?.coordinates?.lng ?? formData.locationDetails?.lng ?? undefined,
+        }));
 
         if (!payload.location || payload.location.trim() === "") {
            payload.location = studio.location;
@@ -1432,9 +1442,9 @@ function ClientDetailPage() {
             <ContentTypeCheckbox
               label="Select All"
               icon={<SquaresUnite size={20} />}
-              checked={formData.contentType.includes("videographer") && formData.contentType.includes("photographer")}
+              checked={ENABLED_CONTENT_TYPE_KEYS.every((key) => formData.contentType.includes(key))}
               onChange={(checked) => {
-                if (checked) updateData({ contentType: ["videographer", "photographer"] });
+                if (checked) updateData({ contentType: [...ENABLED_CONTENT_TYPE_KEYS] });
                 else updateData({ contentType: [] });
               }}
               isDark={isDark}

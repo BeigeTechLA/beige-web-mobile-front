@@ -51,6 +51,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { buildStudioQuotePayload } from "./studioPayload";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 import { getBrowserTimeZone } from "@/lib/timezone";
 
@@ -651,6 +652,26 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
               : toIsoIfValid(data.startDate);
           }
         }
+
+        const studioQuotePayload = buildStudioQuotePayload(data);
+        quotePayload.studio_total = studioQuotePayload.studio_total;
+        quotePayload.studio_items = studioQuotePayload.studio_items.map((item) => ({
+          ...item,
+          selected_date: item.selected_date || data.selectedStudios?.[0]?.selectedDate,
+          start_time: item.start_time || data.selectedStudios?.[0]?.startTime,
+          end_time: item.end_time || data.selectedStudios?.[0]?.endTime,
+          time_zone: item.time_zone || getBrowserTimeZone(),
+          studio_booking_type: data.bookingType || "single_day",
+          booking_days: data.bookingType === "multi_day"
+            ? (data.bookingDays || []).map((day) => ({
+                date: day.date,
+                start_time: day.startTime || "",
+                end_time: day.endTime || "",
+                duration_hours: day.durationHours || 0,
+                time_zone: day.timeZone || getBrowserTimeZone(),
+              }))
+            : [],
+        }));
 
         const result = await calculateQuoteFromCreators(quotePayload).unwrap();
 

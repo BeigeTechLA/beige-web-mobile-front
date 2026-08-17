@@ -32,6 +32,37 @@ type StudioItemPayload = {
   lng?: number;
 };
 
+const calculateDurationHours = (startTime?: string, endTime?: string) => {
+  if (!startTime || !endTime) return 0;
+  const [startHours, startMinutes] = startTime.split(":").map(Number);
+  const [endHours, endMinutes] = endTime.split(":").map(Number);
+  if (
+    !Number.isFinite(startHours) ||
+    !Number.isFinite(startMinutes) ||
+    !Number.isFinite(endHours) ||
+    !Number.isFinite(endMinutes)
+  ) {
+    return 0;
+  }
+  const minutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+  return minutes > 0 ? Number((minutes / 60).toFixed(2)) : 0;
+};
+
+const getStudioDurationHours = (
+  studio: SelectedStudio,
+  bookingType: BookingDataV3["bookingType"] = "single_day",
+  bookingDays: BookingDataV3["bookingDays"] = [],
+) => {
+  if (bookingType === "multi_day") {
+    return (bookingDays || []).reduce(
+      (sum, day) => sum + Number(day.durationHours || calculateDurationHours(day.startTime, day.endTime) || 0),
+      0,
+    );
+  }
+
+  return calculateDurationHours(studio.startTime, studio.endTime) || Number(studio.quantity || 0);
+};
+
 const getCrewCount = (data: BookingDataV3) =>
   data.selectedCrewIds?.length || Object.values(data.roleCounts || {}).reduce((sum, count) => sum + Number(count || 0), 0);
 
@@ -46,13 +77,8 @@ const buildStudioItem = (
   includeDateTimeUpdate = true,
   includeTimeZone = true,
 ): StudioItemPayload => {
-  const resolvedQuantity =
-    bookingType === "multi_day" && bookingDays?.length
-      ? bookingDays.reduce((sum, day) => sum + Number(day.durationHours || 0), 0)
-      : Number(studio.quantity || 0);
-  const resolvedTotal = Number.isFinite(resolvedQuantity)
-    ? resolvedQuantity * Number(studio.unitPrice || 0)
-    : Number(studio.totalPrice || 0);
+  const resolvedQuantity = getStudioDurationHours(studio, bookingType, bookingDays);
+  const resolvedTotal = Number((resolvedQuantity * Number(studio.unitPrice || 0)).toFixed(2));
   const timeZone = getBrowserTimeZone();
 
   return {
@@ -91,9 +117,13 @@ const buildStudioItem = (
 export const buildStudioLeadPayload = (data: BookingDataV3) => {
   const selectedStudios = data.selectedStudios || [];
   const crewCount = getCrewCount(data);
+  const studioTotal = selectedStudios.reduce(
+    (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
+    0,
+  );
 
   return {
-    studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
+    studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
       buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, true),
     ),
@@ -103,9 +133,13 @@ export const buildStudioLeadPayload = (data: BookingDataV3) => {
 export const buildStudioQuotePayload = (data: BookingDataV3) => {
   const selectedStudios = data.selectedStudios || [];
   const crewCount = getCrewCount(data);
+  const studioTotal = selectedStudios.reduce(
+    (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
+    0,
+  );
 
   return {
-    studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
+    studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
       buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, false, false, true, true, true),
     ),
@@ -116,9 +150,13 @@ export const buildStudioFinalizePayload = (data: BookingDataV3) => {
   const selectedStudios = data.selectedStudios || [];
   const crewCount = getCrewCount(data);
   const primaryStudio = selectedStudios[0];
+  const studioTotal = selectedStudios.reduce(
+    (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
+    0,
+  );
 
   return {
-    studio_total: selectedStudios.reduce((sum, studio) => sum + Number(studio.totalPrice || 0), 0),
+    studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
       buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, true),
     ),
