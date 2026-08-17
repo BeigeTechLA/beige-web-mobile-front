@@ -1,20 +1,37 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useNewsletter } from "@/lib/hooks/useNewsletter";
 
 export const NewsletterSubscribe = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const { subscribe, loading, error, successMessage } = useNewsletter();
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const bgImage = "/images/misc/NewsletterBg.png";
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Watch for changes in successMessage and set a 15-second timer
+  useEffect(() => {
+    if (successMessage) {
+      setShowSuccess(true);
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 15000);
+
+      // Cleanup timeout on unmount or when successMessage changes
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    // Handle newsletter subscription tracking or API invocation here
-    console.log("Subscribed:", email);
+    const isSuccess = await subscribe(email);
+    if (isSuccess) {
+      setEmail("");
+    }
   };
 
   const socialLinks = [
@@ -48,7 +65,7 @@ export const NewsletterSubscribe = () => {
           <div className="hidden lg:block" />
 
           {/* Right Action Stack */}
-          <div className="flex flex-col justify-center max-w-lg lg:ml-auto w-full">
+          <div className="flex flex-col justify-center max-w-xl lg:ml-auto w-full">
             <h2 className="text-sm lg:text-6xl font-medium tracking-tight leading-[1.15] text-white mb-9">
               Subscribe to our<br />Newsletter
             </h2>
@@ -58,13 +75,14 @@ export const NewsletterSubscribe = () => {
                 <input
                   type="email"
                   placeholder="Your email address"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-transparent text-sm lg:text-3xl text-white placeholder-[#BFBFBF] outline-none w-full pr-20 py-1 font-light tracking-wide"
-                  required
                 />
                 <button
                   type="submit"
+                  disabled={loading}
                   className="absolute right-0 text-sm lg:text-3xl font-medium text-[#E8D1AB] hover:text-[#dcb98a] transition-colors px-1"
                 >
                   Submit
@@ -89,6 +107,12 @@ export const NewsletterSubscribe = () => {
                 </a>
               ))}
             </div>
+
+            {showSuccess && (
+              <p className="text-[#E8D1AB] text-sm lg:text-lg font-medium italic mt-4">
+                Subscription successful! Thank you for subscribing.
+              </p>
+            )}
           </div>
 
         </div>
