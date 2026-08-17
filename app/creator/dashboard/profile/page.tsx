@@ -157,6 +157,48 @@ const parseMaybeJson = (value: unknown): unknown => {
   }
 };
 
+const parseMaybeJsonDeep = (value: unknown): unknown => {
+  let parsed = value;
+
+  for (let i = 0; i < 2 && typeof parsed === "string"; i += 1) {
+    const next = parseMaybeJson(parsed);
+    if (next === parsed) break;
+    parsed = next;
+  }
+
+  return parsed;
+};
+
+type SocialMediaLinkInput = {
+  id?: string | number;
+  platform?: unknown;
+  url?: unknown;
+};
+
+const normalizeSocialMediaLinks = (value: unknown) => {
+  const parsed = parseMaybeJsonDeep(value);
+  const rawLinks: SocialMediaLinkInput[] = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object"
+      ? Object.entries(parsed as Record<string, unknown>).map(([platform, url]) => ({ platform, url }))
+      : [];
+
+  return rawLinks
+    .map((item, index) => {
+      const platform = String(item?.platform || "").trim().toLowerCase();
+      const url = typeof item?.url === "string" ? item.url.trim() : "";
+      const platformInfo = SOCIAL_ICONS.find((icon) => icon.id === platform);
+
+      return {
+        id: item?.id ?? index,
+        platform,
+        url,
+        name: platformInfo?.label || platform,
+      };
+    })
+    .filter((link) => link.platform && link.url);
+};
+
 const normalizeFeaturedWorkTags = (value: unknown): string[] => {
   const parsed = parseMaybeJson(value);
   const values = Array.isArray(parsed)
@@ -407,29 +449,6 @@ export default function ProfilePage() {
     }
   }, [pathname, router, searchParams]);
 
-  useEffect(() => {
-    if (profile.social_media_links) {
-      try {
-        // API returns a stringified JSON object: "{\"linkedin\":\"...\"}"
-        const linksObj = typeof profile.social_media_links === 'string'
-          ? JSON.parse(profile.social_media_links)
-          : profile.social_media_links;
-
-        const formattedLinks = Object.entries(linksObj || {}).map(([platform, url], index) => {
-          const platformInfo = SOCIAL_ICONS.find(i => i.id === platform);
-          return {
-            id: index,
-            platform: platform,
-            url: url as string,
-            name: platformInfo?.label || platform
-          };
-        });
-        setSocialLinks(formattedLinks);
-      } catch (e) {
-        console.error("Error parsing social links", e);
-      }
-    }
-  }, [profile.social_media_links]);
   const profilePhotoFile = profile.crew_member_files?.find((f: any) => f.file_type === "profile_photo");
   const profileImageUrl = profilePhotoFile
     ? `${S3_BASE_URL}${profilePhotoFile.file_path}`
@@ -537,48 +556,19 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (profile.social_media_links) {
-      try {
-        let linksObj = profile.social_media_links;
-
-        if (typeof linksObj === 'string') {
-          linksObj = JSON.parse(linksObj);
-          if (typeof linksObj === 'string') {
-            linksObj = JSON.parse(linksObj);
-          }
-        }
-
-        if (linksObj && typeof linksObj === 'object') {
-          const formattedLinks = Object.entries(linksObj)
-            .filter(([_, url]) => url && String(url).trim() !== "")
-            .map(([platform, url], index) => {
-              const platformInfo = SOCIAL_ICONS.find(i => i.id === platform.toLowerCase());
-              return {
-                id: index,
-                platform: platform,
-                url: url as string,
-                name: platformInfo?.label || platform
-              };
-            });
-          setSocialLinks(formattedLinks);
-        } else {
-          setSocialLinks([]);
-        }
-      } catch (e) {
-        console.error("Error parsing social links:", e);
-        setSocialLinks([]);
-      }
-    } else {
-      setSocialLinks([]);
-    }
+    setSocialLinks(normalizeSocialMediaLinks(profile.social_media_links));
   }, [profile.social_media_links]);
 
-  const formatExternalUrl = (url: string) => {
-    if (!url) return "#";
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
+  const formatExternalUrl = (url: unknown) => {
+    if (typeof url !== "string") return "#";
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return "#";
+
+    if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+      return trimmedUrl;
     }
-    return `https://${url}`;
+    return `https://${trimmedUrl}`;
   };
 
 

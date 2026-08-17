@@ -38,6 +38,9 @@ type ClientCreditHistoryEntry = {
   amount?: number;
   direction?: "debit" | "credit";
   entry_type?: string;
+  credit_type?: string | null;
+  title?: string | null;
+  transaction_type?: string | null;
   status?: string;
   source?: string;
   notes?: string | null;
@@ -119,12 +122,16 @@ export default function AffiliateFinancesPage() {
     });
   };
 
-  const transactionLabel = (entryType?: string) => {
+  const transactionLabel = (entry: ClientCreditHistoryEntry) => {
+    if (entry.credit_type === "signup_bonus") return "Signup Credit";
+    if (entry.title) return entry.title;
+
     const labelMap: Record<string, string> = {
       credit_created: "Credit Added",
       credit_used: "Credit Used",
       credit_reversed: "Credit Reversed",
     };
+    const entryType = entry.entry_type;
     return labelMap[entryType || ""] || (entryType ? entryType.replace(/_/g, " ") : "Unknown");
   };
 
@@ -406,7 +413,7 @@ export default function AffiliateFinancesPage() {
                           {/* Title and Short Description Text Strings */}
                           <div className="min-w-0 flex-1">
                             <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#323232]"}`}>
-                              {transactionLabel(entry.entry_type)}
+                              {transactionLabel(entry)}
                             </p>
                             {/* <p className={`text-xs truncate ${isDark ? "text-white/40" : "text-black/40"}`}>
                               {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
@@ -532,7 +539,7 @@ export default function AffiliateFinancesPage() {
                           {formatDate(entry.created_at)}
                         </td>
                         <td className={`px-6 py-5 text-[15px] capitalize ${isDark ? "text-white/90" : "text-[#171717]"}`}>
-                          {transactionLabel(entry.entry_type)}
+                          {transactionLabel(entry)}
                         </td>
                         <td className={`px-6 py-5 text-[15px] ${isDark ? "text-[#D1D1D1]" : "text-[#3B3B3B]"}`}>
                           {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
