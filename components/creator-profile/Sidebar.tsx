@@ -74,7 +74,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(false);
   const [expanded, setExpanded] = useState<string[]>(["Finances"]);
   const [profileImageFailed, setProfileImageFailed] = useState(false);
-  const isUnlocked = isVerified && isRegistrationComplete;
+  const isUnlocked = isVerified;
 
   // Auto-expand dynamic parent routes on load/change
   useEffect(() => {
