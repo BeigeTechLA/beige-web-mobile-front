@@ -11,6 +11,7 @@ import { TabSwitcher, TabData } from "./TabSwitcher";
 import SlideTextCarousel, { CarouselSlideItem } from "./SlideTextCarousel";
 import { Testimonials } from "../about/Testimonials";
 import { ThreePartAnimate, ThreePartAnimateItem } from "./ThreePartAnimate";
+import CardCarousel, {CarouselCardItem} from "./CardCarousel";
 
 interface BlogRendererProps {
   rawContent: string;
@@ -118,97 +119,85 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
       if (!(domNode instanceof Element)) return;
 
       // -------------------------------------------------------------
-      // 1. CARDS HANDLER
+      // 1. CARDS HANDLER (id="cards")
       // -------------------------------------------------------------
       const isCardContainer =
-        domNode.attribs.id === "cards" ||
-        domNode.attribs.class?.includes("cards");
+        domNode.attribs?.id === "cards" ||
+        domNode.attribs?.class?.includes("cards");
 
       if (domNode.name === "div" && isCardContainer) {
         const cardItems: CardItemData[] = [];
-
-        // Keep ALL child nodes (including raw text nodes)
         const rawChildren = (domNode.children as unknown as DOMNode[]) || [];
 
-        // Check if this container itself holds multiple card items (<div class="card-item">)
+        // Check if container holds explicit sub-div cards (<div class="card-item">)
         const childDivs = rawChildren.filter(
           (child) => child instanceof Element && child.name === "div"
         ) as Element[];
 
         if (childDivs.length > 0) {
-          // Structure: <div id="card"> <div class="card-item">...</div> <div class="card-item">...</div> </div>
+          // Branch A: Nested structure (<div id="cards"> <div>...</div> <div>...</div> </div>)
           childDivs.forEach((cardDiv) => {
             const innerChildren = (cardDiv.children as unknown as DOMNode[]) || [];
             const titleNode = innerChildren.find(
               (child) => child instanceof Element && ["h2", "h3", "h4", "h5"].includes(child.name)
             ) as Element;
 
-            let descriptionParts: React.ReactNode[] = [];
-
-            innerChildren.forEach((child) => {
-              if (child instanceof Element && (child.name === "p" || child.name === "span")) {
-                descriptionParts.push(domToReact(child.children as unknown as DOMNode[], options));
-              } else if (child.type === "text" || "data" in child) {
-                const textContent = (child as unknown as { data: string }).data?.trim();
-                if (textContent && child !== titleNode) {
-                  descriptionParts.push(textContent);
-                }
-              }
-            });
+            const descriptionNodes = innerChildren.filter(
+              (child) => child !== titleNode
+            );
 
             if (titleNode) {
               cardItems.push({
                 title: domToReact(titleNode.children as unknown as DOMNode[], options),
-                description: descriptionParts.length > 0 ? descriptionParts : null,
+                description:
+                  descriptionNodes.length > 0
+                    ? domToReact(descriptionNodes as unknown as DOMNode[], options)
+                    : null,
               });
             }
           });
         } else {
-          // Structure: Flat layout inside single <div id="card"> or sequential <h2> + text
+          // Branch B: Flat structure with sequential Headings (e.g. <h4> -> <ul> / <p>)
           for (let i = 0; i < rawChildren.length; i++) {
             const current = rawChildren[i];
 
             if (current instanceof Element && ["h2", "h3", "h4", "h5"].includes(current.name)) {
               const title = domToReact(current.children as unknown as DOMNode[], options);
-              let descriptionParts: React.ReactNode[] = [];
+              const descriptionNodes: DOMNode[] = [];
 
-              // Scan forward for description (could be raw text nodes, <p>, or <div>)
+              // Scan forward until we hit the next heading tag or end of container
               let nextIndex = i + 1;
               while (nextIndex < rawChildren.length) {
                 const nextNode = rawChildren[nextIndex];
 
-                // If we hit another heading, stop collecting description for this card
+                // Stop if another heading tag is encountered
                 if (nextNode instanceof Element && ["h2", "h3", "h4", "h5"].includes(nextNode.name)) {
                   break;
                 }
 
-                // Case A: Next node is a <p> or <div> element
-                if (nextNode instanceof Element && (nextNode.name === "p" || nextNode.name === "div")) {
-                  descriptionParts.push(domToReact(nextNode.children as unknown as DOMNode[], options));
-                  i = nextIndex;
-                  break;
-                }
-
-                // Case B: Next node is a raw Text node (like your example)
-                if (nextNode.type === "text" || "data" in nextNode) {
+                // Collect non-empty nodes (lists <ul>/<ol>, paragraphs <p>, raw text nodes, etc.)
+                if (nextNode instanceof Element) {
+                  descriptionNodes.push(nextNode);
+                } else if (nextNode.type === "text" || "data" in nextNode) {
                   const textContent = (nextNode as unknown as { data: string }).data?.trim();
                   if (textContent) {
-                    descriptionParts.push(textContent);
+                    descriptionNodes.push(nextNode);
                   }
                 }
 
                 nextIndex++;
               }
 
-              // Sync primary loop index if text nodes were consumed
-              if (nextIndex > i + 1) {
-                i = nextIndex - 1;
-              }
+              // Advance loop pointer past processed content block
+              i = nextIndex - 1;
 
               if (title) {
                 cardItems.push({
                   title,
-                  description: descriptionParts.length > 0 ? descriptionParts : null,
+                  description:
+                    descriptionNodes.length > 0
+                      ? domToReact(descriptionNodes as unknown as DOMNode[], options)
+                      : null,
                 });
               }
             }
@@ -219,10 +208,7 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
       }
 
       // -------------------------------------------------------------
-      // 2. FAQ HANDLER
-      // -------------------------------------------------------------
-      // -------------------------------------------------------------
-      // 5. FAQ CONTAINER HANDLER (id="faq")
+      // FAQ CONTAINER HANDLER (id="faq")
       // -------------------------------------------------------------
       const isFaqContainer =
         domNode.attribs?.id === "faq" ||
@@ -849,13 +835,13 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         const tabsMap: Record<string, RawTab> = {};
         const tabOrder: string[] = [];
 
-        // 1. First pass: Register all buttons as tab items
+        // 1. First pass: Collect all buttons
         rawChildren.forEach((child) => {
           if (child instanceof Element && child.name === "button") {
-            const tabIdx = child.attribs?.["data-tab-index"] || "";
+            const tabIdx = child.attribs?.["data-tab-index"] || `${tabOrder.length + 1}`;
             const tabTitle = extractCleanText(child).trim();
 
-            if (tabIdx && !tabsMap[tabIdx]) {
+            if (!tabsMap[tabIdx]) {
               tabsMap[tabIdx] = {
                 index: tabIdx,
                 title: tabTitle,
@@ -866,29 +852,32 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
           }
         });
 
-        // 2. Second pass: Distribute child nodes based on data-content-index
-        let activeGroupIdx = tabOrder[0] || "1";
+        // 2. Second pass: Collect content nodes (divs, accordions, etc.)
+        const contentNodes: DOMNode[] = rawChildren.filter((child) => {
+          if (!(child instanceof Element)) return false;
+          // Filter out buttons & pure whitespace text nodes
+          return child.name !== "button";
+        });
 
-        rawChildren.forEach((child) => {
-          // Ignore the button elements themselves in content stream
-          if (child instanceof Element && child.name === "button") return;
+        // 3. Positional Mapping: Assign the N-th content block to the N-th Tab
+        contentNodes.forEach((contentNode, index) => {
+          let targetIdx = tabOrder[index];
 
-          // Check if explicit content index attribute is defined on node
-          if (child instanceof Element && child.attribs?.["data-content-index"]) {
-            activeGroupIdx = child.attribs["data-content-index"];
+          // Fallback: If node explicitly defines data-content-index, prioritize it
+          if (contentNode instanceof Element && contentNode.attribs?.["data-content-index"]) {
+            targetIdx = contentNode.attribs["data-content-index"];
           }
 
-          // Append node to active target tab
-          if (tabsMap[activeGroupIdx]) {
-            tabsMap[activeGroupIdx].nodes.push(child);
+          if (targetIdx && tabsMap[targetIdx]) {
+            tabsMap[targetIdx].nodes.push(contentNode);
           }
         });
 
-        // 3. Transform nodes into rendered React structures
+        // 4. Transform accumulated nodes into React structures
         const formattedTabs: TabData[] = tabOrder.map((idx) => {
           const tab = tabsMap[idx];
 
-          // If content contains image & text elements together, format with ImageTextBlock layout
+          // Check for inner ImageTextBlock criteria
           const hasImage = tab.nodes.some((n) => {
             if (!(n instanceof Element)) return false;
             return (
@@ -936,6 +925,8 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
               />
             );
           } else {
+            // General case: Let html-react-parser automatically handle child elements
+            // (like <div id="accordion">, <h5>, <p>, etc.)
             renderedContent = domToReact(tab.nodes as unknown as DOMNode[], options);
           }
 
@@ -947,6 +938,134 @@ export const CustomBlogRenderer: React.FC<BlogRendererProps> = ({ rawContent }) 
         });
 
         return <TabSwitcher tabs={formattedTabs} />;
+      }
+
+      // -------------------------------------------------------------
+      // CARD CAROUSEL HANDLER (id="card-carousel")
+      // -------------------------------------------------------------
+      const isCardCarousel =
+        domNode.attribs?.id === "card-carousel" ||
+        domNode.attribs?.class?.includes("card-carousel");
+
+      if (domNode.name === "div" && isCardCarousel) {
+        const carouselItems: CarouselCardItem[] = [];
+
+        const rawChildren = (domNode.children as unknown as DOMNode[]) || [];
+        const innerCardsDiv = rawChildren.find(
+          (c) => c instanceof Element && (c.attribs?.id === "cards" || c.name === "div")
+        ) as Element | undefined;
+
+        const contentNodes = (
+          innerCardsDiv
+            ? (innerCardsDiv.children as unknown as DOMNode[])
+            : rawChildren
+        ) || [];
+
+        const seenTitles = new Set<string>();
+
+        // Helper to recursively extract image src/alt from figure or img
+        const findImg = (node: DOMNode): Element | null => {
+          if (!(node instanceof Element)) return null;
+          if (node.name === "img") return node;
+          if (node.children) {
+            for (const child of node.children as DOMNode[]) {
+              const res = findImg(child);
+              if (res) return res;
+            }
+          }
+          return null;
+        };
+
+        for (let i = 0; i < contentNodes.length; i++) {
+          const current = contentNodes[i];
+
+          if (current instanceof Element && ["h2", "h3", "h4"].includes(current.name)) {
+            const rawTextTitle = extractCleanText(current).trim();
+
+            if (!seenTitles.has(rawTextTitle) && rawTextTitle.length > 0) {
+              seenTitles.add(rawTextTitle);
+
+              const titleReact = domToReact(current.children as unknown as DOMNode[], options);
+
+              let imageSrc: string | undefined;
+              let imageAlt: string | undefined;
+              let subtitleReact: React.ReactNode = null;
+              let descriptionReact: React.ReactNode = null;
+              let linkHref: string | undefined;
+
+              // 1. Scan BACKWARDS from <h3> to collect Image (<figure>/<img>) and Subtitle (between img and h3)
+              let backIdx = i - 1;
+              let subtitleNodes: DOMNode[] = [];
+
+              while (backIdx >= 0) {
+                const prevNode = contentNodes[backIdx];
+
+                // If we hit a previous heading or anchor tag, stop looking back
+                if (
+                  prevNode instanceof Element &&
+                  (["h2", "h3", "h4", "a"].includes(prevNode.name) ||
+                    prevNode.attribs?.id === "cards")
+                ) {
+                  break;
+                }
+
+                const imgNode = findImg(prevNode);
+                if (imgNode) {
+                  imageSrc = imgNode.attribs?.src;
+                  imageAlt = imgNode.attribs?.alt;
+                  break; // Stop after finding the card's primary image
+                } else {
+                  // Collect intermediate nodes (like subtitle text or <p> tags prior to the heading)
+                  if (prevNode instanceof Element) {
+                    subtitleNodes.unshift(prevNode);
+                  } else if (prevNode.type === "text" || "data" in prevNode) {
+                    const textContent = (prevNode as unknown as { data: string }).data?.trim();
+                    if (textContent) subtitleNodes.unshift(prevNode);
+                  }
+                }
+                backIdx--;
+              }
+
+              if (subtitleNodes.length > 0) {
+                subtitleReact = domToReact(subtitleNodes as unknown as DOMNode[], options);
+              }
+
+              // 2. Scan FORWARD from <h3> to collect Description (<p>) and CTA Link (<a>)
+              let nextIdx = i + 1;
+              while (nextIdx < contentNodes.length) {
+                const nextNode = contentNodes[nextIdx];
+
+                if (nextNode instanceof Element) {
+                  // Stop scanning forward if another card block starts
+                  if (["h2", "h3", "h4", "figure"].includes(nextNode.name)) break;
+
+                  if (nextNode.name === "p" && !descriptionReact) {
+                    descriptionReact = domToReact(
+                      nextNode.children as unknown as DOMNode[],
+                      options
+                    );
+                    i = nextIdx;
+                  } else if (nextNode.name === "a") {
+                    linkHref = nextNode.attribs?.href;
+                    i = nextIdx;
+                  }
+                }
+                nextIdx++;
+              }
+
+              carouselItems.push({
+                title: titleReact,
+                subtitle: subtitleReact,
+                description: descriptionReact,
+                imageSrc,
+                imageAlt,
+                linkHref,
+              });
+            }
+          }
+        }
+
+        return <CardCarousel items={carouselItems} />;
       }
 
       // Intercept <div id="testimonials"> and swap it out
