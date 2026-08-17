@@ -644,6 +644,17 @@ export default function AdminFinancesPage() {
           <div className="flex items-center gap-3">
             <Button
               type="button"
+              variant="beige"
+              className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
+              onClick={() => setIsAddCreditModalOpen(true)}
+              disabled={!canCreate}
+              title={canCreate ? "Add Credit Points" : "Create permission not allowed"}
+            >
+              <Plus size={18} />
+              Add Credit Points
+            </Button>
+            <Button
+              type="button"
               className={`h-12 w-12 rounded-lg border p-0 transition-colors ${
                 isDark
                   ? "border-white/15 bg-[#202020] text-white hover:bg-white/10"
@@ -654,17 +665,6 @@ export default function AdminFinancesPage() {
               aria-label="Signup credit settings"
             >
               <Settings size={19} />
-            </Button>
-            <Button
-              type="button"
-              variant="beige"
-              className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
-              onClick={() => setIsAddCreditModalOpen(true)}
-              disabled={!canCreate}
-              title={canCreate ? "Add Credit Points" : "Create permission not allowed"}
-            >
-              <Plus size={18} />
-              Add Credit Points
             </Button>
           </div>
         }
