@@ -94,6 +94,21 @@ const normalizeBookingStatus = (value?: string) => {
 const isClosedLostStatus = (value?: string) =>
   normalizeBookingStatus(value) === "Closed - Lost";
 
+const formatLastActivity = (value: string) => {
+  if (/^\d+\s+day(s)?\s+ago$/i.test(value.trim())) {
+    return value;
+  }
+
+  const parsedDate = new Date(value);
+
+  // Keep the original value if it isn't a valid date
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return format(parsedDate, "MMM dd, yyyy");
+};
+
 
 export default function LeadsTable({
   data,
@@ -731,7 +746,7 @@ export default function LeadsTable({
                             {/* Desktop Columns (Unchanged) */}
                             <td className={`hidden md:table-cell p-3 lg:p-5 text-sm lg:text-base border-b group-last:border-0 ${isDark ? "text-white/80 border-[#222]" : "text-[#333] border-[#F0F0F0]"}`}>
                               <div className="space-y-1 min-w-0">
-                                <p>{lead.lastActivity}</p>
+                                <p>{formatLastActivity(lead.lastActivity)}</p>
                                 {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
                                   <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                                     {lead.assignedSalesRepName || "Unassigned"}
@@ -782,7 +797,9 @@ export default function LeadsTable({
                                   </div>
                                   <div className="space-y-1 col-span-full">
                                     <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#999]"}`}>Last Activity</p>
-                                    <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>{lead.lastActivity}</p>
+                                    <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
+                                      {formatLastActivity(lead.lastActivity)}
+                                    </p>
                                     {(lead.assignedSalesRepName || lead.assignedSalesRepEmail) && (
                                       <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-[#777]"}`}>
                                         {lead.assignedSalesRepName || "Unassigned"}
