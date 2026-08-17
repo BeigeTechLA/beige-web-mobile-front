@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpToLine, BadgeDollarSign, Coins, Plus, Search, Users } from "lucide-react";
+import { CalendarRange, DollarSign, Plus, Save, Search, Settings, X } from "lucide-react";
 import { toast } from "sonner";
+import { format, isValid, parseISO } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import Topbar from "@/components/admin/Topbar";
@@ -20,9 +21,10 @@ import CreditHistoryTable, {
   type CreditHistoryRow,
 } from "@/components/affiliate/CreditHistoryTable";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import FinanceMetricCards from "@/components/affiliate/FinanceMetricCards";
 import { adminApi, salesApi } from "@/lib/api";
-const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import DatePicker from "@/components/ui/Datepicker";
+import { Input } from "@/components/ui/input";
 const historyMonthOptions = ["All Time", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Used", "Available"];
 const creditTypeOptions = ["Promo", "Refund", "Compensation"];
@@ -31,6 +33,14 @@ type CreditPointsDashboardResponse = {
   success?: boolean;
   data?: unknown;
   error?: string;
+};
+
+type SignupCreditPromotionForm = {
+  isEnabled: boolean;
+  amount: string;
+  startDate: string;
+  endDate: string;
+  isActiveNow: boolean;
 };
 
 const avatarPalette = [
@@ -184,6 +194,12 @@ const toIsoDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseIsoDateOnly = (value: string) => {
+  if (!value) return null;
+  const parsed = parseISO(value);
+  return isValid(parsed) ? parsed : null;
+};
+
 const buildHistoryDateParams = (month: string, selectedDate: Date | null) => {
   if (selectedDate) {
     const iso = toIsoDate(selectedDate);
@@ -269,19 +285,17 @@ export default function AdminFinancesPage() {
   const { canCreate } = usePermissions("finances");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeMetricId, setActiveMetricId] = useState("available");
-  const [metricRange, setMetricRange] = useState("Month");
   const [historyMonth, setHistoryMonth] = useState("All Time");
   const [historyStatus, setHistoryStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 400);
-  const [dashboardMetrics, setDashboardMetrics] = useState<Record<string, unknown>>({});
   const [creditHistoryRows, setCreditHistoryRows] = useState<CreditHistoryRow[]>([]);
   const [historyTotalRecords, setHistoryTotalRecords] = useState(0);
   const [historyTotalPages, setHistoryTotalPages] = useState(0);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const historyPageSize = 10;
   const [isAddCreditModalOpen, setIsAddCreditModalOpen] = useState(false);
+  const [isSignupSettingsOpen, setIsSignupSettingsOpen] = useState(false);
   const [isCreditSuccessModalOpen, setIsCreditSuccessModalOpen] = useState(false);
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
   const [clientSuggestions, setClientSuggestions] = useState<ClientDropdownItem[]>([]);
@@ -305,8 +319,47 @@ export default function AdminFinancesPage() {
     usageRestrictions: "",
     notifyUser: false,
   });
+  const [signupPromotionForm, setSignupPromotionForm] =
+    useState<SignupCreditPromotionForm>({
+      isEnabled: false,
+      amount: "250",
+      startDate: "",
+      endDate: "",
+      isActiveNow: false,
+    });
+  const [isLoadingSignupPromotion, setIsLoadingSignupPromotion] = useState(true);
+  const [isSavingSignupPromotion, setIsSavingSignupPromotion] = useState(false);
 
   useEffect(() => setMounted(true), []);
+
+  const fetchSignupCreditPromotion = useCallback(async () => {
+    try {
+      setIsLoadingSignupPromotion(true);
+      const response = await adminApi.getSignupCreditPromotion();
+      if (response?.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      const data = asRecord(response?.data) || {};
+      setSignupPromotionForm({
+        isEnabled: Boolean(data.is_enabled),
+        amount: String(pickFirstNumber(data, ["amount"]) || 250),
+        startDate: pickFirstString(data, ["start_date"]).slice(0, 10),
+        endDate: pickFirstString(data, ["end_date"]).slice(0, 10),
+        isActiveNow: Boolean(data.is_active_now),
+      });
+    } catch (error) {
+      console.error("Failed to load signup credit promotion:", error);
+      toast.error("Failed to load signup credit promotion");
+    } finally {
+      setIsLoadingSignupPromotion(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSignupCreditPromotion();
+  }, [fetchSignupCreditPromotion]);
 
   const fetchCreditPointsDashboard = useCallback(async () => {
     try {
@@ -322,22 +375,19 @@ export default function AdminFinancesPage() {
 
       if (dashboardResponse?.error) {
         toast.error(dashboardResponse.error);
-        setDashboardMetrics({});
         setCreditHistoryRows([]);
         setHistoryTotalRecords(0);
         setHistoryTotalPages(0);
         return;
       }
 
-      const { metrics, rows, pagination } = extractDashboardPayload(dashboardResponse);
-      setDashboardMetrics(metrics);
+      const { rows, pagination } = extractDashboardPayload(dashboardResponse);
       setCreditHistoryRows(rows.map(mapDashboardHistoryRow));
       setHistoryTotalRecords(pagination?.total ? Number(pagination.total) : rows.length);
       setHistoryTotalPages(pagination?.total_pages ? Number(pagination.total_pages) : 1);
     } catch (error) {
       console.error("Failed to load credit points dashboard:", error);
       toast.error("Failed to load credit points dashboard");
-      setDashboardMetrics({});
       setCreditHistoryRows([]);
       setHistoryTotalRecords(0);
       setHistoryTotalPages(0);
@@ -380,57 +430,6 @@ export default function AdminFinancesPage() {
   }, [creditForm.clientSearch, isAddCreditModalOpen, isClientSuggestionOpen]);
 
   const isDark = !mounted || theme === "dark";
-
-  const metrics = useMemo(
-    () => [
-      {
-        id: "available",
-        label: "Total Credits Available",
-        value: new Intl.NumberFormat("en-US").format(
-          pickFirstNumber(dashboardMetrics, [
-            "total_credits_available",
-            "total_available_credits",
-            "total_credit_points_available",
-            "available_points",
-            "available_credits",
-          ])
-        ),
-        helperText: "Across all users",
-        icon: Coins,
-      },
-      {
-        id: "used",
-        label: "Total Credits Used",
-        value: new Intl.NumberFormat("en-US").format(
-          pickFirstNumber(dashboardMetrics, [
-            "total_credits_used",
-            "total_used_credits",
-            "total_credit_points_used",
-            "used_points",
-            "used_credits",
-          ])
-        ),
-        helperText: "All-time usage",
-        icon: BadgeDollarSign,
-      },
-      {
-        id: "users",
-        label: "Active Users with Credits",
-        value: new Intl.NumberFormat("en-US").format(
-          pickFirstNumber(dashboardMetrics, [
-            "active_users_holding_credits",
-            "active_users_with_credits",
-            "users_with_credits",
-            "active_credit_users",
-            "active_users",
-          ])
-        ),
-        helperText: "Currently holding credits",
-        icon: Users,
-      },
-    ],
-    [dashboardMetrics]
-  );
 
   const handleCreditHistoryRowClick = useCallback((row: CreditHistoryRow) => {
     if (row.userId && row.userId > 0) {
@@ -587,13 +586,76 @@ export default function AdminFinancesPage() {
     }
   };
 
+  const handleSignupPromotionSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const amount = Number(signupPromotionForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid signup credit amount");
+      return;
+    }
+
+    if (
+      signupPromotionForm.startDate &&
+      signupPromotionForm.endDate &&
+      signupPromotionForm.startDate > signupPromotionForm.endDate
+    ) {
+      toast.error("Start date must be before end date");
+      return;
+    }
+
+    try {
+      setIsSavingSignupPromotion(true);
+      const response = await adminApi.updateSignupCreditPromotion({
+        is_enabled: signupPromotionForm.isEnabled,
+        amount,
+        start_date: signupPromotionForm.startDate || null,
+        end_date: signupPromotionForm.endDate || null,
+      });
+
+      if (response?.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      const data = asRecord(response?.data) || {};
+      setSignupPromotionForm({
+        isEnabled: Boolean(data.is_enabled),
+        amount: String(pickFirstNumber(data, ["amount"]) || amount),
+        startDate: pickFirstString(data, ["start_date"]).slice(0, 10),
+        endDate: pickFirstString(data, ["end_date"]).slice(0, 10),
+        isActiveNow: Boolean(data.is_active_now),
+      });
+      toast.success("Signup credit promotion updated");
+      setIsSignupSettingsOpen(false);
+    } catch (error) {
+      console.error("Failed to update signup credit promotion:", error);
+      toast.error("Failed to update signup credit promotion");
+    } finally {
+      setIsSavingSignupPromotion(false);
+    }
+  };
+
   return (
     <>
       <Topbar
         pathname={pathname}
         actions={
           <div className="flex items-center gap-3">
-             <Button
+            <Button
+              type="button"
+              className={`h-12 w-12 rounded-lg border p-0 transition-colors ${
+                isDark
+                  ? "border-white/15 bg-[#202020] text-white hover:bg-white/10"
+                  : "border-[#E5E5E5] bg-white text-black hover:bg-black/5"
+              }`}
+              onClick={() => setIsSignupSettingsOpen(true)}
+              title="Signup credit settings"
+              aria-label="Signup credit settings"
+            >
+              <Settings size={19} />
+            </Button>
+            <Button
               type="button"
               variant="beige"
               className="h-12 rounded-lg px-4 text-sm font-semibold text-black lg:px-6"
@@ -604,13 +666,6 @@ export default function AdminFinancesPage() {
               <Plus size={18} />
               Add Credit Points
             </Button>
-            {/* <Button
-              type="button"
-              className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors "
-            >
-              <ArrowUpToLine size={18} />
-              Export
-            </Button> */}
           </div>
         }
       />
@@ -644,16 +699,6 @@ export default function AdminFinancesPage() {
             }}
           />
         </div>
-
-        {/* <FinanceMetricCards
-          metrics={metrics}
-          activeId={activeMetricId}
-          onSelect={setActiveMetricId}
-          dropdownLabel="Month"
-          dropdownValue={metricRange}
-          dropdownOptions={metricDropdownOptions}
-          onDropdownChange={setMetricRange}
-        /> */}
 
         <div className="relative flex w-full items-center lg:w-[420px] xl:w-[500px]">
           <Search
@@ -718,6 +763,218 @@ export default function AdminFinancesPage() {
         onClientSuggestionOpenChange={setIsClientSuggestionOpen}
         onSubmit={handleCreditFormSubmit}
       />
+      <Dialog open={isSignupSettingsOpen} onOpenChange={setIsSignupSettingsOpen}>
+        <DialogContent
+          className={`w-[calc(100vw-24px)] max-w-[560px] overflow-visible rounded-[2px] border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden ${
+            isDark ? "border-white/25 bg-black text-white" : "border-[#D7D7D7] bg-white text-black"
+          }`}
+        >
+          <DialogTitle className="sr-only">Signup Credit Settings</DialogTitle>
+
+          <div
+            className={`flex items-center justify-between border-b px-5 py-4 ${
+              isDark ? "border-white/20" : "border-[#E5E5E5]"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                  isDark ? "bg-[#2B2525] text-[#E8D1AB]" : "bg-[#F5E8D0] text-black"
+                }`}
+              >
+                <Settings size={19} />
+              </span>
+              <div>
+                <h2 className="text-[20px] font-semibold leading-none">
+                  Signup Credit Settings
+                </h2>
+                <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                  Configure automatic credits for new client accounts.
+                </p>
+              </div>
+            </div>
+            <DialogClose asChild>
+              <button
+                type="button"
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+                  isDark
+                    ? "bg-[#2B2525] text-white/90 hover:bg-[#3A3333]"
+                    : "bg-black/5 text-black hover:bg-black/10"
+                }`}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
+          </div>
+
+          <form onSubmit={handleSignupPromotionSubmit} className="space-y-5 px-5 py-5">
+            <div
+              className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 ${
+                isDark ? "border-white/15 bg-[#101010]" : "border-[#E5E5E5] bg-[#FAFAFA]"
+              }`}
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold">New Client Signup Credits</p>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      signupPromotionForm.isEnabled && signupPromotionForm.isActiveNow
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : signupPromotionForm.isEnabled
+                          ? "bg-amber-500/15 text-amber-300"
+                          : isDark
+                            ? "bg-white/10 text-white/60"
+                            : "bg-black/5 text-black/60"
+                    }`}
+                  >
+                    {signupPromotionForm.isEnabled
+                      ? signupPromotionForm.isActiveNow
+                        ? "Active now"
+                        : "Scheduled"
+                      : "Disabled"}
+                  </span>
+                </div>
+                <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                  New client signups receive credits only while this is enabled and in date range.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={signupPromotionForm.isEnabled}
+                disabled={isLoadingSignupPromotion || !canCreate}
+                onClick={() =>
+                  setSignupPromotionForm((current) => ({
+                    ...current,
+                    isEnabled: !current.isEnabled,
+                  }))
+                }
+                className={`relative h-7 w-12 shrink-0 rounded-full border transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                  signupPromotionForm.isEnabled
+                    ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                    : isDark
+                      ? "border-white/15 bg-[#242424]"
+                      : "border-black/15 bg-[#E9E9E9]"
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full shadow-sm transition-all ${
+                    signupPromotionForm.isEnabled
+                      ? "left-[22px] bg-black"
+                      : isDark
+                        ? "left-1 bg-white/70"
+                        : "left-1 bg-white"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <fieldset
+              className={`rounded-lg border px-4 pb-3 pt-1.5 ${
+                isDark ? "border-white/25" : "border-black/20"
+              }`}
+            >
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
+                Credit Amount*
+              </legend>
+              <div className="flex items-center gap-2">
+                <DollarSign size={18} className={isDark ? "text-[#E8D1AB]" : "text-black/60"} />
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={signupPromotionForm.amount}
+                  onChange={(event) =>
+                    setSignupPromotionForm((current) => ({
+                      ...current,
+                      amount: event.target.value,
+                    }))
+                  }
+                  disabled={isLoadingSignupPromotion || !canCreate}
+                  placeholder="250"
+                  className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${
+                    isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"
+                  }`}
+                />
+              </div>
+            </fieldset>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <div className={`flex items-center gap-2 text-xs font-semibold ${isDark ? "text-white/65" : "text-black/65"}`}>
+                  <CalendarRange size={15} />
+                  Start Date
+                </div>
+                <DatePicker
+                  label=""
+                  value={parseIsoDateOnly(signupPromotionForm.startDate)}
+                  onChange={(date) =>
+                    setSignupPromotionForm((current) => ({
+                      ...current,
+                      startDate: date && isValid(date) ? format(date, "yyyy-MM-dd") : "",
+                    }))
+                  }
+                  disabled={isLoadingSignupPromotion || !canCreate}
+                  placeholder="Select start date"
+                  isDark={isDark}
+                  disablePortal
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className={`flex items-center gap-2 text-xs font-semibold ${isDark ? "text-white/65" : "text-black/65"}`}>
+                  <CalendarRange size={15} />
+                  End Date
+                </div>
+                <DatePicker
+                  label=""
+                  value={parseIsoDateOnly(signupPromotionForm.endDate)}
+                  onChange={(date) =>
+                    setSignupPromotionForm((current) => ({
+                      ...current,
+                      endDate: date && isValid(date) ? format(date, "yyyy-MM-dd") : "",
+                    }))
+                  }
+                  minDate={parseIsoDateOnly(signupPromotionForm.startDate) || undefined}
+                  disabled={isLoadingSignupPromotion || !canCreate}
+                  placeholder="Select end date"
+                  isDark={isDark}
+                  disablePortal
+                />
+              </div>
+            </div>
+
+            <div
+              className={`flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:justify-end ${
+                isDark ? "border-white/10" : "border-[#E5E5E5]"
+              }`}
+            >
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  className={`h-11 rounded-lg px-5 text-sm font-semibold ${
+                    isDark
+                      ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
+                      : "border border-[#E5E5E5] bg-white text-black hover:bg-black/5"
+                  }`}
+                >
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                variant="beige"
+                disabled={isLoadingSignupPromotion || isSavingSignupPromotion || !canCreate}
+                className="h-11 rounded-lg px-5 text-sm font-semibold text-black"
+              >
+                <Save size={17} />
+                {isSavingSignupPromotion ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
       <CreditPointsSuccessModal
         open={isCreditSuccessModalOpen}
         details={submittedCreditForm}
