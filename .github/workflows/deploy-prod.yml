@@ -59,6 +59,8 @@ jobs:
           NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
           NEXT_PUBLIC_GTM_AUTH: ${{ secrets.NEXT_PUBLIC_GTM_AUTH }}
           NEXT_PUBLIC_GTM_PREVIEW: ${{ secrets.NEXT_PUBLIC_GTM_PREVIEW }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_CHAT_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_CHAT_SOCKET_URL }}
         run: npm run build
 
       - name: Create standalone deploy archive

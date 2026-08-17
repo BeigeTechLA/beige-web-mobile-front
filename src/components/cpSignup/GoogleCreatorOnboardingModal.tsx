@@ -76,6 +76,11 @@ type ApiError = {
   message?: string;
 };
 
+const isValidPhoneNumber = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+};
+
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as ApiError;
   return apiError?.data?.message || apiError?.message || fallback;
@@ -282,6 +287,7 @@ export function GoogleCreatorOnboardingModal({
 }: GoogleCreatorOnboardingModalProps) {
   const [step, setStep] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState(initialData?.phoneNumber || "");
+  const [phoneError, setPhoneError] = useState("");
   const [location, setLocation] = useState<LocationValue>(null);
   const [workingDistance, setWorkingDistance] = useState("");
   const [profileImage, setProfileImage] = useState<File | Blob | null>(null);
@@ -373,8 +379,21 @@ export function GoogleCreatorOnboardingModal({
     }
   };
 
-  const submitBasics = async () => {
-    if (!phoneNumber || !location || !workingDistance || (!profileImage && !hasExistingProfilePhoto)) {
+    const submitBasics = async () => {
+    if (!phoneNumber) {
+      setPhoneError("Phone number is required.");
+      toast.error("Please enter your phone number.");
+      return;
+    }
+
+    if (!isValidPhoneNumber(phoneNumber)) {
+      setPhoneError("Please enter a valid phone number.");
+      toast.error("Please enter a valid phone number.");
+      return;
+    }
+
+  if (!location || !workingDistance || (!profileImage && !hasExistingProfilePhoto)) {
+
       toast.error("Please complete the required onboarding details.");
       return;
     }
@@ -562,13 +581,44 @@ export function GoogleCreatorOnboardingModal({
 
               <div className="relative">
                 <Label className="mb-2 block text-sm text-white/60">Phone number *</Label>
-                <Input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(sanitizePhoneInput(event.target.value))}
-                  placeholder="+1 (555) 000-0000"
-                  className="h-12 border-white/20 bg-[#151515] text-white"
-                />
+<Input
+  type="tel"
+  value={phoneNumber}
+  onChange={(event) => {
+    const value = sanitizePhoneInput(event.target.value);
+    setPhoneNumber(value);
+
+    if (!value) {
+      setPhoneError("Phone number is required.");
+    } else if (!isValidPhoneNumber(value)) {
+      setPhoneError("Please enter a valid phone number.");
+    } else {
+      setPhoneError("");
+    }
+  }}
+  onBlur={() => {
+    if (!phoneNumber) {
+      setPhoneError("Phone number is required.");
+    } else if (!isValidPhoneNumber(phoneNumber)) {
+      setPhoneError("Please enter a valid phone number.");
+    } else {
+      setPhoneError("");
+    }
+  }}
+  placeholder="+1 (555) 000-0000"
+  className={`h-12 bg-[#151515] text-white ${
+    phoneError
+      ? "border-red-500 focus-visible:ring-red-500"
+      : "border-white/20"
+  }`}
+/>
+
+{phoneError && (
+  <p className="mt-1.5 text-sm text-red-400">
+    {phoneError}
+  </p>
+)}
+
               </div>
 
               <LocationPickerSignup

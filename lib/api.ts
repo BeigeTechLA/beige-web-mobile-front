@@ -1957,6 +1957,37 @@ export const adminApi = {
       };
     }
   },
+  getSignupCreditPromotion: async () => {
+    try {
+      const response = await api.get('finance/admin/credit-points/signup-promotion');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signup Credit Promotion Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signup credit promotion',
+      };
+    }
+  },
+  updateSignupCreditPromotion: async (payload: {
+    is_enabled: boolean;
+    amount: number;
+    start_date?: string | null;
+    end_date?: string | null;
+  }) => {
+    try {
+      const response = await api.patch('finance/admin/credit-points/signup-promotion', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Signup Credit Promotion Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update signup credit promotion',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });
