@@ -7,6 +7,7 @@ import { ContentTypeCheckbox } from "./components/ContentTypeCheckbox";
 import { ShootTypeCard } from "./components/ShootTypeCard";
 import { Button } from "@/src/components/landing/ui/button";
 import { QuantityControl } from "@/components/book-a-shoot/QuantityControl";
+import {editorSkills, photographerSkills, videographerSkills,} from "@/app/data/staticData";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Video, Camera, Scissors, MonitorPlay, Check, Radio, Info, SquaresUnite, Calendar, ChevronDown, ChevronLeft, ChevronRight, X, ChevronUp, MapPinHouse, MapPin, Search } from "lucide-react";
@@ -154,7 +155,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const { user, isAuthenticated } = useAuth();
   const autoFilledEmailRef = useRef<string | null>(null);
 
-  const [errors, setErrors] = useState<string[]>([])
+  const [errors, setErrors] = useState<string[]>([]);
 
   const [editTypeOptions, setEditTypeOptions] = useState<
     { key: string; value: string }[]
@@ -206,6 +207,12 @@ export const V3Step1ChooseService: React.FC<Props> = ({
   const [studioData, setStudioData] = useState<ReturnType<typeof mapCatalogStudio>[]>([]);
   const [studioLoading, setStudioLoading] = useState(false);
 
+  const [hasMoreStudios, setHasMoreStudios] = useState(true);
+
+  const [crewCountInput, setCrewCountInput] = useState(
+    data.crewCount ? String(data.crewCount) : "",
+  );
+
   const [trackEarlyInterest] = useTrackEarlyInterestMutation();
   const selectedStudios = React.useMemo(
     () =>
@@ -219,6 +226,20 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     () => selectedStudios.map((studio) => studio.studioId),
     [selectedStudios],
   );
+
+  useEffect(() => {
+    if (!data.shootType) return;
+
+    const availableOptions = getShootTypeOptionsByContentType();
+
+    const isStillValid = availableOptions.some(
+      (option) => option.key === data.shootType,
+    );
+
+    if (!isStillValid) {
+      updateData({ shootType: "" });
+    }
+  }, [data.contentType]);
 
   useEffect(() => {
     let isActive = true;
@@ -243,7 +264,10 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         });
 
         if (!isActive) return;
-        setStudioData((response.data || []).map(mapCatalogStudio));
+
+        const studios = response.data || [];
+        setStudioData(studios.map(mapCatalogStudio));
+        setHasMoreStudios(studios.length >= visibleCount);
       } catch (error) {
         if (!isActive) return;
         console.error("Failed to load studio catalog:", error);
@@ -339,6 +363,28 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       count,
       label: options.find((option) => option.key === key)?.value || key,
     }));
+
+  const getShootTypeOptionsByContentType = () => {
+    const contentTypes = data.contentType || [];
+
+    const listsToMerge: typeof videographerSkills = [];
+
+    if (contentTypes.includes("videographer")) {
+      listsToMerge.push(...videographerSkills);
+    }
+    if (contentTypes.includes("photographer")) {
+      listsToMerge.push(...photographerSkills);
+    }
+    if (contentTypes.includes("editing")) {
+      listsToMerge.push(...editorSkills);
+    }
+
+    return Array.from(
+      new Map(listsToMerge.map((skill) => [skill.value, skill])).values(),
+    );
+  };
+
+  const shootTypeOptions = getShootTypeOptionsByContentType();
 
   const videoEditCounts = React.useMemo(
     () => buildEditCounts(data.videoEditTypes),
@@ -1272,7 +1318,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     // if ((data.contentType.includes("photographer") || data.contentType.includes("videographer")) && data.editsNeeded) 
     const requiresEditSelection = !data.contentType.includes("studio") && (data.editsNeeded || isEditingOnly);
     if (requiresEditSelection) {
-      const needsVideoEdit = data.contentType.includes("videographer")
+      const needsVideoEdit = data.contentType.includes("videographer");
       const needsPhotoEdit = data.contentType.includes("photographer");
       const hasVideoEditOptions = editTypeOptions.length > 0;
       const hasPhotoEditOptions = photoEditTypeOptions.length > 0;
@@ -1378,7 +1424,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
             icon={<SquaresUnite size={20} />}
             checked={
               // data.contentType.length === 3 &&
-              data.contentType.length === 3 && //As cinematography is not to be included in the length count at present
+              data.contentType.length === 4 && //As cinematography is not to be included in the length count at present
               data.contentType.includes("editing")
             }
             onChange={(checked) => {
@@ -1388,6 +1434,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     "videographer",
                     "photographer",
                     "editing",
+                    "studio",
                     // "cinematographer", This is not being mentioned in UI. Hence commented out
                   ],
                   editsNeeded: true,
@@ -1702,63 +1749,145 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
-                  {studioData.slice(0, visibleCount).map((studio, index) => (
-                    <StudioCard
-                      key={index}
-                      {...studio}
-                      isSelected={selectedStudioIds.includes(studio.slug)}
-                      onToggle={() => handleStudioToggle(studio)}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={() => setVisibleCount((prev) => prev + 6)}
-                  className="bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg"
-                >
-                  <span className="text-lg lg:text-xl pl-7">View More</span>
-                  <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="26"
-                      height="32"
-                      viewBox="0 0 32 26"
-                      fill="none"
-                    >
-                      <path
-                        d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
-                        fill="#1D1D1B"
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 mb-5 lg:mb-10">
+                    {studioData.slice(0, visibleCount).map((studio, index) => (
+                      <StudioCard
+                        key={index}
+                        {...studio}
+                        isSelected={selectedStudioIds.includes(studio.slug)}
+                        onToggle={() => handleStudioToggle(studio)}
                       />
-                    </svg>
+                    ))}
                   </div>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!studioLoading && hasMoreStudios) {
+                        setVisibleCount((prev) => prev + 6);
+                      }
+                    }}
+                    disabled={studioLoading || !hasMoreStudios}
+                    className={`bg-[#171717] flex gap-8 h-14 lg:h-18 p-1 items-center rounded-lg transition-opacity ${
+                      studioLoading || !hasMoreStudios
+                        ? "cursor-not-allowed opacity-60"
+                        : ""
+                    }`}
+                  >
+                    <span className="text-lg lg:text-xl pl-7">
+                      {studioLoading
+                        ? "Loading..."
+                        : !hasMoreStudios
+                          ? "No more Studio"
+                          : "View More"}
+                    </span>
 
-              {/* Crew Count */}
-              <div ref={crewCountRef} className="pt-6 lg:pt-15 border-t border-white/10">
-                <div className="relative">
-                  <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
-                    <span className={`text-sm font-medium `}>No of Cast & Crew</span>
-                  </div>
-                  <Input
-                    value={data.crewCount}
-                    onChange={(e) => updateData({ crewCount: parseInt(e.target.value) })}
-                    className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-                  />
+                    <div className="bg-[#E8D1AB] h-16 w-16 p-4 rounded-md flex items-center justify-center">
+                      {studioLoading ? (
+                        <div className="w-6 h-6 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : !hasMoreStudios ? (
+                        <Check size={26} className="text-black" />
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="26"
+                          height="32"
+                          viewBox="0 0 32 26"
+                          fill="none"
+                        >
+                          <path
+                            d="M0.801232 1.6025L2.40373 0L31.2487 12.82L2.40373 25.64L0.801231 24.0375L5.60873 12.82L0.801232 1.6025Z"
+                            fill="#1D1D1B"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
                 </div>
-                <div className="relative mt-9">
-                  <div className={`absolute -top-3 left-4 z-20 px-2 bg-[#101010]`}>
-                    <span className={`text-sm font-medium `}>Shoot Type</span>
+
+                {/* Crew Count */}
+                <div
+                  ref={crewCountRef}
+                  className="pt-6 lg:pt-15 border-t border-white/10"
+                >
+                  <div className="relative">
+                    <div className="absolute -top-3 left-4 z-20 px-2 bg-[#101010]">
+                      <span className="text-sm font-medium text-white">
+                        No of Cast & Crew
+                      </span>
+                    </div>
+
+                    <Input
+                      type="number"
+                      min="0"
+                      value={crewCountInput}
+                      placeholder="Enter No of Cast & Crew"
+                      onChange={(e) => {
+                        const value = e.target.value;
+
+                        setCrewCountInput(value);
+
+                        updateData({
+                          crewCount: value === "" ? 0 : Number(value),
+                        });
+                      }}
+                      className="w-full h-14 lg:h-[82px] bg-transparent border border-white/40 rounded-xl px-6 text-sm lg:text-base text-white placeholder:text-white/40 focus:outline-none focus:border-[#E8D1AB] transition-colors"
+                    />
                   </div>
-                  <Input
-                    value={data.shootType}
-                    onChange={(e) => updateData({ shootType: e.target.value })}
-                    className={`w-full h-14 lg:h-[82px] bg-transparent border border-[#FFFFFF4D] rounded-xl px-6 text-sm lg:text-base  focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
-                  />
+                  <div className="relative mt-9">
+                    <div className="absolute -top-3 left-4 z-20 px-2 bg-[#101010]">
+                      <span className="text-sm font-medium text-white">
+                        Shoot Type
+                      </span>
+                    </div>
+
+                    <Select
+                      value={data.shootType || ""}
+                      onValueChange={(value) => {
+                        updateData({ shootType: value });
+                      }}
+                    >
+                      <SelectTrigger className="w-full h-14 lg:h-[82px] bg-transparent border border-white/40 rounded-xl px-6 text-sm lg:text-base text-white focus:outline-none focus:border-[#E8D1AB] transition-colors">
+                        {data.shootType ? (
+                          <span className="text-left text-white">
+                            {
+                              shootTypeOptions.find(
+                                (option) => option.value === data.shootType,
+                              )?.label
+                            }
+                          </span>
+                        ) : (
+                          <span className="text-white/40">
+                            Select Shoot Type
+                          </span>
+                        )}
+                      </SelectTrigger>
+
+                      <SelectContent className="bg-[#101010] border border-white/10 rounded-xl p-2 text-white max-h-[300px]">
+                        {shootTypeOptions.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="rounded-lg px-4 py-3 cursor-pointer focus:bg-white/5 focus:text-white data-[state=checked]:bg-white/5 data-[state=checked]:text-[#E8D1AB]"
+                          >
+                            <div className="flex flex-col gap-1 pr-6 text-left">
+                              <span className="text-sm lg:text-base font-medium">
+                                {option.label}
+                              </span>
+
+                              {option.description && (
+                                <span className="text-xs lg:text-sm text-white/50">
+                                  {option.description}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
 
           {/* Booking Type */}
           {!isEditingOnly && !shouldBypassDateTime && (
