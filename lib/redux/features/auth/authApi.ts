@@ -172,9 +172,17 @@ export const authApi = createApi({
     }),
 
     // Creator registration - Step 3: Portfolio and availability
-    registerCreatorStep3: builder.mutation<{ message: string; crew_member: unknown }, FormData>({
+    registerCreatorStep3: builder.mutation<{ message: string; crew_member: unknown }, FormData | Record<string, unknown>>({
       query: (formData) => ({
         url: 'auth/register-crew-step3',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
+
+    uploadCreatorStep3File: builder.mutation<{ success: boolean; message: string; data: Record<string, unknown>[] }, FormData>({
+      query: (formData) => ({
+        url: 'auth/register-crew-step3-file',
         method: 'POST',
         body: formData,
       }),
@@ -250,6 +258,7 @@ export const {
   useRegisterCreatorStep1Mutation,
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
+  useUploadCreatorStep3FileMutation,
   useGetCrewMemberDetailsQuery,
   useGetOnboardingStatusQuery,
 } = authApi;

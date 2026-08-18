@@ -10,25 +10,90 @@ import SocialLinksModal from "./SocialLinksModal";
 import UploadResumePortfolio from "./UploadResumePortfolio";
 import PortfolioLinksModal from "./PortfolioLinksModal";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
-import { useRegisterCreatorStep3Mutation } from "@/lib/redux/features/auth/authApi";
+import { useRegisterCreatorStep3Mutation, useUploadCreatorStep3FileMutation } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
 import { pushToDataLayer } from "@/lib/gtm";
 
+type SignupLinkItem = {
+  id: string | number;
+  platform?: string;
+  url?: string;
+  name?: string;
+};
+
 export default function Step3Form({ data, setData, nextStep, prevStep }: { data: any, setData: any, nextStep: () => void, prevStep: () => void }) {
   const [registerStep3, { isLoading }] = useRegisterCreatorStep3Mutation();
+  const [uploadStep3File, { isLoading: isUploadingFile }] = useUploadCreatorStep3FileMutation();
 
-  const [featuredWork, setFeaturedWork] = useState(data.featuredWork || []);
-  const [links, setLinks] = useState(data.links || []);
-  const [portfolioLinks, setPortfolioLinks] = useState(data.portfolioLinks || []);
+  const [featuredWork, setFeaturedWork] = useState<any[]>(data.featuredWork || []);
+  const [links, setLinks] = useState<SignupLinkItem[]>(data.links || []);
+  const [portfolioLinks, setPortfolioLinks] = useState<SignupLinkItem[]>(data.portfolioLinks || []);
   const [socialModalOpen, setSocialModalOpen] = useState(false);
   const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
   const [resume, setResume] = useState(data.resume || null);
   const [portfolio, setPortfolio] = useState(data.portfolio || null);
 
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
+  const isBusy = isLoading || isUploadingFile;
+
+  const getCrewFileId = (item: any) => item?.crew_files_id ?? item?.crewFilesId ?? item?.fileId ?? item?.id;
+
+  const uploadStep3Files = async (fileType: string, files: File[]) => {
+    if (!data.crew_member_id) {
+      toast.error("Session Error", { description: "Crew ID missing." });
+      return [];
+    }
+
+    const formData = new FormData();
+    formData.append("crew_member_id", String(data.crew_member_id));
+    formData.append("file_type", fileType);
+    files.forEach((file) => formData.append(fileType, file));
+
+    const response = await uploadStep3File(formData).unwrap();
+    return Array.isArray(response?.data) ? response.data : [];
+  };
+
+  const withUploadedMetadata = (processedItems: any[], uploadedItems: any[]) =>
+    processedItems.map((item, index) => ({
+      ...item,
+      ...(uploadedItems[index] || {}),
+      crew_files_id: getCrewFileId(uploadedItems[index]),
+    }));
+
+  const handleResumeUpload = async (processedResume: any) => {
+    const file = processedResume?.file;
+    if (!(file instanceof File)) return processedResume;
+
+    const uploadedItems = await uploadStep3Files("resume", [file]);
+    return {
+      ...processedResume,
+      ...(uploadedItems[0] || {}),
+      crew_files_id: getCrewFileId(uploadedItems[0]),
+    };
+  };
+
+  const handlePortfolioUpload = async (processedPortfolio: any[]) => {
+    const files = processedPortfolio
+      .map((item) => item?.file)
+      .filter((file): file is File => file instanceof File);
+    const uploadedItems = await uploadStep3Files("portfolio", files);
+    return withUploadedMetadata(processedPortfolio, uploadedItems);
+  };
+
+  const handleCertificationUpload = async (processedCertifications: any[]) => {
+    const files = processedCertifications
+      .map((item) => item?.file)
+      .filter((file): file is File => file instanceof File);
+    const uploadedItems = await uploadStep3Files("certifications", files);
+    return withUploadedMetadata(processedCertifications, uploadedItems);
+  };
+
+  const handleFeaturedWorkUpload = async (files: File[]) => {
+    return uploadStep3Files("recent_work", files);
+  };
 
   useEffect(() => {
-    setData((prev) => ({
+    setData((prev: Record<string, unknown>) => ({
       ...prev,
       featuredWork,
       links,
@@ -66,72 +131,59 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
         return;
       }
 
-      const formData = new FormData();
-      formData.append("crew_member_id", String(data.crew_member_id));
-
-      // Optional: Resume
-      const resumeFile = resume instanceof File ? resume : resume?.file;
-      if (resumeFile instanceof File) formData.append("resume", resumeFile);
-
-      if (Array.isArray(portfolio)) {
-        portfolio.forEach((p) => {
-          const file = p instanceof File ? p : p?.file;
-          if (file instanceof File) {
-            formData.append("portfolio", file);
-          }
-        });
-      }
-
-      // Optional: Certifications
-      (data.certifications || []).forEach((item) => {
-        const file = item instanceof File ? item : item?.file;
-        if (file instanceof File) formData.append("certifications", file);
-      });
-
-      // Required: Featured Work
-      const recentWorkFiles: File[] = [];
       const workMetadata = featuredWork.map((item: any) => {
-        const fileIndexes: number[] = [];
+        const fileIds = Array.isArray(item.fileIds) && item.fileIds.length > 0
+          ? item.fileIds
+          : (Array.isArray(item.files)
+            ? item.files.map(getCrewFileId).filter(Boolean)
+            : []);
         const normalizedTags = Array.isArray(item.tags)
           ? item.tags.filter((tag: string) => typeof tag === "string" && tag.trim() !== "")
           : (typeof item.tags === "string" && item.tags.trim() !== "" ? [item.tags] : []);
 
-        if (Array.isArray(item.files)) {
-          item.files.forEach((file: File) => {
-            if (file instanceof File) {
-              fileIndexes.push(recentWorkFiles.length);
-              recentWorkFiles.push(file);
-            }
-          });
-        }
-
         return {
           title: item.title,
-          fileIndexes,
+          fileIds,
+          tags: normalizedTags,
           ...(normalizedTags.length > 0 ? { tag: normalizedTags.join(",") } : {}),
         };
       });
 
-      recentWorkFiles.forEach((file) => {
-        formData.append("recent_work", file);
-      });
+      if (workMetadata.some((item: any) => item.fileIds.length < 5)) {
+        toast.error("Upload still pending", {
+          description: "Each featured work project needs at least 5 uploaded images."
+        });
+        return;
+      }
 
-      formData.append("featured_work", JSON.stringify(workMetadata));
+      const resumeFileId = getCrewFileId(resume);
+      const portfolioFileIds = Array.isArray(portfolio)
+        ? portfolio.map(getCrewFileId).filter(Boolean)
+        : [];
+      const certificationFileIds = Array.isArray(data.certifications)
+        ? data.certifications.map(getCrewFileId).filter(Boolean)
+        : [];
 
       const socialLinksPayload: any = {};
       links.forEach((l: any) => {
         if (l.platform && l.url) socialLinksPayload[l.platform] = l.url;
       });
-      formData.append("social_media_links", JSON.stringify(socialLinksPayload));
 
       const portfolioLinksPayload = portfolioLinks.map((l: any) => ({
         url: l.url,
         platform: l.platform
       }));
-      formData.append("portfolio_links", JSON.stringify(portfolioLinksPayload));
 
       // API CALL
-      await registerStep3(formData).unwrap();
+      await registerStep3({
+        crew_member_id: data.crew_member_id,
+        social_media_links: socialLinksPayload,
+        portfolio_links: portfolioLinksPayload,
+        featured_work: workMetadata,
+        ...(resumeFileId ? { resume_file_id: resumeFileId } : {}),
+        portfolio_file_ids: portfolioFileIds,
+        certification_file_ids: certificationFileIds,
+      }).unwrap();
 
       // --- GA4 SIGNUP TRACKING ---
       // pushToDataLayer("sign_up_step3_submit", {
@@ -177,11 +229,11 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
     }
   };
 
-  const deleteLink = (id) => {
+  const deleteLink = (id: string | number) => {
     setLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const deletePortfolioLink = (id) => {
+  const deletePortfolioLink = (id: string | number) => {
     setPortfolioLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
@@ -251,6 +303,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
             value={featuredWork}
             onChange={setFeaturedWork}
             darkTheme={true}
+            onUploadFiles={handleFeaturedWorkUpload}
           />
         </div>
 
@@ -262,9 +315,10 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
           <AddCertification
             value={data.certifications}
             onChange={(v) =>
-              setData((prev) => ({ ...prev, certifications: v }))
+              setData((prev: Record<string, unknown>) => ({ ...prev, certifications: v }))
             }
             bg="bg-[#101010]"
+            onUploadFiles={handleCertificationUpload}
           />
         </div>
 
@@ -280,6 +334,8 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
             setPortfolio={setPortfolio}
             bgColour="bg-[#101010]"
             buttonBgColour="bg-white/5 hover:bg-white/10"
+            onResumeUpload={handleResumeUpload}
+            onPortfolioUpload={handlePortfolioUpload}
           />
         </div>
 
@@ -288,7 +344,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
           <button
             type="button"
             onClick={prevStep}
-            disabled={isLoading}
+            disabled={isBusy}
             className="w-14 h-14 lg:w-[76px] lg:h-[76px] flex items-center justify-center rounded-[12px] border border-white/30 hover:bg-white/10 transition-colors disabled:opacity-50"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
@@ -297,13 +353,13 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isBusy}
             className={`px-4 lg:px-10 h-14 lg:h-[76px] flex-1 flex items-center justify-center rounded-[12px] bg-[#E8D1AB] hover:bg-[#DCD1BE] transition-all disabled:opacity-50 text-black`}
           >
-            {isLoading ? (
+            {isBusy ? (
               <span className="flex items-center gap-2 ">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Processing...
+                {isUploadingFile ? "Uploading..." : "Processing..."}
               </span>
             ) : (
               "Create Profile"
@@ -340,6 +396,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
         onClose={() => setSocialModalOpen(false)}
         links={links}
         onChange={setLinks}
+        isDark={true}
       />
 
       <PortfolioLinksModal
@@ -347,6 +404,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
         onClose={() => setPortfolioModalOpen(false)}
         links={portfolioLinks}
         onChange={setPortfolioLinks}
+        isDark={true}
       />
     </div>
   );
