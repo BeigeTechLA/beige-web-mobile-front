@@ -184,6 +184,25 @@ export const CreditPointsSettings = ({
 
   return (
     <form onSubmit={handleSubmit} className="max-w-[700px] space-y-6">
+
+      <div>
+        <h1
+          className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${
+            isDark ? "text-white" : "text-[#000]"
+          }`}
+        >
+          New User Sign up Credits
+        </h1>
+
+        <p
+          className={`text-xs lg:text-sm transition-colors duration-100 ${
+            isDark ? "text-white/70" : "text-[#000000B2]"
+          }`}
+        >
+          Credits apply only to users who sign up during the selected date range while this setting is enabled.
+        </p>
+      </div>
+
       {/* Enable / Disable */}
       <div
         className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-4 ${
@@ -334,7 +353,6 @@ export const CreditPointsSettings = ({
             disabled={loading}
             placeholder="Select start date"
             isDark={isDark}
-            disablePortal
           />
         </div>
 
@@ -368,7 +386,6 @@ export const CreditPointsSettings = ({
             disabled={loading}
             placeholder="Select end date"
             isDark={isDark}
-            disablePortal
           />
         </div>
       </div>
