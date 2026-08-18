@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
+import { Key } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
@@ -23,6 +24,7 @@ import { PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
 import { getLatestProfilePhoto } from "@/lib/crewFiles";
+import { useGenerateUserResetLinkForAdminMutation } from "@/lib/redux/features/auth/authApi";
 
 interface ProfileProps {
   id: string;
@@ -98,8 +100,10 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+const [isVerifying, setIsVerifying] = useState(false);
+const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+const [manualResetLink, setManualResetLink] = useState<string | null>(null);
+const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
   const [partner, setPartner] = useState<any>(null);
   const [skillsMap, setSkillsMap] = useState<Record<string, string>>({});
@@ -350,6 +354,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
   const socialMediaLinks = convertLinksStringToArray(partner?.social_media_links || null)
 
   const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
+  const partnerUserId = Number(partner?.user_id || id.replace('#', ''));
 
   // Base URL for uploads
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -655,9 +660,46 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true 
           </button>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push(`/admin/users/creative-partners/${id}/edit`)}
+              {manualResetLink ? (
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"}`}>
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${isDark ? "border-white/10 bg-white/5 text-[#E8D1AB]" : "border-gray-200 bg-gray-50 text-[#B08A3C]"}`}>
+                    <Key size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-white/35" : "text-gray-400"}`}>Reset Link</p>
+                    <span className={`block max-w-[180px] truncate font-mono text-[11px] ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2A]"}`}>{manualResetLink}</span>
+                  </div>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(manualResetLink); toast.success("Copied!"); }}
+                    className={`ml-1 flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/80" : "hover:bg-gray-100 text-gray-600"}`}
+                    title="Copy reset link"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button
+                    onClick={() => setManualResetLink(null)}
+                    className={`text-[10px] font-medium uppercase tracking-wide transition-colors ${isDark ? "text-white/35 hover:text-white/70" : "text-gray-400 hover:text-gray-600"}`}
+                    title="Clear link"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await generateAdminReset({ user_id: partnerUserId }).unwrap();
+                      setManualResetLink(res.resetLink);
+                    } catch (e) { toast.error("Failed to generate link"); }
+                  }}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${isDark ? "bg-[#1A1A1A] border-[#333] text-white" : "bg-white border-gray-200"}`}
+                >
+                  <Key size={16} />
+                  <span>Reset Password</span>
+                </button>
+              )}
+              <button
+                type="button"
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
                 ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"

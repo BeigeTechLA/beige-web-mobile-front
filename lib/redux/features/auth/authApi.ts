@@ -188,6 +188,15 @@ export const authApi = createApi({
       }),
     }),
 
+    // Admin function to generate a link manually
+    generateUserResetLinkForAdmin: builder.mutation<{ success: boolean; resetLink: string; message: string }, { user_id: number }>({
+      query: (data) => ({
+        url: 'auth/admin/generate-reset-link',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+
     // Get crew member details by ID
     getCrewMemberDetails: builder.query<{ step1: unknown; step2: unknown; step3: unknown }, number>({
       query: (crewMemberId) => `auth/crew-member/${crewMemberId}`,
@@ -258,6 +267,7 @@ export const {
   useRegisterCreatorStep1Mutation,
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
+  useGenerateUserResetLinkForAdminMutation,
   useUploadCreatorStep3FileMutation,
   useGetCrewMemberDetailsQuery,
   useGetOnboardingStatusQuery,
