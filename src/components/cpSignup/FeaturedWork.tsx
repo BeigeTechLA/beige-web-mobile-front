@@ -13,7 +13,7 @@ import 'swiper/css';
 import 'swiper/css/pagination'
 
 export type FeaturedWorkItem = {
-  id: string | number;
+  id?: string | number;
   title: string;
   tags?: string[];
   image?: string;
@@ -34,11 +34,12 @@ type FeaturedWorkProps = {
   onChange?: (items: FeaturedWorkItem[]) => void | Promise<void>;
   darkTheme?: boolean;
   onDeleteItem?: (item: FeaturedWorkItem) => Promise<void> | void;
+  onUploadFiles?: (files: File[]) => Promise<Array<Record<string, unknown>>>;
 };
 
 const MAX_PROJECTS = 5;
 
-const FeaturedWork = ({ value = [], onChange, onDeleteItem, darkTheme = true }: FeaturedWorkProps) => {
+const FeaturedWork = ({ value = [], onChange, onDeleteItem, onUploadFiles, darkTheme = true }: FeaturedWorkProps) => {
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
   const [editingItem, setEditingItem] = useState<FeaturedWorkItem | null>(null);
@@ -73,7 +74,8 @@ const FeaturedWork = ({ value = [], onChange, onDeleteItem, darkTheme = true }: 
     setEditingItem(null);
   };
 
-  const handleRemove = (id: string | number) => {
+  const handleRemove = (id?: string | number) => {
+    if (id === undefined || id === null) return;
     const next = items.filter((it) => it.id !== id);
     setItems(next);
     onChange && onChange(next);
@@ -239,13 +241,14 @@ const FeaturedWork = ({ value = [], onChange, onDeleteItem, darkTheme = true }: 
 
       <FeaturedWorkModal
         open={openModal}
-        editItem={editingItem}
+        editItem={editingItem as any}
         onClose={() => {
           setOpenModal(false);
           setEditingItem(null);
         }}
-        onAdd={handleAddOrUpdate}
+        onAdd={handleAddOrUpdate as any}
         isDark={darkTheme}
+        onUploadFiles={onUploadFiles}
       />
     </div>
   );

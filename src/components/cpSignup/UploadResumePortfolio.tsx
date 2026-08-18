@@ -9,6 +9,28 @@ import { toast } from "sonner";
 const RESUME_MAX_MB = 10;
 const PORTFOLIO_MAX_MB = 5;
 
+type UploadedDocumentItem = {
+  id?: string | number;
+  name?: string;
+  size?: string;
+  file?: File;
+  url?: string;
+  crew_files_id?: string | number;
+};
+
+type UploadResumePortfolioProps = {
+  resume?: UploadedDocumentItem | null;
+  setResume: (item: UploadedDocumentItem | null) => void;
+  portfolio?: UploadedDocumentItem[] | null;
+  setPortfolio: (updater: UploadedDocumentItem[] | ((prev: UploadedDocumentItem[]) => UploadedDocumentItem[])) => void;
+  bgColour?: string;
+  buttonBgColour?: string;
+  onResumeUpload?: (item: UploadedDocumentItem, file: File) => Promise<UploadedDocumentItem>;
+  onPortfolioUpload?: (items: UploadedDocumentItem[], files: File[]) => Promise<UploadedDocumentItem[]>;
+  onDeleteResume?: (item: UploadedDocumentItem) => Promise<void> | void;
+  onDeletePortfolio?: (item: UploadedDocumentItem) => Promise<void> | void;
+};
+
 const UploadResumePortfolio = ({
   resume,
   setResume,
@@ -16,11 +38,11 @@ const UploadResumePortfolio = ({
   setPortfolio,
   bgColour = "bg-[#101010]",
   buttonBgColour = "bg-white/5 hover:bg-white/10",
-  onResumeUpload,
-  onPortfolioUpload,
-  onDeleteResume,
-  onDeletePortfolio,
-}) => {
+  onResumeUpload = undefined,
+  onPortfolioUpload = undefined,
+  onDeleteResume = undefined,
+  onDeletePortfolio = undefined,
+}: UploadResumePortfolioProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>, type: "resume" | "portfolio") => {
@@ -100,7 +122,8 @@ const UploadResumePortfolio = ({
     }
   };
 
-  const removePortfolioItem = (id: string) => {
+  const removePortfolioItem = (id?: string | number) => {
+    if (id === undefined || id === null) return;
     setPortfolio((prev) => {
       const itemToRemove = prev.find(p => p.id === id);
       if (itemToRemove?.url) URL.revokeObjectURL(itemToRemove.url);
@@ -109,7 +132,8 @@ const UploadResumePortfolio = ({
     toast.info("Portfolio item removed");
   };
 
-  const openFileInNewTab = (url: string) => {
+  const openFileInNewTab = (url?: string) => {
+    if (!url) return;
     window.open(url, "_blank");
   };
 
@@ -203,7 +227,7 @@ const UploadResumePortfolio = ({
           <label className={`flex items-center justify-center gap-3 border border-dashed border-white/20 rounded-xl p-6 cursor-pointer ${buttonBgColour} transition group ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
              {isProcessing ? <Loader2 className="animate-spin text-[#E8D1AB]" size={18} /> : <Plus size={18} className="text-[#E8D1AB]" />}
             <span className="text-white/80 text-sm group-hover:text-white">
-               {isProcessing ? "Processing..." : portfolio?.length > 0 ? "Add another portfolio file" : "Upload portfolio"}
+               {isProcessing ? "Processing..." : (portfolio?.length || 0) > 0 ? "Add another portfolio file" : "Upload portfolio"}
             </span>
             <input 
               type="file" 

@@ -10,7 +10,30 @@ const MAX_CERTS = 10;
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-const AddCertification = ({ value = [], onChange, bg = "bg-card", onUploadFiles, onDeleteItem }) => {
+type CertificationItem = {
+  id?: string | number;
+  name?: string;
+  size?: string;
+  file?: File;
+  url?: string;
+  crew_files_id?: string | number;
+};
+
+type AddCertificationProps = {
+  value?: CertificationItem[];
+  onChange: (items: CertificationItem[]) => void;
+  bg?: string;
+  onUploadFiles?: (items: CertificationItem[], files: File[]) => Promise<CertificationItem[]>;
+  onDeleteItem?: (item: CertificationItem) => Promise<void> | void;
+};
+
+const AddCertification = ({
+  value = [],
+  onChange,
+  bg = "bg-card",
+  onUploadFiles,
+  onDeleteItem,
+}: AddCertificationProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
