@@ -270,7 +270,7 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
           icon={Sparkles}
           title="Enhanced Clean"
           description="This Host committed to Airbnb’s 5-step enhanced cleaning process."
-          showMore={true}
+          // showMore={true}
           isDark={isDark}
         />
         <FeatureItem

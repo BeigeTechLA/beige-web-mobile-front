@@ -31,6 +31,18 @@ const timeOptions = [
   "22:00",
 ];
 
+const formatTime12Hour = (value: string) => {
+  const [hoursValue, minutes = "00"] = value.split(":");
+  const hours = Number(hoursValue);
+
+  if (!Number.isFinite(hours)) return value;
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+
+  return `${displayHours}:${minutes} ${period}`;
+};
+
 interface Props {
   isDark?: boolean;
   value?: {
@@ -484,7 +496,9 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
                 </SelectTrigger>
                 <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
                   {timeOptions.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
+                    <SelectItem key={time} value={time}>
+                      {formatTime12Hour(time)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -504,7 +518,9 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
                 </SelectTrigger>
                 <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
                   {timeOptions.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
+                    <SelectItem key={time} value={time}>
+                      {formatTime12Hour(time)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
