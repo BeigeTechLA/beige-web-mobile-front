@@ -4550,7 +4550,7 @@ export const salesApi = {
     signature_base64: string;
   }) => {
     try {
-      const response = await api.post('/signatures/sign', payload);
+      const response = await publicApi.post('/signatures/sign', payload);
       return response.data;
     } catch (error: any) {
       console.error('Save Signature Error:', error.response?.data || error.message);
@@ -4575,7 +4575,7 @@ export const salesApi = {
       formData.append('signer_email', payload.signer_email);
       formData.append('signer_name', payload.signer_name);
 
-      const response = await api.post('/signatures/sign', formData, {
+      const response = await publicApi.post('/signatures/sign', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
@@ -4591,7 +4591,7 @@ export const salesApi = {
 
   getSignatureByQuote: async (quote_id: number | string) => {
     try {
-      const response = await api.get(`/signatures/quote/${quote_id}`);
+      const response = await publicApi.get(`/signatures/quote/${quote_id}`);
       return response.data;
     } catch (error: any) {
       console.error('Get Signature Error:', error.response?.data || error.message);
