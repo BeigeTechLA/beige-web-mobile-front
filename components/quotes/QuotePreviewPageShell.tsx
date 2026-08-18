@@ -614,7 +614,7 @@ export default function QuotePreviewPageShell({
                 error:
                   "Legacy quote preview links using quoteId are no longer supported. Request a new secure quote link.",
               }
-            : await salesApi.getQuoteDetail(queryQuoteId);
+            : await salesApi.getQuoteDetail(queryQuoteId || "");
 
         if (initialResponse?.error || initialResponse?.success === false) {
           throw new Error(
@@ -639,8 +639,7 @@ export default function QuotePreviewPageShell({
 
         if (salesQuoteId && quoteDetailMode === "public") {
           try {
-            console.log("🔄 Fetching full quote details for ID:", salesQuoteId);
-            const fullResponse = await salesApi.getQuoteDetail(salesQuoteId);
+            const fullResponse = await salesApi.getPublicQuoteDetail(salesQuoteId);
 
             if (fullResponse?.success !== false && fullResponse?.data) {
               const unwrappedFull = unwrapSalesQuoteDetail(fullResponse.data);
@@ -737,10 +736,9 @@ export default function QuotePreviewPageShell({
 
     const enrichPublicQuoteState = async () => {
       try {
-        const [publicDetailResult, signatureResult, authenticatedDetailResult] = await Promise.allSettled([
+        const [publicDetailResult, signatureResult] = await Promise.allSettled([
           salesApi.getPublicQuoteDetail(resolvedQuoteId),
           salesApi.getSignatureByQuote(resolvedQuoteId),
-          salesApi.getQuoteDetail(resolvedQuoteId),
         ]);
 
         if (!isMounted) {
@@ -751,10 +749,7 @@ export default function QuotePreviewPageShell({
           publicDetailResult.status === "fulfilled" ? publicDetailResult.value : null;
         const signatureDetail =
           signatureResult.status === "fulfilled" ? signatureResult.value : null;
-        const authenticatedDetail =
-          authenticatedDetailResult.status === "fulfilled" ? authenticatedDetailResult.value : null;
         const publicQuote = unwrapSalesQuoteDetail(publicDetail?.data ?? null);
-        const authenticatedQuote = unwrapSalesQuoteDetail(authenticatedDetail?.data ?? null);
 
         const publicPatch = {
           ...(publicQuote || {}),
@@ -762,17 +757,10 @@ export default function QuotePreviewPageShell({
           ...buildQuoteStatePatch(publicQuote),
         };
         const signaturePatch = buildQuoteStatePatch(signatureDetail);
-        const authenticatedPatch = {
-          ...(authenticatedQuote || {}),
-          ...buildQuoteStatePatch(authenticatedDetail),
-          ...buildQuoteStatePatch(authenticatedQuote),
-        };
         const nextBookingId =
           findBookingId(publicDetail) ||
           findBookingId(publicQuote) ||
-          findBookingId(signatureDetail) ||
-          findBookingId(authenticatedDetail) ||
-          findBookingId(authenticatedQuote);
+          findBookingId(signatureDetail);
 
         if (nextBookingId) {
           setPaymentBookingId(nextBookingId);
@@ -780,10 +768,8 @@ export default function QuotePreviewPageShell({
 
         if (
           publicQuote ||
-          authenticatedQuote ||
           hasQuoteStatePatch(publicPatch) ||
-          hasQuoteStatePatch(signaturePatch) ||
-          hasQuoteStatePatch(authenticatedPatch)
+          hasQuoteStatePatch(signaturePatch)
         ) {
           setQuote((current) => {
             if (!current) {
@@ -793,9 +779,7 @@ export default function QuotePreviewPageShell({
             return mergeQuoteBookingSchedule(
               current,
               publicQuote,
-              authenticatedQuote,
               publicPatch as SalesQuoteDetailData,
-              authenticatedPatch as SalesQuoteDetailData,
               signaturePatch as SalesQuoteDetailData,
             );
           });
@@ -1416,31 +1400,87 @@ export default function QuotePreviewPageShell({
           onSuccess={async (signatureData) => {
             toast.success("Quote signed successfully!");
             setAcceptServiceAgreement(true);
+            const signaturePatch = buildQuoteStatePatch(signatureData);
+            const immediateBookingId = findBookingId(signatureData);
+
+            if (immediateBookingId) {
+              setPaymentBookingId(immediateBookingId);
+            }
+
             let refreshedQuote: SalesQuoteDetailData | null = null;
             setQuote((current) =>
               current
-                ? {
-                  ...current,
-                  signed_at:
-                    (signatureData as Record<string, unknown> | null)?.["signed_at"] as string ??
-                    current.signed_at ??
-                    new Date().toISOString(),
-                  signature_base64:
-                    ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
-                    current.signature_base64,
-                  signature_path:
-                    ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
-                    current.signature_path,
-                }
+                ? mergeQuoteBookingSchedule(
+                  current,
+                  {
+                    ...signaturePatch,
+                    signed_at:
+                      ((signatureData as Record<string, unknown> | null)?.["signed_at"] as string | undefined) ??
+                      current.signed_at ??
+                      new Date().toISOString(),
+                    signature_base64:
+                      ((signatureData as Record<string, unknown> | null)?.["signature_base64"] as string | undefined) ??
+                      ((signatureData as Record<string, unknown> | null)?.["signature_url"] as string | undefined) ??
+                      current.signature_base64,
+                    signature_path:
+                      ((signatureData as Record<string, unknown> | null)?.["signature_path"] as string | undefined) ??
+                      current.signature_path,
+                    status: "accepted",
+                    quote_status: "accepted",
+                  } as SalesQuoteDetailData
+                )
                 : current
             );
             try {
               if (quoteDetailMode === "public" && queryQuoteKey) {
-                const refreshed = await fetchQuotePreviewByKey(queryQuoteKey);
-                const updated = unwrapSalesQuoteDetail(refreshed?.data ?? null);
-                if (updated) {
-                  refreshedQuote = updated;
-                  setQuote(updated);
+                const [previewResult, publicDetailResult, signatureResult] = await Promise.allSettled([
+                  fetchQuotePreviewByKey(queryQuoteKey),
+                  resolvedQuoteId ? salesApi.getPublicQuoteDetail(resolvedQuoteId) : Promise.resolve(null),
+                  resolvedQuoteId ? salesApi.getSignatureByQuote(resolvedQuoteId) : Promise.resolve(null),
+                ]);
+                const previewResponse =
+                  previewResult.status === "fulfilled" ? previewResult.value : null;
+                const publicDetail =
+                  publicDetailResult.status === "fulfilled" ? publicDetailResult.value : null;
+                const signatureDetail =
+                  signatureResult.status === "fulfilled" ? signatureResult.value : null;
+                const previewQuote = unwrapSalesQuoteDetail(previewResponse?.data ?? null);
+                const publicQuote = unwrapSalesQuoteDetail(publicDetail?.data ?? null);
+                const refreshPatch = {
+                  ...buildQuoteStatePatch(previewResponse),
+                  ...buildQuoteStatePatch(previewQuote),
+                  ...buildQuoteStatePatch(publicDetail),
+                  ...buildQuoteStatePatch(publicQuote),
+                  ...buildQuoteStatePatch(signatureDetail),
+                  ...signaturePatch,
+                };
+                const refreshedBookingId =
+                  immediateBookingId ||
+                  findBookingId(signatureDetail) ||
+                  findBookingId(publicDetail) ||
+                  findBookingId(publicQuote) ||
+                  findBookingId(previewResponse) ||
+                  findBookingId(previewQuote);
+
+                refreshedQuote = mergeQuoteBookingSchedule(
+                  previewQuote,
+                  publicQuote,
+                  refreshPatch as SalesQuoteDetailData
+                );
+
+                setQuote((current) =>
+                  current
+                    ? mergeQuoteBookingSchedule(
+                      current,
+                      previewQuote,
+                      publicQuote,
+                      refreshPatch as SalesQuoteDetailData
+                    )
+                    : refreshedQuote
+                );
+
+                if (refreshedBookingId) {
+                  setPaymentBookingId(refreshedBookingId);
                 }
               } else {
                 const refreshed = await salesApi.getQuoteDetail(resolvedQuoteId);
@@ -1452,7 +1492,7 @@ export default function QuotePreviewPageShell({
               }
 
               if (quoteDetailMode === "public") {
-                const bookingId = findBookingId(signatureData) || findBookingId(refreshedQuote) || findBookingId(quote);
+                const bookingId = immediateBookingId || findBookingId(refreshedQuote) || findBookingId(quote);
                 if (bookingId) {
                   setPaymentBookingId(bookingId);
                   toast.success(`Booking #${bookingId} is ready for payment.`);
