@@ -3,33 +3,25 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Home, Sparkles, DoorOpen, Calendar } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/src/components/landing/Separator";
+import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 
 const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
-const timeOptions = [
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-  "18:00",
-  "19:00",
-  "20:00",
-  "21:00",
-  "22:00",
-];
+
+const buildTimeOptions = () => {
+  const options: { key: string; value: string }[] = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      const key = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      const date = new Date();
+      date.setHours(hour, minute, 0, 0);
+      options.push({ key, value: date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }) });
+    }
+  }
+  return options;
+};
+
+const timeOptions = buildTimeOptions();
 
 interface Props {
   isDark?: boolean;
@@ -111,7 +103,6 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
   });
 
   const [customRule, setCustomRule] = useState(value?.customRule || "");
-  const [studio, setStudio] = useState(value?.studio || "");
   const [openingTime, setOpeningTime] = useState(value?.openingTime || "");
   const [closingTime, setClosingTime] = useState(value?.closingTime || "");
   const [timeError, setTimeError] = useState("");
@@ -131,7 +122,6 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
       pets: null,
     });
     setCustomRule(value.customRule || "");
-    setStudio(value.studio || "");
     setOpeningTime(value.openingTime || "");
     setClosingTime(value.closingTime || "");
     setTimeError("");
@@ -146,13 +136,12 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
       schedule,
       rules,
       customRule,
-      studio,
       openingTime,
       closingTime
     };
     onChange?.(data);
     localStorage.setItem("add_studio_operations", JSON.stringify(data));
-  }, [is24Hrs, selectedDays, schedule, rules, customRule, studio, openingTime, closingTime, onChange]);
+  }, [is24Hrs, selectedDays, schedule, rules, customRule, openingTime, closingTime, onChange]);
 
   useEffect(() => {
     if (!openingTime || !closingTime) {
@@ -176,6 +165,13 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
     }));
   };
 
+  const toggleSetHours = (day: string) => {
+    setSchedule(prev => ({
+      ...prev,
+      [day]: { ...prev[day], setHours: !prev[day]?.setHours }
+    }));
+  };
+
   // Toggle All Days (Header Checkbox)
   const toggleAllDays = () => {
     if (selectedDays.length === DAYS.length) {
@@ -185,17 +181,25 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
     }
   };
 
-  const toggleSetHours = (day: string) => {
-    setSchedule(prev => ({
-      ...prev,
-      [day]: { ...prev[day], setHours: !prev[day]?.setHours }
-    }));
-  };
-
   const getDayConfig = (day: string) => schedule[day] || { isOpen: false, setHours: false };
 
   const updateRule = (key: string, val: boolean) => {
     setRules(prev => ({ ...prev, [key]: val }));
+  };
+
+  const handleSaveHours = () => {
+    if (timeError || !openingTime || !closingTime) return;
+    setSchedule((prev) => {
+      const next = { ...prev };
+      selectedDays.forEach((day) => {
+        next[day] = {
+          ...next[day],
+          isOpen: true,
+          setHours: true,
+        };
+      });
+      return next;
+    });
   };
 
   // Theme Styles
@@ -309,59 +313,29 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
           </div>
 
           <div className="space-y-5 lg:space-y-9 p-5 pt-9">
-            <div className="relative">
-              <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                <span className={`text-sm font-medium ${subTextColor}`}>Select Studios</span>
-              </div>
-              <Select value={studio || undefined} onValueChange={(val) => setStudio(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
-                </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <DropdownSelect
+              title="Select Opening Time"
+              options={timeOptions}
+              value={openingTime || null}
+              onChange={setOpeningTime}
+              bgColour={isDark ? "bg-[#101010]" : "bg-white"}
+              isDark={isDark}
+            />
 
-            <div className="relative">
-              <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                <span className={`text-sm font-medium ${subTextColor}`}>Select Opening Time</span>
-              </div>
-              <Select value={openingTime || undefined} onValueChange={(val) => setOpeningTime(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  {timeOptions.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="relative">
-              <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                <span className={`text-sm font-medium ${subTextColor}`}>Select Closing Time</span>
-              </div>
-              <Select value={closingTime || undefined} onValueChange={(val) => setClosingTime(val)}>
-                <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  {timeOptions.map((time) => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <DropdownSelect
+              title="Select Closing Time"
+              options={timeOptions}
+              value={closingTime || null}
+              onChange={setClosingTime}
+              bgColour={isDark ? "bg-[#101010]" : "bg-white"}
+              isDark={isDark}
+            />
 
             {timeError && <p className="text-sm text-red-500">{timeError}</p>}
 
             <button
               className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors"
-              onClick={() => {
-                if (timeError) return;
-              }}
+              onClick={handleSaveHours}
             >
               Save
             </button>
