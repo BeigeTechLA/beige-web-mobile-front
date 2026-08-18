@@ -36,7 +36,7 @@ interface Props {
   value?: {
     is24Hrs: boolean;
     selectedDays: string[];
-    schedule: Record<string, { isOpen: boolean; setHours: boolean }>;
+    schedule: Record<string, DayConfig>;
     rules: Record<string, boolean | null>;
     customRule: string;
     studio: string;
@@ -49,6 +49,16 @@ interface Props {
 type DayConfig = {
   isOpen: boolean;
   setHours: boolean;
+  opensAt?: string;
+  closesAt?: string;
+};
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const normalizeTimeValue = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  const match = value.trim().match(/^(\d{2}:\d{2})/);
+  return match ? match[1] : "";
 };
 
 const RULES_LIST = [
@@ -93,12 +103,14 @@ const CustomRadio = ({ selected }: { selected: boolean }) => {
 export default function OperatingHoursForm({ isDark = true, value, onChange }: Props) {
   // --- Operating Hours State ---
   const [is24Hrs, setIs24Hrs] = useState(value?.is24Hrs ?? false);
-  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
   const [selectedDays, setSelectedDays] = useState<string[]>(value?.selectedDays || []);
-  const [schedule, setSchedule] = useState<Record<string, { isOpen: boolean; setHours: boolean }>>(
+  const [schedule, setSchedule] = useState<Record<string, DayConfig>>(
     value?.schedule || {}
   );
+  const [activeDay, setActiveDay] = useState<string>(() => {
+    const candidate = value?.selectedDays?.find((day) => value?.schedule?.[day]?.isOpen);
+    return candidate || "";
+  });
 
   // --- Space Rules State ---
   const [rules, setRules] = useState<Record<string, boolean | null>>({
@@ -119,9 +131,27 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
 
   useEffect(() => {
     if (!value || hasHydratedValueRef.current) return;
+
+    const hydratedSchedule = Object.entries(value.schedule || {}).reduce<Record<string, DayConfig>>(
+      (acc, [day, config]) => {
+        acc[day] = {
+          ...config,
+          opensAt: normalizeTimeValue(config?.opensAt),
+          closesAt: normalizeTimeValue(config?.closesAt),
+        };
+        return acc;
+      },
+      {},
+    );
+
+    const nextSelectedDays = value.selectedDays || [];
+    const firstEditableDay =
+      nextSelectedDays.find((day) => hydratedSchedule[day]?.isOpen) || "";
+
     setIs24Hrs(value.is24Hrs ?? false);
-    setSelectedDays(value.selectedDays || []);
-    setSchedule(value.schedule || {});
+    setSelectedDays(nextSelectedDays);
+    setSchedule(hydratedSchedule);
+    setActiveDay(firstEditableDay);
     setRules(value.rules || {
       smoking: null,
       alcohol: null,
@@ -132,8 +162,16 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
     });
     setCustomRule(value.customRule || "");
     setStudio(value.studio || "");
-    setOpeningTime(value.openingTime || "");
-    setClosingTime(value.closingTime || "");
+    setOpeningTime(
+      firstEditableDay
+        ? hydratedSchedule[firstEditableDay]?.opensAt || ""
+        : normalizeTimeValue(value.openingTime),
+    );
+    setClosingTime(
+      firstEditableDay
+        ? hydratedSchedule[firstEditableDay]?.closesAt || ""
+        : normalizeTimeValue(value.closingTime),
+    );
     setTimeError("");
     hasHydratedValueRef.current = true;
   }, [value]);
@@ -162,37 +200,134 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
     setTimeError(openingTime >= closingTime ? "Opening time must be before closing time." : "");
   }, [openingTime, closingTime]);
 
+  const clearActiveDay = () => {
+    setActiveDay("");
+    setOpeningTime("");
+    setClosingTime("");
+    setTimeError("");
+  };
+
+  const selectDayForHours = (day: string) => {
+    const config = schedule[day];
+    if (!config?.isOpen) return;
+
+    setActiveDay(day);
+    setOpeningTime(normalizeTimeValue(config.opensAt));
+    setClosingTime(normalizeTimeValue(config.closesAt));
+    setTimeError("");
+  };
+
   const toggleCheckbox = (day: string) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    const isSelected = selectedDays.includes(day);
+
+    setSelectedDays((prev) =>
+      isSelected ? prev.filter((item) => item !== day) : [...prev, day],
     );
+
+    setSchedule((prev) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        isOpen: !isSelected,
+        setHours: isSelected ? false : Boolean(prev[day]?.opensAt && prev[day]?.closesAt),
+      },
+    }));
+
+    if (isSelected && activeDay === day) {
+      clearActiveDay();
+    }
   };
 
   // Helpers
   const toggleDay = (day: string) => {
-    setSchedule(prev => ({
+    const nextIsOpen = !getDayConfig(day).isOpen;
+
+    setSchedule((prev) => ({
       ...prev,
-      [day]: { ...prev[day], isOpen: !prev[day]?.isOpen }
+      [day]: {
+        ...prev[day],
+        isOpen: nextIsOpen,
+        setHours: nextIsOpen
+          ? Boolean(prev[day]?.opensAt && prev[day]?.closesAt)
+          : false,
+      },
     }));
+
+    setSelectedDays((prev) => {
+      if (nextIsOpen) {
+        return prev.includes(day) ? prev : [...prev, day];
+      }
+      return prev.filter((item) => item !== day);
+    });
+
+    if (!nextIsOpen && activeDay === day) {
+      clearActiveDay();
+    }
   };
 
   // Toggle All Days (Header Checkbox)
   const toggleAllDays = () => {
-    if (selectedDays.length === DAYS.length) {
-      setSelectedDays([]);
-    } else {
-      setSelectedDays(DAYS);
+    const shouldCloseAll = selectedDays.length === DAYS.length;
+
+    setSelectedDays(shouldCloseAll ? [] : DAYS);
+    setSchedule((prev) =>
+      DAYS.reduce<Record<string, DayConfig>>((next, day) => {
+        next[day] = {
+          ...prev[day],
+          isOpen: !shouldCloseAll,
+          setHours: shouldCloseAll
+            ? false
+            : Boolean(prev[day]?.opensAt && prev[day]?.closesAt),
+        };
+        return next;
+      }, { ...prev }),
+    );
+
+    if (shouldCloseAll) {
+      clearActiveDay();
     }
   };
 
   const toggleSetHours = (day: string) => {
-    setSchedule(prev => ({
-      ...prev,
-      [day]: { ...prev[day], setHours: !prev[day]?.setHours }
-    }));
+    selectDayForHours(day);
   };
 
-  const getDayConfig = (day: string) => schedule[day] || { isOpen: false, setHours: false };
+  const saveCustomHours = () => {
+    if (!activeDay) {
+      setTimeError("Please select a day to set custom hours.");
+      return;
+    }
+
+    if (!openingTime || !closingTime) {
+      setTimeError("Please select both opening and closing time.");
+      return;
+    }
+
+    if (openingTime >= closingTime) {
+      setTimeError("Opening time must be before closing time.");
+      return;
+    }
+
+    setSchedule((prev) => ({
+      ...prev,
+      [activeDay]: {
+        ...prev[activeDay],
+        isOpen: true,
+        setHours: true,
+        opensAt: openingTime,
+        closesAt: closingTime,
+      },
+    }));
+    setTimeError("");
+  };
+
+  const getDayConfig = (day: string): DayConfig =>
+    schedule[day] || {
+      isOpen: false,
+      setHours: false,
+      opensAt: "",
+      closesAt: "",
+    };
 
   const updateRule = (key: string, val: boolean) => {
     setRules(prev => ({ ...prev, [key]: val }));
@@ -223,6 +358,7 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
 
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setIs24Hrs(!is24Hrs)}
                 className="flex items-center gap-2 group"
               >
@@ -274,6 +410,7 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
 
                 <div className="flex items-center gap-6 w-full">
                   <button
+                    type="button"
                     onClick={() => toggleDay(day)}
                     className={`w-10 h-7 rounded-lg transition-colors relative ${getDayConfig(day).isOpen ? "bg-[#E8D1AB]" : "bg-[#484646]"
                       }`}
@@ -289,7 +426,7 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
                   {
                     getDayConfig(day).isOpen && (
                       <div className="flex items-center gap-2 cursor-pointer w-full" onClick={() => toggleSetHours(day)}>
-                        <CustomRadio selected={getDayConfig(day).setHours} />
+                        <CustomRadio selected={activeDay === day} />
                         <span className={`text-sm lg:text-base ${textColor}`}>Set Hours</span>
                       </div>
                     )
@@ -311,14 +448,24 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
           <div className="space-y-5 lg:space-y-9 p-5 pt-9">
             <div className="relative">
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-                <span className={`text-sm font-medium ${subTextColor}`}>Select Studios</span>
+                <span className={`text-sm font-medium ${subTextColor}`}>Select Day</span>
               </div>
-              <Select value={studio || undefined} onValueChange={(val) => setStudio(val)}>
+              <Select
+                value={activeDay || undefined}
+                onValueChange={selectDayForHours}
+                disabled={is24Hrs}
+              >
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
-                  <SelectValue placeholder="" />
+                  <SelectValue placeholder="Select day" />
                 </SelectTrigger>
                 <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
-                  <SelectItem value="studio1">Studio 1</SelectItem>
+                  {DAYS.filter(
+                    (day) => selectedDays.includes(day) && getDayConfig(day).isOpen,
+                  ).map((day) => (
+                    <SelectItem key={day} value={day}>
+                      {day}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -327,7 +474,11 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Opening Time</span>
               </div>
-              <Select value={openingTime || undefined} onValueChange={(val) => setOpeningTime(val)}>
+              <Select
+                value={openingTime || undefined}
+                onValueChange={(val) => setOpeningTime(val)}
+                disabled={!activeDay || is24Hrs}
+              >
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
                   <SelectValue placeholder="Select time" />
                 </SelectTrigger>
@@ -343,7 +494,11 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
                 <span className={`text-sm font-medium ${subTextColor}`}>Select Closing Time</span>
               </div>
-              <Select value={closingTime || undefined} onValueChange={(val) => setClosingTime(val)}>
+              <Select
+                value={closingTime || undefined}
+                onValueChange={(val) => setClosingTime(val)}
+                disabled={!activeDay || is24Hrs}
+              >
                 <SelectTrigger className={`rounded-full h-14 lg:h-[82px] rounded-xl px-6 text-sm lg:text-base bg-transparent border ${borderColor} ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all }`}>
                   <SelectValue placeholder="Select time" />
                 </SelectTrigger>
@@ -358,10 +513,10 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
             {timeError && <p className="text-sm text-red-500">{timeError}</p>}
 
             <button
-              className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors"
-              onClick={() => {
-                if (timeError) return;
-              }}
+              type="button"
+              className="bg-[#E8D1AB] text-black text-lg lg:text-xl font-medium px-8 py-2.5 rounded-lg hover:bg-[#d9c39e] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={saveCustomHours}
+              disabled={!activeDay || is24Hrs}
             >
               Save
             </button>
@@ -386,6 +541,7 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
 
                   {/* Yes Button */}
                   <button
+                    type="button"
                     onClick={() => updateRule(rule.id, true)}
                     className={`h-10 w-18 rounded-md border px-3 flex items-center justify-between transition-colors duration-300 ease-in-out ${rules[rule.id] === true ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-[#FFFFFF4D] hover:border-white/20 text-[#A9A9A9]"}`}
                   >
@@ -399,6 +555,7 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
 
                   {/* No Button */}
                   <button
+                    type="button"
                     onClick={() => updateRule(rule.id, false)}
                     className={`h-10 w-18 rounded-md border px-3 flex items-center justify-between transition-colors duration-300 ease-in-out ${rules[rule.id] === false ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-[#FFFFFF4D] hover:border-white/20 text-[#A9A9A9]"}`}
                   >

@@ -103,6 +103,94 @@ const normalizeTimeValue = (value: unknown) => {
 
 const dayMap = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+const toApiTime = (value: unknown) => {
+  const normalized = normalizeTimeValue(value);
+  return normalized ? `${normalized}:00` : null;
+};
+
+const getOperatingHoursValidationError = (operations: {
+  is24Hrs: boolean;
+  selectedDays: string[];
+  schedule: Record<
+    string,
+    {
+      isOpen: boolean;
+      setHours: boolean;
+      opensAt?: string;
+      closesAt?: string;
+    }
+  >;
+}) => {
+  if (operations.is24Hrs) return "";
+
+  for (const day of operations.selectedDays) {
+    const config = operations.schedule?.[day];
+
+    if (!config?.isOpen) continue;
+
+    const opensAt = normalizeTimeValue(config.opensAt);
+    const closesAt = normalizeTimeValue(config.closesAt);
+
+    if (!opensAt || !closesAt) {
+      return `Please set opening and closing time for ${day}.`;
+    }
+
+    if (opensAt >= closesAt) {
+      return `${day}: opening time must be before closing time.`;
+    }
+  }
+
+  return "";
+};
+
+const buildOperatingHoursPayload = (operations: {
+  is24Hrs: boolean;
+  selectedDays: string[];
+  schedule: Record<
+    string,
+    {
+      isOpen: boolean;
+      setHours: boolean;
+      opensAt?: string;
+      closesAt?: string;
+    }
+  >;
+}) =>
+  dayMap.flatMap((day, dayOfWeek) => {
+    const config = operations.schedule?.[day];
+
+    const isOpen =
+      operations.selectedDays.includes(day) &&
+      Boolean(config?.isOpen);
+
+    if (!isOpen) return [];
+
+    if (operations.is24Hrs) {
+      return [
+        {
+          day_of_week: dayOfWeek,
+          is_open: true,
+          opens_at: "00:00:00",
+          closes_at: "23:59:00",
+        },
+      ];
+    }
+
+    const opensAt = toApiTime(config?.opensAt);
+    const closesAt = toApiTime(config?.closesAt);
+
+    if (!opensAt || !closesAt) return [];
+
+    return [
+      {
+        day_of_week: dayOfWeek,
+        is_open: true,
+        opens_at: opensAt,
+        closes_at: closesAt,
+      },
+    ];
+  });
+
 const VIEW_CONFIG = {
   address: {
     title: "Space Address",
@@ -828,6 +916,15 @@ export default function AdminStudiosDetailsPage() {
     } else if (view === 'activities') {
       setView('operations');
     } else if (view === 'operations') {
+      const operatingHoursError = getOperatingHoursValidationError(
+        draft.step1.operations,
+      );
+
+      if (operatingHoursError) {
+        toast.error(operatingHoursError);
+        return;
+      }
+
       setView('budget');
     } else if (view === 'budget') {
       if (typeof window !== "undefined") {
@@ -906,7 +1003,21 @@ export default function AdminStudiosDetailsPage() {
         setMediaFiles(nextMediaFiles);
       }
 
-      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null);
+      const operatingHoursError = getOperatingHoursValidationError(
+        draft.step1.operations,
+      );
+
+      if (operatingHoursError) {
+        toast.error(operatingHoursError, { id: "studio-save" });
+        return;
+      }
+
+      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null) as Record<string, unknown>;
+
+      // Each open day keeps its own opening and closing time.
+      payload.operating_hours = buildOperatingHoursPayload(
+        draft.step1.operations,
+      );
 
       if (isEditMode) {
         await studioAdminApi.updateStudio(studioId as string, payload);
@@ -974,7 +1085,22 @@ export default function AdminStudiosDetailsPage() {
         setMediaFiles(nextMediaFiles);
       }
 
-      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null);
+      const operatingHoursError = getOperatingHoursValidationError(
+        draft.step1.operations,
+      );
+
+      if (operatingHoursError) {
+        toast.error(operatingHoursError, { id: "studio-save" });
+        return;
+      }
+
+      const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null) as Record<string, unknown>;
+
+      // Each open day keeps its own opening and closing time.
+      payload.operating_hours = buildOperatingHoursPayload(
+        draft.step1.operations,
+      );
+
       await (isEditMode
         ? studioAdminApi.updateStudio(studioId as string, payload)
         : studioAdminApi.createStudio(payload));
