@@ -32,6 +32,7 @@ interface FeaturedWorkModalProps {
   onAdd: (item: FeaturedWorkItem) => void | Promise<void>;
   editItem?: FeaturedWorkItem | null;
   isDark: boolean;
+  onUploadFiles?: (files: File[]) => Promise<ExistingFileItem[]>;
 }
 
 interface PreviewItem {
@@ -64,7 +65,7 @@ const getExistingFileId = (file: ExistingFileItem) =>
 const isFile = (value: unknown): value is File =>
   typeof File !== "undefined" && value instanceof File;
 
-const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedWorkModalProps) => {
+const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark, onUploadFiles }: FeaturedWorkModalProps) => {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [addTagsOpen, setAddTagsOpen] = useState(false);
@@ -238,9 +239,43 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
 
     try {
       setIsSaving(true);
-      const currentFileIds = rawFiles
+
+      let finalRawFiles = rawFiles;
+      const filesNeedingUpload = rawFiles
+        .filter((item) => item.file && !item.fileId)
+        .map((item) => item.file)
+        .filter((file): file is File => Boolean(file));
+
+      if (filesNeedingUpload.length > 0 && onUploadFiles) {
+        const uploadedFiles = await onUploadFiles(filesNeedingUpload);
+        let uploadedIndex = 0;
+
+        finalRawFiles = rawFiles.map((item) => {
+          if (!item.file || item.fileId) return item;
+
+          const uploadedFile = uploadedFiles[uploadedIndex];
+          uploadedIndex += 1;
+
+          return {
+            ...item,
+            fileId: uploadedFile ? getExistingFileId(uploadedFile) : undefined,
+          };
+        });
+
+        setRawFiles(finalRawFiles);
+      }
+
+      const currentFileIds = finalRawFiles
         .map((item) => item.fileId)
         .filter((fileId): fileId is string | number => Boolean(fileId));
+
+      if (currentFileIds.length < MIN_PROJECT_IMAGES) {
+        toast.error("Upload failed", {
+          description: "Please try again. At least 5 images must upload successfully."
+        });
+        return;
+      }
+
       const removedFileIds = initialFileIds.filter(
         (fileId) => !currentFileIds.map(String).includes(String(fileId))
       );
@@ -250,9 +285,14 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark }: FeaturedW
         title,
         tags,
         previews: imagePreviews.map((item) => item.src),
-        files: rawFiles
-          .map((item) => item.file || (item.fileId ? { crewFilesId: item.fileId } : null))
-          .filter((file): file is File | ExistingFileItem => Boolean(file)),
+        files: finalRawFiles.reduce<Array<File | ExistingFileItem>>((acc, item) => {
+          if (item.fileId) {
+            acc.push({ crewFilesId: item.fileId, file: item.file });
+          } else if (item.file) {
+            acc.push(item.file);
+          }
+          return acc;
+        }, []),
         fileIds: currentFileIds,
         removedFileIds,
       });

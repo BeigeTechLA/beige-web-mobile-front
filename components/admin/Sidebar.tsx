@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings, User, CalendarRange, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -109,7 +109,12 @@ const menuItems = [
   },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
-  { name: 'Profile', icon: Settings, link: '/admin/profile',},
+  {
+    name: 'Settings',
+    icon: Settings,
+    link: '/admin/settings',
+  },
+  { name: 'Profile', icon: User, link: '/admin/profile' },
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
