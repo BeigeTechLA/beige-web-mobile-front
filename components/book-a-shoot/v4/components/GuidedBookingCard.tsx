@@ -1,0 +1,103 @@
+"use client";
+
+import React, { useState } from "react";
+import Image from "next/image";
+import { CheckCircle2 } from "lucide-react";
+
+interface GuidedBookingCardProps {
+  onContinue?: (email: string) => void;
+  imageSrc?: string;
+}
+
+export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
+  onContinue,
+  imageSrc = "/images/misc/BookingFlow/GuidedBookingImg.png", // replace with your asset path
+}) => {
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onContinue) {
+      onContinue(email);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-6xl mx-auto p-4 md:p-8">
+      {/* Outer Dark Container Card */}
+      <div
+        className="relative w-full rounded-[50px] p-8 md:p-14 lg:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
+      >
+        {/* Left Column: Form Content */}
+        <div className="lg:col-span-7 flex flex-col justify-center pr-0 lg:pr-4">
+          {/* Top Tagline */}
+          <span className="text-xs lg:text-sm tracking-[0.2em] text-[#E8D1AB] uppercase mb-4">
+            A Guided Booking
+          </span>
+
+          {/* Heading */}
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] font-medium text-white leading-[1.08] mb-6">
+            Let’s get your <br />
+            project started.
+          </h2>
+
+          {/* Subtext */}
+          <p className="text-base md:text-xl text-white/40 font-normal leading-relaxed mb-10 max-w-md">
+            We’ll use your email to save your booking and keep you updated.
+          </p>
+
+          {/* Interactive Form */}
+          <form onSubmit={handleSubmit} className="w-full max-w-md">
+            <div className="flex flex-col gap-2 mb-8">
+              <label
+                htmlFor="email"
+                className="text-xs lg:text-sm tracking-[0.2em] text-white uppercase mb-4"
+              >
+                Email ID
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Please enter your email"
+                className="w-full bg-transparent border-b border-white/20 pb-3 text-lg md:text-2xl text-[#D8D7D6] font-['Cormorant_Garamond'] placeholder-white/50 outline-none focus:border-[#E8D1AB] transition-colors duration-200"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="w-full py-4 rounded-lg bg-[#E8D1AB] text-[#0A0908] text-sm lg:text-base hover:bg-[#dfc498] transition-all duration-200 cursor-pointer mb-6"
+            >
+              Continue
+            </button>
+          </form>
+
+          {/* Privacy Note */}
+          <div className="flex items-center gap-2 text-xs md:text-sm text-[#8A857C]">
+            <CheckCircle2 className="w-4.5 h-4.5 text-[#8A857C] shrink-0 stroke-[1.5]" />
+            <span>Your information stays private and secure.</span>
+          </div>
+        </div>
+
+        {/* Right Column: Studio Production Image */}
+        <div className="lg:col-span-5 h-[360px] md:h-[480px] lg:h-[520px] relative rounded-3xl overflow-hidden border border-white/10 shadow-inner">
+          <Image
+            src={imageSrc}
+            alt="Studio Production Crew"
+            fill
+            priority
+            className="object-cover object-center"
+            sizes="(max-width: 1024px) 100vw, 40vw"
+          />
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default GuidedBookingCard;
