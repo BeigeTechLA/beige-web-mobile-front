@@ -653,7 +653,7 @@ export default function AdminFinancesPage() {
               <Plus size={18} />
               Add Credit Points
             </Button>
-            <Button
+            {/* <Button
               type="button"
               className={`h-12 w-12 rounded-lg border p-0 transition-colors ${
                 isDark
@@ -661,11 +661,11 @@ export default function AdminFinancesPage() {
                   : "border-[#E5E5E5] bg-white text-black hover:bg-black/5"
               }`}
               onClick={() => setIsSignupSettingsOpen(true)}
-              title="Signup credit settings"
-              aria-label="Signup credit settings"
+              title="New User Sign up Credits"
+              aria-label="New User Sign up Credits"
             >
               <Settings size={19} />
-            </Button>
+            </Button> */}
           </div>
         }
       />
@@ -769,7 +769,7 @@ export default function AdminFinancesPage() {
             isDark ? "border-white/25 bg-black text-white" : "border-[#D7D7D7] bg-white text-black"
           }`}
         >
-          <DialogTitle className="sr-only">Signup Credit Settings</DialogTitle>
+          <DialogTitle className="sr-only">New User Sign up Credits</DialogTitle>
 
           <div
             className={`flex items-center justify-between border-b px-5 py-4 ${
@@ -786,17 +786,17 @@ export default function AdminFinancesPage() {
               </span>
               <div>
                 <h2 className="text-[20px] font-semibold leading-none">
-                  Signup Credit Settings
+                  New User Sign up Credits
                 </h2>
                 <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  Configure automatic credits for new client accounts.
+                  Credits apply only to users who sign up during the selected date range while this setting is enabled.
                 </p>
               </div>
             </div>
             <DialogClose asChild>
               <button
                 type="button"
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+                className={`flex h-8 w-10 items-center justify-center rounded-full transition ${
                   isDark
                     ? "bg-[#2B2525] text-white/90 hover:bg-[#3A3333]"
                     : "bg-black/5 text-black hover:bg-black/10"
@@ -836,7 +836,7 @@ export default function AdminFinancesPage() {
                   </span>
                 </div>
                 <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  New client signups receive credits only while this is enabled and in date range.
+                  Credits apply only to users who sign up during the selected date range while this setting is enabled.
                 </p>
               </div>
               <button
