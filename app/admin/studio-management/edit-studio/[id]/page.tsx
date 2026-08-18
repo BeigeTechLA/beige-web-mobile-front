@@ -1,4 +1,3 @@
-/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -218,7 +217,15 @@ const createEmptyDraft = () => ({
     operations: {
       is24Hrs: false,
       selectedDays: [] as string[],
-      schedule: {} as Record<string, { isOpen: boolean; setHours: boolean }>,
+      schedule: {} as Record<
+        string,
+        {
+          isOpen: boolean;
+          setHours: boolean;
+          opensAt?: string;
+          closesAt?: string;
+        }
+      >,
       rules: {
         smoking: null as boolean | null,
         alcohol: null as boolean | null,
@@ -237,7 +244,14 @@ const createEmptyDraft = () => ({
       overtimeRate: "",
       minimumBooking: "",
       bufferTime: "",
-      categories: [] as Array<{ id: string; name: string; price: string; includes: string[] }>,
+      categories: [] as Array<{
+        id: string;
+        name: string;
+        price: string;
+        includes: string[];
+        minHours: number;
+        maxPeopleAllowed: number;
+      }>,
       equipmentItems: [] as Array<{ id: string; name: string; cost: string }>,
     },
     terms: {} as Record<string, boolean>,
@@ -453,10 +467,33 @@ export default function AdminStudiosDetailsPage() {
       const categories = Array.isArray(pricingSettings.categories)
         ? pricingSettings.categories
             .map((item: any) => ({
-              id: String(item?.id || item?.name || `category-${Math.random().toString(36).slice(2, 8)}`),
+              id: String(
+                item?.id ||
+                  item?.name ||
+                  `category-${Math.random().toString(36).slice(2, 8)}`,
+              ),
               name: String(item?.name || ""),
               price: String(item?.hourly_price ?? item?.price ?? ""),
-              includes: asStringArray(item?.included_types || item?.includes),
+              includes: asStringArray(
+                item?.included_types || item?.includes,
+              ),
+              minHours: Math.max(
+                1,
+                Number(
+                  item?.minHours ??
+                    item?.min_hours ??
+                    item?.minimum_hours ??
+                    2,
+                ) || 2,
+              ),
+              maxPeopleAllowed: Math.max(
+                1,
+                Number(
+                  item?.maxPeopleAllowed ??
+                    item?.max_people_allowed ??
+                    6,
+                ) || 6,
+              ),
             }))
             .filter((item) => item.name)
         : [];
@@ -580,15 +617,37 @@ export default function AdminStudiosDetailsPage() {
                   .filter((day): day is string => Boolean(day))
               : [],
             schedule: Array.isArray(data.operating_hours)
-              ? data.operating_hours.reduce((acc: Record<string, { isOpen: boolean; setHours: boolean }>, item: any) => {
-                  const day = dayMap[Number(item?.day_of_week)];
-                  if (!day) return acc;
-                  acc[day] = {
-                    isOpen: Boolean(item?.is_open),
-                    setHours: Boolean(item?.opens_at || item?.closes_at),
-                  };
-                  return acc;
-                }, {})
+              ? data.operating_hours.reduce(
+                  (
+                    acc: Record<
+                      string,
+                      {
+                        isOpen: boolean;
+                        setHours: boolean;
+                        opensAt?: string;
+                        closesAt?: string;
+                      }
+                    >,
+                    item: any,
+                  ) => {
+                    const day = dayMap[Number(item?.day_of_week)];
+                    if (!day) return acc;
+
+                    const isOpen = Boolean(item?.is_open);
+                    const opensAt = normalizeTimeValue(item?.opens_at);
+                    const closesAt = normalizeTimeValue(item?.closes_at);
+
+                    acc[day] = {
+                      isOpen,
+                      setHours: isOpen && Boolean(opensAt && closesAt),
+                      opensAt: isOpen ? opensAt : "",
+                      closesAt: isOpen ? closesAt : "",
+                    };
+
+                    return acc;
+                  },
+                  {},
+                )
               : {},
             rules: {
               smoking: typeof houseRules?.smoking_and_drugs_allowed === "boolean" ? houseRules.smoking_and_drugs_allowed : null,
@@ -606,7 +665,10 @@ export default function AdminStudiosDetailsPage() {
           budget: {
             hourlyRate: String(data.hourly_rate ?? ""),
             overtimeRate: String(data.overtime_rate ?? ""),
-            minimumBooking: String(data.minimum_booking_hours ?? ""),
+            minimumBooking:
+              data.minimum_booking_hours != null
+                ? String(Number(data.minimum_booking_hours))
+                : "",
             bufferTime: String(data.buffer_time_minutes ?? ""),
             categories:
               categories.length > 0

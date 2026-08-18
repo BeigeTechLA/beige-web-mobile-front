@@ -2238,6 +2238,29 @@ export const adminApi = {
       };
     }
   },
+  updateStudioMedia: async (
+    studioId: string | number,
+    media: {
+      studio_media_id: string | number;
+      url: string;
+      sort_order: number;
+      is_cover: boolean;
+    }[]
+  ) => {
+    try {
+      const response = await api.put(`/admin/studios/${studioId}/media`, {
+        media,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Media Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio media',
+      };
+    }
+  },
   updateStudio: async (studioId: string | number, payload: Record<string, unknown>) => {
     try {
       const response = await api.put(`/admin/studios/${studioId}`, payload);

@@ -1,4 +1,3 @@
-/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -227,7 +226,14 @@ const createEmptyDraft = () => ({
       overtimeRate: "",
       minimumBooking: "",
       bufferTime: "",
-      categories: [] as Array<{ id: string; name: string; price: string; includes: string[] }>,
+      categories: [] as Array<{
+        id: string;
+        name: string;
+        price: string;
+        includes: string[];
+        minHours: number;
+        maxPeopleAllowed: number;
+      }>,
       equipmentItems: [] as Array<{ id: string; name: string; cost: string }>,
     },
     terms: {} as Record<string, boolean>,
@@ -291,7 +297,22 @@ export default function AdminStudiosDetailsPage() {
   }, []);
 
   const handleBudgetChange = useCallback((next: typeof draft.step1.budget) => {
-    setDraft((prev) => ({ ...prev, step1: { ...prev.step1, budget: next } }));
+    const normalizedCategories = next.categories.map((category) => ({
+      ...category,
+      minHours: Math.max(1, Number(category.minHours) || 1),
+      maxPeopleAllowed: Math.max(1, Number(category.maxPeopleAllowed) || 1),
+    }));
+
+    setDraft((prev) => ({
+      ...prev,
+      step1: {
+        ...prev.step1,
+        budget: {
+          ...next,
+          categories: normalizedCategories,
+        },
+      },
+    }));
   }, []);
 
   const handleTermsChange = useCallback((next: typeof draft.step1.terms) => {
@@ -446,6 +467,14 @@ export default function AdminStudiosDetailsPage() {
               name: String(item?.name || ""),
               price: String(item?.hourly_price ?? item?.price ?? ""),
               includes: asStringArray(item?.included_types || item?.includes),
+              minHours: Math.max(
+                1,
+                Number(item?.minHours ?? item?.min_hours ?? item?.minimum_hours ?? 1) || 1,
+              ),
+              maxPeopleAllowed: Math.max(
+                1,
+                Number(item?.maxPeopleAllowed ?? item?.max_people_allowed ?? 1) || 1,
+              ),
             }))
             .filter((item) => item.name)
         : [];

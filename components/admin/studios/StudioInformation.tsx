@@ -200,7 +200,8 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
     return address;
   }, [information]);
 
-  const visibleAmenities = isAmenitiesExpanded ? parsedAmenities : parsedAmenities.slice(0, 10);
+  const visibleAmenities = isAmenitiesExpanded ? parsedAmenities : parsedAmenities.slice(0, 2);
+  const canToggleAmenities = parsedAmenities.length >= 3;
   const isLongAddress = addressText.length > 200;
 
   return (
@@ -324,11 +325,14 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
           ))}
         </div>
 
-        <button
-          onClick={() => setIsAmenitiesExpanded(!isAmenitiesExpanded)}
-          className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all active:scale-95 ${isDark ? "bg-[#f3e3ce] text-black hover:bg-[#e2d1b1]" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"}`}>
-          {isAmenitiesExpanded ? "Show less" : `Show all ${parsedAmenities.length} amenities`}
-        </button>
+        {canToggleAmenities && (
+          <button
+            type="button"
+            onClick={() => setIsAmenitiesExpanded(!isAmenitiesExpanded)}
+            className={`px-6 py-3 rounded-lg text-sm font-semibold transition-all active:scale-95 ${isDark ? "bg-[#f3e3ce] text-black hover:bg-[#e2d1b1]" : "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"}`}>
+            {isAmenitiesExpanded ? "Show less" : `Show all ${parsedAmenities.length} amenities`}
+          </button>
+        )}
       </div>
       <hr className={`border-t my-4 lg:my-9 ${isDark ? "border-[#3D3D3D]" : "border-[#00000080]"}`} />
 
