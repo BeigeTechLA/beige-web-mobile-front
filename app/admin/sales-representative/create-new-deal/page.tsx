@@ -1584,20 +1584,30 @@ function ClientDetailPage() {
           {bookingType === "single_day" ? (
             <>
               <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Shoot Date & Time</h3>
-              <div className="flex flex-col lg:flex-row gap-6">
-                <div className="flex-1">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                  <div className="min-w-0 w-full relative">
+                    <span
+                      className={`absolute left-4 -top-2 z-10 px-2 text-xs lg:text-sm font-medium ${
+                        isDark
+                          ? "bg-[#101010] text-white/80"
+                          : "bg-[#F4F5F7] text-black/70"
+                      }`}
+                    >
+                      Select Date
+                    </span>
+
                   <DatePicker
-                    label="Select Date"
+                    label=""
                     value={selectedShootDate}
                     onChange={handleDateChange}
                     minDate={new Date()}
                     // colors={datePickerColours}
                     format="MM/dd/yyyy"
-                    sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
+                    sx={{ height: { xs: "56px", md: "82px" },borderRadius: "16px" }}
                     isDark={isDark}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 w-full">
                   <DropdownSelect
                     title="Start Time"
                     options={filteredStartTimeOptions}
@@ -1607,7 +1617,7 @@ function ClientDetailPage() {
                     isDark={isDark}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 w-full">
                   <DropdownSelect
                     title="End Time"
                     options={filteredEndTimeOptions}
