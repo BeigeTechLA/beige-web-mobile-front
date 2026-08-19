@@ -95,11 +95,10 @@ export const CreditPointsSettings = ({
 
       const data = asRecord(response?.data) || {};
 
+      const rawAmount = pickFirstNumber(data, ["amount"]) || 250;
       setForm({
         isEnabled: Boolean(data.is_enabled),
-        amount: String(
-          pickFirstNumber(data, ["amount"]) || 250
-        ),
+        amount: rawAmount.toFixed(2),
         startDate: pickFirstString(data, ["start_date"]).slice(0, 10),
         endDate: pickFirstString(data, ["end_date"]).slice(0, 10),
         isActiveNow: Boolean(data.is_active_now),
@@ -125,12 +124,16 @@ export const CreditPointsSettings = ({
   ) => {
     event.preventDefault();
 
-    const amount = Number(form.amount);
+// Trim and parse
+    const rawValue = form.amount.trim();
+    const amount = parseFloat(rawValue);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (rawValue === "" || isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid signup credit amount");
       return;
     }
+
+   setForm(prev => ({ ...prev, amount: amount.toFixed(2) }));
 
     if (
       form.startDate &&
@@ -159,11 +162,10 @@ export const CreditPointsSettings = ({
 
       const data = asRecord(response?.data) || {};
 
+      const savedAmount = pickFirstNumber(data, ["amount"]) || amount;
       setForm({
         isEnabled: Boolean(data.is_enabled),
-        amount: String(
-          pickFirstNumber(data, ["amount"]) || amount
-        ),
+        amount: savedAmount.toFixed(2),
         startDate: pickFirstString(data, ["start_date"]).slice(0, 10),
         endDate: pickFirstString(data, ["end_date"]).slice(0, 10),
         isActiveNow: Boolean(data.is_active_now),
@@ -303,18 +305,30 @@ export const CreditPointsSettings = ({
           />
 
           <Input
-            type="number"
-            min="0.01"
+            type="text"
+            inputMode="decimal"
+            min="0"
             step="0.01"
             value={form.amount}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                amount: event.target.value,
-              }))
-            }
+            onChange={(event) => {
+              const val = event.target.value;
+              if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                setForm((current) => ({
+                  ...current,
+                  amount: val,
+                }));
+              }
+            }}
+            onBlur={() => {
+              if (form.amount && !isNaN(Number(form.amount))) {
+                setForm(prev => ({
+                  ...prev,
+                  amount: parseFloat(prev.amount).toFixed(2)
+                }));
+              }
+            }}
             disabled={loading}
-            placeholder="250"
+            placeholder="250.00"
             className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${
               isDark
                 ? "text-white placeholder:text-white/35"
@@ -325,7 +339,8 @@ export const CreditPointsSettings = ({
       </fieldset>
 
       {/* Dates */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-2">
+        <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <div
             className={`flex items-center gap-2 text-xs font-semibold ${
@@ -341,15 +356,15 @@ export const CreditPointsSettings = ({
           <DatePicker
             label=""
             value={parseIsoDateOnly(form.startDate)}
-            onChange={(date) =>
+            onChange={(date) => {
+              const newStart = date && isValid(date) ? format(date, "yyyy-MM-dd") : "";
               setForm((current) => ({
                 ...current,
-                startDate:
-                  date && isValid(date)
-                    ? format(date, "yyyy-MM-dd")
-                    : "",
-              }))
-            }
+                startDate: newStart,
+                endDate: current.endDate && newStart && current.endDate < newStart ? "" : current.endDate
+              }));
+            }}
+            minDate={new Date()} 
             disabled={loading}
             placeholder="Select start date"
             isDark={isDark}
@@ -381,12 +396,24 @@ export const CreditPointsSettings = ({
               }))
             }
             minDate={
-              parseIsoDateOnly(form.startDate) || undefined
+              parseIsoDateOnly(form.startDate) || new Date()
             }
             disabled={loading}
             placeholder="Select end date"
             isDark={isDark}
           />
+                  {(form.startDate || form.endDate) && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setForm(prev => ({ ...prev, startDate: "", endDate: "" }))}
+              className="text-[10px] font-bold uppercase tracking-wider text-white/50 hover:text-white transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        </div>
         </div>
       </div>
 
