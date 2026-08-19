@@ -189,7 +189,7 @@ export const authApi = createApi({
     }),
 
     // Admin function to generate a link manually
-    generateUserResetLinkForAdmin: builder.mutation<{ success: boolean; resetLink: string; message: string }, { user_id: number }>({
+    generateUserResetLinkForAdmin: builder.mutation<{ success: boolean; resetLink: string; message: string }, { email: string }>({
       query: (data) => ({
         url: 'auth/admin/generate-reset-link',
         method: 'POST',

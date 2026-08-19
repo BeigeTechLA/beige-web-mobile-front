@@ -354,7 +354,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
   const socialMediaLinks = convertLinksStringToArray(partner?.social_media_links || null)
 
   const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
-  const partnerUserId = Number(partner?.user_id || id.replace('#', ''));
+  const partnerEmail = String(partner?.email || "").trim().toLowerCase();
 
   // Base URL for uploads
   const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -688,7 +688,11 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
                 <button
                   onClick={async () => {
                     try {
-                      const res = await generateAdminReset({ user_id: partnerUserId }).unwrap();
+                      if (!partnerEmail) {
+                        toast.error("Email is missing for this partner");
+                        return;
+                      }
+                      const res = await generateAdminReset({ email: partnerEmail }).unwrap();
                       setManualResetLink(res.resetLink);
                     } catch (e) { toast.error("Failed to generate link"); }
                   }}

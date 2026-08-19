@@ -3373,6 +3373,25 @@ export const adminApi = {
       };
     }
   },
+  updateShootProjectName: async (
+    shootId: string | number,
+    project_name: string
+  ) => {
+    try {
+      const response = await api.put(
+        `admin/shoots/${shootId}/project-name`,
+        { project_name }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Project Name Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update project name',
+      };
+    }
+  },
   updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
     try {
       const response = await api.post('admin/shoots/update-onboarding-form', payload);

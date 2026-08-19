@@ -90,6 +90,7 @@ export type BookingDataV3 = {
 export const initialDataV3: BookingDataV3 = {
   contentType: [],
   shootType: "",
+  projectName: "",
   bookingType: "single_day",
   bookingDays: [],
   startDate: "",

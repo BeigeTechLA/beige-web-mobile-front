@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, CalendarClock, Eye, Loader2, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Eye, Loader2, Pencil, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -326,6 +326,10 @@ export default function ShootHeader({
   const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false);
   const [isSavingSchedule, setIsSavingSchedule] = React.useState(false);
   const [scheduleDraft, setScheduleDraft] = React.useState<BookingScheduleData | null>(null);
+  const [displayProjectName, setDisplayProjectName] = React.useState("");
+  const [isProjectNameModalOpen, setIsProjectNameModalOpen] = React.useState(false);
+  const [projectNameDraft, setProjectNameDraft] = React.useState("");
+  const [isSavingProjectName, setIsSavingProjectName] = React.useState(false);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const isConvertedBooking = !!(project?.is_quote_converted_booking || project?.converted_sales_quote_id);
@@ -471,6 +475,11 @@ export default function ShootHeader({
   const finalValueText = `$${finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const paidAmountText = `$${paidAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const pendingAmountText = `$${pendingAmountValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  useEffect(() => {
+    setDisplayProjectName(projectName);
+    setProjectNameDraft(projectName);
+  }, [projectName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -700,6 +709,50 @@ export default function ShootHeader({
     }
   };
 
+  const handleSaveProjectName = async () => {
+    const nextProjectName = projectNameDraft.trim();
+
+    if (!projectId) {
+      toast.error("Project ID is missing");
+      return;
+    }
+
+    if (!nextProjectName) {
+      toast.error("Please enter a project name");
+      return;
+    }
+
+    if (nextProjectName === displayProjectName) {
+      setIsProjectNameModalOpen(false);
+      return;
+    }
+
+    try {
+      setIsSavingProjectName(true);
+      const response = await adminApi.updateShootProjectName(projectId, nextProjectName);
+
+      if (response?.success === false || response?.error) {
+        throw new Error(response?.error || response?.message || "Failed to update project name");
+      }
+
+      toast.success("Project name updated");
+      setDisplayProjectName(nextProjectName);
+      setProjectNameDraft(nextProjectName);
+      setIsProjectNameModalOpen(false);
+      await onScheduleUpdated?.();
+    } catch (error) {
+      console.error("Failed to update project name", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update project name");
+    } finally {
+      setIsSavingProjectName(false);
+    }
+  };
+
+  const handleCloseProjectNameModal = () => {
+    setProjectNameDraft(displayProjectName);
+    setIsProjectNameModalOpen(false);
+  };
+
   if (!mounted) return null;
 
   return (
@@ -829,20 +882,114 @@ export default function ShootHeader({
         </div>
       ) : null}
 
+      {isProjectNameModalOpen ? (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className={`w-full max-w-xl rounded-2xl border shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+            <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <div>
+                <h3 className="text-base font-semibold">Edit Project Name</h3>
+                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  Update only the project name for this shoot.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseProjectNameModal}
+                disabled={isSavingProjectName}
+                className={`rounded-lg p-2 transition-colors ${isDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-black/50 hover:bg-black/5 hover:text-black"}`}
+                aria-label="Close project name editor"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5">
+              <label
+                htmlFor="project-name-modal-input"
+                className={`mb-2 block text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}
+              >
+                Project Name
+              </label>
+              <input
+                id="project-name-modal-input"
+                type="text"
+                value={projectNameDraft}
+                onChange={(e) => setProjectNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleSaveProjectName();
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    handleCloseProjectNameModal();
+                  }
+                }}
+                disabled={isSavingProjectName}
+                autoFocus
+                maxLength={255}
+                placeholder="Enter project name"
+                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${isDark ? "border-white/10 bg-[#101010] text-white placeholder:text-white/30" : "border-[#E5E5E5] bg-white text-black placeholder:text-black/30"}`}
+              />
+            </div>
+
+            <div className={`flex justify-end gap-2 border-t px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <Button
+                type="button"
+                onClick={handleCloseProjectNameModal}
+                disabled={isSavingProjectName}
+                variant="outline"
+                className={isDark ? "border-white/10 bg-transparent text-white hover:bg-white/10" : "border-[#E5E5E5] bg-white text-black hover:bg-black/5"}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveProjectName}
+                disabled={isSavingProjectName || !canEdit}
+                className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+              >
+                {isSavingProjectName ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
           <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
-            {getInitials(projectName)}
+            {getInitials(displayProjectName)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                    {projectName}
-                    {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
-                  </h1>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1 className={`min-w-0 lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                      {displayProjectName}
+                      {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
+                    </h1>
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsProjectNameModalOpen(true)}
+                        className={`shrink-0 rounded-lg p-2 transition-colors ${isDark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-black/60 hover:bg-black/5 hover:text-black"}`}
+                        aria-label="Edit project name"
+                        title="Edit project name"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    ) : null}
+                  </div>
                   <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
                     {resolvedStatusLabel}
                   </span>

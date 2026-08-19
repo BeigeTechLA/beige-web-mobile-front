@@ -196,7 +196,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
   const clientType = client?.client_type === "registered" ? "registered" : "guest";
   const clientTypeLabel = clientType === "registered" ? "Registered" : "Guest";
-  const clientUserId = Number(client?.user_id || id);
+  const clientEmail = String(client?.email || "").trim().toLowerCase();
   const clientTypeBadgeClass = clientType === "registered"
     ? "bg-[#E8F2FF] text-[#246BCE] border border-[#246BCE]/20"
     : "bg-[#FFF4E5] text-[#B66A00] border border-[#B66A00]/20";
@@ -227,7 +227,8 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
             </div>
           </div>
           <div className="shrink-0">
-            {manualResetLink ? (
+            {Number(client?.is_active) === 1 && 
+              client?.client_type === "registered" && (manualResetLink ? (
               <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"}`}>
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${isDark ? "border-white/10 bg-white/5 text-[#E8D1AB]" : "border-gray-200 bg-gray-50 text-[#B08A3C]"}`}>
                   <Key size={14} />
@@ -255,7 +256,11 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
               <button
                 onClick={async () => {
                   try {
-                    const res = await generateAdminReset({ user_id: clientUserId }).unwrap();
+                    if (!clientEmail) {
+                      toast.error("Email is missing for this client");
+                      return;
+                    }
+                    const res = await generateAdminReset({ email: clientEmail }).unwrap();
                     setManualResetLink(res.resetLink);
                   } catch (e) { toast.error("Failed to generate link"); }
                 }}
@@ -264,6 +269,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
                 <Key size={14} />
                 Reset Password
               </button>
+            )
             )}
           </div>
         </div>
