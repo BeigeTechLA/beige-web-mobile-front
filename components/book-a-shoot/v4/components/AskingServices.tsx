@@ -97,7 +97,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
           What do you need?
         </h1>
-        <p className="text-white/40 text-base md:text-xl font-light mb-8">
+        <p className="text-white/30 text-base md:text-xl font-light mb-8">
           Pick everything that applies — we can combine them into one production.
         </p>
 

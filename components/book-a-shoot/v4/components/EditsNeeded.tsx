@@ -59,6 +59,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {/* Back Arrow */}
         {onBack && (
           <button
+            type="button"
             onClick={onBack}
             className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
           >
@@ -77,31 +78,31 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {/* Heading & Subtitle */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
-          Need edits for your occasion?
-        </h1>
-        <p className="text-white/60 text-base md:text-xl font-light mb-8">
-          Add professional editing to turn your raw footage into polished, share-ready content
-        </p>
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+            Need edits for your occasion?
+          </h1>
+          <p className="text-white/30 text-base md:text-xl font-light">
+            Add professional editing to turn your raw footage into polished, share-ready content
+          </p>
+        </div>
 
         {/* Yes / No Toggle Group */}
         <div className="flex items-center gap-4 mb-8">
           <button
             type="button"
             onClick={() => setNeedsEdits(true)}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${
-              needsEdits
+            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${needsEdits
                 ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
                 : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-            }`}
+              }`}
           >
             <span>Yes</span>
             <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                needsEdits
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${needsEdits
                   ? "border-black bg-black"
                   : "border-white/40 bg-transparent"
-              }`}
+                }`}
             >
               {needsEdits && (
                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
@@ -112,19 +113,17 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <button
             type="button"
             onClick={() => setNeedsEdits(false)}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${
-              !needsEdits
+            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!needsEdits
                 ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
                 : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-            }`}
+              }`}
           >
             <span>No</span>
             <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                !needsEdits
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!needsEdits
                   ? "border-black bg-black"
                   : "border-white/40 bg-transparent"
-              }`}
+                }`}
             >
               {!needsEdits && (
                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
@@ -169,6 +168,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
       <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
         {onBack ? (
           <button
+            type="button"
             onClick={onBack}
             className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >

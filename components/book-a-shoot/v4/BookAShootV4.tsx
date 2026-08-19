@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
 import LeaveConfirmationModal from "./components/LeaveConfirmationModal";
@@ -9,10 +8,22 @@ import GuidedBookingCard from "./components/GuidedBookingCard";
 import AskingServices from "./components/AskingServices";
 import EditsNeeded, { EditsConfig } from "./components/EditsNeeded";
 import AskingOccasion from "./components/AskingOccassion";
+import ScheduleShoot from "./components/ScheduleShoot";
+import ShootDetails, { ShootDetailsData } from "./components/ShootDetails";
+import MatchMakerStep, { TeamSelectionData } from "./components/MatchMaker";
+import CreativeTeam from "./components/CreativeTeam";
+
+export interface ScheduleData {
+  dateOption: "have-date" | "confirm-later";
+  bookingType: "single" | "multiple" | null;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  location: string;
+}
 
 export const BookAShootV4 = () => {
-  // Step 0: GuidedBookingCard, Step 1: AskingServices, Step 2: EditsNeeded, Step 3: AskingOccasion, etc.
-  const [internalStep, setInternalStep] = useState<number>(0);
+  const [internalStep, setInternalStep] = useState<number>(6);
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   const [bookingState, setBookingState] = useState<{
@@ -20,6 +31,9 @@ export const BookAShootV4 = () => {
     selectedServices: string[];
     editsConfig: EditsConfig;
     selectedOccasion: string;
+    scheduleData: ScheduleData | null;
+    shootDetailsData: ShootDetailsData | null;
+    teamSelectionData: TeamSelectionData | null;
   }>({
     email: "",
     selectedServices: ["photography"],
@@ -28,6 +42,14 @@ export const BookAShootV4 = () => {
       editedPhotosSets: 1,
     },
     selectedOccasion: "corporate",
+    scheduleData: null,
+    shootDetailsData: null,
+    teamSelectionData: null,
+  });
+
+  const [creativeTeam, setCreativeTeam] = useState<{ [key: string]: number }>({
+    photographer: 0,
+    videographer: 0,
   });
 
   const handleConfirmLeave = () => {
@@ -56,6 +78,35 @@ export const BookAShootV4 = () => {
   const handleOccasionSelected = (selectedOccasion: string) => {
     setBookingState((prev) => ({ ...prev, selectedOccasion }));
     setInternalStep(4);
+  };
+
+  // Step 4 -> Step 5
+  const handleScheduleSubmitted = (scheduleData: ScheduleData) => {
+    setBookingState((prev) => ({ ...prev, scheduleData }));
+    setInternalStep(5);
+  };
+
+  // Step 5 -> Step 6
+  const handleDetailsSubmitted = (shootDetailsData: ShootDetailsData) => {
+    setBookingState((prev) => ({ ...prev, shootDetailsData }));
+    setInternalStep(6);
+  };
+
+  // Step 6 -> Step 7
+  const handleTeamSelected = (teamSelectionData: TeamSelectionData) => {
+    setBookingState((prev) => ({ ...prev, teamSelectionData }));
+    setInternalStep(7);
+  };
+
+  // Step 7 -> Step 8
+  const handleCreativeTeamSubmitted = (updatedTeam: { [key: string]: number }) => {
+    setCreativeTeam(updatedTeam);
+    setInternalStep(8);
+  };
+
+  const handleBrowseStudios = () => {
+    // Action handler for studio modal or redirection
+    console.log("Browse studios clicked");
   };
 
   const renderStep = () => {
@@ -92,9 +143,47 @@ export const BookAShootV4 = () => {
           />
         );
       case 4:
-        return <div className="text-white py-12">/* Step 4: Schedule */</div>;
+        return (
+          <ScheduleShoot
+            onContinue={handleScheduleSubmitted}
+            onBack={() => setInternalStep(3)}
+            onBrowseStudios={handleBrowseStudios}
+          />
+        );
       case 5:
-        return <div className="text-white py-12">/* Step 5: Confirmation */</div>;
+        return (
+          <ShootDetails
+            onContinue={handleDetailsSubmitted}
+            onBack={() => setInternalStep(4)}
+            initialNotes={bookingState.shootDetailsData?.notes || ""}
+            initialLinks={bookingState.shootDetailsData?.links || []}
+          />
+        );
+      case 6:
+        return (
+          <MatchMakerStep
+            onContinue={handleTeamSelected}
+            onBack={() => setInternalStep(5)}
+            initialOption={bookingState.teamSelectionData?.teamOption || "best-match"}
+            packageTitle={`${
+              bookingState.selectedOccasion.charAt(0).toUpperCase() +
+              bookingState.selectedOccasion.slice(1)
+            } - ${
+              bookingState.selectedServices[0]?.charAt(0).toUpperCase() +
+              bookingState.selectedServices[0]?.slice(1)
+            }`}
+          />
+        );
+      case 7:
+        return (
+          <CreativeTeam
+            initialCounts={creativeTeam}
+            onBack={() => setInternalStep(6)}
+            onContinue={handleCreativeTeamSubmitted}
+          />
+        );
+      case 8:
+        return <div className="text-white py-12 text-center">Step 8: Confirmation</div>;
       default:
         return null;
     }

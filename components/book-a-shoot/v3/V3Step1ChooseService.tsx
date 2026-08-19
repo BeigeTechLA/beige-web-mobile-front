@@ -665,7 +665,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     updateData({ startDate: formatLocalDateTime(newStart) });
   };
 
-
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
       updateData({ endDate: "" });
