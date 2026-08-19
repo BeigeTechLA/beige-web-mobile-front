@@ -2638,7 +2638,12 @@ export const adminApi = {
       const response = await api.get('admin/dashboard-chart-data', { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Dashboard Chart Data Error:', error.response?.data || error.message);
+      console.error('Get Dashboard Chart Data Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        params,
+      });
       return {
         success: false,
         data: null,
@@ -3104,6 +3109,25 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update shoot date and location',
+      };
+    }
+  },
+  updateShootProjectName: async (
+    shootId: string | number,
+    project_name: string
+  ) => {
+    try {
+      const response = await api.put(
+        `admin/shoots/${shootId}/project-name`,
+        { project_name }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Project Name Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update project name',
       };
     }
   },
@@ -4298,7 +4322,7 @@ export const salesApi = {
     signature_base64: string;
   }) => {
     try {
-      const response = await api.post('/signatures/sign', payload);
+      const response = await publicApi.post('/signatures/sign', payload);
       return response.data;
     } catch (error: any) {
       console.error('Save Signature Error:', error.response?.data || error.message);
@@ -4323,7 +4347,7 @@ export const salesApi = {
       formData.append('signer_email', payload.signer_email);
       formData.append('signer_name', payload.signer_name);
 
-      const response = await api.post('/signatures/sign', formData, {
+      const response = await publicApi.post('/signatures/sign', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
@@ -4339,7 +4363,7 @@ export const salesApi = {
 
   getSignatureByQuote: async (quote_id: number | string) => {
     try {
-      const response = await api.get(`/signatures/quote/${quote_id}`);
+      const response = await publicApi.get(`/signatures/quote/${quote_id}`);
       return response.data;
     } catch (error: any) {
       console.error('Get Signature Error:', error.response?.data || error.message);

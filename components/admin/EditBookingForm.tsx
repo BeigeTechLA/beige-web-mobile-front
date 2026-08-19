@@ -283,6 +283,7 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
           bookingId: b.stream_project_booking_id || b.id,
           contentType: (typeof contentTypeRaw === 'string' ? contentTypeRaw.split(",") : Array.isArray(contentTypeRaw) ? contentTypeRaw : []).map((t: string) => t.trim()) as any || [],
           shootType: b.shoot_type || b.project_type || "",
+          projectName: b.project_name || "",
           startDate: (start && !isNaN(start.getTime())) ? format(start, "yyyy-MM-dd HH:mm:ss") : "",
           endDate: (end && !isNaN(end.getTime())) ? format(end, "yyyy-MM-dd HH:mm:ss") : "",
           editsNeeded: b.edits_needed ?? true,
@@ -561,6 +562,13 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
   };
 
   const handleUpdate = async () => {
+    const normalizedProjectName = formData.projectName.trim();
+
+    if (!normalizedProjectName) {
+      toast.error("Please enter a project name");
+      return;
+    }
+
     if (!formData.shootType || (bookingType === "single_day" && (!formData.startDate || !formData.endDate)) || (bookingType === "multi_day" && selectedDates.length === 0) || !formData.location) {
       toast.error("Please fill in all required fields");
       return;
@@ -576,6 +584,7 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
     const browserTimeZone = getBrowserTimeZone();
     let payload: any = {
       booking_type: bookingType,
+      project_name: normalizedProjectName,
       content_type: formData.contentType.filter(t => t !== "editing").join(","),
       shoot_type: formData.shootType,
       edits_needed: formData.editsNeeded,
@@ -729,6 +738,24 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
           required
           isDark={isDark}
         />
+      </div>
+
+      <div className="my-4 lg:my-9">
+        <h3 className={`text-base lg:text-xl font-medium mb-3 lg:mb-6 ${isDark ? "text-white/90" : "text-black/80"}`}>Project Name</h3>
+        <div className={`rounded-2xl border px-4 py-4 lg:px-6 lg:py-5 transition-colors ${isDark ? "border-white/10 bg-[#101010]" : "border-[#0000001A] bg-white"}`}>
+          <label className={`mb-2 block text-sm font-medium ${isDark ? "text-white/60" : "text-black/60"}`} htmlFor="project-name">
+            Project Name
+          </label>
+          <input
+            id="project-name"
+            type="text"
+            value={formData.projectName || ""}
+            onChange={(e) => updateData({ projectName: e.target.value })}
+            placeholder="Enter project name"
+            className={`w-full border-0 bg-transparent p-0 text-base outline-none placeholder:transition-colors ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-black/30"}`}
+            maxLength={255}
+          />
+        </div>
       </div>
 
       <div ref={bookingTypeRef} className={`pt-6 lg:pt-15 border-t ${isDark ? "border-white/10" : "border-black/5"}`}>

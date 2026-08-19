@@ -32,7 +32,6 @@ export type BookingDataV3 = {
   // Service & Content
   contentType: ("studio" | "videographer" | "photographer" | "cinematographer" | "editing")[];
   shootType: string;
-  
   // Date & Time
   startDate: string;
   endDate: string;
@@ -61,8 +60,6 @@ export type BookingDataV3 = {
   selectedStudios?: SelectedStudio[];
   selectedStudioImage?: string;
   selectedStudioName?: string;
-
-
   roleCounts?: {
     videographer?: number;
     photographer?: number;
@@ -76,7 +73,7 @@ export type BookingDataV3 = {
   email: string;
   phone: string;
   paymentMethod: 'card' | 'stripe';
-  
+
   // Budget (kept for compatibility)
   budgetMin: number;
   budgetMax: number;
@@ -85,6 +82,7 @@ export type BookingDataV3 = {
 export const initialDataV3: BookingDataV3 = {
   contentType: [],
   shootType: "",
+  projectName: "",
   bookingType: "single_day",
   bookingDays: [],
   startDate: "",
@@ -112,4 +110,5 @@ export const initialDataV3: BookingDataV3 = {
   extraRoleSelections: {},
   budgetMin: 100,
   budgetMax: 20000,
+  isBrowsingCreators: false,
 };
