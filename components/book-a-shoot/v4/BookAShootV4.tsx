@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
+
 import LeaveConfirmationModal from "./components/LeaveConfirmationModal";
 import GuidedBookingCard from "./components/GuidedBookingCard";
 import AskingServices from "./components/AskingServices";
@@ -12,6 +13,13 @@ import ScheduleShoot from "./components/ScheduleShoot";
 import ShootDetails, { ShootDetailsData } from "./components/ShootDetails";
 import MatchMakerStep, { TeamSelectionData } from "./components/MatchMaker";
 import CreativeTeam from "./components/CreativeTeam";
+import ChooseCreativePartner from "./components/ChooseCreativePartner";
+import AddOnsStep from "./components/AddOnsStep";
+import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
+import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
+import BookingConfirmed from "./components/BookingConfirmed";
+
+import type { Creator } from "@/lib/types";
 
 export interface ScheduleData {
   dateOption: "have-date" | "confirm-later";
@@ -23,7 +31,7 @@ export interface ScheduleData {
 }
 
 export const BookAShootV4 = () => {
-  const [internalStep, setInternalStep] = useState<number>(6);
+  const [internalStep, setInternalStep] = useState<number>(0);
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   const [bookingState, setBookingState] = useState<{
@@ -34,6 +42,9 @@ export const BookAShootV4 = () => {
     scheduleData: ScheduleData | null;
     shootDetailsData: ShootDetailsData | null;
     teamSelectionData: TeamSelectionData | null;
+    addOnsQuantities: Record<string, number>;
+    addOnsSubtotal: number;
+    contactInformation: { fullName: string; phoneNumber: string } | null;
   }>({
     email: "",
     selectedServices: ["photography"],
@@ -45,12 +56,17 @@ export const BookAShootV4 = () => {
     scheduleData: null,
     shootDetailsData: null,
     teamSelectionData: null,
+    addOnsQuantities: { additional_camera: 1 },
+    addOnsSubtotal: 350,
+    contactInformation: null,
   });
 
   const [creativeTeam, setCreativeTeam] = useState<{ [key: string]: number }>({
     photographer: 0,
     videographer: 0,
   });
+  const [selectedCreatives, setSelectedCreatives] = useState<Creator[]>([]);
+  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(false);
 
   const handleConfirmLeave = () => {
     setShowLeaveModal(false);
@@ -104,9 +120,132 @@ export const BookAShootV4 = () => {
     setInternalStep(8);
   };
 
+  // Step 8 -> Step 9
+  const handleChooseCreativePartnerSubmitted = (creatives: Creator[], beigeChoice: boolean) => {
+    setSelectedCreatives(creatives);
+    setLetBeigeChoose(beigeChoice);
+    setInternalStep(9);
+  };
+
+  // Step 9 -> Step 10
+  const handleAddOnsSubmitted = (selectedAddOns: Record<string, number>, subtotal: number) => {
+    setBookingState((prev) => ({
+      ...prev,
+      addOnsQuantities: selectedAddOns,
+      addOnsSubtotal: subtotal,
+    }));
+    setInternalStep(10);
+  };
+
+  // Step 10 -> Step 11
+  const handleSummarySubmitted = (contactData: { fullName: string; phoneNumber: string }) => {
+    setBookingState((prev) => ({ ...prev, contactInformation: contactData }));
+    setInternalStep(11);
+  };
+
+  // Step 11 -> Step 12 (Pay -> Final Confirmation)
+  const handleConfirmAndPay = () => {
+    setInternalStep(12);
+  };
+
+  const handleEditStepByName = (stepName: string) => {
+    switch (stepName) {
+      case "project":
+        setInternalStep(1);
+        break;
+      case "schedule":
+        setInternalStep(4);
+        break;
+      case "editing":
+        setInternalStep(2);
+        break;
+      case "addons":
+        setInternalStep(9);
+        break;
+      default:
+        break;
+    }
+  };
+
   const handleBrowseStudios = () => {
-    // Action handler for studio modal or redirection
     console.log("Browse studios clicked");
+  };
+
+  // Dynamic pricing summary calculation
+  const getPricingData = (): Partial<PricingBreakdown> => {
+    const addOnsCount = Object.keys(bookingState.addOnsQuantities).length;
+    const addOnsCost = bookingState.addOnsSubtotal;
+    const baseServiceCost = 3000;
+    const editingServiceCost = 500;
+    const creativeRoleCost = 275;
+    const totalAmount = baseServiceCost + editingServiceCost + creativeRoleCost + addOnsCost;
+
+    return {
+      serviceName: "Photography Services",
+      baseServiceCost,
+      editingServiceCost,
+      creativeRoleTitle: "Photographer x1",
+      creativeRoleCost,
+      addOnsCount,
+      addOnsCost,
+      totalAmount,
+      depositAmount: 500,
+    };
+  };
+
+  const getSummaryData = (): ShootSummaryData => {
+    const serviceName =
+      bookingState.selectedServices.length > 0
+        ? bookingState.selectedServices
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(" & ")
+        : "Photography";
+
+    const occasionName = bookingState.selectedOccasion
+      ? bookingState.selectedOccasion.charAt(0).toUpperCase() + bookingState.selectedOccasion.slice(1) + " Event"
+      : "Corporate Event";
+
+    const dateStr = bookingState.scheduleData?.date
+      ? `Single Day - ${bookingState.scheduleData.date}`
+      : "Single Day - 15/08/2026";
+
+    const timeStr =
+      bookingState.scheduleData?.startTime && bookingState.scheduleData?.endTime
+        ? `${bookingState.scheduleData.startTime} - ${bookingState.scheduleData.endTime}`
+        : "10:00 AM - 15:00 PM (5 Hour Duration)";
+
+    const locationStr = bookingState.scheduleData?.location || "Woodland Hills, Woodland Hills, CA";
+
+    const formattedAddOns = Object.entries(bookingState.addOnsQuantities).map(([key, qty]) => {
+      const formattedTitle = key
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      return `${formattedTitle} x${qty}`;
+    });
+
+    return {
+      project: {
+        service: serviceName,
+        occasion: occasionName,
+        description: bookingState.shootDetailsData?.notes || "No description added",
+      },
+      schedule: {
+        date: dateStr,
+        startAndEndTime: timeStr,
+        location: locationStr,
+      },
+      editingServices: {
+        photoEditsLabel: `Edited Photos ${(bookingState.editsConfig.editedPhotosSets || 1) * 100} Included + 25 Added`,
+        totalPhotos: `You'll Receive ${((bookingState.editsConfig.editedPhotosSets || 1) * 100) + 25} Photos`,
+      },
+      addOns: formattedAddOns.length > 0 ? formattedAddOns : ["Additional Camera x1"],
+      includedServices: [
+        "All Raw Images, Lighting & Insurance Provided",
+        "Up to 45 Minutes Setup Time",
+        "Digital Delivery",
+      ],
+    };
   };
 
   const renderStep = () => {
@@ -183,7 +322,40 @@ export const BookAShootV4 = () => {
           />
         );
       case 8:
-        return <div className="text-white py-12 text-center">Step 8: Confirmation</div>;
+        return (
+          <ChooseCreativePartner
+            onBack={() => setInternalStep(7)}
+            onContinue={handleChooseCreativePartnerSubmitted}
+          />
+        );
+      case 9:
+        return (
+          <AddOnsStep
+            onBack={() => setInternalStep(8)}
+            onContinue={handleAddOnsSubmitted}
+            initialAddOns={bookingState.addOnsQuantities}
+          />
+        );
+      case 10:
+        return (
+          <ShootSummaryStep
+            onBack={() => setInternalStep(9)}
+            onContinue={handleSummarySubmitted}
+            onEditStep={handleEditStepByName}
+            summaryData={getSummaryData()}
+          />
+        );
+      case 11:
+        return (
+          <ConfirmAndPay
+            onBack={() => setInternalStep(10)}
+            onConfirmAndPay={handleConfirmAndPay}
+            onConnectTeam={() => console.log("Connect with Beige Team clicked")}
+            pricingData={getPricingData()}
+          />
+        );
+      case 12:
+        return <BookingConfirmed />;
       default:
         return null;
     }
@@ -200,7 +372,7 @@ export const BookAShootV4 = () => {
       />
 
       <main className="relative pt-24 lg:pt-32 pb-8 min-h-screen flex flex-col items-center justify-center w-full">
-        <div className="w-full relative z-10 mx-auto">
+        <div className="w-full relative mx-auto">
           {renderStep()}
         </div>
       </main>
