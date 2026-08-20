@@ -700,6 +700,14 @@ export const BookAShootV3 = () => {
       const startTime = getLocalTimePart(formData.startDate);
       const endTime = getLocalTimePart(formData.endDate);
       const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
+      const primaryStudioSchedule =
+        formData.bookingType === "multi_day"
+          ? formData.bookingDays?.find((day) => day.date && day.startTime && day.endTime)
+          : null;
+      const resolvedStudioDate = primaryStudioSchedule?.date || startDate || primaryStudio?.selectedDate;
+      const resolvedStudioStartTime = primaryStudioSchedule?.startTime || startTime || primaryStudio?.startTime;
+      const resolvedStudioEndTime = primaryStudioSchedule?.endTime || endTime || primaryStudio?.endTime;
+      const resolvedStudioDuration = calculateDayHours(resolvedStudioStartTime, resolvedStudioEndTime) || primaryStudio?.quantity || shootHours;
 
       const finalBookingData: Record<string, unknown> = {
         order_name: `${formData.shootType.toUpperCase()} Shoot - ${formData.fullName}`,
@@ -709,12 +717,12 @@ export const BookAShootV3 = () => {
         studio_booking_for: formData.bookingFor || "production",
         project_name: formData.projectName || "",
         booking_type: formData.bookingType,
-        booking_days: primaryStudio
+        booking_days: primaryStudio && resolvedStudioDate
           ? [{
-            date: primaryStudio.selectedDate,
-            start_time: primaryStudio.startTime,
-            end_time: primaryStudio.endTime,
-            duration_hours: primaryStudio.quantity,
+            date: resolvedStudioDate,
+            start_time: resolvedStudioStartTime,
+            end_time: resolvedStudioEndTime,
+            duration_hours: resolvedStudioDuration,
             time_zone: browserTimeZone,
           }]
           : formData.bookingDays?.map((d) => ({
@@ -724,12 +732,12 @@ export const BookAShootV3 = () => {
             duration_hours: calculateDayHours(d.startTime, d.endTime),
             time_zone: browserTimeZone,
           })) || [],
-        start_date: primaryStudio?.selectedDate || startDate,
-        start_time: primaryStudio?.startTime || startTime,
-        end_time: primaryStudio?.endTime || endTime,
+        start_date: resolvedStudioDate || startDate,
+        start_time: resolvedStudioStartTime || startTime,
+        end_time: resolvedStudioEndTime || endTime,
         time_zone: browserTimeZone,
         estimated_delivery_date: isEditingOnly ? estimatedDeliveryDate : undefined,
-        duration_hours: primaryStudio?.quantity || shootHours,
+        duration_hours: resolvedStudioDuration,
         location: primaryStudio?.location || formData.location,
         location_latitude:
           primaryStudio?.lat ??
