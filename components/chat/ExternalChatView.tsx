@@ -5,6 +5,10 @@ import { io, Socket } from "socket.io-client";
 import {
   Archive,
   CalendarDays,
+  File,
+  FileAudio,
+  FileText,
+  FileVideo,
   Loader2,
   Lock,
   MessageCircle,
@@ -39,7 +43,6 @@ import ConversationComposerModal from "@/components/chat/ConversationComposerMod
 import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
 import EmptyChatState from "./EmptyChatState";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import Image from "next/image";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -829,7 +832,26 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
   const roomListRequestRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isFileModalOpen, setIsFileModalOpen] = useState(false);
+  const [fileCaption, setFileCaption] = useState("");
+  const [filePreviewUrls, setFilePreviewUrls] = useState<Record<string, string>>({});
+
+  // Generate and cleanup object URLs for image/video previews
+  useEffect(() => {
+    const urls: Record<string, string> = {};
+    selectedFiles.forEach((file, index) => {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+        urls[`${file.name}-${index}`] = URL.createObjectURL(file);
+      }
+    });
+    setFilePreviewUrls(urls);
+
+    // Cleanup URLs when files change or component unmounts to prevent memory leaks
+    return () => {
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [selectedFiles]);
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
   const userId = effectiveUser?.id != null ? String(effectiveUser.id) : null;
@@ -1868,6 +1890,27 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const appendSentMessage = (sent: ExternalChatMessage, baseMessages?: ExternalChatMessage[]) => {
+    const sourceMessages = baseMessages || messagesRef.current;
+    const nextMessages = sortMessagesAsc([...sourceMessages, sent]);
+    setMessages((current) => {
+      const sentId = getMessageId(sent);
+      if (sentId && current.some((item) => getMessageId(item) === sentId)) return current;
+      return sortMessagesAsc([...current, sent]);
+    });
+    syncRoomSnapshot(selectedRoom, nextMessages);
+    return nextMessages;
+  };
+
+  const resetAttachmentComposer = () => {
+    setIsFileModalOpen(false);
+    setSelectedFiles([]);
+    setFileCaption("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const sendMessage = async () => {
     const roomId = getRoomId(selectedRoom);
     const message = draftMessage.trim();
@@ -1884,12 +1927,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setShowComposerEmojis(false);
       shouldStickToBottomRef.current = true;
       if (sent) {
-        setMessages((current) => {
-          const sentId = getMessageId(sent);
-          if (sentId && current.some((item) => getMessageId(item) === sentId)) return current;
-          return sortMessagesAsc([...current, sent]);
-        });
-        syncRoomSnapshot(selectedRoom, sortMessagesAsc([...messagesRef.current, sent]));
+        appendSentMessage(sent);
       }
     } catch (err: any) {
       toast.error(err?.message || "Failed to send message");
@@ -1898,47 +1936,63 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const sendAttachments = async () => {
+    const roomId = getRoomId(selectedRoom);
+    if (!roomId || !selectedFiles.length) return;
+
+    setSending(true);
+    try {
+      const caption = fileCaption.trim();
+      const uploadedMessages: ExternalChatMessage[] = [];
+      let threadMessages = [...messagesRef.current];
+
+      for (const [index, file] of selectedFiles.entries()) {
+        const uploaded = await externalChatApi.uploadFile(roomId, file, currentSender, {
+          caption: index === 0 ? caption : undefined,
+        });
+
+        if (!uploaded?.fileUrl) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        const sent = await externalChatApi.sendMessage(roomId, index === 0 ? caption : "", {
+          sender: currentSender,
+          replyTo: getMessageId(replyTarget) || null,
+          fileUrl: uploaded.fileUrl,
+          fileName: uploaded.fileName || file.name,
+          fileType: uploaded.fileType || file.type,
+          messageType: uploaded.fileType?.startsWith("image/") ? "image" : "file",
+        });
+
+        if (sent) {
+          uploadedMessages.push(sent);
+          threadMessages = appendSentMessage(sent, threadMessages);
+        }
+      }
+
+      if (uploadedMessages.length) {
+        shouldStickToBottomRef.current = true;
+        setReplyTarget(null);
+        setShowComposerEmojis(false);
+        resetAttachmentComposer();
+        toast.success(`Sent ${uploadedMessages.length} attachment${uploadedMessages.length === 1 ? "" : "s"}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to send attachment");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length || !selectedRoom) return;
 
-    const roomId = getRoomId(selectedRoom);
-    if (!roomId) return;
+    setSelectedFiles((prev) => [...prev, ...files]);
+    setIsFileModalOpen(true);
 
-    setUploadingFile(true);
-    try {
-      const socket = socketRef.current;
-      if (!socket) {
-        toast.error("Not connected to chat");
-        return;
-      }
-
-      for (const file of files) {
-        const result = await externalChatApi.uploadFile(roomId, file, currentSender);
-        if (!result?.fileUrl) {
-          toast.error(`Failed to upload ${file.name}`);
-          continue;
-        }
-
-        socket.emit("message", {
-          roomId,
-          userId,
-          message: "",
-          fileUrl: result.fileUrl,
-          fileName: result.fileName,
-          fileType: result.fileType,
-        });
-      }
-
-      shouldStickToBottomRef.current = true;
-      toast.success(`${files.length} file${files.length > 1 ? "s" : ""} sent!`);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to upload file");
-    } finally {
-      setUploadingFile(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -1985,20 +2039,21 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       setShowReactionPickerId(null);
       setOpenReactionDetails(null);
       setMessagePendingDelete(null);
-      if (updated) {
-        setMessages((current) =>
-          current.map((item) => (getMessageId(item) === messageId ? { ...item, ...updated } : item))
-        );
-        syncRoomSnapshot(selectedRoom, messages.map((item) => (getMessageId(item) === messageId ? { ...item, ...updated } : item)));
-      } else {
-        setMessages((current) =>
-          current.map((item) =>
-            getMessageId(item) === messageId
-              ? { ...item, is_deleted: true, message: "This message was deleted" }
-              : item
-          )
-        );
-      }
+      setMessages((current) =>
+        current.map((item) =>
+          getMessageId(item) === messageId
+            ? { ...item, is_deleted: true, message: "This message was deleted" }
+            : item
+        )
+      );
+      syncRoomSnapshot(
+        selectedRoom,
+        messagesRef.current.map((item) =>
+          getMessageId(item) === messageId
+            ? { ...item, is_deleted: true, message: "This message was deleted" }
+            : item
+        )
+      );
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete message");
     }
@@ -2016,6 +2071,28 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const latestDate = visibleMessages[visibleMessages.length - 1]?.createdAt || selectedRoom?.updatedAt || selectedRoom?.createdAt;
   const isDirectRoomLoading = shouldUseDirectRoom && loading;
 
+  const getFilePreviewIcon = (file: File, previewUrl?: string) => {
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  const isAudio = file.type.startsWith("audio/");
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  const isDoc = /\.(doc|docx|txt|rtf)$/i.test(file.name);
+  const isSpreadsheet = /\.(xls|xlsx|csv)$/i.test(file.name);
+  const isZip = /\.(zip|rar|7z|tar|gz)$/i.test(file.name);
+
+  const iconBaseClass = "h-5 w-5";
+
+  if (isImage && previewUrl) {
+    return <img src={previewUrl} alt={file.name} className="h-full w-full object-cover rounded-lg" />;
+  }
+  if (isVideo) return <FileVideo className={iconBaseClass} />;
+  if (isAudio) return <FileAudio className={iconBaseClass} />;
+  if (isPdf) return <FileText className={`${iconBaseClass} text-red-400`} />;
+  if (isDoc) return <FileText className={`${iconBaseClass} text-blue-400`} />;
+  if (isSpreadsheet) return <FileText className={`${iconBaseClass} text-green-400`} />;
+  if (isZip) return <Archive className={iconBaseClass} />;
+  return <File className={iconBaseClass} />;
+  };
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-scroll no-scrollbar lg:overflow-y-auto">
@@ -2528,6 +2605,26 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
                         const canDeleteMessage = !message.is_deleted && (isOwn || isAdminView);
                         const isEditing = editingMessageId === messageId;
+                        const isDeletedMessage = Boolean(message.is_deleted);
+                        const attachmentUrl = String(message.file_url || "").trim();
+                        const attachmentName = String(message.file_name || "").trim();
+                        const attachmentType = String(message.file_type || "").trim().toLowerCase();
+                        const showAttachment = Boolean(attachmentUrl) && !isDeletedMessage;
+                        const rawBodyText = isDeletedMessage ? "This message was deleted" : String(message.message || "").trim();
+                        const bodyText =
+                          !isDeletedMessage &&
+                          showAttachment &&
+                          rawBodyText &&
+                          (rawBodyText === attachmentName || (/^\S+\.\w{2,5}$/i.test(rawBodyText) && rawBodyText.toLowerCase() === attachmentName.toLowerCase()))
+                            ? ""
+                            : rawBodyText;
+                        const showAttachmentLabel = Boolean(bodyText);
+                        const isImageAttachment =
+                          showAttachment &&
+                          (message.message_type === "image" ||
+                            attachmentType.startsWith("image/") ||
+                            /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(attachmentName));
+
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
                             (acc, reaction) => {
@@ -2716,6 +2813,52 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                       </div>
                                     ) : null}
 
+                                    {showAttachment ? (
+                                      <div className={`mb-3 overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-black/10" : "border-zinc-200 bg-white"}`}>
+                                        {isImageAttachment ? (
+                                          <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                              src={attachmentUrl}
+                                              alt={attachmentName || "Attachment"}
+                                              className="max-h-72 w-full object-cover"
+                                            />
+                                          </>
+                                        ) : null}
+                                        <a
+                                          href={attachmentUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-zinc-50"}`}
+                                        >
+                                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
+                                            {attachmentType.startsWith("video/") ? (
+                                              <FileVideo className="h-5 w-5" />
+                                            ) : attachmentType.startsWith("audio/") ? (
+                                              <FileAudio className="h-5 w-5" />
+                                            ) : attachmentType === "application/pdf" || /\.pdf$/i.test(attachmentName) ? (
+                                              <FileText className="h-5 w-5" />
+                                            ) : (
+                                              <File className="h-5 w-5" />
+                                            )}
+                                          </div>
+                                          {showAttachmentLabel ? (
+                                            <div className="min-w-0 flex-1">
+                                              <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>
+                                                {attachmentName || "Attachment"}
+                                              </p>
+                                              <p className={`truncate text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                                                {attachmentType || "File"}
+                                              </p>
+                                            </div>
+                                          ) : null}
+                                          <span className={`text-xs font-semibold ${isDark ? "text-[#E8D1AB]" : "text-zinc-700"}`}>
+                                            Open
+                                          </span>
+                                        </a>
+                                      </div>
+                                    ) : null}
+
                                     {isEditing ? (
                                       <div className="space-y-2 w-full min-w-0">
                                         <textarea
@@ -2754,9 +2897,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                         </div>
                                       </div>
                                     ) : (
-                                      <p className={`whitespace-pre-wrap text-sm leading-6 break-words max-w-full ${isDark ? "text-white/85" : "text-zinc-800"}`}>
-                                        {getMessageText(message)}
-                                      </p>
+                                      bodyText ? (
+                                        <p className={`whitespace-pre-wrap text-sm leading-6 break-words max-w-full ${isDeletedMessage ? "italic text-white/40" : isDark ? "text-white/85" : "text-zinc-800"}`}>
+                                          {bodyText}
+                                        </p>
+                                      ) : null
                                     )}
                                   </div>
                                 </div>
@@ -2882,13 +3027,13 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                   ) : null}
 
                   <div className={`flex items-center gap-2 lg:gap-3 rounded-lg lg:rounded-xl p-3 transition-colors ${isDark ? "border-white/10 bg-[#202020]" : "border-[#E5E5E5] bg-zinc-50"}`}>
-                    {/* Attachment support is not ready yet, so hide the button for now */}
+                  
                     {/* File input hidden */}
                     <input
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      onChange={handleFileUpload}
+                      onChange={handleFileSelect}
                       accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xlsx,.xls,.pptx,.zip,.rar"
                       multiple
                     />
@@ -2903,13 +3048,10 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         }
                         fileInputRef.current?.click();
                       }}
-                      disabled={uploadingFile || !selectedRoom}
+                      disabled={!selectedRoom}
                       className={`transition ${isDark ? "hover:text-white/75 text-white disabled:opacity-30" : "hover:text-black/75 text-black disabled:opacity-30"}`}
                     >
-                      {uploadingFile
-                        ? <Loader2 className="h-5 w-5 animate-spin" />
-                        : <Paperclip className="h-5 w-5" />
-                      }
+                     <Paperclip className="h-5 w-5" />
                     </button>
                     <textarea
                       value={draftMessage}
@@ -2988,37 +3130,40 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       ) : null}
 
       {messagePendingDelete ? (
-        <div className={`fixed inset-0 z-[80] flex items-center justify-center  px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
-          <div
-            className={`w-full max-w-sm rounded-[28px] border p-4 lg:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] transition-colors duration-200 ${isDark ? "border-white/10 bg-[#121212]" : "border-zinc-200 bg-white"}`}
-          >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff7d7d]/10 text-[#ff7d7d]">
-              <Trash2 className="h-5 w-5" />
-            </div>
-
-            {/* Header Title */}
-            <h3 className={`text-base lg:text-lg font-semibold transition-colors duration-200 ${isDark ? "text-white" : "text-zinc-900"}`}>
-              Delete message?
-            </h3>
-
-            {/* Description Warning Message */}
-            <p className={`mt-1.5 lg:mt-2 text-xs lg:text-sm leading-5 lg:leading-6 transition-colors duration-200 ${isDark ? "text-white/55" : "text-zinc-500"}`}>
-              This will remove the message for everyone in this chat. You can&apos;t undo it later.
-            </p>
-
-            {/* Control Action Buttons */}
-            <div className="mt-5 lg:mt-6 flex justify-end gap-2.5 lg:gap-3">
+        <div className={`fixed inset-0 z-[90] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
+          <div className={`w-full max-w-md rounded-[28px] border p-5 lg:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] ${isDark ? "border-white/10 bg-[#121212]" : "border-zinc-200 bg-white"}`}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>Delete message?</h3>
+                <p className={`mt-2 text-sm leading-6 ${isDark ? "text-white/60" : "text-zinc-600"}`}>
+                  This message will be removed from the conversation.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setMessagePendingDelete(null)}
-                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+                className={`rounded-full p-1 transition-colors ${isDark ? "text-white/55 hover:bg-white/10 hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"}`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setMessagePendingDelete(null)}
+                className={`rounded-full border px-4 py-2 text-sm font-medium ${isDark ? "border-white/10 text-white/75 hover:bg-white/5" : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"}`}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={() => handleDeleteMessage(messagePendingDelete)}
-                className="rounded-full bg-[#ff7d7d] px-4 py-2 text-xs lg:text-sm font-semibold text-white transition-all duration-150 hover:bg-[#ff6a6a]"
+                onClick={() => {
+                  if (messagePendingDelete) {
+                    handleDeleteMessage(messagePendingDelete);
+                  }
+                }}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500"
               >
                 Delete
               </button>
@@ -3026,6 +3171,102 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           </div>
         </div>
       ) : null}
+    {/* --- NEW FILE ATTACHMENT MODAL --- */}
+    {isFileModalOpen && selectedFiles.length > 0 ? (
+      <div className={`fixed inset-0 z-[80] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
+        <div className={`w-full max-w-md rounded-[28px] border p-4 lg:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] transition-colors duration-200 ${isDark ? "border-white/10 bg-[#121212]" : "border-zinc-200 bg-white"}`}>
+          
+          {/* Modal Header */}
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className={`text-base lg:text-lg font-semibold transition-colors duration-200 ${isDark ? "text-white" : "text-zinc-900"}`}>
+              Attach File{selectedFiles.length > 1 ? "s" : ""}
+            </h3>
+            <button
+              type="button"
+              onClick={resetAttachmentComposer}
+              className={`rounded-full p-1 transition-colors ${isDark ? "text-white/55 hover:bg-[#3D3D3D] hover:text-white" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"}`}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          {/* File Preview List Area */}
+          <div className="mb-4 space-y-2 max-h-60 overflow-y-auto pr-1 [scrollbar-width:thin]">
+            {selectedFiles.map((file, index) => (
+              <div key={`${file.name}-${index}`} className={`flex items-center gap-3 rounded-xl border p-3 ${isDark ? "border-white/10 bg-[#202020]" : "border-zinc-200 bg-zinc-50"}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg overflow-hidden ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-zinc-200 text-zinc-700"}`}>
+                  {getFilePreviewIcon(file, filePreviewUrls[`${file.name}-${index}`])}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>
+                    {file.name}
+                  </p>
+                  <p className={`text-xs ${isDark ? "text-white/55" : "text-zinc-500"}`}>
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                {/* Remove Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+                  }}
+                  className={`rounded-full p-1.5 transition-colors ${isDark ? "text-white/55 hover:bg-red-500/20 hover:text-red-400" : "text-zinc-500 hover:bg-red-50 hover:text-red-600"}`}
+                  title="Remove file"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Caption Text Box */}
+          <div className="mb-5">
+            <label className={`mb-1.5 block text-xs font-medium ${isDark ? "text-white/75" : "text-zinc-700"}`}>
+              Add a caption (optional)
+            </label>
+            <textarea
+              value={fileCaption}
+              onChange={(e) => setFileCaption(e.target.value)}
+              placeholder="Type a message to send with these files..."
+              rows={3}
+              className={`w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:ring-0 ${isDark ? "border-white/10 bg-[#202020] text-white placeholder:text-white/40 focus:border-[#E8D1AB]/40" : "border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-black"}`}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Add More Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95 flex items-center gap-2 ${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+            >
+              <Plus className="h-4 w-4" />
+              Add more
+            </button>
+
+            <div className="flex items-center gap-2.5 lg:gap-3">
+              <button
+                type="button"
+                onClick={resetAttachmentComposer}
+                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95 ${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendAttachments}
+                disabled={selectedFiles.length === 0 || sending}
+                className="rounded-full bg-[#E8D1AB] px-4 py-2 text-xs lg:text-sm font-semibold text-black transition-all duration-150 hover:bg-[#d8c49e] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sending ? "Sending..." : `Send ${selectedFiles.length > 1 ? `${selectedFiles.length} Attachments` : "Attachment"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null}
 
 
       {/* --- FLOATING MOBILE BUTTON --- */}

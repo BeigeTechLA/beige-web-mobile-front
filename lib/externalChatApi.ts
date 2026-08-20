@@ -1,5 +1,6 @@
 import apiClient from "@/lib/apiClient";
 import axios from "axios";
+import Cookies from "js-cookie";
 
 export interface ExternalChatUser {
   id?: string | number;
@@ -206,6 +207,24 @@ export interface ExternalChatRoomListResult {
   hasMore: boolean;
 }
 
+const getChatUploadBaseUrl = () => {
+  const explicitSocketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "").trim();
+  if (explicitSocketUrl) {
+    return explicitSocketUrl.replace(/\/+$/, "");
+  }
+
+  const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
+  if (apiEndpoint) {
+    const normalized = apiEndpoint.replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
+    if (/localhost:5001/i.test(normalized)) {
+      return normalized.replace(/localhost:5001/i, "localhost:5002");
+    }
+    return normalized;
+  }
+
+  return "http://localhost:5002";
+};
+
 const extractRoomListResult = (response: RoomListResponse, requestedLimit?: number): ExternalChatRoomListResult => {
   const data = response?.data || {};
   const rooms = data.results || data.rooms || response.results || response.rooms || [];
@@ -318,11 +337,26 @@ export const externalChatApi = {
     return response.data?.data || response.data || null;
   },
 
-  async sendMessage(roomId: string, message: string, options?: { sender?: ExternalChatUser | null; replyTo?: string | null }) {
+  async sendMessage(
+    roomId: string,
+    message: string,
+    options?: {
+      sender?: ExternalChatUser | null;
+      replyTo?: string | null;
+      fileUrl?: string | null;
+      fileName?: string | null;
+      fileType?: string | null;
+      messageType?: string | null;
+    }
+  ) {
     const response = await apiClient.post<SendMessageResponse>(`external-chat/messages/${roomId}`, {
       message,
       sender: options?.sender,
       replyTo: options?.replyTo,
+      fileUrl: options?.fileUrl,
+      fileName: options?.fileName,
+      fileType: options?.fileType,
+      messageType: options?.messageType,
     });
     return response.data || null;
   },
@@ -360,38 +394,39 @@ export const externalChatApi = {
     });
     return response.data || null;
   },
-async uploadFile(roomId: string, file: File, sender?: ExternalChatUser | null) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("roomId", roomId);
-  if (sender?.id != null) {
-    formData.append("senderId", String(sender.id));
-  }
+  async uploadFile(
+    roomId: string,
+    file: File,
+    sender?: ExternalChatUser | null,
+    extra?: { caption?: string }
+  ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("roomId", roomId);
+    if (sender?.id != null) {
+      formData.append("senderId", String(sender.id));
+    }
+    if (extra?.caption) {
+      formData.append("caption", extra.caption);
+    }
 
-  const Cookies = (await import("js-cookie")).default;
-  const token = Cookies.get("revure_token");
+    const token = Cookies.get("revure_token");
+    const uploadBaseUrl = getChatUploadBaseUrl();
+    const response = await axios.post(`${uploadBaseUrl}/v1/gcp/chat-upload`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
 
-  const socketUrl = String(process.env.NEXT_PUBLIC_CHAT_SOCKET_URL || "http://localhost:5002").replace(/\/+$/, "");
-  
-  const directAxios = axios.create();
-  const response = await directAxios.post(`${socketUrl}/v1/external-chat/upload`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      "x-internal-key": process.env.NEXT_PUBLIC_INTERNAL_CHAT_KEY || "beige-internal-dev-key",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+    const data = response.data?.data || response.data || {};
+    const fileUrl = data.fileUrl || data.file_url || data.url || data.filePath || data.file_path;
+    if (!fileUrl) return null;
 
-  const data = response.data?.data;
-  if (!data?.filePath && !data?.fileUrl) return null;
-
-  const s3Prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-dev.s3.us-east-1.amazonaws.com/beige/").replace(/\/+$/, "");
-  const fileUrl = data.fileUrl || `${s3Prefix}/${data.filePath}`;
-
-  return {
-    fileUrl,
-    fileName: data.fileName,
-    fileType: data.fileType,
-  };
-},
+    return {
+      fileUrl,
+      fileName: data.fileName || data.file_name || file.name,
+      fileType: data.fileType || data.file_type || file.type,
+    };
+  },
 };
