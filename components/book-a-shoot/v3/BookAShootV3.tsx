@@ -40,6 +40,7 @@ import {
   buildStudioFinalizePayload,
   buildStudioLeadPayload,
   buildStudioQuotePayload,
+  resolveBookingSchedule,
 } from "./studioPayload";
 
 const V3_STEPS = [
@@ -696,17 +697,18 @@ export const BookAShootV3 = () => {
 
       // 6. PREPARE FINAL BOOKING PAYLOAD
       const browserTimeZone = getBrowserTimeZone();
-      const startDate = getLocalDatePart(formData.startDate);
-      const startTime = getLocalTimePart(formData.startDate);
-      const endTime = getLocalTimePart(formData.endDate);
+      const resolvedSchedule = resolveBookingSchedule(formData, primaryStudio);
+      const startDate = resolvedSchedule.selectedDate;
+      const startTime = resolvedSchedule.startTime;
+      const endTime = resolvedSchedule.endTime;
       const estimatedDeliveryDate = getLocalDatePart(formData.expectedDeliveryDate);
       const primaryStudioSchedule =
         formData.bookingType === "multi_day"
           ? formData.bookingDays?.find((day) => day.date && day.startTime && day.endTime)
           : null;
-      const resolvedStudioDate = primaryStudioSchedule?.date || startDate || primaryStudio?.selectedDate;
-      const resolvedStudioStartTime = primaryStudioSchedule?.startTime || startTime || primaryStudio?.startTime;
-      const resolvedStudioEndTime = primaryStudioSchedule?.endTime || endTime || primaryStudio?.endTime;
+      const resolvedStudioDate = primaryStudioSchedule?.date || startDate;
+      const resolvedStudioStartTime = primaryStudioSchedule?.startTime || startTime;
+      const resolvedStudioEndTime = primaryStudioSchedule?.endTime || endTime;
       const resolvedStudioDuration = calculateDayHours(resolvedStudioStartTime, resolvedStudioEndTime) || primaryStudio?.quantity || shootHours;
 
       const finalBookingData: Record<string, unknown> = {
@@ -717,21 +719,22 @@ export const BookAShootV3 = () => {
         studio_booking_for: formData.bookingFor || "production",
         project_name: formData.projectName || "",
         booking_type: formData.bookingType,
-        booking_days: primaryStudio && resolvedStudioDate
-          ? [{
+        booking_days: (formData.bookingDays?.length
+          ? formData.bookingDays
+          : (resolvedStudioDate ? [{
             date: resolvedStudioDate,
-            start_time: resolvedStudioStartTime,
-            end_time: resolvedStudioEndTime,
-            duration_hours: resolvedStudioDuration,
-            time_zone: browserTimeZone,
-          }]
-          : formData.bookingDays?.map((d) => ({
-            date: d.date,
-            start_time: d.startTime,
-            end_time: d.endTime,
-            duration_hours: calculateDayHours(d.startTime, d.endTime),
-            time_zone: browserTimeZone,
-          })) || [],
+            startTime: resolvedStudioStartTime,
+            endTime: resolvedStudioEndTime,
+            durationHours: resolvedStudioDuration,
+            timeZone: browserTimeZone,
+          }] : [])
+        ).map((d) => ({
+          date: d.date,
+          start_time: d.startTime,
+          end_time: d.endTime,
+          duration_hours: d.durationHours || calculateDayHours(d.startTime, d.endTime),
+          time_zone: d.timeZone || browserTimeZone,
+        })),
         start_date: resolvedStudioDate || startDate,
         start_time: resolvedStudioStartTime || startTime,
         end_time: resolvedStudioEndTime || endTime,
