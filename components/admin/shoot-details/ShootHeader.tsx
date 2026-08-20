@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, CalendarClock, Eye, Loader2, Pencil, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -974,10 +974,11 @@ export default function ShootHeader({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <h1 className={`min-w-0 lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                      {displayProjectName}
-                      {skillsText && skillsText !== "N/A" && <span className={`font-normal lg:text-lg ml-2 ${isDark ? "text-[#888]" : "text-[#666]"}`}>({skillsText})</span>}
-                    </h1>
+                    <TruncatedProjectName 
+                      name={displayProjectName} 
+                      skills={skillsText} 
+                      isDark={isDark} 
+                    />
                     {canEdit ? (
                       <button
                         type="button"
@@ -1123,3 +1124,104 @@ export default function ShootHeader({
     </div>
   );
 }
+const TruncatedProjectName = ({
+  name,
+  skills,
+  isDark,
+}: {
+  name: string;
+  skills: string;
+  isDark: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const textRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) return;
+
+    const updateTruncationState = () => {
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight || "0");
+      const maxVisibleHeight = lineHeight > 0 ? lineHeight * 2 : element.clientHeight;
+      const nextIsTruncated = element.scrollHeight > maxVisibleHeight + 2;
+
+      setIsTruncated(nextIsTruncated);
+
+      if (!nextIsTruncated) {
+        setIsOpen(false);
+      }
+    };
+
+    updateTruncationState();
+
+    const resizeObserver = new ResizeObserver(updateTruncationState);
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [name, skills]);
+
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip
+        open={isTruncated && isOpen}
+        onOpenChange={(nextOpen) => {
+          if (!isTruncated && nextOpen) return;
+          setIsOpen(nextOpen);
+        }}
+      >
+        <TooltipTrigger asChild>
+          <h1
+            ref={textRef}
+            onMouseEnter={() => {
+              if (isTruncated) {
+                setIsOpen(true);
+              }
+            }}
+            onMouseLeave={() => setIsOpen(false)}
+            className={cn(
+              "min-w-0 lg:text-2xl font-bold transition-colors line-clamp-2 cursor-default leading-tight flex-1",
+              isDark ? "text-white" : "text-black"
+            )}
+          >
+            {name}
+            {skills && skills !== "N/A" && (
+              <span className={cn("font-normal lg:text-lg ml-2", isDark ? "text-[#888]" : "text-[#666]")}>
+                ({skills})
+              </span>
+            )}
+          </h1>
+        </TooltipTrigger>
+        
+        <TooltipContent 
+          side="bottom" 
+          align="start" 
+          sideOffset={6}
+          className={cn(
+            "z-[150] px-3 py-2 shadow-xl border pointer-events-none break-words",
+            "w-max max-w-[calc(100vw-2rem)] md:max-w-[500px]"
+          )}
+          style={{
+            backgroundColor: isDark ? "#FFFFFF" : "#FFFFFF",
+            color: isDark ? "#111111" : "#111111",
+            borderColor: isDark ? "#3D3D3D" : "#E7D7BC",
+          }}
+        >
+          <div className="flex flex-col gap-0.5">
+             <p className="font-bold text-xs lg:text-[13px] leading-tight">
+               {name}
+             </p>
+             {skills && skills !== "N/A" && (
+               <p className={cn("text-[10px] lg:text-[11px]", isDark ? "text-black/60" : "text-black/60")}>
+                 ({skills})
+               </p>
+             )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};

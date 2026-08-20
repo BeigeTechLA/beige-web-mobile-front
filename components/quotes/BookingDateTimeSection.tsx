@@ -579,7 +579,6 @@ export default function BookingDateTimeSection({
                 label="Select Date"
                 value={selectedShootDate}
                 onChange={setSelectedShootDate}
-                minDate={new Date()}
                 format="MM/dd/yyyy"
                 sx={{ height: { xs: "56px", md: "82px" }, borderRadius: "16px" }}
                 isDark={isDark}
@@ -713,15 +712,13 @@ export default function BookingDateTimeSection({
                   <div className="grid grid-cols-7 gap-1">
                     {calendarDays.map((date) => {
                       const isSelected = selectedDates.some((selectedDate) => isSameDay(selectedDate, date));
-                      const isPast = date < new Date() && !isSameDay(date, new Date());
 
                       return (
                         <button
                           key={date.toISOString()}
                           type="button"
-                          disabled={isPast}
                           onClick={() => toggleDateSelection(date)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10"} ${!isSameMonth(date, currentCalendarMonth) || isPast ? "cursor-not-allowed opacity-20" : ""}`}
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : isDark ? "text-white hover:bg-white/10" : "text-[#323232] hover:bg-black/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                         >
                           {format(date, "d")}
                         </button>
