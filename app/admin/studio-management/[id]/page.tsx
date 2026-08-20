@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, MapPin, SquarePen } from "lucide-react";
@@ -11,7 +11,10 @@ import { Button } from "@/components/ui/button";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { adminApi, type AdminStudioDetail } from "@/lib/api";
 import StudioAvailability from "@/components/admin/studios/StudioAvailability";
-import { StudioGallery } from "@/components/admin/studios/StudioGallery";
+import {
+  StudioGallery,
+  type StudioGalleryMediaItem,
+} from "@/components/admin/studios/StudioGallery";
 import { StudioInformation } from "@/components/admin/studios/StudioInformation";
 
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
@@ -26,6 +29,52 @@ const resolveStudioMediaUrl = (value: unknown): string | null => {
   return `${S3_PREFIX}/${value.replace(/^\/+/, "")}`;
 };
 
+const isCoverValue = (value: unknown) =>
+  value === true || value === 1 || value === "1" || value === "true";
+
+const normalizeStudioMedia = (value: unknown): StudioGalleryMediaItem[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const media = item as Record<string, unknown>;
+      const studioMediaId = media.studio_media_id;
+      const url = typeof media.url === "string" ? media.url.trim() : "";
+
+      if (
+        (typeof studioMediaId !== "string" &&
+          typeof studioMediaId !== "number") ||
+        !url
+      ) {
+        return null;
+      }
+
+      return {
+        studio_media_id: studioMediaId,
+        url,
+        sort_order: Number(media.sort_order ?? 0),
+        is_cover: isCoverValue(media.is_cover),
+      } satisfies StudioGalleryMediaItem;
+    })
+    .filter(
+      (item): item is StudioGalleryMediaItem => item !== null,
+    )
+    .sort((a, b) => {
+      if (a.is_cover !== b.is_cover) {
+        return a.is_cover ? -1 : 1;
+      }
+
+      return a.sort_order - b.sort_order;
+    })
+    .map((item, index) => ({
+      ...item,
+      sort_order: index,
+      is_cover: index === 0,
+    }));
+};
+
 export default function AdminStudiosDetailsPage() {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
@@ -34,7 +83,9 @@ export default function AdminStudiosDetailsPage() {
 
   const [activeTab, setActiveTab] = useState<string>("Overview");
   const [studio, setStudio] = useState<AdminStudioDetail | null>(null);
+  const [studioMedia, setStudioMedia] = useState<StudioGalleryMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUpdatingCover, setIsUpdatingCover] = useState(false);
 
   const studioId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
@@ -42,7 +93,14 @@ export default function AdminStudiosDetailsPage() {
     let active = true;
 
     const loadStudio = async () => {
-      if (!studioId) return;
+      if (!studioId) {
+        if (active) {
+          setStudio(null);
+          setStudioMedia([]);
+          setLoading(false);
+        }
+        return;
+      }
 
       setLoading(true);
       const response = await adminApi.getStudioById(studioId);
@@ -51,18 +109,24 @@ export default function AdminStudiosDetailsPage() {
 
       if (response.success && response.data) {
         setStudio(response.data);
+        setStudioMedia(normalizeStudioMedia(response.data.media));
       } else {
         setStudio(null);
+        setStudioMedia([]);
         toast.error(response.error || "Failed to load studio details");
       }
 
       setLoading(false);
     };
 
-    loadStudio().catch(() => {
+    loadStudio().catch((error) => {
+      console.error("Failed to load studio details:", error);
+
       if (active) {
         setStudio(null);
+        setStudioMedia([]);
         setLoading(false);
+        toast.error("Failed to load studio details");
       }
     });
 
@@ -102,6 +166,93 @@ export default function AdminStudiosDetailsPage() {
 
   const coverLabel = studio?.brand_name || studio?.studio_name || "Studio";
   const locationLabel = [studio?.city, studio?.state, studio?.country].filter(Boolean).join(", ") || studio?.location || "N/A";
+
+  const getMediaPayloadUrl = useCallback((value: string) => {
+    if (S3_PREFIX && value.startsWith(`${S3_PREFIX}/`)) {
+      return value.slice(S3_PREFIX.length + 1);
+    }
+
+    return value.replace(/^\/+/, "");
+  }, []);
+
+  const handleSetCoverImage = useCallback(
+    async (mediaId: string | number) => {
+      if (!studioId) {
+        toast.error("Studio ID is required to update the cover image");
+        return;
+      }
+
+      if (isUpdatingCover) return;
+
+      const selectedIndex = studioMedia.findIndex(
+        (item) =>
+          String(item.studio_media_id) === String(mediaId),
+      );
+
+      if (selectedIndex === -1) {
+        toast.error("Media not found");
+        return;
+      }
+
+      if (selectedIndex === 0 && studioMedia[0]?.is_cover) {
+        return;
+      }
+
+      const previousMedia = studioMedia;
+      const selectedMedia = studioMedia[selectedIndex];
+
+      const reorderedMedia = [
+        selectedMedia,
+        ...studioMedia.filter(
+          (item) =>
+            String(item.studio_media_id) !== String(mediaId),
+        ),
+      ].map((item, index) => ({
+        ...item,
+        sort_order: index,
+        is_cover: index === 0,
+      }));
+
+      setStudioMedia(reorderedMedia);
+      setIsUpdatingCover(true);
+
+      try {
+        const mediaPayload = reorderedMedia.map((item, index) => ({
+          studio_media_id: item.studio_media_id,
+          url: getMediaPayloadUrl(item.url),
+          sort_order: index,
+          is_cover: index === 0,
+        }));
+
+        const response = await adminApi.updateStudioMedia(
+          studioId,
+          mediaPayload,
+        );
+
+        if (!response?.success) {
+          setStudioMedia(previousMedia);
+          toast.error(
+            response?.error || "Failed to update studio media",
+          );
+          return;
+        }
+
+        toast.success("Cover image updated successfully");
+      } catch (error) {
+        console.error("Failed to update cover image:", error);
+        setStudioMedia(previousMedia);
+        toast.error("Failed to update studio media");
+      } finally {
+        setIsUpdatingCover(false);
+      }
+    },
+    [
+      studioId,
+      studioMedia,
+      isUpdatingCover,
+      getMediaPayloadUrl,
+    ],
+  );
 
   return (
     <>
@@ -197,7 +348,8 @@ export default function AdminStudiosDetailsPage() {
                       </div>
                     </div>
                     <span className="bg-[#D4FFE4] text-[#16A34A] px-9 py-3 rounded-full text-sm lg:text-base font-medium w-fit">
-                      {studio.status}
+                      {studio.status?.charAt(0).toUpperCase() +
+                        studio.status?.slice(1)}
                     </span>
                   </div>
                 </div>
@@ -241,7 +393,12 @@ export default function AdminStudiosDetailsPage() {
                   ) : activeTab === "Availability" ? (
                     <StudioAvailability isDark={isDark} />
                   ) : (
-                    <StudioGallery items={images} isDark={isDark} />
+                    <StudioGallery
+                      items={studioMedia}
+                      isDark={isDark}
+                      isUpdatingCover={isUpdatingCover}
+                      onSetCover={handleSetCoverImage}
+                    />
                   )}
                 </div>
               </div>

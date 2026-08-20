@@ -11,6 +11,8 @@ type BudgetCategory = {
   name: string;
   price: string;
   includes: string[];
+  minHours: number;
+  maxPeopleAllowed: number;
 };
 
 type EquipmentItem = {
@@ -40,10 +42,18 @@ const formatMoney = (value: string) => {
 };
 const moneyInput = (value: string) => (value ? value : "");
 
+const normalizeCategory = (
+  category: Partial<BudgetCategory> & Pick<BudgetCategory, "id" | "name" | "price" | "includes">,
+): BudgetCategory => ({
+  ...category,
+  minHours: Math.max(1, Number(category.minHours) || 2),
+  maxPeopleAllowed: Math.max(1, Number(category.maxPeopleAllowed) || 6),
+});
+
 const DEFAULT_CATEGORIES: BudgetCategory[] = [
-  { id: "production", name: "Production", price: "50", includes: ["Photo Shoots", "Video Shoots", "Product Shoots"] },
-  { id: "audio", name: "Audio", price: "40", includes: ["Recording", "Mixing"] },
-  { id: "events", name: "Events", price: "120", includes: ["Live Setup", "Lighting"] },
+  { id: "production", name: "Production", price: "50", includes: ["Photo Shoots", "Video Shoots", "Product Shoots"], minHours: 2, maxPeopleAllowed: 6 },
+  { id: "audio", name: "Audio", price: "40", includes: ["Recording", "Mixing"], minHours: 2, maxPeopleAllowed: 6 },
+  { id: "events", name: "Events", price: "120", includes: ["Live Setup", "Lighting"], minHours: 2, maxPeopleAllowed: 6 },
 ];
 
 const DEFAULT_EQUIPMENT: EquipmentItem[] = [{ id: "green-screen", name: "Green Screen", cost: "300" }];
@@ -70,7 +80,9 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
   const [minimumBooking, setMinimumBooking] = useState(value?.minimumBooking || "");
   const [bufferTime, setBufferTime] = useState(value?.bufferTime || "");
   const [categories, setCategories] = useState<BudgetCategory[]>(
-    value?.categories && value.categories.length > 0 ? value.categories : DEFAULT_CATEGORIES
+    value?.categories && value.categories.length > 0
+      ? value.categories.map(normalizeCategory)
+      : DEFAULT_CATEGORIES
   );
   const [equipmentItems, setEquipmentItems] = useState<EquipmentItem[]>(
     value?.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : DEFAULT_EQUIPMENT
@@ -95,7 +107,11 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
     setOvertimeRate(value.overtimeRate || "");
     setMinimumBooking(value.minimumBooking || "");
     setBufferTime(value.bufferTime || "");
-    setCategories(value.categories && value.categories.length > 0 ? value.categories : DEFAULT_CATEGORIES);
+    setCategories(
+      value.categories && value.categories.length > 0
+        ? value.categories.map(normalizeCategory)
+        : DEFAULT_CATEGORIES
+    );
     setEquipmentItems(value.equipmentItems && value.equipmentItems.length > 0 ? value.equipmentItems : DEFAULT_EQUIPMENT);
     hasHydratedValueRef.current = true;
   }, [value]);
@@ -139,14 +155,27 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
     setCategories((prev) => prev.map((category) => (category.id === categoryId ? { ...category, includes: nextIncludes } : category)));
   };
 
-  const updateSelectedCategoryMetric = (categoryId: string, field: "price" | "minHours" | "maxPeople", direction: "inc" | "dec") => {
+  const updateSelectedCategoryMetric = (categoryId: string, field: "price" | "minHours" | "maxPeopleAllowed", direction: "inc" | "dec") => {
     setCategories((prev) =>
       prev.map((category) => {
         if (category.id !== categoryId) return category;
-        const current = Number(category.price || 0);
-        const next = direction === "inc" ? current + 1 : Math.max(current - 1, 0);
-        if (field === "price") return { ...category, price: String(next) };
-        return category;
+
+        if (field === "price") {
+          const current = Number(category.price || 0);
+          const next = direction === "inc" ? current + 1 : Math.max(current - 1, 0);
+          return { ...category, price: String(next) };
+        }
+
+        const current = Number(category[field]) || 1;
+        const next =
+          direction === "inc"
+            ? current + 1
+            : Math.max(current - 1, 1);
+
+        return {
+          ...category,
+          [field]: next,
+        };
       })
     );
   };
@@ -371,15 +400,15 @@ export default function BudgetForm({ isDark = true, value, onChange }: Props) {
               />
               <StepperField
                 label="Min Hours"
-                value="2 hrs"
-                onDec={() => undefined}
-                onInc={() => undefined}
+                value={`${category.minHours} ${category.minHours === 1 ? "hr" : "hrs"}`}
+                onDec={() => updateSelectedCategoryMetric(category.id, "minHours", "dec")}
+                onInc={() => updateSelectedCategoryMetric(category.id, "minHours", "inc")}
               />
               <StepperField
                 label="Max People Allowed"
-                value="06"
-                onDec={() => undefined}
-                onInc={() => undefined}
+                value={String(category.maxPeopleAllowed).padStart(2, "0")}
+                onDec={() => updateSelectedCategoryMetric(category.id, "maxPeopleAllowed", "dec")}
+                onInc={() => updateSelectedCategoryMetric(category.id, "maxPeopleAllowed", "inc")}
               />
             </div>
           </div>

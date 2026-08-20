@@ -226,6 +226,80 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     () => selectedStudios.map((studio) => studio.studioId),
     [selectedStudios],
   );
+  const selectedStudioSlug = selectedStudioIds[0] || "";
+  const [bookedStudioSlug, setBookedStudioSlug] = useState("");
+  const [bookedDates, setBookedDates] = useState<string[]>([]);
+  const bookedDateSet = React.useMemo(() => new Set(bookedDates), [bookedDates]);
+  const isStudioDateBooked = useCallback(
+    (date: Date | null) => Boolean(date && bookedDateSet.has(format(date, "yyyy-MM-dd"))),
+    [bookedDateSet],
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!selectedStudioSlug) {
+      setBookedStudioSlug("");
+      setBookedDates([]);
+      return;
+    }
+
+    const loadBookedDates = async () => {
+      try {
+        const dates = await studioCatalogApi.getBookedDates(selectedStudioSlug);
+        if (!isActive) return;
+
+        setBookedStudioSlug(selectedStudioSlug);
+        setBookedDates(
+          dates
+            .filter((date): date is string => typeof date === "string" && date.length > 0)
+            .map((date) => date.slice(0, 10)),
+        );
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Failed to load studio booked dates:", error);
+        setBookedStudioSlug(selectedStudioSlug);
+        setBookedDates([]);
+      }
+    };
+
+    loadBookedDates();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedStudioSlug]);
+
+  useEffect(() => {
+    if (!selectedStudioSlug || bookedStudioSlug !== selectedStudioSlug) return;
+
+    const selectedStudiosNeedDateReset = selectedStudios.some(
+      (studio) => studio.selectedDate && bookedDateSet.has(studio.selectedDate),
+    );
+    const selectedStudiosWithoutBookedDates = selectedStudiosNeedDateReset
+      ? selectedStudios.map((studio) =>
+          studio.selectedDate && bookedDateSet.has(studio.selectedDate)
+            ? { ...studio, selectedDate: undefined, startTime: undefined, endTime: undefined }
+            : studio,
+        )
+      : selectedStudios;
+
+    if (selectedShootDate && isStudioDateBooked(selectedShootDate)) {
+      setSelectedShootDate(null);
+      updateData({
+        startDate: "",
+        endDate: "",
+        ...(selectedStudiosNeedDateReset ? { selectedStudios: selectedStudiosWithoutBookedDates } : {}),
+      });
+    } else if (selectedStudiosNeedDateReset) {
+      updateData({ selectedStudios: selectedStudiosWithoutBookedDates });
+    }
+
+    setSelectedDates((prev) => {
+      const next = prev.filter((date) => !isStudioDateBooked(date));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [bookedDateSet, bookedStudioSlug, isStudioDateBooked, selectedShootDate, selectedStudioSlug, selectedStudios, updateData]);
 
   useEffect(() => {
     if (!data.shootType) return;
@@ -484,6 +558,41 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       );
     });
   };
+
+  const syncSelectedStudioTimes = useCallback((
+    nextStartDate: string,
+    nextEndDate: string,
+  ) => {
+    if (!selectedStudios.length || !nextStartDate || !nextEndDate) {
+      return undefined;
+    }
+
+    const start = parseDate(nextStartDate);
+    const end = parseDate(nextEndDate);
+    if (!start || !end) {
+      return undefined;
+    }
+
+    const selectedDate = format(start, "yyyy-MM-dd");
+    const startTime = format(start, "HH:mm");
+    const endTime = format(end, "HH:mm");
+
+    return selectedStudios.map((studio) => {
+      const durationMs = end.getTime() - start.getTime();
+      const durationHours = durationMs > 0 ? Math.max(1, Math.ceil(durationMs / (1000 * 60 * 60))) : studio.quantity;
+      const minimumHours = studio.minimumHours || 1;
+      const quantity = Math.max(durationHours || 0, minimumHours);
+
+      return {
+        ...studio,
+        selectedDate,
+        startTime,
+        endTime,
+        quantity,
+        totalPrice: Number(studio.unitPrice || 0) * quantity + Number(studio.cleaningFee || 0),
+      };
+    });
+  }, [selectedStudios]);
 
   // Auto-fill once per signed-in account, then let the user freely edit or clear it.
   useEffect(() => {
@@ -748,6 +857,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       return;
     }
 
+    if (isStudioDateBooked(date)) {
+      toast.error("This studio is already booked on that date.");
+      setSelectedShootDate(null);
+      updateData({ startDate: "", endDate: "" });
+      return;
+    }
+
     setSelectedShootDate(date);
 
     const now = new Date();
@@ -815,9 +931,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       }
     }
 
+    const nextStartDate = formatLocalDateTime(finalStart);
+    const nextEndDate = formatLocalDateTime(finalEnd);
+    const syncedStudios = syncSelectedStudioTimes(nextStartDate, nextEndDate);
+
     updateData({
-      startDate: formatLocalDateTime(finalStart),
-      endDate: formatLocalDateTime(finalEnd),
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+      ...(syncedStudios ? { selectedStudios: syncedStudios } : {}),
     });
   };
   const handleStartTimeChange = (timeKey: string) => {
@@ -852,7 +973,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     }
 
     const newStart = set(currentDate, { hours, minutes });
-    updateData({ startDate: formatLocalDateTime(newStart) });
+    const nextStartDate = formatLocalDateTime(newStart);
+    const nextEndDate = data.endDate;
+    const syncedStudios = syncSelectedStudioTimes(nextStartDate, nextEndDate);
+
+    updateData({
+      startDate: nextStartDate,
+      ...(syncedStudios ? { selectedStudios: syncedStudios } : {}),
+    });
   };
 
 
@@ -876,11 +1004,23 @@ export const V3Step1ChooseService: React.FC<Props> = ({
       milliseconds: 0
     });
 
-    updateData({ endDate: formatLocalDateTime(newEnd) });
+    const nextEndDate = formatLocalDateTime(newEnd);
+    const nextStartDate = data.startDate || formatLocalDateTime(baseDate);
+    const syncedStudios = syncSelectedStudioTimes(nextStartDate, nextEndDate);
+
+    updateData({
+      endDate: nextEndDate,
+      ...(syncedStudios ? { selectedStudios: syncedStudios } : {}),
+    });
     scrollToRef(editsRef);
   };
 
   const toggleDateSelection = (date: Date) => {
+    if (isStudioDateBooked(date)) {
+      toast.error("This studio is already booked on that date.");
+      return;
+    }
+
     const clickedDateKey = getDateKey(date);
     setSelectedDates((prev) => {
       const exists = prev.some((d) => isSameDay(d, date));
@@ -950,9 +1090,14 @@ export const V3Step1ChooseService: React.FC<Props> = ({
         : undefined;
 
       if (firstSelectedDate && firstSelectedTiming?.startKey && firstSelectedTiming?.endKey) {
+        const nextStartDate = buildDateTimeString(firstSelectedDate, firstSelectedTiming.startKey);
+        const nextEndDate = buildDateTimeString(firstSelectedDate, firstSelectedTiming.endKey);
+        const syncedStudios = syncSelectedStudioTimes(nextStartDate, nextEndDate);
+
         updateData({
-          startDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.startKey),
-          endDate: buildDateTimeString(firstSelectedDate, firstSelectedTiming.endKey),
+          startDate: nextStartDate,
+          endDate: nextEndDate,
+          ...(syncedStudios ? { selectedStudios: syncedStudios } : {}),
         });
       }
 
@@ -1029,7 +1174,18 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
 
     if (!areBookingDaysEqual(days, data.bookingDays || [])) {
-      updateData({ bookingDays: days });
+      const firstCompleteDay = days.find((day) => day.date && day.startTime && day.endTime);
+      const syncedStudios = firstCompleteDay
+        ? syncSelectedStudioTimes(
+            `${firstCompleteDay.date}T${firstCompleteDay.startTime}:00`,
+            `${firstCompleteDay.date}T${firstCompleteDay.endTime}:00`,
+          )
+        : undefined;
+
+      updateData({
+        bookingDays: days,
+        ...(syncedStudios ? { selectedStudios: syncedStudios } : {}),
+      });
     }
   }, [
     bookingType,
@@ -1039,6 +1195,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     data.bookingDays,
     sameTimingsMulti,
     multiDayTimes,
+    syncSelectedStudioTimes,
     updateData
   ]);
 
@@ -1961,6 +2118,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                         minDate={new Date()}
                         colors={datePickerColours}
                         format="MM/dd/yyyy"
+                        shouldDisableDate={isStudioDateBooked}
                         sx={{
                           height: { xs: "56px", md: "82px" },
                           borderRadius: "16px",
@@ -2034,13 +2192,15 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                     >
                       {reelDays.map((date) => {
                         const isSelected = selectedDates.some(d => isSameDay(d, date));
+                        const isBooked = isStudioDateBooked(date);
                         return (
                           <button
                             type="button"
                             key={date.toISOString()}
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => toggleDateSelection(date)}
-                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                            disabled={isBooked}
+                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"} ${isBooked ? "cursor-not-allowed text-white/20 line-through opacity-40 hover:border-white/10" : ""}`}
                           >
                             <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
                             <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
@@ -2087,6 +2247,7 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                           <div className="grid grid-cols-7 gap-1">
                             {calendarDays.map((date) => {
                               const isSelected = selectedDates.some(d => isSameDay(d, date));
+                              const isBooked = isStudioDateBooked(date);
                               return (
                                 <button
                                   type="button"
@@ -2094,7 +2255,8 @@ export const V3Step1ChooseService: React.FC<Props> = ({
                                   onClick={() => {
                                     toggleDateSelection(date);
                                   }}
-                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                                  disabled={isBooked}
+                                  className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""} ${isBooked ? "cursor-not-allowed text-white/20 line-through opacity-40 hover:bg-transparent" : ""}`}
                                 >
                                   {format(date, "d")}
                                 </button>
