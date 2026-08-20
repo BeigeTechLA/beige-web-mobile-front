@@ -72,6 +72,7 @@ const menuItems = [
     permissionKeys: ['sales_representative'],
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
+      { name: 'Shift Management', link: '/admin/sales-representative/shift-management' },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
@@ -218,10 +219,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     if (!link || link === "#") return false;
 
     if (parentName === "Sales Representative" && link === "/admin/sales-representative") {
-      return pathname === link || (
-        pathname?.startsWith("/admin/sales-representative/") &&
-        !pathname?.startsWith("/admin/sales-representative/sales-people")
-      );
+      return pathname === link;
     }
 
     if (link === "/admin/quotes") {
