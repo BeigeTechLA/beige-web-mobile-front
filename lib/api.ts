@@ -145,6 +145,90 @@ export type UserRoleDetailsResponse = {
   permissions: Record<string, Record<string, boolean>>;
 };
 
+export type ShiftManagementApiResponse<T = unknown> = {
+  success: boolean;
+  data: T | null;
+  message?: string;
+  error?: string;
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    total_pages?: number;
+    totalPages?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+const shiftRequest = async <T>(
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  url: string,
+  options?: { data?: unknown; params?: Record<string, unknown> },
+  fallbackError = 'Shift management request failed'
+): Promise<ShiftManagementApiResponse<T>> => {
+  try {
+    const response = await api.request<ShiftManagementApiResponse<T>>({
+      method,
+      url,
+      data: options?.data,
+      params: options?.params,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(`Shift Management API Error [${method.toUpperCase()} ${url}]:`, error.response?.data || error.message);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || fallbackError,
+      message: error.response?.data?.message || fallbackError,
+    };
+  }
+};
+
+export const shiftManagementApi = {
+  getShifts: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts', { params }, 'Failed to fetch shifts'),
+  createShift: (data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
+    shiftRequest<any>('post', '/admin/shifts', { data }, 'Failed to create shift'),
+  getOverview: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/overview', { params }, 'Failed to fetch shift overview'),
+  getActiveNow: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/active-now', { params }, 'Failed to fetch active shifts'),
+  getRecentAssignments: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/recent-assignments', { params }, 'Failed to fetch recent assignments'),
+  getHourlyLeadVolume: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/hourly-lead-volume', { params }, 'Failed to fetch hourly lead volume'),
+  getShiftDetail: (id: number | string) =>
+    shiftRequest<any>('get', `/admin/shifts/${id}`, undefined, 'Failed to fetch shift detail'),
+  updateShift: (id: number | string, data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
+    shiftRequest<any>('put', `/admin/shifts/${id}`, { data }, 'Failed to update shift'),
+  toggleShift: (id: number | string) =>
+    shiftRequest<any>('patch', `/admin/shifts/${id}/toggle`, undefined, 'Failed to toggle shift'),
+  deleteShift: (id: number | string) =>
+    shiftRequest<any>('delete', `/admin/shifts/${id}`, undefined, 'Failed to delete shift'),
+  getAllSalespeople: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/salespeople', { params }, 'Failed to fetch salespeople'),
+  addSalespersonToShift: (shiftId: number | string, sales_rep_id: number | string) =>
+    shiftRequest<any>('post', `/admin/shifts/${shiftId}/salespeople`, { data: { sales_rep_id } }, 'Failed to add salesperson'),
+  getShiftSalespeople: (shiftId: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/shifts/${shiftId}/salespeople`, { params }, 'Failed to fetch shift salespeople'),
+  toggleShiftSalesperson: (shiftId: number | string, salesRepId: number | string, user_status?: boolean) =>
+    shiftRequest<any>('patch', `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`, { data: user_status === undefined ? {} : { user_status } }, 'Failed to toggle salesperson'),
+  removeShiftSalesperson: (shiftId: number | string, salesRepId: number | string) =>
+    shiftRequest<any>('delete', `/admin/shifts/${shiftId}/salespeople/${salesRepId}`, undefined, 'Failed to remove salesperson'),
+  getRoundRobin: (shiftId: number | string) =>
+    shiftRequest<any>('get', `/admin/shifts/${shiftId}/round-robin`, undefined, 'Failed to fetch round robin configuration'),
+  updateRoundRobin: (shiftId: number | string, data: Array<{ sales_rep_id: number | string; position: number }>) =>
+    shiftRequest<any>('put', `/admin/shifts/${shiftId}/round-robin`, { data }, 'Failed to save round robin order'),
+  getAssignmentHistory: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/assignment-history', { params }, 'Failed to fetch assignment history'),
+  getSalesRepLeads: (id: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/sales-reps/${id}/leads`, { params }, 'Failed to fetch salesperson leads'),
+  getSalesRepQuotes: (id: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/sales-reps/${id}/quotes`, { params }, 'Failed to fetch salesperson quotes'),
+};
+
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
