@@ -519,16 +519,16 @@ export default function BookingDateTimeSection({
         <h3 className={`mb-3 text-base font-medium lg:mb-6 lg:text-xl ${isDark ? "text-white/90" : "text-black/80"}`}>
           Select Booking Type
         </h3>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <button
             type="button"
             onClick={() => {
               handleBookingTypeChange("single_day");
             }}
-            className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "single_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
+            className={`flex h-14 w-fit min-w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "single_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
           >
             <span className="pr-2 text-sm font-medium lg:text-lg">Single Day</span>
-            <div className={`flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "single_day" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>
+            <div className={`shrink-0 flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "single_day" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>
               {bookingType === "single_day" ? <div className="h-2 w-2 rounded-full bg-[#E8D1AB]" /> : null}
             </div>
           </button>
@@ -537,10 +537,10 @@ export default function BookingDateTimeSection({
             onClick={() => {
               handleBookingTypeChange("multi_day");
             }}
-            className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "multi_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
+            className={`flex h-14 w-fit min-w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[300px] lg:px-6 ${bookingType === "multi_day" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
           >
             <span className="pr-2 text-sm font-medium lg:text-lg">Multiple Days</span>
-            <div className={`flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "multi_day" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>
+            <div className={`shrink-0 flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "multi_day" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>
               {bookingType === "multi_day" ? <div className="h-2 w-2 rounded-full bg-[#E8D1AB]" /> : null}
             </div>
           </button>
@@ -549,7 +549,7 @@ export default function BookingDateTimeSection({
             onClick={() => {
               handleBookingTypeChange("tbd");
             }}
-            className={`flex h-14 w-fit items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[220px] lg:px-6 ${bookingType === "tbd" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
+            className={`flex h-14 w-fit min-w-[100px] items-center justify-between rounded-2xl border px-2 lg:h-[82px] lg:w-[220px] lg:px-6 ${bookingType === "tbd" ? "border-transparent bg-[#E8D1AB] text-black" : isDark ? "border-white/10 bg-[#101010] text-[#A9A9A9] hover:border-white/20" : "border-[#0000004D] bg-transparent text-[#2C2C2C] hover:border-[#000000]/50"}`}
           >
             <span className="pr-2 text-sm font-medium lg:text-lg">TBD</span>
             <div className={`flex h-6 w-6 items-center justify-center rounded-full border lg:h-8 lg:w-8 ${bookingType === "tbd" ? "border-transparent bg-black" : isDark ? "border-white/20" : "border-[#0000004D]"}`}>

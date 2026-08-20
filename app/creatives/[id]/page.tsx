@@ -492,7 +492,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
         </section>
 
         {/* Certificates */}
-        {
+        {/* {
           dynamicCertificates.length > 0 && (
             <>
               <CenteredSeparator />
@@ -504,7 +504,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                     </h2>
                   </div>
 
-                  {/* Infinite Marquee Track Container */}
+                  Infinite Marquee Track Container
                   <div className="relative w-full overflow-hidden border-y border-white/70 flex [mask-image:linear-gradient(to_right,transparent,white_15%,white_85%,transparent)]">
                     <motion.div
                       className="flex whitespace-nowrap min-w-full shrink-0 items-center justify-around gap-0"
@@ -515,7 +515,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                         repeat: Infinity,
                       }}
                     >
-                      {/* Duplicating array elements creates a perfectly loopable seamless seam */}
+                      Duplicating array elements creates a perfectly loopable seamless seam
                       {[...dynamicCertificates, ...dynamicCertificates].map((certificate: CertificateItem, index: number) => {
                         const isPDF = certificate.url.toLowerCase().endsWith('.pdf');
                         const fileUrl = `${S3_PREFIX}${certificate.url}`;
@@ -525,7 +525,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                             <div
                               className="flex items-center justify-center shrink-0 w-[280px] md:w-[360px] h-30 md:h-[220px] relative px-6 md:px-12 group"
                             >
-                              {/* Content Display Zone */}
+                              Content Display Zone
                               <div className="relative w-20 h-20 lg:w-32 lg:h-32 flex items-center justify-center rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
                                 {isPDF ? (
                                   <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-900 border border-white/5 text-white/20 rounded-xl">
@@ -543,7 +543,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                                 )}
                               </div>
 
-                              {/* Floating Text Title */}
+                              Floating Text Title
                               {certificate.title && (
                                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                   <p className="text-[10px] md:text-xs font-medium text-white/70 tracking-wide bg-black/80 px-2 py-0.5 rounded-md backdrop-blur-sm whitespace-normal max-w-[200px]">
@@ -553,7 +553,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
                               )}
                             </div>
 
-                            {/* Custom Vertical Gradient SVG Divider */}
+                            Custom Vertical Gradient SVG Divider
                             <VerticalSeparatorDesktop />
                           </React.Fragment>
                         );
@@ -564,7 +564,7 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
               </section>
             </>
           )
-        }
+        } */}
 
         {/* Video Portfolio Section */}
         {dynamicVideos.length > 0 && (
@@ -572,7 +572,6 @@ function CreatorProfileContent({ isModalView = false }: { isModalView?: boolean 
             <CenteredSeparator />
             <section id="video-portfolio" className="relative w-full">
               <StackedVideoScroll videos={dynamicVideos} />
-              <CenteredSeparator />
             </section>
           </>
         )}
