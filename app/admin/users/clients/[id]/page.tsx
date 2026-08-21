@@ -208,8 +208,8 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
       <div className={`overflow-hidden min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mx-auto space-y-8 ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
 
         {/* Page Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          <div className="flex items-start lg:items-center gap-4 min-w-0">
             <button
               onClick={() => router.back()}
               className={`p-2.5 border rounded-xl transition-colors ${isDark ? "bg-[#111] border-[#333] text-white hover:bg-[#222]" : "bg-gray-50 border-gray-200 text-black hover:bg-gray-100"}`}
@@ -217,7 +217,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
               <ChevronLeft size={20} />
             </button>
             <div className="min-w-0">
-              <h1 className="text-lg lg:text-2xl font-semibold">{client?.name || "User Details"}</h1>
+              <h1 className="text-base lg:text-lg lg:text-2xl font-semibold">{client?.name || "User Details"}</h1>
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 <p className={`${isDark ? "text-[#888]" : "text-gray-500"} text-sm font-medium`}>User ID: #{client?.client_id}</p>
                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${clientTypeBadgeClass}`}>
@@ -275,24 +275,24 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
         </div>
 
         {/* Info Section */}
-        <div className={`border rounded-xl lg:rounded-2xl p-8 space-y-5 lg:space-y-10 ${isDark ? "bg-[#0D0D0D] border-white/20" : "bg-white border-[#E5E5E5]"}`}>
+        <div className={`border rounded-xl lg:rounded-2xl p-4 lg:p-8 space-y-5 lg:space-y-10 ${isDark ? "bg-[#0D0D0D] border-white/20" : "bg-white border-[#E5E5E5]"}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-4 min-w-0">
               <div className={`p-2.5 rounded-xl border ${isDark ? "bg-white/5 border-white/10 text-[#E5D5B8]" : "bg-black/5 border-black/5 text-black"}`}>
                 <User size={20} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0 flex-1">
                 <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>User Name</p>
-                <p className={`${isDark ? "text-white" : "text-black"} text-lg font-semibold`}>{client?.name}</p>
+                <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold break-all`}>{client?.name}</p>
               </div>
             </div>
-            <div className="flex items-start gap-4">
-              <div className={`p-2.5 rounded-xl border ${isDark ? "bg-white/5 border-white/10 text-[#E5D5B8]" : "bg-black/5 border-black/5 text-black"}`}>
+            <div className="flex items-start gap-4 min-w-0">
+              <div className={`p-2.5 shrink-0 rounded-xl border ${isDark ? "bg-white/5 border-white/10 text-[#E5D5B8]" : "bg-black/5 border-black/5 text-black"}`}>
                 <Mail size={20} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0 flex-1">
                 <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Email ID</p>
-                <p className={`${isDark ? "text-white" : "text-black"} text-lg font-semibold`}>{client?.email}</p>
+                <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold break-all`}>{client?.email}</p>
               </div>
             </div>
           </div>
@@ -304,7 +304,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
               </div>
               <div className="space-y-1">
                 <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Phone Number</p>
-                <p className={`${isDark ? "text-white" : "text-black"} text-lg font-semibold`}>{client?.phone_number || "N/A"}</p>
+                <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold`}>{client?.phone_number || "N/A"}</p>
               </div>
             </div>
 
@@ -522,7 +522,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
                     <tr>
                       <td colSpan={6} className="py-32 text-center">
                         <div className="flex flex-col items-center justify-center space-y-2">
-                          <p className={`${isDark ? "text-[#666]" : "text-gray-400"} text-lg font-medium`}>
+                          <p className={`${isDark ? "text-[#666]" : "text-gray-400"} text-base lg:text-lg font-medium`}>
                             No {activeTab.toLowerCase()} shoots found matching your search.
                           </p>
                         </div>
