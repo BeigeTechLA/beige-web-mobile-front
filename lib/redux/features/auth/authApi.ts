@@ -172,11 +172,28 @@ export const authApi = createApi({
     }),
 
     // Creator registration - Step 3: Portfolio and availability
-    registerCreatorStep3: builder.mutation<{ message: string; crew_member: unknown }, FormData>({
+    registerCreatorStep3: builder.mutation<{ message: string; crew_member: unknown }, FormData | Record<string, unknown>>({
       query: (formData) => ({
         url: 'auth/register-crew-step3',
         method: 'POST',
         body: formData,
+      }),
+    }),
+
+    uploadCreatorStep3File: builder.mutation<{ success: boolean; message: string; data: Record<string, unknown>[] }, FormData>({
+      query: (formData) => ({
+        url: 'auth/register-crew-step3-file',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
+
+    // Admin function to generate a link manually
+    generateUserResetLinkForAdmin: builder.mutation<{ success: boolean; resetLink: string; message: string }, { email: string }>({
+      query: (data) => ({
+        url: 'auth/admin/generate-reset-link',
+        method: 'POST',
+        body: data,
       }),
     }),
 
@@ -250,6 +267,8 @@ export const {
   useRegisterCreatorStep1Mutation,
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
+  useGenerateUserResetLinkForAdminMutation,
+  useUploadCreatorStep3FileMutation,
   useGetCrewMemberDetailsQuery,
   useGetOnboardingStatusQuery,
 } = authApi;

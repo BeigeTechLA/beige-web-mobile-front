@@ -151,17 +151,9 @@ export default function AdminFolderManagerPage() {
   const [loading, setLoading] = useState(true);
   const [boardLoadingInitial, setBoardLoadingInitial] = useState(false);
   const [boardLoadingMore, setBoardLoadingMore] = useState(false);
-  const [boardColumnTotals, setBoardColumnTotals] = useState({
-    all: 0,
-    shoot: 0,
-    common: 0,
-    expired: 0,
-    recent: 0,
-  });
   const [error, setError] = useState<string | null>(null);
   const projectsRequestRef = useRef(0);
   const boardProjectsRequestRef = useRef(0);
-  const boardTotalsRequestRef = useRef(0);
   const [routeStateReady, setRouteStateReady] = useState(false);
   const hasSkippedInitialFilterResetRef = useRef(false);
 
@@ -373,50 +365,6 @@ export default function AdminFolderManagerPage() {
     debouncedSearchTerm,
   ]);
 
-  const loadBoardColumnTotals = useCallback(
-    async (searchQuery: string = debouncedSearchTerm) => {
-      const requestId = boardTotalsRequestRef.current + 1;
-      boardTotalsRequestRef.current = requestId;
-
-      try {
-        let page = 1;
-        let hasNextPage = true;
-        const allItems: UiFolderItem[] = [];
-
-        while (hasNextPage) {
-          const { workspaces, pagination: pageMeta } = await fileManagerApi.listExternalWorkspacesPaginated({
-            page,
-            limit: BOARD_PAGE_SIZE,
-            search: searchQuery,
-          });
-
-          const mapped = workspaces.map((workspace) =>
-            mapExternalWorkspaceToFolderCard(workspace, "/admin/file-manager")
-          );
-          allItems.push(...mapped);
-
-          hasNextPage = Boolean(pageMeta?.hasNextPage);
-          page = Number(pageMeta?.page || page) + 1;
-        }
-
-        if (boardTotalsRequestRef.current !== requestId) return;
-
-        setBoardColumnTotals({
-          all: applySharedFilters(allItems).length,
-          shoot: applySharedFilters(allItems.filter((item) => item.category !== "Common Event")).length,
-          common: applySharedFilters(allItems.filter((item) => item.category === "Common Event")).length,
-          expired: applySharedFilters(allItems.filter(isVisibilityExpiredFolder)).length,
-          recent: applySharedFilters(
-            allItems.filter((item) => isRecentWithinHours(item.updatedAtRaw, 24 * 5))
-          ).length,
-        });
-      } catch {
-        // Keep previous totals if count refresh fails.
-      }
-    },
-    [debouncedSearchTerm, status, selectedDate]
-  );
-
   const applySharedFilters = (items: UiFolderItem[]) => {
     let nextItems = [...items];
 
@@ -438,12 +386,6 @@ export default function AdminFolderManagerPage() {
 
     return nextItems;
   };
-
-  useEffect(() => {
-    if (!routeStateReady) return;
-    if (viewMode !== "board") return;
-    loadBoardColumnTotals(debouncedSearchTerm);
-  }, [viewMode, debouncedSearchTerm, status, selectedDate, loadBoardColumnTotals, routeStateReady]);
 
   const filteredFolders = useMemo(() => {
     const source = viewMode === "board" ? boardProjects : projects;
@@ -471,7 +413,6 @@ export default function AdminFolderManagerPage() {
         id: "all-files",
         title: "All folders",
         items: applySharedFilters(boardProjects),
-        totalCount: boardColumnTotals.all,
         hasMore: boardPagination.hasNextPage,
         isLoadingMore: boardLoadingMore,
       },
@@ -479,7 +420,6 @@ export default function AdminFolderManagerPage() {
         id: "shoot-folders",
         title: "Shoot folders",
         items: applySharedFilters(boardProjects.filter((folder) => folder.category !== "Common Event")),
-        totalCount: boardColumnTotals.shoot,
         hasMore: boardPagination.hasNextPage,
         isLoadingMore: boardLoadingMore,
       },
@@ -487,7 +427,6 @@ export default function AdminFolderManagerPage() {
         id: "common-event",
         title: "Common events",
         items: applySharedFilters(boardProjects.filter((folder) => folder.category === "Common Event")),
-        totalCount: boardColumnTotals.common,
         hasMore: boardPagination.hasNextPage,
         isLoadingMore: boardLoadingMore,
       },
@@ -495,7 +434,6 @@ export default function AdminFolderManagerPage() {
         id: "visibility-expired",
         title: "Visibility expired",
         items: applySharedFilters(boardProjects.filter(isVisibilityExpiredFolder)),
-        totalCount: boardColumnTotals.expired,
         hasMore: boardPagination.hasNextPage,
         isLoadingMore: boardLoadingMore,
       },
@@ -505,21 +443,14 @@ export default function AdminFolderManagerPage() {
         items: applySharedFilters(
           boardProjects.filter((folder) => isRecentWithinHours(folder.updatedAtRaw, 24 * 5))
         ),
-        totalCount: boardColumnTotals.recent,
         hasMore: boardPagination.hasNextPage,
         isLoadingMore: boardLoadingMore,
       },
     ],
     [
       boardProjects,
-      boardPagination.total,
       boardPagination.hasNextPage,
       boardLoadingMore,
-      boardColumnTotals.all,
-      boardColumnTotals.shoot,
-      boardColumnTotals.common,
-      boardColumnTotals.expired,
-      boardColumnTotals.recent,
       status,
       selectedDate,
     ]
@@ -694,7 +625,7 @@ export default function AdminFolderManagerPage() {
               <Search className={`absolute left-2 lg:left-3 top-1/2 -translate-y-1/2 w-3 lg:w-4 h-3 lg:h-4 transition-colors ${isDark ? "text-white/40" : "text-[#9F9FA9]"}`} />
               <input
                 type="text"
-                placeholder="Search folder..."
+                placeholder="Search folder, client name, or email..."
                 value={searchTerm}
                 className={`w-full pl-6 lg:pl-9 pr-4 py-1.5 lg:py-2 border rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
                   ? "bg-[#18181b] border-white/10 text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"

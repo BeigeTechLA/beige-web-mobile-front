@@ -399,29 +399,31 @@ export default function SubFolderDetailsPage() {
     if (!previewableFiles.length) return;
 
     let active = true;
+    const timeoutId = window.setTimeout(() => {
+      const loadPreviews = async () => {
+        const entries = await Promise.all(
+          previewableFiles.map(async (file: any) => {
+            try {
+              const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+              return [file.id, result.url] as const;
+            } catch {
+              return [file.id, ""] as const;
+            }
+          })
+        );
 
-    const loadPreviews = async () => {
-      const entries = await Promise.all(
-        previewableFiles.map(async (file: any) => {
-          try {
-            const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
-            return [file.id, result.url] as const;
-          } catch {
-            return [file.id, ""] as const;
-          }
-        })
-      );
+        if (!active) return;
+        setPreviewUrls((prev) => ({
+          ...prev,
+          ...Object.fromEntries(entries.filter(([, url]) => !!url)),
+        }));
+      };
 
-      if (!active) return;
-      setPreviewUrls((prev) => ({
-        ...prev,
-        ...Object.fromEntries(entries.filter(([, url]) => !!url)),
-      }));
-    };
-
-    loadPreviews();
+      loadPreviews();
+    }, 150);
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
     };
   }, [visibleFiles]);
 

@@ -5644,7 +5644,7 @@ function CreateQuotePageContent() {
                     Manage travel, equipment, permits, and other logistical costs
                   </p>
                 </div>
-                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
                 {/* Logistics Selection Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 p-4 lg:p-8">
@@ -5743,7 +5743,7 @@ function CreateQuotePageContent() {
                     );
                   })}
                 </div>
-                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
+                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
                 {/* Dynamic Custom Creation Form Component */}
                 <div className="p-4 lg:p-8 lg:pb-6">
@@ -5836,7 +5836,7 @@ function CreateQuotePageContent() {
 
                 {selectedLogistics.length > 0 && (
                   <>
-                    <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
+                    <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
                     <section className="p-4 lg:p-8">
                       <div className="mb-4 lg:mb-7">
                         <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
@@ -5852,7 +5852,7 @@ function CreateQuotePageContent() {
                           return (
                             <div
                               key={item.id}
-                              className={`rounded-[18px] p-4 lg:p-6 relative overflow-hidden border ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-zinc-50 border-zinc-200"}`}
+                              className={`rounded-[18px] p-4 lg:p-6 relative overflow-hidden border ${isDark ? "bg-[#0F0F0F] border-[#4A4A4A]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}
                             >
                               {/* desktop version */}
                               <div className="hidden lg:flex items-center justify-between gap-6">
@@ -5929,7 +5929,7 @@ function CreateQuotePageContent() {
                                     {formatCurrency(item.basePrice)}
                                   </p>
                                 </div>
-                                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-zinc-200"}`} />
+                                <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
                                 <div className="flex gap-3 items-center">
                                   <div className="relative flex-1">
                                     <Input
@@ -7278,19 +7278,16 @@ function CreateQuotePageContent() {
             /* Client Selector View */
             <div>
               <div className="px-7 pt-7 lg:px-8 lg:pt-8">
-                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"
-                  }`}>
+                <h2 className={`text-base lg:text-xl font-medium mb-1 transition-colors ${isDark ? "text-white" : "text-[#000000]"}`}>
                   Client Information
                 </h2>
-                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"
-                  }`}>
+                <p className={`text-sm transition-colors ${isDark ? "text-[#A1A1AA]" : "text-[#000000]/50"}`}>
                   Select an existing client or create a new one
                 </p>
               </div>
 
               {/* Section Divider Line */}
-              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"
-                }`} />
+              <div className={`my-4 lg:my-8 border-t transition-colors ${isDark ? "border-white/50" : "border-[#000000]/15"}`} />
 
               <div className="px-7 pb-9 lg:px-8 lg:pb-10">
                 <div className="relative max-w-full">
@@ -7445,7 +7442,7 @@ function CreateQuotePageContent() {
                         key={item.id}
                         className={`rounded-xl p-4 lg:p-5 relative overflow-hidden border ${isDark
                           ? "bg-[#111111] border-[#FFFFFF80]"
-                          : "bg-zinc-50 border-[#D7D7D7]"
+                          : "bg-[#F4F5F7] border-[#D7D7D7]"
                           }`}
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

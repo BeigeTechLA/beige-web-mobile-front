@@ -53,17 +53,6 @@ interface ShootRecord {
   status: Status;
 }
 
-const normalizeStatusKey = (value: string) =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/[\s_-]+/g, "");
-
-const timelineStatusKeyFromLabel = (status: Status) => {
-  const normalized = normalizeStatusKey(status);
-  if (normalized === "assetsdelivered") return "assetsdelivered";
-  return normalized;
-};
-
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   videographer: "Videography",
   photographer: "Photography",
@@ -165,6 +154,7 @@ export const OverallShootsTable = () => {
   const [mounted, setMounted] = useState(false);
   const [shoots, setShoots] = useState<ShootRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 5;
@@ -179,15 +169,26 @@ export const OverallShootsTable = () => {
   const [status, setStatus] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, [])
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [range, status, startDate, endDate]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
     const fetchData = async () => {
       setLoading(true);
       try {
-        const params: any = { range };
+        const params: Record<string, string | number> = {
+          range,
+          page: currentPage,
+          limit: itemsPerPage,
+        };
         if (status !== "all") {
           params.status = status;
         }
@@ -199,6 +200,8 @@ export const OverallShootsTable = () => {
 
         const projectsResponse = await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
+        const pagination = projectsResponse?.data?.pagination;
+        const nextTotalRecords = Number(pagination?.totalRecords ?? projectsList.length);
 
         const mappedShoots = projectsList.map((item: any) => {
           const project = item.project || item;
@@ -221,26 +224,34 @@ export const OverallShootsTable = () => {
             status: statusLabel,
           };
         });
-        setShoots(mappedShoots);
+
+        if (!isCancelled) {
+          setShoots(mappedShoots);
+          setTotalRecords(Number.isFinite(nextTotalRecords) ? nextTotalRecords : mappedShoots.length);
+        }
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        if (!isCancelled) {
+          console.error("Failed to fetch data:", error);
+          setShoots([]);
+          setTotalRecords(0);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [range, status, startDate, endDate]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [range, status, startDate, endDate, currentPage]);
 
   const isDark = !mounted || theme === "dark";
-  const filteredShoots = shoots.filter((shoot) => {
-    if (status === "all") return true;
-    return timelineStatusKeyFromLabel(shoot.status) === status;
-  });
-
-  const totalPages = Math.ceil(filteredShoots.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentShoots = filteredShoots.slice(startIndex, startIndex + itemsPerPage);
+  const currentShoots = shoots;
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -269,6 +280,7 @@ export const OverallShootsTable = () => {
       const response = await adminApi.deleteProject(cleanId);
       if (response?.success || response?.message === "Project deleted successfully") {
         setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
+        setTotalRecords(prev => Math.max(prev - 1, 0));
         toast.success("Shoot deleted successfully");
       } else {
         toast.error(response?.error || "Failed to delete shoot");
@@ -476,7 +488,7 @@ export const OverallShootsTable = () => {
         <div className={`flex justify-between items-center p-4 border-t transition-colors duration-300 ${isDark ? "bg-[#101010] border-white/5" : "bg-white border-[#E3E3E3]"
           }`}>
           <div className={`hidden lg:block text-sm ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, shoots.length)} of {shoots.length} entries
+            Showing {startIndex + 1} to {Math.min(startIndex + shoots.length, totalRecords)} of {totalRecords} entries
           </div>
           <div className="flex gap-2 items-center">
             <button

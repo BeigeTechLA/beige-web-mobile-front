@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings, User, CalendarRange, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -72,6 +72,7 @@ const menuItems = [
     permissionKeys: ['sales_representative'],
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
+      { name: 'Shift Management', link: '/admin/sales-representative/shift-management' },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },
@@ -109,7 +110,12 @@ const menuItems = [
   },
   { name: 'Invoices', icon: Receipt, link: '/admin/invoice', permissionKeys: ['invoices'] },
   { name: 'Studios', icon: CustomStudiosIcon, link: '/admin/studio-management' },
-  { name: 'Profile', icon: Settings, link: '/admin/profile',},
+  {
+    name: 'Settings',
+    icon: Settings,
+    link: '/admin/settings',
+  },
+  { name: 'Profile', icon: User, link: '/admin/profile' },
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
@@ -213,10 +219,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     if (!link || link === "#") return false;
 
     if (parentName === "Sales Representative" && link === "/admin/sales-representative") {
-      return pathname === link || (
-        pathname?.startsWith("/admin/sales-representative/") &&
-        !pathname?.startsWith("/admin/sales-representative/sales-people")
-      );
+      return pathname === link;
     }
 
     if (link === "/admin/quotes") {

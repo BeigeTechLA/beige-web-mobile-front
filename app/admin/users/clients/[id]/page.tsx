@@ -18,10 +18,12 @@ import {
   History
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { Key } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
+import { useGenerateUserResetLinkForAdminMutation } from "@/lib/redux/features/auth/authApi";
 
 const getInitials = (name: string) => {
   return name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
@@ -126,6 +128,8 @@ export default function ClientDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [clientData, setClientData] = useState<any>(null);
   const [shootsData, setShootsData] = useState<any>(null);
+const [manualResetLink, setManualResetLink] = useState<string | null>(null);
+const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
   const [shootSearchQuery, setShootSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"Paid" | "Unpaid">("Paid");
@@ -192,6 +196,7 @@ export default function ClientDetailsPage() {
 
   const clientType = client?.client_type === "registered" ? "registered" : "guest";
   const clientTypeLabel = clientType === "registered" ? "Registered" : "Guest";
+  const clientEmail = String(client?.email || "").trim().toLowerCase();
   const clientTypeBadgeClass = clientType === "registered"
     ? "bg-[#E8F2FF] text-[#246BCE] border border-[#246BCE]/20"
     : "bg-[#FFF4E5] text-[#B66A00] border border-[#B66A00]/20";
@@ -203,21 +208,69 @@ export default function ClientDetailsPage() {
       <div className={`overflow-hidden min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 mx-auto space-y-8 ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`} style={{ fontFamily: 'var(--font-instrument-sans)' }}>
 
         {/* Page Header */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className={`p-2.5 border rounded-xl transition-colors ${isDark ? "bg-[#111] border-[#333] text-white hover:bg-[#222]" : "bg-gray-50 border-gray-200 text-black hover:bg-gray-100"}`}
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-lg lg:text-2xl font-semibold">{client?.name || "User Details"}</h1>
-            <div className="flex items-center gap-3 mt-1">
-              <p className={`${isDark ? "text-[#888]" : "text-gray-500"} text-sm font-medium`}>User ID: #{client?.client_id}</p>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${clientTypeBadgeClass}`}>
-                {clientTypeLabel}
-              </span>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={() => router.back()}
+              className={`p-2.5 border rounded-xl transition-colors ${isDark ? "bg-[#111] border-[#333] text-white hover:bg-[#222]" : "bg-gray-50 border-gray-200 text-black hover:bg-gray-100"}`}
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg lg:text-2xl font-semibold">{client?.name || "User Details"}</h1>
+              <div className="flex flex-wrap items-center gap-3 mt-1">
+                <p className={`${isDark ? "text-[#888]" : "text-gray-500"} text-sm font-medium`}>User ID: #{client?.client_id}</p>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${clientTypeBadgeClass}`}>
+                  {clientTypeLabel}
+                </span>
+              </div>
             </div>
+          </div>
+          <div className="shrink-0">
+            {Number(client?.is_active) === 1 && 
+              client?.client_type === "registered" && (manualResetLink ? (
+              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"}`}>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${isDark ? "border-white/10 bg-white/5 text-[#E8D1AB]" : "border-gray-200 bg-gray-50 text-[#B08A3C]"}`}>
+                  <Key size={14} />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[10px] uppercase tracking-widest ${isDark ? "text-white/35" : "text-gray-400"}`}>Reset Link</p>
+                  <span className={`block max-w-[240px] truncate font-mono text-[11px] ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2A]"}`}>{manualResetLink}</span>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(manualResetLink); toast.success("Copied!"); }}
+                  className={`ml-1 flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/80" : "hover:bg-gray-100 text-gray-600"}`}
+                  title="Copy reset link"
+                >
+                  <Copy size={14} />
+                </button>
+                <button
+                  onClick={() => setManualResetLink(null)}
+                  className={`text-[10px] font-medium uppercase tracking-wide transition-colors ${isDark ? "text-white/35 hover:text-white/70" : "text-gray-400 hover:text-gray-600"}`}
+                  title="Clear link"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={async () => {
+                  try {
+                    if (!clientEmail) {
+                      toast.error("Email is missing for this client");
+                      return;
+                    }
+                    const res = await generateAdminReset({ email: clientEmail }).unwrap();
+                    setManualResetLink(res.resetLink);
+                  } catch (e) { toast.error("Failed to generate link"); }
+                }}
+                className={`flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold border min-w-[170px] ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-gray-200"}`}
+              >
+                <Key size={14} />
+                Reset Password
+              </button>
+            )
+            )}
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 type Option = {
@@ -29,7 +30,9 @@ export default function DropdownSelect({
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((o) => o.key === value);
 
@@ -39,7 +42,12 @@ export default function DropdownSelect({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
         setOpen(false);
       }
     };
@@ -52,6 +60,49 @@ export default function DropdownSelect({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const trigger = dropdownRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const menuMaxHeight = 300;
+      const gap = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - gap;
+      const spaceAbove = rect.top - gap;
+      const openAbove = spaceBelow < menuMaxHeight && spaceAbove > spaceBelow;
+      if (openAbove) {
+        setMenuStyle({
+          position: "fixed",
+          bottom: window.innerHeight - rect.top + gap,
+          left: rect.left,
+          width: rect.width,
+          zIndex: 9999,
+        });
+        return;
+      }
+
+      setMenuStyle({
+        position: "fixed",
+        top: rect.bottom + gap,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
@@ -113,52 +164,56 @@ export default function DropdownSelect({
       </div>
 
       {/* Dropdown */}
-      {open && (
-        <div className={`absolute top-[calc(100%+8px)] left-0 w-full z-30 rounded-lg border max-h-[300px] overflow-y-auto overscroll-contain ${
-          isDark ? `${bgColour} border-white/10` : "bg-white border-gray-200"
-        }`}>
-          {filteredOptions.length === 0 ? (
-            <div className={`px-6 py-4 text-sm text-center ${isDark ? "text-white/50" : "text-black/40"}`}>
-              No options found.
-            </div>
-          ) : (
-            filteredOptions.map((option) => {
-              const isSelected = option.key === value;
-
-              return (
-                <div
-                  key={option.key}
-                  onClick={() => {
-                    onChange(option.key);
-                    setOpen(false);
-                    setSearchTerm("");
-                  }}
-                  className={`flex items-center gap-3 px-6 py-3 rounded-xl cursor-pointer transition
-                  ${isSelected
-                      ? "bg-[#FFFCE8] text-black"
-                      : isDark ? "text-white/50 hover:bg-white/5" : "text-black/60 hover:bg-black/5"
-                    }`}
-                >
-                  {/* Radio */}
-                  <div
-                    className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors
-                    ${isSelected
-                        ? "border-[#E8D1AB] bg-[#E8D1AB]"
-                        : isDark ? "border-white/50" : "border-black/20"
-                      }`}
-                  >
-                    {isSelected && (
-                      <div className="w-1 h-1 rounded-full bg-black" />
-                    )}
-                  </div>
-
-                  <span className="text-sm lg:text-base">{option.value}</span>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={menuStyle}
+              className={`max-h-[300px] overflow-y-auto overscroll-contain rounded-lg border shadow-2xl ${
+                isDark ? `${bgColour} border-white/10` : "bg-white border-gray-200"
+              }`}
+            >
+              {filteredOptions.length === 0 ? (
+                <div className={`px-6 py-4 text-center text-sm ${isDark ? "text-white/50" : "text-black/40"}`}>
+                  No options found.
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+              ) : (
+                filteredOptions.map((option) => {
+                  const isSelected = option.key === value;
+
+                  return (
+                    <div
+                      key={option.key}
+                      onClick={() => {
+                        onChange(option.key);
+                        setOpen(false);
+                        setSearchTerm("");
+                      }}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl px-6 py-3 transition
+                      ${isSelected
+                          ? "bg-[#FFFCE8] text-black"
+                          : isDark ? "text-white/50 hover:bg-white/5" : "text-black/60 hover:bg-black/5"
+                        }`}
+                    >
+                      <div
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border transition-colors
+                        ${isSelected
+                            ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                            : isDark ? "border-white/50" : "border-black/20"
+                          }`}
+                      >
+                        {isSelected ? <div className="h-1 w-1 rounded-full bg-black" /> : null}
+                      </div>
+
+                      <span className="text-sm lg:text-base">{option.value}</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

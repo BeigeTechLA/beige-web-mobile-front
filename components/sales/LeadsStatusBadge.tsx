@@ -78,11 +78,15 @@ const BOOKING_STATUS_STYLES: Record<
 
 interface StatusBadgeProps {
   status: BookingStatus | string;
+  size?: "default" | "compact";
 }
 
-export function LeadsStatusBadge({ status }: StatusBadgeProps) {
+export function LeadsStatusBadge({ status, size = "default" }: StatusBadgeProps) {
   // Get the styling exactly matching the string, or fallback to Unknown
   const style = BOOKING_STATUS_STYLES[status] || BOOKING_STATUS_STYLES["Unknown"];
+  const sizeClass = size === "compact"
+    ? "max-w-[150px] px-2.5 py-1 text-[10px]"
+    : "max-w-[150px] lg:max-w-none px-2 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm";
 
   // Display fix: If backend sends the "Singed Up" typo, we display "Signed Up" visually
   const displayStatus = status === "Singed Up" ? "Signed Up" : (status || "Unknown");
@@ -90,9 +94,8 @@ export function LeadsStatusBadge({ status }: StatusBadgeProps) {
   return (
     <span
       className={`
-        inline-block max-w-[150px] lg:max-w-none
-        text-nowrap px-2 py-1.5 lg:px-3 lg:py-2 rounded-full 
-        text-xs lg:text-sm font-medium truncate
+        inline-block text-nowrap rounded-full font-medium truncate
+        ${sizeClass}
         ${style.bg} ${style.text}
       `}
       title={displayStatus}

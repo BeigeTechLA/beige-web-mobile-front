@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/ui/Datepicker";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { salesApi as salesService } from "@/lib/api";
-import { useDebounce } from "@/hooks/use-debounce";
 
 type StatusActivityByDate = Record<string, { available_count?: number; unavailable_count?: number; total_status_changes?: number }>;
 type AssignedLeadItem = {
@@ -75,18 +74,30 @@ interface SalesRepStatusDetailsViewProps {
 
 const LEADS_PER_PAGE = 10;
 
+const ordinalDay = (day: number) => {
+  if (day > 3 && day < 21) return `${day}th`;
+  switch (day % 10) {
+    case 1: return `${day}st`;
+    case 2: return `${day}nd`;
+    case 3: return `${day}rd`;
+    default: return `${day}th`;
+  }
+};
+
+const formatLongDate = (date: Date) => `${ordinalDay(date.getDate())} ${format(date, "MMMM yyyy")}`;
+
 const formatDateLabel = (dateValue?: string | null) => {
   if (!dateValue) return "N/A";
   const parsedDate = new Date(dateValue);
   if (Number.isNaN(parsedDate.getTime())) return dateValue;
-  return format(parsedDate, "MMM dd, yyyy");
+  return formatLongDate(parsedDate);
 };
 
 const formatDateTimeLabel = (dateValue?: string | null) => {
   if (!dateValue) return "N/A";
   const parsedDate = new Date(dateValue);
   if (Number.isNaN(parsedDate.getTime())) return dateValue;
-  return format(parsedDate, "MMM dd, yyyy hh:mm a");
+  return `${formatLongDate(parsedDate)}, ${format(parsedDate, "h:mm a")}`;
 };
 
 const formatTimeLabel = (timeValue?: string | null) => {
@@ -338,7 +349,7 @@ function SalesRepStatusDetailsContent({ salesRepId, isDark, onBack }: SalesRepSt
               value={startDate}
               onChange={(date) => setStartDate(normalizeSelectedDate(date))}
               maxDate={new Date()}
-              format="dd-MM-yyyy"
+              format="do MMMM yyyy"
               isDark={isDark}
               sx={{ height: 44, "& .MuiInputBase-input": { fontSize: "14px", fontWeight: 500 } }}
               colors={isDark ? {
@@ -355,7 +366,7 @@ function SalesRepStatusDetailsContent({ salesRepId, isDark, onBack }: SalesRepSt
               value={endDate}
               onChange={(date) => setEndDate(normalizeSelectedDate(date))}
               maxDate={new Date()}
-              format="dd-MM-yyyy"
+              format="do MMMM yyyy"
               isDark={isDark}
               sx={{ height: 44, "& .MuiInputBase-input": { fontSize: "14px", fontWeight: 500 } }}
               colors={isDark ? {

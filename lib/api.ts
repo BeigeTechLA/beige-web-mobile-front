@@ -250,6 +250,90 @@ export type UserRoleDetailsResponse = {
   permissions: Record<string, Record<string, boolean>>;
 };
 
+export type ShiftManagementApiResponse<T = unknown> = {
+  success: boolean;
+  data: T | null;
+  message?: string;
+  error?: string;
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    total_pages?: number;
+    totalPages?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+const shiftRequest = async <T>(
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  url: string,
+  options?: { data?: unknown; params?: Record<string, unknown> },
+  fallbackError = 'Shift management request failed'
+): Promise<ShiftManagementApiResponse<T>> => {
+  try {
+    const response = await api.request<ShiftManagementApiResponse<T>>({
+      method,
+      url,
+      data: options?.data,
+      params: options?.params,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(`Shift Management API Error [${method.toUpperCase()} ${url}]:`, error.response?.data || error.message);
+    return {
+      success: false,
+      data: null,
+      error: error.response?.data?.message || fallbackError,
+      message: error.response?.data?.message || fallbackError,
+    };
+  }
+};
+
+export const shiftManagementApi = {
+  getShifts: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts', { params }, 'Failed to fetch shifts'),
+  createShift: (data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
+    shiftRequest<any>('post', '/admin/shifts', { data }, 'Failed to create shift'),
+  getOverview: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/overview', { params }, 'Failed to fetch shift overview'),
+  getActiveNow: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/active-now', { params }, 'Failed to fetch active shifts'),
+  getRecentAssignments: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/recent-assignments', { params }, 'Failed to fetch recent assignments'),
+  getHourlyLeadVolume: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/hourly-lead-volume', { params }, 'Failed to fetch hourly lead volume'),
+  getShiftDetail: (id: number | string) =>
+    shiftRequest<any>('get', `/admin/shifts/${id}`, undefined, 'Failed to fetch shift detail'),
+  updateShift: (id: number | string, data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
+    shiftRequest<any>('put', `/admin/shifts/${id}`, { data }, 'Failed to update shift'),
+  toggleShift: (id: number | string) =>
+    shiftRequest<any>('patch', `/admin/shifts/${id}/toggle`, undefined, 'Failed to toggle shift'),
+  deleteShift: (id: number | string) =>
+    shiftRequest<any>('delete', `/admin/shifts/${id}`, undefined, 'Failed to delete shift'),
+  getAllSalespeople: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/shifts/salespeople', { params }, 'Failed to fetch salespeople'),
+  addSalespersonToShift: (shiftId: number | string, sales_rep_id: number | string) =>
+    shiftRequest<any>('post', `/admin/shifts/${shiftId}/salespeople`, { data: { sales_rep_id } }, 'Failed to add salesperson'),
+  getShiftSalespeople: (shiftId: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/shifts/${shiftId}/salespeople`, { params }, 'Failed to fetch shift salespeople'),
+  toggleShiftSalesperson: (shiftId: number | string, salesRepId: number | string, user_status?: boolean) =>
+    shiftRequest<any>('patch', `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`, { data: user_status === undefined ? {} : { user_status } }, 'Failed to toggle salesperson'),
+  removeShiftSalesperson: (shiftId: number | string, salesRepId: number | string) =>
+    shiftRequest<any>('delete', `/admin/shifts/${shiftId}/salespeople/${salesRepId}`, undefined, 'Failed to remove salesperson'),
+  getRoundRobin: (shiftId: number | string) =>
+    shiftRequest<any>('get', `/admin/shifts/${shiftId}/round-robin`, undefined, 'Failed to fetch round robin configuration'),
+  updateRoundRobin: (shiftId: number | string, data: Array<{ sales_rep_id: number | string; position: number }>) =>
+    shiftRequest<any>('put', `/admin/shifts/${shiftId}/round-robin`, { data }, 'Failed to save round robin order'),
+  getAssignmentHistory: (params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', '/admin/assignment-history', { params }, 'Failed to fetch assignment history'),
+  getSalesRepLeads: (id: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/sales-reps/${id}/leads`, { params }, 'Failed to fetch salesperson leads'),
+  getSalesRepQuotes: (id: number | string, params?: Record<string, unknown>) =>
+    shiftRequest<any>('get', `/admin/sales-reps/${id}/quotes`, { params }, 'Failed to fetch salesperson quotes'),
+};
+
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
@@ -1961,6 +2045,37 @@ export const adminApi = {
       };
     }
   },
+  getSignupCreditPromotion: async () => {
+    try {
+      const response = await api.get('finance/admin/credit-points/signup-promotion');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signup Credit Promotion Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signup credit promotion',
+      };
+    }
+  },
+  updateSignupCreditPromotion: async (payload: {
+    is_enabled: boolean;
+    amount: number;
+    start_date?: string | null;
+    end_date?: string | null;
+  }) => {
+    try {
+      const response = await api.patch('finance/admin/credit-points/signup-promotion', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Signup Credit Promotion Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update signup credit promotion',
+      };
+    }
+  },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
     try {
       const response = await api.get('admin/get-dashboard-summary', { params });
@@ -2377,7 +2492,21 @@ export const adminApi = {
       };
     }
   },
-  getProjects: async (params: { status?: string; range?: string; start_date?: string; end_date?: string; date_on?: string; production_filter?: string; summary_only?: boolean } = {}) => {
+  getProjects: async (params: {
+    status?: string;
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    date_on?: string;
+    search?: string;
+    category?: string;
+    cp_assignment?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    summary_only?: boolean;
+    page?: number;
+    limit?: number;
+  } = {}) => {
     try {
       const response = await api.get('admin/get-projects', {
         params,
@@ -3346,6 +3475,25 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update shoot date and location',
+      };
+    }
+  },
+  updateShootProjectName: async (
+    shootId: string | number,
+    project_name: string
+  ) => {
+    try {
+      const response = await api.put(
+        `admin/shoots/${shootId}/project-name`,
+        { project_name }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Project Name Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update project name',
       };
     }
   },
@@ -4540,7 +4688,7 @@ export const salesApi = {
     signature_base64: string;
   }) => {
     try {
-      const response = await api.post('/signatures/sign', payload);
+      const response = await publicApi.post('/signatures/sign', payload);
       return response.data;
     } catch (error: any) {
       console.error('Save Signature Error:', error.response?.data || error.message);
@@ -4565,7 +4713,7 @@ export const salesApi = {
       formData.append('signer_email', payload.signer_email);
       formData.append('signer_name', payload.signer_name);
 
-      const response = await api.post('/signatures/sign', formData, {
+      const response = await publicApi.post('/signatures/sign', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
@@ -4581,7 +4729,7 @@ export const salesApi = {
 
   getSignatureByQuote: async (quote_id: number | string) => {
     try {
-      const response = await api.get(`/signatures/quote/${quote_id}`);
+      const response = await publicApi.get(`/signatures/quote/${quote_id}`);
       return response.data;
     } catch (error: any) {
       console.error('Get Signature Error:', error.response?.data || error.message);
