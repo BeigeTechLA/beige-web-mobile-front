@@ -110,11 +110,8 @@ export default function AffiliateProjectTeam({ projectId }: { projectId: string 
 
       {!hasTeam && (
         <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30 py-10 lg:py-0">
-          <div className={cn(
-            "w-12 h-12 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg",
-            isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#B18A00]/20"
-          )}>
-            <User size={40} className="text-[#333]" />
+           <div className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#B18A00]/20"}`}>
+            <User className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
           </div>
           <h4 className={cn(
             "text-base font-medium leading-none",

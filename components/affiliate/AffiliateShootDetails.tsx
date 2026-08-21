@@ -159,7 +159,7 @@ export default function AffiliateShootDetails({ shootId, onBack }: AffiliateShoo
           <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
             {activeTab === "Overview" && (
               <>
-                <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px]">
+                <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-[572px] pb-6 lg:pb-9">
                   <AffiliateProjectTeam projectId={shootId} />
                   <AffiliateAssignedCP projectId={shootId} />
                 </div>
