@@ -3,6 +3,7 @@
 
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
@@ -321,16 +322,6 @@ const mapShift = (shift: any): ShiftRow => {
     status: normalizeShiftStatus(shift?.status ?? shift?.stored_status),
     stored_status: normalizeShiftStatus(shift?.stored_status ?? shift?.status),
 
-    people: salespeople
-      .slice(0, 3)
-      .map((person: any) =>
-        getInitials(
-          person?.name ||
-          person?.salesperson_name ||
-          person?.email
-        )
-      ),
-
     salespeople,
     salespeopleCount,
 
@@ -388,18 +379,59 @@ const getOverviewStat = (
 
 const avatarColors = ["#F3D9C8", "#E5D5B8", "#D7E1D3", "#F4CFCF"];
 
-function AvatarStack({ people, extra, onAdd }: { people: string[]; extra?: number; onAdd?: () => void }) {
+function AvatarStack({
+  salespeople,
+  extra,
+  onAdd,
+}: {
+  salespeople: Array<{ name?: string; salesperson_name?: string; email?: string }>;
+  extra?: number;
+  onAdd?: () => void;
+}) {
+  const [tooltip, setTooltip] = useState<{ name: string; left: number; top: number } | null>(null);
+
+  const showTooltip = (event: React.PointerEvent<HTMLDivElement>, name: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({
+      name,
+      left: rect.left + rect.width / 2,
+      top: rect.top - 10,
+    });
+  };
+
   return (
     <div className="flex items-center">
-      {people.map((person, index) => (
-        <div
-          key={`${person}-${index}`}
-          className="-ml-2 first:ml-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#151515] text-[10px] font-semibold text-black"
-          style={{ backgroundColor: avatarColors[index % avatarColors.length] }}
-        >
-          {person}
-        </div>
-      ))}
+      {tooltip && typeof document !== "undefined"
+        ? ReactDOM.createPortal(
+            <div
+              className="pointer-events-none fixed z-[9999]"
+              style={{ left: tooltip.left, top: tooltip.top }}
+            >
+              <div className="relative -translate-x-1/2 -translate-y-full rounded-md bg-white px-2.5 py-1 text-[11px] font-bold leading-none text-black shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+                {tooltip.name}
+                <span className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white shadow-[2px_2px_6px_rgba(0,0,0,0.08)]" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+      {salespeople.map((person, index) => {
+        const fullName = person?.name || person?.salesperson_name || person?.email || "Unnamed";
+        const initials = getInitials(fullName);
+
+        return (
+          <div
+            key={`${fullName}-${index}`}
+            className="-ml-2 first:ml-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#151515] text-[10px] font-semibold text-black"
+            style={{ backgroundColor: avatarColors[index % avatarColors.length] }}
+            onPointerEnter={(event) => showTooltip(event, fullName)}
+            onPointerMove={(event) => showTooltip(event, fullName)}
+            onPointerLeave={() => setTooltip(null)}
+          >
+            {initials}
+          </div>
+        );
+      })}
       {extra ? (
         <div className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#151515] bg-[#E5D5B8] text-xs font-semibold text-black">
           +{extra}
@@ -412,7 +444,7 @@ function AvatarStack({ people, extra, onAdd }: { people: string[]; extra?: numbe
             event.stopPropagation();
             onAdd();
           }}
-          className={`${people.length || extra ? "-ml-2" : ""} flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-[#E5D5B8]/45 bg-[#242424] text-[#E5D5B8] transition hover:border-[#E5D5B8] hover:bg-[#2C2C2C]`}
+          className={`${salespeople.length || extra ? "-ml-2" : ""} flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-[#E5D5B8]/45 bg-[#242424] text-[#E5D5B8] transition hover:border-[#E5D5B8] hover:bg-[#2C2C2C]`}
           aria-label="Add salespeople"
         >
           <Plus size={16} />
@@ -443,6 +475,9 @@ export default function ShiftManagementPage() {
   const [editingShift, setEditingShift] = useState<ShiftDetail | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
+  const [startTimeError, setStartTimeError] = useState("");
+  const [endTimeError, setEndTimeError] = useState("");
+  const [shiftNameError, setShiftNameError] = useState("");
   const [enabledDays, setEnabledDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
   const [isShiftEnabled, setIsShiftEnabled] = useState(true);
   const [selectedShift, setSelectedShift] = useState<ShiftDetail | null>(null);
@@ -503,6 +538,12 @@ export default function ShiftManagementPage() {
   const shiftShowingFrom = shiftPagination.total > 0 ? ((safeShiftPage - 1) * shiftPagination.limit) + 1 : 0;
   const shiftShowingTo = Math.min(safeShiftPage * shiftPagination.limit, shiftPagination.total);
   const isShiftModalOpen = isCreateShiftOpen || Boolean(editingShift);
+  const canSaveShift =
+    Boolean(shiftName.trim()) &&
+    Boolean(startTime) &&
+    Boolean(endTime) &&
+    enabledDays.length > 0 &&
+    (!startTime || !endTime || endTime.getTime() >= startTime.getTime() + 60 * 60 * 1000);
   const getGrowthLabel = () => {
     if (selectedDate) return "on selected date";
 
@@ -522,10 +563,12 @@ export default function ShiftManagementPage() {
     setShiftName("");
     setStartTime(null);
     setEndTime(null);
+    setStartTimeError("");
+    setEndTimeError("");
+    setShiftNameError("");
     setEnabledDays(["Mon", "Tue", "Wed", "Thu", "Fri"]);
     setIsShiftEnabled(true);
   };
-
   const closeShiftModal = () => {
     setIsCreateShiftOpen(false);
     setEditingShift(null);
@@ -942,7 +985,7 @@ export default function ShiftManagementPage() {
                     </td>
                     <td className="px-5 py-4">
                       <AvatarStack
-                        people={shift.people}
+                        salespeople={shift.salespeople || []}
                         extra={shift.extra}
                         onAdd={() => {
                           setAddSalespeopleShift(shift);
@@ -1031,7 +1074,7 @@ export default function ShiftManagementPage() {
                           <p className="text-sm font-medium"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" /><span className="capitalize">{shift.name}</span></p>
                           <p className="mt-1 text-xs text-white/45">{shift.hours}</p>
                         </div>
-                        {shift.people.length ? <AvatarStack people={shift.people} extra={shift.extra} /> : null}
+                        {shift.salespeople?.length ? <AvatarStack salespeople={shift.salespeople} extra={shift.extra} /> : null}
                       </div>
                     </div>
                   ))}
@@ -1150,37 +1193,75 @@ export default function ShiftManagementPage() {
 
             <div className="no-scrollbar max-h-[calc(100vh-220px)] space-y-7 overflow-y-auto px-7 py-8">
               <label className="relative block">
-                <span className="absolute -top-3 left-8 bg-black px-3 text-base leading-6 text-white/45">Shift Name*</span>
+                <span className={`absolute -top-3 left-3 bg-black px-2 text-base leading-6 ${shiftNameError ? "text-[#FF4D4D]" : "text-white/45"}`}>Shift Name*</span>
                 <input
                   type="text"
                   value={shiftName}
-                  onChange={(event) => setShiftName(event.target.value)}
+                  onChange={(event) => {
+                    setShiftName(event.target.value);
+                    if (event.target.value.trim()) setShiftNameError("");
+                  }}
                   placeholder="Eg : Morning Shift"
-                  className="h-[82px] w-full rounded-xl border border-[#3D3D3D] bg-black px-7 pt-3 text-base text-white outline-none placeholder:text-white/25 focus:border-[#E5D5B8]"
+                  className={`h-[82px] w-full rounded-xl border ${shiftNameError ? "border-[#FF4D4D]" : "border-[#3D3D3D]"} bg-black px-7 text-base text-white outline-none placeholder:text-white/25 focus:border-[#E5D5B8]`}
                 />
+                {shiftNameError && (
+                  <p className="mt-1.5 ml-2 text-xs text-[#FF4D4D]">
+                    {shiftNameError}
+                  </p>
+                )}
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
+              <div>
                 <TimePicker
-                  label="Start Time"
+                  label="Start Time*"
                   value={startTime}
-                  onChange={setStartTime}
+                  onChange={(time) => {
+                  setStartTime(time);
+
+                  if (time) {
+                    setStartTimeError("");
+                  }
+
+                  if (time && endTime) {
+                    const minimumEndTime = new Date(time.getTime() + 60 * 60 * 1000);
+
+                    if (endTime < minimumEndTime) {
+                      setEndTime(null);
+                      setEndTimeError("End Time must be at least 1 hour after Start Time");
+                    }
+                  }
+                }}
                   isDark
                   height="72px"
                   fontSize="16px"
                   labelFontSize="16px"
                   colors={{
-                    inputBorder: "#3D3D3D",
-                    inputBorderHover: "rgba(255,255,255,0.35)",
+                    inputBorder: startTimeError ? "#FF4D4D" : "#3D3D3D",
+                    inputBorderHover: startTimeError ? "#FF4D4D" : "rgba(255,255,255,0.35)",
                     inputBackground: "#000000",
-                    labelText: "rgba(255,255,255,0.62)",
+                    labelText: startTimeError ? "#FF4D4D" : "rgba(255,255,255,0.62)",
                     iconColor: "#FFFFFF",
                   }}
-                />
-               <TimePicker
-                  label="End Time"
+                    />
+                {startTimeError && (
+                  <p className="mt-1.5 text-xs text-[#FF4D4D]">
+                    {startTimeError}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <TimePicker
+                  label="End Time*"
                   value={endTime}
-                  onChange={setEndTime}
+                  onChange={(time) => {
+                    setEndTime(time);
+
+                    if (time) {
+                      setEndTimeError("");
+                    }
+                  }}
                   minTime={
                     startTime
                       ? new Date(startTime.getTime() + 60 * 60 * 1000)
@@ -1191,13 +1272,19 @@ export default function ShiftManagementPage() {
                   fontSize="16px"
                   labelFontSize="16px"
                   colors={{
-                    inputBorder: "#3D3D3D",
-                    inputBorderHover: "rgba(255,255,255,0.35)",
+                    inputBorder: endTimeError ? "#FF4D4D" : "#3D3D3D",
+                    inputBorderHover: endTimeError ? "#FF4D4D" : "rgba(255,255,255,0.35)",
                     inputBackground: "#000000",
-                    labelText: "rgba(255,255,255,0.62)",
+                    labelText: endTimeError ? "#FF4D4D" : "rgba(255,255,255,0.62)",
                     iconColor: "#FFFFFF",
                   }}
                   />
+                  {endTimeError && (
+                    <p className="mt-1.5 text-xs text-[#FF4D4D]">
+                      {endTimeError}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -1260,23 +1347,38 @@ export default function ShiftManagementPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={
-                    isSavingShift ||
-                    !shiftName.trim() ||
-                    !startTime ||
-                    !endTime ||
-                    enabledDays.length === 0 ||
-                    (startTime && endTime && endTime < new Date(startTime.getTime() + 60 * 60 * 1000))
-                  }
+                  disabled={isSavingShift}
                   onClick={async () => {
-                   if (!shiftName.trim() || !startTime || !endTime || enabledDays.length === 0) {
-                      toast.error("Please fill all shift details");
+                   let hasError = false;
+
+                    if (!shiftName.trim()) {
+                      setShiftNameError("Shift Name is required");
+                      hasError = true;
+                    }
+
+                    if (!startTime) {
+                      setStartTimeError("Start Time is required");
+                      hasError = true;
+                    }
+
+                    if (!endTime) {
+                      setEndTimeError("End Time is required");
+                      hasError = true;
+                    }
+
+                    if (enabledDays.length === 0) {
+                      toast.error("Please select at least one active day");
+                      hasError = true;
+                    }
+
+                    if (hasError || !startTime || !endTime) {
                       return;
                     }
 
                     const minimumEndTime = new Date(startTime.getTime() + 60 * 60 * 1000);
 
                     if (endTime < minimumEndTime) {
+                      setEndTimeError("End Time must be at least 1 hour after Start Time");
                       return;
                     }
                     setIsSavingShift(true);
@@ -1317,7 +1419,11 @@ export default function ShiftManagementPage() {
                     closeShiftModal();
                     await refreshShiftData({ page: 1, status: undefined, search: undefined });
                   }}
-                  className="h-12 rounded-lg bg-[#E5D5B8] text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+                  className={`h-12 rounded-lg text-sm font-semibold transition ${
+                    canSaveShift
+                      ? "bg-[#E5D5B8] text-black hover:bg-[#D9C49E]"
+                      : "bg-[#E5D5B8]/50 text-black"
+                  } ${isSavingShift ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
                 >
                   {isSavingShift ? "Saving..." : "Save"}
                 </button>

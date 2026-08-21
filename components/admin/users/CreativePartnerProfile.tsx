@@ -30,6 +30,7 @@ interface ProfileProps {
   id: string;
   hideActions?: boolean;
   isDark?: boolean;
+  onboardingStatus?: any;
 }
 
 // --- PREMIUM UI HELPERS ---
@@ -92,7 +93,7 @@ function EventDot({ color, label }: any) {
   );
 }
 
-export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true }: ProfileProps) => {
+export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true, onboardingStatus }: ProfileProps) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
@@ -646,9 +647,62 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
     })
     : assignedProjects;
 
-  return (
-    <div className="space-y-3 lg:space-y-6">
-      {/* Top Navigation */}
+  const progressPercent = onboardingStatus?.progress_percent ?? 0;
+  const completedCount = onboardingStatus?.completed_count ?? 0;
+  const totalRequired = onboardingStatus?.total_required ?? 0;
+  const missingCount = onboardingStatus?.missing_count ?? 0;
+  const showOnboardingBanner = onboardingStatus?.success !== false && missingCount > 0;
+
+return (
+    <div className="flex flex-col">
+      {/* FULL WIDTH TOP BANNER */}
+      {showOnboardingBanner && (
+        <div 
+          className={`relative z-[50] w-auto border-b transition-colors duration-200 
+            /* Negative margins to kill layout padding */
+            -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-10 lg:-mt-10 mb-6
+            ${isDark 
+              ? "bg-[#2B2823] border-[#4E4128] text-[#E6D8B6]" 
+              : "bg-[#EFE1BE] border-[#D7C295] text-[#2D2415]"
+            }`}
+        >
+          <div className="px-6 py-4 lg:px-10 lg:py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                <p className="truncate text-xs lg:text-sm font-medium">
+                  Onboarding Status: Incomplete
+                </p>                
+              </div>
+                <p className="shrink-0 text-[13px] font-bold">
+                  {completedCount} / {totalRequired} <span className="opacity-50 font-medium">Fields</span>
+                </p>
+              </div>
+              
+              {/* Progress Bar - Sharp edges */}
+              <div className={`h-1.5 w-full overflow-hidden rounded-2xl ${isDark ? "bg-black/40" : "bg-black/10"}`}>
+                <div
+                  className="h-full bg-gradient-to-r from-[#E8D1AB] via-[#D7BC8A] to-[#FFF3D6] transition-all duration-700"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+                  Please provide the {missingCount} remaining details to verify your profile.
+                </p>
+                <p className="text-[14px] font-medium tracking-tighter">
+                  {Math.round(progressPercent)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Body */}
+      <div className="space-y-6">
+
       {!hideActions && (
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
@@ -914,7 +968,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
           {/* TAB CONTENT: Overview */}
           {activeTab === 'Overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 lg:gap-4">
               {/* Personal Information */}
               <div className={`transition-colors duration-200 rounded-2xl ${isDark ? "bg-[#111]" : "bg-[#F4F5F7] shadow-sm"}`}>
                 <h2 className={`${SECTION_TITLE_STYLE}`}>Personal Information</h2>
@@ -1052,7 +1106,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
                       No equipment listed.
                     </span>
                   )}
-                </div>
+              </div>
               </div>
             </div>
           )}
@@ -2049,6 +2103,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
         </div>
       )}
+    </div>
     </div>
   );
 };

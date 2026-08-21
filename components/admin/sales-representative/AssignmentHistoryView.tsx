@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, Calendar, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Calendar, Search, SlidersHorizontal, X } from "lucide-react";
 import { BasicDropdown, type DropdownOption } from "@/components/admin/BasicDropdown";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import DatePicker from "@/components/ui/Datepicker";
@@ -147,6 +147,8 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
   }, []);
 
   useEffect(() => {
+    let ignore = false;
+
     const loadHistory = async () => {
       const dateParam = convertDateForApi(filters.date);
       const response = await shiftManagementApi.getAssignmentHistory({
@@ -158,6 +160,7 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
         page: 1,
         limit: 20,
       });
+      if (ignore) return;
       const data = response?.data?.data || response?.data;
       const list = Array.isArray(data?.rows) ? data.rows : [];
       setItems(list.map((item: any, index: number) => {
@@ -176,7 +179,15 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
         };
       }));
     };
-    void loadHistory();
+
+    const timeoutId = setTimeout(() => {
+      void loadHistory();
+    }, search ? 400 : 0);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timeoutId);
+    };
   }, [filters.shift, filters.person, filters.date, filters.status, search]);
 
   return (
@@ -215,7 +226,21 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
               <span className={selectedDate ? "text-white/70" : "text-white/45"}>
                 {selectedDateLabel}
               </span>
-              <Calendar size={18} className="text-white/60" />
+              {selectedDate ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedDate(null);
+                    setFilters((current) => ({ ...current, date: "Select Date" }));
+                  }}
+                  className="pointer-events-auto z-40 rounded-full p-1 text-white/50 transition-all duration-150 hover:scale-110 hover:bg-white/10 hover:text-white active:scale-95"
+                >
+                  <X size={14} />
+                </button>
+              ) : (
+                <Calendar size={18} className="text-white/60" />
+              )}
             </div>
             <div className="absolute inset-0 z-20 [&_.MuiInputBase-input]:!text-transparent [&_.MuiOutlinedInput-notchedOutline]:!border-transparent [&_.MuiSvgIcon-root]:!opacity-0">
               <DatePicker
