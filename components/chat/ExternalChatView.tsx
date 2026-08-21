@@ -3029,19 +3029,21 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
 
       {/* --- FLOATING MOBILE BUTTON --- */}
-      <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-        <Button
-          onClick={() => {
-            if (!canCreateMessageRoom) return;
-            setIsComposerOpen(true);
-          }}
-          disabled={!canCreateMessageRoom}
-          title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
-          className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
-        >
-          Create Messages
-        </Button>
-      </div>
+      {isAdminView ? (
+        <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+          <Button
+            onClick={() => {
+              if (!canCreateMessageRoom) return;
+              setIsComposerOpen(true);
+            }}
+            disabled={!canCreateMessageRoom}
+            title={canCreateMessageRoom ? "Create Messages" : "Create permission not allowed"}
+            className="w-full bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+          >
+            Create Messages
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 });
