@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { adminApi, type AdminStudioListItem } from "@/lib/api";
+import { format } from "date-fns";
 
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 
@@ -53,6 +54,7 @@ interface ListingProps {
   searchQuery?: string;
   statusFilter?: string;
   panelFiltersVisible?: boolean;
+  selectedDate?: Date | null;
 }
 
 type StudioSortKey = "created_at" | "name" | "price" | "status";
@@ -74,7 +76,7 @@ const MONTH_OPTIONS = [
   { label: "December", value: "December" },
 ] as const;
 
-export default function StudioListing({ isDark = false, searchQuery = "", statusFilter = "all", panelFiltersVisible = true }: ListingProps) {
+export default function StudioListing({ isDark = false, searchQuery = "", statusFilter = "all", panelFiltersVisible = true, selectedDate = null }: ListingProps) {
   const [period, setPeriod] = useState<StudioPeriod>("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [sortBy, setSortBy] = useState<StudioSortKey>("created_at");
@@ -109,15 +111,17 @@ export default function StudioListing({ isDark = false, searchQuery = "", status
 
     const loadStudios = async () => {
       setLoading(true);
+      const selectedMonth = selectedDate ? format(selectedDate, "yyyy-MM") : undefined;
       const response = await adminApi.getStudios({
         page: 1,
         limit: 50,
         status: statusFilter === "all" ? undefined : statusFilter,
         search: searchQuery.trim() || undefined,
-        period,
-        ...(monthFilter !== "all" ? { month: monthFilter } : {}),
+        period: selectedMonth ? "month" : period,
+        ...(selectedMonth ? { month: selectedMonth } : monthFilter !== "all" ? { month: monthFilter } : {}),
         sort_by: sortBy,
         sort_order: sortOrder,
+        date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
       });
 
       if (!active) return;
@@ -142,7 +146,7 @@ export default function StudioListing({ isDark = false, searchQuery = "", status
     return () => {
       active = false;
     };
-  }, [monthFilter, period, searchQuery, sortBy, sortOrder, statusFilter]);
+  }, [monthFilter, period, searchQuery, selectedDate, sortBy, sortOrder, statusFilter]);
 
   const normalizedStudios = useMemo(() => {
     return studios.map((studio) => ({

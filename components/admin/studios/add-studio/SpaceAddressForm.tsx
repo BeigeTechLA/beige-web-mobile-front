@@ -148,6 +148,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
   const [isReverseLoading, setIsReverseLoading] = useState(false);
   const [isForwardLoading, setIsForwardLoading] = useState(false);
   const lastEmittedRef = useRef("");
+  const isSyncingFromValueRef = useRef(false);
 
   const mapRef = useRef<MapRef | null>(null);
   const lastValidLocationRef = useRef({ latitude: DEFAULT_LAT, longitude: DEFAULT_LNG });
@@ -162,6 +163,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
 
   useEffect(() => {
     if (!value) return;
+    isSyncingFromValueRef.current = true;
     setAddress(value.address || "");
     setApartment(value.apartment || "");
     setCity(value.city || "");
@@ -179,6 +181,9 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
       latitude: value.latitude ?? DEFAULT_LAT,
       longitude: value.longitude ?? DEFAULT_LNG,
     };
+    queueMicrotask(() => {
+      isSyncingFromValueRef.current = false;
+    });
   }, [value]);
 
   useEffect(() => {
@@ -186,6 +191,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
   }, []);
 
   useEffect(() => {
+    if (isSyncingFromValueRef.current) return;
     const data = {
       country: US_COUNTRY_LABEL,
       address,
@@ -461,6 +467,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
 
   useEffect(() => {
     if (!hasMountedRef.current) return;
+    if (isSyncingFromValueRef.current) return;
     if (suppressForwardSyncRef.current) return;
     scheduleForwardGeocode();
   }, [address, city, state, zipCode]);

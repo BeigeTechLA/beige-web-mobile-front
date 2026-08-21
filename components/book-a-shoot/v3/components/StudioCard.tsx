@@ -37,11 +37,14 @@ export default function StudioCard({
   onToggle,
 }: StudioCardProps) {
   const fallbackImage = "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
-  const resolvedImage = image && image.startsWith("http")
-    ? image
-    : image
-      ? `https://d2jhn32fsulyac.cloudfront.net/assets/studio/${image}`
-      : fallbackImage;
+  const s3Prefix = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
+  const resolvedImage = image
+    ? /^https?:\/\//i.test(image)
+      ? image
+      : s3Prefix
+        ? `${s3Prefix}/${image.replace(/^\/+/, "")}`
+        : `https://d2jhn32fsulyac.cloudfront.net/assets/studio/${image.replace(/^\/+/, "")}`
+    : fallbackImage;
   const displayPrice = priceLabel || (Number.isFinite(price) && price > 0 ? `From $${price}/Hr` : "From $/Hr");
   const displayTags = (tags || []).filter(Boolean);
 

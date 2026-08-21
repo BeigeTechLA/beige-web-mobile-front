@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown, Home, Sparkles, DoorOpen, Calendar } from "lucide-react";
+import { toast } from "sonner";
 import { Separator } from "@/src/components/landing/Separator";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 
@@ -259,9 +260,17 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
   };
 
   const toggleSetHours = (day: string) => {
-    setSchedule(prev => ({
+    const config = getDayConfig(day);
+    if (!config.isOpen) return;
+
+    setActiveDay(day);
+    setOpeningTime(normalizeTimeValue(config.opensAt));
+    setClosingTime(normalizeTimeValue(config.closesAt));
+    setTimeError("");
+
+    setSchedule((prev) => ({
       ...prev,
-      [day]: { ...prev[day], setHours: !prev[day]?.setHours }
+      [day]: { ...prev[day], setHours: true },
     }));
   };
 
@@ -301,18 +310,35 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
   };
 
   const handleSaveHours = () => {
-    if (timeError || !openingTime || !closingTime) return;
+    const dayToSave = activeDay || selectedDays.find((day) => getDayConfig(day).isOpen);
+    if (!dayToSave) {
+      toast.error("Select an open day before saving custom hours.");
+      return;
+    }
+
+    if (!openingTime || !closingTime) {
+      toast.error("Select both opening and closing times.");
+      return;
+    }
+
+    if (timeError) {
+      toast.error(timeError);
+      return;
+    }
+
     setSchedule((prev) => {
       const next = { ...prev };
-      selectedDays.forEach((day) => {
-        next[day] = {
-          ...next[day],
-          isOpen: true,
-          setHours: true,
-        };
-      });
+      next[dayToSave] = {
+        ...next[dayToSave],
+        isOpen: true,
+        setHours: true,
+        opensAt: openingTime,
+        closesAt: closingTime,
+      };
       return next;
     });
+
+    toast.success("Custom hours saved.");
   };
 
   // Theme Styles
@@ -407,10 +433,14 @@ export default function OperatingHoursForm({ isDark = true, value, onChange }: P
                   {/* Set Hours Radio */}
                   {
                     getDayConfig(day).isOpen && (
-                      <div className="flex items-center gap-2 cursor-pointer w-full" onClick={() => toggleSetHours(day)}>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 cursor-pointer w-full text-left"
+                        onClick={() => toggleSetHours(day)}
+                      >
                         <CustomRadio selected={activeDay === day} />
                         <span className={`text-sm lg:text-base ${textColor}`}>Set Hours</span>
-                      </div>
+                      </button>
                     )
                   }
                 </div>

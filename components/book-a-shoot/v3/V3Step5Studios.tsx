@@ -519,7 +519,9 @@ export const V3Step5Studios: React.FC<Props> = ({
       return;
     }
 
-    const nextStudios = upsertSelectedStudio(selectedStudios, selection);
+    // Studio bookings support one studio at a time. Selecting another studio
+    // replaces the previous selection instead of adding a second one.
+    const nextStudios = [selection];
 
     if (nextStudios.length === 0) {
       toast.error("Failed to add studio. Check console.");

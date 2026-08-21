@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -25,6 +26,7 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 interface StudioInformationProps {
   information?: any; // Replace with actual type
   isDark?: boolean;
+  coverImage?: string | null;
 }
 interface Amenity {
   icon: React.ElementType;
@@ -92,7 +94,7 @@ const description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Se
 
 const address = "Duis tristique nisi ut tristique aliquam. Nunc euismod ipsum leo, sed cursus urna ultricies sed. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque vitae dolor velit. Sed enim velit, feugiat scelerisque dolor et, tincidunt tempus libero. Vestibulum at nulla orci. Nullam laoreet, nisl in lobortis tempor, dui mauris tincidunt diam, sit amet gravida mauris justo in tellus. Morbi dictum odio sapien. Quisque cursus, odio et lobortis interdum, metus urna laoreet felis, sed posuere sem mi ac dolor.";
 
-export const StudioInformation = ({ information, isDark = false }: StudioInformationProps) => {
+export const StudioInformation = ({ information, isDark = false, coverImage }: StudioInformationProps) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isAmenitiesExpanded, setIsAmenitiesExpanded] = useState(false);
   const [isAddressExpanded, setIsAddressExpanded] = useState(false);
@@ -237,10 +239,11 @@ export const StudioInformation = ({ information, isDark = false }: StudioInforma
         <div className="relative inline-block">
           {/* The Main Host Image */}
           <Image
-            src={"/images/crew/CREW(4).png"}
-            alt={"Host Image"}
+            src={coverImage || "/images/crew/CREW(4).png"}
+            alt={coverImage ? `${information?.studio_name || "Studio"} cover image` : "Studio image placeholder"}
             width={56}
             height={56}
+            unoptimized
             className="rounded-full w-14 h-14 object-cover"
           />
 

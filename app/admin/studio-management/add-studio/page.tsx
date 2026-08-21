@@ -380,6 +380,7 @@ export default function AdminStudiosDetailsPage() {
   const [mediaError, setMediaError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isHydratingEdit, setIsHydratingEdit] = useState(false);
+  const hasLoadedDraftRef = useRef(false);
 
   const handleAddressChange = useCallback((next: typeof draft.step1.address) => {
     setDraft((prev) => ({ ...prev, step1: { ...prev.step1, address: next } }));
@@ -424,6 +425,12 @@ export default function AdminStudiosDetailsPage() {
       hasClearedDraftRef.current = true;
       return;
     }
+
+    if (hasLoadedDraftRef.current) {
+      return;
+    }
+
+    hasLoadedDraftRef.current = true;
 
     const savedDraft = localStorage.getItem(DRAFT_KEY);
     if (savedDraft) {

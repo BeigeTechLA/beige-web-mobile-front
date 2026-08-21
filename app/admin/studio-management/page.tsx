@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { format } from "date-fns";
 
@@ -126,14 +126,30 @@ export default function AdminStudiosPage() {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
+    const value = searchParams.get("date");
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  });
   const [activeTab, setActiveTab] = useState<string>("Operations");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dashboard, setDashboard] = useState<StudioDashboardResponse["data"]>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+  useEffect(() => {
+    const value = searchParams.get("date");
+    if (!value) {
+      setSelectedDate(null);
+      return;
+    }
+    const parsed = new Date(`${value}T00:00:00`);
+    setSelectedDate(Number.isNaN(parsed.getTime()) ? null : parsed);
+  }, [searchParams]);
 
   const dashboardMonth = useMemo(() => {
     const source = selectedDate || new Date();
@@ -155,7 +171,8 @@ export default function AdminStudiosPage() {
     const loadDashboard = async () => {
       setIsDashboardLoading(true);
       try {
-        const response = (await adminApi.getStudioDashboard(dashboardMonth)) as StudioDashboardResponse;
+        const selectedDateValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+        const response = (await adminApi.getStudioDashboard(dashboardMonth, undefined, selectedDateValue)) as StudioDashboardResponse;
         if (!active) return;
         setDashboard(response?.data || null);
       } finally {
@@ -175,7 +192,7 @@ export default function AdminStudiosPage() {
     return () => {
       active = false;
     };
-  }, [dashboardMonth]);
+  }, [dashboardMonth, selectedDate]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -187,6 +204,10 @@ export default function AdminStudiosPage() {
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
+    const params = new URLSearchParams(searchParams.toString());
+    if (date) params.set("date", format(date, "yyyy-MM-dd"));
+    else params.delete("date");
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
   };
 
   return (
@@ -258,6 +279,7 @@ export default function AdminStudiosPage() {
                   searchQuery={debouncedSearchQuery}
                   statusFilter={statusFilter}
                   panelFiltersVisible={false}
+                  selectedDate={selectedDate}
                 />
               </>
             ) : (

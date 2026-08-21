@@ -111,6 +111,7 @@ export const StudioRequestsTable = ({ isDark = true, searchQuery = "", selectedD
         limit: itemsPerPage,
         search: searchQuery?.trim() || undefined,
         month: range === "all" ? undefined : month,
+        date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
       });
 
       const rows = Array.isArray(response?.data?.rows)

@@ -59,7 +59,6 @@ import {
   buildHourlyStudioSelection,
   normalizeSelectedStudios,
   removeSelectedStudio,
-  upsertSelectedStudio,
 } from "./studioData";
 
 interface Props {
@@ -397,13 +396,13 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     );
 
     updateData({
-      selectedStudios: upsertSelectedStudio(selectedStudios, selection),
-      selectedStudioIds: [...selectedStudioIds, studio.slug],
+      selectedStudios: [selection],
+      selectedStudioIds: [studio.slug],
       selectedStudioImage: studio.image,
       selectedStudioName: studio.name,
       isBrowsingStudios: false,
     });
-    toast.success("Studio added.");
+    toast.success(existing ? "Studio updated." : "Studio added.");
   }, [data.endDate, data.startDate, selectedStudioIds, selectedStudios, updateData]);
 
   const emailRef = useRef<HTMLDivElement>(null);

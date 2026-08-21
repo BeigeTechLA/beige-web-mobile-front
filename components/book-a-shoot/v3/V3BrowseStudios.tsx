@@ -27,7 +27,6 @@ import {
   buildHourlyStudioSelection,
   normalizeSelectedStudios,
   removeSelectedStudio,
-  upsertSelectedStudio,
 } from "./studioData";
 
 const PUBLIC_STUDIO_LOCATION = "Los Angeles, California, USA";
@@ -608,13 +607,13 @@ export const V3BrowseStudios: React.FC<Props> = ({
                   );
 
                   updateData({
-                    selectedStudios: upsertSelectedStudio(selectedStudios, selection),
-                    selectedStudioIds: [...selectedStudioIds, studio.slug],
+                    selectedStudios: [selection],
+                    selectedStudioIds: [studio.slug],
                     selectedStudioImage: studio.image,
                     selectedStudioName: studio.name,
                     isBrowsingStudios: false,
                   });
-                  toast.success("Studio added.");
+                  toast.success(existing ? "Studio updated." : "Studio added.");
                 }}
               />
             ))

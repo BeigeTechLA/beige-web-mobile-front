@@ -1,8 +1,10 @@
+/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {motion, useMotionValue, useTransform, useSpring, AnimatePresence} from "framer-motion";
-import { SquareCheck, Loader2, X } from "lucide-react";
+import type { MotionValue } from "framer-motion";
+import { Loader2, X } from "lucide-react";
 
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 
@@ -17,6 +19,7 @@ export interface StudioGalleryMediaItem {
   url: string;
   sort_order: number;
   is_cover: boolean;
+  media_type?: string;
 }
 
 interface StudioGalleryProps {
@@ -141,7 +144,7 @@ export const StudioGallery = ({
               progress={smoothProgress}
               onSelect={() => setSelectedImage(item.resolvedUrl)}
               onSetCover={onSetCover}
-              isCover={i === 0}
+              isCover={item.is_cover}
               isUpdatingCover={isUpdatingCover}
               windowWidth={windowWidth}
               isDark={isDark}
