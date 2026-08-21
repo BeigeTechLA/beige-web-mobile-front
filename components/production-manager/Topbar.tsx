@@ -3,11 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Upload, Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { useTheme } from "next-themes";
 import { ModeToggle } from "../generic/ModeToggle";
 import { useSidebar } from "@/context/SidebarContext";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface TopbarProps {
   pathname: string;
@@ -20,11 +21,17 @@ interface TopbarProps {
 }
 
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
-  const router = useRouter();
   const { theme } = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [profileImageError, setProfileImageError] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setProfileImageError(false);
+  }, [user?.profile_image]);
 
   const { setIsOpen } = useSidebar();
 
@@ -34,29 +41,34 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
     .filter((path) => path)
     .filter((path) => path !== "admin");
 
+  const pathSegments = pathname.replace(/\/$/, "").split("/");
+  const isDashboardRoot = pathSegments[pathSegments.length - 1] === "dashboard";
+
   const isShootsPage = pathname.includes("shoots");
 
   const isDark = !mounted || theme === "dark";
+  const profileImageSrc = !profileImageError && user?.profile_image
+    ? user.profile_image
+    : "/images/avatar.png";
 
   return (
     <header className={`
       border-b transition-colors duration-300
       ${isDark
-        ? "border-zinc-800 bg-[#0f0f0f] shadow-none"
+        ? "border-[#3A3A3A] bg-[#171717] shadow-none"
         : "border-[#D8D8D8] bg-white shadow-[0_8px_24px_0_rgba(149,157,165,0.10)]"
       }
     `}>
 
       {/* ==========================================
-          MOBILE VIEW (Hidden on Desktop)
+          MOBILE VIEW
           ========================================== */}
       <div className="flex lg:hidden flex-col p-4 gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsOpen(true)}
-              className={`p-1 rounded-md transition-colors ${isDark ? "text-white hover:bg-zinc-800" : "text-[#101010] hover:bg-zinc-100"
-                }`}
+              className={`p-1 rounded-md transition-colors ${isDark ? "text-white hover:bg-zinc-800" : "text-[#101010] hover:bg-zinc-100"}`}
             >
               <Menu size={28} />
             </button>
@@ -76,9 +88,16 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
           <div className="flex items-center gap-3">
             <ModeToggle />
-            <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"
-              }`}>
-              <Image width={32} height={32} src="/images/avatar.png" alt="User" />
+            <div className={`w-8 h-8 rounded-full overflow-hidden border ${isDark ? "bg-zinc-800 border-zinc-700" : "bg-zinc-100 border-zinc-200"}`}>
+              <Image
+                width={32}
+                height={32}
+                src={profileImageSrc}
+                alt={user?.name || "User"}
+                className="w-full h-full object-cover"
+                unoptimized
+                onError={() => setProfileImageError(true)}
+              />
             </div>
           </div>
         </div>
@@ -110,13 +129,13 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
           )}
         </div>
 
-        <div>
+        {/* <div>
           {actions}
-        </div>
+        </div> */}
       </div>
 
       {/* ==========================================
-          DESKTOP VIEW (Hidden on Mobile)
+          DESKTOP VIEW
           ========================================== */}
       <div className="hidden lg:flex items-center justify-between px-9 py-6 gap-4">
         {/* Left: Logo & Breadcrumbs/Title */}
@@ -173,8 +192,15 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         )}
 
         {/* Right: Desktop Actions (Kept exactly as original) */}
-        < div className="flex items-center gap-3 shrink-0" >
+        < div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar" >
           {actions}
+
+
+          {
+            (isDashboardRoot) && (
+              <ModeToggle />
+            )
+          }
         </div>
         {/* <div className="flex items-center gap-3 shrink-0">
                     {isShootsPage && (
