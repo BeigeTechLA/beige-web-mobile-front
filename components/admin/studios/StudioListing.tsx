@@ -346,7 +346,9 @@ export default function StudioListing({ isDark = false, searchQuery = "", status
                             : "bg-[#E5F9ED] text-[#22C55E]"
                         }`}
                       >
-                        {studio.status || "Active"}
+                        {studio.status
+                        ? studio.status.charAt(0).toUpperCase() + studio.status.slice(1).toLowerCase()
+                        : "Active"}
                       </span>
                       <div className="text-xl lg:text-2xl font-bold text-[#E5D5B8]">
                         ${studio.hourlyRate || 85}/Hour

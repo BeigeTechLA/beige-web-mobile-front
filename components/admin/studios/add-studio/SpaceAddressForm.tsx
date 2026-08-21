@@ -173,7 +173,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
     setViewState({
       latitude: value.latitude ?? DEFAULT_LAT,
       longitude: value.longitude ?? DEFAULT_LNG,
-      zoom: DEFAULT_ZOOM,
+      zoom: viewState.zoom,
     });
     lastValidLocationRef.current = {
       latitude: value.latitude ?? DEFAULT_LAT,
@@ -307,11 +307,11 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
         ...prev,
         latitude: center[1],
         longitude: center[0],
-        zoom: Math.max(prev.zoom, DEFAULT_ZOOM),
+        zoom: prev.zoom,
       }));
       mapRef.current?.flyTo({
         center: [center[0], center[1]],
-        zoom: Math.max(viewState.zoom, DEFAULT_ZOOM),
+        zoom: mapRef.current?.getZoom() ?? viewState.zoom,
         essential: true,
         duration: 900,
       });
@@ -623,14 +623,7 @@ export default function SpaceAddressForm({ isDark = true, value, onChange }: Pro
                 if (isUpdatingFromFieldsRef.current) {
                   return;
                 }
-                const nextCoords = {
-                  latitude: evt.viewState.latitude,
-                  longitude: evt.viewState.longitude,
-                };
                 setViewState(evt.viewState);
-                setLatitude(nextCoords.latitude);
-                setLongitude(nextCoords.longitude);
-                scheduleReverseGeocode(nextCoords);
               }}
               onClick={(evt) => {
                 if (isUpdatingFromFieldsRef.current) return;

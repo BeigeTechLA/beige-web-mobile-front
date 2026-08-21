@@ -10,6 +10,7 @@ import { Video, Camera, Scissors, Plus, Trash2, ExternalLink, Globe, Image as Im
 import { Textarea } from "@/components/ui/textarea";
 import { isValidUrl } from "@/lib/utils";
 import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
+import { resolveBookingSchedule } from "./studioPayload";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 interface Props {
@@ -367,6 +368,12 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
         start_time?: string;
         end_time?: string;
         time_zone?: string;
+        booking_days?: Array<{
+          date: string;
+          start_time: string;
+          end_time: string;
+          time_zone?: string;
+        }>;
         duration_hours?: number;
         edits_needed?: boolean;
         video_edit_types?: string[];
@@ -390,12 +397,17 @@ export const V3Step2MoreDetails: React.FC<Props> = ({ data, updateData, onNext, 
       if (data.bookingType) {
         payload.booking_type = data.bookingType;
       }
-      if (data.startDate) {
-        payload.start_date = data.startDate.slice(0, 10);
-        payload.start_time = data.startDate.slice(11, 16);
-      }
-      if (data.endDate) {
-        payload.end_time = data.endDate.slice(11, 16);
+      const resolvedSchedule = resolveBookingSchedule(data, data.selectedStudios?.[0]);
+      payload.start_date = resolvedSchedule.selectedDate;
+      payload.start_time = resolvedSchedule.startTime;
+      payload.end_time = resolvedSchedule.endTime;
+      if (data.bookingType === "multi_day") {
+        payload.booking_days = (data.bookingDays || []).map((day) => ({
+          date: day.date,
+          start_time: day.startTime || "",
+          end_time: day.endTime || "",
+          time_zone: day.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }));
       }
       if (data.bookingType === "single_day" && data.startDate && data.endDate) {
         const start = new Date(data.startDate);

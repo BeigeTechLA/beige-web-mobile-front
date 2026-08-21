@@ -60,6 +60,7 @@ import {
   type SelectedStudio,
   type StudioCatalogItem,
 } from "@/components/book-a-shoot/v3/studioData";
+import { resolveBookingSchedule } from "@/components/book-a-shoot/v3/studioPayload";
 import { buildEditTypeCounts } from "@/components/book-a-shoot/v3/utils";
 import { socialContentEditTypes, socialContentPhotoEditTypes } from "@/app/data/shootData";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -277,7 +278,14 @@ type StepProps = {
   onSaveAndConfirm: () => Promise<void>;
   onBrowseCreators: () => Promise<void>;
   isSaving: boolean;
-  user?: any;
+  user?: {
+    id?: number;
+    name?: string;
+    email?: string;
+    phone_number?: string;
+    user_type_id?: number;
+    userTypeId?: number;
+  };
 };
 
 const StudioCard = ({
@@ -1890,12 +1898,13 @@ export const BookAStudio = () => {
       const selectedStudios = normalizeSelectedStudios(formData);
       const selectedStudiosTotal = getSelectedStudiosTotal(selectedStudios);
       const primaryStudio = selectedStudios[0];
+      const resolvedSchedule = resolveBookingSchedule(formData, primaryStudio);
       const browserTimeZone = getBrowserTimeZone();
-      const studioStartDateTime = primaryStudio?.selectedDate && primaryStudio?.startTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
+      const studioStartDateTime = resolvedSchedule.selectedDate && resolvedSchedule.startTime
+        ? `${resolvedSchedule.selectedDate}T${resolvedSchedule.startTime}:00`
         : formData.startDate;
-      const studioEndDateTime = primaryStudio?.selectedDate && primaryStudio?.endTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
+      const studioEndDateTime = resolvedSchedule.selectedDate && resolvedSchedule.endTime
+        ? `${resolvedSchedule.selectedDate}T${resolvedSchedule.endTime}:00`
         : formData.endDate;
       const studioMeta = serializeStudioMeta(selectedStudios);
       const creatorQuoteItems = [
@@ -1932,8 +1941,8 @@ export const BookAStudio = () => {
             total: studio.totalPrice,
             pricing_mode: studio.pricingMode,
           })),
-          shoot_start_date: primaryStudio?.selectedDate
-            ? `${primaryStudio.selectedDate}T00:00:00.000Z`
+          shoot_start_date: resolvedSchedule.selectedDate
+            ? `${resolvedSchedule.selectedDate}T00:00:00.000Z`
             : formData.startDate || undefined,
           notes: formData.specialInstructions || undefined,
         };
@@ -1951,16 +1960,20 @@ export const BookAStudio = () => {
         content_type: formData.contentType.join(","),
         shoot_type: "studio",
         booking_type: formData.bookingType || "single_day",
-        booking_days: (formData.bookingDays || []).map((day) => ({
+        booking_days: (formData.bookingDays?.length ? formData.bookingDays : (resolvedSchedule.selectedDate ? [{
+          date: resolvedSchedule.selectedDate,
+          startTime: resolvedSchedule.startTime,
+          endTime: resolvedSchedule.endTime,
+        }] : [])).map((day) => ({
           date: day.date,
           start_time: day.startTime,
           end_time: day.endTime,
           duration_hours: day.durationHours,
           time_zone: browserTimeZone,
         })),
-        start_date: primaryStudio?.selectedDate || getLocalDatePart(formData.startDate),
-        start_time: primaryStudio?.startTime || getLocalTimePart(formData.startDate),
-        end_time: primaryStudio?.endTime || getLocalTimePart(formData.endDate),
+        start_date: resolvedSchedule.selectedDate || getLocalDatePart(formData.startDate),
+        start_time: resolvedSchedule.startTime || getLocalTimePart(formData.startDate),
+        end_time: resolvedSchedule.endTime || getLocalTimePart(formData.endDate),
         time_zone: browserTimeZone,
         duration_hours: primaryStudio?.quantity || 1,
         location: primaryStudio?.location || formData.location,

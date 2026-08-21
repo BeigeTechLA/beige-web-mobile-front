@@ -62,6 +62,24 @@ export interface StudioCatalogResponse {
   };
 }
 
+export interface StudioBookedSlotsResponse {
+  success: boolean;
+  data?: {
+    studio_id?: number;
+    slug?: string;
+    studio_name?: string;
+    booked_dates?: string[];
+    booked_slots?: Array<{
+      date: string;
+      slots: Array<{
+        date: string;
+        start_time: string;
+        end_time: string;
+      }>;
+    }>;
+  };
+}
+
 export interface AdminStudioListItem {
   studio_id: number;
   studio_name: string;
@@ -386,6 +404,10 @@ export const studioCatalogApi = {
     const response = await publicApi.get(`/studios/catalog/${slug}`);
     const payload = response.data;
     return payload.data || payload;
+  },
+  getBookedDates: async (slug: string): Promise<string[]> => {
+    const response = await publicApi.get<StudioBookedSlotsResponse>(`/studios/${slug}/booked-slots`);
+    return response.data.data?.booked_dates || [];
   },
 };
 
@@ -2350,6 +2372,29 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch studio details',
+      };
+    }
+  },
+  updateStudioMedia: async (
+    studioId: string | number,
+    media: {
+      studio_media_id: string | number;
+      url: string;
+      sort_order: number;
+      is_cover: boolean;
+    }[]
+  ) => {
+    try {
+      const response = await api.put(`/admin/studios/${studioId}/media`, {
+        media,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Media Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio media',
       };
     }
   },

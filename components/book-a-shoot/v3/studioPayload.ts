@@ -66,9 +66,35 @@ const getStudioDurationHours = (
 const getCrewCount = (data: BookingDataV3) =>
   data.selectedCrewIds?.length || Object.values(data.roleCounts || {}).reduce((sum, count) => sum + Number(count || 0), 0);
 
+export const resolveBookingSchedule = (
+  data: Pick<BookingDataV3, "startDate" | "endDate" | "bookingType" | "bookingDays">,
+  studio?: SelectedStudio | null,
+) => {
+  const firstCompleteDay =
+    data.bookingType === "multi_day"
+      ? (data.bookingDays || []).find((day) => day.date && day.startTime && day.endTime)
+      : null;
+
+  return {
+    selectedDate:
+      firstCompleteDay?.date ||
+      studio?.selectedDate ||
+      getLocalDatePart(data.startDate),
+    startTime:
+      firstCompleteDay?.startTime ||
+      studio?.startTime ||
+      getLocalTimePart(data.startDate),
+    endTime:
+      firstCompleteDay?.endTime ||
+      studio?.endTime ||
+      getLocalTimePart(data.endDate),
+  };
+};
+
 const buildStudioItem = (
   studio: SelectedStudio,
   crewCount: number,
+  schedule: ReturnType<typeof getPrimaryStudioSchedule>,
   bookingType: BookingDataV3["bookingType"] = "single_day",
   bookingDays: BookingDataV3["bookingDays"] = [],
   includeImage = true,
@@ -93,9 +119,9 @@ const buildStudioItem = (
     quantity: resolvedQuantity,
     total: resolvedTotal,
     ...(includePriceLabel ? { price_label: studio.priceLabel } : {}),
-    selected_date: studio.selectedDate,
-    start_time: studio.startTime,
-    end_time: studio.endTime,
+    selected_date: schedule.selectedDate,
+    start_time: schedule.startTime,
+    end_time: schedule.endTime,
     ...(includeTimeZone ? { time_zone: timeZone } : {}),
     studio_booking_type: bookingType || "single_day",
     booking_days:
@@ -117,6 +143,7 @@ const buildStudioItem = (
 export const buildStudioLeadPayload = (data: BookingDataV3) => {
   const selectedStudios = data.selectedStudios || [];
   const crewCount = getCrewCount(data);
+  const schedule = resolveBookingSchedule(data, selectedStudios[0]);
   const studioTotal = selectedStudios.reduce(
     (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
     0,
@@ -125,14 +152,16 @@ export const buildStudioLeadPayload = (data: BookingDataV3) => {
   return {
     studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
-      buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, true),
+      buildStudioItem(studio, crewCount, resolveBookingSchedule(data, studio), data.bookingType, data.bookingDays, true, true, true, true, true),
     ),
+    ...schedule,
   };
 };
 
 export const buildStudioQuotePayload = (data: BookingDataV3) => {
   const selectedStudios = data.selectedStudios || [];
   const crewCount = getCrewCount(data);
+  const schedule = resolveBookingSchedule(data, selectedStudios[0]);
   const studioTotal = selectedStudios.reduce(
     (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
     0,
@@ -141,8 +170,9 @@ export const buildStudioQuotePayload = (data: BookingDataV3) => {
   return {
     studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
-      buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, false, false, true, true, true),
+      buildStudioItem(studio, crewCount, resolveBookingSchedule(data, studio), data.bookingType, data.bookingDays, false, false, true, true, true),
     ),
+    ...schedule,
   };
 };
 
@@ -154,20 +184,19 @@ export const buildStudioFinalizePayload = (data: BookingDataV3) => {
     (sum, studio) => sum + getStudioDurationHours(studio, data.bookingType, data.bookingDays) * Number(studio.unitPrice || 0),
     0,
   );
+  const primarySchedule = resolveBookingSchedule(data, primaryStudio);
 
   return {
     studio_total: Number(studioTotal.toFixed(2)),
     studio_items: selectedStudios.map((studio) =>
-      buildStudioItem(studio, crewCount, data.bookingType, data.bookingDays, true, true, true, true, true),
+      buildStudioItem(studio, crewCount, resolveBookingSchedule(data, studio), data.bookingType, data.bookingDays, true, true, true, true, true),
     ),
-    start_date_time:
-      primaryStudio?.selectedDate && primaryStudio?.startTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
-        : undefined,
-    end_date_time:
-      primaryStudio?.selectedDate && primaryStudio?.endTime
-        ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
-        : undefined,
+    start_date_time: primarySchedule.selectedDate && primarySchedule.startTime
+      ? `${primarySchedule.selectedDate}T${primarySchedule.startTime}:00`
+      : undefined,
+    end_date_time: primarySchedule.selectedDate && primarySchedule.endTime
+      ? `${primarySchedule.selectedDate}T${primarySchedule.endTime}:00`
+      : undefined,
     crew_size: String(crewCount || 0),
     matching_method: crewCount > 0 ? "manual_selection" : "studio_only",
     selected_crew_ids: data.selectedCrewIds || [],
@@ -176,10 +205,11 @@ export const buildStudioFinalizePayload = (data: BookingDataV3) => {
 
 export const buildStudioTimingPayload = (data: BookingDataV3) => {
   const primaryStudio = data.selectedStudios?.[0];
+  const schedule = resolveBookingSchedule(data, primaryStudio);
   return {
-    start_date: primaryStudio?.selectedDate || getLocalDatePart(data.startDate),
-    start_time: primaryStudio?.startTime || getLocalTimePart(data.startDate),
-    end_time: primaryStudio?.endTime || getLocalTimePart(data.endDate),
+    start_date: schedule.selectedDate,
+    start_time: schedule.startTime,
+    end_time: schedule.endTime,
     time_zone: getBrowserTimeZone(),
     duration_hours: primaryStudio?.quantity || 0,
   };

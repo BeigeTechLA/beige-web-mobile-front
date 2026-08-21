@@ -115,6 +115,7 @@ interface Props {
   labelSx?: SxProps<Theme>;
   isDark?: boolean;
   disablePortal?: boolean;
+  shouldDisableDate?: (date: Date) => boolean;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -132,6 +133,7 @@ export const DatePicker: React.FC<Props> = ({
   floating = false,
   isDark = true,
   disablePortal = false,
+  shouldDisableDate,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
@@ -213,6 +215,7 @@ export const DatePicker: React.FC<Props> = ({
           disabled={disabled}
           minDate={minDate}
           maxDate={maxDate}
+          shouldDisableDate={shouldDisableDate}
           slotProps={{
             textField: {
               fullWidth: true,

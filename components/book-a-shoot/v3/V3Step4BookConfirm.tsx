@@ -277,6 +277,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
     primaryStudio?.image ||
     data.selectedStudioImage ||
     "/images/projects/interior.png";
+  const resolvedStudioDisplayImage = resolveImageSrc(studioDisplayImage);
   const studioDisplayLocation =
     primaryStudio?.location ||
     data.location ||
@@ -980,7 +981,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                               <div className="p-4 flex gap-4 items-center">
                                 <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
                                   <Image
-                                    src={studioDisplayImage}
+                                    src={resolvedStudioDisplayImage}
                                     alt={"Sample shoot"}
                                     fill
                                     className="object-cover rounded-lg"
