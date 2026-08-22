@@ -31,7 +31,7 @@ type QuoteReviewChangesModalProps = {
   isSaving: boolean;
   confirmLabel?: string;
   requireReason?: boolean;
-  isDark?: boolean; // Theme parameter injection
+  isDark?: boolean;
 };
 
 const formatCurrency = (value: number) =>
@@ -50,7 +50,7 @@ export default function QuoteReviewChangesModal({
   isSaving,
   confirmLabel = "Save as New Version",
   requireReason = true,
-  isDark = true, // Defaulting safely to core profile configuration
+  isDark = true,
 }: QuoteReviewChangesModalProps) {
   const fieldChanges = reviewChangesData.fieldChanges.map((item) => ({
     id: item.id,
@@ -62,13 +62,13 @@ export default function QuoteReviewChangesModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`left-auto right-0 top-0 h-screen w-full max-w-[732px] translate-x-0 translate-y-0 rounded-none border-y-0 border-l border-r-0 duration-300 sm:max-w-[732px] p-0 ${isDark
+        className={`left-auto right-0 top-0 flex h-dvh w-full max-w-[732px] translate-x-0 translate-y-0 flex-col rounded-none border-y-0 border-l border-r-0 duration-300 sm:max-w-[732px] p-0 ${isDark
             ? "border-[#2B2B2B] bg-[#050505] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)]"
             : "border-[#D7D7D7] bg-white text-black shadow-xl"
           }`}
       >
         {/* Header Block Section */}
-        <div className={`flex items-start justify-between border-b px-7 pb-7 pt-12 ${isDark ? "border-white/10" : "border-[#D7D7D7]"
+        <div className={`flex shrink-0 items-start justify-between border-b px-7 pb-7 pt-12 ${isDark ? "border-white/10" : "border-[#D7D7D7]"
           }`}>
           <div>
             <DialogTitle className={`text-2xl font-semibold leading-[1.05] lg:text-4xl ${isDark ? "text-white" : "text-black"
@@ -82,7 +82,8 @@ export default function QuoteReviewChangesModal({
           </div>
         </div>
 
-        <div className="max-h-[calc(100vh-218px)] overflow-y-auto px-7 py-7">
+        {/* Scrollable Content Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-7 py-7">
           <div className="rounded-[14px] bg-[#E7D0A4] px-5 py-4 text-black">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 text-base font-semibold">
@@ -244,7 +245,7 @@ export default function QuoteReviewChangesModal({
         </div>
 
         {/* Form Overlay Sticky Footer Panel */}
-        <DialogFooter className={`flex flex-col gap-3 border-t px-7 py-7 sm:flex-row sm:justify-end sm:gap-4 ${isDark ? "border-white/10" : "border-[#D7D7D7] bg-[#FAFAFA]"
+        <DialogFooter className={`flex shrink-0 flex-col gap-3 border-t px-7 py-7 ${isDark ? "border-white/10" : "border-[#D7D7D7] bg-[#FAFAFA]"
           }`}>
           <Button
             type="button"

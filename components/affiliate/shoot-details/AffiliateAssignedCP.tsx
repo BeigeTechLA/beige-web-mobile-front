@@ -135,11 +135,11 @@ export default function AffiliateAssignedCP({ projectId }: { projectId: string }
       {/* Swiper or Placeholder */}
       <div className="p-6 h-full">
         {!hasCrew ? (
-          <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30">
-            <div className="w-20 h-20 bg-[#1A1A1A] rounded-full flex items-center justify-center mb-6">
-              <User size={40} className="text-[#333]" />
+          <div className="flex flex-col items-center justify-center h-full relative py-10 lg:py-0">
+            <div className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#B18A00]/20"}`}>
+              <User className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
             </div>
-            <h4 className="text-[#666] text-base font-medium leading-none">No Crew Assigned</h4>
+            <h4 className={`${isDark ? "text-[#E5D5B8]" : "text-[#000]"} text-base font-medium leading-none`}>No Crew Assigned</h4>
           </div>
         ) : (
           <>

@@ -162,17 +162,17 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
       />
 
       {!hasTeam && (
-        <div className="flex flex-col items-center justify-center h-full mt-16 relative z-30 py-10 lg:py-0">
+        <div className="flex flex-col items-center justify-center h-full mt-16 relative py-10 lg:py-0">
           <button
             onClick={handleOpenAssignment}
             disabled={!canCreate}
             className={cn(
-              "w-12 h-12 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
+              "w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
               isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
             )}
             title={canCreate ? "Add Post Production Team" : "Create permission not allowed"}
           >
-            <Plus size={40} className={"text-black"} />
+            <Plus className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
           </button>
           <h4 className={cn(
             "text-base font-medium leading-none",
