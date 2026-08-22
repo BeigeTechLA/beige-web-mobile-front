@@ -16,6 +16,7 @@ import {
   Search,
   Settings2,
   Users,
+  Loader2,
 } from "lucide-react";
 import { Area, AreaChart, Legend, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
@@ -503,6 +504,7 @@ export default function ShiftManagementPage() {
   const [shiftName, setShiftName] = useState("");
   const [isSavingShift, setIsSavingShift] = useState(false);
   const [isAddingSalesperson, setIsAddingSalesperson] = useState(false);
+  const [isShiftsLoading, setIsShiftsLoading] = useState(false);
   const [shiftSearch, setShiftSearch] = useState("");
   const debouncedShiftSearch = useDebounce(shiftSearch, 300);
   const selectedDateParam = selectedDate ? formatDateParam(selectedDate) : undefined;
@@ -614,7 +616,8 @@ export default function ShiftManagementPage() {
   };
 
   const fetchShifts = async (params?: Record<string, unknown>) => {
-    const shiftsRes = await shiftManagementApi.getShifts({
+  setIsShiftsLoading(true); 
+  const shiftsRes = await shiftManagementApi.getShifts({
       page: shiftCurrentPage,
       limit: 10,
       status: statusFilter === "Status" ? undefined : SHIFT_STATUS_MAP[statusFilter],
@@ -642,6 +645,7 @@ export default function ShiftManagementPage() {
         ? Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1)
         : Math.max(1, Math.ceil(filteredShifts.length / Number(pagination.limit || params?.limit || 10))),
     });
+    setIsShiftsLoading(false);
     return filteredShifts;
   };
 
@@ -960,57 +964,86 @@ export default function ShiftManagementPage() {
                   <th className="px-5 py-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {shiftRows.map((shift) => (
-                  <tr
-                    key={shift.id}
-                    onClick={() => {
-                      setIsRoundRobinConfigOpen(false);
-                      setIsSalespersonDetailOpen(false);
-                      setSelectedShift(shift);
-                    }}
-                    className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
-                  >
-                    <td className="px-5 py-4"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" /> <span className="capitalize">{shift.name}</span></td>
-                    <td className="px-5 py-4">{shift.hours}</td>
-                    <td className="px-5 py-4">
-                      <div className="flex gap-1">
-                        {shift.days.map((day) => (
-                          <span key={day} className="rounded bg-[#E5D5B8] px-1.5 py-1 text-[10px] text-black">{day}</span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${shift.status === "active" ? "bg-[#B9F8CF] text-[#0D542B]" : "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"}`}>{formatStatusLabel(shift.status)}</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <AvatarStack
-                        salespeople={shift.salespeople || []}
-                        extra={shift.extra}
-                        onAdd={() => {
-                          setAddSalespeopleShift(shift);
-                          setSelectedSalespersonIds([]);
-                          setIsAddSalespeopleOpen(true);
-                        }}
-                      />
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-4 text-white/70">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void openEditShiftModal(shift);
-                          }}
-                          aria-label={`Edit ${shift.name}`}
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <ChevronRight size={18} />
+              <tbody className="relative">
+                {isShiftsLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-20">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="animate-spin text-[#BFA780]" size={40} />
                       </div>
                     </td>
                   </tr>
-                ))}
+                ) : shiftRows.length > 0 ? (
+                shiftRows.map((shift) => (
+                <tr
+                  key={shift.id}
+                  onClick={() => {
+                    setIsRoundRobinConfigOpen(false);
+                    setIsSalespersonDetailOpen(false);
+                    setSelectedShift(shift);
+                  }}
+                  className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
+                >
+                  <td className="px-5 py-4">
+                    <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" />{" "}
+                    <span className="capitalize">{shift.name}</span>
+                  </td>
+                  <td className="px-5 py-4">{shift.hours}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex gap-1">
+                      {shift.days.map((day) => (
+                        <span key={day} className="rounded bg-[#E5D5B8] px-1.5 py-1 text-[10px] text-black">
+                          {day}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`inline-flex rounded-full px-5 py-2 text-xs font-medium ${
+                        shift.status === "active"
+                          ? "bg-[#B9F8CF] text-[#0D542B]"
+                          : "bg-[#FFF5F5] text-[#FF4D4D] border-[#FF4D4D]/20"
+                      }`}
+                    >
+                      {formatStatusLabel(shift.status)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <AvatarStack
+                      salespeople={shift.salespeople || []}
+                      extra={shift.extra}
+                      onAdd={() => {
+                        setAddSalespeopleShift(shift);
+                        setSelectedSalespersonIds([]);
+                        setIsAddSalespeopleOpen(true);
+                      }}
+                    />
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex justify-end gap-4 text-white/70">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void openEditShiftModal(shift);
+                        }}
+                        aria-label={`Edit ${shift.name}`}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <ChevronRight size={18} />
+                    </div>
+                  </td>
+                </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-sm text-white/45">
+                      No shifts found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

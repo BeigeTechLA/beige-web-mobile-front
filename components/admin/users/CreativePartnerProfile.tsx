@@ -215,6 +215,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
             crew_accept: item.crew_accept,
             assigned_status: item.assigned_status,
             assigned_date: item.assigned_date,
+            compensation: item.compensation,
           }))
           : [];
 
@@ -227,6 +228,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
             crew_accept: item.crew_accept,
             assigned_status: item.assigned_status,
             assigned_date: item.assigned_date,
+            compensation: item.compensation,
           }))
           : [];
 
@@ -338,20 +340,27 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
     );
   }
 
-  const convertLinksStringToArray = (jsonString: string) => {
-    try {
-      const parsedObject = JSON.parse(jsonString);
+const convertLinksStringToArray = (jsonString: string | null) => {
+  if (!jsonString || jsonString === "null") return [];
 
-      // Convert object entries into a structured array
-      return Object.entries(parsedObject).map(([platform, url]) => ({
-        platform,
-        url: url as string
-      }));
-    } catch (error) {
-      console.error("Invalid JSON string provided:", error);
+  try {
+    const parsedObject = JSON.parse(jsonString);
+
+    // 2. Ensure parsedObject is actually an object and not null
+    if (!parsedObject || typeof parsedObject !== "object") {
       return [];
     }
-  };
+
+    // Convert object entries into a structured array
+    return Object.entries(parsedObject).map(([platform, url]) => ({
+      platform,
+      url: url as string
+    }));
+  } catch (error) {
+    console.error("Invalid JSON string provided:", error);
+    return [];
+  }
+};
   const socialMediaLinks = convertLinksStringToArray(partner?.social_media_links || null)
 
   const fullName = `${partner.first_name || ''} ${partner.last_name || ''}`.trim() || "Unknown Partner";
@@ -1656,6 +1665,7 @@ return (
                           <th className="p-4 font-medium">Shoot ID</th>
                           <th className="p-4 font-medium">Shoot Name</th>
                           <th className="p-4 font-medium">Shoot Type</th>
+                          <th className="p-4 font-medium">Total Compensation</th>
                           <th className="p-4 font-medium">Shoot Date</th>
                           <th className="p-4 font-medium">Status</th>
                         </tr>
@@ -1705,6 +1715,33 @@ return (
                                   className="block p-4"
                                 >
                                   {formatShootType(shoot.shoot_type || shoot.event_type)}
+                                </Link>
+                              </td>
+
+                              <td className="p-0">
+                                <Link href={`/admin/shoots/${projectId}`} className="block p-4">
+                                  <div className="flex flex-col">
+                                    {/* Total Compensation */}
+                                    <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                                      {shoot.compensation?.total_compensation != null
+                                        ? `$${Number(shoot.compensation.total_compensation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                        : "N/A"}
+                                    </span>
+                                    
+                                    {/* Paid Amount (Green) */}
+                                    {shoot.compensation?.paid_amount != null && (
+                                      <span className="text-[10px] text-green-600 font-bold uppercase whitespace-nowrap leading-tight mt-0.5">
+                                        Paid: ${Number(shoot.compensation.paid_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    )}
+
+                                    {/* Remaining Balance (Orange - Only if > 0) */}
+                                    {Number(shoot.compensation?.remaining_balance) > 0 && (
+                                      <span className="text-[10px] font-bold text-orange-500 uppercase whitespace-nowrap leading-tight">
+                                        Remaining: ${Number(shoot.compensation.remaining_balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    )}
+                                  </div>
                                 </Link>
                               </td>
 
@@ -1820,25 +1857,49 @@ return (
                                   style={{ overflow: "hidden" }}
                                   className="w-full min-w-0 clear-both"
                                 >
-                                  <div className={`grid grid-cols-2 gap-4 text-xs pt-4 ${isDark ? "text-[#BDBDBD]" : "text-gray-600"}`}>
-                                    <div>
-                                      <p className={`mb-1 font-medium ${isDark ? "text-white" : "text-gray-400"}`}>
-                                        Shoot Type
-                                      </p>
-                                      <p className="text-sm">
-                                        {formatShootType(shoot.shoot_type || shoot.event_type)}
-                                      </p>
-                                    </div>
+                            <div className={`grid grid-cols-2 gap-y-4 gap-x-4 text-xs pt-4 ${isDark ? "text-[#BDBDBD]" : "text-gray-600"}`}>
+                            <div>
+                              <p className={`mb-1 font-medium ${isDark ? "text-white" : "text-gray-400"}`}>
+                                Shoot Type
+                              </p>
+                              <p className="text-sm">
+                                {formatShootType(shoot.shoot_type || shoot.event_type)}
+                              </p>
+                            </div>
 
-                                    <div className="text-right">
-                                      <p className={`mb-1 font-medium ${isDark ? "text-white" : "text-gray-400"}`}>
-                                        Shoot Date
-                                      </p>
-                                      <p className="text-sm">
-                                        {formatShootDate(shoot.event_date)}
-                                      </p>
-                                    </div>
-                                  </div>
+                            <div className="text-right">
+                              <p className={`mb-1 font-medium ${isDark ? "text-white" : "text-gray-400"}`}>
+                                Shoot Date
+                              </p>
+                              <p className="text-sm">
+                                {formatShootDate(shoot.event_date)}
+                              </p>
+                            </div>
+
+                            {/* Compensation Section added for Mobile */}
+                            <div className="col-span-2 border-t border-white/5 pt-3">
+                              <p className={`mb-1 font-medium ${isDark ? "text-white" : "text-gray-400"}`}>
+                                Compensation Details
+                              </p>
+                              <div className="flex justify-between items-end">
+                                <p className="text-sm font-bold">
+                                  {shoot.compensation?.total_compensation != null ? `$${Number(shoot.compensation.total_compensation).toLocaleString()}` : "N/A"}
+                                </p>
+                                <div className="flex flex-col items-end">
+                                  {shoot.compensation?.paid_amount != null && (
+                                    <span className="text-[10px] text-green-600 font-bold uppercase">
+                                      Paid: ${Number(shoot.compensation.paid_amount).toLocaleString()}
+                                    </span>
+                                  )}
+                                  {Number(shoot.compensation?.remaining_balance) > 0 && (
+                                    <span className="text-[10px] text-orange-500 font-bold uppercase">
+                                      Rem: ${Number(shoot.compensation.remaining_balance).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
                                   {/* Navigation Row Footer */}
                                   <div className="flex justify-start pt-3">
