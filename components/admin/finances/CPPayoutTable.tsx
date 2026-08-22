@@ -54,7 +54,7 @@ export type ShootCPRow = {
 interface CPPayoutTableProps {
   rows?: ShootCPRow[];
   loading?: boolean;
-  type: "shoots" | "creators";
+  type: "shoots" | "creators" | "pending_compansation";
   onRowClick: (row: ShootCPRow) => void;
   onViewHistory?: (row: ShootCPRow) => void;
   onDueDateChange?: (row: ShootCPRow, dueDate: Date) => Promise<void>;
@@ -185,6 +185,13 @@ export default function CPPayoutTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState("Month");
   const [statusFilter, setStatusFilter] = useState("All");
+
+  useEffect(() => {
+    setSearchQuery("");
+    setMonthFilter("Month");
+    setStatusFilter("All");
+    setCurrentPage(1);
+  }, [type]);
 
   useEffect(() => {
     setMounted(true);
@@ -360,7 +367,11 @@ export default function CPPayoutTable({
           <div className="flex items-center gap-2">
             <div className="h-6 w-[3px] rounded-full bg-[#E5D5B8]" />
             <h2 className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
-              {type === "shoots" ? "Shoots Compensation History" : "Creators Compensation History"}
+              {type === "shoots"
+                ? "Shoots Compensation History"
+                : type === "creators"
+                  ? "Creators Compensation History"
+                  : "Pending Compensation History"}
             </h2>
           </div>
 
@@ -373,12 +384,24 @@ export default function CPPayoutTable({
                 </SelectTrigger>
                 <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
                   <SelectItem value="All">All Status</SelectItem>
-                  {/* <SelectItem value="Pending">Pending</SelectItem> */}
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Approval Pending">Approval Pending</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                  <SelectItem value="Fully Paid">Fully Paid</SelectItem>
+                  {type === "pending_compansation" ? (
+                    <>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Approval Pending">
+                        Approval Pending
+                      </SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="Partially Paid">Partially Paid</SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
+                      <SelectItem value="Approval Pending">
+                        Approval Pending
+                      </SelectItem>
+                      <SelectItem value="Rejected">Rejected</SelectItem>
+                      <SelectItem value="Fully Paid">Fully Paid</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
 
@@ -415,7 +438,13 @@ export default function CPPayoutTable({
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={type === "shoots" ? "Search client, email..." : "Search creator, roles, ID..."}
+            placeholder={
+              type === "shoots"
+                ? "Search client, email..."
+                : type === "creators"
+                  ? "Search creator, roles, ID..."
+                  : "Search pending compensation..."
+            }                  
             className={`h-10 w-full rounded-lg border pl-9 pr-4 text-sm transition-colors focus:outline-none ${isDark
               ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
               : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"

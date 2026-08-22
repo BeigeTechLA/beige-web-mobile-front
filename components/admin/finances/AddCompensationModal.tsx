@@ -240,6 +240,7 @@ export default function AddCompensationModal({
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
+  const [sendMail, setSendMail] = useState<boolean>(false);
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
@@ -273,14 +274,15 @@ export default function AddCompensationModal({
   }, [shootSearchQuery, shoots]);
 
   const resetFormState = useCallback(() => {
-    setSelectedShootId("");
-    setIsDropdownOpen(false);
-    setCompensationMethod("equal");
-    setSelectedCreators([]);
-    setCreatorForms({});
-    setShootSearchQuery("");
-    setAdvanceCreatorId(null);
-  }, []);
+  setSelectedShootId("");
+  setIsDropdownOpen(false);
+  setCompensationMethod("equal");
+  setSendMail(false);
+  setSelectedCreators([]);
+  setCreatorForms({});
+  setShootSearchQuery("");
+  setAdvanceCreatorId(null);
+}, []);
 
   const syncCreatorFormsForCompensationMethod = useCallback(() => {
     if (!currentShoot) return;
@@ -645,6 +647,12 @@ export default function AddCompensationModal({
       compensation_method: methodToApi(compensationMethod),
       creators,
     });
+    // await onSubmit({
+    //   booking_id: currentShoot.booking_id,
+    //   compensation_method: methodToApi(compensationMethod),
+    //   send_email: sendMail,
+    //   creators,
+    // });
   };
 
   return (
@@ -721,10 +729,45 @@ export default function AddCompensationModal({
             )}
           </div>
 
-          {currentShoot && (
-            <div className="space-y-3 lg:space-y-6 animate-in fade-in duration-200">
-              <div className="flex flex-col gap-3 lg:gap-5">
-                <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Compensation Method</label>
+        {currentShoot && (
+        <div className="space-y-3 lg:space-y-6 animate-in fade-in duration-200">
+          <div className={`flex items-center justify-between rounded-xl border px-4 py-4 lg:px-5 lg:py-5 ${
+              isDark
+                ? "bg-[#171717] border-[#3D3D3D]"
+                : "bg-[#F4F5F7] border-[#D7D7D7]"
+            }`}
+          >
+            <label htmlFor="send-mail-to-creators" className={`text-sm lg:text-base font-medium cursor-pointer ${
+                isDark ? "text-white" : "text-black"
+              }`}
+            >
+              Send mail to creators
+            </label>
+            <button
+              id="send-mail-to-creators"
+              type="button"
+              role="switch"
+              aria-checked={sendMail}
+              onClick={() => setSendMail((prev) => !prev)}
+              className={`relative inline-flex h-6 w-11 lg:h-7 lg:w-12 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                sendMail
+                  ? "bg-[#E8D1AB]"
+                  : isDark
+                    ? "bg-[#3D3D3D]"
+                    : "bg-[#D7D7D7]"
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 lg:h-6 lg:w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                  sendMail
+                    ? "translate-x-5 lg:translate-x-5"
+                    : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+            <div className="flex flex-col gap-3 lg:gap-5">
+              <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Compensation Method</label>
                 <div className={`grid grid-cols-2 p-1.5 border rounded-lg h-14 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                   <button
                     type="button"

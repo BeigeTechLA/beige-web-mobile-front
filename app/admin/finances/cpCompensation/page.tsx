@@ -176,11 +176,12 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
   }
 ];
 
-type TabType = "shoots" | "creators";
+type TabType = "shoots" | "creators" | "pending_compansation";
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Shoots", value: "shoots" },
   { label: "Creators", value: "creators" },
+  { label: "Pending Compansation", value: "pending_compansation" },
 ];
 
 const formatDateForApi = (date: Date) => {
@@ -272,11 +273,34 @@ export default function AdminFinancesPage() {
   const loadHistory = useCallback(async (view: TabType) => {
     setLoading(true);
     try {
-      const [rows, shootRows] = view === "shoots"
-        ? await cpCompensationApi.list("shoots").then((shoots) => [shoots, shoots] as const)
-        : await Promise.all([cpCompensationApi.list("creators"), cpCompensationApi.list("shoots")]);
-      setTableData(rows);
-      setOverviewRows(shootRows);
+      if (view === "shoots") {
+        const shoots = await cpCompensationApi.list("shoots");
+
+        setTableData(shoots);
+        setOverviewRows(shoots);
+      } else if (view === "creators") {
+        const [creators, shoots] = await Promise.all([
+          cpCompensationApi.list("creators"),
+          cpCompensationApi.list("shoots"),
+        ]);
+
+        setTableData(creators);
+        setOverviewRows(shoots);
+      } else if (view === "pending_compansation") {
+        const [creators, shoots] = await Promise.all([
+          cpCompensationApi.list("creators"),
+          cpCompensationApi.list("shoots"),
+        ]);
+
+        const pendingCompensation = creators.filter(
+          (item) =>
+            item.status === "Pending" ||
+            item.status === "Approval Pending",
+        );
+
+        setTableData(pendingCompensation);
+        setOverviewRows(shoots);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load CP compensation history");
       setTableData([]);
@@ -869,7 +893,7 @@ export default function AdminFinancesPage() {
           isOpen={isModifyOpen}
           onClose={() => {
             setIsModifyOpen(false);
-            setSelectedActionEarningIds([]);
+            setSelectedActionEarningIds([]); 
           }}
           rowContext={selectedRow}
           creatorName={getSelectedActionCreator()?.creator_name || selectedRow?.creatorName}
