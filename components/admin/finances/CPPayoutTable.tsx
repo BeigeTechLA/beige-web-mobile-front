@@ -64,7 +64,7 @@ export type ShootCPRow = {
 interface CPPayoutTableProps {
   rows?: ShootCPRow[];
   loading?: boolean;
-  type: "shoots" | "creators";
+  type: "shoots" | "creators" | "pending_compansation";
   onRowClick: (row: ShootCPRow) => void;
   onViewHistory?: (row: ShootCPRow) => void;
   onDueDateChange?: (row: ShootCPRow, dueDate: Date) => Promise<void>;
@@ -227,7 +227,8 @@ export default function CPPayoutTable({
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
-  const isShootType = type === "shoots" || type === "pending_compansation";
+  const isPendingCompensation = type === "pending_compansation";
+  const isShootType = type === "shoots" || isPendingCompensation;
 
   const toggleExpand = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -657,17 +658,24 @@ export default function CPPayoutTable({
                         {renderDueDate(row, "justify-end text-[11px]")}
                       </div>
 
-                      <button
-                        type="button"
-                        aria-label="Open row actions"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openRowActionMenu(row.id, e.currentTarget);
-                        }}
-                        className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
-                      >
-                        <EllipsisVertical size={16} />
-                      </button>
+                      {isPendingCompensation ? (
+                        <ChevronRight
+                          size={18}
+                          className={isDark ? "text-white/50" : "text-black/40"}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label="Open row actions"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRowActionMenu(row.id, e.currentTarget);
+                          }}
+                          className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                        >
+                          <EllipsisVertical size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -792,16 +800,18 @@ export default function CPPayoutTable({
                             View History
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDueDate(row);
-                          }}
-                        >
-                          Due Date
-                        </button>
+                        {!isPendingCompensation && (
+                          <button
+                            type="button"
+                            className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDueDate(row);
+                            }}
+                          >
+                            Due Date
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -968,12 +978,13 @@ export default function CPPayoutTable({
                       >
                         {formatCurrency(row.shootBudget)}
                       </td>
-                      {type === "pending_compansation" ? (
+                      {isPendingCompensation ? (
                         <td
-                        className={`px-5 py-4 font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}
-                      >
-                        {row.customerEmail || "No email available"}
-                      </td>
+                          colSpan={3}
+                          className={`px-5 py-4 font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}
+                        >
+                          {row.customerEmail || "No email available"}
+                        </td>
                       ) : (
                         <>
                           <td className="px-5 py-4">
@@ -991,19 +1002,33 @@ export default function CPPayoutTable({
                         </>
                       )}
                       <td className="px-5 py-4 text-right overflow-visible relative">
-                        <div className="relative inline-flex">
+                        {isPendingCompensation ? (
                           <button
                             type="button"
-                            aria-label="Open row actions"
+                            aria-label="Add compensation"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openRowActionMenu(row.id, e.currentTarget);
+                              onRowClick(row);
                             }}
-                            className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                            className={`ml-auto flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${isDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-black/50 hover:bg-black/5 hover:text-black"}`}
                           >
-                            <EllipsisVertical size={18} />
+                            <ChevronRight size={20} />
                           </button>
-                        </div>
+                        ) : (
+                          <div className="relative inline-flex">
+                            <button
+                              type="button"
+                              aria-label="Open row actions"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRowActionMenu(row.id, e.currentTarget);
+                              }}
+                              className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                            >
+                              <EllipsisVertical size={18} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
