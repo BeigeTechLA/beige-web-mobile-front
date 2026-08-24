@@ -116,6 +116,7 @@ interface Props {
   isDark?: boolean;
   disablePortal?: boolean;
   shouldDisableDate?: (date: Date) => boolean;
+  borderRadius?: string;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -134,6 +135,7 @@ export const DatePicker: React.FC<Props> = ({
   isDark = true,
   disablePortal = false,
   shouldDisableDate,
+  borderRadius,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
@@ -229,7 +231,7 @@ export const DatePicker: React.FC<Props> = ({
                   fontSize: "16px",
                   "&.Mui-focused": { color: colors.accent },
                   "&.MuiInputLabel-shrink": {
-                    transform: "translate(14px, -10px) scale(1)",
+                    transform: "translate(16px, -10px) scale(1)",
                     fontSize: "14px !important",
                     color: `${colors.labelText} !important`,
                     backgroundColor: colors.inputBackground,
@@ -243,9 +245,9 @@ export const DatePicker: React.FC<Props> = ({
                   height: "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: "16px",
+                  borderRadius: borderRadius ?? "12px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
-                  "&:hover fieldset": { borderColor: colors.inputBorderHover },
+                  "&:hover fieldset": { borderColor: colors.inputBorder },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
                   // Ensure the placeholder is visible even when not focused
                   "& input::placeholder": {

@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { useBookingFlowVersion } from "@/lib/hooks/useBookingFlowVersion";
 import { BookAShootV3 } from "@/components/book-a-shoot/v3/BookAShootV3";
+import { BookAShootV4 } from "@/components/book-a-shoot/v4/BookAShootV4";
 import { BookAShootV2 } from "@/components/book-a-shoot/BookAShootV2";
 
 export default function BookAShootPage() {
-  const isV3 = useBookingFlowVersion();
+  // const isV3 = useBookingFlowVersion();
+  const version = useBookingFlowVersion();
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -27,9 +30,15 @@ export default function BookAShootPage() {
       // So if process.env is consistent, this is fine.
   }
 
-  if (isV3) {
+  console.log("Booking Flow Version:", version);
+  if (version === "v3") {
     return <BookAShootV3 />;
   }
+
+  if (version === "v4") {
+    return <BookAShootV4 />;
+  }
+
 
   return <BookAShootV2 />;
 }

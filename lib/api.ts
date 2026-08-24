@@ -2700,6 +2700,21 @@ export const adminApi = {
       };
     }
   },
+
+  getCrewMemberOnboardingStatus: async (id: string | number) => {
+    try {
+      const response = await api.get(`admin/crew-member-onboarding-status/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Crew Onboarding Status Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch onboarding status',
+      };
+    }
+  },
+
   updateCrewMemberProfile: async (id: string | number, payload: Record<string, unknown>) => {
     try {
       const response = await api.put(`admin/crew-member/${id}/profile`, payload);

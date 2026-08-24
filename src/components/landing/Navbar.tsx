@@ -411,7 +411,7 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="fixed top-6 left-2 right-2 xl:left-0 xl:right-0 z-50 pointer-events-none">
+    <nav className="fixed top-6 left-2 right-2 xl:left-0 xl:right-0 pointer-events-none z-50">
       <div
         className={`pointer-events-auto mx-auto lg:max-w-4xl xl:max-w-[1600px] px-6 xl:px-0 transition-all duration-300 rounded-[20px] ${isScrolled ? "bg-[#050505]/80 backdrop-blur-[12px]" : "bg-[#050505]/60 backdrop-blur-[8px]"} border-[0.5px] border-[#E8D1AB]/30`}
       >

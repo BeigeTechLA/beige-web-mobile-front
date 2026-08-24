@@ -18,6 +18,8 @@ export type FeaturedWorkItem = {
   tags?: string[];
   image?: string;
   previews?: string[];
+  fileIds?: Array<string | number>;
+  removedFileIds?: Array<string | number>;
   files?: Array<
     File | {
       crewFilesId?: string | number;

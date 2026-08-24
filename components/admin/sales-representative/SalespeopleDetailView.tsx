@@ -10,6 +10,7 @@ import {
   Copy,
   DollarSign,
   FileText,
+  Loader2,
   MoreVertical,
   Search,
   SquarePen,
@@ -19,7 +20,6 @@ import {
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { LeadsStatusBadge, type BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -84,6 +84,11 @@ function cleanParams(params: Record<string, unknown>) {
   return Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
   );
+}
+
+function isActiveRecord(value: unknown) {
+  if (value === undefined || value === null) return true;
+  return value === true || Number(value) === 1 || String(value).toLowerCase() === "active";
 }
 
 function getTodayDate() {
@@ -379,6 +384,7 @@ export default function SalespeopleDetailView({
   const debouncedSearch = useDebounce(search, 300);
   const [leadRows, setLeadRows] = useState<any[]>([]);
   const [salesQuoteRows, setSalesQuoteRows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [leadPage, setLeadPage] = useState(1);
   const [quotePage, setQuotePage] = useState(1);
   const [leadPagination, setLeadPagination] = useState<PaginationState>({ page: 1, limit: 10, total: 0, pages: 1 });
@@ -533,9 +539,11 @@ export default function SalespeopleDetailView({
   };
 
   useEffect(() => {
-    const load = async () => {
-      const repId = salesRepId;
-      if (!repId) return;
+   const load = async () => {
+  const repId = salesRepId;
+  if (!repId) return;
+
+  setIsLoading(true);
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
         const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
@@ -549,16 +557,17 @@ export default function SalespeopleDetailView({
         }));
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
+        const activeList = list.filter((row: any) => isActiveRecord(row?.is_active ?? row?.user_status ?? row?.enabled ?? row?.is_enabled));
         const filteredList = filters.cp === "Assigned"
-          ? list.filter((row: any) => Array.isArray(row?.creative_partners) && row.creative_partners.length > 0)
+          ? activeList.filter((row: any) => Array.isArray(row?.creative_partners) && row.creative_partners.length > 0)
           : filters.cp === "Unassigned"
-            ? list.filter((row: any) => !Array.isArray(row?.creative_partners) || row.creative_partners.length === 0)
-            : list;
+            ? activeList.filter((row: any) => !Array.isArray(row?.creative_partners) || row.creative_partners.length === 0)
+            : activeList;
         const pagination = data?.pagination || {};
         setLeadPagination({
           page: Number(pagination.page || leadPage || 1),
           limit: Number(pagination.limit || 10),
-          total: filters.cp === "Creative Partners" ? Number(pagination.total || list.length || 0) : filteredList.length,
+          total: filters.cp === "Creative Partners" ? Number(pagination.total || activeList.length || 0) : filteredList.length,
           pages: filters.cp === "Creative Partners" ? Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1) : Math.max(1, Math.ceil(filteredList.length / 10)),
         });
         setLeadRows(filteredList
@@ -575,6 +584,7 @@ export default function SalespeopleDetailView({
               intent: row.intent || "N/A",
               status: row.booking_status || "N/A",
               activity: row.last_activity || "N/A",
+              is_active: row.is_active,
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
@@ -617,7 +627,10 @@ export default function SalespeopleDetailView({
             };
           }));
       }
+
+      setIsLoading(false);
     };
+
     void load();
   }, [activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
 
@@ -672,8 +685,7 @@ export default function SalespeopleDetailView({
           <SortDateButton selectedDate={dateFilter} onDateChange={setDateFilter} />
         </div>
       </div>
-      <DottedDivider className="my-6 lg:my-6" />
-
+      
       <div className="mt-5 inline-flex rounded-lg border border-[#2D2D2D] bg-[#171717] p-1">
         <button onClick={() => setActiveTab("booking")} className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
         <button onClick={() => setActiveTab("quotes")} className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
@@ -824,7 +836,18 @@ export default function SalespeopleDetailView({
                   </td>
                 </tr>
               )) : (
-                  <tr key="no-leads"><td colSpan={7} className="px-5 py-8 text-center text-sm text-white/45">No booking leads found</td></tr>
+              <tr key="no-leads">
+                <td colSpan={7} className="px-5 py-8 text-center text-sm text-white/45">
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                      <span>Loading booking leads...</span>
+                    </div>
+                  ) : (
+                    "No booking leads found"
+                  )}
+                </td>
+              </tr>
               )}</tbody>
             </table>
           ) : (
