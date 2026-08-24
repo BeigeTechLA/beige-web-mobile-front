@@ -35,6 +35,7 @@ export interface StudioCatalogListItem {
   reviews: number | null;
   propertyType: string | null;
   description?: string | null;
+  short_description?: string | null;
   size?: string | null;
   beds?: number | null;
   baths?: number | null;
@@ -59,6 +60,24 @@ export interface StudioCatalogResponse {
     total: number;
     totalPages: number;
     hasMore: boolean;
+  };
+}
+
+export interface StudioBookedSlotsResponse {
+  success: boolean;
+  data?: {
+    studio_id?: number;
+    slug?: string;
+    studio_name?: string;
+    booked_dates?: string[];
+    booked_slots?: Array<{
+      date: string;
+      slots: Array<{
+        date: string;
+        start_time: string;
+        end_time: string;
+      }>;
+    }>;
   };
 }
 
@@ -98,7 +117,7 @@ export interface AdminStudioDetail {
   overtime_rate?: number | null;
   minimum_booking_hours?: number | null;
   buffer_time_minutes?: number | null;
-  supported_shoot_types?: string[] | null;
+  supported_shoot_types?: string[] | string | null;
   description?: string | null;
   location?: string | null;
   city?: string | null;
@@ -123,6 +142,38 @@ export interface AdminStudioDetail {
     communication_rating: number | null;
     check_in_rating: number | null;
   };
+  space_basics?: unknown;
+  amenities?: unknown;
+  parking_options?: unknown;
+  parking_description?: string | null;
+  access_features?: unknown;
+  facility_features?: unknown;
+  activities?: unknown;
+  house_rules?: unknown;
+  policies?: unknown;
+  pricing_settings?: unknown;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  zip_code?: string | null;
+  timezone?: string | null;
+  square_feet?: number | string | null;
+  height?: number | string | null;
+  width?: number | string | null;
+  length?: number | string | null;
+  capacity_min?: number | string | null;
+  capacity_max?: number | string | null;
+  main_floor_number?: number | string | null;
+  verification_status?: string | null;
+  is_active?: boolean | number | string | null;
+  overnight_stays_allowed?: boolean | null;
+  security_recording_enabled?: boolean | null;
+  security_recording_description?: string | null;
+  wifi_name?: string | null;
+  wifi_password?: string | null;
+  preferred_age?: string | number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by_user_id?: string | number | null;
   [key: string]: unknown;
 }
 
@@ -387,6 +438,10 @@ export const studioCatalogApi = {
     const payload = response.data;
     return payload.data || payload;
   },
+  getBookedDates: async (slug: string): Promise<string[]> => {
+    const response = await publicApi.get<StudioBookedSlotsResponse>(`/studios/${slug}/booked-slots`);
+    return response.data.data?.booked_dates || [];
+  },
 };
 
 export type StudioMediaUploadResponse = {
@@ -418,6 +473,10 @@ export const studioAdminApi = {
 
   createStudio: async (payload: Record<string, unknown>) => {
     const response = await api.post("/admin/studios", payload);
+    return response;
+  },
+  updateStudio: async (id: string | number, payload: Record<string, unknown>) => {
+    const response = await api.put(`/admin/studios/${id}`, payload);
     return response;
   },
 };
@@ -2274,11 +2333,12 @@ export const adminApi = {
       };
     }
   },
-  getStudioDashboard: async (month?: string, studioId?: string | number) => {
+  getStudioDashboard: async (month?: string, studioId?: string | number, date?: string) => {
     try {
       const response = await api.get('/admin/studios/dashboard', {
         params: {
           ...(month ? { month } : {}),
+          ...(date ? { date } : {}),
           ...(studioId ? { studio_id: studioId } : {}),
         },
       });
@@ -2297,6 +2357,11 @@ export const adminApi = {
     limit?: number;
     search?: string;
     status?: string;
+    period?: "week" | "month" | "all";
+    month?: string;
+    sort_by?: string;
+    sort_order?: "ASC" | "DESC";
+    date?: string;
   } = {}) => {
     try {
       const response = await api.get('/admin/studios', { params });
@@ -2332,16 +2397,53 @@ export const adminApi = {
   getStudioById: async (studioId: string | number) => {
     try {
       const response = await api.get(`/admin/studios/${studioId}`);
-      return response.data as {
-        success: boolean;
-        data: AdminStudioDetail;
-      };
+    return response.data as {
+      success: boolean;
+      data: AdminStudioDetail;
+      error?: string;
+    };
     } catch (error: any) {
       console.error('Get Studio By ID Error:', error);
       return {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch studio details',
+      };
+    }
+  },
+  updateStudioMedia: async (
+    studioId: string | number,
+    media: {
+      studio_media_id: string | number;
+      url: string;
+      sort_order: number;
+      is_cover: boolean;
+    }[]
+  ) => {
+    try {
+      const response = await api.put(`/admin/studios/${studioId}/media`, {
+        media,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Media Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio media',
+      };
+    }
+  },
+  updateStudio: async (studioId: string | number, payload: Record<string, unknown>) => {
+    try {
+      const response = await api.put(`/admin/studios/${studioId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Studio Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update studio details',
       };
     }
   },
@@ -2352,6 +2454,7 @@ export const adminApi = {
     search?: string;
     studio_id?: string | number;
     month?: string;
+    date?: string;
   } = {}) => {
     try {
       const response = await api.get('/admin/studios/requests', { params });

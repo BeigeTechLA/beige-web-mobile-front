@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { format } from "date-fns";
 
@@ -58,6 +58,34 @@ import OverallBookingsStack from "@/components/admin/studios/OverallBookings";
 import StudioListing from "@/components/admin/studios/StudioListing";
 import { adminApi } from "@/lib/api";
 
+type StudioDashboardBooking = {
+  studio_booking_id?: number;
+  studio_id?: string | number | null;
+  studio_name?: string | null;
+  stream_project_booking_id?: number | null;
+  user_id?: number | null;
+  booking_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  duration_hours?: string | number | null;
+  time_zone?: string | null;
+  status?: string | null;
+  base_amount?: string | number | null;
+  overtime_amount?: string | number | null;
+  platform_fee?: string | number | null;
+  net_amount?: string | number | null;
+  source?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  customer_name?: string | null;
+  user_name?: string | null;
+  image_url?: string | null;
+  space_name?: string | null;
+  project_name?: string | null;
+  cast_and_crew_count?: number | null;
+};
+
 type StudioDashboardResponse = {
   success: boolean;
   data?: {
@@ -71,39 +99,87 @@ type StudioDashboardResponse = {
     };
     chart?: Array<{ period?: string; total_revenue?: number; net_earnings?: number; bookings?: number }>;
     bookings?: {
-      upcoming?: any[];
-      completed?: any[];
-      cancelled?: any[];
+      upcoming?: StudioDashboardBooking[];
+      completed?: StudioDashboardBooking[];
+      cancelled?: StudioDashboardBooking[];
     };
-    earnings_ledger?: any[];
+    earnings_ledger?: Array<Record<string, unknown>>;
   } | null;
+};
+
+type StudioDashboardEntry = StudioDashboardBooking & {
+  metadata?: Record<string, unknown> | null;
+};
+
+const safeParseMetadata = (metadata: StudioDashboardBooking["metadata"]): Record<string, unknown> | null => {
+  if (!metadata) return null;
+  if (typeof metadata === "object") return metadata;
+  try {
+    const parsed = JSON.parse(metadata);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 export default function AdminStudiosPage() {
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
+    const value = searchParams.get("date");
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  });
   const [activeTab, setActiveTab] = useState<string>("Operations");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dashboard, setDashboard] = useState<StudioDashboardResponse["data"]>(null);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+
+  useEffect(() => {
+    const value = searchParams.get("date");
+    if (!value) {
+      setSelectedDate(null);
+      return;
+    }
+    const parsed = new Date(`${value}T00:00:00`);
+    setSelectedDate(Number.isNaN(parsed.getTime()) ? null : parsed);
+  }, [searchParams]);
 
   const dashboardMonth = useMemo(() => {
     const source = selectedDate || new Date();
     return format(source, "yyyy-MM");
   }, [selectedDate]);
 
+  const dashboardBookings = useMemo<StudioDashboardEntry[]>(() => {
+    const upcoming = dashboard?.bookings?.upcoming || [];
+    const completed = dashboard?.bookings?.completed || [];
+    const cancelled = dashboard?.bookings?.cancelled || [];
+    return [...upcoming, ...completed, ...cancelled].map((booking) => ({
+      ...booking,
+      metadata: safeParseMetadata(booking.metadata),
+    }));
+  }, [dashboard]);
+
   useEffect(() => {
     let active = true;
     const loadDashboard = async () => {
       setIsDashboardLoading(true);
-      const response = (await adminApi.getStudioDashboard(dashboardMonth)) as StudioDashboardResponse;
-      if (!active) return;
-      setDashboard(response?.data || null);
-      setIsDashboardLoading(false);
+      try {
+        const selectedDateValue = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+        const response = (await adminApi.getStudioDashboard(dashboardMonth, undefined, selectedDateValue)) as StudioDashboardResponse;
+        if (!active) return;
+        setDashboard(response?.data || null);
+      } finally {
+        if (active) {
+          setIsDashboardLoading(false);
+        }
+      }
     };
 
     loadDashboard().catch(() => {
@@ -116,10 +192,22 @@ export default function AdminStudiosPage() {
     return () => {
       active = false;
     };
-  }, [dashboardMonth]);
+  }, [dashboardMonth, selectedDate]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
+    const params = new URLSearchParams(searchParams.toString());
+    if (date) params.set("date", format(date, "yyyy-MM-dd"));
+    else params.delete("date");
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
   };
 
   return (
@@ -138,33 +226,6 @@ export default function AdminStudiosPage() {
                 className={`w-full border py-2.5 rounded-lg focus:outline-none pl-10 pr-4 transition-colors h-12 ${isDark ? "bg-[#111] border-[#333] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}
               />
             </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                // setCurrentPage(1); 
-              }}>
-              <SelectTrigger className={`w-[130px] rounded-lg h-12 text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Initiated">Accepted</SelectItem>
-                <SelectItem value="PreProduction">Rejected</SelectItem>
-                <SelectItem value="Shoot Day">Pending</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              className={`h-12
-                ${isDark
-                  ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#202020]/50"
-                  : "border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E5E7EB]"}`
-              }
-            >
-              <Download size={18} className="mr-2" />
-              Export
-            </Button>
             <Link href={"/admin/studio-management/add-studio"}>
               <Button className="h-12 bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]">
                 Create or Add Studio
@@ -189,7 +250,7 @@ export default function AdminStudiosPage() {
 
         <div className={`flex items-center gap-1 p-1.5 rounded-full w-fit border transition-colors mt-6 lg:mt-12 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#F0F0F0] border-[#E3E3E3]"
           }`}>
-          {(["Operations", "My Studios", "Studio Requests"] as string[]).map((tab) => (
+          {(["Operations", "Beige Studios", "Studio Leads"] as string[]).map((tab) => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab) }}
@@ -208,16 +269,27 @@ export default function AdminStudiosPage() {
             activeTab === "Operations" ? (
               <div className="space-y-3 lg:space-y-5">
                 <OverviewChart isDark={isDark} loading={isDashboardLoading} dashboard={dashboard} externalSelectedDate={selectedDate} />
-                <OverallBookingsStack isDark={isDark} cards={dashboard?.bookings ? [...(dashboard.bookings.upcoming || []), ...(dashboard.bookings.completed || []), ...(dashboard.bookings.cancelled || [])] : []} />
+                <OverallBookingsStack isDark={isDark} cards={dashboardBookings} />
                 <EarningsTable isDark={isDark} records={dashboard?.earnings_ledger || []} />
               </div>
-            ) : activeTab === "My Studios" ? (
+            ) : activeTab === "Beige Studios" ? (
               <>
-                <StudioListing isDark={isDark} />
+                <StudioListing
+                  isDark={isDark}
+                  searchQuery={debouncedSearchQuery}
+                  statusFilter={statusFilter}
+                  panelFiltersVisible={false}
+                  selectedDate={selectedDate}
+                />
               </>
             ) : (
               <>
-                <StudioRequestsTable isDark={isDark} searchQuery={searchQuery} selectedDate={selectedDate} />
+                <StudioRequestsTable
+                  isDark={isDark}
+                  searchQuery={debouncedSearchQuery}
+                  selectedDate={selectedDate}
+                  showRangeFilter={false}
+                />
               </>
             )
           }

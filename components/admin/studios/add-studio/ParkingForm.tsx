@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Camera,
   Check
@@ -8,15 +9,25 @@ import {
 
 interface Props {
   isDark?: boolean;
+  value?: {
+    parking: string[];
+    description: string;
+    accessFeatures: string[];
+    activeSections: Record<string, boolean>;
+    featureValues: Record<string, string[]>;
+  };
+  onChange?: (next: NonNullable<Props["value"]>) => void;
 }
 
-export default function StudioFeaturesForm({ isDark = true }: Props) {
-  const [parking, setParking] = useState<string[]>([]);
-  const [description, setDescription] = useState("");
-  const [accessFeatures, setAccessFeatures] = useState<string[]>([]);
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
+
+export default function StudioFeaturesForm({ isDark = true, value, onChange }: Props) {
+  const [parking, setParking] = useState<string[]>(value?.parking || []);
+  const [description, setDescription] = useState(value?.description || "");
+  const [accessFeatures, setAccessFeatures] = useState<string[]>(value?.accessFeatures || []);
 
   // State for all collapsible feature categories
-  const [activeSections, setActiveSections] = useState<Record<string, boolean>>({
+  const [activeSections, setActiveSections] = useState<Record<string, boolean>>(value?.activeSections || {
     access: true,
     general: false,
     photography: false,
@@ -26,13 +37,51 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
   });
 
   // State for specific feature values within categories
-  const [featureValues, setFeatureValues] = useState<Record<string, string[]>>({
+  const hasHydratedValueRef = useRef(false);
+
+  useEffect(() => {
+    if (!value || hasHydratedValueRef.current) return;
+    setParking(value.parking || []);
+    setDescription(value.description || "");
+    setAccessFeatures(value.accessFeatures || []);
+    setActiveSections(value.activeSections || {
+      access: true,
+      general: false,
+      photography: false,
+      videography: false,
+      podcast: false,
+      product: false,
+    });
+    setFeatureValues(value.featureValues || {
+      general: [],
+      photography: [],
+      videography: [],
+      podcast: [],
+      product: [],
+    });
+    hasHydratedValueRef.current = true;
+  }, [value]);
+
+  const [featureValues, setFeatureValues] = useState<Record<string, string[]>>(value?.featureValues || {
     general: [],
     photography: [],
     videography: [],
     podcast: [],
     product: [],
   });
+
+  // Save to local storage on changes
+  useEffect(() => {
+    const data = {
+      parking,
+      description,
+      accessFeatures,
+      activeSections,
+      featureValues
+    };
+    onChange?.(data);
+    localStorage.setItem("add_studio_features", JSON.stringify(data));
+  }, [parking, description, accessFeatures, activeSections, featureValues, onChange]);
 
   // Helpers
   const toggleParking = (id: string) => {
@@ -116,6 +165,7 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
           const isSelected = parking.includes(opt.id);
           return (
             <button
+              type="button"
               key={opt.id}
               onClick={() => toggleParking(opt.id)}
               className="flex items-center gap-3 group text-left focus:outline-none"
@@ -136,7 +186,9 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
         </div>
         <textarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => setDescription(sanitizeText(e.target.value))}
+          inputMode="text"
+          pattern="[A-Za-z\s.,'()-]*"
           className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
             ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
             : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"
@@ -153,6 +205,7 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
             Access Availability <span className={subTextColor}>(Basic)</span>
           </h2>
           <button
+            type="button"
             onClick={() => toggleSection('access')}
             className={`w-11 h-7 rounded-lg transition-colors relative ${activeSections.access ? "bg-[#E8D1AB]" : "bg-[#484646]"}`}
           >
@@ -166,6 +219,7 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
               const isAccessSelected = accessFeatures.includes(opt.id);
               return (
                 <button
+                  type="button"
                   key={opt.id}
                   onClick={() => toggleAccess(opt.id)}
                   className="flex items-center gap-3 group text-left"
@@ -191,6 +245,7 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
                 {section.label}
               </h2>
               <button
+                type="button"
                 onClick={() => toggleSection(section.id)}
                 className={`w-11 h-7 rounded-lg transition-colors relative ${activeSections[section.id] ? "bg-[#E8D1AB]" : "bg-[#484646]"}`}
               >
@@ -205,6 +260,7 @@ export default function StudioFeaturesForm({ isDark = true }: Props) {
                   const isSelected = featureValues[section.id]?.includes(opt);
                   return (
                     <button
+                      type="button"
                       key={opt}
                       onClick={() => toggleFeature(section.id, opt)}
                       className="flex items-center gap-3 group text-left"

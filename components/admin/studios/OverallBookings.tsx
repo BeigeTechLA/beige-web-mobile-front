@@ -19,83 +19,42 @@ export interface BookingCard {
   imageUrl: string;
 }
 
-type Props = {
-  isDark?: boolean;
-  cards?: Array<any>;
+const safeParseMetadata = (metadata?: string | Record<string, unknown> | null): Record<string, unknown> | null => {
+  if (!metadata) return null;
+  if (typeof metadata === "object") return metadata;
+  try {
+    const parsed = JSON.parse(metadata);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
-const DUMMY_CARDS: BookingCard[] = [
-  {
-    id: "bk_1",
-    status: "Upcoming",
-    studioName: "Sunset Creative Studio",
-    amount: 340,
-    timeLabel: "10:00 AM (4hrs Duration)",
-    dateLabel: "Saturday, Feb 14, 2026",
-    projectName: "Summer Product Launch",
-    crewLabel: "Crew: 5",
-    contactName: "Sarah Johnson",
-    contactEmail: "sarah@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "bk_2",
-    status: "Upcoming",
-    studioName: "Downtown Loft Studio",
-    amount: 525,
-    timeLabel: "2:30 PM (6hrs Duration)",
-    dateLabel: "Monday, Feb 16, 2026",
-    projectName: "Brand Campaign Shoot",
-    crewLabel: "Crew: 8",
-    contactName: "Michael Lee",
-    contactEmail: "michael@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "bk_3",
-    status: "Completed",
-    studioName: "Harbor Light Studio",
-    amount: 290,
-    timeLabel: "11:00 AM (3hrs Duration)",
-    dateLabel: "Thursday, Feb 05, 2026",
-    projectName: "Editorial Portraits",
-    crewLabel: "Crew: 3",
-    contactName: "Priya Shah",
-    contactEmail: "priya@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80",
-  },
-
-  {
-    id: "bk_4",
-    status: "Cancelled",
-    studioName: "Harbor Light Studio",
-    amount: 290,
-    timeLabel: "11:00 AM (3hrs Duration)",
-    dateLabel: "Thursday, Feb 05, 2026",
-    projectName: "Editorial Portraits",
-    crewLabel: "Crew: 4",
-    contactName: "Michelle Shah",
-    contactEmail: "mich@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80",
-  },{
-    id: "bk_5",
-    status: "Upcoming",
-    studioName: "Sunset Creative Studio",
-    amount: 340,
-    timeLabel: "10:00 AM (4hrs Duration)",
-    dateLabel: "Saturday, Feb 14, 2026",
-    projectName: "Summer Product Launch",
-    crewLabel: "Crew: 5",
-    contactName: "Sarah Johnson",
-    contactEmail: "sarah@example.com",
-    imageUrl:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
-  },
-];
+type Props = {
+  isDark?: boolean;
+  cards?: Array<{
+    studio_booking_id?: number;
+    id?: string | number;
+    status?: string | null;
+    studio_name?: string | null;
+    space_name?: string | null;
+    base_amount?: string | number | null;
+    net_amount?: string | number | null;
+    start_time?: string | null;
+    duration_hours?: string | number | null;
+    booking_date?: string | null;
+    project_name?: string | null;
+    source?: string | null;
+    metadata?: string | { crew_count?: number; name?: string; image?: string } | null;
+    cast_and_crew_count?: number | null;
+    contact_name?: string | null;
+    customer_name?: string | null;
+    user_name?: string | null;
+    contact_email?: string | null;
+    email?: string | null;
+    image_url?: string | null;
+  }>;
+};
 
 type DragState = {
   pointerId: number;
@@ -112,22 +71,22 @@ function clamp(n: number, min: number, max: number) {
 
 export default function OverallBookingsStack({ isDark = true, cards }: Props) {
   const data = useMemo<BookingCard[]>(() => {
-    if (!cards?.length) return DUMMY_CARDS;
+    if (!cards?.length) return [];
 
     return cards.map((booking, index) => ({
       id: String(booking.studio_booking_id || booking.id || index),
-      status: booking.status === 'completed' ? 'Completed' : ['cancelled', 'rejected'].includes(booking.status) ? 'Cancelled' : 'Upcoming',
-      studioName: booking.studio_name || booking.space_name || 'Studio',
+      status: booking.status === 'completed' ? 'Completed' : ['cancelled', 'rejected'].includes(String(booking.status || '').toLowerCase()) ? 'Cancelled' : 'Upcoming',
+      studioName: booking.studio_name || booking.space_name || String(safeParseMetadata(booking.metadata)?.name || "Studio"),
       amount: Number(booking.base_amount || booking.net_amount || 0),
       timeLabel: booking.start_time && booking.duration_hours
         ? `${booking.start_time} (${booking.duration_hours}hrs Duration)`
         : booking.start_time || 'TBD',
       dateLabel: booking.booking_date ? formatDateLabel(booking.booking_date) : 'TBD',
       projectName: booking.project_name || booking.source || 'Studio Booking',
-      crewLabel: `Crew: ${booking.metadata?.crew_count || booking.cast_and_crew_count || 0}`,
+      crewLabel: `Crew: ${Number(safeParseMetadata(booking.metadata)?.crew_count || booking.cast_and_crew_count || 0)}`,
       contactName: booking.contact_name || booking.customer_name || booking.user_name || 'Customer',
       contactEmail: booking.contact_email || booking.email || '',
-      imageUrl: booking.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+      imageUrl: booking.image_url || String(safeParseMetadata(booking.metadata)?.image || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80'),
     }));
   }, [cards]);
   const [activeTab, setActiveTab] = useState<BookingStatus>("Upcoming");
@@ -290,11 +249,16 @@ export default function OverallBookingsStack({ isDark = true, cards }: Props) {
       </div>
 
       <div className={`p-6 lg:p-12 ${visible.length > 1 ? "pt-8 lg:pt-16":""}`}>
-        <div ref={containerRef} className="relative w-full overflow-visible h-[320px] md:h-[350px]">
-          {visible
-            .slice()
-            .reverse()
-            .map((card, idxFromBack) => {
+        {data.length === 0 ? (
+          <div className={`h-[320px] md:h-[350px] flex items-center justify-center rounded-2xl border ${isDark ? "border-white/5 text-white/40 bg-[#101010]" : "border-[#E3E3E3] text-[#32323266] bg-white"}`}>
+            No bookings found.
+          </div>
+        ) : (
+          <div ref={containerRef} className="relative w-full overflow-visible h-[320px] md:h-[350px]">
+            {visible
+              .slice()
+              .reverse()
+              .map((card, idxFromBack) => {
               const idx = visible.length - 1 - idxFromBack; // 0 = top
               const isTop = idx === 0;
 
@@ -336,7 +300,8 @@ export default function OverallBookingsStack({ isDark = true, cards }: Props) {
                 </div>
               );
             })}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

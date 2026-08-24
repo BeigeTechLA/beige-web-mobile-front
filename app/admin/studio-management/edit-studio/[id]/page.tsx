@@ -1,4 +1,3 @@
-/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -126,6 +125,7 @@ const getOperatingHoursValidationError = (operations: {
 
   for (const day of operations.selectedDays) {
     const config = operations.schedule?.[day];
+
     if (!config?.isOpen) continue;
 
     const opensAt = normalizeTimeValue(config.opensAt);
@@ -158,8 +158,10 @@ const buildOperatingHoursPayload = (operations: {
 }) =>
   dayMap.flatMap((day, dayOfWeek) => {
     const config = operations.schedule?.[day];
+
     const isOpen =
-      operations.selectedDays.includes(day) && Boolean(config?.isOpen);
+      operations.selectedDays.includes(day) &&
+      Boolean(config?.isOpen);
 
     if (!isOpen) return [];
 
@@ -380,7 +382,6 @@ export default function AdminStudiosDetailsPage() {
   const [mediaError, setMediaError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isHydratingEdit, setIsHydratingEdit] = useState(false);
-  const hasLoadedDraftRef = useRef(false);
 
   const handleAddressChange = useCallback((next: typeof draft.step1.address) => {
     setDraft((prev) => ({ ...prev, step1: { ...prev.step1, address: next } }));
@@ -425,12 +426,6 @@ export default function AdminStudiosDetailsPage() {
       hasClearedDraftRef.current = true;
       return;
     }
-
-    if (hasLoadedDraftRef.current) {
-      return;
-    }
-
-    hasLoadedDraftRef.current = true;
 
     const savedDraft = localStorage.getItem(DRAFT_KEY);
     if (savedDraft) {
@@ -560,17 +555,32 @@ export default function AdminStudiosDetailsPage() {
       const categories = Array.isArray(pricingSettings.categories)
         ? pricingSettings.categories
             .map((item: any) => ({
-              id: String(item?.id || item?.name || `category-${Math.random().toString(36).slice(2, 8)}`),
+              id: String(
+                item?.id ||
+                  item?.name ||
+                  `category-${Math.random().toString(36).slice(2, 8)}`,
+              ),
               name: String(item?.name || ""),
               price: String(item?.hourly_price ?? item?.price ?? ""),
-              includes: asStringArray(item?.included_types || item?.includes),
+              includes: asStringArray(
+                item?.included_types || item?.includes,
+              ),
               minHours: Math.max(
                 1,
-                Number(item?.minHours ?? item?.min_hours ?? item?.minimum_hours ?? 1) || 1,
+                Number(
+                  item?.minHours ??
+                    item?.min_hours ??
+                    item?.minimum_hours ??
+                    2,
+                ) || 2,
               ),
               maxPeopleAllowed: Math.max(
                 1,
-                Number(item?.maxPeopleAllowed ?? item?.max_people_allowed ?? 1) || 1,
+                Number(
+                  item?.maxPeopleAllowed ??
+                    item?.max_people_allowed ??
+                    6,
+                ) || 6,
               ),
             }))
             .filter((item) => item.name)
@@ -1004,7 +1014,7 @@ export default function AdminStudiosDetailsPage() {
 
       const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null) as Record<string, unknown>;
 
-      // Per-day schedule is authoritative. Never copy one global time to all days.
+      // Each open day keeps its own opening and closing time.
       payload.operating_hours = buildOperatingHoursPayload(
         draft.step1.operations,
       );
@@ -1086,10 +1096,11 @@ export default function AdminStudiosDetailsPage() {
 
       const payload = buildStudioPayload(draft.step1, nextMediaFiles, isEditMode ? studioId : null) as Record<string, unknown>;
 
-      // Per-day schedule is authoritative. Never copy one global time to all days.
+      // Each open day keeps its own opening and closing time.
       payload.operating_hours = buildOperatingHoursPayload(
         draft.step1.operations,
       );
+
       await (isEditMode
         ? studioAdminApi.updateStudio(studioId as string, payload)
         : studioAdminApi.createStudio(payload));

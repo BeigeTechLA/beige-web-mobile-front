@@ -10,9 +10,11 @@ countries.registerLocale(require("i18n-iso-countries/langs/en.json"));
 export const DynamicCountrySelect = ({
   value,
   onChange,
+  onlyUS = false,
 }: {
   value: string;
   onChange: (val: string) => void;
+  onlyUS?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -30,16 +32,18 @@ export const DynamicCountrySelect = ({
 
   // Fetch country names dynamically
   const countryOptions = useMemo(() => {
+    if (onlyUS) {
+      return [{ code: "US", name: "United States" }];
+    }
     const obj = countries.getNames("en", { select: "official" });
     return Object.entries(obj).map(([code, name]) => ({
       code,
       name,
     }));
-  }, []);
+  }, [onlyUS]);
 
-  // Find the label for the current selected code
   const selectedLabel = useMemo(() => {
-    return countryOptions.find((c) => c.name === value)?.name || "Country";
+    return countryOptions.find((c) => c.name === value || c.name.toLowerCase() === value.toLowerCase())?.name || value || "Country";
   }, [value, countryOptions]);
 
   const handleSelect = (name: string) => {

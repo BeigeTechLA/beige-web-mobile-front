@@ -425,6 +425,12 @@ export const salesApi = createApi({
         start_time?: string;
         end_time?: string;
         time_zone?: string;
+        booking_days?: Array<{
+          date: string;
+          start_time: string;
+          end_time: string;
+          time_zone?: string;
+        }>;
         duration_hours?: number;
         edits_needed?: boolean;
         video_edit_types?: string[];

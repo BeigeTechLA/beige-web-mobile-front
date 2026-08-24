@@ -51,6 +51,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildEditTypeCounts, getPhotoEditSummary, getTotalDurationHours } from "./utils";
 import { getSelectedStudiosTotal, normalizeSelectedStudios } from "./studioData";
+import { buildStudioQuotePayload } from "./studioPayload";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 import { getBrowserTimeZone } from "@/lib/timezone";
 
@@ -268,8 +269,21 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
   const isStudioBooking = data.shootType === "studio";
   const selectedStudios = normalizeSelectedStudios(data);
   const primaryStudio = selectedStudios[0];
+  const studioDisplayName =
+    primaryStudio?.name ||
+    data.selectedStudioName ||
+    "Selected Studio";
+  const studioDisplayImage =
+    primaryStudio?.image ||
+    data.selectedStudioImage ||
+    "/images/projects/interior.png";
+  const resolvedStudioDisplayImage = resolveImageSrc(studioDisplayImage);
+  const studioDisplayLocation =
+    primaryStudio?.location ||
+    data.location ||
+    DEFAULT_DISPLAY_ADDRESS;
   const locationDisplayText = isStudioBooking
-    ? DEFAULT_DISPLAY_ADDRESS
+    ? studioDisplayLocation
     : String(data.location || "").trim() || "Location not set";
 
   // UPDATED STATE FOR AGGREGATED ADDITIONAL PARTNERS
@@ -640,6 +654,26 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
           }
         }
 
+        const studioQuotePayload = buildStudioQuotePayload(data);
+        quotePayload.studio_total = studioQuotePayload.studio_total;
+        quotePayload.studio_items = studioQuotePayload.studio_items.map((item) => ({
+          ...item,
+          selected_date: item.selected_date || data.selectedStudios?.[0]?.selectedDate,
+          start_time: item.start_time || data.selectedStudios?.[0]?.startTime,
+          end_time: item.end_time || data.selectedStudios?.[0]?.endTime,
+          time_zone: item.time_zone || getBrowserTimeZone(),
+          studio_booking_type: data.bookingType || "single_day",
+          booking_days: data.bookingType === "multi_day"
+            ? (data.bookingDays || []).map((day) => ({
+                date: day.date,
+                start_time: day.startTime || "",
+                end_time: day.endTime || "",
+                duration_hours: day.durationHours || 0,
+                time_zone: day.timeZone || getBrowserTimeZone(),
+              }))
+            : [],
+        }));
+
         const result = await calculateQuoteFromCreators(quotePayload).unwrap();
 
         console.log("V3Step4BookConfirm - API Result:", {
@@ -885,7 +919,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       <div className="p-4 flex gap-4 items-center">
                         <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
                           <Image
-                            src={shootInfo.image || "/images/projects/interior.png"}
+                            src={studioDisplayImage}
                             alt={"Sample shoot"}
                             fill
                             className="object-cover rounded-lg"
@@ -896,11 +930,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             <div className="flex flex-col gap-1">
                               {/* Studio Name */}
                               <h4 className="text-white lg:text-lg font-medium capitalize">
-                                Beige Media (Modern Resort Villa with Jacuzzi)
+                                {studioDisplayName}
                               </h4>
                               {/* Studio Address */}
                               <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
-                                <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                                <MapPin size={16} /> {studioDisplayLocation}
                               </span>
                             </div>
                           </div>
@@ -947,7 +981,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                               <div className="p-4 flex gap-4 items-center">
                                 <div className="w-[100px] h-[70px] lg:w-[209px] lg:h-[151px] bg-gradient-to-br from-[#E8D1AB]/20 to-[#E8D1AB]/5 rounded-lg flex items-center justify-center relative">
                                   <Image
-                                    src={"/images/projects/interior.png"}
+                                    src={resolvedStudioDisplayImage}
                                     alt={"Sample shoot"}
                                     fill
                                     className="object-cover rounded-lg"
@@ -958,11 +992,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                                     <div className="flex flex-col gap-1">
                                       {/* Studio Name */}
                                       <h4 className="text-white lg:text-lg font-medium capitalize">
-                                        Beige Media (Modern Resort Villa with Jacuzzi)
+                                        {studioDisplayName}
                                       </h4>
                                       {/* Studio Address */}
                                       <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
-                                        <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                                        <MapPin size={16} /> {studioDisplayLocation}
                                       </span>
                                     </div>
                                     <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
@@ -1296,11 +1330,11 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                             <div className="flex flex-col gap-1">
                               {/* Studio Name */}
                               <h4 className="text-white lg:text-lg font-medium capitalize">
-                                Beige Media (Modern Resort Villa with Jacuzzi)
+                                {studioDisplayName}
                               </h4>
                               {/* Studio Address */}
                               <span className="text-sm text-[#8C8C8C] capitalize flex gap-1">
-                                <MapPin size={16} /> Woodland Hills, Los Angeles, CA
+                                <MapPin size={16} /> {studioDisplayLocation}
                               </span>
                             </div>
                             <div className="shrink-0 bg-[#211F1C] rounded-xl text-[#E8D1AB] p-3 lg:px-7 lg:py-3 text-xs lg:text-sm">
@@ -1338,7 +1372,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 <div className="rounded-[16px] border border-white/5 bg-[#171717]">
                   <div className="p-4 lg:p-[30px] border-b border-b-white/5">
                     <h4 className="text-white text-base lg:text-xl font-medium tracking-wide">
-                      BEIGE Studios
+                      Selected Studios
                     </h4>
                   </div>
                   <div className="p-4 lg:p-[30px] space-y-3">
@@ -1568,7 +1602,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                 <>
                   <div className="p-4 lg:p-6 border-b border-b-white/10 flex justify-between items-start">
                     <p className="text-[#A9A9A9] text-xs lg:text-sm">
-                      Beige Media (Modern Resort Villa with Jacuzzi)
+                      {studioDisplayName}
                     </p>
                     <p className="text-sm lg:text-base text-white font-bold">
                       $275.00
@@ -1739,7 +1773,7 @@ export const V3Step4BookConfirm: React.FC<Props> = ({
                       {pricingGroups.studioCost > 0 && (
                         <div className="bg-[#101010] rounded-lg p-4 border border-white/5">
                           <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-medium text-sm">BEIGE Studios</div>
+                            <div className="text-white font-medium text-sm">{studioDisplayName}</div>
                             <div className="font-bold text-white text-sm">
                               {formatCurrency(pricingGroups.studioCost)}
                             </div>

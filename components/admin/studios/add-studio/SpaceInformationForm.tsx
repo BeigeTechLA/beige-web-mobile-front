@@ -1,34 +1,107 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Check } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const sanitizeText = (value: string) => value.replace(/[^a-zA-Z\s.,'()-]/g, "");
+const sanitizeNumber = (value: string) => value.replace(/[^0-9]/g, "");
+
 interface Props {
   isDark?: boolean;
+  value?: {
+    spaceTitle: string;
+    brandName: string;
+    description: string;
+    secondaryTypes: string[];
+    suggestedType: string;
+    dimensions: {
+      propertySize: string;
+      height: string;
+      width: string;
+      length: string;
+      floorNumber: string;
+    };
+    overnightStays: boolean;
+    securityEnabled: boolean;
+    securityDesc: string;
+  };
+  onChange?: (next: NonNullable<Props["value"]>) => void;
 }
 
-export default function SpaceInformationForm({ isDark = true }: Props) {
+export default function SpaceInformationForm({ isDark = true, value, onChange }: Props) {
+  const hasHydratedValueRef = useRef(false);
+
   // --- State Management ---
-  const [spaceTitle, setSpaceTitle] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [description, setDescription] = useState("");
-  const [secondaryTypes, setSecondaryTypes] = useState<string[]>([]);
-  const [suggestedType, setSuggestedType] = useState("");
+  const [spaceTitle, setSpaceTitle] = useState(value?.spaceTitle || "");
+  const [brandName, setBrandName] = useState(value?.brandName || "");
+  const [description, setDescription] = useState(value?.description || "");
+  const [secondaryTypes, setSecondaryTypes] = useState<string[]>(value?.secondaryTypes || []);
+  const [suggestedType, setSuggestedType] = useState(value?.suggestedType || "");
 
   // --- Second Half State ---
-  const [dimensions, setDimensions] = useState({
+  const [dimensions, setDimensions] = useState(value?.dimensions || {
     propertySize: "",
     height: "",
     width: "",
     length: "",
     floorNumber: ""
   });
-  const [overnightStays, setOvernightStays] = useState<boolean>(true);
-  const [securityEnabled, setSecurityEnabled] = useState(true);
-  const [securityDesc, setSecurityDesc] = useState("");
+  const [overnightStays, setOvernightStays] = useState<boolean>(value?.overnightStays ?? true);
+  const [securityEnabled, setSecurityEnabled] = useState(value?.securityEnabled ?? true);
+  const [securityDesc, setSecurityDesc] = useState(value?.securityDesc || "");
+
+  useEffect(() => {
+    if (!value || hasHydratedValueRef.current) return;
+
+    setSpaceTitle(value.spaceTitle || "");
+    setBrandName(value.brandName || "");
+    setDescription(value.description || "");
+    setSecondaryTypes(value.secondaryTypes || []);
+    setSuggestedType(value.suggestedType || "");
+    setDimensions(value.dimensions || {
+      propertySize: "",
+      height: "",
+      width: "",
+      length: "",
+      floorNumber: ""
+    });
+    setOvernightStays(value.overnightStays ?? true);
+    setSecurityEnabled(value.securityEnabled ?? true);
+    setSecurityDesc(value.securityDesc || "");
+    hasHydratedValueRef.current = true;
+  }, [value]);
+
+  // Save to local storage on changes
+  useEffect(() => {
+    const data = {
+      spaceTitle,
+      brandName,
+      description,
+      secondaryTypes,
+      suggestedType,
+      dimensions,
+      overnightStays,
+      securityEnabled,
+      securityDesc
+    };
+    onChange?.(data);
+    localStorage.setItem("add_studio_info", JSON.stringify(data));
+  }, [
+    spaceTitle,
+    brandName,
+    description,
+    secondaryTypes,
+    suggestedType,
+    dimensions,
+    overnightStays,
+    securityEnabled,
+    securityDesc,
+    onChange
+  ]);
 
   // --- Theme Styles ---
   const textColor = isDark ? "text-white" : "text-black";
@@ -54,11 +127,13 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Space Title</span>
+          <span className={`text-sm lg:text-base ${subTextColor}`}>Space title*</span>
           </div>
           <Input
             value={spaceTitle}
-            onChange={(e) => setSpaceTitle(e.target.value)}
+            onChange={(e) => setSpaceTitle(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             placeholder="eg : Apartment, Photo Studio, Podcast Studio etc...."
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} placeholder:text-[#FFFFFF4D] focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
@@ -66,11 +141,13 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
 
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Add Brand Name (optional)</span>
+          <span className={`text-sm lg:text-base ${subTextColor}`}>Brand name (optional)</span>
           </div>
           <Input
             value={brandName}
-            onChange={(e) => setBrandName(e.target.value)}
+            onChange={(e) => setBrandName(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             placeholder="eg : Beige"
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} placeholder:text-[#FFFFFF4D] focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
@@ -84,7 +161,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
         </div>
         <textarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => setDescription(sanitizeText(e.target.value))}
           className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
             ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
             : "bg-white border-[#D7D7D7] text-black focus:border-[#E8D1AB]"
@@ -97,9 +174,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 3. Secondary Types Selection */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Secondary Types</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Secondary types</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Select types that match your space. Each type is unique parameters that we&apos;ll ask about while your listing gets created.
+            Select the types that match your space. Each type has unique details we&apos;ll ask about while creating your listing.
           </p>
         </div>
 
@@ -108,6 +185,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             const isActive = secondaryTypes.includes(type);
             return (
               <button
+                type="button"
                 key={type}
                 onClick={() => toggleType(type)}
                 className={`px-6 lg:text-lg h-14 lg:h-[82px] rounded-xl font-medium transition-all border text-left ${isActive
@@ -127,19 +205,21 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 4. Suggest Type Section */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Suggest Type (Optional)</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Suggest a type (optional)</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            If you didn&apos;t find a suitable secondary location type in the list above, Please suggest one here.
+            If you didn&apos;t find a suitable type in the list above, please suggest one here.
           </p>
         </div>
 
         <div className="relative">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Suggest Type</span>
+            <span className={`text-sm lg:text-base ${subTextColor}`}>Suggested type</span>
           </div>
           <Input
             value={suggestedType}
-            onChange={(e) => setSuggestedType(e.target.value)}
+            onChange={(e) => setSuggestedType(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
           />
         </div>
@@ -150,19 +230,19 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 5. Dimensions Section */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>How Big is the space guests can book?</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>How big is the space guests can book?</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Please only include the size of the space that guests can use during their booking.
+            Please include only the space guests can use during their booking.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-y-5 gap-x-3 lg:gap-y-9 lg:gap-x-6">
           {[
-            { id: 'propertySize', label: 'Property Size (sq ft)', col: 'md:col-span-1' },
+            { id: 'propertySize', label: 'Property size (sq ft)', col: 'md:col-span-1' },
             { id: 'height', label: 'Height', col: '' },
             { id: 'width', label: 'Width', col: '' },
             { id: 'length', label: 'Length', col: '' },
-            { id: 'floorNumber', label: 'Main Floor Number (if applicable)', col: 'md:col-span-1' }
+            { id: 'floorNumber', label: 'Floor number (if applicable)', col: 'md:col-span-1' }
           ].map((field) => (
             <div key={field.id} className={`relative ${field.col}`}>
               <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
@@ -170,7 +250,9 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
               </div>
               <Input
                 value={dimensions[field.id as keyof typeof dimensions]}
-                onChange={(e) => updateDimension(field.id as keyof typeof dimensions, e.target.value)}
+                onChange={(e) => updateDimension(field.id as keyof typeof dimensions, field.id === "propertySize" || field.id === "floorNumber" ? sanitizeNumber(e.target.value) : e.target.value)}
+                inputMode={field.id === "propertySize" || field.id === "floorNumber" ? "numeric" : "text"}
+                pattern={field.id === "propertySize" || field.id === "floorNumber" ? "[0-9]*" : "[A-Za-z\\s.,'()-]*"}
                 className={`w-full h-14 lg:h-[82px] bg-transparent border ${borderColor} rounded-xl px-6 text-sm lg:text-base ${textColor} focus:outline-none focus:border-[#E8D1AB]/50 transition-all`}
               />
             </div>
@@ -182,13 +264,14 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
       {/* 6. Overnight Stays */}
       <section className="space-y-5 lg:space-y-9">
         <div>
-          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Do you offer overnight stays at this Space</h2>
+          <h2 className={`text-lg lg:text-xl font-medium mb-1 ${textColor}`}>Do you offer overnight stays at this space?</h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-            Select <span className={`font-bold ${textColor}`}>&apos;Yes&apos;</span> if your space is listed on sites like Beige and other platform to established that’s subject to lodging taxes.
+            Select <span className={`font-bold ${textColor}`}>&apos;Yes&apos;</span> if your space can be booked overnight. Include it only if the listing is subject to lodging taxes or similar local rules.
           </p>
         </div>
         <div className="flex gap-4">
           <button
+            type="button"
             onClick={() => setOvernightStays(true)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all duration-300 ${overnightStays ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : `bg-[#101010] border-white/30 ${textColor} opacity-60`}`}
           >
@@ -198,6 +281,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             </div>
           </button>
           <button
+            type="button"
             onClick={() => setOvernightStays(false)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-all duration-300 ${!overnightStays ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : `bg-[#101010] border-white/30 ${textColor} opacity-60`}`}
           >
@@ -215,6 +299,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
         <div className="flex items-center justify-between">
           <h2 className={`text-lg lg:text-xl font-medium ${textColor}`}>Security Cameras and Recording Device</h2>
           <button
+            type="button"
             onClick={() => setSecurityEnabled(!securityEnabled)}
             className={`w-11 h-7 rounded-lg transition-colors relative ${securityEnabled ? "bg-[#E8D1AB]" : "bg-[#484646]"
               }`}
@@ -226,11 +311,13 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
 
         <div className="relative mt-5 lg:mt-9">
           <div className={`absolute -top-3 left-4 z-10 px-2 ${labelBg}`}>
-            <span className={`text-sm lg:text-base ${subTextColor}`}>Description</span>
+            <span className={`text-sm lg:text-base ${subTextColor}`}>Security description</span>
           </div>
           <textarea
             value={securityDesc}
-            onChange={(e) => setSecurityDesc(e.target.value)}
+            onChange={(e) => setSecurityDesc(sanitizeText(e.target.value))}
+            inputMode="text"
+            pattern="[A-Za-z\s.,'()-]*"
             disabled={!securityEnabled}
             className={`w-full min-h-[158px] rounded-xl p-6 pt-8 text-sm lg:text-base border transition-all resize-none focus:outline-none ${isDark
               ? "bg-[#101010] border-[#FFFFFF80] text-white focus:border-[#E8D1AB]/50"
@@ -247,7 +334,7 @@ export default function SpaceInformationForm({ isDark = true }: Props) {
             </div>
           </div>
           <p className={`text-xs lg:text-sm ${isDark ? "text-[#FFDE96]" : "text-[#E8D1AB]"}`}>
-            Recording Device in bathrooms or dressing rooms are prohibited by the Beige Service Agreement.
+            Recording devices in bathrooms or dressing rooms are prohibited by the Beige Service Agreement.
           </p>
         </div>
       </section>

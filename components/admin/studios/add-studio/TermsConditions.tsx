@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 
 interface TermItem {
@@ -102,16 +102,38 @@ const ADDITIONAL_TERMS: TermItem[] = [
 ]
 
 
-export default function TermsConditions({ isDark = true }: { isDark?: boolean }) {
+export default function TermsConditions({
+  isDark = true,
+  value,
+  onChange,
+}: {
+  isDark?: boolean;
+  value?: Record<string, boolean>;
+  onChange?: (next: Record<string, boolean>) => void;
+}) {
   // State to track checked items by their ID
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(value || {});
+  const hasHydratedValueRef = useRef(false);
+
+  useEffect(() => {
+    if (!value || hasHydratedValueRef.current) return;
+    setCheckedItems(value);
+    hasHydratedValueRef.current = true;
+  }, [value]);
 
   const toggleCheckbox = (id: string) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setCheckedItems((prev) => {
+      const next = {
+        ...prev,
+        [id]: !prev[id],
+      };
+      return next;
+    });
   };
+
+  useEffect(() => {
+    onChange?.(checkedItems);
+  }, [checkedItems, onChange]);
 
   const TermSection = ({ items }: { items: TermItem[] }) => (
     <>

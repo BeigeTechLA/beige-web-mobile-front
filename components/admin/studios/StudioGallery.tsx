@@ -1,8 +1,10 @@
+/* eslint-disable */
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
-import { SquareCheck, X } from "lucide-react";
+import {motion, useMotionValue, useTransform, useSpring, AnimatePresence} from "framer-motion";
+import type { MotionValue } from "framer-motion";
+import { Loader2, X } from "lucide-react";
 
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 
@@ -12,21 +14,45 @@ const resolveStudioMediaUrl = (value: string) => {
   return `${S3_PREFIX}/${value.replace(/^\/+/, "")}`;
 };
 
-interface StudioGalleryProps {
-  items: string[];
-  autoplay?: boolean;
-  isDark?: boolean;
+export interface StudioGalleryMediaItem {
+  studio_media_id: string | number;
+  url: string;
+  sort_order: number;
+  is_cover: boolean;
+  media_type?: string;
 }
 
-export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: StudioGalleryProps) => {
-  const validItems = items.map(resolveStudioMediaUrl).filter((item) => {
-    try {
-      const parsed = new URL(item);
-      return parsed.protocol === "http:" || parsed.protocol === "https:";
-    } catch {
-      return false;
-    }
-  });
+interface StudioGalleryProps {
+  items: StudioGalleryMediaItem[];
+  autoplay?: boolean;
+  isDark?: boolean;
+  isUpdatingCover?: boolean;
+  onSetCover: (mediaId: string | number) => Promise<void> | void;
+}
+
+type ResolvedGalleryItem = StudioGalleryMediaItem & {
+  resolvedUrl: string;
+};
+
+export const StudioGallery = ({
+  items = [],
+  autoplay = false,
+  isDark = false,
+  isUpdatingCover = false,
+  onSetCover,
+}: StudioGalleryProps) => {
+  void autoplay;
+
+  const validItems = items
+    .map((item) => ({ ...item, resolvedUrl: resolveStudioMediaUrl(item.url) }))
+    .filter((item): item is ResolvedGalleryItem => {
+      try {
+        const parsed = new URL(item.resolvedUrl);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+      } catch {
+        return false;
+      }
+    });
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const progress = useMotionValue(0);
@@ -34,12 +60,22 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(0);
 
+  const itemOrderKey = validItems
+    .map((item) => String(item.studio_media_id))
+    .join("|");
+
   useEffect(() => {
     setWindowWidth(window.innerWidth);
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {window.removeEventListener("resize", handleResize);};
   }, []);
+
+  useEffect(() => {
+    // Whenever the cover/order changes, index 0 is the active cover,
+    // so return the carousel to the first card.
+    progress.set(0);
+  }, [itemOrderKey, progress]);
 
   const isDragging = useRef(false);
   const pointerStartX = useRef(0);
@@ -77,6 +113,20 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp]);
 
+  if (validItems.length === 0) {
+    return (
+      <div
+        className={`flex min-h-[300px] items-center justify-center rounded-2xl border ${
+          isDark
+            ? "border-[#333] text-white/50"
+            : "border-[#E3E3E3] text-black/50"
+        }`}
+      >
+        No gallery images available.
+      </div>
+    );
+  }
+
   return (
     <section className="relative overflow-hidden select-none flex flex-col items-center justify-center lg:min-h-[850px] pb-10">
       <div
@@ -92,8 +142,12 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
               index={i}
               total={validItems.length}
               progress={smoothProgress}
-              onSelect={() => setSelectedImage(item)}
+              onSelect={() => setSelectedImage(item.resolvedUrl)}
+              onSetCover={onSetCover}
+              isCover={item.is_cover}
+              isUpdatingCover={isUpdatingCover}
               windowWidth={windowWidth}
+              isDark={isDark}
             />
           ))}
         </div>
@@ -109,8 +163,10 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
             onClick={() => setSelectedImage(null)}
           >
             <motion.button
+              type="button"
               className="absolute top-8 right-8 text-white/70 hover:text-white z-[110]"
               whileHover={{ scale: 1.1 }}
+              onClick={() => setSelectedImage(null)}
             >
               <X size={32} />
             </motion.button>
@@ -129,24 +185,43 @@ export const StudioGallery = ({ items = [], autoplay = false, isDark = false }: 
   );
 };
 
-const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
+interface CardProps {
+  item: ResolvedGalleryItem;
+  index: number;
+  total: number;
+  progress: MotionValue<number>;
+  onSelect: () => void;
+  onSetCover: (mediaId: string | number) => Promise<void> | void;
+  isCover: boolean;
+  isUpdatingCover: boolean;
+  windowWidth: number;
+  isDark: boolean;
+}
+
+const Card = ({
+  item,
+  index,
+  total,
+  progress,
+  onSelect,
+  onSetCover,
+  isCover,
+  isUpdatingCover,
+  windowWidth,
+  isDark,
+}: CardProps) => {
   const [isCentered, setIsCentered] = useState(false);
 
   useEffect(() => {
-    // Helper function to update state based on current progress
     const updateCenteredState = (v: number) => {
-      // Calculate current index with wrapping support
       let currentIndex = -Math.round(v) % total;
-      // Handle negative modulo result
       if (currentIndex < 0) currentIndex += total;
 
       setIsCentered(currentIndex === index);
     };
 
-    // Set initial state
     updateCenteredState(progress.get());
 
-    // Subscribe to changes
     const unsubscribe = progress.on("change", updateCenteredState);
     return () => unsubscribe();
   }, [progress, index, total]);
@@ -185,14 +260,14 @@ const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
       className="absolute rounded-[20px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.8)] cursor-pointer group w-[250px] h-[300px] md:w-[320px] md:h-[450px] xl:w-[500px] lg:h-[650px]"
     >
       <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-105">
-              <img
-          src={resolveStudioMediaUrl(item)}
+        <img
+          src={item.resolvedUrl}
           alt=""
           className="h-full w-full object-cover"
         />
       </div>
       {/* <div className="absolute inset-0 z-20 bg-gradient-to-b from-transparent via-transparent to-black/30" /> */}
-      <motion.div 
+      <motion.div
         initial={false}
         animate={{ opacity: isCentered ? 1 : 0 }}
         transition={{ duration: 0.4 }}
@@ -204,18 +279,34 @@ const Card = ({ item, index, total, progress, onSelect, windowWidth }: any) => {
       <div className="absolute inset-0 z-10 border-[1.5px] border-white/5 rounded-[20px]" />
 
       {isCentered && (
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Prevents opening the large preview
-              console.log("Setting cover:", item);
-              // Handle cover logic here
-            }}
-            className="flex gap-1.5 items-center text-[#E8D1AB] text-xs md:text-sm transition-opacity whitespace-nowrap active:scale-95"
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <label
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs md:text-sm whitespace-nowrap transition-opacity ${
+              isCover
+                ? "cursor-default text-[#E8D1AB]"
+                : "cursor-pointer text-[#E8D1AB] hover:opacity-80"
+            } ${isDark ? "bg-black/50" : "bg-black/60"}`}
           >
-            <SquareCheck />
-            Set as Cover Image
-          </button>
+            {isUpdatingCover && !isCover ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <input
+                type="checkbox"
+                checked={isCover}
+                disabled={isCover || isUpdatingCover}
+                onChange={(event) => {
+                  if (!event.target.checked) return;
+
+                  void onSetCover(item.studio_media_id);
+                }}
+                className="h-4 w-4 cursor-pointer bg-transparent accent-[#E8D1AB] disabled:cursor-default text-transparent"
+              />
+            )}
+
+            <span>{isCover ? "Cover Image" : "Set as Cover Image"}</span>
+          </label>
         </div>
       )}
     </motion.div>

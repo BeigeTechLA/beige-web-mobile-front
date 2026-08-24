@@ -17,25 +17,27 @@ import {
   MapPin,
   Shield,
   Share2,
-  Star,
   X,
 } from "lucide-react";
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
-import { ReviewsComponent } from "@/components/admin/studios/StudioReviews";
 import HostRulesAccordion from "../components/HostRulesAccordion";
 import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
 
 const STUDIO_IMAGE_FALLBACK =
   "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
+const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 const STUDIO_ASSET_BASE_URL = "https://d2jhn32fsulyac.cloudfront.net/assets/studio";
 
 const normalizeStudioImageSrc = (src?: string | null) => {
   if (!src) return STUDIO_IMAGE_FALLBACK;
-  if (/^https?:\/\//i.test(src) || src.startsWith("/")) return src;
-  return `${STUDIO_ASSET_BASE_URL}/${src.replace(/^\/+/, "")}`;
+  if (/^https?:\/\//i.test(src)) return src;
+  const relativePath = src.replace(/^\/+/, "");
+  return S3_PREFIX
+    ? `${S3_PREFIX}/${relativePath}`
+    : `${STUDIO_ASSET_BASE_URL}/${relativePath}`;
 };
 
 const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
@@ -58,14 +60,6 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
     studio.propertyType,
     studio.pricingMode,
   ].filter(Boolean);
-
-  const ratingText = studio.rating
-    ? `${studio.rating} Stars${
-        studio.reviews
-          ? ` (${studio.reviews} ${studio.reviews === 1 ? "Rating" : "Ratings"})`
-          : ""
-      }`
-    : null;
 
   const amenities = studio.amenities?.length
     ? studio.amenities
@@ -183,23 +177,6 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
                 </div>
               </div>
               <div className="flex items-start gap-5">
-                <Star
-                  size={26}
-                  strokeWidth={1.5}
-                  className="text-[#E8D1AB] shrink-0 mt-1"
-                />
-                <div>
-                  <h3 className="font-bold text-white text-lg">
-                    {ratingText || "Production-ready"}
-                  </h3>
-                  <p className="text-zinc-400 text-sm">
-                    {ratingText
-                      ? "Highly rated by creators"
-                      : "Designed for shoots, content creation, and campaigns."}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-5">
                 <CalendarDays
                   size={26}
                   strokeWidth={1.5}
@@ -311,11 +288,6 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
             </section>
 
             <section className="border-t border-white/10 pt-10">
-              <h3 className="text-xl font-bold text-white mb-8">Reviews</h3>
-              <ReviewsComponent />
-            </section>
-
-            <section className="border-t border-white/10 pt-10">
               <h3 className="text-xl font-bold text-white mb-8">
                 Rules & Health Safety Measures
               </h3>
@@ -331,10 +303,6 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
                     ${(studio.priceValue || 0).toLocaleString()}
                   </span>
                   <span className="text-zinc-500 ml-1">/ hour</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-sm font-medium text-white">
-                  <Star size={16} className="fill-[#E8D1AB] text-[#E8D1AB]" />
-                  {studio.rating || "5.0"}
                 </div>
               </div>
 
