@@ -982,7 +982,6 @@ export const V3Step1ChooseService: React.FC<Props> = ({
     });
   };
 
-
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
       updateData({ endDate: "" });

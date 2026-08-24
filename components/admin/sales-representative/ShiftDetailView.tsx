@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Edit2,
+  Loader2,
   RefreshCw,
   Search,
   Trash2,
@@ -255,6 +256,7 @@ export default function ShiftDetailView({
   const [memberPagination, setMemberPagination] = useState<PaginationState>({ page: 1, limit: 10, total: 0, pages: 1 });
   const [deleteMember, setDeleteMember] = useState<SalesMember | null>(null);
   const [isDeletingMember, setIsDeletingMember] = useState(false);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const debouncedMemberSearch = useDebounce(memberSearch, 350);
 
   const handleConfigureChange = (nextValue: boolean) => {
@@ -292,7 +294,11 @@ export default function ShiftDetailView({
   }, [shift]);
 
   const loadShiftDetail = async () => {
-    if (!shift.id) return;
+  if (!shift.id) return;
+
+  setIsLoadingMembers(true);
+
+  try {
     const [detailRes, peopleRes] = await Promise.all([
       shiftManagementApi.getShiftDetail(shift.id),
       shiftManagementApi.getShiftSalespeople(shift.id, {
@@ -342,7 +348,10 @@ export default function ShiftDetailView({
         };
       })
     );
-  };
+  } finally {
+    setIsLoadingMembers(false);
+  }
+};
 
   useEffect(() => {
     void loadShiftDetail();
@@ -466,8 +475,17 @@ export default function ShiftDetailView({
                   <th className="px-5 py-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {salesMembers.length ? salesMembers.map((member) => (
+             <tbody>
+              {isLoadingMembers ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10">
+                    <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                      Loading salespeople...
+                    </div>
+                  </td>
+                </tr>
+              ) : salesMembers.length ? salesMembers.map((member) => (
                   <tr
                     key={member.sales_rep_id || member.email}
                     onClick={() => handleSalespersonChange(member)}

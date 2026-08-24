@@ -148,43 +148,38 @@ export function ServiceAgreementModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 p-3 lg:p-6 flex items-center justify-center">
-      <div className={`w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border transition-colors duration-200 ${isDark ? "border-white/10 bg-black" : "border-[#D7D7D7] bg-white shadow-2xl"
-        }`}>
+      <div className={`w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-2xl border transition-colors duration-200 ${isDark ? "border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]" : "border-[#D7D7D7] bg-white shadow-2xl"}`}>
         {/* Header Section */}
-        <div className={`flex items-center justify-between px-6 lg:px-7 py-5 lg:py-6 border-b ${isDark ? "border-white/10" : "border-[#D7D7D7]"
-          }`}>
-          <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
+        <div className={`flex items-center justify-between px-6 lg:px-12 py-5 lg:py-8 border-b  ${isDark ? "border-white/20" : "border-[#D7D7D7]"}`}>
+          <h3 className={`text-lg lg:text-3xl font-bold ${isDark ? "text-white" : "text-black"}`}>
             Service Agreement & Terms of Engagement
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#1F1F1F] text-white hover:bg-[#2C2C2C]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"
-              }`}
+            className={`h-8 w-8 lg:w-15 lg:h-15 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#1F1F1F] text-white hover:bg-[#2C2C2C]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"}`}
             aria-label="Close service agreement"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 lg:w-7 lg:h-7" />
           </button>
         </div>
 
-        <div className="p-4 lg:p-5 overflow-y-auto max-h-[calc(90vh-90px)]">
-          <div className="rounded-lg bg-[#E8D1AB] text-black p-4 mb-4">
-            <p className="text-sm font-semibold mb-1">Services Agreement</p>
-            <p className="text-xs leading-relaxed">{SERVICE_AGREEMENT_INTRO}</p>
+        <div className="p-5 lg:p-12 lg:pb-20 overflow-y-auto max-h-[calc(90vh-90px)]">
+          <div className="rounded-lg lg:rounded-2xl bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] text-black p-4 lg:p-9 mb-4 lg:mb-8">
+            <p className="text-base lg:text-xl font-bold mb-1 lg:mb-3">Services Agreement</p>
+            <p className="text-sm lg:text-lg">{SERVICE_AGREEMENT_INTRO}</p>
           </div>
 
           {/* Accordion Layout Container */}
-          <div className={`rounded-lg border overflow-hidden ${isDark ? "border-white/10" : "border-[#D7D7D7]"
-            }`}>
+          <div className={`rounded-lg lg:rounded-2xl border overflow-hidden ${isDark ? "border-[#5B5A5A]" : "border-[#D7D7D7]"}`}>
             {SERVICE_AGREEMENT_SECTIONS.map((section) => {
               const isExpanded = expandedSection === section.id;
               return (
-                <div key={section.id} className={`border-b last:border-b-0 ${isDark ? "border-white/10" : "border-[#D7D7D7]"
-                  }`}>
+                <div key={section.id} className={`${isDark ? "border-[#5B5A5A]" : "border-[#D7D7D7]"}`}>
                   <button
                     type="button"
                     onClick={() => setExpandedSection(isExpanded ? "" : section.id)}
-                    className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between transition-colors ${isDark
+                    className={`w-full px-4 py-3 lg:py-5 text-left text-base lg:text-xl flex items-center justify-between transition-colors ${isDark
                         ? "bg-[#171717] text-white hover:bg-[#1F1F1F]"
                         : "bg-[#FAFAFA] text-black hover:bg-[#F4F5F7]"
                       }`}
@@ -193,9 +188,9 @@ export function ServiceAgreementModal({
                       {section.id}: {section.title}
                     </span>
                     {isExpanded ? (
-                      <ChevronUp className={`h-4 w-4 ${isDark ? "text-white/80" : "text-black/80"}`} />
+                      <ChevronUp className={`h-4 w-4 lg:h-6 lg:w-6 ${isDark ? "text-white/80" : "text-black/80"}`} />
                     ) : (
-                      <ChevronDown className={`h-4 w-4 ${isDark ? "text-white/80" : "text-black/80"}`} />
+                      <ChevronDown className={`h-4 w-4 lg:h-6 lg:w-6 ${isDark ? "text-white/80" : "text-black/80"}`} />
                     )}
                   </button>
                   <AnimatePresence initial={false}>
@@ -207,8 +202,7 @@ export function ServiceAgreementModal({
                         transition={{ duration: 0.22, ease: "easeInOut" }}
                         className="overflow-hidden"
                       >
-                        <div className={`px-4 py-3 text-xs leading-relaxed ${isDark ? "bg-[#111111] text-[#A1A1AA]" : "bg-white text-[#727272] border-t border-[#D7D7D7]"
-                          }`}>
+                        <div className={`px-4 py-3 lg:py-5 text-sm lg:text-lg border-y ${isDark ? "bg-[#0A0A0A] text-[#A1A1AA] border-[#5B5A5A]" : "bg-white text-[#727272] border-[#D7D7D7]"}`}>
                           {section.content}
                         </div>
                       </motion.div>
@@ -220,20 +214,21 @@ export function ServiceAgreementModal({
           </div>
 
           {/* Consent Checkbox Panel */}
-          <label className={`mt-4 rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors ${isDark ? "bg-[#171717]" : "bg-[#F4F5F7] border border-[#D7D7D7]"
+          <label className={`mt-4 rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors ${isDark ? "bg-[#272626]" : "bg-[#F4F5F7] border border-[#D7D7D7]"
             }`}>
             <input
               type="checkbox"
               checked={checked}
               disabled={isAcceptedLocked}
               onChange={(e) => setChecked(e.target.checked)}
+              className="w-5 h-5 accent-[#E8D1AB] shrink-0"
             />
-            <span className={`text-xs ${isDark ? "text-[#A1A1AA]" : "text-[#727272]"}`}>
+            <span className={`text-xs lg:text-sm ${isDark ? "text-[#999999]" : "text-[#727272]"}`}>
               I have read and agree to the Terms & Services Agreement.
             </span>
           </label>
 
-          <div className="mt-4">
+          <div className="mt-4 lg:mt-7">
             <button
               type="button"
               onClick={() => {
@@ -241,7 +236,7 @@ export function ServiceAgreementModal({
                 onAccept();
               }}
               disabled={!checked || isAcceptedLocked}
-              className="h-11 px-5 bg-[#E8D1AB] hover:opacity-90 text-[#101010] font-semibold rounded-[10px] disabled:opacity-40 transition-opacity"
+              className="h-11 lg:h-20 px-5 bg-[#E8D1AB] hover:opacity-90 text-[#101010] lg:text-xl font-medium rounded-[10px] disabled:opacity-40 transition-opacity"
             >
               {isAcceptedLocked ? "Already Signed" : "Accept & Continue"}
             </button>
