@@ -242,7 +242,7 @@ export default function AddCompensationModal({
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
-  const [sendMail, setSendMail] = useState<boolean>(false);
+  const [sendMail, setSendMail] = useState<boolean>(true);
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
@@ -279,7 +279,7 @@ export default function AddCompensationModal({
   setSelectedShootId("");
   setIsDropdownOpen(false);
   setCompensationMethod("equal");
-  setSendMail(false);
+  setSendMail(true);
   setSelectedCreators([]);
   setCreatorForms({});
   setShootSearchQuery("");
