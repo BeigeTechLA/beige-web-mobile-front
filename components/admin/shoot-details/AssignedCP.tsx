@@ -197,7 +197,7 @@ export default function AssignedCP({
                 direction={"vertical"}
                 grabCursor={true}
                 modules={[EffectCards]}
-                className="top-stack-swiper w-[240px] h-[260px] lg:!w-[317px] lg:!h-[309px]"
+                className="top-stack-swiper w-[240px] h-[260px] xl:!w-[317px] xl:!h-[309px]"
                 cardsEffect={{
                   perSlideOffset: 12,
                   perSlideRotate: 0,
@@ -332,14 +332,14 @@ export default function AssignedCP({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full py-10 relative z-30 flex-1">
+          <div className="flex flex-col items-center justify-center h-full py-10 relative flex-1">
             <button
               onClick={handleOpenAssignment}
               disabled={!canAssignCP}
               title={assignmentLockTitle}
-              className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
+              className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >
-              <Plus size={40} className="text-black" />
+              <Plus className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
             </button>
             <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-black"}`}>
               {canAssignCP ? "Assign Creative Partner" : assignmentLockTitle}

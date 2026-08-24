@@ -28,6 +28,7 @@ import {
   useRegisterCreatorStep1Mutation,
   useRegisterCreatorStep2Mutation,
   useRegisterCreatorStep3Mutation,
+  useUploadCreatorStep3FileMutation,
 } from "@/lib/redux/features/auth/authApi";
 import { LocationPickerSignup } from "./LocationPickerSignup";
 import AddSkills from "./addSkills";
@@ -85,6 +86,9 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as ApiError;
   return apiError?.data?.message || apiError?.message || fallback;
 };
+
+const getCrewFileId = (item: any) =>
+  item?.crew_files_id ?? item?.crewFilesId ?? item?.fileId ?? item?.id;
 
 const mergeUniqueSkills = (...lists: Array<Array<{ value: string; label: string; description?: string }>>) => {
   const map = new Map<string, { value: string; label: string; description?: string }>();
@@ -308,8 +312,14 @@ export function GoogleCreatorOnboardingModal({
   const [registerStep1, step1State] = useRegisterCreatorStep1Mutation();
   const [registerStep2, step2State] = useRegisterCreatorStep2Mutation();
   const [registerStep3, step3State] = useRegisterCreatorStep3Mutation();
+  const [uploadStep3File, uploadStep3State] = useUploadCreatorStep3FileMutation();
 
-  const isSubmitting = step1State.isLoading || step2State.isLoading || step3State.isLoading || isProcessingImage;
+  const isSubmitting =
+    step1State.isLoading ||
+    step2State.isLoading ||
+    step3State.isLoading ||
+    uploadStep3State.isLoading ||
+    isProcessingImage;
 
   const skillOptions = useMemo(() => {
     const listsToMerge = [];
@@ -450,6 +460,21 @@ export function GoogleCreatorOnboardingModal({
     }
   };
 
+  const handleFeaturedWorkUpload = async (files: File[]) => {
+    if (!files.length) return [];
+
+    const formData = new FormData();
+    formData.append("crew_member_id", String(initialData.crew_member_id));
+    formData.append("file_type", "recent_work");
+
+    files.forEach((file) => {
+      formData.append("recent_work", file);
+    });
+
+    const response = await uploadStep3File(formData).unwrap();
+    return Array.isArray(response?.data) ? response.data : [];
+  };
+
   const submitPortfolio = async () => {
     if (!links.length) {
       toast.error("Please add at least one social or professional link.");
@@ -461,38 +486,23 @@ export function GoogleCreatorOnboardingModal({
       return;
     }
 
-    const formData = new FormData();
-    formData.append("crew_member_id", String(initialData.crew_member_id));
-
-    const recentWorkFiles: File[] = [];
     const workMetadata = featuredWork.map((item) => {
-      const fileIndexes: number[] = [];
+      const fileIds = Array.isArray(item.fileIds) && item.fileIds.length > 0
+        ? item.fileIds
+        : Array.isArray(item.files)
+          ? item.files.map(getCrewFileId).filter(Boolean)
+          : [];
       const normalizedTags = Array.isArray(item.tags)
         ? item.tags.filter((tag) => typeof tag === "string" && tag.trim() !== "")
         : [];
 
-      if (Array.isArray(item.files)) {
-        item.files.forEach((fileItem) => {
-          const file = fileItem instanceof File ? fileItem : fileItem?.file;
-          if (file instanceof File) {
-            fileIndexes.push(recentWorkFiles.length);
-            recentWorkFiles.push(file);
-          }
-        });
-      }
-
       return {
         title: item.title,
-        fileIndexes,
+        fileIds,
+        tags: normalizedTags,
         ...(normalizedTags.length > 0 ? { tag: normalizedTags.join(",") } : {}),
       };
     });
-
-    recentWorkFiles.forEach((file) => {
-      formData.append("recent_work", file);
-    });
-
-    formData.append("featured_work", JSON.stringify(workMetadata));
 
     const socialLinksPayload: Record<string, string> = {};
     links.forEach((link) => {
@@ -500,10 +510,13 @@ export function GoogleCreatorOnboardingModal({
         socialLinksPayload[link.platform] = link.url;
       }
     });
-    formData.append("social_media_links", JSON.stringify(socialLinksPayload));
 
     try {
-      await registerStep3(formData).unwrap();
+      await registerStep3({
+        crew_member_id: initialData.crew_member_id,
+        social_media_links: socialLinksPayload,
+        featured_work: workMetadata,
+      }).unwrap();
       pushToDataLayer("sign_up", {
         method: "google",
         user_id: initialData.crew_member_id,
@@ -816,6 +829,7 @@ export function GoogleCreatorOnboardingModal({
                   value={featuredWork}
                   onChange={setFeaturedWork}
                   darkTheme
+                  onUploadFiles={handleFeaturedWorkUpload}
                 />
               </div>
 

@@ -73,11 +73,10 @@ export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) 
   return (
     <div
       ref={containerRef}
-      className="relative w-full"
+      className="relative w-full mt-24 2xl:mt-0"
       style={{ height: getTrackHeight() }}
     >
-      <div className={`sticky top-0 w-full flex flex-col items-center justify-center overflow-hidden px-5 ${device === 'desktop' ? 'h-screen' : 'h-[60vh] md:h-[70vh]'
-        }`}>
+      <div className={`sticky top-0 w-full flex flex-col items-center justify-center overflow-hidden px-5 ${device === 'desktop' ? 'h-screen' : 'h-[60vh] md:h-[70vh]'}`}>
 
         <div className="z-[100] w-full text-center mb-6 md:mb-10">
           <h2 className="text-center text-3xl md:text-[56px] font-medium bg-gradient-to-r from-[#FFF] from-[2.09%] to-[rgba(255,255,255,0.20)] to-[98.96%] bg-clip-text text-transparent select-text block">

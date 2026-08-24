@@ -211,12 +211,15 @@ export default function WorkspaceAccessModal({ isOpen, onClose, mode = "register
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`w-[94vw] max-w-[620px] rounded-2xl border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden ${isDark ? "border-white/15 bg-black text-white" : "border-[#D7D7D7] bg-white text-black"}`}>
+      <DialogContent
+        className={`w-[calc(100vw-2rem)] max-w-[620px] rounded-2xl border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] [&>button]:hidden ${isDark ? "border-white/15 bg-black text-white" : "border-[#D7D7D7] bg-white text-black"}`}
+      >
         <DialogTitle className="sr-only">Dashboard Access</DialogTitle>
 
+        {/* Modal Header */}
         <div className={`flex items-start justify-between gap-4 border-b p-5 ${isDark ? "border-white/10" : "border-[#D7D7D7]"}`}>
-          <div className="min-w-0">
-            <h2 className="truncate text-xl font-bold">
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-xl font-bold">
               Dashboard Access <span className="text-[#E8D1AB]">({title})</span>
             </h2>
             <p className={`mt-2 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>
@@ -268,80 +271,79 @@ export default function WorkspaceAccessModal({ isOpen, onClose, mode = "register
                 </p>
               </div>
             ) : (
-            <div ref={clientDropdownRef} className="relative flex-1">
-              <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 ${isDark ? "border-white/25 focus-within:border-[#E8D1AB]" : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"}`}>
-                <legend className={`px-1 text-xs font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
-                  Registered Client
-                </legend>
-                <div className="flex items-center gap-2">
-                  <Search size={16} className={isDark ? "text-white/35" : "text-black/35"} />
-                  <input
-                    value={selectedClient ? `${selectedClient.name || selectedClient.email} (#${selectedClient.clientId})` : clientSearch}
-                    onChange={(event) => {
-                      setSelectedClient(null);
-                      setClientSearch(event.target.value);
-                      setClientDropdownOpen(true);
-                    }}
-                    onFocus={() => setClientDropdownOpen(true)}
-                    placeholder="Search registered clients..."
-                    className={`w-full bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setClientDropdownOpen((prev) => !prev)}
-                    className={isDark ? "text-white/45" : "text-black/45"}
-                  >
-                    <ChevronsUpDown size={16} />
-                  </button>
-                </div>
-              </fieldset>
+              <div ref={clientDropdownRef} className="relative flex-1">
+                <fieldset className={`rounded-lg border px-4 pb-2.5 pt-1 ${isDark ? "border-white/25 focus-within:border-[#E8D1AB]" : "border-[#D7D7D7] focus-within:border-[#E8D1AB]"}`}>
+                  <legend className={`px-1 text-xs font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    Registered Client
+                  </legend>
+                  <div className="flex items-center gap-2">
+                    <Search size={16} className={isDark ? "text-white/35" : "text-black/35"} />
+                    <input
+                      value={selectedClient ? `${selectedClient.name || selectedClient.email} (#${selectedClient.clientId})` : clientSearch}
+                      onChange={(event) => {
+                        setSelectedClient(null);
+                        setClientSearch(event.target.value);
+                        setClientDropdownOpen(true);
+                      }}
+                      onFocus={() => setClientDropdownOpen(true)}
+                      placeholder="Search registered clients..."
+                      className={`w-full bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setClientDropdownOpen((prev) => !prev)}
+                      className={isDark ? "text-white/45" : "text-black/45"}
+                    >
+                      <ChevronsUpDown size={16} />
+                    </button>
+                  </div>
+                </fieldset>
 
-              {clientDropdownOpen ? (
-                <div className={`absolute left-0 right-0 top-[62px] z-[60] max-h-[260px] overflow-y-auto rounded-lg border p-1 shadow-2xl ${isDark ? "border-white/15 bg-[#090909]" : "border-[#D7D7D7] bg-white"}`}>
-                  {clientsLoading ? (
-                    <div className={`flex items-center justify-center gap-2 px-3 py-5 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
-                      <Loader2 className="animate-spin" size={16} />
-                      Searching clients...
-                    </div>
-                  ) : clients.length === 0 ? (
-                    <div className={`px-3 py-5 text-center text-sm ${isDark ? "text-white/35" : "text-black/35"}`}>
-                      No registered clients found.
-                    </div>
-                  ) : (
-                    clients.map((client) => {
-                      const disabled = blockedUserIds.has(Number(client.userId));
-                      return (
-                        <button
-                          key={`${client.clientId}-${client.userId}`}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => {
-                            setSelectedClient(client);
-                            setClientDropdownOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
-                            isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-                          }`}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold">
-                              {client.name || client.email || `Client #${client.clientId}`}
+                {clientDropdownOpen ? (
+                  <div className={`absolute left-0 right-0 top-[62px] z-[60] max-h-[260px] overflow-y-auto rounded-lg border p-1 shadow-2xl ${isDark ? "border-white/15 bg-[#090909]" : "border-[#D7D7D7] bg-white"}`}>
+                    {clientsLoading ? (
+                      <div className={`flex items-center justify-center gap-2 px-3 py-5 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        <Loader2 className="animate-spin" size={16} />
+                        Searching clients...
+                      </div>
+                    ) : clients.length === 0 ? (
+                      <div className={`px-3 py-5 text-center text-sm ${isDark ? "text-white/35" : "text-black/35"}`}>
+                        No registered clients found.
+                      </div>
+                    ) : (
+                      clients.map((client) => {
+                        const disabled = blockedUserIds.has(Number(client.userId));
+                        return (
+                          <button
+                            key={`${client.clientId}-${client.userId}`}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => {
+                              setSelectedClient(client);
+                              setClientDropdownOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${isDark ? "hover:bg-white/10" : "hover:bg-black/5"
+                              }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold">
+                                {client.name || client.email || `Client #${client.clientId}`}
+                              </span>
+                              <span className={`block truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                Client #{client.clientId} - {client.email || "No email"}
+                                {disabled ? " - Already added" : ""}
+                              </span>
                             </span>
-                            <span className={`block truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                              Client #{client.clientId} - {client.email || "No email"}
-                              {disabled ? " - Already added" : ""}
-                            </span>
-                          </span>
-                          {selectedClient?.clientId === client.clientId ? (
-                            <Check size={16} className="shrink-0 text-[#E8D1AB]" />
-                          ) : null}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              ) : null}
-            </div>
+                            {selectedClient?.clientId === client.clientId ? (
+                              <Check size={16} className="shrink-0 text-[#E8D1AB]" />
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : null}
+              </div>
             )}
             <Button
               type="button"
@@ -367,25 +369,25 @@ export default function WorkspaceAccessModal({ isOpen, onClose, mode = "register
             ) : (
               <div className={`max-h-[240px] space-y-2 overflow-y-auto pr-1 ${isDark ? "[&::-webkit-scrollbar-thumb]:bg-white/10" : "[&::-webkit-scrollbar-thumb]:bg-black/10"}`}>
                 {access.map((item) => (
-                    <div key={item.accessId} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{item.name || item.email || (item.userId ? `User #${item.userId}` : "Pending invite")}</p>
-                        <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {item.pending ? "Pending signup" : item.clientId ? `Client #${item.clientId}` : item.userId ? `User #${item.userId}` : "Email invite"}
-                          {item.email ? ` - ${item.email}` : ""}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRevoke(item.accessId)}
-                        disabled={removingId === item.accessId}
-                        className="rounded-md p-2 text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
-                        title="Remove access"
-                      >
-                        {removingId === item.accessId ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
-                      </button>
+                  <div key={item.accessId} className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/[0.02]" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{item.name || item.email || (item.userId ? `User #${item.userId}` : "Pending invite")}</p>
+                      <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        {item.pending ? "Pending signup" : item.clientId ? `Client #${item.clientId}` : item.userId ? `User #${item.userId}` : "Email invite"}
+                        {item.email ? ` - ${item.email}` : ""}
+                      </p>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => handleRevoke(item.accessId)}
+                      disabled={removingId === item.accessId}
+                      className="rounded-md p-2 text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+                      title="Remove access"
+                    >
+                      {removingId === item.accessId ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
