@@ -309,7 +309,7 @@ export default function ConversationComposerModal({
           adminApi.getProjects({}),
           adminApi.getAdminClients({ page: 1, limit: 300 }),
           adminApi.getClients({ page: 1, limit: 300 }),
-          externalChatApi.getDirectory(),
+          externalChatApi.getDirectory({ limit: 50 }),
           externalChatApi.listRooms({ page: 1, limit: 200, sortBy: "updatedAt:desc" }),
         ]);
 
@@ -372,6 +372,32 @@ export default function ConversationComposerModal({
 
     load();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !showExtraMembers) return;
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      try {
+        const directoryResponse = await externalChatApi.getDirectory({
+          search: memberSearch.trim() || undefined,
+          limit: 50,
+        });
+        if (!cancelled) {
+          setDirectory(directoryResponse);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to search chat directory", error);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [isOpen, memberSearch, showExtraMembers]);
 
   useEffect(() => {
     if (!isOpen || !selectedProjectId || mode !== "project") return;
