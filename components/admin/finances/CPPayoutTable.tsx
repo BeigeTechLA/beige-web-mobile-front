@@ -64,7 +64,7 @@ export type ShootCPRow = {
 interface CPPayoutTableProps {
   rows?: ShootCPRow[];
   loading?: boolean;
-  type: "shoots" | "creators" | "pending_compansation";
+  type: "shoots" | "creators";
   onRowClick: (row: ShootCPRow) => void;
   onViewHistory?: (row: ShootCPRow) => void;
   onDueDateChange?: (row: ShootCPRow, dueDate: Date) => Promise<void>;
@@ -423,11 +423,11 @@ export default function CPPayoutTable({
             <h2
               className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#323232]"}`}
             >
-              {isShootType
-                ? "Pending Shoots Compensation"
+              {type === "shoots"
+                ? "Shoots Compensation History"
                 : type === "creators"
                   ? "Creators Compensation History"
-                  : "Pending Compensation History"}
+                  : "Pending Compensation Shoots"}
             </h2>
           </div>
 

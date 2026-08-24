@@ -176,12 +176,11 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
   }
 ];
 
-type TabType = "shoots" | "creators" | "pending_compansation";
+type TabType = "shoots" | "creators";
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Shoots", value: "shoots" },
   { label: "Creators", value: "creators" },
-  { label: "Pending Compansation", value: "pending_compansation" },
 ];
 
 const formatDateForApi = (date: Date) => {
@@ -200,6 +199,8 @@ export default function AdminFinancesPage() {
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
+  const [pendingTableData, setPendingTableData] = useState<ShootCPRow[]>([]);
+  const [pendingTableLoading, setPendingTableLoading] = useState(false);
   const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
   const [details, setDetails] = useState<CpCompensationDetails | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -276,7 +277,6 @@ export default function AdminFinancesPage() {
     try {
       if (view === "shoots") {
         const shoots = await cpCompensationApi.list("shoots");
-
         setTableData(shoots);
         setOverviewRows(shoots);
       } else if (view === "creators") {
@@ -284,16 +284,30 @@ export default function AdminFinancesPage() {
           cpCompensationApi.list("creators"),
           cpCompensationApi.list("shoots"),
         ]);
-
         setTableData(creators);
         setOverviewRows(shoots);
-      } else if (view === "pending_compansation") {
-        const [pendingCompensation, shoots] = await Promise.all([
-          cpCompensationApi.pendingShoots(),
-          cpCompensationApi.list("shoots"),
-        ]);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load CP compensation history",
+      );
+      setTableData([]);
+      setOverviewRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-        const mappedPendingCompensation: ShootCPRow[] = pendingCompensation.map((item) => ({
+  const loadPendingCompensation = useCallback(async () => {
+    setPendingTableLoading(true);
+
+    try {
+      const pendingCompensation = await cpCompensationApi.pendingShoots();
+
+      const mappedPendingCompensation: ShootCPRow[] = pendingCompensation.map(
+        (item) => ({
           id: String(item.booking_id),
           bookingId: item.booking_id,
           shootName: item.shoot_name,
@@ -312,17 +326,20 @@ export default function AdminFinancesPage() {
           avatarImage: "",
           date: item.event_date || "",
           sortDate: item.event_date || "",
-        }));
+        }),
+      );
 
-        setTableData(mappedPendingCompensation);
-        setOverviewRows(shoots);
-      }
+      setPendingTableData(mappedPendingCompensation);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load CP compensation history");
-      setTableData([]);
-      setOverviewRows([]);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load pending compensation shoots",
+      );
+
+      setPendingTableData([]);
     } finally {
-      setLoading(false);
+      setPendingTableLoading(false);
     }
   }, []);
 
@@ -754,6 +771,11 @@ export default function AdminFinancesPage() {
   }, [canView, dataType, loadHistory]);
 
   useEffect(() => {
+    if (!canView) return;
+    loadPendingCompensation();
+  }, [canView, loadPendingCompensation]);
+
+  useEffect(() => {
     if (isPermissionLoading || canView) return;
 
     const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
@@ -785,8 +807,8 @@ export default function AdminFinancesPage() {
       setSuccessButtonText("");
       setIsSuccessOpen(true);
       window.setTimeout(() => {
-        void Promise.all([loadHistory(dataType), loadPendingShoots()]).catch((error) => {
-          toast.error(error instanceof Error ? error.message : "Failed to refresh compensation history");
+        void Promise.all([loadHistory(dataType), loadPendingCompensation(), loadPendingShoots(),]).catch((error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to refresh compensation history",);
         });
       }, 0);
     } catch (error) {
@@ -862,8 +884,28 @@ export default function AdminFinancesPage() {
         <CPPayoutTable
           rows={tableData}
           loading={loading}
-          onRowClick={(row) => {
-            if (dataType === "pending_compansation") {
+          onRowClick={handleRowClick}
+          onViewHistory={handleViewHistory}
+          onDueDateChange={handleDueDateChange}
+          type={dataType}
+        />
+
+        <div className="pt-4 lg:pt-6">
+          <div className="mb-4 lg:mb-5">
+            <h2 className={`text-lg lg:text-xl font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
+              Pending Compensation
+            </h2>
+            <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+              Shoots that are ready for compensation setup but do not have compensation
+              added yet. Select a shoot below to add compensation for its Creative
+              Partners.
+            </p>
+          </div>
+
+          <CPPayoutTable
+            rows={pendingTableData}
+            loading={pendingTableLoading}
+            onRowClick={(row) => {
               const bookingId = row.bookingId || Number(row.id);
               if (!bookingId) {
                 toast.error("This shoot does not have a valid booking ID.");
@@ -872,14 +914,10 @@ export default function AdminFinancesPage() {
 
               setSelectedPendingShootId(bookingId);
               setIsAddCompOpen(true);
-              return;
-            }
-            handleRowClick(row);
-          }}
-          onViewHistory={handleViewHistory}
-          onDueDateChange={handleDueDateChange}
-          type={dataType}
-        />
+            }}
+            type="pending_compansation"
+          />
+        </div>
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
