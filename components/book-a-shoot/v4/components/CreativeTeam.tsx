@@ -74,7 +74,7 @@ export default function CreativeTeam({
 
       {/* Heading */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           Your Creative Team
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -149,7 +149,7 @@ export default function CreativeTeam({
 
       <hr className={`border-t border-white/20 my-4 lg:my-10`} />
 
-      <div className="text-lg lg:text-[26px] font-medium font-['Cormorant_Garamond'] text-white">
+      <div className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white">
         Need to change this later? You can always add or remove partners after booking.
       </div>
 

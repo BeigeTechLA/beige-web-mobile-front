@@ -180,7 +180,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 
           {/* Card Details */}
           <div className="text-center select-none">
-            <h3 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-medium text-white mb-4">
+            <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
               {occasion.title}
             </h3>
             <p className="text-sm lg:text-base text-white/70 font-light truncate">
@@ -225,7 +225,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         <div className="flex justify-between items-start">
           <div>
             {/* Section Heading */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
               What's the occasion?
             </h1>
             <p className="text-white/30 text-base md:text-xl font-light mb-8">
@@ -355,7 +355,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 
               {/* Active Info */}
               <div className="text-center mt-2 mb-5 lg:mb-10 select-none">
-                <h3 className="text-xl lg:text-4xl font-bold font-['Cormorant_Garamond'] text-[#E8D1AB] mb-2 lg:mb-6">
+                <h3 className="text-xl lg:text-4xl font-bold font-['Roboto_Condensed'] text-[#E8D1AB] mb-2 lg:mb-6">
                   {activeOccasion.title}
                 </h3>
                 <p className="text-base md:text-2xl text-white/70 font-light">

@@ -106,7 +106,7 @@ export default function ConfirmAndPay({
 
       {/* Main Title & Description */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           One Step Away
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -119,7 +119,7 @@ export default function ConfirmAndPay({
         {/* Left Column: Pricing Summary */}
         <div className="lg:col-span-7 border border-white/20 rounded-2xl flex flex-col justify-between">
           <div className="bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) rounded-2xl p-5 lg:px-7 border-b border-white/20">
-            <h2 className="text-lg lg:text-2xl font-['Cormorant_Garamond'] text-white">
+            <h2 className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
               Pricing Summary
             </h2>
           </div>
@@ -248,7 +248,7 @@ export default function ConfirmAndPay({
         {/* Right Column: ConfirmAndPay Method & Quality Guarantee */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-[#0F0F0F] border border-[#ECE5D8]/10 rounded-2xl p-4 lg:p-7 space-y-3 lg:space-y-6">
-            <h2 className="text-lg lg:text-2xl font-['Cormorant_Garamond'] text-white">
+            <h2 className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
               Payment method
             </h2>
 

@@ -145,7 +145,7 @@ export default function AddOnsStep({
 
       {/* Main Title & Description */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           Want to add anything extra?
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -154,7 +154,7 @@ export default function AddOnsStep({
       </div>
 
       {/* Section Subhead */}
-      <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-medium text-white mb-4">
+      <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
         Optional Add-on
       </h2>
 
@@ -171,7 +171,7 @@ export default function AddOnsStep({
             >
               {/* Info Column */}
               <div className="flex flex-col gap-1 pr-4 max-w-[65%]">
-                <h3 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-[#E8D1AB]">
+                <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                   {item.title}
                 </h3>
                 <p className="text-sm lg:text-base text-white/70 font-light leading-snug">
@@ -222,7 +222,7 @@ export default function AddOnsStep({
 
       {/* Subtotal Footer Card */}
       <div className="w-full rounded-2xl bg-[#211F1C] p-5 flex items-center justify-between mb-12">
-        <span className="text-lg lg:text-2xl font-['Cormorant_Garamond'] text-white">
+        <span className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
           Add-ons subtotal
         </span>
         <span className="text-xl lg:text-3xl font-medium text-[#E8D1AB]">

@@ -45,7 +45,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
             onClick={() => setIsOpen((prev) => !prev)}
             className="w-full p-6 lg:px-7 lg:py-9 flex items-center justify-between text-left cursor-pointer  transition-colors"
           >
-            <h3 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-[#E8D1AB]">
+            <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
               {title}
             </h3>
             <motion.div

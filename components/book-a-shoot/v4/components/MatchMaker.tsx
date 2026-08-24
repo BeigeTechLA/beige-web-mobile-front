@@ -59,7 +59,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           Who shoots your event?
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -81,7 +81,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
             <div className={`w-13 h-13 rounded-full flex items-center justify-center mb-4 ${teamOption === "best-match" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className={`text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold mb-1 ${teamOption === "best-match" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "best-match" ? "text-black" : "text-[#E8D1AB]"}`}>
               Best match for you
             </h3>
             <p className={`text-sm lg:text-base font-light ${teamOption === "best-match" ? "text-black/70" : "text-white/40"}`}>
@@ -103,7 +103,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
             <div className={`w-13 h-13 rounded-full flex items-center justify-center mb-4 ${teamOption === "choose-own" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
               <Users className="w-6 h-6" />
             </div>
-            <h3 className={`text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold mb-1 ${teamOption === "choose-own" ? "text-black" : "text-[#E8D1AB]"}`} >
+            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "choose-own" ? "text-black" : "text-[#E8D1AB]"}`} >
               I'll choose my team
             </h3>
             <p className={`text-sm lg:text-base font-light ${teamOption === "choose-own" ? "text-black/70" : "text-white/40"}`}>
@@ -169,13 +169,13 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
 
       {/* Included with Package Section */}
       <div>
-        <h2 className="text-lg lg:text-[26px] font-medium font-['Cormorant_Garamond'] text-white mb-4">
+        <h2 className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
           Included with Package
         </h2>
 
         <div className="p-4 lg:p-8 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20">
           <div className="flex items-center justify-between mb-5 border-b border-[#ECE5D8]/10 pb-5">
-            <h3 className="text-lg lg:text-[26px] font-bold font-['Cormorant_Garamond'] text-[#E8D1AB]">
+            <h3 className="text-lg lg:text-[26px] font-bold font-['Roboto_Condensed'] text-[#E8D1AB]">
               {packageTitle}
             </h3>
             <span className="px-3 py-1 rounded-full border border-[#E8D1AB] text-[10px] lg:text-xs text-[#E8D1AB] font-mono tracking-widest uppercase">

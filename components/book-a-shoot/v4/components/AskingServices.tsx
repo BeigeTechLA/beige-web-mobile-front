@@ -94,7 +94,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         </div>
 
         {/* Header Titles */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           What do you need?
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light mb-8">
@@ -119,7 +119,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                 <div className="flex flex-col justify-between h-full z-10 max-w-[65%]">
                   <div>
                     <h3
-                      className={`text-lg lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Cormorant_Garamond'] ${isSelected ? "text-black" : "text-white"
+                      className={`text-lg lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] ${isSelected ? "text-black" : "text-white"
                         }`}
                     >
                       {service.title}

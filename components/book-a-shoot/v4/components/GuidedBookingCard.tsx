@@ -36,7 +36,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
           </span>
 
           {/* Heading */}
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] font-medium text-white leading-[1.08] mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white leading-[1.08] mb-6">
             Let’s get your <br />
             project started.
           </h2>
@@ -63,7 +63,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Please enter your email"
-                className="w-full bg-transparent border-b border-white/20 pb-3 text-lg md:text-2xl text-[#D8D7D6] font-['Cormorant_Garamond'] placeholder-white/50 outline-none focus:border-[#E8D1AB] transition-colors duration-200"
+                className="w-full bg-transparent border-b border-white/20 pb-3 text-lg md:text-2xl text-[#D8D7D6] font-['Roboto_Condensed'] placeholder-white/50 outline-none focus:border-[#E8D1AB] transition-colors duration-200"
               />
             </div>
 

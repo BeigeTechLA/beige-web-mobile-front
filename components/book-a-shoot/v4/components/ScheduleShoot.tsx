@@ -588,7 +588,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           When & Where are you planning to shoot?
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -607,7 +607,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             }`}
         >
           <div>
-            <h3 className={`text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
               I have a date
             </h3>
             <p className={`text-sm lg:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
@@ -630,7 +630,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             }`}
         >
           <div>
-            <h3 className={`text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
               I'll confirm later
             </h3>
             <p className={`text-sm lg:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
@@ -652,7 +652,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         /* View 1: Booking For + Inputs */
         <div className="space-y-4 lg:space-y-10 mb-10">
           <div>
-            <h2 className="text-lg lg:text-[26px] font-medium font-['Cormorant_Garamond'] text-white mb-4">
+            <h2 className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
               Booking For
             </h2>
 
@@ -794,7 +794,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             <>
               <div className="relative mb-8 lg:mb-15">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className={`text-lg lg:text-2xl font-['Cormorant_Garamond'] font-medium transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
+                  <h3 className={`text-lg lg:text-2xl font-['Roboto_Condensed'] font-medium transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
                     Select Date
                   </h3>
                   <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group ">
@@ -1113,7 +1113,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
       {/* Location / Venue Section */}
       <div className="mb-8">
-        <h2 className="text-lg lg:text-[26px] font-medium font-['Cormorant_Garamond'] text-white mb-4 lg:mb-8">
+        <h2 className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
           Location / Venue
         </h2>
         {/* Location Input */}

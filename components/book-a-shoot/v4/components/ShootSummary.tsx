@@ -99,7 +99,7 @@ export default function ShootSummaryStep({
 
       {/* Main Title & Description */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           Your Shoot, All Set.
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
@@ -111,7 +111,7 @@ export default function ShootSummaryStep({
         {/* Project Card */}
         <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Project
             </h2>
             <button
@@ -142,7 +142,7 @@ export default function ShootSummaryStep({
         {/* Schedule & Location Card */}
         <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Schedule & Location
             </h2>
             <button
@@ -173,7 +173,7 @@ export default function ShootSummaryStep({
         {/* Editing Services Card */}
         <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Editing Services
             </h2>
             <button
@@ -204,7 +204,7 @@ export default function ShootSummaryStep({
           <div className="w-full lg:w-1/3 rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white">
+                <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
                   Add-ons
                 </h2>
                 <button
@@ -231,7 +231,7 @@ export default function ShootSummaryStep({
 
           {/* Included Services Subcard */}
           <div className="w-full lg:w-2/3 rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
-            <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Included Services
             </h2>
             <hr className={`border-t border-white/20 my-4 lg:my-7`} />
@@ -255,7 +255,7 @@ export default function ShootSummaryStep({
 
       {/* Contact Information Form */}
       <div className="mb-8">
-        <h2 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-white mb-5 lg:mb-10">
+        <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
           Contact Information
         </h2>
         <form id="contact-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
