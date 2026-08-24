@@ -93,7 +93,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
             type="button"
             onClick={() => setNeedsEdits(true)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${needsEdits
-                ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
                 : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
@@ -114,7 +114,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
             type="button"
             onClick={() => setNeedsEdits(false)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!needsEdits
-                ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
                 : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >

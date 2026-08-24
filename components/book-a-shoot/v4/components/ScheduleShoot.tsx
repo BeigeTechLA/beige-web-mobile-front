@@ -562,7 +562,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   ]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-6 text-white select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 text-white select-none">
       {/* Top Navigation */}
       <div className="mb-6">
         {onBack && (

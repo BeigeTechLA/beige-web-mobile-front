@@ -1,10 +1,28 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, Calendar, Check, Clock, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
+import { formatCurrency } from "@/lib/utils";
+
+export interface StudioSummaryData {
+  studioId: string;
+  name: string;
+  location: string;
+  totalPrice: number;
+  pricingMode: "hourly" | "daily";
+  quantity: number;
+  pricingLabel?: string;
+  cleaningFee?: number;
+  selectedDate?: string;
+  startTime?: string;
+  endTime?: string;
+  nights?: number;
+  bookingDays?: Array<{ date: string }>;
+}
 
 export interface ShootSummaryData {
   project: {
@@ -21,16 +39,24 @@ export interface ShootSummaryData {
     photoEditsLabel: string;
     totalPhotos: string;
   };
+  studio?: StudioSummaryData;
   addOns: string[];
   includedServices: string[];
 }
 
-interface ShootSummaryStepProps {
-  onBack?: () => void;
-  onContinue?: (contactData: { fullName: string; phoneNumber: string }) => void;
-  onEditStep?: (stepName: string) => void;
-  summaryData?: ShootSummaryData;
-}
+const DEFAULT_STUDIO_DATA: StudioSummaryData = {
+  studioId: "studio-101",
+  name: "Hollywood Hills Daylight Studio",
+  location: "Hollywood Hills, Los Angeles, CA",
+  totalPrice: 450,
+  pricingMode: "hourly",
+  quantity: 5,
+  pricingLabel: "Standard Rate",
+  cleaningFee: 50,
+  selectedDate: "2026-08-15",
+  startTime: "10:00 AM",
+  endTime: "03:00 PM",
+};
 
 const DEFAULT_SUMMARY_DATA: ShootSummaryData = {
   project: {
@@ -47,6 +73,7 @@ const DEFAULT_SUMMARY_DATA: ShootSummaryData = {
     photoEditsLabel: "Edited Photos 100 Included + 25 Added",
     totalPhotos: "You'll Receive 125 Photos",
   },
+  studio: DEFAULT_STUDIO_DATA,
   addOns: ["Additional Camera x1"],
   includedServices: [
     "All Raw Images, Lighting & Insurance Provided",
@@ -54,6 +81,21 @@ const DEFAULT_SUMMARY_DATA: ShootSummaryData = {
     "Digital Delivery",
   ],
 };
+
+const formatDisplayDate = (dateStr?: string) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatDisplayTime = (timeStr?: string) => timeStr || "";
+
+interface ShootSummaryStepProps {
+  onBack?: () => void;
+  onContinue?: (contactData: { fullName: string; phoneNumber: string }) => void;
+  onEditStep?: (stepName: string) => void;
+  summaryData?: ShootSummaryData;
+}
 
 export default function ShootSummaryStep({
   onBack,
@@ -63,6 +105,10 @@ export default function ShootSummaryStep({
 }: ShootSummaryStepProps) {
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+
+  const studio = summaryData.studio || DEFAULT_STUDIO_DATA;
+  const firstDay = studio.bookingDays?.[0];
+  const lastDay = studio.bookingDays?.[studio.bookingDays.length - 1];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,12 +163,12 @@ export default function ShootSummaryStep({
             <button
               type="button"
               onClick={() => onEditStep?.("project")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium"
+              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
           </div>
-          <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
           <div className="space-y-3 text-sm lg:text-base">
             <div className="flex justify-between items-center">
               <span className="text-[#A2A2A2]">Service</span>
@@ -148,12 +194,12 @@ export default function ShootSummaryStep({
             <button
               type="button"
               onClick={() => onEditStep?.("schedule")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium"
+              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
           </div>
-          <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
           <div className="space-y-3 text-sm lg:text-base">
             <div className="flex justify-between items-center">
               <span className="text-[#A2A2A2]">Date</span>
@@ -179,12 +225,12 @@ export default function ShootSummaryStep({
             <button
               type="button"
               onClick={() => onEditStep?.("editing")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium"
+              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
           </div>
-          <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
             <div className="flex items-center gap-3">
               <span className="text-sm lg:text-base text-[#A2A2A2]">Photo Edits:</span>
@@ -194,6 +240,93 @@ export default function ShootSummaryStep({
             </div>
             <div className="px-4 lg:px-7 py-2 lg:py-4 rounded-full bg-white text-[#101010] font-medium text-sm lg:text-lg italic">
               {summaryData.editingServices.totalPhotos}
+            </div>
+          </div>
+        </div>
+
+        {/* Studio Data Card */}
+        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              Studios
+            </h2>
+            <button
+              type="button"
+              onClick={() => onEditStep?.("studio")}
+              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+            >
+              EDIT
+            </button>
+          </div>
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
+
+          <div className="">
+            <div className="flex flex-col md:flex-row gap-4 md:items-start">
+              <div className="relative w-full lg:w-[275px] h-[120px] lg:h-[190px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                <Image
+                  src="https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png"
+                  alt={studio.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                  <div className="min-w-0 space-y-2">
+                    <div className="text-sm lg:text-base text-white font-medium truncate">{studio.name}</div>
+                    <div className="text-xs lg:text-sm text-[#8C8C8C] flex items-center gap-1">
+                      <MapPin size={16} />
+                      <span className="truncate">{studio.location}</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-lg px-4 py-1.5 text-xs lg:text-sm font-medium">
+                    Duration : 8 Hours
+                  </div>
+                </div>
+                <hr className="border-t border-white/20 my-3 lg:my-6" />
+
+                <div className="flex gap-2 flex-wrap">
+                  <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                    Natural light
+                  </span>
+                  <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                    Product-friendly
+                  </span>
+                  <span className="px-2.5 py-1 text-xs rounded-sm bg-[#E8D1AB]/10 border border-[#E8D1AB]/10 text-[#E8D1AB]">
+                    {studio.pricingMode === "hourly"
+                      ? `${studio.quantity} billable hour${studio.quantity > 1 ? "s" : ""}`
+                      : `Duration: ${studio.nights || studio.quantity} Night${(studio.nights || studio.quantity) > 1 ? "s" : ""}`}
+                  </span>
+                  {studio.pricingLabel && (
+                    <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                      {studio.pricingLabel}
+                    </span>
+                  )}
+                  {studio.cleaningFee ? (
+                    <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                      ${studio.cleaningFee.toLocaleString()} cleaning
+                    </span>
+                  ) : null}
+                </div>
+                <hr className="border-t border-white/20 my-3 lg:my-6" />
+
+                <div className="flex gap-10">
+                  <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
+                    <Clock size={16} />
+                    <span>
+                      Mon, 12 Jan, 2026
+                    </span>
+                  </div>
+                  <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
+                    <Calendar size={16} />
+                    <span>
+                      Mon, 12 Jan, 2026
+                    </span>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>

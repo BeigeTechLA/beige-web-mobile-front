@@ -20,6 +20,11 @@ import AddOnsStep from "./components/AddOnsStep";
 import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
+import StudioRecommendations from "./components/StudioRecommendations";
+import BrowseStudioTypes from "./components/BrowseStudioTypes";
+import StudioAddSuccess from "./components/StudioAddSuccess";
+import StudiosSelection from "./components/StudiosSelection";
+import StudioScheduleSync from "./components/StudioScheduleSync";
 
 import type { Creator } from "@/lib/types";
 import {
@@ -151,11 +156,15 @@ export const BookAShootV4 = () => {
   });
   const [selectedCreatives, setSelectedCreatives] = useState<Creator[]>([]);
   const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(false);
+  const [needStudio, setNeedStudio] = useState(false);
+
+
   const [createGuestBookingV4, { isLoading: isCreatingBooking }] = useCreateGuestBookingV4Mutation();
   const [updateGuestBookingV4, { isLoading: isUpdatingBooking }] = useUpdateGuestBookingV4Mutation();
   const [calculateQuoteV4, { isLoading: isCalculatingQuote }] = useCalculateQuoteV4Mutation();
   const [saveQuoteV4, { isLoading: isSavingQuote }] = useSaveQuoteV4Mutation();
   const [trackEarlyInterestV4] = useTrackEarlyInterestV4Mutation();
+
 
   const isSubmitting = isCreatingBooking || isUpdatingBooking || isCalculatingQuote || isSavingQuote;
 
@@ -490,6 +499,8 @@ export const BookAShootV4 = () => {
   };
 
   const handleBrowseStudios = () => {
+    setNeedStudio(true);
+    setInternalStep(5);
     console.log("Browse studios clicked");
   };
 
@@ -638,6 +649,18 @@ export const BookAShootV4 = () => {
           />
         );
       case 5:
+        // If the user requested a studio, present the StudioRecommendations component step
+        if (needStudio) {
+          return (
+            <StudioRecommendations
+              onBack={() => {
+                setNeedStudio(false);
+                setInternalStep(4);
+              }}
+              onContinue={() => setInternalStep(6)}
+            />
+          );
+        }
         return (
           <ShootDetails
             onContinue={handleDetailsSubmitted}
@@ -648,9 +671,18 @@ export const BookAShootV4 = () => {
         );
       case 6:
         return (
+          <ShootDetails
+            onContinue={handleDetailsSubmitted}
+            onBack={() => setInternalStep(needStudio ? 5 : 4)}
+            initialNotes={bookingState.shootDetailsData?.notes || ""}
+            initialLinks={bookingState.shootDetailsData?.links || []}
+          />
+        );
+      case 7:
+        return (
           <MatchMakerStep
             onContinue={handleTeamSelected}
-            onBack={() => setInternalStep(5)}
+            onBack={() => setInternalStep(6)}
             initialOption={bookingState.teamSelectionData?.teamOption || "best-match"}
             packageTitle={`${
               bookingState.selectedOccasion.charAt(0).toUpperCase() +
@@ -661,52 +693,52 @@ export const BookAShootV4 = () => {
             }`}
           />
         );
-      case 7:
+      case 8:
         return (
           <CreativeTeam
             initialCounts={creativeTeam}
-            onBack={() => setInternalStep(6)}
+            onBack={() => setInternalStep(7)}
             onContinue={handleCreativeTeamSubmitted}
           />
         );
-      case 8:
+      case 9:
         return (
           <ChooseCreativePartner
-            onBack={() => setInternalStep(7)}
+            onBack={() => setInternalStep(8)}
             onContinue={handleChooseCreativePartnerSubmitted}
             requiredCount={Math.max(1, Object.values(roleCounts).reduce((sum, count) => sum + count, 0))}
             contentTypes={contentTypes}
             locationDetails={bookingState.scheduleData?.locationDetails}
           />
         );
-      case 9:
+      case 10:
         return (
           <AddOnsStep
-            onBack={() => setInternalStep(8)}
+            onBack={() => setInternalStep(9)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
           />
         );
-      case 10:
+      case 11:
         return (
           <ShootSummaryStep
-            onBack={() => setInternalStep(9)}
+            onBack={() => setInternalStep(10)}
             onContinue={handleSummarySubmitted}
             onEditStep={handleEditStepByName}
             summaryData={getSummaryData()}
           />
         );
-      case 11:
+      case 12:
         return (
           <ConfirmAndPay
-            onBack={() => setInternalStep(10)}
+            onBack={() => setInternalStep(11)}
             onConfirmAndPay={handleConfirmAndPay}
             onConnectTeam={() => console.log("Connect with Beige Team clicked")}
             pricingData={getPricingData()}
             isSubmitting={isSubmitting}
           />
         );
-      case 12:
+      case 13:
         return <BookingConfirmed />;
       default:
         return null;
