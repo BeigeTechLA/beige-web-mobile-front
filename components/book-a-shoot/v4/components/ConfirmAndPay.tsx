@@ -38,6 +38,7 @@ interface ConfirmAndPayProps {
   onConfirmAndPay?: () => void;
   onConnectTeam?: () => void;
   pricingData?: Partial<PricingBreakdown>;
+  isSubmitting?: boolean;
 }
 
 const DEFAULT_PRICING: PricingBreakdown = {
@@ -66,6 +67,7 @@ export default function ConfirmAndPay({
   onConfirmAndPay,
   onConnectTeam,
   pricingData = {},
+  isSubmitting = false,
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const data = { ...DEFAULT_PRICING, ...pricingData };
@@ -215,10 +217,11 @@ export default function ConfirmAndPay({
               <button
                 type="button"
                 onClick={onConfirmAndPay}
-                className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-sm lg:text-xl transition-colors flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-sm lg:text-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Check className="w-6 h-6" />
-                Confirm & Pay
+                {isSubmitting ? "Confirming..." : "Confirm & Pay"}
               </button>
 
               <div className="w-full rounded-lg border border-white/10 p-5 text-center">

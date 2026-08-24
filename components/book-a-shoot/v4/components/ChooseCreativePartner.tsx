@@ -12,15 +12,18 @@ import { toast } from "sonner";
 
 import type { Creator } from "@/lib/types";
 import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
+import { useGetRandomCrewV4Query, useSearchCreatorsV4Query } from "@/lib/redux/features/creators/creatorsApi";
 import CreatorCarousel from "./CreatorsCarousel";
 
 interface ChooseCreativePartnerProps {
   onBack: () => void;
   onContinue: (selectedCreatives: Creator[], letBeigeChoose: boolean) => void;
   requiredCount?: number;
+  contentTypes?: string[];
+  locationDetails?: any;
 }
 
-const MOCK_CREATIVES: Creator[] = [
+const MOCK_CREATIVES = [
   {
     "crew_member_id": 527,
     "name": "Mridula S",
@@ -307,12 +310,14 @@ const MOCK_CREATIVES: Creator[] = [
     "distance": 6.2,
     "distanceText": "6.2 mi"
   }
-];
+] as unknown as Creator[];
 
 export default function ChooseCreativePartner({
   onBack,
   onContinue,
   requiredCount = 5,
+  contentTypes = [],
+  locationDetails,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -359,7 +364,37 @@ export default function ChooseCreativePartner({
     };
   }, [profileModalUrl]);
 
-  const creators: Creator[] = MOCK_CREATIVES;
+  const locationLatitude =
+    locationDetails?.coordinates?.lat ??
+    locationDetails?.lat ??
+    locationDetails?.center?.[1];
+  const locationLongitude =
+    locationDetails?.coordinates?.lng ??
+    locationDetails?.lng ??
+    locationDetails?.center?.[0];
+  const searchableContentTypes = contentTypes.filter((type) => type !== "editing" && type !== "studio");
+  const isEditingOnly = contentTypes.length === 1 && contentTypes.includes("editing");
+
+  const { data: creatorsResponse, isLoading: isSearchLoading } = useSearchCreatorsV4Query(
+    {
+      content_types: isEditingOnly ? "editor" : searchableContentTypes.join(","),
+      latitude: isEditingOnly ? undefined : locationLatitude,
+      longitude: isEditingOnly ? undefined : locationLongitude,
+      limit: 20,
+      page: 1,
+    },
+    {
+      skip:
+        (isEditingOnly ? contentTypes.length === 0 : searchableContentTypes.length === 0) ||
+        (!isEditingOnly && (locationLatitude === undefined || locationLongitude === undefined)),
+    },
+  );
+  const { data: randomCrewResponse } = useGetRandomCrewV4Query();
+
+  const apiCreators = creatorsResponse?.data || [];
+  const creators: Creator[] = apiCreators.length > 0
+    ? apiCreators
+    : (randomCrewResponse?.length ? randomCrewResponse : MOCK_CREATIVES);
 
   const handleLetBeigeChoose = () => {
     setLetBeigeChoose(!letBeigeChoose);
@@ -367,7 +402,7 @@ export default function ChooseCreativePartner({
 
   // Helper to determine capabilities
   const getCreatorCapabilities = (creator: Creator) => {
-    const roleName = creator.role_name?.toLowerCase() || creator.role?.role_name?.toLowerCase() || "";
+    const roleName = creator.role_name?.toLowerCase() || "";
     const roleId = Number(creator.role_id);
     const skills = creator.skills ? (typeof creator.skills === 'string' ? creator.skills.toLowerCase() : JSON.stringify(creator.skills).toLowerCase()) : "";
     const bio = creator.bio?.toLowerCase() || "";
@@ -415,7 +450,7 @@ export default function ChooseCreativePartner({
       if (!assignedRole && caps.isVideo && caps.isPhoto) {
         both.push(c);
       } else if (!assignedRole) {
-        const role = (c.role_name || c.role?.role_name || "").toLowerCase();
+        const role = (c.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
         else if (role.includes("photo")) photoCount++;
       }
@@ -529,7 +564,7 @@ export default function ChooseCreativePartner({
     setProfileModalUrl(url);
   };
 
-  if (loading) {
+  if (loading || isSearchLoading) {
     return (
       <div className="w-full min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         {/* Glow & Sparkle Animation */}

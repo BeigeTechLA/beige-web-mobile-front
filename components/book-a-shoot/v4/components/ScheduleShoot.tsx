@@ -72,6 +72,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const [startTime, setStartTime] = useState("10:00 AM");
   const [endTime, setEndTime] = useState("06:00 PM");
   const [location, setLocation] = useState("Woodland Hills, Woodland Hills, CA");
+  const [locationDetails, setLocationDetails] = useState<any>(null);
 
   // Missing State Definitions
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
@@ -120,7 +121,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         date: dateOption === "have-date" ? selectedDate : null,
         startTime: dateOption === "have-date" ? startTime : null,
         endTime: dateOption === "have-date" ? endTime : null,
+        startDate: dateOption === "have-date" ? data.startDate : null,
+        endDate: dateOption === "have-date" ? data.endDate : null,
+        bookingDays: dateOption === "have-date" ? data.bookingDays : [],
         location,
+        locationDetails,
       });
     }
   };
@@ -1116,6 +1121,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           value={location}
           onChange={(address, details) => {
             setLocation(address);
+            setLocationDetails(details);
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}

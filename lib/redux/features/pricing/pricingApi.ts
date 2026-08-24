@@ -17,6 +17,12 @@ type StudioQuoteItem = {
   pricing_mode: "hourly" | "weekend";
 };
 
+type V4AddOnItem = {
+  item_id?: number;
+  slug?: string;
+  quantity: number;
+};
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:5001/v1/";
 
@@ -115,6 +121,42 @@ export const pricingApi = createApi({
         response.data,
       invalidatesTags: ["Quote"],
     }),
+    saveQuoteV4: builder.mutation<
+      SavedQuote,
+      {
+        items?: SelectedItem[];
+        shootHours?: number;
+        eventType?: string;
+        guestEmail?: string;
+        bookingId?: number;
+        notes?: string;
+        creator_ids?: number[];
+        shoot_hours?: number;
+        content_type?: string;
+        role_counts?: {
+          videographer?: number;
+          photographer?: number;
+          cinematographer?: number;
+          editor?: number;
+        };
+        event_type?: string;
+        shoot_start_date?: string;
+        studio_total?: number;
+        studio_items?: StudioQuoteItem[];
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        add_on_items?: V4AddOnItem[];
+      }
+    >({
+      query: (body) => ({
+        url: "/pricing/v4/quotes",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: SavedQuote }) =>
+        response.data,
+      invalidatesTags: ["Quote"],
+    }),
 
     // Get quote by ID
     getQuote: builder.query<SavedQuote, number>({
@@ -175,7 +217,7 @@ export const pricingApi = createApi({
         shoot_start_date?: string;
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
-        add_on_items?: SelectedItem[];
+        add_on_items?: V4AddOnItem[];
         studio_total?: number;
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
@@ -192,6 +234,42 @@ export const pricingApi = createApi({
         data: { quote: QuoteCalculation & { creators: any[] } };
       }) => response.data.quote,
     }),
+    calculateQuoteV4: builder.mutation<
+      QuoteCalculation & { creators?: any[] },
+      {
+        creator_ids?: number[];
+        shoot_hours?: number;
+        content_type?: string;
+        role_counts?: {
+          videographer?: number;
+          photographer?: number;
+          cinematographer?: number;
+          editor?: number;
+        };
+        event_type?: string;
+        shoot_start_date?: string;
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        add_on_items?: V4AddOnItem[];
+        studio_total?: number;
+        studio_items?: StudioQuoteItem[];
+        skip_discount?: boolean;
+        skip_margin?: boolean;
+      }
+    >({
+      query: (body) => ({
+        url: "/pricing/v4/calculate",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: {
+        success: boolean;
+        data: { quote: QuoteCalculation; creators?: any[] };
+      }) => ({
+        ...response.data.quote,
+        creators: response.data.creators,
+      }),
+    }),
   }),
 });
 
@@ -200,8 +278,10 @@ export const {
   useGetDiscountTiersQuery,
   useCalculateQuoteMutation,
   useSaveQuoteMutation,
+  useSaveQuoteV4Mutation,
   useGetQuoteQuery,
   useGetAllItemsQuery,
   useGetItemQuery,
   useCalculateQuoteFromCreatorsMutation,
+  useCalculateQuoteV4Mutation,
 } = pricingApi;
