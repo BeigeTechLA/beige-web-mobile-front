@@ -215,6 +215,7 @@ export default function AdminFinancesPage() {
   const [selectedPaymentScope, setSelectedPaymentScope] = useState<"advance" | "final" | null>(null);
   const [selectedPendingAdvance, setSelectedPendingAdvance] = useState<{ advanceId?: number; amount?: number; paymentDate?: string } | null>(null);
   const [selectedActionEarningIds, setSelectedActionEarningIds] = useState<number[]>([]);
+  const [selectedPendingShootId, setSelectedPendingShootId] = useState<number | null>(null);
 
   // Visibility States
   const [isCompOpen, setIsCompOpen] = useState(false);
@@ -287,18 +288,33 @@ export default function AdminFinancesPage() {
         setTableData(creators);
         setOverviewRows(shoots);
       } else if (view === "pending_compansation") {
-        const [creators, shoots] = await Promise.all([
-          cpCompensationApi.list("creators"),
+        const [pendingCompensation, shoots] = await Promise.all([
+          cpCompensationApi.pendingShoots(),
           cpCompensationApi.list("shoots"),
         ]);
 
-        const pendingCompensation = creators.filter(
-          (item) =>
-            item.status === "Pending" ||
-            item.status === "Approval Pending",
-        );
+        const mappedPendingCompensation: ShootCPRow[] = pendingCompensation.map((item) => ({
+          id: String(item.booking_id),
+          bookingId: item.booking_id,
+          shootName: item.shoot_name,
+          totalCP: item.creators?.length || 0,
+          customerName: item.customer?.name || "Unknown Customer",
+          customerEmail: item.customer?.email || "",
+          shootBudget: Number(item.shoot_amount || 0),
+          cpPayout: 0,
+          margin: Number(item.margin_percent || 0),
+          status: "Pending",
+          category: String(item.shoot_type || item.content_type || "")
+            .toLowerCase()
+            .includes("photo")
+            ? "photography"
+            : "videography",
+          avatarImage: "",
+          date: item.event_date || "",
+          sortDate: item.event_date || "",
+        }));
 
-        setTableData(pendingCompensation);
+        setTableData(mappedPendingCompensation);
         setOverviewRows(shoots);
       }
     } catch (error) {
@@ -846,7 +862,20 @@ export default function AdminFinancesPage() {
         <CPPayoutTable
           rows={tableData}
           loading={loading}
-          onRowClick={handleRowClick}
+          onRowClick={(row) => {
+            if (dataType === "pending_compansation") {
+              const bookingId = row.bookingId || Number(row.id);
+              if (!bookingId) {
+                toast.error("This shoot does not have a valid booking ID.");
+                return;
+              }
+
+              setSelectedPendingShootId(bookingId);
+              setIsAddCompOpen(true);
+              return;
+            }
+            handleRowClick(row);
+          }}
           onViewHistory={handleViewHistory}
           onDueDateChange={handleDueDateChange}
           type={dataType}
@@ -880,10 +909,14 @@ export default function AdminFinancesPage() {
 
         <AddCompendationModal
           isOpen={isAddCompOpen}
-          onClose={() => setIsAddCompOpen(false)}
+          onClose={() => {
+            setIsAddCompOpen(false);
+            setSelectedPendingShootId(null);
+          }}
           shoots={pendingShoots}
           loading={pendingShootsLoading}
           isSubmitting={isAddSubmitting}
+          initialShootId={selectedPendingShootId}
           enableAdvanceProofUpload
           onSubmit={handleAddSubmit}
         />
