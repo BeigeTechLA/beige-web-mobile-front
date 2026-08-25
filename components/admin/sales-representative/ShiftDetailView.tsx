@@ -137,16 +137,6 @@ function getInitials(name?: string) {
     .toUpperCase();
 }
 
-function ordinalDay(day: number) {
-  if (day > 3 && day < 21) return `${day}th`;
-  switch (day % 10) {
-    case 1: return `${day}st`;
-    case 2: return `${day}nd`;
-    case 3: return `${day}rd`;
-    default: return `${day}th`;
-  }
-}
-
 function parseDateValue(value?: string | null) {
   if (!value || String(value).trim().toLowerCase() === "n/a") return null;
   const normalized = String(value).includes("T") ? String(value) : String(value).replace(" ", "T");
@@ -154,12 +144,10 @@ function parseDateValue(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatLongDateTime(value?: string | null) {
+function formatShortDate(value?: string | null) {
   const parsed = parseDateValue(value);
   if (!parsed) return "N/A";
-  const date = `${ordinalDay(parsed.getDate())} ${parsed.toLocaleString("en-US", { month: "long" })} ${parsed.getFullYear()}`;
-  const time = parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  return `${date}, ${time}`;
+  return `${parsed.getDate()} ${parsed.toLocaleString("en-US", { month: "short" })}, ${parsed.getFullYear()}`;
 }
 
 function normalizeStatus(value: any): "active" | "inactive" {
@@ -341,7 +329,7 @@ export default function ShiftDetailView({
           name,
           email,
           enabled: Boolean(person.user_status ?? person.enabled ?? person.is_enabled ?? person.is_active),
-          lastActivity: formatLongDateTime(person.last_activity || person.last_activity_at),
+          lastActivity: formatShortDate(person.last_activity || person.last_activity_at),
           initials: person.initials || getInitials(name),
           color: person.color || avatarColors[index % avatarColors.length],
           overlap: Boolean(person.shift_overlapping || person.overlap),

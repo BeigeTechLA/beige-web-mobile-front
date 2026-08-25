@@ -198,7 +198,7 @@ function QuoteDetailsActionMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] p-1.5 text-white shadow-2xl shadow-black/50"
+        className="fixed z-50 max-h-[calc(100vh-32px)] w-[220px] overflow-y-auto overscroll-contain rounded-[20px] border border-white/10 bg-[#0A0A0A] p-1.5 text-white shadow-2xl shadow-black/50"
         style={{ top: anchor.y, left: anchor.x }}
       >
         {menuItems.map(({ icon: Icon, label, onClick, danger }) => (
@@ -254,6 +254,45 @@ const quoteBookingTypeParam: Record<string, string> = {
   "Single Day": "single_day",
   "Multi Day": "multi_day",
 };
+
+const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function parseDateValue(value?: string | null) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (!text || ["n/a", "null", "undefined"].includes(text.toLowerCase())) return null;
+
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const normalized = text.includes("T") ? text : text.replace(" ", "T");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatShortDate(value?: string | null) {
+  const parsed = parseDateValue(value);
+  if (!parsed) return value || "N/A";
+  return `${parsed.getDate()} ${shortMonthNames[parsed.getMonth()]}, ${parsed.getFullYear()}`;
+}
+
+function clampMenuAnchor(rect: DOMRect, menuWidth: number, menuHeight: number) {
+  const padding = 12;
+  const gap = 8;
+  const x = Math.min(Math.max(padding, rect.right - menuWidth), window.innerWidth - menuWidth - padding);
+  const belowY = rect.bottom + gap;
+  const aboveY = rect.top - menuHeight - gap;
+  const y = belowY + menuHeight > window.innerHeight - padding ? Math.max(padding, aboveY) : belowY;
+
+  return {
+    x: Math.max(padding, x),
+    y: Math.max(padding, Math.min(y, window.innerHeight - menuHeight - padding)),
+  };
+}
 
 const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Signed Up - Lead Created",
@@ -442,7 +481,7 @@ export default function SalespeopleDetailView({
     setLeadActionMenu({
       id: row.lead_id,
       client: row.name,
-      anchor: { x: Math.max(12, rect.right - 220), y: rect.bottom + 8 },
+      anchor: clampMenuAnchor(rect, 220, 220),
     });
   };
 
@@ -453,7 +492,7 @@ export default function SalespeopleDetailView({
       id: row.sales_quote_id,
       leadId: row.lead_id,
       status: row.status,
-      anchor: { x: Math.max(12, rect.right - 220), y: rect.bottom + 8 },
+      anchor: clampMenuAnchor(rect, 220, 280),
     });
   };
 
@@ -583,7 +622,7 @@ export default function SalespeopleDetailView({
               type: row.lead_type || "N/A",
               intent: row.intent || "N/A",
               status: row.booking_status || "N/A",
-              activity: row.last_activity || "N/A",
+              activity: formatShortDate(row.last_activity),
               is_active: row.is_active,
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
@@ -621,7 +660,7 @@ export default function SalespeopleDetailView({
               project: row.project || "Untitled project",
               amount: row.amount || "0.00",
               status: row.quote_status || "Draft",
-              valid: row.valid_until || "N/A",
+              valid: formatShortDate(row.valid_until),
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
@@ -667,7 +706,7 @@ export default function SalespeopleDetailView({
               <h1 className="text-xl font-semibold">{profile.name}</h1>
               <Toggle enabled={profile.enabled} />
             </div>
-            <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{profile.lastActivity || "N/A"}</span></p>
+            <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{formatShortDate(profile.lastActivity)}</span></p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-4">
