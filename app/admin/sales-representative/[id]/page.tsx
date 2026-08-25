@@ -1422,7 +1422,7 @@ export default function LeadDetailPage() {
 
     try {
       await removeAssignedCrew({
-        client_lead_id: Number(params.id),
+        lead_id: Number(params.id),
         crew_member_id: cpId,
       }).unwrap();
 

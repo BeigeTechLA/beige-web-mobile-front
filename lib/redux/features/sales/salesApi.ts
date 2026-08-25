@@ -448,13 +448,18 @@ export const salesApi = createApi({
         body: payload, // This now sends crew_roles, location, description, and reference_links
       }),
     }),
-    removeAssignedCrew: builder.mutation<ApiResponse<void>, { client_lead_id: number; crew_member_id: number }>({
-      query: (data) => ({
+    removeAssignedCrew: builder.mutation<ApiResponse<void>, { lead_id?: number; client_lead_id?: number; crew_member_id: number }>({
+      query: ({ lead_id, client_lead_id, crew_member_id }) => ({
         url: 'admin/remove-assigned-crew',
         method: 'POST',
-        body: data,
+        body: lead_id != null
+          ? { lead_id, crew_member_id }
+          : { client_lead_id, crew_member_id },
       }),
-      invalidatesTags: (result, error, { client_lead_id }) => [{ type: 'Lead', id: client_lead_id }, { type: 'Lead', id: 'LIST' }],
+      invalidatesTags: (result, error, { lead_id, client_lead_id }) => {
+        const leadKey = lead_id ?? client_lead_id;
+        return leadKey ? [{ type: 'Lead', id: leadKey }, { type: 'Lead', id: 'LIST' }] : [{ type: 'Lead', id: 'LIST' }];
+      },
     }),
     updateLeadBooking: builder.mutation<ApiResponse<any>, { booking_id: number; payload: any; lead_id?: number }>({
       query: ({ booking_id, payload }) => ({
