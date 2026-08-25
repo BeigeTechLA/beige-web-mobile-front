@@ -477,6 +477,60 @@ function AvatarStack({
   );
 }
 
+function TextTooltip({
+  text,
+  className = "max-w-[160px]",
+  capitalize = false,
+}: {
+  text: string;
+  className?: string;
+  capitalize?: boolean;
+}) {
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const showTooltip = (
+    event: React.PointerEvent<HTMLSpanElement>,
+    text: string
+  ) => {
+    const element = event.currentTarget;
+    if (element.scrollWidth <= element.clientWidth) {
+      setTooltip(null);
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    setTooltip({text, left: rect.left + rect.width / 2, top: rect.top - 10});
+  };
+
+  return (
+    <>
+      {tooltip && typeof document !== "undefined"
+        ? ReactDOM.createPortal(
+            <div className="pointer-events-none fixed z-[9999]" style={{left: tooltip.left, top: tooltip.top}}>
+              <div className="relative max-w-[250px] -translate-x-1/2 -translate-y-full whitespace-normal break-words rounded-md bg-white px-3 py-2 text-left text-[11px] font-bold leading-[16px] text-black shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+                {tooltip.text}
+                <span className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white shadow-[2px_2px_6px_rgba(0,0,0,0.08)]" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+      <span
+        className={`block truncate ${capitalize ? "capitalize" : ""} ${className}`}
+        onPointerEnter={(event) => showTooltip(event, text)}
+        onPointerMove={(event) => showTooltip(event, text)}
+        onPointerLeave={() => setTooltip(null)}
+      >
+        {text}
+      </span>
+    </>
+  );
+}
+
 function PanelTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
@@ -1007,8 +1061,10 @@ export default function ShiftManagementPage() {
                   className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
                 >
                   <td className="px-5 py-4">
-                    <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" />{" "}
-                    <span className="capitalize">{shift.name}</span>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#10B665]" />
+                      <TextTooltip text={shift.name} capitalize/>
+                    </div>
                   </td>
                   <td className="px-5 py-4">{shift.hours}</td>
                   <td className="px-5 py-4">
@@ -1126,15 +1182,13 @@ export default function ShiftManagementPage() {
                     <div key={`now-${shift.id || shift.name}`} className="rounded-xl border border-[#2D2D2D] bg-[#171717] p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="flex items-center gap-2 text-sm font-medium">
+                          <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
                             <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#10B665]" />
-                            <span className="truncate capitalize" title={shift.name}>
-                              {shift.name}
-                            </span>
+                            <TextTooltip text={shift.name} capitalize className="max-w-[110px]"/>
                           </p>
                           <p className="mt-1 text-xs text-white/45">{shift.hours}</p>
                         </div>
-                        {shift.salespeople?.length ? <div className="shrink-0"><AvatarStack salespeople={shift.salespeople} extra={shift.extra} /></div> : null}
+                        {shift.salespeople?.length ? (<div className="shrink-0"><AvatarStack salespeople={shift.salespeople} extra={shift.extra} /></div>) : null}
                       </div>
                     </div>
                   ))}
@@ -1154,14 +1208,16 @@ export default function ShiftManagementPage() {
                 <div className="no-scrollbar flex-1 space-y-3 overflow-y-auto p-3">
                   {recentAssignmentRows.map((item) => (
                     <div key={item.id} className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2A2A2A] text-[10px] text-white/65">{getInitials(item.person)}</span>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{item.company}</p>
-                          <p className="truncate text-xs text-white/45">{item.person}</p>
+                        <div className="min-w-0 flex-1">
+                          <TextTooltip text={item.company} className="max-w-[160px] text-sm font-medium"/>
+                          <TextTooltip text={item.person} className="max-w-[160px] text-xs text-white/45"/>
                         </div>
                       </div>
-                      <LeadsStatusBadge status={item.status} size="compact" />
+                      <div className="shrink-0">
+                        <LeadsStatusBadge status={item.status} size="compact" />
+                      </div>
                     </div>
                   ))}
                 </div>

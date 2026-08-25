@@ -3,6 +3,7 @@
 
 
 import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -124,6 +125,54 @@ function TablePagination({
         </button>
       </div>
     </div>
+  );
+}
+
+function ShiftNameTooltip({
+  name,
+  className = "max-w-[160px]",
+}: {
+  name: string;
+  className?: string;
+}) {
+  const [tooltip, setTooltip] = useState<{
+    name: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const showTooltip = (
+    event: React.PointerEvent<HTMLSpanElement>,
+    name: string
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({name, left: rect.left + rect.width / 2, top: rect.top - 10});
+  };
+
+  return (
+    <>
+      {tooltip && typeof document !== "undefined"
+        ? ReactDOM.createPortal(
+            <div className="pointer-events-none fixed z-[9999]" style={{left: tooltip.left, top: tooltip.top}}>
+              <div className="relative max-w-[250px] -translate-x-1/2 -translate-y-full whitespace-normal break-words rounded-md bg-white px-3 py-2 text-left text-[11px] font-bold leading-[16px] text-black shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+                {tooltip.name}
+
+                <span className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white shadow-[2px_2px_6px_rgba(0,0,0,0.08)]" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      <span
+        className={`block truncate capitalize ${className}`}
+        onPointerEnter={(event) => showTooltip(event, name)}
+        onPointerMove={(event) => showTooltip(event, name)}
+        onPointerLeave={() => setTooltip(null)}
+      >
+        {name}
+      </span>
+    </>
   );
 }
 
@@ -395,7 +444,9 @@ export default function ShiftDetailView({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold capitalize">{shiftDetail.name}</h1>
+                <h1 className="min-w-0 text-2xl font-semibold">
+                  <ShiftNameTooltip name={shiftDetail.name} className="max-w-[220px] sm:max-w-[350px] lg:max-w-[500px]"/>
+                </h1>
               <StatusPill status={shiftDetail.status} />
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/60">
