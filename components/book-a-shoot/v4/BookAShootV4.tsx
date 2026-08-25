@@ -19,16 +19,30 @@ import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
 
-import type { Creator } from "@/lib/types";
-
 export interface ScheduleData {
   dateOption: "have-date" | "confirm-later";
-  bookingType: "single" | "multiple" | null;
+  bookingType: "single_day" | "multi_day" | null;
   date: string | null;
   startTime: string | null;
   endTime: string | null;
   location: string;
+  locationDetails?: any;
+  bookingDays?: {
+    date: string;
+    startTime?: string;
+    endTime?: string;
+  }[];
+  startDate?: string;
+  endDate?: string;
 }
+
+const SERVICE_TO_CONTENT_TYPE: Record<string, string> = {
+  photography: "photographer",
+  videography: "videographer",
+  editing: "editing",
+  studios: "studio",
+  livestream: "livestream",
+};
 
 export const BookAShootV4 = () => {
   const [internalStep, setInternalStep] = useState<number>(0);
@@ -36,6 +50,7 @@ export const BookAShootV4 = () => {
 
   const [bookingState, setBookingState] = useState<{
     email: string;
+    bookingId?: number;
     selectedServices: string[];
     editsConfig: EditsConfig;
     selectedOccasion: string;
@@ -47,6 +62,7 @@ export const BookAShootV4 = () => {
     contactInformation: { fullName: string; phoneNumber: string } | null;
   }>({
     email: "",
+    bookingId: undefined,
     selectedServices: ["photography"],
     editsConfig: {
       needsEdits: true,
@@ -65,34 +81,51 @@ export const BookAShootV4 = () => {
     photographer: 0,
     videographer: 0,
   });
-  const [selectedCreatives, setSelectedCreatives] = useState<Creator[]>([]);
-  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(false);
+
+  const selectedContentTypes = bookingState.selectedServices.map(
+    (service) => SERVICE_TO_CONTENT_TYPE[service] || service
+  );
 
   const handleConfirmLeave = () => {
     setShowLeaveModal(false);
   };
 
   // Step 0 -> Step 1
-  const handleEmailSubmitted = (email: string) => {
-    setBookingState((prev) => ({ ...prev, email }));
+  const handleEmailSubmitted = (payload: { email: string; bookingId?: number }) => {
+    setBookingState((prev) => ({
+      ...prev,
+      email: payload.email,
+      bookingId: payload.bookingId,
+    }));
     setInternalStep(1);
   };
 
   // Step 1 -> Step 2
   const handleServicesSelected = (services: string[]) => {
-    setBookingState((prev) => ({ ...prev, selectedServices: services }));
+    setBookingState((prev) => ({
+      ...prev,
+      selectedServices: services,
+      selectedOccasion: services.length > 0 ? prev.selectedOccasion : "",
+      editsConfig: services.length > 0
+        ? prev.editsConfig
+        : { needsEdits: true, editedPhotosSets: 1 },
+    }));
     setInternalStep(2);
   };
 
   // Step 2 -> Step 3
-  const handleEditsSubmitted = (editsConfig: EditsConfig) => {
-    setBookingState((prev) => ({ ...prev, editsConfig }));
+  const handleOccasionSelected = (selectedOccasion: string) => {
+    setBookingState((prev) => ({ ...prev, selectedOccasion }));
     setInternalStep(3);
   };
 
-  // Step 3 -> Step 4
-  const handleOccasionSelected = (selectedOccasion: string) => {
-    setBookingState((prev) => ({ ...prev, selectedOccasion }));
+// Step 3 -> Step 4
+  const handleEditsSubmitted = (editsConfig: EditsConfig, bookingId?: number) => {
+    setBookingState((prev) => ({
+      ...prev,
+      editsConfig,
+      bookingId: bookingId ?? prev.bookingId,
+    }));
     setInternalStep(4);
   };
 
@@ -205,16 +238,35 @@ export const BookAShootV4 = () => {
       ? bookingState.selectedOccasion.charAt(0).toUpperCase() + bookingState.selectedOccasion.slice(1) + " Event"
       : "Corporate Event";
 
-    const dateStr = bookingState.scheduleData?.date
-      ? `Single Day - ${bookingState.scheduleData.date}`
+    const schedule = bookingState.scheduleData;
+    const bookingDays = schedule?.bookingDays || [];
+    const isMultiDay = schedule?.bookingType === "multi_day" && bookingDays.length > 0;
+
+    const dateStr = schedule
+      ? schedule.dateOption === "confirm-later"
+        ? "Date to be confirmed"
+        : isMultiDay
+          ? `Multiple Days - ${bookingDays.length} Selected`
+          : schedule.date
+            ? `Single Day - ${schedule.date}`
+            : "Single Day"
       : "Single Day - 15/08/2026";
 
-    const timeStr =
-      bookingState.scheduleData?.startTime && bookingState.scheduleData?.endTime
-        ? `${bookingState.scheduleData.startTime} - ${bookingState.scheduleData.endTime}`
-        : "10:00 AM - 15:00 PM (5 Hour Duration)";
+    const timeStr = schedule
+      ? schedule.dateOption === "confirm-later"
+        ? "Time to be confirmed"
+        : isMultiDay
+          ? bookingDays.every((day) => day.startTime && day.endTime)
+            ? bookingDays.length === 1
+              ? `${bookingDays[0].startTime} - ${bookingDays[0].endTime}`
+              : "Custom timings for selected days"
+            : "Select time for each day"
+          : schedule.startTime && schedule.endTime
+            ? `${schedule.startTime} - ${schedule.endTime}`
+            : "10:00 AM - 15:00 PM (5 Hour Duration)"
+      : "10:00 AM - 15:00 PM (5 Hour Duration)";
 
-    const locationStr = bookingState.scheduleData?.location || "Woodland Hills, Woodland Hills, CA";
+    const locationStr = schedule?.location || "Woodland Hills, Woodland Hills, CA";
 
     const formattedAddOns = Object.entries(bookingState.addOnsQuantities).map(([key, qty]) => {
       const formattedTitle = key
@@ -263,30 +315,39 @@ export const BookAShootV4 = () => {
             onContinue={handleServicesSelected}
             onBack={() => setInternalStep(0)}
             initialSelected={bookingState.selectedServices}
+            email={bookingState.email}
+            bookingId={bookingState.bookingId}
           />
         );
       case 2:
         return (
-          <EditsNeeded
-            onContinue={handleEditsSubmitted}
-            onBack={() => setInternalStep(1)}
-            initialConfig={bookingState.editsConfig}
-          />
-        );
-      case 3:
-        return (
           <AskingOccasion
             onContinue={handleOccasionSelected}
-            onBack={() => setInternalStep(2)}
+            onBack={() => setInternalStep(1)}
             initialSelected={bookingState.selectedOccasion}
+            contentType={selectedContentTypes}
           />
         );
+
+case 3:
+  return (
+    <EditsNeeded
+      onContinue={handleEditsSubmitted}
+      onBack={() => setInternalStep(2)}
+      initialConfig={bookingState.editsConfig}
+      contentType={selectedContentTypes}
+      shootType={bookingState.selectedOccasion}
+      email={bookingState.email}
+      bookingId={bookingState.bookingId}
+    />
+  );
       case 4:
         return (
           <ScheduleShoot
             onContinue={handleScheduleSubmitted}
             onBack={() => setInternalStep(3)}
             onBrowseStudios={handleBrowseStudios}
+            initialData={bookingState.scheduleData}
           />
         );
       case 5:

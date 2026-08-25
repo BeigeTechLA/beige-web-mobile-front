@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import {
@@ -20,7 +20,12 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
-import { newshootTypes } from "@/app/data/shootData";
+import {
+  hybridShootTypes,
+  newshootTypes,
+  photoShootTypes,
+  videoShootTypes,
+} from "@/app/data/shootData";
 
 export interface ShootStat {
   label: string;
@@ -37,6 +42,7 @@ interface AskingOccasionProps {
   onContinue: (selectedOccasionId: string) => void;
   onBack?: () => void;
   initialSelected?: string;
+  contentType?: string[];
 }
 
 const STUDIO_SHOOT_TYPE_KEY = "studio";
@@ -56,16 +62,28 @@ const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
   return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
 };
 
+const getAvailableShootTypes = (contentType: string[] = []) => {
+  const isVideo = contentType.includes("videographer");
+  const isPhoto = contentType.includes("photographer");
+  const isEditing = contentType.includes("editing");
+
+  if (isVideo && isPhoto) return withStudioOption(hybridShootTypes);
+  if (isPhoto) return withStudioOption(photoShootTypes);
+  if (isVideo) return withStudioOption(videoShootTypes);
+  if (isEditing) return withStudioOption(hybridShootTypes);
+  return withStudioOption(newshootTypes);
+};
+
 export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onContinue,
   onBack,
   initialSelected = "corporate",
+  contentType = [],
 }) => {
   const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
-
-  // Derive initial shoot types list directly from withStudioOption
-  const [availableShootTypes] = useState<ShootTypeOption[]>(() =>
-    withStudioOption(newshootTypes)
+  const availableShootTypes = useMemo(
+    () => getAvailableShootTypes(contentType),
+    [contentType]
   );
 
   // Transform options so every item has an `images` array with 4 duplicate copies of `image`
@@ -83,6 +101,29 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   const [activeCarouselIndex, setActiveCarouselIndex] =
     useState<number>(initialIdx);
   const [sampleImageIndex, setSampleImageIndex] = useState<number>(0);
+
+  useEffect(() => {
+    const nextIndex = Math.max(
+      0,
+      occasions.findIndex((item) => item.key === selectedId)
+    );
+
+    if (nextIndex >= 0 && occasions[nextIndex]) {
+      setActiveCarouselIndex(nextIndex);
+      return;
+    }
+
+    const fallbackIndex = Math.max(
+      0,
+      occasions.findIndex((item) => item.key === initialSelected)
+    );
+    const fallback = occasions[fallbackIndex] || occasions[0];
+    if (fallback) {
+      setSelectedId(fallback.key);
+      setActiveCarouselIndex(fallbackIndex >= 0 ? fallbackIndex : 0);
+      setSampleImageIndex(0);
+    }
+  }, [contentType, initialSelected, occasions, selectedId]);
 
   // Mouse Drag / Swipe gesture handler
   const handleDragEnd = (
@@ -226,7 +267,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           <div>
             {/* Section Heading */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
-              What's the occasion?
+            What&apos;s the occasion?
             </h1>
             <p className="text-white/30 text-base md:text-xl font-light mb-8">
               This helps us frame the right approach for your shoot.

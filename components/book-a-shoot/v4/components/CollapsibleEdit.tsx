@@ -17,6 +17,7 @@ interface CollapsibleEditProps {
   totalCount?: number;
   icon?: string;
   initialOpen?: boolean;
+  showSummaryBadge?: boolean;
 }
 
 export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
@@ -32,6 +33,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
   totalCount = 100,
   icon = "📸",
   initialOpen = true,
+  showSummaryBadge = true,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(initialOpen);
 
@@ -124,13 +126,14 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Total Summary Badge */}
-      <div className="inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-4 rounded-xl font-bold text-base lg:text-xl shadow-lg">
-        <div className="bg-black rounded-full p-2">
-          <Sparkles className="w-6 h-6 text-[#E8D1AB]" />
+      {showSummaryBadge && (
+        <div className="inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-4 rounded-xl font-bold text-base lg:text-xl shadow-lg">
+          <div className="bg-black rounded-full p-2">
+            <Sparkles className="w-6 h-6 text-[#E8D1AB]" />
+          </div>
+          <span>You'll Receive {totalCount} Items</span>
         </div>
-        <span>You'll Receive {totalCount} Items</span>
-      </div>
+      )}
     </div>
   );
 };

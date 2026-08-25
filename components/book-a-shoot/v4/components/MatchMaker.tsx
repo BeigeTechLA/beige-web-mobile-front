@@ -50,7 +50,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 05
+          STEP 06
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
           <div className="h-full w-2/3 bg-[#E8D1AB] transition-all duration-300" />

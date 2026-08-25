@@ -1,11 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
+import { pushToDataLayer } from "@/lib/gtm";
+
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager",
+};
 
 interface GuidedBookingCardProps {
-  onContinue?: (email: string) => void;
+  onContinue?: (payload: { email: string; bookingId?: number }) => void;
   imageSrc?: string;
 }
 
@@ -13,12 +26,71 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
   onContinue,
   imageSrc = "/images/misc/BookingFlow/GuidedBookingImg.png", // replace with your asset path
 }) => {
+  const { user, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
+  const [trackEarlyInterest, { isLoading }] = useTrackEarlyInterestMutation();
+  const autoFilledEmailRef = useRef<string | null>(null);
+  const hasTrackedPageViewRef = useRef(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isAuthenticated || !user?.email) {
+      autoFilledEmailRef.current = null;
+      return;
+    }
+
+    if (autoFilledEmailRef.current !== user.email && !email) {
+      autoFilledEmailRef.current = user.email;
+      setEmail(user.email);
+    }
+  }, [email, isAuthenticated, user?.email]);
+
+  useEffect(() => {
+    if (hasTrackedPageViewRef.current) return;
+    hasTrackedPageViewRef.current = true;
+
+    pushToDataLayer("booking_page_viewed_step1", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_step1",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.user_type_id !== undefined
+        ? USER_TYPE[user.user_type_id]
+        : "Guest",
+      email: isAuthenticated ? user?.email : email,
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      duration_on_page: performance.now() / 1000,
+    });
+  }, [email, isAuthenticated, user?.email, user?.id, user?.phone_number, user?.user_type_id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onContinue) {
-      onContinue(email);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      const response = await trackEarlyInterest({
+        guest_email: trimmedEmail,
+        user_id: user?.id,
+        client_name: user?.name,
+      }).unwrap();
+
+      onContinue?.({
+        email: trimmedEmail,
+        bookingId: response?.data?.booking_id,
+      });
+    } catch (error) {
+      console.error("Failed to track lead for guided booking:", error);
+      toast.error("Failed to start booking. Please try again.");
     }
   };
 
@@ -70,9 +142,10 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-4 rounded-lg bg-[#E8D1AB] text-[#0A0908] text-sm lg:text-base hover:bg-[#dfc498] transition-all duration-200 cursor-pointer mb-6"
+              disabled={isLoading}
+              className="w-full py-4 rounded-lg bg-[#E8D1AB] text-[#0A0908] text-sm lg:text-base hover:bg-[#dfc498] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer mb-6"
             >
-              Continue
+              {isLoading ? "Saving..." : "Continue"}
             </button>
           </form>
 

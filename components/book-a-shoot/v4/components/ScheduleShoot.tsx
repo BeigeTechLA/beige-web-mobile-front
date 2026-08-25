@@ -48,40 +48,71 @@ const scrollToRef = (ref: any) => { };
 const areBookingDaysEqual = (a: any[], b: any[]) => JSON.stringify(a) === JSON.stringify(b);
 const USER_TYPE: Record<number, string> = {};
 
+type ScheduleBookingDay = {
+  date: string;
+  startTime?: string;
+  endTime?: string;
+};
+
 interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
+  initialData?: {
+    dateOption?: "have-date" | "confirm-later";
+    bookingType?: "single_day" | "multi_day" | "single" | "multiple" | null;
+    date?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    location?: string;
+    locationDetails?: any;
+    bookingDays?: ScheduleBookingDay[];
+    startDate?: string;
+    endDate?: string;
+  } | null;
 }
 
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  initialData,
 }) => {
+  const normalizeBookingType = (value?: string | null) =>
+    value === "multi_day" || value === "multiple" ? "multi_day" : "single_day";
+
   // Top level mode: "have-date" | "confirm-later"
   const [dateOption, setDateOption] = useState<"have-date" | "confirm-later">(
-    "have-date"
+    initialData?.dateOption || "have-date"
   );
 
   // Booking type mode: "single_day" | "multi_day"
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(
+    normalizeBookingType(initialData?.bookingType)
+  );
 
   // Input states
-  const [selectedDate, setSelectedDate] = useState("06 Jan, 2026");
-  const [startTime, setStartTime] = useState("10:00 AM");
-  const [endTime, setEndTime] = useState("06:00 PM");
-  const [location, setLocation] = useState("Woodland Hills, Woodland Hills, CA");
+  const [selectedDate, setSelectedDate] = useState(
+    initialData?.date ||
+      (initialData?.startDate ? format(parseDate(initialData.startDate) || new Date(), "dd MMM, yyyy") : "06 Jan, 2026")
+  );
+  const [startTime, setStartTime] = useState(initialData?.startTime || "10:00 AM");
+  const [endTime, setEndTime] = useState(initialData?.endTime || "06:00 PM");
+  const [location, setLocation] = useState(initialData?.location || "Woodland Hills, Woodland Hills, CA");
+  const [locationDetails, setLocationDetails] = useState<any>(initialData?.locationDetails || null);
 
   // Missing State Definitions
-  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
+    initialData?.startDate ? (parseDate(initialData.startDate) || new Date()) : new Date()
+  );
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [data, setData] = useState<any>({
-    startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
-    endDate: format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
-    bookingType: "single_day",
-    bookingDays: [],
+    startDate: initialData?.startDate || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
+    endDate: initialData?.endDate || format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
+    bookingType: normalizeBookingType(initialData?.bookingType),
+    bookingDays: initialData?.bookingDays || [],
     email: "",
+    locationDetails: initialData?.locationDetails || null,
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -112,16 +143,77 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     setData((prev: any) => ({ ...prev, ...fields }));
   }, []);
 
+  useEffect(() => {
+    if (!initialData) return;
+
+    const normalizedBookingType = normalizeBookingType(initialData.bookingType);
+    setDateOption(initialData.dateOption || "have-date");
+    setBookingType(normalizedBookingType);
+    setLocation(initialData.location || "Woodland Hills, Woodland Hills, CA");
+    setLocationDetails(initialData.locationDetails ?? null);
+    updateData({
+      startDate: initialData.startDate || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
+      endDate: initialData.endDate || format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
+      bookingType: normalizedBookingType,
+      bookingDays: initialData.bookingDays || [],
+      locationDetails: initialData.locationDetails ?? null,
+    });
+
+    if (initialData.startDate) {
+      const parsedStart = parseDate(initialData.startDate);
+      if (parsedStart) {
+        setSelectedShootDate(parsedStart);
+        setSelectedDate(format(parsedStart, "dd MMM, yyyy"));
+      }
+    }
+
+    if (initialData.startTime) setStartTime(initialData.startTime);
+    if (initialData.endTime) setEndTime(initialData.endTime);
+
+    if (normalizedBookingType === "multi_day" && Array.isArray(initialData.bookingDays) && initialData.bookingDays.length > 0) {
+      const restoredDates = initialData.bookingDays
+        .map((day) => getDateFromDateKey(day.date))
+        .filter((date): date is Date => Boolean(date));
+      setSelectedDates(restoredDates);
+
+      const restoredTimes = initialData.bookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, day) => {
+        acc[day.date] = { startKey: day.startTime, endKey: day.endTime };
+        return acc;
+      }, {});
+      setMultiDayTimes(restoredTimes);
+
+      const firstDay = initialData.bookingDays[0];
+      if (firstDay?.date) {
+        const parsed = getDateFromDateKey(firstDay.date);
+        if (parsed) {
+          setSelectedShootDate(parsed);
+          setSelectedDate(format(parsed, "dd MMM, yyyy"));
+        }
+      }
+      setSameTimingsMulti(
+        initialData.bookingDays.every(
+          (day) => day.startTime === initialData.bookingDays?.[0]?.startTime && day.endTime === initialData.bookingDays?.[0]?.endTime
+        )
+      );
+    }
+  }, [initialData, updateData]);
+
   const handleContinue = () => {
     if (onContinue) {
-      onContinue({
+      const payload = {
         dateOption,
         bookingType: dateOption === "have-date" ? bookingType : null,
-        date: dateOption === "have-date" ? selectedDate : null,
-        startTime: dateOption === "have-date" ? startTime : null,
-        endTime: dateOption === "have-date" ? endTime : null,
+        date: dateOption === "have-date" ? (bookingType === "multi_day" ? null : selectedDate) : null,
+        startTime: dateOption === "have-date" && bookingType === "single_day" ? (getTimeLabel(getStartTimeKey()) || startTime) : null,
+        endTime: dateOption === "have-date" && bookingType === "single_day" ? (getTimeLabel(getEndTimeKey()) || endTime) : null,
         location,
-      });
+        locationDetails,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        bookingDays: bookingType === "multi_day" ? data.bookingDays || [] : [],
+      };
+
+      onContinue(payload);
     }
   };
 
@@ -333,6 +425,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       startDate: formatLocalDateTime(finalStart),
       endDate: formatLocalDateTime(finalEnd),
     });
+    setSelectedDate(format(date, "dd MMM, yyyy"));
   };
 
   const handleStartTimeChange = (timeKey: string) => {
@@ -368,6 +461,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
     const newStart = set(currentDate, { hours, minutes });
     updateData({ startDate: formatLocalDateTime(newStart) });
+    setStartTime(getTimeLabel(timeKey));
   };
 
   const handleEndTimeChange = (timeKey: string) => {
@@ -391,6 +485,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     });
 
     updateData({ endDate: formatLocalDateTime(newEnd) });
+    setEndTime(getTimeLabel(timeKey));
     scrollToRef(editsRef);
   };
 
@@ -574,7 +669,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 03
+          STEP 04
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
           <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
@@ -1116,6 +1211,8 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           value={location}
           onChange={(address, details) => {
             setLocation(address);
+            setLocationDetails(details);
+            updateData({ locationDetails: details });
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}
