@@ -4,7 +4,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   ChevronRight,
@@ -27,9 +27,10 @@ import TimePicker from "@/components/ui/Timepicker";
 import Topbar from "@/components/admin/Topbar";
 import { useDebounce } from "@/hooks/use-debounce";
 import { shiftManagementApi } from "@/lib/api";
-import AssignmentHistoryView from "@/components/admin/sales-representative/AssignmentHistoryView";
+//import AssignmentHistoryView from "@/components/admin/sales-representative/AssignmentHistoryView";
 import RoundRobinConfigurationView from "@/components/admin/sales-representative/RoundRobinConfigurationView";
 import ShiftDetailView, { type ShiftDetail } from "@/components/admin/sales-representative/ShiftDetailView";
+import SalespeopleDetailView, { type SalespeopleProfile } from "@/components/admin/sales-representative/SalespeopleDetailView";
 import { toast } from "sonner";
 
 type Metric = {
@@ -78,6 +79,16 @@ type SalespeopleOption = {
   sales_rep_id: string;
   name: string;
 };
+
+type ShiftManagementRouteView = "dashboard" | "shift" | "round-robin" | "salesperson";
+
+type ShiftManagementPageProps = {
+  routeView?: ShiftManagementRouteView;
+  routeShiftId?: string;
+  routeSalesRepId?: string;
+};
+
+const SHIFT_MANAGEMENT_BASE_PATH = "/admin/sales-representative/shift-management";
 
 const metrics: Metric[] = [
   { id: "active", label: "Active Shifts", value: "00", delta: "0%", icon: Clock3 },
@@ -345,6 +356,9 @@ const mapShift = (shift: any): ShiftRow => {
     status: normalizeShiftStatus(shift?.status ?? shift?.stored_status),
     stored_status: normalizeShiftStatus(shift?.stored_status ?? shift?.status),
 
+    people: salespeople
+      .slice(0, MAX_VISIBLE_SALEPEOPLE_AVATARS)
+      .map((person: any) => getInitials(person?.name || person?.salesperson_name || person?.email)),
     salespeople,
     salespeopleCount,
 
@@ -540,8 +554,13 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function ShiftManagementPage() {
+export default function ShiftManagementPage({
+  routeView = "dashboard",
+  routeShiftId,
+  routeSalesRepId,
+}: ShiftManagementPageProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMetric, setActiveMetric] = useState("active");
   const [overviewRange, setOverviewRange] = useState("All Time");
@@ -561,9 +580,9 @@ export default function ShiftManagementPage() {
   const [shiftDetailRefreshKey, setShiftDetailRefreshKey] = useState(0);
   const [isAddSalespeopleOpen, setIsAddSalespeopleOpen] = useState(false);
   const [addSalespeopleShift, setAddSalespeopleShift] = useState<ShiftDetail | null>(null);
-  const [isRoundRobinConfigOpen, setIsRoundRobinConfigOpen] = useState(false);
-  const [isSalespersonDetailOpen, setIsSalespersonDetailOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [routeSalespersonProfile, setRouteSalespersonProfile] = useState<SalespeopleProfile | null>(null);
+  const [isRouteShiftLoading, setIsRouteShiftLoading] = useState(Boolean(routeShiftId));
+  const [isRouteSalespersonLoading, setIsRouteSalespersonLoading] = useState(routeView === "salesperson");
   const [isShiftSelectModalOpen, setIsShiftSelectModalOpen] = useState(false);
   const [shiftSelectMode, setShiftSelectMode] = useState<"rr" | "manage" | null>(null);
   const [shiftRows, setShiftRows] = useState<ShiftRow[]>([]);
@@ -670,6 +689,114 @@ export default function ShiftManagementPage() {
     setEnabledDays(Array.isArray(detail?.active_days) ? detail.active_days : editShift.days);
     setIsShiftEnabled(String(detail?.stored_status || detail?.status || "inactive").toLowerCase() === "active");
     setIsCreateShiftOpen(false);
+  };
+
+  const loadSelectedShift = async () => {
+    if (!routeShiftId) {
+      setSelectedShift(null);
+      setIsRouteShiftLoading(false);
+      return null;
+    }
+
+    const normalizedShiftId = String(routeShiftId).trim();
+
+    if (!normalizedShiftId || normalizedShiftId === "view-history") {
+      console.error("Invalid shift id:", normalizedShiftId);
+      setSelectedShift(null);
+      setIsRouteShiftLoading(false);
+      return null;
+    }
+
+    setIsRouteShiftLoading(true);
+    try {
+      const response = await shiftManagementApi.getShiftDetail(normalizedShiftId);
+      const detail = response?.data?.data || response?.data;
+      if (!detail) {
+        setSelectedShift(null);
+        return null;
+      }
+
+      const mappedShift = mapShift(detail);
+
+      const nextShift: ShiftDetail = {
+        ...mappedShift,
+        id:
+          mappedShift.id ||
+          normalizedShiftId,
+      };
+
+      setSelectedShift(nextShift);
+
+      return nextShift;
+    } catch (error) {
+      console.error("Failed to load shift detail:", error);
+      setSelectedShift(null);
+      return null;
+    } finally {
+      setIsRouteShiftLoading(false);
+    }
+  };
+
+  const loadRouteSalesperson = async () => {
+    if (routeView !== "salesperson" || !routeShiftId || !routeSalesRepId) {
+      setRouteSalespersonProfile(null);
+      setIsRouteSalespersonLoading(false);
+      return null;
+    }
+
+    setIsRouteSalespersonLoading(true);
+
+    try {
+      const response = await shiftManagementApi.getShiftSalespeople(routeShiftId, {
+        page: 1,
+        limit: 100,
+      });
+      const data = response?.data?.data || response?.data;
+      const list = Array.isArray(data?.rows)
+        ? data.rows
+        : Array.isArray(data)
+          ? data
+          : (data?.salespeople || data?.sales_people || data?.items || []);
+
+      const person = Array.isArray(list)
+        ? list.find((item: any) =>
+            String(item?.sales_rep_id || item?.id || item?.user_id || "") === String(routeSalesRepId)
+          )
+        : null;
+
+      if (!person) {
+        setRouteSalespersonProfile(null);
+        return null;
+      }
+
+      const name = person?.name || person?.salesperson_name || person?.email || "Unnamed";
+      const rawUserStatus = person?.user_status ?? person?.enabled ?? person?.is_enabled ?? person?.is_active;
+      const enabled =
+        rawUserStatus === true ||
+        Number(rawUserStatus) === 1 ||
+        String(rawUserStatus || "").toLowerCase() === "active";
+
+      const profile: SalespeopleProfile = {
+        id: person?.id || person?.sales_rep_id || person?.user_id || routeSalesRepId,
+        sales_rep_id: person?.sales_rep_id || person?.id || person?.user_id || routeSalesRepId,
+        name,
+        email: person?.email || "No email",
+        initials: person?.initials || getInitials(name),
+        color: person?.color || "#F5C5E4",
+        enabled,
+        status: enabled ? "Active" : "In Active",
+        lastActivity: person?.last_activity || person?.last_activity_at || "N/A",
+      };
+
+      setRouteSalespersonProfile(profile);
+      return profile;
+    } catch (error) {
+      console.error("Failed to load salesperson detail:", error);
+      setRouteSalespersonProfile(null);
+      return null;
+    } finally {
+      setIsRouteSalespersonLoading(false);
+    }
   };
 
   const fetchOverview = async () => {
@@ -819,8 +946,9 @@ export default function ShiftManagementPage() {
   };
 
   useEffect(() => {
+    if (routeView !== "dashboard") return;
     void loadShiftDashboard();
-  }, [overviewRange, selectedDate, statusFilter, debouncedShiftSearch, allFilter, shiftCurrentPage]);
+  }, [routeView, overviewRange, selectedDate, statusFilter, debouncedShiftSearch, allFilter, shiftCurrentPage]);
 
   useEffect(() => {
     setShiftCurrentPage(1);
@@ -830,6 +958,20 @@ export default function ShiftManagementPage() {
     if (shiftCurrentPage <= shiftTotalPages) return;
     setShiftCurrentPage(shiftTotalPages);
   }, [shiftCurrentPage, shiftTotalPages]);
+
+  useEffect(() => {
+    if (!routeShiftId) {
+      setSelectedShift(null);
+      setIsRouteShiftLoading(false);
+      return;
+    }
+
+    void loadSelectedShift();
+  }, [routeShiftId]);
+
+  useEffect(() => {
+    void loadRouteSalesperson();
+  }, [routeView, routeShiftId, routeSalesRepId]);
 
   useEffect(() => {
     if (!isAddSalespeopleOpen) return;
@@ -862,39 +1004,29 @@ export default function ShiftManagementPage() {
   }, [salespeopleOptions, selectedSalespersonIds]);
 
   useEffect(() => {
-    if (!selectedShift) return;
-
+    if (routeView === "dashboard") return;
     document.querySelector("main")?.scrollTo({ top: 0, behavior: "auto" });
-  }, [selectedShift]);
+  }, [routeView, routeShiftId, routeSalesRepId]);
 
   return (
     <>
       <Topbar
-        pathname={
-          selectedShift
-            ? `${pathname}/${selectedShift.name.toLowerCase().replace(/\s+/g, "-")}-detail${
-              isRoundRobinConfigOpen ? "/round-robin-configuration" : ""
-            }${
-              isSalespersonDetailOpen ? "/salespeople-detail" : ""
-            }`
-            : isHistoryOpen
-              ? `${pathname}/view-history`
-            : pathname
-        }
+        pathname={pathname}
         breadcrumbOverrides={{
           "sales-representative": "Sales Representative",
           "shift-management": "Shift Management",
-          ...(selectedShift
-            ? {
-              [`${selectedShift.name.toLowerCase().replace(/\s+/g, "-")}-detail`]: `${selectedShift.name} Detail`,
-            }
-            : {}),
-          "round-robin-configuration": "Round Robin Configuration",
-          "salespeople-detail": "Salespeople Detail",
           "view-history": "View History",
+          "round-robin": "Round Robin",
+          salespeople: "Salespeople",
+          ...(routeShiftId && selectedShift
+            ? { [String(routeShiftId)]: `${selectedShift.name}`}
+            : {}),
+          ...(routeSalesRepId && routeSalespersonProfile
+            ? { [String(routeSalesRepId)]: `${routeSalespersonProfile.name}` }
+            : {}),
         }}
         actions={
-          selectedShift && !isRoundRobinConfigOpen && !isSalespersonDetailOpen ? (
+          routeView === "shift" && selectedShift ? (
             <button
               type="button"
               onClick={() => {
@@ -906,7 +1038,7 @@ export default function ShiftManagementPage() {
             >
               Add Salespeople
             </button>
-          ) : !isHistoryOpen ? (
+          ) : routeView === "dashboard" ? (
             <button
               type="button"
               onClick={openCreateShiftModal}
@@ -918,24 +1050,84 @@ export default function ShiftManagementPage() {
         }
       />
 
-      {selectedShift && isRoundRobinConfigOpen ? (
-        <RoundRobinConfigurationView shiftId={selectedShift.id} shiftName={selectedShift.name} onBack={() => setIsRoundRobinConfigOpen(false)} />
-      ) : isHistoryOpen ? (
-        <AssignmentHistoryView onBack={() => setIsHistoryOpen(false)} />
-      ) : selectedShift ? (
-        <ShiftDetailView
-          shift={selectedShift}
-          onBack={() => {
-            setIsRoundRobinConfigOpen(false);
-            setIsSalespersonDetailOpen(false);
-            setSelectedShift(null);
-          }}
-          onConfigureChange={setIsRoundRobinConfigOpen}
-          onSalespersonChange={setIsSalespersonDetailOpen}
-          onRefresh={() => refreshShiftData()}
-          onEditShift={openEditShiftModal}
-          refreshKey={shiftDetailRefreshKey}
-        />
+      {routeView === "round-robin" ? (
+        isRouteShiftLoading ? (
+          <div className="flex min-h-[420px] items-center justify-center bg-[#101010]">
+            <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+          </div>
+        ) : selectedShift ? (
+          <RoundRobinConfigurationView
+            shiftId={selectedShift.id}
+            shiftName={selectedShift.name}
+            onBack={() => router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${selectedShift.id}`)}
+          />
+        ) : (
+          <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 bg-[#101010] text-white">
+            <p className="text-sm text-white/55">Shift not found</p>
+            <button type="button" onClick={() => router.push(SHIFT_MANAGEMENT_BASE_PATH)} className="rounded-lg bg-[#E5D5B8] px-5 py-2 text-sm font-semibold text-black">
+              Back to Shift Management
+            </button>
+          </div>
+        )
+      ) : routeView === "salesperson" ? (
+        isRouteShiftLoading || isRouteSalespersonLoading ? (
+          <div className="flex min-h-[420px] items-center justify-center bg-[#101010]">
+            <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+          </div>
+        ) : selectedShift && routeSalespersonProfile ? (
+          <SalespeopleDetailView
+            profile={routeSalespersonProfile}
+            shiftId={selectedShift.id}
+            onBack={() => router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${selectedShift.id}`)}
+            onRefresh={async () => {
+              await Promise.all([loadSelectedShift(), loadRouteSalesperson()]);
+            }}
+          />
+        ) : (
+          <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 bg-[#101010] text-white">
+            <p className="text-sm text-white/55">Salesperson not found in this shift</p>
+            <button
+              type="button"
+              onClick={() => router.push(routeShiftId ? `${SHIFT_MANAGEMENT_BASE_PATH}/shift/${routeShiftId}` : SHIFT_MANAGEMENT_BASE_PATH)}
+              className="rounded-lg bg-[#E5D5B8] px-5 py-2 text-sm font-semibold text-black"
+            >
+              Back
+            </button>
+          </div>
+        )
+      ) : routeView === "shift" ? (
+        isRouteShiftLoading ? (
+          <div className="flex min-h-[420px] items-center justify-center bg-[#101010]">
+            <Loader2 className="animate-spin text-[#BFA780]" size={40} />
+          </div>
+        ) : selectedShift ? (
+          <ShiftDetailView
+            shift={selectedShift}
+            onBack={() => router.push(SHIFT_MANAGEMENT_BASE_PATH)}
+            onConfigureChange={(isConfiguring) => {
+              if (!isConfiguring || !selectedShift.id) return;
+              router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${selectedShift.id}/round-robin`);
+            }}
+            onSalespersonChange={(profile) => {
+              if (!profile || !selectedShift.id) return;
+              const salesRepId = profile.sales_rep_id || profile.id;
+              if (!salesRepId) return;
+              router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${selectedShift.id}/salespeople/${salesRepId}`);
+            }}
+            onRefresh={async () => {
+              await loadSelectedShift();
+            }}
+            onEditShift={openEditShiftModal}
+            refreshKey={shiftDetailRefreshKey}
+          />
+        ) : (
+          <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 bg-[#101010] text-white">
+            <p className="text-sm text-white/55">Shift not found</p>
+            <button type="button" onClick={() => router.push(SHIFT_MANAGEMENT_BASE_PATH)} className="rounded-lg bg-[#E5D5B8] px-5 py-2 text-sm font-semibold text-black">
+              Back to Shift Management
+            </button>
+          </div>
+        )
       ) : (
         <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -979,8 +1171,7 @@ export default function ShiftManagementPage() {
                     }
 
                     if (action.title === "View History") {
-                      setIsHistoryOpen(true);
-                      document.querySelector("main")?.scrollTo({ top: 0, behavior: "auto" });
+                      router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/view-history`);
                     }
 
                     if (action.title === "Manage Salespeople") {
@@ -1054,9 +1245,11 @@ export default function ShiftManagementPage() {
                 <tr
                   key={shift.id}
                   onClick={() => {
-                    setIsRoundRobinConfigOpen(false);
-                    setIsSalespersonDetailOpen(false);
-                    setSelectedShift(shift);
+                    if (!shift.id) return;
+                    
+                    router.push(
+                      `${SHIFT_MANAGEMENT_BASE_PATH}/shift/${shift.id}`
+                    );
                   }}
                   className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
                 >
@@ -1533,7 +1726,12 @@ export default function ShiftManagementPage() {
                       setSelectedShift({ ...selectedShift, ...mappedShift, id: selectedShift.id });
                     }
                     closeShiftModal();
-                    await refreshShiftData({ page: 1, status: undefined, search: undefined });
+                    if (routeView === "dashboard") {
+                      await refreshShiftData({ page: 1, status: undefined, search: undefined });
+                    } else if (routeShiftId) {
+                      await loadSelectedShift();
+                      setShiftDetailRefreshKey((current) => current + 1);
+                    }
                   }}
                   className={`h-12 rounded-lg text-sm font-semibold transition ${
                     canSaveShift
@@ -1585,12 +1783,16 @@ export default function ShiftManagementPage() {
                       toast.error("Shift not found");
                       return;
                     }
-                    setSelectedShift(shift);
-                    setIsSalespersonDetailOpen(false);
-                    setIsRoundRobinConfigOpen(shiftSelectMode === "rr");
+                    const nextMode = shiftSelectMode;
                     setIsShiftSelectModalOpen(false);
                     setShiftSelectMode(null);
-                    document.querySelector("main")?.scrollTo({ top: 0, behavior: "auto" });
+
+                    if (nextMode === "rr") {
+                      router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${shift.id}/round-robin`);
+                      return;
+                    }
+
+                    router.push(`${SHIFT_MANAGEMENT_BASE_PATH}/shift/${shift.id}`);
                   }}
                 />
               </div>
@@ -1769,7 +1971,11 @@ export default function ShiftManagementPage() {
                     if (selectedShift?.id && String(selectedShift.id) === String(addSalespeopleShift.id)) {
                       setShiftDetailRefreshKey((current) => current + 1);
                     }
-                    await loadShiftDashboard();
+                    if (routeView === "dashboard") {
+                      await loadShiftDashboard();
+                    } else if (routeShiftId) {
+                      await loadSelectedShift();
+                    }
                   }}
                   className="h-10 rounded-md bg-[#E5D5B8] text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
                 >

@@ -278,7 +278,7 @@ export default function ShiftDetailView({
   shift: ShiftDetail;
   onBack: () => void;
   onConfigureChange?: (isConfiguring: boolean) => void;
-  onSalespersonChange?: (isOpen: boolean) => void;
+  onSalespersonChange?: (profile: SalespeopleProfile | null) => void;
   onRefresh?: () => void | Promise<void>;
   onEditShift?: (shift: ShiftDetail) => void;
   refreshKey?: number;
@@ -297,13 +297,21 @@ export default function ShiftDetailView({
   const debouncedMemberSearch = useDebounce(memberSearch, 350);
 
   const handleConfigureChange = (nextValue: boolean) => {
+    if (onConfigureChange) {
+      onConfigureChange(nextValue);
+      return;
+    }
+
     setIsConfiguringOrder(nextValue);
-    onConfigureChange?.(nextValue);
   };
 
   const handleSalespersonChange = (profile: SalespeopleProfile | null) => {
+    if (onSalespersonChange) {
+      onSalespersonChange(profile);
+      return;
+    }
+    
     setSelectedSalesperson(profile);
-    onSalespersonChange?.(Boolean(profile));
   };
 
   const handleConfirmRemoveSalesperson = async () => {

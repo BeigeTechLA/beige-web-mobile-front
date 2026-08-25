@@ -120,34 +120,59 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
   const selectedDateLabel = selectedDate ? formatLongDate(selectedDate) : "Select Date";
 
   useEffect(() => {
+    let ignore = false;
+
     const loadOptions = async () => {
-      const [shiftsRes, peopleRes] = await Promise.all([
+      const [shiftsResult, peopleResult] = await Promise.allSettled([
         shiftManagementApi.getShifts({ page: 1, limit: 100 }),
         shiftManagementApi.getAllSalespeople({ limit: 100 }),
       ]);
-      const shiftsData = shiftsRes?.data?.data || shiftsRes?.data;
-      const shiftsList = Array.isArray(shiftsData?.rows) ? shiftsData.rows : [];
-      const nextShiftOptions = shiftsList
-        .map((shift: any) => {
-          const label = shift.name || shift.shift_name;
-          const id = String(shift.id || shift.shift_id || "");
-          return label && id ? { label, value: id } : null;
-        })
-        .filter(Boolean);
-      setShiftOptions([{ label: "Select Shift", value: "Select Shift" }, ...nextShiftOptions]);
 
-      const peopleData = peopleRes?.data?.data || peopleRes?.data;
-      const peopleList = Array.isArray(peopleData?.rows) ? peopleData.rows : [];
-      const uniquePeople = new Map<string, DropdownOption>();
-      peopleList.filter((person: any) => person?.shift_id !== null).forEach((person: any) => {
-        const label = person.name || person.salesperson_name || person.email;
-        const id = String(person.sales_rep_id || person.id || person.user_id || "");
-        if (!label || !id || uniquePeople.has(id)) return;
-        uniquePeople.set(id, { label, value: id });
-      });
-      setPersonOptions([{ label: "Sales Person", value: "Sales Person" }, ...Array.from(uniquePeople.values())]);
+      if (ignore) return;
+
+      if (shiftsResult.status === "fulfilled" && shiftsResult.value?.success !== false) {
+        const shiftsRes = shiftsResult.value;
+        const shiftsData = shiftsRes?.data?.data || shiftsRes?.data;
+        const shiftsList = Array.isArray(shiftsData?.rows) ? shiftsData.rows : [];
+        const nextShiftOptions = shiftsList
+          .map((shift: any) => {
+            const label = shift.name || shift.shift_name;
+            const id = String(shift.id || shift.shift_id || "");
+            return label && id ? { label, value: id } : null;
+          })
+          .filter(Boolean) as DropdownOption[];
+
+        setShiftOptions([{ label: "Select Shift", value: "Select Shift" }, ...nextShiftOptions]);
+      } else {
+        console.error("Failed to load shift options:", shiftsResult.reason);
+        setShiftOptions([{ label: "Select Shift", value: "Select Shift" }]);
+      }
+
+      if (peopleResult.status === "fulfilled" && peopleResult.value?.success !== false) {
+        const peopleRes = peopleResult.value;
+        const peopleData = peopleRes?.data?.data || peopleRes?.data;
+        const peopleList = Array.isArray(peopleData?.rows) ? peopleData.rows : [];
+        const uniquePeople = new Map<string, DropdownOption>();
+        peopleList.filter((person: any) => person?.shift_id !== null).forEach((person: any) => {
+            const label = person.name || person.salesperson_name || person.email;
+            const id = String(person.sales_rep_id || person.id || person.user_id || "");
+            if (!label || !id || uniquePeople.has(id)) return;
+            uniquePeople.set(id, { label, value: id });
+          });
+
+        setPersonOptions([
+          { label: "Sales Person", value: "Sales Person" },
+          ...Array.from(uniquePeople.values()),
+        ]);
+      } else {
+        console.error("Failed to load salesperson options:", peopleResult.reason);
+        setPersonOptions([{ label: "Sales Person", value: "Sales Person" }]);
+      }
     };
     void loadOptions();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -166,6 +191,11 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
         page: 1,
         limit: 20,
       });
+
+      if (response?.success === false) {
+        throw new Error(response?.error || "Failed to load assignment history");
+      }
+
       if (ignore) return;
       const data = response?.data?.data || response?.data;
       const list = Array.isArray(data?.rows) ? data.rows : [];
