@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Plus,
   CheckCircle,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -29,7 +30,18 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getCrewAvailability, GetUpcomingShoots, getProjectDetails, AddAvailability } from "@/lib/api";
+import {
+  AddAvailability,
+  GetUpcomingShoots,
+  connectCreatorGoogleCalendar,
+  disconnectCreatorGoogleCalendar,
+  getCreatorCalendarStatus,
+  getCreatorAvailabilityRules,
+  getCrewAvailability,
+  getProjectDetails,
+  saveCreatorAvailabilityRules,
+  syncCreatorGoogleCalendar,
+} from "@/lib/api";
 import DatePicker from "@/components/ui/Datepicker";
 import TimePicker from "@/components/ui/Timepicker";
 import { format } from "date-fns";
@@ -130,6 +142,16 @@ const timeToMinutes = (value) => {
   return hours * 60 + minutes;
 };
 
+const parseTimeToDate = (value) => {
+  const time = formatTimeForApi(value);
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
 const addMinutesToTime = (value, minutesToAdd = 60) => {
   const time = formatTimeForApi(value);
 
@@ -153,6 +175,186 @@ const hasMinimumOneHourGap = (startValue, endValue) => {
   }
 
   return endMinutes - startMinutes >= 60;
+};
+
+type GoogleCalendarStatus = {
+  connected?: boolean;
+  provider_account_email?: string | null;
+  sync_status?: string;
+  last_synced_at?: string | null;
+};
+
+type WeeklyRule = {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  timezone: string;
+  minimum_notice_minutes: number;
+  is_active: number;
+};
+
+type SelectedDay = {
+  date: string;
+  status: {
+    available?: boolean | null;
+    projectAssigned?: boolean;
+    projectDetails?: {
+      project_name?: string;
+      start_time?: string | null;
+      end_time?: string | null;
+      event_location?: string | null;
+    } | null;
+    customAvailabilityStatus?: number | string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    is_full_day?: number | string | null;
+    calendarBusy?: boolean;
+    calendarBusyBlocks?: Array<{
+      start_at?: string;
+      end_at?: string;
+      source?: string;
+    }>;
+    weeklyRules?: Array<{
+      start_time?: string;
+      end_time?: string;
+      timezone?: string;
+      minimum_notice_minutes?: number;
+    }>;
+  } | null;
+};
+
+type ApiErrorShape = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      data?: {
+        conflicts?: unknown[];
+      };
+    };
+  };
+};
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "response" in error &&
+    error.response &&
+    typeof error.response === "object" &&
+    "data" in error.response &&
+    error.response.data &&
+    typeof error.response.data === "object" &&
+    "message" in error.response.data &&
+    typeof error.response.data.message === "string"
+  ) {
+    return error.response.data.message;
+  }
+
+  return fallback;
+};
+
+const WEEK_DAYS = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
+
+const DEFAULT_CREATOR_TIMEZONE = "Asia/Kolkata";
+
+const DEFAULT_WEEKLY_RULES: WeeklyRule[] = [
+  1, 2, 3, 4, 5
+].map((day) => ({
+  day_of_week: day,
+  start_time: "10:00:00",
+  end_time: "18:00:00",
+  timezone: DEFAULT_CREATOR_TIMEZONE,
+  minimum_notice_minutes: 1440,
+  is_active: 1,
+}));
+
+const SUPPORTED_CREATOR_TIME_ZONES = [
+  { value: "Asia/Kolkata", label: "India / Kolkata (IST)" },
+  { value: "America/New_York", label: "New York / Toronto (ET)" },
+  { value: "America/Chicago", label: "Chicago / Winnipeg (CT)" },
+  { value: "America/Denver", label: "Denver / Edmonton (MT)" },
+  { value: "America/Phoenix", label: "Phoenix / Arizona (MST)" },
+  { value: "America/Los_Angeles", label: "Los Angeles / Vancouver (PT)" },
+  { value: "America/Anchorage", label: "Anchorage / Alaska (AKT)" },
+  { value: "Pacific/Honolulu", label: "Honolulu / Hawaii (HST)" },
+  { value: "America/Halifax", label: "Halifax / Atlantic Canada (AT)" },
+  { value: "America/St_Johns", label: "St. John's / Newfoundland (NT)" },
+  { value: "America/Regina", label: "Regina / Saskatchewan (CST)" },
+];
+
+const getSupportedTimeZones = () => {
+  return SUPPORTED_CREATOR_TIME_ZONES;
+};
+
+const getTimeZoneLabel = (timeZone: string) =>
+  SUPPORTED_CREATOR_TIME_ZONES.find((item) => item.value === timeZone)?.label ||
+  timeZone;
+
+const normalizeWeeklyRules = (rules: unknown): WeeklyRule[] => {
+  if (!Array.isArray(rules)) return [];
+
+  return rules
+    .map((rule) => {
+      if (!rule || typeof rule !== "object") return null;
+      const data = rule as Partial<WeeklyRule>;
+      return {
+        day_of_week: Number(data.day_of_week),
+        start_time: formatTimeForApi(data.start_time) || "10:00:00",
+        end_time: formatTimeForApi(data.end_time) || "18:00:00",
+        timezone: data.timezone || DEFAULT_CREATOR_TIMEZONE,
+        minimum_notice_minutes: Number(data.minimum_notice_minutes ?? 1440),
+        is_active: Number(data.is_active ?? 1),
+      };
+    })
+    .filter((rule): rule is WeeklyRule =>
+      Boolean(rule) &&
+      Number.isInteger(rule.day_of_week) &&
+      rule.day_of_week >= 0 &&
+      rule.day_of_week <= 6
+    );
+};
+
+const getWeeklySummary = (rules: WeeklyRule[]) => {
+  if (!rules.length) return "Not set";
+
+  const labels = rules
+    .sort((a, b) => a.day_of_week - b.day_of_week)
+    .map((rule) => WEEK_DAYS.find((day) => day.value === rule.day_of_week)?.label)
+    .filter(Boolean);
+
+  return labels.join(", ");
+};
+
+const getRuleTimeSummary = (rules: WeeklyRule[]) => {
+  if (!rules.length) return "Set your normal working hours";
+
+  const firstRule = rules[0];
+  return `${formatTimeForDisplay(firstRule.start_time)} - ${formatTimeForDisplay(firstRule.end_time)}`;
+};
+
+const formatDayHeading = (dateString: string) => {
+  const date = parseLocalDate(dateString);
+  return date ? format(date, "EEEE, MMM d, yyyy") : dateString;
+};
+
+const formatDateTimeInTimeZone = (value?: string, timeZone = DEFAULT_CREATOR_TIMEZONE) => {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(value));
 };
 
 export default function AvailabilityPage() {
@@ -180,6 +382,18 @@ export default function AvailabilityPage() {
   });
   const [hoveredProject, setHoveredProject] = useState(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [calendarStatus, setCalendarStatus] = useState<GoogleCalendarStatus | null>(null);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [isCalendarSyncing, setIsCalendarSyncing] = useState(false);
+  const [weeklyRules, setWeeklyRules] = useState<WeeklyRule[]>(DEFAULT_WEEKLY_RULES);
+  const [hasSavedWeeklyRules, setHasSavedWeeklyRules] = useState(false);
+  const [isRulesLoading, setIsRulesLoading] = useState(false);
+  const [isRulesSaving, setIsRulesSaving] = useState(false);
+  const [isWeeklyModalOpen, setIsWeeklyModalOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<SelectedDay | null>(null);
+  const supportedTimeZones = useMemo(() => getSupportedTimeZones(), []);
+  const selectedWeeklyTimezone = weeklyRules[0]?.timezone || DEFAULT_CREATOR_TIMEZONE;
+  const selectedMinimumNoticeHours = Math.round((weeklyRules[0]?.minimum_notice_minutes || 1440) / 60);
 
   useEffect(() => {
     const userStr = localStorage.getItem("revure_user");
@@ -199,6 +413,85 @@ export default function AvailabilityPage() {
       }
     });
   }, [currentMonth, currentYear]);
+
+  const refreshCalendarStatus = async (crewMemberId) => {
+    try {
+      const response = await getCreatorCalendarStatus({ crew_member_id: crewMemberId });
+      setCalendarStatus(response?.data?.data || null);
+    } catch (error) {
+      console.error("Failed to fetch calendar status", error);
+      setCalendarStatus(null);
+    }
+  };
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) return;
+
+    refreshCalendarStatus(crewMemberId);
+  }, []);
+
+  const refreshWeeklyRules = async (crewMemberId) => {
+    setIsRulesLoading(true);
+    try {
+      const response = await getCreatorAvailabilityRules({ crew_member_id: crewMemberId });
+      const rules = normalizeWeeklyRules(response?.data?.data?.rules);
+      if (rules.length) {
+        setWeeklyRules(rules);
+        setHasSavedWeeklyRules(true);
+      } else {
+        setWeeklyRules(DEFAULT_WEEKLY_RULES);
+        setHasSavedWeeklyRules(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch weekly availability rules", error);
+    } finally {
+      setIsRulesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) return;
+
+    refreshWeeklyRules(crewMemberId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("calendar") !== "google") return;
+
+    const status = params.get("status");
+    const reason = params.get("reason");
+    const userStr = localStorage.getItem("revure_user");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const crewMemberId = user?.crew_member_id;
+
+    if (status === "connected") {
+      toast.success("Google Calendar connected");
+    } else if (status === "failed") {
+      toast.error(reason || "Google Calendar connection failed");
+    }
+
+    if (crewMemberId) {
+      refreshCalendarStatus(crewMemberId);
+      reloadAvailability(crewMemberId);
+    }
+
+    params.delete("calendar");
+    params.delete("status");
+    params.delete("reason");
+    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", nextUrl);
+  }, []);
 
 
   useEffect(() => {
@@ -400,11 +693,12 @@ export default function AvailabilityPage() {
       if (response?.data?.data?.availability) {
         setAvailability(response.data.data.availability);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding availability:", error);
-      const errorData = error?.response?.data;
+      const apiError = error as ApiErrorShape;
+      const errorData = apiError?.response?.data;
 
-      if (error?.response?.status === 409 || errorData?.data?.conflicts?.length) {
+      if (apiError?.response?.status === 409 || errorData?.data?.conflicts?.length) {
         showAvailabilityConflictToast(
           errorData?.message,
           errorData?.data?.conflicts || []
@@ -520,6 +814,173 @@ export default function AvailabilityPage() {
     }
   };
 
+  const reloadAvailability = async (crewMemberId) => {
+    const response = await getCrewAvailability({
+      crew_member_id: crewMemberId,
+      month: currentMonth,
+      year: currentYear,
+    });
+
+    if (response?.data?.data?.availability) {
+      setAvailability(response.data.data.availability);
+    }
+  };
+
+  const handleGoogleConnect = async () => {
+    if (isCalendarLoading) return;
+
+    const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("Creator profile was not found");
+      return;
+    }
+
+    setIsCalendarLoading(true);
+    try {
+      const response = await connectCreatorGoogleCalendar({ crew_member_id: crewMemberId });
+      const authUrl = response?.data?.data?.auth_url;
+
+      if (!authUrl) {
+        toast.error("Google Calendar connect URL was not returned");
+        return;
+      }
+
+      window.location.href = authUrl;
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Unable to start Google Calendar connect"));
+    } finally {
+      setIsCalendarLoading(false);
+    }
+  };
+
+  const handleGoogleSync = async () => {
+    if (isCalendarSyncing) return;
+
+    const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("Creator profile was not found");
+      return;
+    }
+
+    setIsCalendarSyncing(true);
+    try {
+      await syncCreatorGoogleCalendar({ crew_member_id: crewMemberId });
+      await Promise.all([
+        refreshCalendarStatus(crewMemberId),
+        reloadAvailability(crewMemberId),
+      ]);
+      toast.success("Google Calendar synced");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Unable to sync Google Calendar"));
+      await refreshCalendarStatus(crewMemberId);
+    } finally {
+      setIsCalendarSyncing(false);
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    if (isCalendarLoading) return;
+
+    const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("Creator profile was not found");
+      return;
+    }
+
+    setIsCalendarLoading(true);
+    try {
+      await disconnectCreatorGoogleCalendar({ crew_member_id: crewMemberId });
+      await Promise.all([
+        refreshCalendarStatus(crewMemberId),
+        reloadAvailability(crewMemberId),
+      ]);
+      toast.success("Google Calendar disconnected");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Unable to disconnect Google Calendar"));
+    } finally {
+      setIsCalendarLoading(false);
+    }
+  };
+
+  const updateWeeklyRule = (dayOfWeek: number, changes: Partial<WeeklyRule>) => {
+    setWeeklyRules((currentRules) =>
+      currentRules.map((rule) =>
+        rule.day_of_week === dayOfWeek ? { ...rule, ...changes } : rule
+      )
+    );
+  };
+
+  const toggleWeeklyDay = (dayOfWeek: number) => {
+    setWeeklyRules((currentRules) => {
+      const existing = currentRules.find((rule) => rule.day_of_week === dayOfWeek);
+
+      if (existing) {
+        return currentRules.filter((rule) => rule.day_of_week !== dayOfWeek);
+      }
+
+      return [
+        ...currentRules,
+        {
+          day_of_week: dayOfWeek,
+          start_time: "10:00:00",
+          end_time: "18:00:00",
+          timezone: currentRules[0]?.timezone || DEFAULT_CREATOR_TIMEZONE,
+          minimum_notice_minutes: currentRules[0]?.minimum_notice_minutes || 1440,
+          is_active: 1,
+        },
+      ].sort((a, b) => a.day_of_week - b.day_of_week);
+    });
+  };
+
+  const updateAllWeeklyRules = (changes: Partial<WeeklyRule>) => {
+    setWeeklyRules((currentRules) =>
+      currentRules.map((rule) => ({ ...rule, ...changes }))
+    );
+  };
+
+  const handleSaveWeeklyRules = async () => {
+    if (isRulesSaving) return;
+
+    const invalidRule = weeklyRules.find((rule) =>
+      !hasMinimumOneHourGap(rule.start_time, rule.end_time)
+    );
+
+    if (invalidRule) {
+      toast.error("Each working day needs at least a 1 hour window");
+      return;
+    }
+
+    const user = JSON.parse(localStorage.getItem("revure_user") || "{}");
+    const crewMemberId = user?.crew_member_id;
+
+    if (!crewMemberId) {
+      toast.error("Creator profile was not found");
+      return;
+    }
+
+    setIsRulesSaving(true);
+    try {
+      await saveCreatorAvailabilityRules({
+        crew_member_id: crewMemberId,
+        rules: weeklyRules,
+      });
+      await reloadAvailability(crewMemberId);
+      setHasSavedWeeklyRules(weeklyRules.length > 0);
+      setIsWeeklyModalOpen(false);
+      toast.success("Weekly availability saved");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Unable to save weekly availability"));
+    } finally {
+      setIsRulesSaving(false);
+    }
+  };
+
   const handleDateLeave = () => {
     setHoveredProject(null);
   };
@@ -558,6 +1019,8 @@ export default function AvailabilityPage() {
 
       const isAssigned =
         availabilityStatus?.projectAssigned === true;
+      const hasCalendarBusy =
+        availabilityStatus?.calendarBusy === true;
       const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
       const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
       const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
@@ -576,24 +1039,10 @@ export default function AvailabilityPage() {
       const borderColor = isDark ? "border-white/5" : "border-[#E5E5E5]";
 
       const handleDateClick = () => {
-        if (isAssigned) {
-          showAvailabilityConflictToast(
-            "Availability cannot be changed because you have an assigned shoot on this date.",
-            [
-              {
-                project_id: availabilityStatus?.projectDetails?.project_id,
-                project_name: availabilityStatus?.projectDetails?.project_name,
-                date: dateString,
-              },
-            ]
-          );
-          return;
-        }
-
-        if (isPastDate) return;
-
-        setSelectedDate(dateString);
-        handleModalOpen();
+        setSelectedDay({
+          date: dateString,
+          status: availabilityStatus || null,
+        });
       };
 
       const handleDateHover = (e) => {
@@ -616,7 +1065,7 @@ export default function AvailabilityPage() {
           onClick={handleDateClick}
           onMouseEnter={handleDateHover}
           onMouseLeave={handleDateLeave}
-          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} ${isAssigned ? "cursor-pointer" : "cursor-default"} ${isDark
+          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} cursor-pointer ${isDark
             ? "hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A]"
             : "hover:border-black/20 hover:bg-black/[0.02]"
             } group`}
@@ -647,6 +1096,13 @@ export default function AvailabilityPage() {
                 </div>
               )}
 
+              {hasCalendarBusy && !isAssigned && (
+                <div className="flex items-center gap-1 text-amber-500/80">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span className="hidden lg:block">Calendar Busy</span>
+                </div>
+              )}
+
               {isNotAvailable && !isAssigned && (
                 <div className="flex items-center gap-1 text-red-400/75">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
@@ -667,6 +1123,21 @@ export default function AvailabilityPage() {
 
     return calendarDays;
   };
+
+  const selectedDayStatus = selectedDay?.status;
+  const selectedDayTimezone =
+    selectedDayStatus?.weeklyRules?.find((rule) => rule.timezone)?.timezone ||
+    weeklyRules.find((rule) => rule.timezone)?.timezone ||
+    DEFAULT_CREATOR_TIMEZONE;
+  const selectedDayBusyBlocks = selectedDayStatus?.calendarBusyBlocks || [];
+  const selectedDayWorkingRules = selectedDayStatus?.weeklyRules || [];
+  const selectedDayHasWorkingHours = Boolean(
+    selectedDayStatus?.start_time &&
+    selectedDayStatus?.end_time
+  );
+  const selectedDayIsTimeOff =
+    selectedDayStatus?.available === false &&
+    selectedDayStatus?.projectAssigned !== true;
 
   return (
     <>
@@ -723,6 +1194,62 @@ export default function AvailabilityPage() {
             hoverBorder="hover:border-red-400/30"
             isDark={isDark}
           />
+        </div>
+
+        <div className={`border rounded-2xl p-5 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center border ${isDark ? "bg-black border-white/10 text-[#E8D1AB]" : "bg-[#F8F4EE] border-black/10 text-black"}`}>
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <h2 className={`text-base lg:text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                    Normal Working Schedule
+                  </h2>
+                  <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/45" : "text-black/50"}`}>
+                    Set once. Edit only when your regular availability changes.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 xl:min-w-[760px]">
+              <div className={`rounded-lg border px-4 py-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>Days</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                  {hasSavedWeeklyRules ? getWeeklySummary(weeklyRules) : "Not set"}
+                </p>
+              </div>
+              <div className={`rounded-lg border px-4 py-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>Hours</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                  {hasSavedWeeklyRules ? getRuleTimeSummary(weeklyRules) : "Not set"}
+                </p>
+              </div>
+              <div className={`rounded-lg border px-4 py-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>Booking Notice</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                  {hasSavedWeeklyRules ? `${Math.round((weeklyRules[0]?.minimum_notice_minutes || 0) / 60)} hours` : "Not set"}
+                </p>
+              </div>
+              <div className={`rounded-lg border px-4 py-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>Timezone</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                  {hasSavedWeeklyRules ? getTimeZoneLabel(weeklyRules[0]?.timezone || DEFAULT_CREATOR_TIMEZONE) : "Not set"}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setIsWeeklyModalOpen(true)}
+              disabled={isRulesLoading}
+              className="bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold shrink-0"
+            >
+              <Pencil size={16} />
+              {hasSavedWeeklyRules ? "Edit Schedule" : "Set Schedule"}
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-12 gap-4 lg:gap-6">
@@ -820,18 +1347,366 @@ export default function AvailabilityPage() {
             </div>
 
             <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
+              <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Google Calendar</h3>
+              <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>
+                BEIGE only checks busy time ranges and does not read personal event details.
+              </p>
+
+              {calendarStatus?.connected ? (
+                <div className="space-y-3">
+                  <div className={`rounded-lg border p-3 ${isDark ? "border-white/10 bg-black/30" : "border-black/10 bg-neutral-50"}`}>
+                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      Connected
+                    </p>
+                    {calendarStatus.provider_account_email && (
+                      <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        {calendarStatus.provider_account_email}
+                      </p>
+                    )}
+                    <p className={`mt-1 text-xs ${calendarStatus.sync_status === "failed" ? "text-red-400" : isDark ? "text-white/40" : "text-black/40"}`}>
+                      {calendarStatus.sync_status === "failed"
+                        ? "Last sync failed"
+                        : calendarStatus.last_synced_at
+                          ? `Last synced ${format(new Date(calendarStatus.last_synced_at), "MMM d, h:mm a")}`
+                          : "Ready to sync"}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleGoogleSync}
+                    disabled={isCalendarSyncing}
+                    className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"}`}
+                  >
+                    {isCalendarSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calendar size={16} />}
+                    Sync Google Calendar
+                  </Button>
+                  <Button
+                    onClick={handleGoogleDisconnect}
+                    disabled={isCalendarLoading}
+                    variant="outline"
+                    className={`w-full rounded-lg ${isDark ? "border-white/10 bg-transparent text-white/70 hover:text-white" : "border-black/10 bg-white text-black/70 hover:text-black"}`}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleGoogleConnect}
+                  disabled={isCalendarLoading}
+                  className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"}`}
+                >
+                  {isCalendarLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calendar size={16} />}
+                  Connect Google Calendar
+                </Button>
+              )}
+            </div>
+
+            <div className={`border rounded-2xl p-4 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
               <h3 className={`font-medium mb-2 ${isDark ? "text-white" : "text-black"}`}>Quick Info</h3>
               <p className={`text-sm mb-4 ${isDark ? "text-[#888]" : "text-gray-500"}`}>
-                Keep your calendar updated to receive more project invitations. Confirmed bookings will appear with a blue marker.
+                Connected calendars refresh automatically when availability is checked. Use sync only when you need an immediate refresh.
               </p>
-              <Button
-                className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]" : "bg-[#E8D1AB] text-black hover:bg-[#E8D1AB]/80 shadow-md"}`}
-              >
-                Sync Calendar
-              </Button>
             </div>
           </div>
         </div>
+
+        {isWeeklyModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
+            <div
+              className={`w-full max-w-4xl mx-3 lg:mx-0 p-5 lg:p-7 relative shadow-2xl border max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
+            >
+              <button
+                onClick={() => setIsWeeklyModalOpen(false)}
+                className={`absolute top-4 right-4 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
+              >
+                <X size={20} />
+              </button>
+
+              <div className="mb-6 pr-8">
+                <h2 className={`text-lg lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                  Normal Working Schedule
+                </h2>
+                <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  This is your default BEIGE availability. Calendar sync only removes busy time from these hours.
+                </p>
+              </div>
+
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 rounded-xl border p-4 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}>
+                <div>
+                  <label className={`block text-[10px] uppercase font-bold tracking-widest mb-2 ${isDark ? "text-white/35" : "text-black/40"}`}>
+                    Timezone
+                  </label>
+                  <Select
+                    value={selectedWeeklyTimezone}
+                    onValueChange={(value) => updateAllWeeklyRules({ timezone: value })}
+                  >
+                    <SelectTrigger className={`h-[44px] rounded-lg text-sm ${isDark ? "bg-black border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent className={`max-h-72 border ${isDark ? "bg-[#1A1A1A] border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                      {supportedTimeZones.map((timeZone) => (
+                        <SelectItem key={timeZone.value} value={timeZone.value}>
+                          {timeZone.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className={`block text-[10px] uppercase font-bold tracking-widest mb-2 ${isDark ? "text-white/35" : "text-black/40"}`}>
+                    Minimum Booking Notice
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={selectedMinimumNoticeHours}
+                      onChange={(event) =>
+                        updateAllWeeklyRules({
+                          minimum_notice_minutes: Math.max(Number(event.target.value || 0), 0) * 60,
+                        })
+                      }
+                      className={`h-[44px] rounded-lg text-sm ${isDark ? "bg-black border-white/10 text-white" : "bg-white border-black/10 text-black"}`}
+                    />
+                    <span className={`text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>hours</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`hidden md:grid grid-cols-8 gap-3 px-3 pb-2 text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>
+                <span className="col-span-2">Day</span>
+                <span className="col-span-3">Start</span>
+                <span className="col-span-3">End</span>
+              </div>
+
+              <div className="space-y-2">
+                {WEEK_DAYS.map((day) => {
+                  const rule = weeklyRules.find((item) => item.day_of_week === day.value);
+                  const isEnabled = Boolean(rule);
+
+                  return (
+                    <div
+                      key={day.value}
+                      className={`grid grid-cols-8 gap-3 items-center rounded-lg border p-3 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}
+                    >
+                      <label className="col-span-8 md:col-span-2 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => toggleWeeklyDay(day.value)}
+                          className={`w-4 h-4 rounded border ${isDark ? "border-white/10 bg-black" : "border-black/20 bg-white"}`}
+                        />
+                        <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          {day.label}
+                        </span>
+                      </label>
+
+                      <div className="col-span-4 md:col-span-3">
+                        <TimePicker
+                          label="Start"
+                          value={parseTimeToDate(rule?.start_time)}
+                          onChange={(time) =>
+                            updateWeeklyRule(day.value, {
+                              start_time: formatTimeForApi(time) || "10:00:00",
+                            })
+                          }
+                          disabled={!isEnabled}
+                          isDark={isDark}
+                          height="42px"
+                          fontSize="13px"
+                        />
+                      </div>
+
+                      <div className="col-span-4 md:col-span-3">
+                        <TimePicker
+                          label="End"
+                          value={parseTimeToDate(rule?.end_time)}
+                          onChange={(time) =>
+                            updateWeeklyRule(day.value, {
+                              end_time: formatTimeForApi(time) || "18:00:00",
+                            })
+                          }
+                          minTime={parseTimeToDate(rule?.start_time) || undefined}
+                          disabled={!isEnabled}
+                          isDark={isDark}
+                          height="42px"
+                          fontSize="13px"
+                        />
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className={`text-xs ${isDark ? "text-white/35" : "text-black/45"}`}>
+                  {weeklyRules.length ? `${weeklyRules.length} working days enabled` : "No working days enabled"} · Booking notice prevents last-minute shoot requests.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => setIsWeeklyModalOpen(false)}
+                    disabled={isRulesSaving}
+                    variant="ghost"
+                    className={`transition-colors ${isDark ? "text-white/45 hover:text-white" : "text-black/45 hover:text-black"}`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveWeeklyRules}
+                    disabled={isRulesSaving || isRulesLoading}
+                    className="min-w-[140px] bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold"
+                  >
+                    {isRulesSaving ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving
+                      </span>
+                    ) : (
+                      "Save Schedule"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedDay && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
+            <div
+              className={`w-full max-w-2xl mx-3 lg:mx-0 p-5 lg:p-7 relative shadow-2xl border max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
+            >
+              <button
+                onClick={() => setSelectedDay(null)}
+                className={`absolute top-4 right-4 transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-black/40 hover:text-[#cbb38b]"}`}
+              >
+                <X size={20} />
+              </button>
+
+              <div className="mb-6 pr-8">
+                <p className={`text-[10px] uppercase font-bold tracking-widest mb-2 ${isDark ? "text-[#E8D1AB]" : "text-[#9B7B4F]"}`}>
+                  Availability Slots
+                </p>
+                <h2 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+                  {formatDayHeading(selectedDay.date)}
+                </h2>
+                <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  {getTimeZoneLabel(selectedDayTimezone)}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                <div className={`rounded-xl border p-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/35" : "text-black/40"}`}>Status</p>
+                  <p className={`text-sm font-semibold ${selectedDayStatus?.available ? "text-green-500" : selectedDayIsTimeOff ? "text-red-400" : isDark ? "text-white" : "text-black"}`}>
+                    {selectedDayStatus?.projectAssigned
+                      ? "Booked"
+                      : selectedDayIsTimeOff
+                        ? "Not Available"
+                        : selectedDayStatus?.available
+                          ? "Available"
+                          : "Not Set"}
+                  </p>
+                </div>
+                <div className={`rounded-xl border p-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/35" : "text-black/40"}`}>Working Hours</p>
+                  <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                    {selectedDayHasWorkingHours
+                      ? `${formatTimeForDisplay(selectedDayStatus?.start_time)} - ${formatTimeForDisplay(selectedDayStatus?.end_time)}`
+                      : "Not set"}
+                  </p>
+                </div>
+                <div className={`rounded-xl border p-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/35" : "text-black/40"}`}>Calendar Busy</p>
+                  <p className="text-sm font-semibold text-amber-500">
+                    {selectedDayBusyBlocks.length} slot{selectedDayBusyBlocks.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className={`rounded-xl border p-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
+                  <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/35" : "text-black/40"}`}>Shoots</p>
+                  <p className={`text-sm font-semibold ${selectedDayStatus?.projectAssigned ? "text-blue-400" : isDark ? "text-white" : "text-black"}`}>
+                    {selectedDayStatus?.projectAssigned ? "1 booked" : "0 booked"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {selectedDayWorkingRules.length > 0 ? (
+                  selectedDayWorkingRules.map((rule, index) => (
+                    <div
+                      key={`${rule.start_time}-${rule.end_time}-${index}`}
+                      className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-black/25 border-white/10" : "bg-neutral-50 border-black/10"}`}
+                    >
+                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-green-500" />
+                      <div>
+                        <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Working Slot</p>
+                        <p className={`text-sm mt-1 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                          {formatTimeForDisplay(rule.start_time)} - {formatTimeForDisplay(rule.end_time)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className={`rounded-xl border p-4 ${isDark ? "bg-black/25 border-white/10 text-white/45" : "bg-neutral-50 border-black/10 text-black/45"}`}>
+                    No regular working slot is set for this day.
+                  </div>
+                )}
+
+                {selectedDayBusyBlocks.map((block, index) => (
+                  <div
+                    key={`${block.start_at}-${block.end_at}-${index}`}
+                    className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200"}`}
+                  >
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-500" />
+                    <div>
+                      <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Google Calendar Busy</p>
+                      <p className={`text-sm mt-1 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        {formatDateTimeInTimeZone(block.start_at, selectedDayTimezone)} - {formatDateTimeInTimeZone(block.end_at, selectedDayTimezone)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                {selectedDayIsTimeOff && (
+                  <div className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200"}`}>
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-red-400" />
+                    <div>
+                      <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Manual Time Off</p>
+                      <p className={`text-sm mt-1 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        {selectedDayHasWorkingHours
+                          ? `${formatTimeForDisplay(selectedDayStatus?.start_time)} - ${formatTimeForDisplay(selectedDayStatus?.end_time)}`
+                          : "Full day"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedDayStatus?.projectAssigned && (
+                  <div className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200"}`}>
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <div className="min-w-0">
+                      <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                        {selectedDayStatus.projectDetails?.project_name || "Booked Shoot"}
+                      </p>
+                      <p className={`text-sm mt-1 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        {selectedDayStatus.projectDetails?.start_time && selectedDayStatus.projectDetails?.end_time
+                          ? `${formatTimeForDisplay(selectedDayStatus.projectDetails.start_time)} - ${formatTimeForDisplay(selectedDayStatus.projectDetails.end_time)}`
+                          : "Time not set"}
+                      </p>
+                      {selectedDayStatus.projectDetails?.event_location && (
+                        <p className={`text-xs mt-1 ${isDark ? "text-white/35" : "text-black/45"}`}>
+                          {formatLocation(selectedDayStatus.projectDetails.event_location)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Availability Modal */}
         {isModalOpen && (

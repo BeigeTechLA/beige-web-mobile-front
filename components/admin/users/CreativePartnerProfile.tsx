@@ -25,6 +25,10 @@ import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
 import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import { useGenerateUserResetLinkForAdminMutation } from "@/lib/redux/features/auth/authApi";
+import {
+  AvailabilitySlotsModal,
+  type AvailabilitySlotsStatus,
+} from "@/components/admin/AvailabilitySlotsModal";
 
 interface ProfileProps {
   id: string;
@@ -119,6 +123,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
   const [shootsLoading, setShootsLoading] = useState(true);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [selectedDay, setSelectedDay] = useState<{ date: string; status: AvailabilitySlotsStatus | null } | null>(null);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState({
     availableDays: 0,
@@ -1404,12 +1409,14 @@ return (
                       {/* Days Cells */}
                       <div className="grid grid-cols-7 bg-[#101010]">
                         {calendarDays.map((day, dayIdx) => {
+                          const dateString = format(day, "yyyy-MM-dd");
                           const isCurrentMonth = isSameMonth(day, currentMonth);
                           const dayAvailability = getAvailabilityForDay(day);
                           const hasShoot = isShootDay(day);
                           const availabilityValue = dayAvailability?.available;
                           const isAvailable = Boolean(availabilityValue === true || dayAvailability?.customAvailabilityStatus === 1);
                           const isUnavailable = Boolean(dayAvailability && !dayAvailability.projectAssigned && availabilityValue === false);
+                          const hasCalendarBusy = dayAvailability?.calendarBusy === true;
                           const startTimeDisplay = formatAvailabilityTime(dayAvailability?.start_time);
                           const endTimeDisplay = formatAvailabilityTime(dayAvailability?.end_time);
                           const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
@@ -1422,7 +1429,8 @@ return (
                           return (
                             <div
                               key={day.toString()}
-                              className={`min-h-[100px] p-3 transition-colors ${isDark ? "border-[#333]" : "border-gray-100"} ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth
+                              onClick={() => setSelectedDay({ date: dateString, status: dayAvailability || null })}
+                              className={`min-h-[100px] p-3 transition-colors cursor-pointer ${isDark ? "border-[#333] hover:bg-white/[0.03]" : "border-gray-100 hover:bg-[#F3EDE4]"} ${!isLastRow ? 'border-b' : ''} ${!isLastCol ? 'border-r' : ''} ${!isCurrentMonth
                                 ? (isDark ? 'bg-[#0A0A0A] text-[#444]' : 'bg-[#F4F4F4] text-[#878787]')
                                 : (isDark ? 'text-[#E0E0E0]' : 'bg-[#F8F4EE] text-[#3F3F3F]')
                                 }`}
@@ -1432,7 +1440,7 @@ return (
                                 {format(day, 'd')}
                               </span>
 
-                              {(hasShoot || isAvailable || isUnavailable || hasTimeRange) && (
+                              {(hasShoot || isAvailable || hasCalendarBusy || isUnavailable || hasTimeRange) && (
                                 <div className="space-y-1">
                                   {hasShoot && (
                                     <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg w-fit ${isDark ? "bg-[#2A2A2A] border-[#334155]" : "bg-blue-50 border-blue-100"}`}>
@@ -1444,6 +1452,12 @@ return (
                                     <div className="flex items-center gap-1.5 text-green-500/75">
                                       <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                                       <span className="hidden md:inline text-sm leading-none">Available</span>
+                                    </div>
+                                  )}
+                                  {hasCalendarBusy && !hasShoot && (
+                                    <div className="flex items-center gap-1.5 text-amber-500/80">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                                      <span className="hidden md:inline text-sm leading-none">Calendar Busy</span>
                                     </div>
                                   )}
                                   {!hasShoot && isUnavailable && (
@@ -1487,7 +1501,7 @@ return (
                         <div className="flex items-start gap-3">
                           <div className="w-3 h-3 rounded-full bg-[#7E7367] mt-1.5"></div>
                           <div>
-                            <div className={`text-sm font-medium ${isDark ? "text-[#C5C5C5]" : "text-[#3A3A3A]"}`}>Today's</div>
+                            <div className={`text-sm font-medium ${isDark ? "text-[#C5C5C5]" : "text-[#3A3A3A]"}`}>Today</div>
                             <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Time off or blocked</div>
                           </div>
                         </div>
@@ -1496,6 +1510,13 @@ return (
                           <div>
                             <div className={`text-sm font-medium ${isDark ? "text-[#C5C5C5]" : "text-[#3A3A3A]"}`}>Shoots</div>
                             <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Confirmed shoots</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-3 h-3 rounded-full bg-amber-500 mt-1.5"></div>
+                          <div>
+                            <div className={`text-sm font-medium ${isDark ? "text-[#C5C5C5]" : "text-[#3A3A3A]"}`}>Calendar Busy</div>
+                            <div className={`text-xs ${isDark ? "text-[#666]" : "text-[#929292]"}`}>Google busy slots</div>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -2112,6 +2133,16 @@ return (
           )}
         </div>
       </div>
+
+      {selectedDay && (
+        <AvailabilitySlotsModal
+          date={selectedDay.date}
+          status={selectedDay.status}
+          isDark={isDark}
+          onClose={() => setSelectedDay(null)}
+          onViewShoot={(projectId) => router.push(`/admin/shoots/${projectId}`)}
+        />
+      )}
 
       {/* VIDEO PLAYER MODAL */}
       {playingVideo && (
