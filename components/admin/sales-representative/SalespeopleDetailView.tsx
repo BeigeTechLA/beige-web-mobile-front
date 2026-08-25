@@ -704,7 +704,7 @@ export default function SalespeopleDetailView({
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold">{profile.name}</h1>
-              <Toggle enabled={profile.enabled} />
+              {/* <Toggle enabled={profile.enabled} /> */}
             </div>
             <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{formatShortDate(profile.lastActivity)}</span></p>
           </div>

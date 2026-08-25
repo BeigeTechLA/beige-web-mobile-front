@@ -132,6 +132,29 @@ const firstNonEmpty = (...values: unknown[]) => {
   return "";
 };
 
+const MAX_VISIBLE_SALEPEOPLE_AVATARS = 3;
+
+const getSalespersonKey = (person: any) =>
+  String(
+    person?.sales_rep_id ||
+    person?.id ||
+    person?.user_id ||
+    person?.email ||
+    person?.salesperson_name ||
+    person?.name ||
+    ""
+  ).trim().toLowerCase();
+
+const normalizeSalespeople = (rows: any[]) => {
+  const seen = new Set<string>();
+  return rows.filter((person) => {
+    const key = getSalespersonKey(person);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const normalizeBookingStatusLabel = (value: unknown) => {
   const text = firstNonEmpty(value);
   const normalized = text.replace(/[–—]/g, "-").trim().toLowerCase();
@@ -307,7 +330,6 @@ const mapShift = (shift: any): ShiftRow => {
     [];
 
   const salespeople = Array.isArray(rawPeople) ? rawPeople : [];
-
   const salespeopleCount = Number(
     shift?.salespeople_count ??
     shift?.assigned_salespeople_count ??
@@ -326,7 +348,7 @@ const mapShift = (shift: any): ShiftRow => {
     salespeople,
     salespeopleCount,
 
-    extra: Math.max(0, salespeopleCount - 3),
+    extra: Math.max(0, salespeopleCount - MAX_VISIBLE_SALEPEOPLE_AVATARS),
   };
 };
 
@@ -416,7 +438,7 @@ function AvatarStack({
             document.body
           )
         : null}
-      {salespeople.map((person, index) => {
+      {salespeople.slice(0, MAX_VISIBLE_SALEPEOPLE_AVATARS).map((person, index) => {
         const fullName = person?.name || person?.salesperson_name || person?.email || "Unnamed";
         const initials = getInitials(fullName);
 
@@ -676,9 +698,9 @@ export default function ShiftManagementPage() {
 
         return {
           ...shift,
-          people: activePeopleList.slice(0, 3).map((person: any) => getInitials(person?.name || person?.salesperson_name || person?.email)),
+          people: activePeopleList.slice(0, MAX_VISIBLE_SALEPEOPLE_AVATARS).map((person: any) => getInitials(person?.name || person?.salesperson_name || person?.email)),
           salespeople: activePeopleList,
-          extra: Math.max(0, activePeopleList.length - 3),
+          extra: Math.max(0, activePeopleList.length - MAX_VISIBLE_SALEPEOPLE_AVATARS),
         };
       })
     );
@@ -1103,11 +1125,16 @@ export default function ShiftManagementPage() {
                   {activeNow.map((shift) => (
                     <div key={`now-${shift.id || shift.name}`} className="rounded-xl border border-[#2D2D2D] bg-[#171717] p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[#10B665]" /><span className="capitalize">{shift.name}</span></p>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-2 text-sm font-medium">
+                            <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#10B665]" />
+                            <span className="truncate capitalize" title={shift.name}>
+                              {shift.name}
+                            </span>
+                          </p>
                           <p className="mt-1 text-xs text-white/45">{shift.hours}</p>
                         </div>
-                        {shift.salespeople?.length ? <AvatarStack salespeople={shift.salespeople} extra={shift.extra} /> : null}
+                        {shift.salespeople?.length ? <div className="shrink-0"><AvatarStack salespeople={shift.salespeople} extra={shift.extra} /></div> : null}
                       </div>
                     </div>
                   ))}
