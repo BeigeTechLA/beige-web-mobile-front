@@ -135,7 +135,7 @@ export const DatePicker: React.FC<Props> = ({
   isDark = true,
   disablePortal = false,
   shouldDisableDate,
-  borderRadius
+  borderRadius,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };

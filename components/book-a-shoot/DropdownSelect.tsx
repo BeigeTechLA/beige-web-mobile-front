@@ -109,11 +109,11 @@ export default function DropdownSelect({
 
   return (
     <div className={`relative w-full ${floatingTitle ? "mt-2.5" : ""}`} ref={dropdownRef}>
-      {/* External Label (rendered when floatingTitle is false) */}
       {!floatingTitle && (
         <div
-          className={`text-sm font-medium font-bold capitalize tracking-wider absolute -top-3 left-4 z-20 px-2 ${isDark ? `${bgColour} text-white/60` : "text-black/40"
-            }`}
+          className={`text-sm font-medium font-bold capitalize tracking-wider absolute -top-3 left-4 z-20 px-2 ${
+            isDark ? `${bgColour} text-white/60` : "text-black/40"
+          }`}
         >
           {title}
         </div>
