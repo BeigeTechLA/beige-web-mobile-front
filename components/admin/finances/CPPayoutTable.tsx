@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Calendar, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, Eye, History, Search } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  EllipsisVertical,
+  Eye,
+  History,
+  Search,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { startOfDay } from "date-fns";
@@ -35,12 +45,12 @@ export type ShootCPRow = {
   cpPayout: number;
   margin: number;
   status:
-  | "Pending"
-  | "Partially Paid"
-  | "Approval Pending"
-  | "Approved"
-  | "Fully Paid"
-  | "Rejected";
+    | "Pending"
+    | "Partially Paid"
+    | "Approval Pending"
+    | "Approved"
+    | "Fully Paid"
+    | "Rejected";
   category: "photography" | "videography";
   avatarImage: string;
   date: string;
@@ -54,7 +64,7 @@ export type ShootCPRow = {
 interface CPPayoutTableProps {
   rows?: ShootCPRow[];
   loading?: boolean;
-  type: "shoots" | "creators";
+  type: "shoots" | "creators" | "pending_compansation";
   onRowClick: (row: ShootCPRow) => void;
   onViewHistory?: (row: ShootCPRow) => void;
   onDueDateChange?: (row: ShootCPRow, dueDate: Date) => Promise<void>;
@@ -94,7 +104,10 @@ const matchesRange = (dateString: string, range: string) => {
   );
 };
 
-const buildPaginationItems = (currentPage: number, totalPages: number): Array<number | "..."> => {
+const buildPaginationItems = (
+  currentPage: number,
+  totalPages: number,
+): Array<number | "..."> => {
   const items: Array<number | "..."> = [];
   for (let page = 1; page <= totalPages; page += 1) {
     const isBoundary = page === 1 || page === totalPages;
@@ -113,18 +126,27 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
   return items;
 };
 
-const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const historyMonthOptions = [
+  "Month",
+  "Last 30 Days",
+  "This Quarter",
+  "This Year",
+];
 
 const parseRowDate = (dateString: string) => {
   if (!dateString) return null;
-  const normalized = dateString.includes("T") ? dateString : `${dateString}T00:00:00`;
+  const normalized = dateString.includes("T")
+    ? dateString
+    : `${dateString}T00:00:00`;
   const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const parseSortDate = (dateString?: string | null) => {
   if (!dateString) return null;
-  const normalized = dateString.includes("T") ? dateString : `${dateString}T00:00:00`;
+  const normalized = dateString.includes("T")
+    ? dateString
+    : `${dateString}T00:00:00`;
   const date = new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
 };
@@ -172,11 +194,18 @@ export default function CPPayoutTable({
   const [mounted, setMounted] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
-  const [dueDateModalRowId, setDueDateModalRowId] = useState<string | null>(null);
-  const [rowDueDates, setRowDueDates] = useState<Record<string, Date | null>>({});
+  const [dueDateModalRowId, setDueDateModalRowId] = useState<string | null>(
+    null,
+  );
+  const [rowDueDates, setRowDueDates] = useState<Record<string, Date | null>>(
+    {},
+  );
   const [dueDateDraft, setDueDateDraft] = useState<Date | null>(null);
   const [isSavingDueDate, setIsSavingDueDate] = useState(false);
-  const [actionMenuPosition, setActionMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -187,10 +216,19 @@ export default function CPPayoutTable({
   const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
+    setSearchQuery("");
+    setMonthFilter("Month");
+    setStatusFilter("All");
+    setCurrentPage(1);
+  }, [type]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const isPendingCompensation = type === "pending_compansation";
+  const isShootType = type === "shoots" || isPendingCompensation;
 
   const toggleExpand = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -202,7 +240,10 @@ export default function CPPayoutTable({
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
     const filtered = rows.filter((row) => {
-      if (statusFilter !== "All" && row.status.toLowerCase() !== statusFilter.toLowerCase()) {
+      if (
+        statusFilter !== "All" &&
+        row.status.toLowerCase() !== statusFilter.toLowerCase()
+      ) {
         return false;
       }
 
@@ -263,13 +304,19 @@ export default function CPPayoutTable({
     setOpenActionMenuId(null);
     setActionMenuPosition(null);
     setDueDateModalRowId(row.id);
-    setDueDateDraft(rowDueDates[row.id] || parseRowDate(row.dueDate || "") || getDefaultDueDate(row.date));
+    setDueDateDraft(
+      rowDueDates[row.id] ||
+        parseRowDate(row.dueDate || "") ||
+        getDefaultDueDate(row.date),
+    );
   };
 
   const handleSaveDueDate = () => {
     if (!dueDateModalRowId) return;
     if (!dueDateDraft) return;
-    const selectedRow = processedRows.find((row) => row.id === dueDateModalRowId);
+    const selectedRow = processedRows.find(
+      (row) => row.id === dueDateModalRowId,
+    );
     if (!selectedRow) return;
     setIsSavingDueDate(true);
     Promise.resolve(onDueDateChange?.(selectedRow, dueDateDraft))
@@ -285,7 +332,10 @@ export default function CPPayoutTable({
       .finally(() => setIsSavingDueDate(false));
   };
 
-  const totalPages = Math.max(1, Math.ceil(processedRows.length / itemsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(processedRows.length / itemsPerPage),
+  );
   const safePage = Math.min(currentPage, totalPages);
 
   const visibleRows = useMemo(() => {
@@ -293,14 +343,19 @@ export default function CPPayoutTable({
     return processedRows.slice(startIndex, startIndex + itemsPerPage);
   }, [processedRows, safePage]);
 
-  const startCount = processedRows.length === 0 ? 0 : (safePage - 1) * itemsPerPage + 1;
+  const startCount =
+    processedRows.length === 0 ? 0 : (safePage - 1) * itemsPerPage + 1;
   const endCount = Math.min(safePage * itemsPerPage, processedRows.length);
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
-  const getRowDueDate = (row: ShootCPRow) => rowDueDates[row.id] || parseRowDate(row.dueDate || "") || getDefaultDueDate(row.date);
+  const getRowDueDate = (row: ShootCPRow) =>
+    rowDueDates[row.id] ||
+    parseRowDate(row.dueDate || "") ||
+    getDefaultDueDate(row.date);
 
   const formatDueDate = (dateValue: string | Date | null) => {
-    const date = dateValue instanceof Date ? dateValue : parseRowDate(dateValue || "");
+    const date =
+      dateValue instanceof Date ? dateValue : parseRowDate(dateValue || "");
     if (!date) return "No Date";
 
     const day = date.getDate();
@@ -316,10 +371,14 @@ export default function CPPayoutTable({
     const dueDate = getRowDueDate(row);
     const meta = getDueDateMeta(dueDate);
     return (
-      <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${className}`}>
+      <div
+        className={`flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${className}`}
+      >
         <span className={meta.className}>Due: {formatDueDate(dueDate)}</span>
         {meta.label && (
-          <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${meta.className} ${isDark ? "bg-white/5" : "bg-black/5"}`}>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${meta.className} ${isDark ? "bg-white/5" : "bg-black/5"}`}
+          >
             {meta.icon && <AlertTriangle className="h-3 w-3" />}
             {meta.label}
           </span>
@@ -331,9 +390,10 @@ export default function CPPayoutTable({
   const openRowActionMenu = (rowId: string, button: HTMLButtonElement) => {
     const rect = button.getBoundingClientRect();
     const menuHeight = 132;
-    const top = rect.bottom + menuHeight + 8 > window.innerHeight
-      ? Math.max(8, rect.top - menuHeight - 8)
-      : rect.bottom + 8;
+    const top =
+      rect.bottom + menuHeight + 8 > window.innerHeight
+        ? Math.max(8, rect.top - menuHeight - 8)
+        : rect.bottom + 8;
     if (openActionMenuId === rowId) {
       setOpenActionMenuId(null);
       setActionMenuPosition(null);
@@ -351,34 +411,66 @@ export default function CPPayoutTable({
     : null;
 
   return (
-    <section className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}>
-
+    <section
+      className={`w-full rounded-2xl border transition-colors duration-300 overflow-hidden mt-5 lg:mt-8 min-h-[400px] flex flex-col ${isDark ? "bg-[#171717] border-white/5" : "bg-white border-[#E3E3E3]"}`}
+    >
       {/* Header Controls Panel */}
-      <div className={`flex flex-col p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}>
-
+      <div
+        className={`flex flex-col p-5 border-b transition-colors duration-300 gap-4 ${isDark ? "bg-[#101010] border-b-[#3D3D3D]" : "bg-[#FFFCF6] border-b-[#E3E3E3]"}`}
+      >
         <div className="flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
           <div className="flex items-center gap-2">
             <div className="h-6 w-[3px] rounded-full bg-[#E5D5B8]" />
-            <h2 className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
-              {type === "shoots" ? "Shoots Compensation History" : "Creators Compensation History"}
+            <h2
+              className={`text-sm lg:text-lg font-medium ${isDark ? "text-white" : "text-[#323232]"}`}
+            >
+              {type === "shoots"
+                ? "Shoots Compensation History"
+                : type === "creators"
+                  ? "Creators Compensation History"
+                  : "Pending Compensation Shoots"}
             </h2>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center gap-2">
-
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-                <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v)}
+              >
+                <SelectTrigger
+                  className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+                >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
+                <SelectContent
+                  className={
+                    isDark
+                      ? "bg-[#111111] border-[#3D3D3D]"
+                      : "text-black bg-white border-[#E3E3E3]"
+                  }
+                >
                   <SelectItem value="All">All Status</SelectItem>
-                  {/* <SelectItem value="Pending">Pending</SelectItem> */}
-                  <SelectItem value="Partially Paid">Partially Paid</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Approval Pending">Approval Pending</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                  <SelectItem value="Fully Paid">Fully Paid</SelectItem>
+                  {type === "pending_compansation" ? (
+                    <>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Approval Pending">
+                        Approval Pending
+                      </SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="Partially Paid">
+                        Partially Paid
+                      </SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
+                      <SelectItem value="Approval Pending">
+                        Approval Pending
+                      </SelectItem>
+                      <SelectItem value="Rejected">Rejected</SelectItem>
+                      <SelectItem value="Fully Paid">Fully Paid</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
 
@@ -392,13 +484,26 @@ export default function CPPayoutTable({
                 </SelectContent>
               </Select> */}
 
-              <Select value={monthFilter} onValueChange={(v) => setMonthFilter(v)}>
-                <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
+              <Select
+                value={monthFilter}
+                onValueChange={(v) => setMonthFilter(v)}
+              >
+                <SelectTrigger
+                  className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+                >
                   <SelectValue placeholder="Range" />
                 </SelectTrigger>
-                <SelectContent className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}>
+                <SelectContent
+                  className={
+                    isDark
+                      ? "bg-[#111111] border-[#3D3D3D]"
+                      : "text-black bg-white border-[#E3E3E3]"
+                  }
+                >
                   {historyMonthOptions.map((option, idx) => (
-                    <SelectItem key={`monthFilter_${idx}`} value={option}>{option}</SelectItem>
+                    <SelectItem key={`monthFilter_${idx}`} value={option}>
+                      {option}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -415,11 +520,18 @@ export default function CPPayoutTable({
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={type === "shoots" ? "Search client, email..." : "Search creator, roles, ID..."}
-            className={`h-10 w-full rounded-lg border pl-9 pr-4 text-sm transition-colors focus:outline-none ${isDark
-              ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-              : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-              }`}
+            placeholder={
+              isShootType
+                ? "Search client, email..."
+                : type === "creators"
+                  ? "Search creator, roles, ID..."
+                  : "Search pending compensation..."
+            }
+            className={`h-10 w-full rounded-lg border pl-9 pr-4 text-sm transition-colors focus:outline-none ${
+              isDark
+                ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+            }`}
           />
         </div>
       </div>
@@ -427,18 +539,28 @@ export default function CPPayoutTable({
       {loading ? (
         <div className="flex-grow flex flex-col items-center justify-center p-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#E5D5B8] border-t-transparent" />
-          <p className={`text-xs mt-3 ${isDark ? "text-white/40" : "text-black/40"}`}>Syncing ledger rows...</p>
+          <p
+            className={`text-xs mt-3 ${isDark ? "text-white/40" : "text-black/40"}`}
+          >
+            Syncing ledger rows...
+          </p>
         </div>
       ) : processedRows.length === 0 ? (
         <div className="flex-grow flex flex-col items-center justify-center p-12 text-center">
-          <p className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>No entries matched your filters.</p>
+          <p
+            className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}
+          >
+            No entries matched your filters.
+          </p>
         </div>
       ) : (
         <>
           {/* MOBILE COMPACT ADAPTIVE LIST ACCORDION */}
           <div className="lg:hidden flex-grow overflow-visible">
-            <div className={`flex justify-between text-sm font-medium p-4 border-b transition-colors duration-200 ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-black bg-[#FFFCF6] border-b-black/10"}`}>
-              <span>{type === "shoots" ? "Shoot" : "Creator"}</span>
+            <div
+              className={`flex justify-between text-sm font-medium p-4 border-b transition-colors duration-200 ${isDark ? "text-[#E8D1AB] bg-[#101010] border-b-white/5" : "text-black bg-[#FFFCF6] border-b-black/10"}`}
+            >
+              <span>{isShootType ? "Shoot" : "Creator"}</span>
               <span className="text-right">CP Payout</span>
             </div>
 
@@ -457,7 +579,7 @@ export default function CPPayoutTable({
                       onRowClick(row);
                     }
                   }}
-                  className={`relative p-4 border-b last:border-0 cursor-pointer ${isDark ? "border-b-white/5" : "border-b-black/5"} ${(isRowExpanded ? (isDark ? "bg-white/5" : "bg-black/5") : "")}`}
+                  className={`relative p-4 border-b last:border-0 cursor-pointer ${isDark ? "border-b-white/5" : "border-b-black/5"} ${isRowExpanded ? (isDark ? "bg-white/5" : "bg-black/5") : ""}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -474,18 +596,26 @@ export default function CPPayoutTable({
                         style={{ backgroundColor: "#FED1EF" }}
                       >
                         {row?.avatarImage ? (
-                          <img
+                          <Image
                             src={row?.avatarImage}
-                            alt={type === "shoots" ? row.customerName : (row.creatorName || "")}
+                            alt={
+                              isShootType
+                                ? row.customerName
+                                : row.creatorName || ""
+                            }
                             className="object-cover h-full w-full"
                           />
                         ) : (
-                          getInitials(type === "shoots" ? row.customerName : (row.creatorName || ""))
+                          getInitials(
+                            isShootType
+                              ? row.customerName
+                              : row.creatorName || "",
+                          )
                         )}
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        {type === "shoots" ? (
+                        {isShootType ? (
                           <>
                             <TruncatedTableText
                               text={row.shootName || "Untitled Shoot"}
@@ -506,7 +636,10 @@ export default function CPPayoutTable({
                               className="block max-w-full text-sm font-semibold"
                             />
                             <TruncatedTableText
-                              text={(row.creatorRoles || []).join(", ") || "No Roles Listed"}
+                              text={
+                                (row.creatorRoles || []).join(", ") ||
+                                "No Roles Listed"
+                              }
                               isDark={isDark}
                               className={`block max-w-full text-xs capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
                             />
@@ -517,31 +650,46 @@ export default function CPPayoutTable({
 
                     <div className="text-right shrink-0 flex items-center gap-2">
                       <div>
-                        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[#171717]'}`}>${row.cpPayout}</p>
+                        <p
+                          className={`text-sm font-bold ${isDark ? "text-white" : "text-[#171717]"}`}
+                        >
+                          ${row.cpPayout}
+                        </p>
                         {renderDueDate(row, "justify-end text-[11px]")}
                       </div>
 
-                      <button
-                        type="button"
-                        aria-label="Open row actions"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openRowActionMenu(row.id, e.currentTarget);
-                        }}
-                        className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
-                      >
-                        <EllipsisVertical size={16} />
-                      </button>
+                      {isPendingCompensation ? (
+                        <ChevronRight
+                          size={18}
+                          className={isDark ? "text-white/50" : "text-black/40"}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label="Open row actions"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRowActionMenu(row.id, e.currentTarget);
+                          }}
+                          className={`p-1.5 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                        >
+                          <EllipsisVertical size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {/* Mobile Dropdown Subsections */}
                   {isRowExpanded && (
                     <div className="mt-4 grid grid-cols-2 gap-y-4 px-2 text-left animate-in fade-in slide-in-from-top-1 duration-200">
-                      {type === "shoots" ? (
+                      {isShootType ? (
                         <>
                           <div>
-                            <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Customer</p>
+                            <p
+                              className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                            >
+                              Customer
+                            </p>
                             <TruncatedTableText
                               text={row.customerName}
                               isDark={isDark}
@@ -550,14 +698,26 @@ export default function CPPayoutTable({
                             {/* <p className={`text-[11px] truncate ${isDark ? "text-white/40" : "text-black/40"}`}>{row.customerEmail}</p> */}
                           </div>
                           <div className="text-right">
-                            <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Total CP Allotted</p>
-                            <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>{row.totalCP} CPs</p>
+                            <p
+                              className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                            >
+                              Total CP Allotted
+                            </p>
+                            <p
+                              className={`text-xs font-medium ${isDark ? "text-white" : "text-[#323232]"}`}
+                            >
+                              {row.totalCP} CPs
+                            </p>
                           </div>
                         </>
                       ) : (
                         <>
                           <div>
-                            <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot Title Context</p>
+                            <p
+                              className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                            >
+                              Shoot Title Context
+                            </p>
                             <TruncatedTableText
                               text={row.shootName || "Untitled Shoot"}
                               isDark={isDark}
@@ -565,29 +725,60 @@ export default function CPPayoutTable({
                             />
                           </div>
                           <div className="text-right">
-                            <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot ID</p>
-                            <p className={`text-xs font-medium uppercase tracking-wide ${isDark ? "text-white/80" : "text-zinc-700"}`}>
+                            <p
+                              className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                            >
+                              Shoot ID
+                            </p>
+                            <p
+                              className={`text-xs font-medium uppercase tracking-wide ${isDark ? "text-white/80" : "text-zinc-700"}`}
+                            >
                               {row.shootId || "-"}
                             </p>
                           </div>
                         </>
                       )}
                       <div>
-                        <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Shoot  {type === "shoots" ? "Budget" : "Amount"}</p>
-                        <p className={`text-xs font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}>{formatCurrency(row.shootBudget)}</p>
+                        <p
+                          className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                        >
+                          Shoot {isShootType ? "Budget" : "Amount"}
+                        </p>
+                        <p
+                          className={`text-xs font-semibold ${isDark ? "text-white" : "text-[#323232]"}`}
+                        >
+                          {formatCurrency(row.shootBudget)}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Margin</p>
-                        <p className="text-sm font-bold" style={{ color: getColorThreshold(row.margin, 15, 10) }}>
+                        <p
+                          className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                        >
+                          Margin
+                        </p>
+                        <p
+                          className="text-sm font-bold"
+                          style={{
+                            color: getColorThreshold(row.margin, 15, 10),
+                          }}
+                        >
                           {row.margin}%
                         </p>
                       </div>
                       <div>
-                        <p className={`text-[10px] uppercase font-semibold mb-1 ${isDark ? "text-white/40" : "text-black/40"}`}>Status</p>
+                        <p
+                          className={`text-[10px] uppercase font-semibold mb-1 ${isDark ? "text-white/40" : "text-black/40"}`}
+                        >
+                          Status
+                        </p>
                         <FinanceStatusBadge status={row.status} mobile={true} />
                       </div>
                       <div className="text-right">
-                        <p className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}>Action</p>
+                        <p
+                          className={`text-[10px] uppercase font-semibold ${isDark ? "text-white/40" : "text-black/40"}`}
+                        >
+                          Action
+                        </p>
                         <button
                           className={`text-xs font-semibold underline underline-offset-2 ${isDark ? "text-[#ECD7B4]" : "text-[#E8D1AB]"}`}
                           onClick={(e) => {
@@ -609,16 +800,18 @@ export default function CPPayoutTable({
                             View History
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDueDate(row);
-                          }}
-                        >
-                          Due Date
-                        </button>
+                        {!isPendingCompensation && (
+                          <button
+                            type="button"
+                            className={`mt-2 block text-xs font-semibold underline underline-offset-2 ${isDark ? "text-white/60" : "text-black/50"}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDueDate(row);
+                            }}
+                          >
+                            Due Date
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -630,19 +823,35 @@ export default function CPPayoutTable({
           {/* DESKTOP TABLE VIEW */}
           <div className="hidden lg:block w-full overflow-x-auto flex-grow">
             <table className="w-full text-left">
-              <thead className={`border-b rounded-l-lg ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-[#FFFCF6] border-[#E3E3E3]"}`}>
-                <tr className={`text-sm font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
+              <thead
+                className={`border-b rounded-l-lg ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-[#FFFCF6] border-[#E3E3E3]"}`}
+              >
+                <tr
+                  className={`text-sm font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}
+                >
                   <th className="px-5 py-4">
-                    {type === "shoots" ? "Shoot Name" : "Creator Name"}
+                    {isShootType ? "Shoot Name" : "Creator Name"}
                   </th>
-                  <th className={`px-5 py-4 ${type === "shoots" ? "text-center" : "text-left"}`}>
-                    {type === "shoots" ? "Total CP" : "Shoot ID"}
+                  <th
+                    className={`px-5 py-4 ${isShootType ? "text-center" : "text-left"}`}
+                  >
+                    {isShootType ? "Total CP" : "Shoot ID"}
                   </th>
                   <th className="px-5 py-4">Customer</th>
-                  <th className="px-5 py-4">Shoot {type === "shoots" ? "Budget" : "Amount"}</th>
-                  <th className="px-5 py-4">CP Payout</th>
-                  <th className="px-5 py-4">Margin</th>
-                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">
+                    Shoot {isShootType ? "Budget" : "Amount"}
+                  </th>
+                  {type === "pending_compansation" ? (
+                    <th className="px-5 py-4" colSpan={3}>
+                      Customer Email
+                    </th>
+                  ) : (
+                    <>
+                      <th className="px-5 py-4">CP Payout</th>
+                      <th className="px-5 py-4">Margin</th>
+                      <th className="px-5 py-4">Status</th>
+                    </>
+                  )}
                   <th className="px-5 py-4 text-right">Action</th>
                 </tr>
               </thead>
@@ -654,15 +863,21 @@ export default function CPPayoutTable({
                       onClick={() => onRowClick(row)}
                       className={`${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"} cursor-pointer`}
                     >
-                      <td className={`px-5 py-4 font-medium max-w-[180px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}>
-                        {type === "shoots" ? (
+                      <td
+                        className={`px-5 py-4 font-medium max-w-[180px] truncate ${isDark ? "text-white" : "text-[#171717]"}`}
+                      >
+                        {isShootType ? (
                           <>
                             <TruncatedTableText
                               text={row.shootName || "Untitled Shoot"}
                               isDark={isDark}
                               className="block"
                             />
-                            <p className={`text-xs font-normal capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}>{row.category}</p>
+                            <p
+                              className={`text-xs font-normal capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
+                            >
+                              {row.category}
+                            </p>
                           </>
                         ) : (
                           <>
@@ -679,7 +894,7 @@ export default function CPPayoutTable({
                                     className="object-cover"
                                   />
                                 ) : (
-                                  getInitials((row.creatorName || ""))
+                                  getInitials(row.creatorName || "")
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -689,7 +904,10 @@ export default function CPPayoutTable({
                                   className="block max-w-full"
                                 />
                                 <TruncatedTableText
-                                  text={(row.creatorRoles || []).join(", ") || "No Roles Listed"}
+                                  text={
+                                    (row.creatorRoles || []).join(", ") ||
+                                    "No Roles Listed"
+                                  }
                                   isDark={isDark}
                                   className={`block max-w-full text-xs font-normal capitalize ${isDark ? "text-[#FFFFFF80]" : "text-black/40"}`}
                                 />
@@ -700,15 +918,21 @@ export default function CPPayoutTable({
                       </td>
 
                       {/* Column 2 Layout Pivot */}
-                      <td className={`px-5 py-4 ${type === "shoots" ? "text-center" : "text-left"} ${isDark ? "text-white" : "text-[#171717]"}`}>
-                        {type === "shoots" ? (
+                      <td
+                        className={`px-5 py-4 ${isShootType ? "text-center" : "text-left"} ${isDark ? "text-white" : "text-[#171717]"}`}
+                      >
+                        {isShootType ? (
                           `${row.totalCP} CPs`
                         ) : (
                           <div className="flex flex-col text-left font-normal">
-                            <span className={`font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}>
+                            <span
+                              className={`font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}
+                            >
                               {row.shootId || "-"}
                             </span>
-                            <span className={`text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            <span
+                              className={`text-xs ${isDark ? "text-white/50" : "text-black/50"}`}
+                            >
                               Created: {formatDueDate(row.date)}
                             </span>
                           </div>
@@ -717,58 +941,94 @@ export default function CPPayoutTable({
 
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          {
-                            type === "shoots" && (
-                              <div
-                                className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-[15px] font-medium text-[#171717]"
-                                style={{ backgroundColor: "#FED1EF" }}
-                              >
-                                {row?.avatarImage ? (
-                                  <Image
-                                    src={row?.avatarImage}
-                                    alt={type === "shoots" ? row.customerName : (row.creatorName || "")}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  getInitials(type === "shoots" ? row.customerName : (row.creatorName || ""))
-                                )}
-                              </div>
-                            )
-                          }
-                          <span className={`font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+                          {isShootType && (
+                            <div
+                              className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-[15px] font-medium text-[#171717]"
+                              style={{ backgroundColor: "#FED1EF" }}
+                            >
+                              {row?.avatarImage ? (
+                                <Image
+                                  src={row?.avatarImage}
+                                  alt={
+                                    isShootType
+                                      ? row.customerName
+                                      : row.creatorName || ""
+                                  }
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                getInitials(
+                                  isShootType
+                                    ? row.customerName
+                                    : row.creatorName || "",
+                                )
+                              )}
+                            </div>
+                          )}
+                          <span
+                            className={`font-medium ${isDark ? "text-white" : "text-[#171717]"}`}
+                          >
                             {row.customerName}
                           </span>
                         </div>
                       </td>
-                      <td className={`px-5 py-4 font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}>
+                      <td
+                        className={`px-5 py-4 font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}
+                      >
                         {formatCurrency(row.shootBudget)}
                       </td>
-                      <td className="px-5 py-4">
-                        <p>${row.cpPayout}</p>
-                        {renderDueDate(row)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <p style={{ color: getColorThreshold(row.margin, 15, 10) }}>{row.margin}%</p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <FinanceStatusBadge status={row.status} />
-                      </td>
+                      {isPendingCompensation ? (
+                        <td
+                          colSpan={3}
+                          className={`px-5 py-4 font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}
+                        >
+                          {row.customerEmail || "No email available"}
+                        </td>
+                      ) : (
+                        <>
+                          <td className="px-5 py-4">
+                            <p>${row.cpPayout}</p>
+                            {renderDueDate(row)}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p style={{ color: getColorThreshold(row.margin, 15, 10),}}>
+                              {row.margin}%
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <FinanceStatusBadge status={row.status} />
+                          </td>
+                        </>
+                      )}
                       <td className="px-5 py-4 text-right overflow-visible relative">
-                        <div className="relative inline-flex">
+                        {isPendingCompensation ? (
                           <button
                             type="button"
-                            aria-label="Open row actions"
+                            aria-label="Add compensation"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openRowActionMenu(row.id, e.currentTarget);
+                              onRowClick(row);
                             }}
-                            className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                            className={`ml-auto flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${isDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-black/50 hover:bg-black/5 hover:text-black"}`}
                           >
-                            <EllipsisVertical size={18} />
+                            <ChevronRight size={20} />
                           </button>
-
-                        </div>
+                        ) : (
+                          <div className="relative inline-flex">
+                            <button
+                              type="button"
+                              aria-label="Open row actions"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRowActionMenu(row.id, e.currentTarget);
+                              }}
+                              className={`p-2 rounded-lg inline-flex items-center justify-center transition-colors ${isDark ? "text-white/60 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
+                            >
+                              <EllipsisVertical size={18} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -780,7 +1040,10 @@ export default function CPPayoutTable({
           {actionMenuRow && actionMenuPosition && (
             <div
               className={`fixed z-[160] min-w-[180px] rounded-xl border p-1 shadow-2xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
-              style={{ top: actionMenuPosition.top, left: actionMenuPosition.left }}
+              style={{
+                top: actionMenuPosition.top,
+                left: actionMenuPosition.left,
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -839,9 +1102,20 @@ export default function CPPayoutTable({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Set Due Date</h3>
-                    <p className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
-                      {processedRows.find((row) => row.id === dueDateModalRowId)?.shootName || processedRows.find((row) => row.id === dueDateModalRowId)?.customerName || "Selected row"}
+                    <h3
+                      className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}
+                    >
+                      Set Due Date
+                    </h3>
+                    <p
+                      className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-black/45"}`}
+                    >
+                      {processedRows.find((row) => row.id === dueDateModalRowId)
+                        ?.shootName ||
+                        processedRows.find(
+                          (row) => row.id === dueDateModalRowId,
+                        )?.customerName ||
+                        "Selected row"}
                     </p>
                   </div>
                   <button
@@ -865,7 +1139,11 @@ export default function CPPayoutTable({
                     minDate={today}
                     width="w-full"
                     classnames="w-full"
-                    labelClasses={isDark ? "bg-[#111111] text-white/60" : "bg-white text-black/60"}
+                    labelClasses={
+                      isDark
+                        ? "bg-[#111111] text-white/60"
+                        : "bg-white text-black/60"
+                    }
                   />
                 </div>
 
@@ -894,9 +1172,14 @@ export default function CPPayoutTable({
           )}
 
           {/* Pagination Footer */}
-          <div className={`p-5 flex items-center justify-between border-t text-sm ${isDark ? "border-t-white/5 text-white/60 bg-[#141414]" : "border-t-[#E3E3E3] text-[#666] bg-white"}`}>
+          <div
+            className={`p-5 flex items-center justify-between border-t text-sm ${isDark ? "border-t-white/5 text-white/60 bg-[#141414]" : "border-t-[#E3E3E3] text-[#666] bg-white"}`}
+          >
             <div className="hidden sm:inline">
-              Showing <span className="font-semibold">{startCount}</span> to <span className="font-semibold">{endCount}</span> of <span className="font-semibold">{processedRows.length}</span> entries
+              Showing <span className="font-semibold">{startCount}</span> to{" "}
+              <span className="font-semibold">{endCount}</span> of{" "}
+              <span className="font-semibold">{processedRows.length}</span>{" "}
+              entries
             </div>
 
             <div className="flex items-center gap-2 ml-auto sm:ml-0">
@@ -909,26 +1192,33 @@ export default function CPPayoutTable({
               </button>
 
               <div className="flex items-center gap-1">
-                {paginationItems.map((page, index) => (
+                {paginationItems.map((page, index) =>
                   page === "..." ? (
-                    <span key={`ell-${index}`} className="px-3 py-1">...</span>
+                    <span key={`ell-${index}`} className="px-3 py-1">
+                      ...
+                    </span>
                   ) : (
                     <button
                       key={`page-${page}`}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-all ${safePage === page
-                        ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
-                        : isDark ? "text-white/60 border-[#333] hover:bg-white/5" : "text-[#666] border-[#E5E5E5] hover:bg-zinc-100"
-                        }`}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-all ${
+                        safePage === page
+                          ? "bg-[#E5D5B8] text-black border-[#E5D5B8]"
+                          : isDark
+                            ? "text-white/60 border-[#333] hover:bg-white/5"
+                            : "text-[#666] border-[#E5E5E5] hover:bg-zinc-100"
+                      }`}
                     >
                       {page}
                     </button>
-                  )
-                ))}
+                  ),
+                )}
               </div>
 
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={safePage === totalPages}
                 className={`p-2 rounded-lg border transition-all flex items-center justify-center disabled:opacity-30 ${isDark ? "bg-[#1A1A1A] text-white/60 border-[#333] hover:bg-white/10" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-zinc-50"}`}
               >

@@ -142,6 +142,7 @@ export type PendingCompensationShoot = {
 export type AddCpCompensationPayload = {
   booking_id: number;
   compensation_method: "equal_split" | "role_based" | "manual";
+  send_email?: boolean;
   creators: Array<{
     creator_id: number;
     rate_type: "flat" | "hourly";

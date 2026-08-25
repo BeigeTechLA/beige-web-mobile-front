@@ -16,6 +16,7 @@ interface AddCompensationModalProps {
   isSubmitting?: boolean;
   onSubmit: (payload: AddCpCompensationPayload) => Promise<void>;
   enableAdvanceProofUpload?: boolean;
+  initialShootId?: number | null;
 }
 
 type TabType = "equal" | "role" | "manual";
@@ -235,11 +236,13 @@ export default function AddCompensationModal({
   loading = false,
   isSubmitting = false,
   onSubmit,
-  enableAdvanceProofUpload = false
+  enableAdvanceProofUpload = false,
+  initialShootId,
 }: AddCompensationModalProps) {
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
+  const [sendMail, setSendMail] = useState<boolean>(true);
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
   const [shootSearchQuery, setShootSearchQuery] = useState("");
@@ -273,14 +276,15 @@ export default function AddCompensationModal({
   }, [shootSearchQuery, shoots]);
 
   const resetFormState = useCallback(() => {
-    setSelectedShootId("");
-    setIsDropdownOpen(false);
-    setCompensationMethod("equal");
-    setSelectedCreators([]);
-    setCreatorForms({});
-    setShootSearchQuery("");
-    setAdvanceCreatorId(null);
-  }, []);
+  setSelectedShootId("");
+  setIsDropdownOpen(false);
+  setCompensationMethod("equal");
+  setSendMail(true);
+  setSelectedCreators([]);
+  setCreatorForms({});
+  setShootSearchQuery("");
+  setAdvanceCreatorId(null);
+}, []);
 
   const syncCreatorFormsForCompensationMethod = useCallback(() => {
     if (!currentShoot) return;
@@ -347,12 +351,24 @@ export default function AddCompensationModal({
     }
 
     resetFormState();
+    if (initialShootId) {
+      const selectedShoot = shoots.find(
+        (shoot) => shoot.booking_id === initialShootId,
+      );
+
+      if (selectedShoot) {
+        setSelectedShootId(String(selectedShoot.booking_id));
+        setShootSearchQuery(formatShootOptionLabel(selectedShoot));
+        return;
+      }
+    }
+
     if (shoots.length === 1) {
       const shoot = shoots[0];
       setSelectedShootId(String(shoot.booking_id));
       setShootSearchQuery(formatShootOptionLabel(shoot));
     }
-  }, [isOpen, resetFormState, shoots]);
+  }, [isOpen, initialShootId, resetFormState, shoots]);
 
   useEffect(() => {
     if (!currentShoot) {
@@ -640,9 +656,15 @@ export default function AddCompensationModal({
       };
     }));
 
+    // await onSubmit({
+    //   booking_id: currentShoot.booking_id,
+    //   compensation_method: methodToApi(compensationMethod),
+    //   creators,
+    // });
     await onSubmit({
       booking_id: currentShoot.booking_id,
       compensation_method: methodToApi(compensationMethod),
+      send_email: sendMail,
       creators,
     });
   };
@@ -721,10 +743,10 @@ export default function AddCompensationModal({
             )}
           </div>
 
-          {currentShoot && (
-            <div className="space-y-3 lg:space-y-6 animate-in fade-in duration-200">
-              <div className="flex flex-col gap-3 lg:gap-5">
-                <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Compensation Method</label>
+        {currentShoot && (
+        <div className="space-y-3 lg:space-y-6 animate-in fade-in duration-200">
+            <div className="flex flex-col gap-3 lg:gap-5">
+              <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Compensation Method</label>
                 <div className={`grid grid-cols-2 p-1.5 border rounded-lg h-14 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#D7D7D7]"}`}>
                   <button
                     type="button"
@@ -1110,22 +1132,40 @@ export default function AddCompensationModal({
           )}
         </div>
 
-        <div className={`sticky bottom-0 inset-x-0 p-4 lg:p-6 grid grid-cols-2 gap-4 z-40 mt-auto ${isDark ? "bg-black" : "bg-white"}`}>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`h-12 rounded-lg flex items-center justify-center border font-semibold text-sm transition-colors shadow-md ${isDark ? "bg-[#1F1F1F] border-[#262626] hover:bg-[#3D3D3D] text-white" : "bg-[#F0F0F0] border-[#E3E3E3] hover:bg-[#E3E3E3] text-black"}`}
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
-            onClick={handleFormSubmit}
-            className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Submitting..." : "Submit"}
-          </button>
+        <div className={`sticky bottom-0 inset-x-0 p-4 lg:p-6 pt-2 z-40 mt-auto ${isDark ? "bg-black" : "bg-white"}`}>
+          {selectedShootId && selectedCreators.length > 0 && (
+            <div className="flex items-center gap-3 mb-4">
+              <input
+                id="send-mail-to-creators"
+                type="checkbox"
+                checked={sendMail}
+                onChange={(event) => setSendMail(event.target.checked)}
+                className="h-4 w-4 lg:h-5 lg:w-5 rounded-md bg-black text-[#E8D1AB] accent-[#E8D1AB] cursor-pointer"
+              />
+
+              <label htmlFor="send-mail-to-creators" className={`text-xs lg:text-sm font-medium cursor-pointer text-[#E8D1AB] underline underline-offset-4`}>
+                Send mail to creators
+              </label>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`h-12 rounded-lg flex items-center justify-center border font-semibold text-sm transition-colors shadow-md ${isDark ? "bg-[#1F1F1F] border-[#262626] hover:bg-[#3D3D3D] text-white" : "bg-[#F0F0F0] border-[#E3E3E3] hover:bg-[#E3E3E3] text-black"}`}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
+              onClick={handleFormSubmit}
+              className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Submitting..." : "Submit"}
+            </button>
+          </div>
         </div>
       </div>
       <AdvancePaymentModal

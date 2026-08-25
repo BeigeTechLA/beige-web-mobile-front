@@ -285,7 +285,10 @@ export default function EditMeetingModal({
     const loadDirectory = async () => {
       setDirectoryLoading(true);
       try {
-        const directory = await externalChatApi.getDirectory(search || undefined);
+        const directory = await externalChatApi.getDirectory({
+          search: search || undefined,
+          limit: 50,
+        });
         if (cancelled) return;
 
         const source =

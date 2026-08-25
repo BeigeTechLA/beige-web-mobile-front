@@ -190,7 +190,7 @@ export default function ManageParticipantsModal({
     setLoading(true);
     try {
       const [directoryResponse, participantResponse] = await Promise.all([
-        externalChatApi.getDirectory(),
+        externalChatApi.getDirectory({ limit: 50 }),
         externalChatApi.getParticipants(roomId),
       ]);
       setDirectory(directoryResponse);
@@ -226,6 +226,32 @@ export default function ManageParticipantsModal({
     if (!isOpen || !roomId) return;
     loadParticipants();
   }, [isOpen, roomId]);
+
+  useEffect(() => {
+    if (!isOpen || !roomId || activeTab !== "add") return;
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      try {
+        const directoryResponse = await externalChatApi.getDirectory({
+          search: search.trim() || undefined,
+          limit: 50,
+        });
+        if (!cancelled) {
+          setDirectory(directoryResponse);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to search chat directory", error);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [activeTab, isOpen, roomId, search]);
 
   const submit = async () => {
     if (!roomId) {

@@ -199,6 +199,8 @@ export default function AdminFinancesPage() {
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
+  const [pendingTableData, setPendingTableData] = useState<ShootCPRow[]>([]);
+  const [pendingTableLoading, setPendingTableLoading] = useState(false);
   const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
   const [details, setDetails] = useState<CpCompensationDetails | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -214,6 +216,7 @@ export default function AdminFinancesPage() {
   const [selectedPaymentScope, setSelectedPaymentScope] = useState<"advance" | "final" | null>(null);
   const [selectedPendingAdvance, setSelectedPendingAdvance] = useState<{ advanceId?: number; amount?: number; paymentDate?: string } | null>(null);
   const [selectedActionEarningIds, setSelectedActionEarningIds] = useState<number[]>([]);
+  const [selectedPendingShootId, setSelectedPendingShootId] = useState<number | null>(null);
 
   // Visibility States
   const [isCompOpen, setIsCompOpen] = useState(false);
@@ -272,17 +275,71 @@ export default function AdminFinancesPage() {
   const loadHistory = useCallback(async (view: TabType) => {
     setLoading(true);
     try {
-      const [rows, shootRows] = view === "shoots"
-        ? await cpCompensationApi.list("shoots").then((shoots) => [shoots, shoots] as const)
-        : await Promise.all([cpCompensationApi.list("creators"), cpCompensationApi.list("shoots")]);
-      setTableData(rows);
-      setOverviewRows(shootRows);
+      if (view === "shoots") {
+        const shoots = await cpCompensationApi.list("shoots");
+        setTableData(shoots);
+        setOverviewRows(shoots);
+      } else if (view === "creators") {
+        const [creators, shoots] = await Promise.all([
+          cpCompensationApi.list("creators"),
+          cpCompensationApi.list("shoots"),
+        ]);
+        setTableData(creators);
+        setOverviewRows(shoots);
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load CP compensation history");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load CP compensation history",
+      );
       setTableData([]);
       setOverviewRows([]);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadPendingCompensation = useCallback(async () => {
+    setPendingTableLoading(true);
+
+    try {
+      const pendingCompensation = await cpCompensationApi.pendingShoots();
+
+      const mappedPendingCompensation: ShootCPRow[] = pendingCompensation.map(
+        (item) => ({
+          id: String(item.booking_id),
+          bookingId: item.booking_id,
+          shootName: item.shoot_name,
+          totalCP: item.creators?.length || 0,
+          customerName: item.customer?.name || "Unknown Customer",
+          customerEmail: item.customer?.email || "",
+          shootBudget: Number(item.shoot_amount || 0),
+          cpPayout: 0,
+          margin: Number(item.margin_percent || 0),
+          status: "Pending",
+          category: String(item.shoot_type || item.content_type || "")
+            .toLowerCase()
+            .includes("photo")
+            ? "photography"
+            : "videography",
+          avatarImage: "",
+          date: item.event_date || "",
+          sortDate: item.event_date || "",
+        }),
+      );
+
+      setPendingTableData(mappedPendingCompensation);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load pending compensation shoots",
+      );
+
+      setPendingTableData([]);
+    } finally {
+      setPendingTableLoading(false);
     }
   }, []);
 
@@ -714,6 +771,11 @@ export default function AdminFinancesPage() {
   }, [canView, dataType, loadHistory]);
 
   useEffect(() => {
+    if (!canView) return;
+    loadPendingCompensation();
+  }, [canView, loadPendingCompensation]);
+
+  useEffect(() => {
     if (isPermissionLoading || canView) return;
 
     const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
@@ -745,8 +807,8 @@ export default function AdminFinancesPage() {
       setSuccessButtonText("");
       setIsSuccessOpen(true);
       window.setTimeout(() => {
-        void Promise.all([loadHistory(dataType), loadPendingShoots()]).catch((error) => {
-          toast.error(error instanceof Error ? error.message : "Failed to refresh compensation history");
+        void Promise.all([loadHistory(dataType), loadPendingCompensation(), loadPendingShoots(),]).catch((error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to refresh compensation history",);
         });
       }, 0);
     } catch (error) {
@@ -828,6 +890,35 @@ export default function AdminFinancesPage() {
           type={dataType}
         />
 
+        <div className="pt-4 lg:pt-6">
+          <div className="mb-4 lg:mb-5">
+            <h2 className={`text-lg lg:text-xl font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
+              Pending Compensation
+            </h2>
+            <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+              Shoots that are ready for compensation setup but do not have compensation
+              added yet. Select a shoot below to add compensation for its Creative
+              Partners.
+            </p>
+          </div>
+
+          <CPPayoutTable
+            rows={pendingTableData}
+            loading={pendingTableLoading}
+            onRowClick={(row) => {
+              const bookingId = row.bookingId || Number(row.id);
+              if (!bookingId) {
+                toast.error("This shoot does not have a valid booking ID.");
+                return;
+              }
+
+              setSelectedPendingShootId(bookingId);
+              setIsAddCompOpen(true);
+            }}
+            type="pending_compansation"
+          />
+        </div>
+
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
@@ -856,10 +947,14 @@ export default function AdminFinancesPage() {
 
         <AddCompendationModal
           isOpen={isAddCompOpen}
-          onClose={() => setIsAddCompOpen(false)}
+          onClose={() => {
+            setIsAddCompOpen(false);
+            setSelectedPendingShootId(null);
+          }}
           shoots={pendingShoots}
           loading={pendingShootsLoading}
           isSubmitting={isAddSubmitting}
+          initialShootId={selectedPendingShootId}
           enableAdvanceProofUpload
           onSubmit={handleAddSubmit}
         />
@@ -869,7 +964,7 @@ export default function AdminFinancesPage() {
           isOpen={isModifyOpen}
           onClose={() => {
             setIsModifyOpen(false);
-            setSelectedActionEarningIds([]);
+            setSelectedActionEarningIds([]); 
           }}
           rowContext={selectedRow}
           creatorName={getSelectedActionCreator()?.creator_name || selectedRow?.creatorName}
