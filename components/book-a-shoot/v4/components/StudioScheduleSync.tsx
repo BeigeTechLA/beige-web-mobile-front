@@ -547,8 +547,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           <div
             onClick={() => setUseSameSchedule(true)}
             className={`h-14 lg:h-[82px] rounded-2xl border px-2 lg:px-6 flex items-center gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${useSameSchedule
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
-                : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
+              ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
+              : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span className="font-semibold text-base md:text-lg">
@@ -556,8 +556,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
             </span>
             <div
               className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${useSameSchedule
-                  ? "border-black bg-black"
-                  : "border-white/40 bg-transparent"
+                ? "border-black bg-black"
+                : "border-white/40 bg-transparent"
                 }`}
             >
               {useSameSchedule && (
@@ -570,8 +570,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           <div
             onClick={() => setUseSameSchedule(false)}
             className={`h-14 lg:h-[82px] rounded-2xl border px-2 lg:px-6 flex items-center gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!useSameSchedule
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
-                : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
+              ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
+              : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span className="font-semibold text-base md:text-lg">
@@ -579,8 +579,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
             </span>
             <div
               className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${!useSameSchedule
-                  ? "border-black bg-black"
-                  : "border-white/40 bg-transparent"
+                ? "border-black bg-black"
+                : "border-white/40 bg-transparent"
                 }`}
             >
               {!useSameSchedule && (
@@ -610,11 +610,224 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
             </button>
 
             {/* Accordion Body */}
-            {isAccordionOpen && (
-              <div className="px-5 md:px-6 pb-6 pt-2 border-t border-white/5 space-y-6">
-                Design here
-              </div>
-            )}
+            {
+              isAccordionOpen && (
+                <div className="px-5 md:px-6 pb-6 pt-2 border-t border-white/5 space-y-6">
+                  {bookingType === "single_day" ? (
+                    <div className="space-y-3 lg:space-y-5 pt-4">
+                      <div className="flex flex-col lg:flex-row gap-6">
+                        <div className="flex-1 mt-2">
+                          <DatePicker
+                            label="Select Date"
+                            value={selectedShootDate}
+                            onChange={handleDateChange}
+                            minDate={new Date()}
+                            colors={datePickerColours}
+                            format="MM/dd/yyyy"
+                            floating={true}
+                            borderRadius={"20px"}
+                            sx={{
+                              height: { xs: "56px", md: "82px" },
+                            }}
+                            disabled={true}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <DropdownSelect
+                            title="Start Time"
+                            options={filteredStartTimeOptions}
+                            value={getStartTimeKey()}
+                            onChange={handleStartTimeChange}
+                            bgColour="bg-[#101010]"
+                            floatingTitle={true}
+                            isDisabled={true}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <DropdownSelect
+                            title="End Time"
+                            options={filteredEndTimeOptions}
+                            value={getEndTimeKey()}
+                            onChange={handleEndTimeChange}
+                            bgColour="bg-[#101010]"
+                            floatingTitle={true}
+                            isDisabled={true}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-full bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
+                          Duration : 8 Hours
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* MULTI DAY VIEW */
+                    <div className="space-y-6">
+                      {/* Timings Selector with Fallback Dummy Dates */}
+                      {(() => {
+                        const datesToRender =
+                          selectedDates.length > 0
+                            ? selectedDates
+                            : [new Date("2026-10-24"), new Date("2026-10-25")];
+
+                        return (
+                          <div className="pt-4 space-y-3 lg:space-y-5">
+                            {sameTimingsMulti ? (
+                              <div>
+                                <div className="flex flex-col lg:flex-row gap-6">
+                                  <div className="flex-1">
+                                    <DropdownSelect
+                                      title="Start Time"
+                                      options={filteredStartTimeOptions}
+                                      value={getStartTimeKey() || "09:00"}
+                                      onChange={handleStartTimeChange}
+                                      bgColour="bg-[#101010]"
+                                      floatingTitle={true}
+                                      isDisabled={true}
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <DropdownSelect
+                                      title="End Time"
+                                      options={filteredEndTimeOptions}
+                                      value={getEndTimeKey() || "17:00"}
+                                      onChange={handleEndTimeChange}
+                                      bgColour="bg-[#101010]"
+                                      floatingTitle={true}
+                                      isDisabled={true}
+                                    />
+                                  </div>
+                                </div>
+                                <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
+                                  <Check size={24} className="text-white" /> Applied to {datesToRender.length} selected dates
+                                </p>
+                                <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                                  <p className="text-white font-medium lg:text-[20px]">
+                                    {selectedDates.length > 0
+                                      ? getFormattedDateString(selectedDates)
+                                      : "Oct 24, 2026, Oct 25, 2026"}
+                                  </p>
+                                  <p className="text-white/60 font-medium lg:text-[20px]">
+                                    {getStartTimeKey() && getEndTimeKey()
+                                      ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                      : "09:00 AM - 05:00 PM"}
+                                  </p>
+                                  <p className="text-[#E8D1AB] font-medium lg:text-[20px]">
+                                    {getStartTimeKey() &&
+                                      getEndTimeKey() &&
+                                      calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                      ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                      : "8 Hours/Day"}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {datesToRender.map((dateItem) => {
+                                  const dateKey = getDateKey(dateItem);
+                                  // const isExpanded = expandedDateKey === dateKey;
+                                  return (
+                                    <div
+                                      key={dateItem.toISOString()}
+                                      ref={(el) => {
+                                        selectedDateCardRefs.current[dateKey] = el;
+                                      }}
+                                      // className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                                      className={`border border-white/10 rounded-2xl bg-[#171717] overflow-visible`}
+
+                                    >
+                                      {/* <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextExpanded = isExpanded ? null : dateKey;
+                                          setExpandedDateKey(nextExpanded);
+                                          if (nextExpanded) {
+                                            requestAnimationFrame(() => {
+                                              selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
+                                                behavior: "smooth",
+                                                block: "nearest",
+                                                inline: "nearest",
+                                              });
+                                            });
+                                          }
+                                        }}
+                                        className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10" : ""}`}
+                                      >
+                                        <span className="text-white font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
+                                        <ChevronDown
+                                          className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                        />
+                                      </button> */}
+                                      <div className="w-full px-6 py-5 flex justify-between items-center border-b rounded-b-2xl border-b-white/10">
+                                        <span className="text-white font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
+                                        </div>
+                                      <AnimatePresence>
+                                        {/* {isExpanded && ( */}
+                                        <motion.div
+                                          initial={{ height: 0 }}
+                                          animate={{ height: "auto" }}
+                                          exit={{ height: 0 }}
+                                          className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-2xl"
+                                        >
+                                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <div className="flex-1">
+                                              <DropdownSelect
+                                                title="Start Time"
+                                                options={getDateSpecificStartOptions(dateKey)}
+                                                value={multiDayTimes[dateKey]?.startKey || "09:00"}
+                                                onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                                bgColour="bg-[#101010]"
+                                                floatingTitle={true}
+                                                isDisabled={true}
+                                              />
+                                            </div>
+                                            <div className="flex-1">
+                                              <DropdownSelect
+                                                title="End Time"
+                                                options={getDateSpecificEndOptions(dateKey)}
+                                                value={multiDayTimes[dateKey]?.endKey || "17:00"}
+                                                onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                                bgColour="bg-[#101010]"
+                                                floatingTitle={true}
+                                                isDisabled={true}
+                                              />
+                                            </div>
+                                          </div>
+
+                                          <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-full bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                            <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                              Duration:{" "}
+                                              {multiDayTimes[dateKey]?.startKey &&
+                                                multiDayTimes[dateKey]?.endKey &&
+                                                calculateDurationHours(
+                                                  multiDayTimes[dateKey]?.startKey || "",
+                                                  multiDayTimes[dateKey]?.endKey || ""
+                                                ) !== null
+                                                ? `${calculateDurationHours(
+                                                  multiDayTimes[dateKey]?.startKey || "",
+                                                  multiDayTimes[dateKey]?.endKey || ""
+                                                )} hours`
+                                                : "8 hours"}
+                                            </p>
+                                          </div>
+                                        </motion.div>
+                                        {/* )} */}
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )
+            }
           </div>
         ) :
           <>
@@ -625,8 +838,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                   type="button"
                   onClick={() => setBookingType("single_day")}
                   className={`!lg:w-[228px] relative px-8 py-3.5 lg:px-12 lg:py-8 text-sm lg:text-lg font-medium transition-all cursor-pointer flex-1 flex items-center justify-center ${bookingType === "single_day"
-                      ? "text-[#E8D1AB]"
-                      : "text-white/50 hover:text-white"
+                    ? "text-[#E8D1AB]"
+                    : "text-white/50 hover:text-white"
                     }`}
                 >
                   {bookingType === "single_day" && (
@@ -666,8 +879,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                   type="button"
                   onClick={() => setBookingType("multi_day")}
                   className={`!lg:w-[228px] relative px-8 py-3.5 lg:px-12 lg:py-8 text-sm lg:text-lg font-medium transition-all cursor-pointer flex-1 flex items-center justify-center ${bookingType === "multi_day"
-                      ? "text-[#E8D1AB]"
-                      : "text-white/50 hover:text-white"
+                    ? "text-[#E8D1AB]"
+                    : "text-white/50 hover:text-white"
                     }`}
                 >
                   {bookingType === "multi_day" && (
@@ -826,8 +1039,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                               toggleDateSelection(dateItem);
                             }}
                             className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected
-                                ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                                : "bg-transparent border-white/10 text-white/40 hover:border-white/30"
+                              ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
+                              : "bg-transparent border-white/10 text-white/40 hover:border-white/30"
                               }`}
                           >
                             <span className="text-lg lg:text-3xl font-bold">{format(dateItem, "d")}</span>
@@ -894,8 +1107,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                   key={dateItem.toISOString()}
                                   onClick={() => toggleDateSelection(dateItem)}
                                   className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected
-                                      ? "bg-[#E8D1AB] text-black"
-                                      : "text-white hover:bg-white/10"
+                                    ? "bg-[#E8D1AB] text-black"
+                                    : "text-white hover:bg-white/10"
                                     } ${!isSameMonth(dateItem, currentCalendarMonth) ? "opacity-20" : ""}`}
                                 >
                                   {format(dateItem, "d")}
@@ -920,8 +1133,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                           type="button"
                           onClick={() => handleSameTimingsModeChange(true)}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti
-                              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                            ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                            : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
                             }`}
                         >
                           <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
@@ -936,8 +1149,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                           type="button"
                           onClick={() => handleSameTimingsModeChange(false)}
                           className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti
-                              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                            ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                            : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
                             }`}
                         >
                           <span className="font-medium text-sm lg:text-lg pr-2">No</span>

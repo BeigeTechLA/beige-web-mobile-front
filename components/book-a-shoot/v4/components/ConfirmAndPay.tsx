@@ -192,6 +192,15 @@ export default function ConfirmAndPay({
                 <span className="text-[#A9A9A9] text-xs lg:text-sm ">{data.creativeRoleTitle}</span>
                 <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(data.creativeRoleCost)}</span>
               </div>
+              {/* If studio added */}
+              <div className="flex justify-between">
+                <span className="text-[#A9A9A9] text-xs lg:text-sm ">Studio Rental 4 hours × $150/hr</span>
+                <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(600)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#A9A9A9] text-xs lg:text-sm ">Studio Platform fee</span>
+                <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(25)}</span>
+              </div>
               <div className="flex justify-between items-center">
                 <span className="text-[#A9A9A9] text-xs lg:text-sm  flex items-center gap-1.5">
                   Added {data.addOnsCount} Add-ons
