@@ -117,6 +117,8 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
   const [pastShoots, setPastShoots] = useState<any[]>([]);
   const [shootsLoading, setShootsLoading] = useState(true);
+  const SHOOTS_PER_PAGE = 10;
+  const [shootCurrentPage, setShootCurrentPage] = useState(1);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
@@ -323,6 +325,24 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
       calculateSummary();
     }
   }, [availabilityDetails]);
+
+  // Hooks must stay above the loading/partner early returns so their order is
+  // identical on every render.
+  useEffect(() => {
+    setShootCurrentPage(1);
+    setExpandedId(null);
+  }, [shootTab, shootSearchQuery]);
+
+  useEffect(() => {
+    const selectedShootCount =
+      shootTab === "current" ? upcomingShoots.length : pastShoots.length;
+    const availablePages = Math.max(
+      1,
+      Math.ceil(selectedShootCount / SHOOTS_PER_PAGE)
+    );
+
+    setShootCurrentPage((page) => Math.min(page, availablePages));
+  }, [shootTab, upcomingShoots.length, pastShoots.length]);
 
   if (loading) {
     return (
@@ -655,6 +675,51 @@ const convertLinksStringToArray = (jsonString: string | null) => {
       return searchableText.includes(normalizedShootSearchQuery);
     })
     : assignedProjects;
+
+  // Frontend-only pagination for the already-fetched assigned projects.
+  const shootTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAssignedProjects.length / SHOOTS_PER_PAGE)
+  );
+  const shootStartIndex = (shootCurrentPage - 1) * SHOOTS_PER_PAGE;
+  const paginatedAssignedProjects = filteredAssignedProjects.slice(
+    shootStartIndex,
+    shootStartIndex + SHOOTS_PER_PAGE
+  );
+  const shootStartItem =
+    filteredAssignedProjects.length === 0 ? 0 : shootStartIndex + 1;
+  const shootEndItem = Math.min(
+    shootStartIndex + SHOOTS_PER_PAGE,
+    filteredAssignedProjects.length
+  );
+
+  const getShootPaginationItems = () => {
+    const items: Array<number | "ellipsis-left" | "ellipsis-right"> = [];
+
+    if (shootTotalPages <= 5) {
+      return Array.from({ length: shootTotalPages }, (_, index) => index + 1);
+    }
+
+    items.push(1);
+
+    if (shootCurrentPage > 3) {
+      items.push("ellipsis-left");
+    }
+
+    const startPage = Math.max(2, shootCurrentPage - 1);
+    const endPage = Math.min(shootTotalPages - 1, shootCurrentPage + 1);
+
+    for (let page = startPage; page <= endPage; page += 1) {
+      items.push(page);
+    }
+
+    if (shootCurrentPage < shootTotalPages - 2) {
+      items.push("ellipsis-right");
+    }
+
+    items.push(shootTotalPages);
+    return items;
+  };
 
   const progressPercent = onboardingStatus?.progress_percent ?? 0;
   const completedCount = onboardingStatus?.completed_count ?? 0;
@@ -1672,14 +1737,14 @@ return (
                       </thead>
 
                       <tbody>
-                        {filteredAssignedProjects.map((shoot, index) => {
+                        {paginatedAssignedProjects.map((shoot, index) => {
                           const projectId =
                             shoot.project_id ||
                             shoot.stream_project_booking_id;
 
                           return (
                             <tr
-                              key={shoot.assignment_id || projectId || index}
+                              key={shoot.assignment_id || projectId || `${shootTab}-${shootStartIndex + index}`}
                               onClick={(event) => {
                                 if (!projectId) return;
 
@@ -1787,9 +1852,9 @@ return (
                         No shoots found for the selected filters.
                       </div>
                     ) : (
-                      filteredAssignedProjects.map((shoot, index) => {
+                      paginatedAssignedProjects.map((shoot, index) => {
                         const projectId = shoot.project_id || shoot.stream_project_booking_id;
-                        const baseIdentifier = shoot.assignment_id || projectId || String(index);
+                        const baseIdentifier = shoot.assignment_id || projectId || String(shootStartIndex + index);
                         const rowKey = `${shootTab}-${baseIdentifier}`;
                         const isExpanded = expandedId === rowKey;
 
@@ -1921,6 +1986,102 @@ return (
                       })
                     )}
                   </div>
+
+                  {/* Frontend-only pagination */}
+                  {filteredAssignedProjects.length > 0 && (
+                    <div className={`flex flex-col gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/10 bg-[#101010]" : "border-gray-200 bg-white"}`}>
+                      <p className={`text-sm ${isDark ? "text-white/50" : "text-gray-500"}`}>
+                        Showing <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootStartItem}</span>{" "}
+                        to <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootEndItem}</span>{" "}
+                        of <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{filteredAssignedProjects.length}</span>{" "}
+                        shoots
+                      </p>
+
+                      {shootTotalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            aria-label="Go to previous shoots page"
+                            disabled={shootCurrentPage === 1}
+                            onClick={() => {
+                              setShootCurrentPage((page) => Math.max(1, page - 1));
+                              setExpandedId(null);
+                            }}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${shootCurrentPage === 1
+                              ? isDark
+                                ? "cursor-not-allowed border-white/5 text-white/20"
+                                : "cursor-not-allowed border-gray-200 text-gray-300"
+                              : isDark
+                                ? "border-white/10 text-white hover:border-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                                : "border-gray-200 text-black hover:border-black hover:bg-black hover:text-white"
+                              }`}
+                          >
+                            <ChevronLeft size={17} />
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {getShootPaginationItems().map((item) => {
+                              if (typeof item !== "number") {
+                                return (
+                                  <span
+                                    key={item}
+                                    className={`flex h-9 w-7 items-center justify-center text-sm ${isDark ? "text-white/40" : "text-gray-400"}`}
+                                  >
+                                    …
+                                  </span>
+                                );
+                              }
+
+                              const isActivePage = item === shootCurrentPage;
+
+                              return (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  aria-label={`Go to shoots page ${item}`}
+                                  aria-current={isActivePage ? "page" : undefined}
+                                  onClick={() => {
+                                    setShootCurrentPage(item);
+                                    setExpandedId(null);
+                                  }}
+                                  className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-all ${isActivePage
+                                    ? isDark
+                                      ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                                      : "border-black bg-black text-white"
+                                    : isDark
+                                      ? "border-white/10 text-white/70 hover:border-[#E8D1AB] hover:text-[#E8D1AB]"
+                                      : "border-gray-200 text-gray-600 hover:border-black hover:text-black"
+                                    }`}
+                                >
+                                  {item}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-label="Go to next shoots page"
+                            disabled={shootCurrentPage === shootTotalPages}
+                            onClick={() => {
+                              setShootCurrentPage((page) => Math.min(shootTotalPages, page + 1));
+                              setExpandedId(null);
+                            }}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${shootCurrentPage === shootTotalPages
+                              ? isDark
+                                ? "cursor-not-allowed border-white/5 text-white/20"
+                                : "cursor-not-allowed border-gray-200 text-gray-300"
+                              : isDark
+                                ? "border-white/10 text-white hover:border-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                                : "border-gray-200 text-black hover:border-black hover:bg-black hover:text-white"
+                              }`}
+                          >
+                            <ChevronRight size={17} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
