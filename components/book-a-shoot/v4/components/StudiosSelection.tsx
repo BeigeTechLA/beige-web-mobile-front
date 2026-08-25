@@ -42,6 +42,7 @@ export interface StudioItem {
   pricePerHour: number;
   availability: string;
   image: string;
+  link: string;
 }
 
 export interface StudiosSelectionProps {
@@ -63,6 +64,7 @@ const DEFAULT_STUDIOS: StudioItem[] = [
     availability: "Available Jun 24",
     image:
       "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+    link: "/studios/new-1787571533413"
   },
   {
     id: "studio-2",
@@ -76,6 +78,7 @@ const DEFAULT_STUDIOS: StudioItem[] = [
     availability: "Available Jun 25",
     image:
       "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+      link: "/studios/new-1787571533413"
   },
   {
     id: "studio-3",
@@ -89,6 +92,7 @@ const DEFAULT_STUDIOS: StudioItem[] = [
     availability: "Available Jun 26",
     image:
       "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+      link: "/studios/new-1787571533413"
   },
 ];
 
@@ -369,7 +373,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
 
                               {/* Add studio detail page link */}
                               <Link
-                                href={"/"}
+                                href={studio.link}
                                 target="_blank"
                                 className="w-10 h-10 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer"
                               >
