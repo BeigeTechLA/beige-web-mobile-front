@@ -421,6 +421,27 @@ export default function SalespeopleDetailView({
     ? ["Booking Type", "Self-Serve", "Sales Assisted", "Manual"]
     : ["Booking Type", "Single Day", "Multi Day"];
   const salesRepId = profile.sales_rep_id || profile.id;
+  const handleTabChange = (tab: "booking" | "quotes") => {
+    if (tab === activeTab) return;
+
+    setFilters((current) => ({
+      ...current,
+      lead: "All Lead",
+      status: tab === "booking" ? "All" : "All Status",
+      booking: "Booking Type",
+      cp: "Creative Partners",
+    }));
+
+    if (tab === "booking") {
+      setLeadPage(1);
+    } else {
+      setQuotePage(1);
+    }
+
+    setActiveTab(tab);
+  };
+
+
   const bookingGridColumns = useMemo(() => {
     const baseStatuses = ["Booking In Progress", "Booked", "Signed Up - Lead Created", "Book a Shoot - Lead Created", "Manual - Lead Created", "Ready for Payment", "Closed - Lost"];
     const statuses = Array.from(new Set([...baseStatuses, ...leadRows.map((row) => row.status || "N/A")]));
@@ -539,22 +560,26 @@ export default function SalespeopleDetailView({
   };
 
   useEffect(() => {
+  let cancelled = false;
    const load = async () => {
   const repId = salesRepId;
   if (!repId) return;
 
   setIsLoading(true);
+  try {
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
         const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
           search: debouncedSearch || undefined,
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
-          status: filters.status === "All" ? undefined : filters.status,
+          status: filters.status === "All" || filters.status === "All Status" ? undefined : filters.status,
           date: formatApiDate(dateFilter),
           page: leadPage,
           limit: 10,
         }));
+      if (cancelled) return;
+
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
         const activeList = list.filter((row: any) => isActiveRecord(row?.is_active ?? row?.user_status ?? row?.enabled ?? row?.is_enabled));
@@ -593,12 +618,13 @@ export default function SalespeopleDetailView({
         setLeadRows([]);
         const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
           search: debouncedSearch || undefined,
-          status: filters.status === "All Status" ? undefined : quoteStatusParam[filters.status],
+          status: filters.status === "All Status" || filters.status === "All" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
           date: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
         }));
+      if (cancelled) return;
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
         const pagination = data?.pagination || {};
@@ -609,30 +635,35 @@ export default function SalespeopleDetailView({
           pages: Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1),
         });
         setSalesQuoteRows(list
-          .filter((row: any) => !(row?.lead_id && !row?.sales_quote_id && !row?.project && !row?.quote_status))
           .map((row: any) => {
             const displayName = clientDisplayName(row);
             return {
-              sales_quote_id: row.sales_quote_id || row.id || row.project || row.client_name || row.guest_email,
+              sales_quote_id: row.sales_quote_id || row.quote_id || row.id || row.project || row.client_name || row.guest_email,
               lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
-              quoteNumber: row.quote_number || row.sales_quote_id || row.id,
+              quoteNumber: row.quote_number || row.sales_quote_id || row.quote_id || row.id,
               name: displayName,
               meta: formatLocation(row.client_location),
-              project: row.project || "Untitled project",
+              project: row.project || row.project_name || "Untitled project",
               amount: row.amount || "0.00",
-              status: row.quote_status || "Draft",
-              valid: row.valid_until || "N/A",
+              status: row.quote_status || row.status || "Draft",
+              valid: row.valid_until || row.valid || "N/A",
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
           }));
       }
+    } finally {
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    }
+  };
 
-      setIsLoading(false);
-    };
-
-    void load();
-  }, [activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
+  void load();
+  return () => {
+    cancelled = true;
+  };
+}, [ activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage,]);
 
   useEffect(() => {
     if (activeTab === "booking") {
@@ -640,17 +671,7 @@ export default function SalespeopleDetailView({
     } else {
       setQuotePage(1);
     }
-  }, [activeTab, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
-
-  useEffect(() => {
-    setFilters((current) => ({
-      ...current,
-      lead: "All Lead",
-      status: activeTab === "booking" ? "All" : "All Status",
-      booking: "Booking Type",
-      cp: "Creative Partners",
-    }));
-  }, [activeTab]);
+  }, [debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
 
   return (
     <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
@@ -687,8 +708,8 @@ export default function SalespeopleDetailView({
       </div>
       
       <div className="mt-5 inline-flex rounded-lg border border-[#2D2D2D] bg-[#171717] p-1">
-        <button onClick={() => setActiveTab("booking")} className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
-        <button onClick={() => setActiveTab("quotes")} className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
+        <button onClick={() => handleTabChange("booking")}className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
+        <button onClick={() => handleTabChange("quotes")}className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 lg:flex-row">
@@ -873,7 +894,15 @@ export default function SalespeopleDetailView({
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">No quotes found</td></tr>
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                        <span>Loading quotes...</span>
+                      </div>
+                    ) : (
+                      "No quotes found"
+                    )}</td></tr>
               )}</tbody>
             </table>
           )}
