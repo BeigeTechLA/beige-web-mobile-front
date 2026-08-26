@@ -71,6 +71,7 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/users", permissionKeys: ["users"] },
   { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
   { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
+  { prefix: "/admin/settings", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
 ];

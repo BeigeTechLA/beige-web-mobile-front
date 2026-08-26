@@ -97,6 +97,7 @@ const menuItems = [
     name: 'Settings',
     icon: Settings,
     link: '/admin/settings',
+    permissionKeys: ['finances'],
   },
   { name: 'Profile', icon: User, link: '/admin/profile' },
 ];
