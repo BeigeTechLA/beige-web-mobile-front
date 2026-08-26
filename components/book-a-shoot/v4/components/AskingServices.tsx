@@ -9,6 +9,7 @@ export interface ServiceOption {
   title: string;
   description: string;
   iconSrc?: string;
+  disabled?: boolean;
 }
 
 const SERVICES: ServiceOption[] = [
@@ -41,6 +42,7 @@ const SERVICES: ServiceOption[] = [
     title: "Livestream",
     description: "Live broadcasts, webinars, hybrid events",
     iconSrc: "/images/misc/BookingFlow/Livestream.png",
+    disabled: true,
   },
 ];
 
@@ -109,10 +111,15 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
             return (
               <div
                 key={service.id}
-                onClick={() => toggleService(service.id)}
-                className={`relative rounded-lg lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 cursor-pointer flex justify-between items-center border overflow-hidden min-h-[140px] ${isSelected
-                    ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
-                    : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
+                onClick={() => !service.disabled && toggleService(service.id)}
+                className={`relative rounded-lg lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 flex justify-between items-center border overflow-hidden min-h-[140px]
+                  ${service.disabled
+                    ? "bg-[#141414]/60 text-white/5 border-white/50 cursor-not-allowed opacity-50"
+                    : `cursor-pointer ${
+                        isSelected
+                          ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
+                          : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
+                      }`
                   }`}
               >
                 {/* Left Card Details */}
