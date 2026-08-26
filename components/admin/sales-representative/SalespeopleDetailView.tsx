@@ -23,7 +23,11 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { LeadsStatusBadge, type BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { useDebounce } from "@/hooks/use-debounce";
-import { salesApi, shiftManagementApi } from "@/lib/api";
+import { salesApi, shiftManagementApi, type QuotesListResponse, type SalesQuoteListItem } from "@/lib/api";
+import {
+  formatQuoteStatusLabel,
+  getPaymentAwareQuoteStatusKey,
+} from "@/lib/quoteStatus";
 import { toast } from "sonner";
 
 export type SalespeopleProfile = {
@@ -54,6 +58,52 @@ function firstText(...values: Array<unknown>) {
     if (text && !["n/a", "null", "undefined"].includes(text.toLowerCase())) return text;
   }
   return "";
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getOptionalNumber(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function extractQuoteRowsState(data: QuotesListResponse["data"]) {
+  if (Array.isArray(data)) {
+    return { rows: data, pagination: null };
+  }
+
+  const record = getRecord(data);
+  if (!record) {
+    return { rows: [], pagination: null };
+  }
+
+  const rowKeys = ["quotes", "items", "results", "rows", "list", "data"] as const;
+  const rows = rowKeys.reduce<SalesQuoteListItem[]>((foundRows, key) => {
+    if (foundRows.length) return foundRows;
+    return Array.isArray(record[key]) ? record[key] as SalesQuoteListItem[] : foundRows;
+  }, []);
+  const pagination = getRecord(record.pagination);
+
+  return {
+    rows,
+    pagination: pagination
+      ? {
+          page: getOptionalNumber(pagination.page) ?? 1,
+          limit: getOptionalNumber(pagination.limit) ?? rows.length,
+          total: getOptionalNumber(pagination.total) ?? rows.length,
+          pages: getOptionalNumber(pagination.pages, pagination.total_pages, pagination.totalPages) ?? 1,
+        }
+      : null,
+  };
 }
 
 function clientDisplayName(row: any) {
@@ -417,7 +467,7 @@ export default function SalespeopleDetailView({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"booking" | "quotes">("booking");
-  const viewMode: "list" | "grid" = "list";
+  const viewMode = "list" as "list" | "grid";
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | null>(getTodayDate);
   const debouncedSearch = useDebounce(search, 300);
@@ -656,36 +706,42 @@ export default function SalespeopleDetailView({
           }));
       } else {
         setLeadRows([]);
-        const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
+        const response = await salesApi.getQuotesList({
           search: normalizedSearch || undefined,
+          assigned_sales_rep_id: repId,
           status: filters.status === "All Status" || filters.status === "All" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
-          date: formatApiDate(dateFilter),
+          range: dateFilter ? "custom" : undefined,
+          date_on: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
-        }));
+        });
       if (cancelled) return;
-        const data = response?.data?.data || response?.data;
-        const list = Array.isArray(data?.rows) ? data.rows : [];
-        const pagination = data?.pagination || {};
+        const { rows, pagination } = response?.success
+          ? extractQuoteRowsState(response.data)
+          : { rows: [], pagination: null };
+        const list = rows;
+        const quotePageLimit = Number(pagination?.limit || 10);
+        const quoteTotal = Number(pagination?.total || list.length || 0);
         setQuotePagination({
-          page: Number(pagination.page || quotePage || 1),
-          limit: Number(pagination.limit || 10),
-          total: Number(pagination.total || list.length || 0),
-          pages: Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1),
+          page: Number(pagination?.page || quotePage || 1),
+          limit: quotePageLimit,
+          total: quoteTotal,
+          pages: Number(pagination?.pages || 1),
         });
         setSalesQuoteRows(list
           .map((row: any) => {
             const displayName = clientDisplayName(row);
+            const statusKey = getPaymentAwareQuoteStatusKey(row);
             return {
               sales_quote_id: row.sales_quote_id || row.quote_id || row.id || row.project || row.client_name || row.guest_email,
               lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
               quoteNumber: row.quote_number || row.sales_quote_id || row.quote_id || row.id,
               name: displayName,
-              meta: formatLocation(row.client_location),
-              project: row.project || row.project_name || "Untitled project",
-              amount: row.amount || "0.00",
-              status: row.quote_status || row.status || "Draft",
+              meta: formatLocation(row.client_location || row.client_address || row.address || row.location),
+              project: row.project || row.project_name || row.project_description || row.video_shoot_type || "Untitled project",
+              amount: row.amount || row.total_amount || row.total || "0.00",
+              status: formatQuoteStatusLabel(statusKey),
               valid: row.valid_until ? formatShortDate(row.valid_until) : row.valid || "N/A",
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
@@ -782,11 +838,11 @@ export default function SalespeopleDetailView({
                 <div
                   key={`grid-column-${column.status}`}
                   onDragOver={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                   }}
                   onDrop={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                     reorderGridCards(column.status, draggedCard.id);
                     setDraggedCard(null);
@@ -810,11 +866,11 @@ export default function SalespeopleDetailView({
                         }}
                         onDragEnd={() => setDraggedCard(null)}
                         onDragOver={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                         }}
                         onDrop={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                           event.stopPropagation();
                           reorderGridCards(column.status, draggedCard.id, activeTab === "booking" ? row.lead_id : row.sales_quote_id);
