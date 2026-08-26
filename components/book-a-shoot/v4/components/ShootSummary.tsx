@@ -5,8 +5,12 @@ import Image from "next/image";
 import { ArrowLeft, Calendar, Check, Clock, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
-import { formatCurrency } from "@/lib/utils";
+
+// Swiper imports & styles
+import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow, Mousewheel } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/effect-coverflow";
 
 export interface StudioSummaryData {
   studioId: string;
@@ -22,6 +26,13 @@ export interface StudioSummaryData {
   endTime?: string;
   nights?: number;
   bookingDays?: Array<{ date: string }>;
+}
+
+export interface CreativePartnerData {
+  id: string | number;
+  name: string;
+  role: string;
+  image: string;
 }
 
 export interface ShootSummaryData {
@@ -40,9 +51,43 @@ export interface ShootSummaryData {
     totalPhotos: string;
   };
   studio?: StudioSummaryData;
+  creatives?: CreativePartnerData[];
   addOns: string[];
   includedServices: string[];
 }
+
+const DEFAULT_CREATIVES_DATA: CreativePartnerData[] = [
+  {
+    id: 1,
+    name: "Alex Rivera",
+    role: "Videographer Specialist",
+    image: "/images/crew/CREW(5).png",
+  },
+  {
+    id: 2,
+    name: "Ethan Cole",
+    role: "Photographer Specialist",
+    image: "/images/crew/CREW(9).png",
+  },
+  {
+    id: 3,
+    name: "Sophia Martinez",
+    role: "Lead Director & Cinematographer",
+    image: "/images/crew/CREW(2).png",
+  },
+  {
+    id: 4,
+    name: "Liam Chen",
+    role: "Lighting & Drone Specialist",
+    image: "/images/crew/CREW(6).png",
+  },
+  {
+    id: 5,
+    name: "Maya Patel",
+    role: "Senior Portrait Photographer",
+    image: "/images/crew/CREW(7).png",
+  },
+];
 
 const DEFAULT_STUDIO_DATA: StudioSummaryData = {
   studioId: "studio-101",
@@ -74,6 +119,7 @@ const DEFAULT_SUMMARY_DATA: ShootSummaryData = {
     totalPhotos: "You'll Receive 125 Photos",
   },
   studio: DEFAULT_STUDIO_DATA,
+  creatives: DEFAULT_CREATIVES_DATA,
   addOns: ["Additional Camera x1"],
   includedServices: [
     "All Raw Images, Lighting & Insurance Provided",
@@ -106,7 +152,12 @@ export default function ShootSummaryStep({
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
 
+  const creativesList = summaryData.creatives || DEFAULT_CREATIVES_DATA;
+  const initialSlideIndex = Math.floor(creativesList.length / 2);
+  const [activeCreativeIndex, setActiveCreativeIndex] = useState(initialSlideIndex);
+
   const studio = summaryData.studio || DEFAULT_STUDIO_DATA;
+  const activeCreative = creativesList[activeCreativeIndex] || creativesList[0];
   const firstDay = studio.bookingDays?.[0];
   const lastDay = studio.bookingDays?.[studio.bookingDays.length - 1];
 
@@ -154,6 +205,89 @@ export default function ShootSummaryStep({
       </div>
 
       <div className="flex flex-col gap-4">
+        {/* Studio Data Card : Conditionally present Journey 2 */}
+        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              Studios
+            </h2>
+            <button
+              type="button"
+              onClick={() => onEditStep?.("studio")}
+              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+            >
+              EDIT
+            </button>
+          </div>
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
+
+          <div>
+            <div className="flex flex-col md:flex-row gap-4 md:items-start">
+              <div className="relative w-full lg:w-[275px] h-[120px] lg:h-[190px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                <Image
+                  src="https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png"
+                  alt={studio.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                  <div className="min-w-0 space-y-2">
+                    <div className="text-sm lg:text-base text-white font-medium truncate">{studio.name}</div>
+                    <div className="text-xs lg:text-sm text-[#8C8C8C] flex items-center gap-1">
+                      <MapPin size={16} />
+                      <span className="truncate">{studio.location}</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-lg px-4 py-1.5 text-xs lg:text-sm font-medium">
+                    Duration : 8 Hours
+                  </div>
+                </div>
+                <hr className="border-t border-white/20 my-3 lg:my-6" />
+
+                <div className="flex gap-2 flex-wrap">
+                  <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                    Natural light
+                  </span>
+                  <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                    Product-friendly
+                  </span>
+                  <span className="px-2.5 py-1 text-xs rounded-sm bg-[#E8D1AB]/10 border border-[#E8D1AB]/10 text-[#E8D1AB]">
+                    {studio.pricingMode === "hourly"
+                      ? `${studio.quantity} billable hour${studio.quantity > 1 ? "s" : ""}`
+                      : `Duration: ${studio.nights || studio.quantity} Night${(studio.nights || studio.quantity) > 1 ? "s" : ""}`}
+                  </span>
+                  {studio.pricingLabel && (
+                    <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                      {studio.pricingLabel}
+                    </span>
+                  )}
+                  {studio.cleaningFee ? (
+                    <span className="px-2.5 py-1 text-xs text-white/70 bg-[#1F1F1F] rounded-sm border border-white/10">
+                      ${studio.cleaningFee.toLocaleString()} cleaning
+                    </span>
+                  ) : null}
+                </div>
+                <hr className="border-t border-white/20 my-3 lg:my-6" />
+
+                <div className="flex gap-10">
+                  <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
+                    <Clock size={16} />
+                    <span>Mon, 12 Jan, 2026</span>
+                  </div>
+                  <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
+                    <Calendar size={16} />
+                    <span>Mon, 12 Jan, 2026</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Project Card */}
         <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
@@ -244,7 +378,7 @@ export default function ShootSummaryStep({
           </div>
         </div>
 
-        {/* Studio Data Card */}
+        {/* Studio Data Card : Conditionally present Journey 1 */}
         <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
             <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
@@ -260,7 +394,7 @@ export default function ShootSummaryStep({
           </div>
           <hr className="border-t border-white/20 my-4 lg:my-7" />
 
-          <div className="">
+          <div>
             <div className="flex flex-col md:flex-row gap-4 md:items-start">
               <div className="relative w-full lg:w-[275px] h-[120px] lg:h-[190px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
                 <Image
@@ -314,21 +448,83 @@ export default function ShootSummaryStep({
                 <div className="flex gap-10">
                   <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
                     <Clock size={16} />
-                    <span>
-                      Mon, 12 Jan, 2026
-                    </span>
+                    <span>Mon, 12 Jan, 2026</span>
                   </div>
                   <div className="text-xs lg:text-sm text-white/70 flex items-center gap-2">
                     <Calendar size={16} />
-                    <span>
-                      Mon, 12 Jan, 2026
-                    </span>
+                    <span>Mon, 12 Jan, 2026</span>
                   </div>
                 </div>
 
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Dynamic Professional Creatives Swiper Card */}
+        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) py-4 lg:py-7 overflow-hidden">
+          <div className="flex items-center justify-between px-4 lg:px-7">
+            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              Professional Creatives
+            </h2>
+          </div>
+          <hr className="border-t border-white/20 my-4 lg:my-7" />
+
+          {/* Dynamic Swiper Section */}
+          <div className="relative w-full">
+            {creativesList.length > 0 ? (
+              <Swiper
+                key={creativesList.length}
+                effect={"coverflow"}
+                grabCursor={true}
+                centeredSlides={true}
+                spaceBetween={24}
+                slidesPerView={3}
+                initialSlide={initialSlideIndex}
+                loop={creativesList.length >= 3}
+                mousewheel={{ forceToAxis: true }}
+                coverflowEffect={{
+                  rotate: 15,
+                  stretch: 0,
+                  depth: 100,
+                  modifier: 1,
+                  slideShadows: false,
+                }}
+                modules={[EffectCoverflow, Mousewheel]}
+                onSlideChange={(swiper) => setActiveCreativeIndex(swiper.realIndex)}
+                className="w-full py-4"
+              >
+                {creativesList.map((creative, index) => (
+                  <SwiperSlide key={creative.id || index} className="flex items-center justify-center">
+                    <div className="relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] lg:!h-[310px] lg:!w-[406px] rounded-2xl overflow-hidden transition-all duration-500 border border-white/20 shadow-2xl bg-black/40">
+                      <Image
+                        src={creative.image}
+                        alt={creative.name}
+                        fill
+                        className="object-cover object-top"
+                      />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-white/50">
+                No creative partners assigned.
+              </div>
+            )}
+          </div>
+
+          {/* Active Creative Details Display */}
+          {activeCreative && (
+            <div className="w-full flex flex-col items-center justify-center gap-1 mt-3 text-center">
+              <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                {activeCreative.name}
+              </h3>
+              <p className="text-xs lg:text-sm text-[#A9A9A9]">
+                {activeCreative.role}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Add-ons & Included Services Row */}
@@ -348,7 +544,7 @@ export default function ShootSummaryStep({
                   EDIT
                 </button>
               </div>
-              <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+              <hr className="border-t border-white/20 my-4 lg:my-7" />
               <div className="flex flex-wrap gap-2 pt-1">
                 {summaryData.addOns.map((addon, idx) => (
                   <span
@@ -367,7 +563,7 @@ export default function ShootSummaryStep({
             <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Included Services
             </h2>
-            <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+            <hr className="border-t border-white/20 my-4 lg:my-7" />
             <div className="flex flex-wrap gap-3 lg:gap-5">
               {summaryData.includedServices.map((service, idx) => (
                 <div key={idx} className="flex items-center gap-2.5">
@@ -384,7 +580,7 @@ export default function ShootSummaryStep({
         </div>
       </div>
 
-      <hr className={`border-t border-white/20 my-5 lg:my-10`} />
+      <hr className="border-t border-white/20 my-5 lg:my-10" />
 
       {/* Contact Information Form */}
       <div className="mb-8">
@@ -403,7 +599,7 @@ export default function ShootSummaryStep({
             <div className="relative">
               <Input
                 id="fullName"
-                type={"text"}
+                type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
@@ -420,7 +616,7 @@ export default function ShootSummaryStep({
             <div className="relative">
               <Input
                 id="phone"
-                type={"tel"}
+                type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 inputMode="tel"
@@ -456,4 +652,4 @@ export default function ShootSummaryStep({
       </div>
     </div>
   );
-};
+}

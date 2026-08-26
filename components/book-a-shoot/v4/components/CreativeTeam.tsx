@@ -83,7 +83,7 @@ export default function CreativeTeam({
       </div>
 
       {/* Roles List */}
-      <div className="space-y-4 mb-6">
+      <div className="space-y-4 mb-6 p-4 lg:px-5 lg:py-7 rounded-2xl border transition-all bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20">
         {DEFAULT_ROLES.map((role) => {
           const count = counts[role.id] || 0;
           const isSelected = count > 0;
@@ -91,7 +91,7 @@ export default function CreativeTeam({
           return (
             <div
               key={role.id}
-              className="flex items-center justify-between p-4 lg:px-5 lg:py-7 rounded-2xl border transition-all bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20"
+              className="flex items-center justify-between "
             >
               <div className="flex items-start gap-3">
                 {/* Checkbox implementation */}

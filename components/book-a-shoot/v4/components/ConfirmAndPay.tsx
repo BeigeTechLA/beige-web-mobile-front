@@ -13,6 +13,7 @@ import {
   FolderDown,
   BadgeCheck,
   PencilLine,
+  Clapperboard,
 } from "lucide-react";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
@@ -31,6 +32,14 @@ export interface PricingBreakdown {
   addOnsCost: number;
   totalAmount: number;
   depositAmount: number;
+  studioName: string;
+  studioFee: number;
+  studioType: string;
+  studioTypeFee: number;
+  studioCrewSize: string;
+  studioDuration: string;
+  studioBaseFee: number;
+  platformFee: number;
 }
 
 interface ConfirmAndPayProps {
@@ -60,6 +69,14 @@ const DEFAULT_PRICING: PricingBreakdown = {
   addOnsCost: 350,
   totalAmount: 4125,
   depositAmount: 500,
+  studioName: "Beige Media (Modern Resort Villa with Jacuzzi)",
+  studioFee: 500,
+  studioType: "Productions",
+  studioTypeFee: 50,
+  studioCrewSize: "5-6 Max",
+  studioDuration: "4 hours",
+  studioBaseFee: 600,
+  platformFee: 25,
 };
 
 export default function ConfirmAndPay({
@@ -124,8 +141,9 @@ export default function ConfirmAndPay({
             </h2>
           </div>
 
-          <div className="p-4 lg:p-8">
-            {/* Service Line Header */}
+          {/* // show when only creative services are selected */}
+          {/* <div className="p-4 lg:p-8">
+            Service Line Header
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-[#A9A9A9] text-xs lg:text-sm">{data.serviceName}</span>
@@ -136,7 +154,7 @@ export default function ConfirmAndPay({
               </span>
             </div>
 
-            {/* Package Offer Card */}
+            Package Offer Card
             <div className="bg-[#FEF5E5] text-black rounded-xl mb-6">
               <div className="p-4 border-b border-black/40">
                 <p className="text-xs lg:text-sm font-bold text-[#171717]">
@@ -158,7 +176,7 @@ export default function ConfirmAndPay({
               </div>
             </div>
 
-            {/* Editing Services Breakdown */}
+            Editing Services Breakdown
             <div className="space-y-2 mb-4 text-xs md:text-sm text-white/70">
               <p className="text-white/40 mb-4 text-xs lg:text-sm">+ Editing services</p>
               <div className="flex justify-between items-center">
@@ -176,12 +194,69 @@ export default function ConfirmAndPay({
               </div>
             </div>
 
-            {/* Total Edits Pill Box */}
+            Total Edits Pill Box
             <div className="bg-[#1D1C1A] border border-[#E8D1AB]/30 rounded-lg p-4 flex justify-between items-center text-[#E8D1AB]">
               <span className="text-xs lg:text-sm ">Total Edits</span>
               <span className="font-bold text-sm lg:text-base">{data.totalPhotosCount} Photos</span>
             </div>
+          </div> */}
+
+          {/* Show only when Studios are selected */}
+          <div className="p-4 lg:p-8">
+            <div className="flex justify-between">
+              <span className="text-[#A9A9A9] text-xs lg:text-sm">{data.studioName}</span>
+              <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(data.studioFee)}</span>
+            </div>
           </div>
+
+          <div className="border-t border-white/20 p-4 lg:p-8">
+            <div className="flex justify-between items-start">
+              <div className="space-y-5">
+                <div className="flex gap-3 items-center">
+                  <div className="p-3 rounded-full bg-[#E8D1AB] text-black">
+                    <Clapperboard size={24} strokeWidth={1} />
+                  </div>
+                  <p className="text-base lg:text-lg font-medium text-white">{data.studioType}</p>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <div className="space-y-2">
+                    <p className="text-white text-xs lg:text-sm">Min Duration:</p>
+                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-center min-w-25">
+                      <span>
+                        {data.studioDuration}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-white text-xs lg:text-sm">Max People:</p>
+                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-center min-w-25">
+                      <span>
+                        {data.studioCrewSize}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[#E8D1AB] text-sm lg:text-base font-bold">{formatCurrency(data.studioFee)}</span>
+            </div>
+          </div>
+
+          {/* Fee breakdown component */}
+          <div className="border-t border-white/20 p-4 lg:p-8">
+            <div className="space-y-3 lg:space-y-4">
+              <div className="flex justify-between">
+                <span className="text-[#A9A9A9] text-xs lg:text-sm ">Base hours</span>
+                <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(data.studioBaseFee)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#A9A9A9] text-xs lg:text-sm ">Platform fee</span>
+                <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(data.platformFee)}</span>
+              </div>
+            </div>
+          </div>
+          {/* Show only when Studios are selected ---Ends */}
+
+          {/* Fee breakdown component */}
           <div className="border-t border-white/20 p-4 lg:p-8">
             <div className="space-y-3 lg:space-y-4">
               <div className="flex justify-between">
@@ -210,6 +285,7 @@ export default function ConfirmAndPay({
               </div>
             </div>
           </div>
+
 
           {/* Total Amount Header */}
           <div className="border-t border-white/20 bg-[#161515] text-[#E8D1AB] p-4 lg:p-8">
@@ -295,8 +371,8 @@ export default function ConfirmAndPay({
           className="w-5 h-5 accent-[#E8D1AB] rounded shrink-0"
         />
         <span className="text-sm lg:text-lg text-[#E8D1AB]">
-          By continuing to payment, you agree to our 
-          
+          By continuing to payment, you agree to our
+
           <button
             type="button"
             onClick={() => setIsServiceAgreementOpen(true)}
@@ -304,7 +380,7 @@ export default function ConfirmAndPay({
           >
             Services Agreement, Terms & Conditions,
           </button>
-           Cancellation Policy, and Privacy Policy.
+          Cancellation Policy, and Privacy Policy.
         </span>
       </label>
 

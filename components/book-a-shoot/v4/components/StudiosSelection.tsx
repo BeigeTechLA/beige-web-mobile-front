@@ -78,7 +78,7 @@ const DEFAULT_STUDIOS: StudioItem[] = [
     availability: "Available Jun 25",
     image:
       "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
-      link: "/studios/new-1787571533413"
+    link: "/studios/new-1787571533413"
   },
   {
     id: "studio-3",
@@ -92,7 +92,7 @@ const DEFAULT_STUDIOS: StudioItem[] = [
     availability: "Available Jun 26",
     image:
       "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
-      link: "/studios/new-1787571533413"
+    link: "/studios/new-1787571533413"
   },
 ];
 
@@ -375,7 +375,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                               <Link
                                 href={studio.link}
                                 target="_blank"
-                                className="w-10 h-10 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer"
+                                className="w-10 h-10 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer z-20"
                               >
                                 {/* <ArrowUpRight className="w-4 h-4 lg:w-6 lg:h-6" /> */}
                                 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34" fill="none">

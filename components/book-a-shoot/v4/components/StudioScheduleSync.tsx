@@ -52,6 +52,10 @@ export interface StudioScheduleSyncProps {
   onBack?: () => void;
   initialUseSameSchedule?: boolean;
   initialBookingType?: "single_day" | "multi_day";
+  title?: string;
+  subtitle?: string;
+  step?: string;
+  completionPercentage: number;
 }
 
 export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
@@ -59,6 +63,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   onBack,
   initialUseSameSchedule = true,
   initialBookingType = "multi_day",
+  title = "Should the studio use the same schedule?",
+  subtitle = "You can use your shoot schedule or set a separate date and time for the studio.",
+  step = "03",
+  completionPercentage = 60,
 }) => {
   const [useSameSchedule, setUseSameSchedule] = useState<boolean>(initialUseSameSchedule);
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(initialBookingType);
@@ -524,7 +532,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 03
+            STEP {step}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
             <div className="h-full w-3/5 bg-[#E8D1AB] transition-all duration-300" />
@@ -534,10 +542,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         {/* Section Heading */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-            Should the studio use the same schedule?
+            {title}
           </h1>
           <p className="text-white/30 text-base lg:text-xl">
-            You can use your shoot schedule or set a separate date and time for the studio.
+            {subtitle}
           </p>
         </div>
 

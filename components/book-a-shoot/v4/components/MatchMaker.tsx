@@ -12,6 +12,10 @@ interface TeamSelectionStepProps {
   onBack?: () => void;
   initialOption?: "best-match" | "choose-own";
   packageTitle?: string;
+  title?: string;
+  subtitle?: string;
+  step?: string;
+  completionPercentage: number;
 }
 
 const PLACEHOLDER_INCLUSIONS = [
@@ -26,6 +30,10 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   onBack,
   initialOption = "best-match",
   packageTitle = "Corporate - Photography",
+  title = "Who shoots your event?",
+  subtitle = "Let Beige find the right creative team for you, or choose your own.",
+  step = "05",
+  completionPercentage = 45,
 }) => {
   const [teamOption, setTeamOption] = useState<"best-match" | "choose-own">(
     initialOption
@@ -50,20 +58,21 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 05
+          STEP {step}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-2/3 bg-[#E8D1AB] transition-all duration-300" />
+          <div className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }} />
         </div>
       </div>
 
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Who shoots your event?
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Let Beige find the right creative team for you, or choose your own.
+          {subtitle}
         </p>
       </div>
 
@@ -193,6 +202,14 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Dynamic Info Callout Box: studio journey 2 */}
+        <div className="p-4 lg:p-6 rounded-2xl bg-[#211F1C] flex items-center gap-3 text-sm md:text-base text-[#E8D1AB] mt-4">
+          <Info className="w-4 h-4 lg:w-6 lg:h-6 flex-shrink-0" />
+          <span>
+            Your studio booking stays the same. Photography is an optional add-on and can be added to your package.
+          </span>
         </div>
       </div>
 

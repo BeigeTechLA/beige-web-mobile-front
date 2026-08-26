@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Building2,
   ChevronDown,
-  X
+  X,
+  Camera
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -52,12 +53,14 @@ interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
+  isStudioFlow?: boolean;
 }
 
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  isStudioFlow = false
 }) => {
   // Top level mode: "have-date" | "confirm-later"
   const [dateOption, setDateOption] = useState<"have-date" | "confirm-later">(
@@ -1130,28 +1133,55 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       </div>
       <hr className={`border-t border-white/20 my-4 lg:my-10`} />
 
-      {/* Need a Studio Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
-        <div className="flex items-center gap-4">
-          <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-xl bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-6 lg:w-11 h-6 lg:h-11 text-[#101010]" strokeWidth={1} />
-          </div>
-          <div>
-            <h3 className="text-base lg:text-xl font-medium text-white">Need a Studio?</h3>
-            <p className="text-xs lg:text-sm text-[#A9A9A9]">
-              Add a professional studio to your booking and get 15% off
-            </p>
-          </div>
-        </div>
+      {
+        !isStudioFlow ? <>
+          {/* Need a Studio Banner */}
+          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+            <div className="flex items-center gap-4">
+              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-xl bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-6 lg:w-11 h-6 lg:h-11 text-[#101010]" strokeWidth={1} />
+              </div>
+              <div>
+                <h3 className="text-base lg:text-xl font-medium text-white">Need a Studio?</h3>
+                <p className="text-xs lg:text-sm text-[#A9A9A9]">
+                  Add a professional studio to your booking and get 15% off
+                </p>
+              </div>
+            </div>
 
-        <button
-          type="button"
-          onClick={onBrowseStudios}
-          className="px-10 py-6 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
-        >
-          Browse Studios
-        </button>
-      </div>
+            <button
+              type="button"
+              onClick={onBrowseStudios}
+              className="px-10 py-6 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+            >
+              Browse Studios
+            </button>
+          </div>
+        </> : <>
+          {/* Need a Creator Banner */}
+          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+            <div className="flex items-center gap-4">
+              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-xl bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Camera className="w-6 lg:w-11 h-6 lg:h-11 text-[#101010]" strokeWidth={1} />
+              </div>
+              <div>
+                <h3 className="text-base lg:text-xl font-medium text-white">Need a Photographer or Videographer for your Studio?</h3>
+                <p className="text-xs lg:text-sm text-[#A9A9A9]">
+                  Bring your shoot to life with top photographers/videographers at your studio.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onBrowseStudios}
+              className="px-10 py-6 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+            >
+              Browse Creators
+            </button>
+          </div>
+        </>
+      }
 
       {/* Bottom Action Footer Bar */}
       <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
