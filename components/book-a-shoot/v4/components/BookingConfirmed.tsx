@@ -2,7 +2,12 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { formatCurrency } from "@/lib/utils";
 
-const BookingConfirmed = () => {
+interface BookingConfirmedProps {
+  totalAmount?: number;
+  bookingId?: number;
+}
+
+const BookingConfirmed = ({ totalAmount = 4211, bookingId }: BookingConfirmedProps) => {
   return (
     <div className="container mx-auto px-4 md:px-0">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center h-full min-h-[60vh]">
@@ -21,7 +26,10 @@ const BookingConfirmed = () => {
         <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
           Booking Confirmed
         </h2>
-        <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency("4211")}</p>
+        <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(totalAmount)}</p>
+        {bookingId ? (
+          <p className="mb-6 text-sm text-white/50">Booking ID #{bookingId}</p>
+        ) : null}
         <div className="w-full max-w-lg mb-6">
           <button
             // onClick={() => setIsDetailsFormOpen(true)}

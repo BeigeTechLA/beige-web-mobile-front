@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { pushToDataLayer } from "@/lib/gtm";
 
 export interface ServiceOption {
@@ -78,10 +77,8 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
   onBack,
   initialSelected = ["photography"],
   email = "",
-  bookingId,
 }) => {
   const { user, isAuthenticated } = useAuth();
-  const [trackEarlyInterest, { isLoading }] = useTrackEarlyInterestMutation();
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelected);
   const [errors, setErrors] = useState<string[]>([]);
   const hasTrackedPageViewRef = useRef(false);
@@ -118,7 +115,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
     });
   }, [email, isAuthenticated, user?.email, user?.id, user?.phone_number, user?.user_type_id]);
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (selectedIds.length === 0) {
       toast.error("Please select at least one content type");
       setErrors((prev) => [...prev, "contentError"]);
@@ -131,56 +128,22 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
       return;
     }
 
-    if (!bookingId) {
-      toast.error("Booking session not found. Please restart the booking flow.");
-      return;
-    }
+    pushToDataLayer("service_details_submitted_step1", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "book_a_shoot_step1",
+      duration_on_page: performance.now() / 1000,
+      phone: isAuthenticated ? user?.phone_number : "Unknown",
+      user_id: user?.id || "Guest",
+      user_type:
+        isAuthenticated && user?.user_type_id !== undefined
+          ? USER_TYPE[user.user_type_id]
+          : "Guest",
+      email: resolvedEmail,
+      form_content_type: contentTypeValue,
+    });
 
-    try {
-      const response = await trackEarlyInterest({
-        booking_id: bookingId,
-        guest_email: resolvedEmail,
-        user_id: user?.id,
-        client_name: user?.name,
-        content_type: contentTypeValue,
-      }).unwrap();
-
-      pushToDataLayer("generate_lead", {
-        value: 0,
-        currency: "USD",
-        page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_step1",
-        duration_on_page: performance.now() / 1000,
-        user_id: user?.id || "Guest",
-        user_type:
-          isAuthenticated && user?.user_type_id !== undefined
-            ? USER_TYPE[user.user_type_id]
-            : "Guest",
-        booking_id: response?.data?.booking_id,
-        email: resolvedEmail,
-      });
-
-      pushToDataLayer("service_details_submitted_step1", {
-        type: "Action Tracking",
-        page_name: "Book-a-shoot Page",
-        location_in_website: "book_a_shoot_step1",
-        duration_on_page: performance.now() / 1000,
-        phone: isAuthenticated ? user?.phone_number : "Unknown",
-        user_id: user?.id || "Guest",
-        user_type:
-          isAuthenticated && user?.user_type_id !== undefined
-            ? USER_TYPE[user.user_type_id]
-            : "Guest",
-        booking_id: response?.data?.booking_id,
-        email: resolvedEmail,
-        form_content_type: contentTypeValue,
-      });
-
-      onContinue(selectedIds);
-    } catch (error) {
-      console.error("Failed to track service selection:", error);
-      toast.error("Failed to start booking. Please try again.");
-    }
+    onContinue(selectedIds);
   };
 
   return (
@@ -228,7 +191,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                 onClick={() => toggleService(service.id)}
                 className={`relative rounded-lg lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 cursor-pointer flex justify-between items-center border overflow-hidden min-h-[140px] ${
                   isDisabled
-                    ? "bg-[#0f0f0f] text-white border-white/5 opacity-45 cursor-not-allowed"
+                    ? "bg-[#0f0f0f] text-white border-white/40 opacity-50 cursor-not-allowed"
                     : isSelected
                     ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
                     : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
@@ -288,10 +251,10 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
 
         <button
           onClick={handleNext}
-          disabled={selectedIds.length === 0 || isLoading}
+          disabled={selectedIds.length === 0}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
-          {isLoading ? "Saving..." : "Continue"}
+          Continue
         </button>
       </div>
     </div>

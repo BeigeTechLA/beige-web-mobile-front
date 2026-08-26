@@ -2,6 +2,10 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, Trash2, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export interface ShootDetailsData {
   notes: string;
@@ -13,6 +17,9 @@ interface ShootDetailsStepProps {
   onBack?: () => void;
   initialNotes?: string;
   initialLinks?: string[];
+  bookingId?: number;
+  email?: string;
+  clientName?: string;
 }
 
 export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
@@ -20,15 +27,21 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   onBack,
   initialNotes = "",
   initialLinks = [],
+  bookingId,
+  email,
+  clientName,
 }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [updateBookingCrew, { isLoading }] = useUpdateBookingCrewMutation();
   const [notes, setNotes] = useState<string>(initialNotes);
   const [links, setLinks] = useState<string[]>(initialLinks);
   const [currentLinkInput, setCurrentLinkInput] = useState<string>("");
 
   const handleAddLink = () => {
-    if (!currentLinkInput.trim()) return;
+    const rawValue = currentLinkInput.trim();
+    if (!rawValue) return;
 
-    let formattedLink = currentLinkInput.trim();
+    let formattedLink = rawValue;
     if (
       !formattedLink.startsWith("http://") &&
       !formattedLink.startsWith("https://")
@@ -36,8 +49,67 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
       formattedLink = `https://${formattedLink}`;
     }
 
-    setLinks((prev) => [...prev, formattedLink]);
-    setCurrentLinkInput("");
+    try {
+      const normalized = new URL(formattedLink).toString();
+      if (links.includes(normalized)) {
+        toast.error("This link is already added");
+        return;
+      }
+
+      setLinks((prev) => [...prev, normalized]);
+      setCurrentLinkInput("");
+    } catch {
+      toast.error("Please enter a valid URL");
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!bookingId) {
+      toast.error("Booking reference missing. Please restart.");
+      return;
+    }
+
+    const cleanedLinks = links.filter((link) => link.trim() !== "");
+
+    try {
+      await updateBookingCrew({
+        booking_id: bookingId,
+        crew_roles: {},
+        description: notes,
+        reference_links: cleanedLinks,
+      }).unwrap();
+
+      pushToDataLayer("customize_details_submitted_step2", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_step5",
+        duration_on_page: performance.now() / 1000,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type:
+          isAuthenticated && user?.user_type_id !== undefined
+            ? {
+                1: "Admin",
+                2: "Creator",
+                3: "Client",
+                4: "Creative",
+                5: "Sales Representative",
+                6: "Production Manager",
+              }[user.user_type_id]
+            : "Guest",
+        email: isAuthenticated ? user?.email : email || "Unknown",
+        client_name: clientName || user?.name || email || "Guest",
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        booking_id: bookingId,
+        form_shoot_location: "",
+        form_additional_details: notes,
+        form_supporting_url: cleanedLinks.join(", "),
+      });
+
+      onContinue({ notes, links: cleanedLinks });
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Failed to save project details");
+    }
   };
 
   const handleRemoveLink = (indexToRemove: number) => {
@@ -82,7 +154,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
           Tell us a little about your shoot.
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Share anything about your shoot, vibe, or ideas. We'll take it from there.
+          Share anything about your shoot, vibe, or ideas. We&apos;ll take it from there.
         </p>
       </div>
 
@@ -176,7 +248,8 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
 
         <button
           type="button"
-          onClick={() => onContinue({ notes, links })}
+          onClick={handleContinue}
+          disabled={isLoading}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue

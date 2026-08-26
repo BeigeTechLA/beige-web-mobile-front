@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 export interface ShootSummaryData {
   project: {
@@ -24,6 +24,11 @@ export interface ShootSummaryData {
   addOns: string[];
   includedServices: string[];
 }
+
+const isValidPhoneNumber = (value: string) => {
+  const digitCount = value.replace(/\D/g, "").length;
+  return digitCount >= 7 && digitCount <= 15;
+};
 
 interface ShootSummaryStepProps {
   onBack?: () => void;
@@ -66,6 +71,14 @@ export default function ShootSummaryStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fullName.trim() || !phoneNumber.trim()) {
+      toast.error("Please fill in your contact information");
+      return;
+    }
+    if (!isValidPhoneNumber(phoneNumber)) {
+      toast.error("Please enter a valid phone number");
+      return;
+    }
     if (onContinue) {
       onContinue({ fullName, phoneNumber });
     }

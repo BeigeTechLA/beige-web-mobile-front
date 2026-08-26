@@ -17,7 +17,6 @@ import {
   musicEditTypes,
   musicPhotoEditTypes,
   peopleTeamsPhotoEditTypes,
-  privateEventEditTypes,
   privateEventPhotoEditTypes,
   socialContentEditTypes,
   socialContentPhotoEditTypes,
@@ -36,7 +35,14 @@ export interface EditsConfig {
 }
 
 interface EditsNeededProps {
-  onContinue: (config: EditsConfig, bookingId?: number) => void;
+  onContinue: (
+    config: EditsConfig & {
+      videoEditTypes?: string[];
+      photoEditTypes?: string[];
+      expectedDeliveryDate?: string;
+    },
+    bookingId?: number
+  ) => void;
   onBack?: () => void;
   initialConfig?: EditsConfig;
   baseFreePhotos?: number;
@@ -249,6 +255,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   }, [rawPhoto, contentType, isEditingOnly]);
 
   const photoEditNote = rawNote || "25 edited photos per hour";
+  void photoEditNote;
 
   const hasVideoContent = contentType.includes("videographer");
   const hasPhotoContent = contentType.includes("photographer");
@@ -263,6 +270,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
     () => buildEditCounts(Array.from({ length: editedPhotosSets }, () => "edited_photos")),
     [editedPhotosSets]
   );
+  void photoEditCounts;
   const videoEditCounts = useMemo(() => buildEditCounts(videoEditTypes), [videoEditTypes]);
 
   const photoEditTypes = useMemo(
@@ -277,6 +285,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
     () => [{ key: "edited_photos", label: "Edited Photos", count: editedPhotosSets }],
     [editedPhotosSets]
   );
+  void photoEditSummaryItems;
   const videoEditSummaryItems = useMemo(
     () =>
       Object.entries(videoEditCounts).map(([key, count]) => ({
@@ -286,6 +295,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
       })),
     [videoEditCounts, videoEditOptions]
   );
+  void videoEditSummaryItems;
 
   const totalVideoEditsSelected = videoEditTypes.length;
 
@@ -397,7 +407,15 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         form_edit_types: needsEdits ? [...videoEditTypes, ...photoEditTypes].join(", ") : "none",
       });
 
-      onContinue({ needsEdits, editedPhotosSets }, nextBookingId);
+      onContinue(
+        {
+          needsEdits,
+          editedPhotosSets,
+          videoEditTypes: needsEdits ? videoEditTypes : [],
+          photoEditTypes: needsEdits ? photoEditTypes : [],
+        },
+        nextBookingId,
+      );
     } catch (error) {
       console.error("Failed to save Step 1:", error);
       toast.error("Progress not saved, but you can continue.");

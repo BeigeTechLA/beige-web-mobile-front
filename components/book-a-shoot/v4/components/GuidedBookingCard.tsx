@@ -47,6 +47,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
   useEffect(() => {
     if (hasTrackedPageViewRef.current) return;
     hasTrackedPageViewRef.current = true;
+    const resolvedEmail = user?.email || email;
 
     pushToDataLayer("booking_page_viewed_step1", {
       type: "Action Tracking",
@@ -56,7 +57,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
       user_type: isAuthenticated && user?.user_type_id !== undefined
         ? USER_TYPE[user.user_type_id]
         : "Guest",
-      email: isAuthenticated ? user?.email : email,
+      email: resolvedEmail,
       phone: isAuthenticated ? user?.phone_number : "Unknown",
       duration_on_page: performance.now() / 1000,
     });

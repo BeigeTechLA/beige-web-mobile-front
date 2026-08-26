@@ -8,7 +8,6 @@ import {
   CreditCard,
   ShieldCheck,
   Phone,
-  Pencil,
   Clock,
   FolderDown,
   BadgeCheck,
@@ -38,6 +37,7 @@ interface ConfirmAndPayProps {
   onConfirmAndPay?: () => void;
   onConnectTeam?: () => void;
   pricingData?: Partial<PricingBreakdown>;
+  isSubmitting?: boolean;
 }
 
 const DEFAULT_PRICING: PricingBreakdown = {
@@ -66,6 +66,7 @@ export default function ConfirmAndPay({
   onConfirmAndPay,
   onConnectTeam,
   pricingData = {},
+  isSubmitting = false,
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const data = { ...DEFAULT_PRICING, ...pricingData };
@@ -215,6 +216,7 @@ export default function ConfirmAndPay({
               <button
                 type="button"
                 onClick={onConfirmAndPay}
+                disabled={isSubmitting || !agreedToTerms}
                 className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-sm lg:text-xl transition-colors flex items-center justify-center gap-2"
               >
                 <Check className="w-6 h-6" />
@@ -268,7 +270,7 @@ export default function ConfirmAndPay({
               <BadgeCheck className="w-6 h-6 text-[#E8D1AB]" />
             </div>
             <p className="text-xs leading-relaxed text-[#E8D1AB] italic font-bold">
-              Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we'll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.
+              Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.
             </p>
           </div>
         </div>
@@ -313,10 +315,10 @@ export default function ConfirmAndPay({
         <button
           type="button"
           onClick={onConfirmAndPay}
-          disabled={!agreedToTerms}
+          disabled={!agreedToTerms || isSubmitting}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
-          Confirm & Pay {formatCurrency(data.totalAmount)}
+          {isSubmitting ? "Processing..." : `Confirm & Pay ${formatCurrency(data.totalAmount)}`}
         </button>
       </div>
 

@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   Check,
   Calendar as CalendarIcon,
-  Clock,
-  MapPin,
   ChevronLeft,
   ChevronRight,
   Building2,
@@ -33,20 +31,36 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { pushToDataLayer } from "@/lib/gtm";
+import { useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
 import { getFormattedDateString } from "@/lib/utils";
 
-// Fallback/stub helpers to prevent runtime errors
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
   const parsed = parseISO(dateStr);
   return isValid(parsed) ? parsed : new Date(dateStr);
 };
 
-const pushToDataLayer = (...args: any[]) => { };
-const toast = { error: (msg: string) => console.error(msg) };
-const scrollToRef = (ref: any) => { };
-const areBookingDaysEqual = (a: any[], b: any[]) => JSON.stringify(a) === JSON.stringify(b);
-const USER_TYPE: Record<number, string> = {};
+const getDateFromDateKey = (dateKey: string) => {
+  const parsed = new Date(`${dateKey}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const scrollToRef = (ref: React.RefObject<HTMLElement | null>) => {
+  ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+const areBookingDaysEqual = (a: ScheduleBookingDay[], b: ScheduleBookingDay[]) =>
+  JSON.stringify(a) === JSON.stringify(b);
+const USER_TYPE: Record<number, string> = {
+  1: "Admin",
+  2: "Creator",
+  3: "Client",
+  4: "Creative",
+  5: "Sales Representative",
+  6: "Production Manager",
+};
 
 type ScheduleBookingDay = {
   date: string;
@@ -56,8 +70,13 @@ type ScheduleBookingDay = {
 
 interface ScheduleShootStepProps {
   onBack?: () => void;
-  onContinue?: (data: any) => void;
+  onContinue?: (data: ScheduleShootContinuePayload) => void;
   onBrowseStudios?: () => void;
+  bookingId?: number;
+  email?: string;
+  clientName?: string;
+  selectedContentTypes?: string[];
+  shootType?: string;
   initialData?: {
     dateOption?: "have-date" | "confirm-later";
     bookingType?: "single_day" | "multi_day" | "single" | "multiple" | null;
@@ -65,19 +84,50 @@ interface ScheduleShootStepProps {
     startTime?: string | null;
     endTime?: string | null;
     location?: string;
-    locationDetails?: any;
-    bookingDays?: ScheduleBookingDay[];
+    locationDetails?: LocationDetails;
+    bookingDays?: ScheduleBookingDay[]; 
     startDate?: string;
     endDate?: string;
   } | null;
 }
 
+type LocationDetails = Record<string, unknown> | null;
+
+type ScheduleShootFormState = {
+  startDate: string;
+  endDate: string;
+  bookingType: "single_day" | "multi_day";
+  bookingDays: ScheduleBookingDay[];
+  email: string;
+  locationDetails: LocationDetails;
+};
+
+type ScheduleShootContinuePayload = {
+  dateOption: "have-date" | "confirm-later";
+  bookingType: "single_day" | "multi_day" | null;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  location: string;
+  locationDetails: LocationDetails;
+  startDate: string;
+  endDate: string;
+  bookingDays: ScheduleBookingDay[];
+};
+
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  bookingId,
+  email,
+  clientName,
+  selectedContentTypes = [],
+  shootType,
   initialData,
 }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [updateBookingCrew, { isLoading: isSavingBooking }] = useUpdateBookingCrewMutation();
   const normalizeBookingType = (value?: string | null) =>
     value === "multi_day" || value === "multiple" ? "multi_day" : "single_day";
 
@@ -99,14 +149,14 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const [startTime, setStartTime] = useState(initialData?.startTime || "10:00 AM");
   const [endTime, setEndTime] = useState(initialData?.endTime || "06:00 PM");
   const [location, setLocation] = useState(initialData?.location || "Woodland Hills, Woodland Hills, CA");
-  const [locationDetails, setLocationDetails] = useState<any>(initialData?.locationDetails || null);
+  const [locationDetails, setLocationDetails] = useState<LocationDetails>(initialData?.locationDetails || null);
 
   // Missing State Definitions
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
     initialData?.startDate ? (parseDate(initialData.startDate) || new Date()) : new Date()
   );
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
-  const [data, setData] = useState<any>({
+  const [data, setData] = useState<ScheduleShootFormState>({
     startDate: initialData?.startDate || format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
     endDate: initialData?.endDate || format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
     bookingType: normalizeBookingType(initialData?.bookingType),
@@ -115,14 +165,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     locationDetails: initialData?.locationDetails || null,
   });
   const [errors, setErrors] = useState<string[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [hasExplicitScheduleSelection, setHasExplicitScheduleSelection] = useState<boolean>(
+    Boolean(initialData?.startDate || initialData?.bookingDays?.length)
+  );
+  const hasTrackedPageViewRef = useRef(false);
 
   // Missing Refs Definitions
   const dateChipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -137,11 +189,26 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const dragStartX = useRef(0);
   const dragStartY = useRef(0);
   const dragStartScrollLeft = useRef(0);
-  const hasHydratedMultiDayState = useRef(false);
 
-  const updateData = useCallback((fields: Partial<any>) => {
-    setData((prev: any) => ({ ...prev, ...fields }));
+  const updateData = useCallback((fields: Partial<ScheduleShootFormState>) => {
+    setData((prev) => ({ ...prev, ...fields }));
   }, []);
+
+  const buildCrewRoles = useCallback(() => {
+    const crewRoles: Record<string, number> = {};
+
+    if (selectedContentTypes.includes("videographer")) {
+      crewRoles.videographer = 1;
+    }
+    if (selectedContentTypes.includes("photographer")) {
+      crewRoles.photographer = 1;
+    }
+    if (selectedContentTypes.includes("editing")) {
+      crewRoles.editor = 1;
+    }
+
+    return crewRoles;
+  }, [selectedContentTypes]);
 
   useEffect(() => {
     if (!initialData) return;
@@ -169,6 +236,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
     if (initialData.startTime) setStartTime(initialData.startTime);
     if (initialData.endTime) setEndTime(initialData.endTime);
+    setHasExplicitScheduleSelection(Boolean(initialData.startDate || initialData.bookingDays?.length));
 
     if (normalizedBookingType === "multi_day" && Array.isArray(initialData.bookingDays) && initialData.bookingDays.length > 0) {
       const restoredDates = initialData.bookingDays
@@ -198,9 +266,74 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     }
   }, [initialData, updateData]);
 
-  const handleContinue = () => {
-    if (onContinue) {
-      const payload = {
+  const handleContinue = async () => {
+    if (dateOption === "have-date") {
+      if (bookingType === "single_day") {
+        if (!hasExplicitScheduleSelection || !data.startDate || !data.endDate) {
+          toast.error("Please select a start date and time");
+          return;
+        }
+      } else {
+        const dayCount = selectedDates.length || data.bookingDays?.length || 0;
+        if (!hasExplicitScheduleSelection || dayCount === 0) {
+          toast.error("Please select at least one booking day");
+          return;
+        }
+      }
+    }
+
+    if (!location.trim()) {
+      toast.error("Please select a location");
+      return;
+    }
+
+    if (!bookingId) {
+      toast.error("Booking reference missing. Please restart.");
+      return;
+    }
+
+    try {
+      const crewRoles = buildCrewRoles();
+
+      await updateBookingCrew({
+        booking_id: bookingId,
+        crew_roles: crewRoles,
+        location,
+        location_latitude:
+          locationDetails?.coordinates?.lat ??
+          locationDetails?.lat ??
+          locationDetails?.center?.[1] ??
+          undefined,
+        location_longitude:
+          locationDetails?.coordinates?.lng ??
+          locationDetails?.lng ??
+          locationDetails?.center?.[0] ??
+          undefined,
+      }).unwrap();
+
+      pushToDataLayer("customize_details_submitted_step2", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_step4",
+        duration_on_page: performance.now() / 1000,
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type:
+          isAuthenticated && user?.user_type_id !== undefined
+            ? USER_TYPE[user.user_type_id]
+            : "Guest",
+        email: isAuthenticated ? user?.email : email || "Unknown",
+        client_name: clientName || user?.name || email || "Guest",
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        booking_id: bookingId,
+        form_content_type: selectedContentTypes.join(","),
+        form_shoot_type: shootType || "",
+        form_additional_creative: false,
+        form_shoot_location: location,
+        form_additional_details: "",
+        form_supporting_url: "",
+      });
+
+      onContinue?.({
         dateOption,
         bookingType: dateOption === "have-date" ? bookingType : null,
         date: dateOption === "have-date" ? (bookingType === "multi_day" ? null : selectedDate) : null,
@@ -211,14 +344,32 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         startDate: data.startDate,
         endDate: data.endDate,
         bookingDays: bookingType === "multi_day" ? data.bookingDays || [] : [],
-      };
-
-      onContinue(payload);
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Failed to save project details");
     }
   };
 
   // Generate time options
   useEffect(() => {
+    if (!hasTrackedPageViewRef.current) {
+      hasTrackedPageViewRef.current = true;
+    pushToDataLayer("customize_details_viewed_step2", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "book_a_shoot_step4",
+        user_id: isAuthenticated ? user?.id : "Guest",
+        user_type:
+          isAuthenticated && user?.user_type_id !== undefined
+            ? USER_TYPE[user.user_type_id]
+            : "Guest",
+        email: isAuthenticated ? user?.email : email || "Unknown",
+        phone: isAuthenticated ? user?.phone_number : "Unknown",
+        duration_on_page: performance.now() / 1000,
+      });
+    }
+
     const options = [];
     for (let i = 0; i < 24; i++) {
       for (let j = 0; j < 60; j += 15) {
@@ -235,21 +386,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       }
     }
     setTimeOptions(options);
-
-    // add GA event on initial load
-    pushToDataLayer("booking_page_viewed_step1", {
-      type: "Action Tracking",
-      page_name: "Book-a-shoot Page",
-      location_in_website: "book_a_shoot_step1",
-      user_id: isAuthenticated ? user?.id : "Guest",
-      user_type: isAuthenticated && user?.user_type_id !== undefined
-        ? USER_TYPE[user.user_type_id]
-        : "Guest",
-      email: isAuthenticated ? user?.email : data.email,
-      phone: isAuthenticated ? user?.phone_number : "Unknown",
-      duration_on_page: performance.now() / 1000,
-    });
-  }, []);
+  }, [data.email, email, isAuthenticated, user?.email, user?.id, user?.phone_number, user?.user_type_id]);
 
   const reelDays = React.useMemo(() => {
     const now = new Date();
@@ -274,19 +411,19 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   };
 
   // --- Move these helpers up here ---
-  const getStartTimeKey = () => {
+  const getStartTimeKey = useCallback(() => {
     if (!data.startDate) return "";
     const date = parseDate(data.startDate);
     if (!date) return "";
     return format(date, "HH:mm");
-  };
+  }, [data.startDate]);
 
-  const getEndTimeKey = () => {
+  const getEndTimeKey = useCallback(() => {
     if (!data.endDate) return "";
     const date = parseDate(data.endDate);
     if (!date) return "";
     return format(date, "HH:mm");
-  };
+  }, [data.endDate]);
 
   // --- Now the useMemos can safely use them ---
   const filteredStartTimeOptions = React.useMemo(() => {
@@ -318,12 +455,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
     // Only show times that are AFTER the selected start time
     return timeOptions.filter((opt) => opt.key > startTimeKey);
-  }, [data.startDate, timeOptions]);
-
-  const getDateFromDateKey = useCallback((dateKey: string) => {
-    const parsed = new Date(`${dateKey}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, []);
+  }, [data.startDate, getStartTimeKey, timeOptions]);
 
   const isTodayDate = useCallback((date: Date) => {
     const now = new Date();
@@ -339,7 +471,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     if (!date || !isTodayDate(date)) return timeOptions;
     const minKey = format(new Date(Date.now() + 4 * 60 * 60 * 1000), "HH:mm");
     return timeOptions.filter((opt) => opt.key >= minKey);
-  }, [getDateFromDateKey, isTodayDate, timeOptions]);
+  }, [isTodayDate, timeOptions]);
 
   const getDateSpecificEndOptions = useCallback((dateKey: string) => {
     const dayStartKey = multiDayTimes[dateKey]?.startKey;
@@ -351,9 +483,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     if (!date) {
       setSelectedShootDate(null);
       updateData({ startDate: "", endDate: "" });
+      setHasExplicitScheduleSelection(false);
       return;
     }
 
+    setHasExplicitScheduleSelection(true);
     setSelectedShootDate(date);
 
     const now = new Date();
@@ -431,6 +565,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const handleStartTimeChange = (timeKey: string) => {
     if (!timeKey) {
       updateData({ startDate: "" });
+      setHasExplicitScheduleSelection(false);
       return;
     }
 
@@ -462,11 +597,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     const newStart = set(currentDate, { hours, minutes });
     updateData({ startDate: formatLocalDateTime(newStart) });
     setStartTime(getTimeLabel(timeKey));
+    setHasExplicitScheduleSelection(true);
   };
 
   const handleEndTimeChange = (timeKey: string) => {
     if (!timeKey) {
       updateData({ endDate: "" });
+      setHasExplicitScheduleSelection(false);
       return;
     }
 
@@ -486,6 +623,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
     updateData({ endDate: formatLocalDateTime(newEnd) });
     setEndTime(getTimeLabel(timeKey));
+    setHasExplicitScheduleSelection(true);
     scrollToRef(editsRef);
   };
 
@@ -493,11 +631,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     const clickedDateKey = getDateKey(date);
     setSelectedDates((prev) => {
       const exists = prev.some((d) => isSameDay(d, date));
-      if (exists) {
-        return prev.filter((d) => !isSameDay(d, date));
-      }
-      return [...prev, date].sort((a, b) => a.getTime() - b.getTime());
+      return exists
+        ? prev.filter((d) => !isSameDay(d, date))
+        : [...prev, date].sort((a, b) => a.getTime() - b.getTime());
     });
+    setHasExplicitScheduleSelection(true);
     if (bookingType === "multi_day") {
       setSelectedShootDate(date);
     }
@@ -574,6 +712,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   };
 
   const handleMultiDayStartTimeChange = (dateKey: string, timeKey: string) => {
+    setHasExplicitScheduleSelection(true);
     setMultiDayTimes((prev) => ({
       ...prev,
       [dateKey]: { ...prev[dateKey], startKey: timeKey }
@@ -581,6 +720,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   };
 
   const handleMultiDayEndTimeChange = (dateKey: string, timeKey: string) => {
+    setHasExplicitScheduleSelection(true);
     setMultiDayTimes((prev) => ({
       ...prev,
       [dateKey]: { ...prev[dateKey], endKey: timeKey }
@@ -599,7 +739,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     if (expandedDateKey && !selectedDates.some((date) => getDateKey(date) === expandedDateKey)) {
       setExpandedDateKey(null);
     }
-  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap]);
+  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap, getStartTimeKey, getEndTimeKey]);
 
   useEffect(() => {
     if ((data.bookingType || "single_day") !== bookingType) {
@@ -648,7 +788,9 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     data.bookingDays,
     sameTimingsMulti,
     multiDayTimes,
-    updateData
+    updateData,
+    getStartTimeKey,
+    getEndTimeKey
   ]);
 
   return (
@@ -721,7 +863,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         >
           <div>
             <h3 className={`text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
-              I'll confirm later
+              I&apos;ll confirm later
             </h3>
             <p className={`text-sm lg:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
               Hold my spot for 30 days
@@ -1193,7 +1335,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               Not Ready to Schedule?
             </h3>
             <p className="text-xs lg:text-sm text-[#A9A9A9]">
-              "Secure your production now and finalize the date and time later with help from the Beige team."
+              Secure your production now and finalize the date and time later with help from the Beige team.
             </p>
           </div>
         </div>
@@ -1261,6 +1403,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         <button
           type="button"
           onClick={handleContinue}
+          disabled={isSavingBooking}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
