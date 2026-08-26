@@ -421,6 +421,7 @@ export default function SalespeopleDetailView({
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | null>(getTodayDate);
   const debouncedSearch = useDebounce(search, 300);
+  const normalizedSearch = debouncedSearch.trim();
   const [leadRows, setLeadRows] = useState<any[]>([]);
   const [salesQuoteRows, setSalesQuoteRows] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -609,7 +610,7 @@ export default function SalespeopleDetailView({
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
         const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
-          search: debouncedSearch || undefined,
+          search: normalizedSearch || undefined,
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
           status: filters.status === "All" || filters.status === "All Status" ? undefined : filters.status,
@@ -656,7 +657,7 @@ export default function SalespeopleDetailView({
       } else {
         setLeadRows([]);
         const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
-          search: debouncedSearch || undefined,
+          search: normalizedSearch || undefined,
           status: filters.status === "All Status" || filters.status === "All" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
           date: formatApiDate(dateFilter),
@@ -702,7 +703,7 @@ export default function SalespeopleDetailView({
   return () => {
     cancelled = true;
   };
-}, [ activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage,]);
+}, [ activeTab, salesRepId, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage,]);
 
   useEffect(() => {
     if (activeTab === "booking") {
@@ -710,7 +711,7 @@ export default function SalespeopleDetailView({
     } else {
       setQuotePage(1);
     }
-  }, [debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
+  }, [activeTab, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
 
   return (
     <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
@@ -760,7 +761,7 @@ export default function SalespeopleDetailView({
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} />
+          {/* <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} /> */}
           {activeTab === "booking" ? (
             <BasicDropdown label="All Lead" value={filters.lead} options={["All Lead", "Hot", "Warm", "Cold"]} onChange={(value) => setFilters((current) => ({ ...current, lead: value }))} />
           ) : null}
