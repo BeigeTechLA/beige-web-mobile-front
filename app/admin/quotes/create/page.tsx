@@ -1470,6 +1470,8 @@ function CreateQuotePageContent() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
+  const [quoteReviewBaseline, setQuoteReviewBaseline] =
+    React.useState<SalesQuoteDetailData | null>(null);
   const [quoteVersionNumber, setQuoteVersionNumber] = React.useState<number | null>(null);
   const [isReviewChangesModalOpen, setIsReviewChangesModalOpen] =
     React.useState(false);
@@ -1956,6 +1958,7 @@ function CreateQuotePageContent() {
   React.useEffect(() => {
     if (!editQuoteId) {
       setQuoteToEdit(null);
+      setQuoteReviewBaseline(null);
       setIsLoadingQuoteToEdit(false);
       hydratedQuoteIdRef.current = null;
       hydratingQuoteIdRef.current = null;
@@ -1967,6 +1970,7 @@ function CreateQuotePageContent() {
     hydratedQuoteIdRef.current = null;
     hydratingQuoteIdRef.current = null;
     setQuoteToEdit(cachedQuoteToEdit);
+    setQuoteReviewBaseline(cachedQuoteToEdit);
     setIsLoadingQuoteToEdit(!cachedQuoteToEdit);
 
     const fetchQuoteToEdit = async () => {
@@ -1993,6 +1997,7 @@ function CreateQuotePageContent() {
         }
 
         setQuoteToEdit(quoteDetail);
+        setQuoteReviewBaseline((currentBaseline) => currentBaseline ?? quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
 
@@ -2001,6 +2006,7 @@ function CreateQuotePageContent() {
         }
 
         setQuoteToEdit(null);
+        setQuoteReviewBaseline(null);
         toast.error(
           error instanceof Error
             ? error.message
@@ -3506,16 +3512,16 @@ function CreateQuotePageContent() {
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+      getQuoteAdditionalPaymentDetails(quoteReviewBaseline ?? quoteToEdit ?? previewQuote, {
         revisedTotalOverride: totalAfterTax,
         previouslyPaidOverride: safePreviouslyPaidOverride,
         previousTotalOverride: safePreviousTotalOverride,
       }),
-    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+    [quoteReviewBaseline, quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
   );
   const showQuoteRevisionSummary = Boolean(
     isEditMode &&
-    quoteToEdit &&
+    (quoteReviewBaseline || quoteToEdit) &&
     additionalPaymentDetails
   );
   React.useEffect(() => {
@@ -3855,7 +3861,7 @@ function CreateQuotePageContent() {
 
   const reviewChangesData = React.useMemo(() => {
     return buildQuoteReviewChangesData({
-      quote: quoteToEdit,
+      quote: quoteReviewBaseline ?? quoteToEdit,
       currentDraftLineItems,
       bookingSchedule: effectiveBookingSchedule,
       nextTotal: totalAfterTax,
@@ -3890,6 +3896,7 @@ function CreateQuotePageContent() {
     projectDescription,
     preProductionNotes,
     preProductionFile,
+    quoteReviewBaseline,
     storedShootTypeLabel,
     quoteToEdit,
     taxLabel,
@@ -3899,12 +3906,12 @@ function CreateQuotePageContent() {
 
   React.useEffect(() => {
     setHasUnsavedQuoteChanges(
-      Boolean(quoteToEdit) &&
+      Boolean(quoteReviewBaseline ?? quoteToEdit) &&
       (reviewChangesData.lineChanges.length > 0 ||
         reviewChangesData.fieldChanges.length > 0 ||
         Math.abs(reviewChangesData.delta) > 0.009),
     );
-  }, [quoteToEdit, reviewChangesData]);
+  }, [quoteReviewBaseline, quoteToEdit, reviewChangesData]);
 
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
@@ -3996,8 +4003,12 @@ function CreateQuotePageContent() {
         setCreatedQuoteId(savedQuoteId);
       }
 
-      if (persistedQuote) {
+      const shouldPreserveEditBaseline =
+        isUpdatingExistingQuote && action === "draft";
+
+      if (persistedQuote && !shouldPreserveEditBaseline) {
         syncQuoteDetailState(persistedQuote);
+        setQuoteReviewBaseline(persistedQuote);
       }
 
       if (action === "save") {
@@ -4033,6 +4044,11 @@ function CreateQuotePageContent() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
+
+        if (isUpdatingExistingQuote) {
+          return true;
+        }
+
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("view", view);
         if (!nextParams.get("quoteId") && savedQuoteId) {
@@ -4084,6 +4100,7 @@ function CreateQuotePageContent() {
       }
 
       syncQuoteDetailState(quoteDetail);
+      setQuoteReviewBaseline(quoteDetail);
 
       if (shouldOpenPreview) {
         setPreviewQuoteId(savedQuoteId);
@@ -4274,6 +4291,7 @@ function CreateQuotePageContent() {
 
       if (updatedQuote) {
         syncQuoteDetailState(updatedQuote);
+        setQuoteReviewBaseline(updatedQuote);
       }
 
       toast.success("Quote updated successfully");
