@@ -434,45 +434,36 @@ export default function CPPayoutTable({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center gap-2">
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v)}
-              >
-                <SelectTrigger
-                  className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+              {type !== "pending_compansation" && (
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => setStatusFilter(v)}
                 >
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent
-                  className={
-                    isDark
-                      ? "bg-[#111111] border-[#3D3D3D]"
-                      : "text-black bg-white border-[#E3E3E3]"
-                  }
-                >
-                  <SelectItem value="All">All Status</SelectItem>
-                  {type === "pending_compansation" ? (
-                    <>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Approval Pending">
-                        Approval Pending
-                      </SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="Partially Paid">
-                        Partially Paid
-                      </SelectItem>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                      <SelectItem value="Approval Pending">
-                        Approval Pending
-                      </SelectItem>
-                      <SelectItem value="Rejected">Rejected</SelectItem>
-                      <SelectItem value="Fully Paid">Fully Paid</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+                  >
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent
+                    className={
+                      isDark
+                        ? "bg-[#111111] border-[#3D3D3D]"
+                        : "text-black bg-white border-[#E3E3E3]"
+                    }
+                  >
+                    <SelectItem value="All">All Status</SelectItem>
+                    <SelectItem value="Partially Paid">
+                      Partially Paid
+                    </SelectItem>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Approval Pending">
+                      Approval Pending
+                    </SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                    <SelectItem value="Fully Paid">Fully Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
 
               {/* <Select value={sortFilter} onValueChange={(v) => setSortFilter(v)}>
                 <SelectTrigger className={`flex-1 sm:w-[120px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}>
@@ -992,7 +983,11 @@ export default function CPPayoutTable({
                             {renderDueDate(row)}
                           </td>
                           <td className="px-5 py-4">
-                            <p style={{ color: getColorThreshold(row.margin, 15, 10),}}>
+                            <p
+                              style={{
+                                color: getColorThreshold(row.margin, 15, 10),
+                              }}
+                            >
                               {row.margin}%
                             </p>
                           </td>

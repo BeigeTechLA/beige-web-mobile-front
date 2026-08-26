@@ -193,7 +193,8 @@ export const DatePicker: React.FC<Props> = ({
             sx={{
               color: colors.labelText,
               fontWeight: "bold",
-              mb: 1,
+              // mb: 1,
+              mb: "4px",
               fontSize: "10px",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
