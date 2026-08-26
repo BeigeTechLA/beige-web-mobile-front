@@ -8,7 +8,6 @@ import {
   CreditCard,
   ShieldCheck,
   Phone,
-  Pencil,
   Clock,
   FolderDown,
   BadgeCheck,
@@ -24,18 +23,25 @@ export interface PricingBreakdown {
   extraPhotoUnitsText: string;
   extraPhotosCount: number;
   totalPhotosCount: number;
+  videoEditUnitsText: string;
+  videoEditsCount: number;
   editingServiceCost: number;
   creativeRoleTitle: string;
   creativeRoleCost: number;
   addOnsCount: number;
   addOnsCost: number;
+  addOnsText: string;
+  studioCost: number;
+  studioText: string;
+  mandatoryFeeCost: number;
+  mandatoryFeeText: string;
   totalAmount: number;
   depositAmount: number;
 }
 
 interface ConfirmAndPayProps {
   onBack?: () => void;
-  onConfirmAndPay?: () => void;
+  onConfirmAndPay?: (paymentAmount?: number) => void;
   onConnectTeam?: () => void;
   pricingData?: Partial<PricingBreakdown>;
 }
@@ -52,11 +58,18 @@ const DEFAULT_PRICING: PricingBreakdown = {
   extraPhotoUnitsText: "Extra Photo Units x1",
   extraPhotosCount: 25,
   totalPhotosCount: 125,
+  videoEditUnitsText: "",
+  videoEditsCount: 0,
   editingServiceCost: 500,
   creativeRoleTitle: "Photographer x1",
-  creativeRoleCost: 275,
+  creativeRoleCost: 250,
   addOnsCount: 1,
   addOnsCost: 350,
+  addOnsText: "Added 1 Add-on",
+  studioCost: 0,
+  studioText: "",
+  mandatoryFeeCost: 0,
+  mandatoryFeeText: "",
   totalAmount: 4125,
   depositAmount: 500,
 };
@@ -75,6 +88,14 @@ export default function ConfirmAndPay({
 
   const formatCurrency = (val: number) =>
     `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const handleConfirmClick = (paymentAmount?: number) => {
+    if (!agreedToTerms) {
+      return;
+    }
+
+    onConfirmAndPay?.(paymentAmount);
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
@@ -172,6 +193,14 @@ export default function ConfirmAndPay({
                 <span className="text-[#A9A9A9] text-xs lg:text-sm ">{data.extraPhotoUnitsText}</span>
                 <span className="text-white text-sm lg:text-base font-bold">{data.extraPhotosCount} Photos</span>
               </div>
+              {data.videoEditsCount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[#A9A9A9] text-xs lg:text-sm ">{data.videoEditUnitsText}</span>
+                  <span className="text-white text-sm lg:text-base font-bold">
+                    {data.videoEditsCount} Video{data.videoEditsCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Total Edits Pill Box */}
@@ -192,11 +221,31 @@ export default function ConfirmAndPay({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-[#A9A9A9] text-xs lg:text-sm  flex items-center gap-1.5">
-                  Added {data.addOnsCount} Add-ons
+                  {data.addOnsText || `Added ${data.addOnsCount} Add-ons`}
                   <PencilLine className="w-3.5 h-3.5 text-white hover:text-white/80 cursor-pointer" />
                 </span>
                 <span className="text-white text-sm lg:text-base font-bold">{formatCurrency(data.addOnsCost)}</span>
               </div>
+              {data.studioCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#A9A9A9] text-xs lg:text-sm ">
+                    {data.studioText || "Studio"}
+                  </span>
+                  <span className="text-white text-sm lg:text-base font-bold">
+                    {formatCurrency(data.studioCost)}
+                  </span>
+                </div>
+              )}
+              {data.mandatoryFeeCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#A9A9A9] text-xs lg:text-sm ">
+                    {data.mandatoryFeeText || "Mandatory Fee"}
+                  </span>
+                  <span className="text-white text-sm lg:text-base font-bold">
+                    {formatCurrency(data.mandatoryFeeCost)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -214,21 +263,27 @@ export default function ConfirmAndPay({
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={onConfirmAndPay}
-                className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-sm lg:text-xl transition-colors flex items-center justify-center gap-2"
+                onClick={() => handleConfirmClick()}
+                disabled={!agreedToTerms}
+                className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-sm lg:text-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Check className="w-6 h-6" />
                 Confirm & Pay
               </button>
 
-              <div className="w-full rounded-lg border border-white/10 p-5 text-center">
+              <button
+                type="button"
+                onClick={() => handleConfirmClick(data.depositAmount)}
+                disabled={!agreedToTerms}
+                className="w-full rounded-lg border border-white/10 p-5 text-center transition-colors hover:border-[#E8D1AB]/60 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
                 <p className="text-sm lg:text-base font-medium text-[#E8D1AB]">
                   Secure with deposit — {formatCurrency(data.depositAmount)} now
                 </p>
                 <p className="text-xs text-white/75 mt-0.5">
                   Balance of {formatCurrency(data.totalAmount - data.depositAmount)} due on shoot day
                 </p>
-              </div>
+              </button>
 
             </div>
           </div>
@@ -268,7 +323,7 @@ export default function ConfirmAndPay({
               <BadgeCheck className="w-6 h-6 text-[#E8D1AB]" />
             </div>
             <p className="text-xs leading-relaxed text-[#E8D1AB] italic font-bold">
-              Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we'll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.
+              Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.
             </p>
           </div>
         </div>
@@ -279,7 +334,7 @@ export default function ConfirmAndPay({
         <input
           type="checkbox"
           checked={agreedToTerms}
-          onChange={(e) => setAgreedToTerms(e.target.value !== undefined ? e.target.checked : false)}
+          onChange={(e) => setAgreedToTerms(e.target.checked)}
           className="w-5 h-5 accent-[#E8D1AB] rounded shrink-0"
         />
         <span className="text-sm lg:text-lg text-[#E8D1AB]">
@@ -312,7 +367,7 @@ export default function ConfirmAndPay({
 
         <button
           type="button"
-          onClick={onConfirmAndPay}
+          onClick={() => handleConfirmClick()}
           disabled={!agreedToTerms}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
@@ -326,6 +381,7 @@ export default function ConfirmAndPay({
         onClose={() => setIsServiceAgreementOpen(false)}
         onAccept={() => {
           setAcceptServiceAgreement(true);
+          setAgreedToTerms(true);
           setIsServiceAgreementOpen(false);
         }}
       />

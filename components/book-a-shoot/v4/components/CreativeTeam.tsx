@@ -16,8 +16,8 @@ interface CreativeTeamProps {
 }
 
 const DEFAULT_ROLES: TeamMember[] = [
-  { id: "photographer", name: "Photographer", price: 275.00 },
-  { id: "videographer", name: "Videographer", price: 275.00 },
+  { id: "photographer", name: "Photographer", price: 250.00 },
+  { id: "videographer", name: "Videographer", price: 250.00 },
 ];
 
 export default function CreativeTeam({

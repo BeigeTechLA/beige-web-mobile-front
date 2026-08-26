@@ -12,15 +12,35 @@ import { toast } from "sonner";
 
 import type { Creator } from "@/lib/types";
 import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
+import {
+  useGetRandomCrewQuery,
+  useSearchCreatorsQuery,
+} from "@/lib/redux/features/creators/creatorsApi";
 import CreatorCarousel from "./CreatorsCarousel";
 
 interface ChooseCreativePartnerProps {
   onBack: () => void;
   onContinue: (selectedCreatives: Creator[], letBeigeChoose: boolean) => void;
   requiredCount?: number;
+  contentTypes?: string[];
+  locationLatitude?: number;
+  locationLongitude?: number;
+  requiredRoles?: {
+    video?: number;
+    photo?: number;
+  };
+  initialSelectedCreatives?: Creator[];
+  initialLetBeigeChoose?: boolean;
 }
 
-const MOCK_CREATIVES: Creator[] = [
+type FlexibleCreator = Omit<Creator, "role_id"> & {
+  role_id?: number | string | Array<number | string>;
+  role?: {
+    role_name?: string;
+  };
+};
+
+const MOCK_CREATIVES = [
   {
     "crew_member_id": 527,
     "name": "Mridula S",
@@ -312,13 +332,21 @@ const MOCK_CREATIVES: Creator[] = [
 export default function ChooseCreativePartner({
   onBack,
   onContinue,
-  requiredCount = 5,
+  requiredCount = 1,
+  contentTypes = [],
+  locationLatitude,
+  locationLongitude,
+  requiredRoles,
+  initialSelectedCreatives = [],
+  initialLetBeigeChoose = false,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>(
+    initialSelectedCreatives.map((creator) => creator.crew_member_id)
+  );
+  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(initialLetBeigeChoose);
   const [progress, setProgress] = useState(0);
-  const [activeRoleFilter, setActiveRoleFilter] = useState<"video" | "photo" | null>(null);
+  const [activeRoleFilter] = useState<"video" | "photo" | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<SelectedCrewRoles>({});
   const [profileModalUrl, setProfileModalUrl] = useState<string | null>(null);
 
@@ -359,7 +387,72 @@ export default function ChooseCreativePartner({
     };
   }, [profileModalUrl]);
 
-  const creators: Creator[] = MOCK_CREATIVES;
+  const searchableContentTypes = useMemo(
+    () =>
+      contentTypes.filter(
+        (type) => !["editing", "studio", "ai editing"].includes(type)
+      ),
+    [contentTypes]
+  );
+
+  const normalizedRequiredRoles = useMemo(() => {
+    const requestedVideo =
+      requiredRoles?.video ??
+      (searchableContentTypes.some((type) =>
+        ["videographer", "cinematographer", "livestream"].includes(type)
+      )
+        ? 1
+        : 0);
+    const requestedPhoto =
+      requiredRoles?.photo ??
+      (searchableContentTypes.includes("photographer") ? 1 : 0);
+
+    return {
+      video: Math.max(0, Number(requestedVideo) || 0),
+      photo: Math.max(0, Number(requestedPhoto) || 0),
+    };
+  }, [requiredRoles?.photo, requiredRoles?.video, searchableContentTypes]);
+
+  const resolvedRequiredCount = Math.max(
+    1,
+    requiredCount,
+    normalizedRequiredRoles.video + normalizedRequiredRoles.photo
+  );
+
+  const {
+    data: creatorsResponse,
+    isFetching: isCreatorsFetching,
+  } = useSearchCreatorsQuery(
+    {
+      content_types: searchableContentTypes.join(","),
+      latitude: locationLatitude,
+      longitude: locationLongitude,
+      required_count: resolvedRequiredCount,
+      limit: 20,
+      page: 1,
+    },
+    { skip: searchableContentTypes.length === 0 }
+  );
+
+  const { data: randomCrew = [], isFetching: isRandomCrewFetching } =
+    useGetRandomCrewQuery(undefined, {
+      skip: Boolean(creatorsResponse?.data?.length),
+    });
+
+  const creators: Creator[] = useMemo(() => {
+    const sourceCreators = creatorsResponse?.data?.length
+      ? creatorsResponse.data
+      : randomCrew.length
+        ? randomCrew
+        : MOCK_CREATIVES as unknown as Creator[];
+    const creatorById = new Map<number, Creator>();
+
+    [...initialSelectedCreatives, ...sourceCreators].forEach((creator) => {
+      creatorById.set(creator.crew_member_id, creator);
+    });
+
+    return Array.from(creatorById.values());
+  }, [creatorsResponse?.data, initialSelectedCreatives, randomCrew]);
 
   const handleLetBeigeChoose = () => {
     setLetBeigeChoose(!letBeigeChoose);
@@ -367,22 +460,45 @@ export default function ChooseCreativePartner({
 
   // Helper to determine capabilities
   const getCreatorCapabilities = (creator: Creator) => {
-    const roleName = creator.role_name?.toLowerCase() || creator.role?.role_name?.toLowerCase() || "";
-    const roleId = Number(creator.role_id);
+    const flexibleCreator = creator as FlexibleCreator;
+    const roleName =
+      creator.role_name?.toLowerCase() ||
+      flexibleCreator.role?.role_name?.toLowerCase() ||
+      "";
+    const rawRoleId = flexibleCreator.role_id;
+    const roleIds = (() => {
+      if (Array.isArray(rawRoleId)) return rawRoleId.map(Number).filter(Number.isFinite);
+      if (typeof rawRoleId === "string") {
+        try {
+          const parsed = JSON.parse(rawRoleId);
+          if (Array.isArray(parsed)) return parsed.map(Number).filter(Number.isFinite);
+        } catch {
+          // fall through to digit parsing
+        }
+
+        return rawRoleId
+          .split(/[^\d]+/)
+          .map(Number)
+          .filter(Number.isFinite);
+      }
+
+      const parsed = Number(rawRoleId);
+      return Number.isFinite(parsed) ? [parsed] : [];
+    })();
     const skills = creator.skills ? (typeof creator.skills === 'string' ? creator.skills.toLowerCase() : JSON.stringify(creator.skills).toLowerCase()) : "";
     const bio = creator.bio?.toLowerCase() || "";
 
-    const isVideo = roleName.includes("video") || roleId === 1 || roleId === 11 || roleId === 12 || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
-    const isPhoto = roleName.includes("photo") || roleId === 2 || roleId === 10 || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
+    const isVideo = roleName.includes("video") || roleIds.some((id) => [1, 11, 12].includes(id)) || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
+    const isPhoto = roleName.includes("photo") || roleIds.some((id) => [2, 10].includes(id)) || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
 
     return { isVideo, isPhoto };
   };
 
   const requirements = useMemo(() => {
     return {
-      required: { video: requiredCount, photo: 0 },
+      required: normalizedRequiredRoles,
     };
-  }, [requiredCount]);
+  }, [normalizedRequiredRoles]);
 
   const filteredCreators = useMemo(() => {
     if (activeRoleFilter === "video") {
@@ -415,7 +531,8 @@ export default function ChooseCreativePartner({
       if (!assignedRole && caps.isVideo && caps.isPhoto) {
         both.push(c);
       } else if (!assignedRole) {
-        const role = (c.role_name || c.role?.role_name || "").toLowerCase();
+        const flexibleCreator = c as FlexibleCreator;
+        const role = (c.role_name || flexibleCreator.role?.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
         else if (role.includes("photo")) photoCount++;
       }
@@ -475,9 +592,15 @@ export default function ChooseCreativePartner({
 
         const nextCounts = calculateCounts(nextIds, nextRoles);
         const isVideoFull = nextCounts.video > requirements.required.video;
+        const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
         if (activeRole === "video" && isVideoFull) {
           toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
+          return prev;
+        }
+
+        if (activeRole === "photo" && isPhotoFull) {
+          toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
           return prev;
         }
 
@@ -509,14 +632,20 @@ export default function ChooseCreativePartner({
       const nextCounts = calculateCounts(nextIds, nextRoles);
 
       const isVideoFull = nextCounts.video > requirements.required.video;
+      const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
       if (isVideo && isVideoFull) {
         toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
         return prev;
       }
 
-      if (requiredCount > 0 && prev.length >= requiredCount) {
-        toast.error(`You have already selected the required ${requiredCount} team members.`);
+      if (isPhoto && isPhotoFull) {
+        toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+        return prev;
+      }
+
+      if (resolvedRequiredCount > 0 && prev.length >= resolvedRequiredCount) {
+        toast.error(`You have already selected the required ${resolvedRequiredCount} team members.`);
         return prev;
       }
 
@@ -529,7 +658,11 @@ export default function ChooseCreativePartner({
     setProfileModalUrl(url);
   };
 
-  if (loading) {
+  const selectedCounts = calculateCounts(selectedIds, selectedRoles);
+  const shouldShowLoading =
+    loading || ((isCreatorsFetching || isRandomCrewFetching) && creators.length === 0);
+
+  if (shouldShowLoading) {
     return (
       <div className="w-full min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         {/* Glow & Sparkle Animation */}
@@ -623,7 +756,7 @@ export default function ChooseCreativePartner({
           />
         ) : (
           <div className="text-center text-white/60 py-16">
-            No {activeRoleFilter === "photo" ? "photographers" : "videographers"} available right now.
+            No {activeRoleFilter === "photo" ? "photographers" : activeRoleFilter === "video" ? "videographers" : "creatives"} available right now.
           </div>
         )}
       </div>
@@ -641,8 +774,16 @@ export default function ChooseCreativePartner({
         <div className="px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
           <Camera className="w-4 h-4 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
           <span>
-            Photographers(s) : {String(selectedIds.length).padStart(2, "0")}/
-            {String(requiredCount).padStart(2, "0")}
+            Photo: {String(selectedCounts.photo).padStart(2, "0")}/
+            {String(requirements.required.photo).padStart(2, "0")}
+          </span>
+        </div>
+
+        <div className="px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+          <Video className="w-4 h-4 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+          <span>
+            Video: {String(selectedCounts.video).padStart(2, "0")}/
+            {String(requirements.required.video).padStart(2, "0")}
           </span>
         </div>
       </div>

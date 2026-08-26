@@ -52,43 +52,82 @@ interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
+  initialData?: {
+    dateOption?: "have-date" | "confirm-later";
+    bookingType?: "single_day" | "multi_day" | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    bookingDays?: Array<{
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      start_time?: string;
+      end_time?: string;
+    }>;
+    location?: string;
+    locationDetails?: unknown;
+  } | null;
 }
 
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  initialData,
 }) => {
+  const fallbackStartDate = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss");
+  const fallbackEndDate = format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss");
+  const initialStartDate = initialData?.startDate || fallbackStartDate;
+  const initialEndDate = initialData?.endDate || fallbackEndDate;
+  const initialBookingDays = initialData?.bookingDays || [];
+  const initialSelectedDates = initialBookingDays
+    .map((day) => parseDate(day.date))
+    .filter((date): date is Date => Boolean(date));
+  const initialMultiDayTimes = initialBookingDays.reduce<
+    Record<string, { startKey?: string; endKey?: string }>
+  >((acc, day) => {
+    acc[day.date] = {
+      startKey: day.startTime || day.start_time,
+      endKey: day.endTime || day.end_time,
+    };
+    return acc;
+  }, {});
+
   // Top level mode: "have-date" | "confirm-later"
   const [dateOption, setDateOption] = useState<"have-date" | "confirm-later">(
-    "have-date"
+    initialData?.dateOption || "have-date"
   );
 
   // Booking type mode: "single_day" | "multi_day"
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(
+    initialData?.bookingType || "single_day"
+  );
 
-  // Input states
-  const [selectedDate, setSelectedDate] = useState("06 Jan, 2026");
-  const [startTime, setStartTime] = useState("10:00 AM");
-  const [endTime, setEndTime] = useState("06:00 PM");
-  const [location, setLocation] = useState("Woodland Hills, Woodland Hills, CA");
+  const [location, setLocation] = useState(
+    initialData?.location || "Woodland Hills, Woodland Hills, CA"
+  );
+  const [locationDetails, setLocationDetails] = useState<unknown>(
+    initialData?.locationDetails || null
+  );
 
   // Missing State Definitions
-  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
+    parseDate(initialStartDate) || new Date()
+  );
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [data, setData] = useState<any>({
-    startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
-    endDate: format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
-    bookingType: "single_day",
-    bookingDays: [],
+    startDate: initialStartDate,
+    endDate: initialEndDate,
+    bookingType: initialData?.bookingType || "single_day",
+    bookingDays: initialBookingDays,
     email: "",
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
-  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>(initialMultiDayTimes);
+  const [selectedDates, setSelectedDates] = useState<Date[]>(initialSelectedDates);
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -113,14 +152,21 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   }, []);
 
   const handleContinue = () => {
+    const startDateValue = dateOption === "have-date" ? data.startDate || null : null;
+    const endDateValue = dateOption === "have-date" ? data.endDate || null : null;
+
     if (onContinue) {
       onContinue({
         dateOption,
         bookingType: dateOption === "have-date" ? bookingType : null,
-        date: dateOption === "have-date" ? selectedDate : null,
-        startTime: dateOption === "have-date" ? startTime : null,
-        endTime: dateOption === "have-date" ? endTime : null,
+        date: startDateValue,
+        startDate: startDateValue,
+        endDate: endDateValue,
+        startTime: dateOption === "have-date" ? getStartTimeKey() : null,
+        endTime: dateOption === "have-date" ? getEndTimeKey() : null,
+        bookingDays: dateOption === "have-date" ? data.bookingDays || [] : [],
         location,
+        locationDetails,
       });
     }
   };
@@ -781,7 +827,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               {/* Duration Badge */}
               <div className="pt-1">
                 <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-full bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
-                  Duration : 8 Hours
+                  Duration : {calculateDurationHours(getStartTimeKey(), getEndTimeKey()) || 0} Hours
                 </span>
               </div>
             </div>
@@ -1116,6 +1162,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           value={location}
           onChange={(address, details) => {
             setLocation(address);
+            setLocationDetails(details || null);
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}

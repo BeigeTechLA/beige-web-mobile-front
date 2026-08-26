@@ -15,7 +15,7 @@ export interface GuestBookingData {
   start_date_time?: string;
   start_date?: string | null;
   start_time?: string | null;
-  duration_hours?: number;
+  duration_hours?: number | null;
   end_time?: string | null;
   time_zone?: string | null;
   budget_min?: number;
@@ -24,15 +24,28 @@ export interface GuestBookingData {
   stream_quality?: string;
   crew_size?: string;
   location?: string;
-  location_latitude?: number;
-  location_longitude?: number;
+  location_latitude?: number | null;
+  location_longitude?: number | null;
   streaming_platforms?: string[];
   crew_roles?: string[];
   skills_needed?: string;
   equipments_needed?: string;
   is_draft?: boolean;
+  full_name?: string;
+  phone?: string;
+  edits_needed?: boolean;
+  video_edit_types?: string[];
+  photo_edit_types?: string[];
+  matching_method?: string;
+  selected_crew_ids?: number[];
+  special_instructions?: string;
+  reference_links?: string[];
+  booking_type?: 'single_day' | 'multi_day';
+  booking_days?: unknown[];
+  estimated_delivery_date?: string | null;
+  end_date_time?: string;
   // Pricing quote reference
-  quote_id?: number;
+  quote_id?: number | null;
 }
 
 export interface LocationObject {
@@ -78,9 +91,25 @@ export const guestBookingApi = createApi({
       }),
       transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
     }),
+    createGuestBookingV4: builder.mutation<GuestBookingResponse, GuestBookingData>({
+      query: (data) => ({
+        url: 'book-a-shoot/v4/guest-bookings/create',
+        method: 'POST',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
+    }),
     updateGuestBooking: builder.mutation<GuestBookingResponse, { id: number; data: Partial<GuestBookingData> }>({
       query: ({ id, data }) => ({
         url: `guest-bookings/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
+    }),
+    updateGuestBookingV4: builder.mutation<GuestBookingResponse, { id: number; data: Partial<GuestBookingData> }>({
+      query: ({ id, data }) => ({
+        url: `book-a-shoot/v4/guest-bookings/${id}`,
         method: 'PUT',
         body: data,
       }),
@@ -90,11 +119,18 @@ export const guestBookingApi = createApi({
       query: (id) => `guest-bookings/${id}`,
       transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
     }),
+    getGuestBookingByIdV4: builder.query<GuestBookingResponse, string>({
+      query: (id) => `book-a-shoot/v4/guest-bookings/${id}`,
+      transformResponse: (response: ApiResponse<GuestBookingResponse>) => response.data!,
+    }),
   }),
 });
 
 export const {
   useCreateGuestBookingMutation,
+  useCreateGuestBookingV4Mutation,
   useUpdateGuestBookingMutation,
-  useGetGuestBookingByIdQuery
+  useUpdateGuestBookingV4Mutation,
+  useGetGuestBookingByIdQuery,
+  useGetGuestBookingByIdV4Query
 } = guestBookingApi;
