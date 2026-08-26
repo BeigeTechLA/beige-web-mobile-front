@@ -3995,6 +3995,7 @@ export const salesApi = {
       limit?: number;
       search?: string;
       status?: string;
+      booking_type?: string;
       range?: string;
       date_on?: string;
       assigned_sales_rep_id?: number | string;
