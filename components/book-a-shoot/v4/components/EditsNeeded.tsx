@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ArrowLeft, Info, Check, Minus, Plus, Video, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { CollapsibleEdit } from "./CollapsibleEdit";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface EditsConfig {
   needsEdits: boolean;
@@ -130,8 +131,8 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
     const videoEditTypes =
       needsEdits && showVideoEdits
         ? Object.entries(videoEditCounts).flatMap(([slug, count]) =>
-            Array.from({ length: count }, () => slug)
-          )
+          Array.from({ length: count }, () => slug)
+        )
         : [];
 
     onContinue({
@@ -176,7 +177,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {/* Heading & Subtitle */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-           {title}
+            {title}
           </h1>
           <p className="text-white/30 text-base md:text-xl font-light">
             {subtitle}
@@ -189,15 +190,15 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
             type="button"
             onClick={() => setNeedsEdits(true)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${needsEdits
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
-                : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+              ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
+              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span>Yes</span>
             <div
               className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${needsEdits
-                  ? "border-black bg-black"
-                  : "border-white/40 bg-transparent"
+                ? "border-black bg-black"
+                : "border-white/40 bg-transparent"
                 }`}
             >
               {needsEdits && (
@@ -210,15 +211,15 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
             type="button"
             onClick={() => setNeedsEdits(false)}
             className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!needsEdits
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
-                : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+              ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
+              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span>No</span>
             <div
               className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!needsEdits
-                  ? "border-black bg-black"
-                  : "border-white/40 bg-transparent"
+                ? "border-black bg-black"
+                : "border-white/40 bg-transparent"
                 }`}
             >
               {!needsEdits && (
@@ -243,74 +244,80 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {needsEdits && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-4 lg:space-y-8">
             {showVideoEdits && videoEditOptions.length > 0 && (
-              <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden">
-                <div className="bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-b border-white/20">
+              <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
+                <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isVideoOpen ? "border-b border-white/20 rounded-b-2xl" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setIsVideoOpen((prev) => !prev)}
                     className="w-full p-6 lg:px-7 lg:py-9 flex items-center justify-between text-left"
                   >
-                    <h3 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-[#E8D1AB]">
+                    <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                       Video Edits
                     </h3>
                     <div className="flex items-center gap-3 text-white/70">
-                      <Video className="w-5 h-5 lg:w-8 lg:h-8" />
+                      {/* <Video className="w-5 h-5 lg:w-8 lg:h-8" /> */}
                       <ChevronDown
-                        className={`w-5 h-5 lg:w-8 lg:h-8 transition-transform ${
-                          isVideoOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-5 h-5 lg:w-8 lg:h-8 transition-transform ${isVideoOpen ? "rotate-180" : ""}`}
                       />
                     </div>
                   </button>
                 </div>
+                <AnimatePresence initial={false}>
+                  {isVideoOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-6 md:px-8 py-6 md:py-8 space-y-4">
+                        {videoEditOptions.map((option) => {
+                          const count = videoEditCounts[option.key] || 0;
 
-                {isVideoOpen && (
-                  <div className="px-6 md:px-8 py-6 md:py-8 space-y-4">
-                    {videoEditOptions.map((option) => {
-                      const count = videoEditCounts[option.key] || 0;
-
-                      return (
-                        <div
-                          key={option.key}
-                          className={`flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between rounded-2xl border p-4 lg:p-5 bg-[#171717] transition-colors ${
-                            count > 0 ? "border-[#E8D1AB]" : "border-white/10"
-                          }`}
-                        >
-                          <div>
-                            <h4 className="text-base lg:text-xl font-medium text-white">
-                              {option.value}
-                            </h4>
-                            {option.note && (
-                              <p className="text-sm text-white/50 mt-1">{option.note}</p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 rounded-full font-semibold text-sm self-start xl:self-auto">
-                            <button
-                              type="button"
-                              onClick={() => handleVideoDecrement(option.key)}
-                              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+                          return (
+                            <div
+                              key={option.key}
+                              className={`flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between rounded-2xl border p-4 lg:p-5 bg-[#171717] transition-colors ${count > 0 ? "border-[#E8D1AB]" : "border-white/10"
+                                }`}
                             >
-                              <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
-                            </button>
-                            <span className="w-6 text-center text-base lg:text-xl font-medium">
-                              {String(count).padStart(2, "0")}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleVideoIncrement(option.key)}
-                              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
-                            >
-                              <Plus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                              <div>
+                                <h4 className="text-base lg:text-xl font-medium text-white">
+                                  {option.value}
+                                </h4>
+                                {option.note && (
+                                  <p className="text-sm text-white/50 mt-1">{option.note}</p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 rounded-full font-semibold text-sm self-start xl:self-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => handleVideoDecrement(option.key)}
+                                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+                                >
+                                  <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
+                                </button>
+                                <span className="w-6 text-center text-base lg:text-xl font-medium">
+                                  {String(count).padStart(2, "0")}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVideoIncrement(option.key)}
+                                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
 
