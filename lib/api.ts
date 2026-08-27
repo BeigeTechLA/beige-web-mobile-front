@@ -3193,7 +3193,7 @@ export const adminApi = {
     }
   },
 
-  getPendingCP: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+  getPendingCP: async (params: { page?: number; limit?: number; search?: string; location?: string; onboarding_status?: string } = {}) => {
     try {
       const response = await api.get('admin/get-pending-cp', { params });
       return response.data;

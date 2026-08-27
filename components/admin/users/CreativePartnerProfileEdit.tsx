@@ -134,6 +134,48 @@ const mapPrimaryRoles = (primaryRole: unknown, roleName?: string | null) => {
   return [];
 };
 
+const normalizeEquipmentForEdit = (payload: any) => {
+  const ownership = parseMaybeJson<any[]>(payload?.equipment_ownership, []);
+  const details = Array.isArray(payload?.equipment_details) ? payload.equipment_details : [];
+  const names = Array.isArray(payload?.equipment_names) ? payload.equipment_names : [];
+
+  if (details.length > 0) {
+    return {
+      ids: details
+        .map((item: any) => item?.equipment_id || item?.id || item?.equipment_name || item?.name || "")
+        .map((item: any) => String(item))
+        .filter(Boolean),
+      names: details
+        .map((item: any) => item?.equipment_name || item?.name || item?.equipment_id || item?.id || "")
+        .map((item: any) => String(item))
+        .filter(Boolean),
+    };
+  }
+
+  if (ownership.length > 0) {
+    return {
+      ids: ownership
+        .map((item: any) => (typeof item === "string" || typeof item === "number" ? item : item?.equipment_id || item?.id || item?.equipment_name || item?.name || ""))
+        .map((item: any) => String(item))
+        .filter(Boolean),
+      names: ownership
+        .map((item: any, index: number) => {
+          if (typeof item === "object" && item !== null) {
+            return item.equipment_name || item.name || item.equipment_id || item.id || "";
+          }
+          return names[index] || item;
+        })
+        .map((item: any) => String(item))
+        .filter(Boolean),
+    };
+  }
+
+  return {
+    ids: names.map((item: any) => String(item)).filter(Boolean),
+    names: names.map((item: any) => String(item)).filter(Boolean),
+  };
+};
+
 export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +322,10 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const handleSaveProfile = async () => {
     try {
       setIsSaving(true);
+      const equipmentPayload = data.equipments
+        .map((equipmentId) => String(equipmentId).trim())
+        .filter(Boolean);
+
       const payload = {
         first_name: data.firstName,
         last_name: data.lastName,
@@ -306,7 +352,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           }
           return acc;
         }, {}),
-        equipment_ownership: data.equipmentNames.length > 0 ? data.equipmentNames : data.equipments,
+        equipment_ownership: equipmentPayload,
         is_draft: 0,
       };
 
@@ -816,7 +862,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
                 url,
               }))
             : [];
-        const parsedEquipment = parseMaybeJson<any[]>(payload.equipment_ownership, []);
+        const normalizedEquipment = normalizeEquipmentForEdit(payload);
         const mappedSkills = Array.isArray(payload.skills)
           ? payload.skills.map((skill: any) => mapSkillToOptionValue(skill)).filter(Boolean)
           : [];
@@ -867,18 +913,8 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           bio: payload.bio || "",
           availability: Array.isArray(payload.availability) ? payload.availability.map((item: any) => String(item)) : prev.availability,
           skills: mappedSkills.length > 0 ? mappedSkills : prev.skills,
-          equipments: parsedEquipment
-            .map((item) => {
-              if (typeof item === "string") return item;
-              return item?.equipment_id || item?.id || item?.name || item?.equipment_name || "";
-            })
-            .filter(Boolean),
-          equipmentNames: parsedEquipment
-            .map((item) => {
-              if (typeof item === "string") return item;
-              return item?.equipment_name || item?.name || item?.equipment_id || item?.id || "";
-            })
-            .filter(Boolean),
+          equipments: normalizedEquipment.ids.length > 0 ? normalizedEquipment.ids : prev.equipments,
+          equipmentNames: normalizedEquipment.names.length > 0 ? normalizedEquipment.names : prev.equipmentNames,
           links: parsedSocialLinks.length
             ? parsedSocialLinks.map((link, index) => ({
                 id: `social-${index}`,

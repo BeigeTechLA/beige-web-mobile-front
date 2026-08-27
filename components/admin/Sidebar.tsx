@@ -72,7 +72,7 @@ const menuItems = [
     permissionKeys: ['sales_representative'],
     children: [
       { name: 'Dashboard', link: '/admin/sales-representative' },
-      { name: 'Shift Management', link: '/admin/sales-representative/shift-management' },
+      // { name: 'Shift Management', link: '/admin/sales-representative/shift-management' },
       // { name: 'Sales People', link: '/admin/sales-representative/sales-people' },
     ]
   },

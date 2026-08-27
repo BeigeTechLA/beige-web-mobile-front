@@ -2,15 +2,14 @@ import React from 'react';
 import Image from 'next/image';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
-import { ArrowDownLeft, ArrowUpRight, Star, Check, Plus, X, Share } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Check, Plus, X, Share } from 'lucide-react';
 import type { Creator } from "@/lib/types";
-import type { CrewRole, SelectedCrewRoles } from "../types";
+import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/navigation';
-import { Button } from '@/components/ui/button';
 
 const S3_BASE_URL =
    process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -131,7 +130,6 @@ const CreatorCarousel = ({
               ? assignedRole === activeRoleFilter
               : isSelected;
             const isSelectedInOtherRole = Boolean(activeRoleFilter && isSelected && assignedRole && assignedRole !== activeRoleFilter);
-            const rating = creator.rating || 0;
             const imageUrl = getCreatorImage(creator, index);
 
             return (

@@ -29,6 +29,7 @@ import {
   isSameDay,
   addDays,
 } from "date-fns";
+import { toast } from "sonner";
 import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/component/LocationPicker";
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
@@ -43,7 +44,6 @@ const parseDate = (dateStr: string): Date | null => {
 };
 
 const pushToDataLayer = (...args: any[]) => { };
-const toast = { error: (msg: string) => console.error(msg) };
 const scrollToRef = (ref: any) => { };
 const areBookingDaysEqual = (a: any[], b: any[]) => JSON.stringify(a) === JSON.stringify(b);
 const USER_TYPE: Record<number, string> = {};
@@ -52,43 +52,83 @@ interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
+  initialData?: {
+    dateOption?: "have-date" | "confirm-later";
+    bookingType?: "single_day" | "multi_day" | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    bookingDays?: Array<{
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      start_time?: string;
+      end_time?: string;
+    }>;
+    location?: string;
+    locationDetails?: unknown;
+  } | null;
 }
 
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  initialData,
 }) => {
+  // Don't fabricate a "now" default — an unpicked date/time should stay empty,
+  // otherwise validate() will immediately flag the un-chosen default as
+  // violating the 4-hour lead time.
+  const initialStartDate = initialData?.startDate || "";
+  const initialEndDate = initialData?.endDate || "";
+  const initialBookingDays = initialData?.bookingDays || [];
+  const initialSelectedDates = initialBookingDays
+    .map((day) => parseDate(day.date))
+    .filter((date): date is Date => Boolean(date));
+  const initialMultiDayTimes = initialBookingDays.reduce<
+    Record<string, { startKey?: string; endKey?: string }>
+  >((acc, day) => {
+    acc[day.date] = {
+      startKey: day.startTime || day.start_time,
+      endKey: day.endTime || day.end_time,
+    };
+    return acc;
+  }, {});
+
   // Top level mode: "have-date" | "confirm-later"
   const [dateOption, setDateOption] = useState<"have-date" | "confirm-later">(
-    "have-date"
+    initialData?.dateOption || "have-date"
   );
 
   // Booking type mode: "single_day" | "multi_day"
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">("single_day");
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(
+    initialData?.bookingType || "single_day"
+  );
 
-  // Input states
-  const [selectedDate, setSelectedDate] = useState("06 Jan, 2026");
-  const [startTime, setStartTime] = useState("10:00 AM");
-  const [endTime, setEndTime] = useState("06:00 PM");
-  const [location, setLocation] = useState("Woodland Hills, Woodland Hills, CA");
+  const [location, setLocation] = useState(
+    initialData?.location || ""
+  );
+  const [locationDetails, setLocationDetails] = useState<unknown>(
+    initialData?.locationDetails || null
+  );
 
   // Missing State Definitions
-  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
+    initialStartDate ? parseDate(initialStartDate) : null
+  );
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [data, setData] = useState<any>({
-    startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
-    endDate: format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
-    bookingType: "single_day",
-    bookingDays: [],
+    startDate: initialStartDate,
+    endDate: initialEndDate,
+    bookingType: initialData?.bookingType || "single_day",
+    bookingDays: initialBookingDays,
     email: "",
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
-  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>(initialMultiDayTimes);
+  const [selectedDates, setSelectedDates] = useState<Date[]>(initialSelectedDates);
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -112,15 +152,107 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     setData((prev: any) => ({ ...prev, ...fields }));
   }, []);
 
+  const validate = () => {
+    if (dateOption !== "have-date") return true;
+
+    if (!location) {
+      toast.error("Please select a location");
+      setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
+      return false;
+    }
+
+    const now = new Date();
+    const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+
+    if (bookingType === "single_day") {
+      if (!data.startDate) {
+        toast.error("Please select a start date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (!data.endDate) {
+        toast.error("Please select an end date and time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      if (new Date(data.endDate) <= new Date(data.startDate)) {
+        toast.error("End time must be after start time");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const startDateObj = parseDate(data.startDate);
+      if (startDateObj && isTodayDate(startDateObj) && startDateObj < minimumTime) {
+        toast.error("Start time must be at least 4 hours from now.");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+    } else {
+      if (!data.bookingDays || data.bookingDays.length === 0) {
+        toast.error("Please select at least one booking day");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasPastDate = data.bookingDays.some((d: { date: string }) => {
+        const dayDate = getDateFromDateKey(d.date);
+        return dayDate && startOfDay(dayDate) < startOfDay(now);
+      });
+      if (hasPastDate) {
+        toast.error("Selected dates cannot be in the past.");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasMissingTimes = data.bookingDays.some(
+        (d: { startTime?: string; endTime?: string }) => !d.startTime || !d.endTime
+      );
+      if (hasMissingTimes) {
+        toast.error("Please select start and end time for all selected days");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasInvalidOrder = data.bookingDays.some(
+        (d: { startTime?: string; endTime?: string }) => (d.startTime as string) >= (d.endTime as string)
+      );
+      if (hasInvalidOrder) {
+        toast.error("For each selected day, end time must be after start time.");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+      const hasInvalidSameDayLeadTime = data.bookingDays.some((d: { date: string; startTime?: string }) => {
+        const dayDate = getDateFromDateKey(d.date);
+        if (!dayDate || !isTodayDate(dayDate) || !d.startTime) return false;
+        const [hours, minutes] = d.startTime.split(":").map(Number);
+        if ([hours, minutes].some((n) => Number.isNaN(n))) return false;
+        const dayStart = set(dayDate, { hours, minutes, seconds: 0, milliseconds: 0 });
+        return dayStart < minimumTime;
+      });
+      if (hasInvalidSameDayLeadTime) {
+        toast.error("Today's selected start time must be at least 4 hours from now.");
+        setErrors((prev) => [...prev, "timeError"]);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleContinue = () => {
+    if (!validate()) return;
+
+    const startDateValue = dateOption === "have-date" ? data.startDate || null : null;
+    const endDateValue = dateOption === "have-date" ? data.endDate || null : null;
+
     if (onContinue) {
       onContinue({
         dateOption,
         bookingType: dateOption === "have-date" ? bookingType : null,
-        date: dateOption === "have-date" ? selectedDate : null,
-        startTime: dateOption === "have-date" ? startTime : null,
-        endTime: dateOption === "have-date" ? endTime : null,
+        date: startDateValue,
+        startDate: startDateValue,
+        endDate: endDateValue,
+        startTime: dateOption === "have-date" ? getStartTimeKey() : null,
+        endTime: dateOption === "have-date" ? getEndTimeKey() : null,
+        bookingDays: dateOption === "have-date" ? data.bookingDays || [] : [],
         location,
+        locationDetails,
       });
     }
   };
@@ -512,6 +644,31 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     }
   }, [bookingType, data.bookingType, updateData]);
 
+  // Clear location error once location is selected
+  useEffect(() => {
+    if (location && errors.includes("locationError")) {
+      setErrors(prev => prev.filter(err => err !== "locationError"));
+    }
+  }, [location, errors]);
+
+  // Clear timeError once data becomes valid again
+  useEffect(() => {
+    if (!errors.includes("timeError")) return;
+
+    const hasMultiDayTimes =
+      Array.isArray(data.bookingDays) &&
+      data.bookingDays.length > 0 &&
+      data.bookingDays.every((d: { startTime?: string; endTime?: string }) => d.startTime && d.endTime);
+
+    const isValidNow =
+      (bookingType === "single_day" && data.startDate && data.endDate && new Date(data.endDate) > new Date(data.startDate)) ||
+      (bookingType === "multi_day" && hasMultiDayTimes);
+
+    if (isValidNow) {
+      setErrors((prev) => prev.filter((e) => e !== "timeError"));
+    }
+  }, [data.startDate, data.endDate, data.bookingDays, bookingType, errors]);
+
   useEffect(() => {
     if (bookingType !== "multi_day") {
       if ((data.bookingDays?.length || 0) > 0) {
@@ -741,7 +898,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             <div className="space-y-3 lg:space-y-5">
               {/* Date & Time Inputs */}
               <div className="flex flex-col lg:flex-row gap-6">
-                <div className="flex-1 mt-2">
+                <div className={`flex-1 mt-2 ${errors.includes("timeError") ? "[&_label]:!text-red-400" : ""}`}>
                   <DatePicker
                     label="Select Date"
                     value={selectedShootDate}
@@ -781,7 +938,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               {/* Duration Badge */}
               <div className="pt-1">
                 <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-full bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
-                  Duration : 8 Hours
+                  Duration : {calculateDurationHours(getStartTimeKey(), getEndTimeKey()) || 0} Hours
                 </span>
               </div>
             </div>
@@ -899,14 +1056,17 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                       <div className="grid grid-cols-7 gap-1">
                         {calendarDays.map((date) => {
                           const isSelected = selectedDates.some(d => isSameDay(d, date));
+                          const isPast = startOfDay(date) < startOfDay(new Date());
                           return (
                             <button
                               type="button"
                               key={date.toISOString()}
+                              disabled={isPast}
                               onClick={() => {
+                                if (isPast) return;
                                 toggleDateSelection(date);
                               }}
-                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
+                              className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm transition-colors ${isSelected ? "bg-[#E8D1AB] text-black" : isPast ? "text-white/20 cursor-not-allowed" : "text-white hover:bg-white/10"} ${!isSameMonth(date, currentCalendarMonth) ? "opacity-20" : ""}`}
                             >
                               {format(date, "d")}
                             </button>
@@ -1116,9 +1276,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           value={location}
           onChange={(address, details) => {
             setLocation(address);
+            setLocationDetails(details || null);
           }}
           placeholder="Search for a location"
           colors={darkThemeColors}
+          hasError={errors.includes("locationError")}
           disabled={false}
         />
       </div>

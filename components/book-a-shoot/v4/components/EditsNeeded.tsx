@@ -1,13 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft, Info, Check, Minus, Plus, Sparkles, ChevronDown } from "lucide-react";
+import { ArrowLeft, Info, Check, Minus, Plus, Video, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { CollapsibleEdit } from "./CollapsibleEdit";
 
 export interface EditsConfig {
   needsEdits: boolean;
   editedPhotosSets: number;
+  videoEditTypes: string[];
+  photoEditTypes: string[];
 }
+
+export type EditOption = {
+  key: string;
+  value: string;
+  note?: string;
+};
 
 interface EditsNeededProps {
   onContinue: (config: EditsConfig) => void;
@@ -16,19 +25,43 @@ interface EditsNeededProps {
   baseFreePhotos?: number;
   photosPerSet?: number;
   durationLabel?: string;
+  videoEditOptions?: EditOption[];
+  photoEditOptions?: EditOption[];
+  showVideoEdits?: boolean;
+  showPhotoEdits?: boolean;
+  stepLabel?: string;
+  progressPercent?: number;
 }
 
 export const EditsNeeded: React.FC<EditsNeededProps> = ({
   onContinue,
   onBack,
-  initialConfig = { needsEdits: true, editedPhotosSets: 1 },
+  initialConfig = {
+    needsEdits: true,
+    editedPhotosSets: 0,
+    videoEditTypes: [],
+    photoEditTypes: [],
+  },
   baseFreePhotos = 100,
   photosPerSet = 25,
   durationLabel = "4 Hour Duration",
+  videoEditOptions = [],
+  photoEditOptions = [],
+  showVideoEdits = true,
+  showPhotoEdits = true,
+  stepLabel = "STEP 04",
+  progressPercent = 44,
 }) => {
   const [needsEdits, setNeedsEdits] = useState<boolean>(initialConfig.needsEdits);
+  const [isVideoOpen, setIsVideoOpen] = useState<boolean>(true);
   const [editedPhotosSets, setEditedPhotosSets] = useState<number>(
     initialConfig.editedPhotosSets
+  );
+  const [videoEditCounts, setVideoEditCounts] = useState<Record<string, number>>(() =>
+    (initialConfig.videoEditTypes || []).reduce<Record<string, number>>((acc, slug) => {
+      acc[slug] = (acc[slug] || 0) + 1;
+      return acc;
+    }, {})
   );
 
   const handleDecrement = (e: React.MouseEvent) => {
@@ -41,14 +74,70 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
     setEditedPhotosSets((prev) => prev + 1);
   };
 
+  const handleVideoIncrement = (slug: string) => {
+    setVideoEditCounts((prev) => ({
+      ...prev,
+      [slug]: (prev[slug] || 0) + 1,
+    }));
+  };
+
+  const handleVideoDecrement = (slug: string) => {
+    setVideoEditCounts((prev) => {
+      const current = prev[slug] || 0;
+      if (current <= 1) {
+        const next = { ...prev };
+        delete next[slug];
+        return next;
+      }
+
+      return {
+        ...prev,
+        [slug]: current - 1,
+      };
+    });
+  };
+
   // Calculate total photos received based on base count and sets added
   const totalAddedExtra = editedPhotosSets * photosPerSet;
-  const totalPhotos = baseFreePhotos + totalAddedExtra;
+  const roundedBaseFreePhotos = Math.round(baseFreePhotos);
+  const totalPhotos = roundedBaseFreePhotos + totalAddedExtra;
+  const photoSlug = photoEditOptions[0]?.key || "edited_photos";
 
   const handleNext = () => {
+    if (needsEdits) {
+      const hasVideoEditOptions = showVideoEdits && videoEditOptions.length > 0;
+      const hasPhotoEditOptions = showPhotoEdits && photoEditOptions.length > 0;
+      const selectedVideoEditCount = Object.values(videoEditCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+
+      if (hasVideoEditOptions && selectedVideoEditCount === 0) {
+        toast.error("Please select at least one video edit type");
+        return;
+      }
+
+      if (hasPhotoEditOptions && editedPhotosSets === 0) {
+        toast.error("Please select at least one photo edit type");
+        return;
+      }
+    }
+
+    const videoEditTypes =
+      needsEdits && showVideoEdits
+        ? Object.entries(videoEditCounts).flatMap(([slug, count]) =>
+            Array.from({ length: count }, () => slug)
+          )
+        : [];
+
     onContinue({
       needsEdits,
       editedPhotosSets,
+      videoEditTypes,
+      photoEditTypes:
+        needsEdits && showPhotoEdits
+          ? Array.from({ length: editedPhotosSets }, () => photoSlug)
+          : [],
     });
   };
 
@@ -70,10 +159,13 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {/* Step Indicator Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 01
+            {stepLabel}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-1/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
         </div>
 
@@ -141,26 +233,99 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <div className="flex items-center gap-2 text-[#A9A9A9]">
             <Check className="w-4 h-4 lg:w-6 lg:h-6 shrink-0 mt-0.5" />
             <span className="text-xs lg:text-sm">
-              Professional color grading, sound mixing, and basic revisions for a polished final result.
+              Professional color grading, sound mixing, selected video packages, and polished photo delivery.
             </span>
           </div>
         </div>
 
-        {/* Photo Edits Dynamic Container */}
         {needsEdits && (
-          <CollapsibleEdit
-            title="Photo Edits"
-            itemLabel="Edited Photos"
-            setsCount={editedPhotosSets}
-            onIncrement={handleIncrement}
-            onDecrement={handleDecrement}
-            baseFreeCount={baseFreePhotos}
-            perSetCount={photosPerSet}
-            durationLabel={durationLabel}
-            totalExtra={totalAddedExtra}
-            totalCount={totalPhotos}
-            icon="📸"
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {showVideoEdits && videoEditOptions.length > 0 && (
+              <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden">
+                <div className="bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-b border-white/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsVideoOpen((prev) => !prev)}
+                    className="w-full p-6 lg:px-7 lg:py-9 flex items-center justify-between text-left"
+                  >
+                    <h3 className="text-lg lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-[#E8D1AB]">
+                      Video Edits
+                    </h3>
+                    <div className="flex items-center gap-3 text-white/70">
+                      <Video className="w-5 h-5 lg:w-8 lg:h-8" />
+                      <ChevronDown
+                        className={`w-5 h-5 lg:w-8 lg:h-8 transition-transform ${
+                          isVideoOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+                </div>
+
+                {isVideoOpen && (
+                  <div className="px-6 md:px-8 py-6 md:py-8 space-y-4">
+                    {videoEditOptions.map((option) => {
+                      const count = videoEditCounts[option.key] || 0;
+
+                      return (
+                        <div
+                          key={option.key}
+                          className={`flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between rounded-2xl border p-4 lg:p-5 bg-[#171717] transition-colors ${
+                            count > 0 ? "border-[#E8D1AB]" : "border-white/10"
+                          }`}
+                        >
+                          <div>
+                            <h4 className="text-base lg:text-xl font-medium text-white">
+                              {option.value}
+                            </h4>
+                            {option.note && (
+                              <p className="text-sm text-white/50 mt-1">{option.note}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 rounded-full font-semibold text-sm self-start xl:self-auto">
+                            <button
+                              type="button"
+                              onClick={() => handleVideoDecrement(option.key)}
+                              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+                            >
+                              <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
+                            </button>
+                            <span className="w-6 text-center text-base lg:text-xl font-medium">
+                              {String(count).padStart(2, "0")}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleVideoIncrement(option.key)}
+                              className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showPhotoEdits && photoEditOptions.length > 0 && (
+              <CollapsibleEdit
+                title="Photo Edits"
+                itemLabel={photoEditOptions[0]?.value || "Edited Photos"}
+                setsCount={editedPhotosSets}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                baseFreeCount={roundedBaseFreePhotos}
+                perSetCount={photosPerSet}
+                durationLabel={durationLabel}
+                totalExtra={totalAddedExtra}
+                totalCount={totalPhotos}
+                icon="Photo"
+              />
+            )}
+          </div>
         )}
       </div>
 
