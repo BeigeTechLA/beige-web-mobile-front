@@ -451,24 +451,30 @@ export default function CreateMeetingModal({
     if (!isOpen) return;
 
     let cancelled = false;
-    externalChatApi.getDirectory()
-      .then((directory) => {
-        if (cancelled) return;
-        setDirectory({
-          staff: directory.staff || [],
-          creativePartners: directory.creativePartners || [],
-        });
+    const timeout = window.setTimeout(() => {
+      externalChatApi.getDirectory({
+        search: memberSearch.trim() || undefined,
+        limit: 50,
       })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error("Failed to load meeting participant directory", error);
-        }
-      });
+        .then((directory) => {
+          if (cancelled) return;
+          setDirectory({
+            staff: directory.staff || [],
+            creativePartners: directory.creativePartners || [],
+          });
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            console.error("Failed to load meeting participant directory", error);
+          }
+        });
+    }, 300);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
-  }, [isOpen]);
+  }, [isOpen, memberSearch]);
 
   useEffect(() => {
     if (!isOpen || !selectedOrderId) return;

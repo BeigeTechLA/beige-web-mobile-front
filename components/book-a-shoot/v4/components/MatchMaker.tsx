@@ -15,7 +15,7 @@ interface TeamSelectionStepProps {
   title?: string;
   subtitle?: string;
   step?: string;
-  completionPercentage: number;
+  completionPercentage?: number;
 }
 
 const PLACEHOLDER_INCLUSIONS = [

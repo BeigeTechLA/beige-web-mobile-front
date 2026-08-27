@@ -171,7 +171,20 @@ interface DirectoryResponse {
     staff?: ExternalChatUser[];
     clients?: ExternalChatUser[];
     creativePartners?: ExternalChatUser[];
+    meta?: Record<string, {
+      page?: number;
+      limit?: number;
+      total?: number;
+      totalPages?: number;
+      hasMore?: boolean;
+    }>;
   };
+}
+
+export interface ExternalChatDirectoryParams {
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ExternalChatRoomListParams {
@@ -298,8 +311,14 @@ export const externalChatApi = {
     return response.data || {};
   },
 
-  async getDirectory(search?: string) {
-    const response = await apiClient.get<DirectoryResponse>("external-chat/directory", search ? { search } : undefined);
+  async getDirectory(params?: string | ExternalChatDirectoryParams) {
+    const queryParams =
+      typeof params === "string"
+        ? params
+          ? { search: params }
+          : undefined
+        : params;
+    const response = await apiClient.get<DirectoryResponse>("external-chat/directory", queryParams);
     return response.data || {};
   },
 

@@ -49,6 +49,7 @@ export interface ShootSummaryData {
   };
   editingServices: {
     photoEditsLabel: string;
+    videoEditsLabel?: string;
     totalPhotos: string;
   };
   studio?: StudioSummaryData;
@@ -117,6 +118,7 @@ const DEFAULT_SUMMARY_DATA: ShootSummaryData = {
   },
   editingServices: {
     photoEditsLabel: "Edited Photos 100 Included + 25 Added",
+    videoEditsLabel: "",
     totalPhotos: "You'll Receive 125 Photos",
   },
   studio: DEFAULT_STUDIO_DATA,
@@ -142,6 +144,7 @@ interface ShootSummaryStepProps {
   onContinue?: (contactData: { fullName: string; phoneNumber: string }) => void;
   onEditStep?: (stepName: string) => void;
   summaryData?: ShootSummaryData;
+  initialContact?: { fullName: string; phoneNumber: string } | null;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -157,9 +160,10 @@ export default function ShootSummaryStep({
   subtitle = "Review your shoot details below. You can make changes before confirming your booking.",
   stepNumber = "09",
   completionPercentage = 95,
+  initialContact,
 }: ShootSummaryStepProps) {
-  const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [fullName, setFullName] = useState(initialContact?.fullName || "");
+  const [phoneNumber, setPhoneNumber] = useState(initialContact?.phoneNumber || "");
   const [errors, setErrors] = useState<string[]>([])
 
   const creativesList = summaryData.creatives || DEFAULT_CREATIVES_DATA;
@@ -398,13 +402,23 @@ export default function ShootSummaryStep({
               EDIT
             </button>
           </div>
-          <hr className="border-t border-white/20 my-4 lg:my-7" />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
-            <div className="flex items-center gap-3">
-              <span className="text-sm lg:text-base text-[#A2A2A2]">Photo Edits:</span>
-              <span className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]">
-                {summaryData.editingServices.photoEditsLabel}
-              </span>
+          <hr className={`border-t border-white/20 my-4 lg:my-7`} />
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-1">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <span className="text-sm lg:text-base text-[#A2A2A2]">Photo Edits:</span>
+                <span className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]">
+                  {summaryData.editingServices.photoEditsLabel}
+                </span>
+              </div>
+              {summaryData.editingServices.videoEditsLabel && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <span className="text-sm lg:text-base text-[#A2A2A2]">Video Edits:</span>
+                  <span className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]">
+                    {summaryData.editingServices.videoEditsLabel}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="px-4 lg:px-7 py-2 lg:py-4 rounded-full bg-white text-[#101010] font-medium text-sm lg:text-lg italic">
               {summaryData.editingServices.totalPhotos}
@@ -688,4 +702,4 @@ export default function ShootSummaryStep({
       </div>
     </div>
   );
-}
+};

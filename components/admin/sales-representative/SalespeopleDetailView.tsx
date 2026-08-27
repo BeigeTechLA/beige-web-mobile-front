@@ -10,6 +10,7 @@ import {
   Copy,
   DollarSign,
   FileText,
+  Loader2,
   MoreVertical,
   Search,
   SquarePen,
@@ -19,11 +20,14 @@ import {
 import ActionMenu from "@/components/admin/sales-representative/ActionMenu";
 import { DeleteConfirmationModal } from "@/components/admin/DeleteConfirmationModal";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import DottedDivider from "@/components/admin/DottedDivider";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { LeadsStatusBadge, type BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { useDebounce } from "@/hooks/use-debounce";
-import { salesApi, shiftManagementApi } from "@/lib/api";
+import { salesApi, shiftManagementApi, type QuotesListResponse, type SalesQuoteListItem } from "@/lib/api";
+import {
+  formatQuoteStatusLabel,
+  getPaymentAwareQuoteStatusKey,
+} from "@/lib/quoteStatus";
 import { toast } from "sonner";
 
 export type SalespeopleProfile = {
@@ -56,6 +60,52 @@ function firstText(...values: Array<unknown>) {
   return "";
 }
 
+function getRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getOptionalNumber(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function extractQuoteRowsState(data: QuotesListResponse["data"]) {
+  if (Array.isArray(data)) {
+    return { rows: data, pagination: null };
+  }
+
+  const record = getRecord(data);
+  if (!record) {
+    return { rows: [], pagination: null };
+  }
+
+  const rowKeys = ["quotes", "items", "results", "rows", "list", "data"] as const;
+  const rows = rowKeys.reduce<SalesQuoteListItem[]>((foundRows, key) => {
+    if (foundRows.length) return foundRows;
+    return Array.isArray(record[key]) ? record[key] as SalesQuoteListItem[] : foundRows;
+  }, []);
+  const pagination = getRecord(record.pagination);
+
+  return {
+    rows,
+    pagination: pagination
+      ? {
+          page: getOptionalNumber(pagination.page) ?? 1,
+          limit: getOptionalNumber(pagination.limit) ?? rows.length,
+          total: getOptionalNumber(pagination.total) ?? rows.length,
+          pages: getOptionalNumber(pagination.pages, pagination.total_pages, pagination.totalPages) ?? 1,
+        }
+      : null,
+  };
+}
+
 function clientDisplayName(row: any) {
   return firstText(
     row?.client_name,
@@ -84,6 +134,11 @@ function cleanParams(params: Record<string, unknown>) {
   return Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
   );
+}
+
+function isActiveRecord(value: unknown) {
+  if (value === undefined || value === null) return true;
+  return value === true || Number(value) === 1 || String(value).toLowerCase() === "active";
 }
 
 function getTodayDate() {
@@ -193,7 +248,7 @@ function QuoteDetailsActionMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 w-[220px] overflow-hidden rounded-[20px] border border-white/10 bg-[#0A0A0A] p-1.5 text-white shadow-2xl shadow-black/50"
+        className="fixed z-50 max-h-[calc(100vh-32px)] w-[220px] overflow-y-auto overscroll-contain rounded-[20px] border border-white/10 bg-[#0A0A0A] p-1.5 text-white shadow-2xl shadow-black/50"
         style={{ top: anchor.y, left: anchor.x }}
       >
         {menuItems.map(({ icon: Icon, label, onClick, danger }) => (
@@ -249,6 +304,45 @@ const quoteBookingTypeParam: Record<string, string> = {
   "Single Day": "single_day",
   "Multi Day": "multi_day",
 };
+
+const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function parseDateValue(value?: string | null) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (!text || ["n/a", "null", "undefined"].includes(text.toLowerCase())) return null;
+
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const normalized = text.includes("T") ? text : text.replace(" ", "T");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatShortDate(value?: string | null) {
+  const parsed = parseDateValue(value);
+  if (!parsed) return value || "N/A";
+  return `${parsed.getDate()} ${shortMonthNames[parsed.getMonth()]}, ${parsed.getFullYear()}`;
+}
+
+function clampMenuAnchor(rect: DOMRect, menuWidth: number, menuHeight: number) {
+  const padding = 12;
+  const gap = 8;
+  const x = Math.min(Math.max(padding, rect.right - menuWidth), window.innerWidth - menuWidth - padding);
+  const belowY = rect.bottom + gap;
+  const aboveY = rect.top - menuHeight - gap;
+  const y = belowY + menuHeight > window.innerHeight - padding ? Math.max(padding, aboveY) : belowY;
+
+  return {
+    x: Math.max(padding, x),
+    y: Math.max(padding, Math.min(y, window.innerHeight - menuHeight - padding)),
+  };
+}
 
 const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
   "Signed Up - Lead Created",
@@ -373,12 +467,14 @@ export default function SalespeopleDetailView({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"booking" | "quotes">("booking");
-  const viewMode: "list" | "grid" = "list";
+  const viewMode = "list" as "list" | "grid";
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | null>(getTodayDate);
   const debouncedSearch = useDebounce(search, 300);
+  const normalizedSearch = debouncedSearch.trim();
   const [leadRows, setLeadRows] = useState<any[]>([]);
   const [salesQuoteRows, setSalesQuoteRows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [leadPage, setLeadPage] = useState(1);
   const [quotePage, setQuotePage] = useState(1);
   const [leadPagination, setLeadPagination] = useState<PaginationState>({ page: 1, limit: 10, total: 0, pages: 1 });
@@ -415,6 +511,27 @@ export default function SalespeopleDetailView({
     ? ["Booking Type", "Self-Serve", "Sales Assisted", "Manual"]
     : ["Booking Type", "Single Day", "Multi Day"];
   const salesRepId = profile.sales_rep_id || profile.id;
+  const handleTabChange = (tab: "booking" | "quotes") => {
+    if (tab === activeTab) return;
+
+    setFilters((current) => ({
+      ...current,
+      lead: "All Lead",
+      status: tab === "booking" ? "All" : "All Status",
+      booking: "Booking Type",
+      cp: "Creative Partners",
+    }));
+
+    if (tab === "booking") {
+      setLeadPage(1);
+    } else {
+      setQuotePage(1);
+    }
+
+    setActiveTab(tab);
+  };
+
+
   const bookingGridColumns = useMemo(() => {
     const baseStatuses = ["Booking In Progress", "Booked", "Signed Up - Lead Created", "Book a Shoot - Lead Created", "Manual - Lead Created", "Ready for Payment", "Closed - Lost"];
     const statuses = Array.from(new Set([...baseStatuses, ...leadRows.map((row) => row.status || "N/A")]));
@@ -436,7 +553,7 @@ export default function SalespeopleDetailView({
     setLeadActionMenu({
       id: row.lead_id,
       client: row.name,
-      anchor: { x: Math.max(12, rect.right - 220), y: rect.bottom + 8 },
+      anchor: clampMenuAnchor(rect, 220, 220),
     });
   };
 
@@ -447,7 +564,7 @@ export default function SalespeopleDetailView({
       id: row.sales_quote_id,
       leadId: row.lead_id,
       status: row.status,
-      anchor: { x: Math.max(12, rect.right - 220), y: rect.bottom + 8 },
+      anchor: clampMenuAnchor(rect, 220, 280),
     });
   };
 
@@ -533,32 +650,39 @@ export default function SalespeopleDetailView({
   };
 
   useEffect(() => {
-    const load = async () => {
-      const repId = salesRepId;
-      if (!repId) return;
+  let cancelled = false;
+   const load = async () => {
+  const repId = salesRepId;
+  if (!repId) return;
+
+  setIsLoading(true);
+  try {
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
         const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
-          search: debouncedSearch || undefined,
+          search: normalizedSearch || undefined,
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
-          status: filters.status === "All" ? undefined : filters.status,
+          status: filters.status === "All" || filters.status === "All Status" ? undefined : filters.status,
           date: formatApiDate(dateFilter),
           page: leadPage,
           limit: 10,
         }));
+      if (cancelled) return;
+
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
+        const activeList = list.filter((row: any) => isActiveRecord(row?.is_active ?? row?.user_status ?? row?.enabled ?? row?.is_enabled));
         const filteredList = filters.cp === "Assigned"
-          ? list.filter((row: any) => Array.isArray(row?.creative_partners) && row.creative_partners.length > 0)
+          ? activeList.filter((row: any) => Array.isArray(row?.creative_partners) && row.creative_partners.length > 0)
           : filters.cp === "Unassigned"
-            ? list.filter((row: any) => !Array.isArray(row?.creative_partners) || row.creative_partners.length === 0)
-            : list;
+            ? activeList.filter((row: any) => !Array.isArray(row?.creative_partners) || row.creative_partners.length === 0)
+            : activeList;
         const pagination = data?.pagination || {};
         setLeadPagination({
           page: Number(pagination.page || leadPage || 1),
           limit: Number(pagination.limit || 10),
-          total: filters.cp === "Creative Partners" ? Number(pagination.total || list.length || 0) : filteredList.length,
+          total: filters.cp === "Creative Partners" ? Number(pagination.total || activeList.length || 0) : filteredList.length,
           pages: filters.cp === "Creative Partners" ? Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1) : Math.max(1, Math.ceil(filteredList.length / 10)),
         });
         setLeadRows(filteredList
@@ -574,52 +698,68 @@ export default function SalespeopleDetailView({
               type: row.lead_type || "N/A",
               intent: row.intent || "N/A",
               status: row.booking_status || "N/A",
-              activity: row.last_activity || "N/A",
+              activity: formatShortDate(row.last_activity),
+              is_active: row.is_active,
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
           }));
       } else {
         setLeadRows([]);
-        const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
-          search: debouncedSearch || undefined,
-          status: filters.status === "All Status" ? undefined : quoteStatusParam[filters.status],
+        const response = await salesApi.getQuotesList({
+          search: normalizedSearch || undefined,
+          assigned_sales_rep_id: repId,
+          status: filters.status === "All Status" || filters.status === "All" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
-          date: formatApiDate(dateFilter),
+          range: dateFilter ? "custom" : undefined,
+          date_on: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
-        }));
-        const data = response?.data?.data || response?.data;
-        const list = Array.isArray(data?.rows) ? data.rows : [];
-        const pagination = data?.pagination || {};
+        });
+      if (cancelled) return;
+        const { rows, pagination } = response?.success
+          ? extractQuoteRowsState(response.data)
+          : { rows: [], pagination: null };
+        const list = rows;
+        const quotePageLimit = Number(pagination?.limit || 10);
+        const quoteTotal = Number(pagination?.total || list.length || 0);
         setQuotePagination({
-          page: Number(pagination.page || quotePage || 1),
-          limit: Number(pagination.limit || 10),
-          total: Number(pagination.total || list.length || 0),
-          pages: Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1),
+          page: Number(pagination?.page || quotePage || 1),
+          limit: quotePageLimit,
+          total: quoteTotal,
+          pages: Number(pagination?.pages || 1),
         });
         setSalesQuoteRows(list
-          .filter((row: any) => !(row?.lead_id && !row?.sales_quote_id && !row?.project && !row?.quote_status))
           .map((row: any) => {
             const displayName = clientDisplayName(row);
+            const statusKey = getPaymentAwareQuoteStatusKey(row);
             return {
-              sales_quote_id: row.sales_quote_id || row.id || row.project || row.client_name || row.guest_email,
+              sales_quote_id: row.sales_quote_id || row.quote_id || row.id || row.project || row.client_name || row.guest_email,
               lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
-              quoteNumber: row.quote_number || row.sales_quote_id || row.id,
+              quoteNumber: row.quote_number || row.sales_quote_id || row.quote_id || row.id,
               name: displayName,
-              meta: formatLocation(row.client_location),
-              project: row.project || "Untitled project",
-              amount: row.amount || "0.00",
-              status: row.quote_status || "Draft",
-              valid: row.valid_until || "N/A",
+              meta: formatLocation(row.client_location || row.client_address || row.address || row.location),
+              project: row.project || row.project_name || row.project_description || row.video_shoot_type || "Untitled project",
+              amount: row.amount || row.total_amount || row.total || "0.00",
+              status: formatQuoteStatusLabel(statusKey),
+              valid: row.valid_until ? formatShortDate(row.valid_until) : row.valid || "N/A",
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
           }));
       }
-    };
-    void load();
-  }, [activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
+    } finally {
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  void load();
+  return () => {
+    cancelled = true;
+  };
+}, [ activeTab, salesRepId, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage,]);
 
   useEffect(() => {
     if (activeTab === "booking") {
@@ -627,17 +767,7 @@ export default function SalespeopleDetailView({
     } else {
       setQuotePage(1);
     }
-  }, [activeTab, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
-
-  useEffect(() => {
-    setFilters((current) => ({
-      ...current,
-      lead: "All Lead",
-      status: activeTab === "booking" ? "All" : "All Status",
-      booking: "Booking Type",
-      cp: "Creative Partners",
-    }));
-  }, [activeTab]);
+  }, [activeTab, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
 
   return (
     <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
@@ -652,9 +782,9 @@ export default function SalespeopleDetailView({
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold">{profile.name}</h1>
-              <Toggle enabled={profile.enabled} />
+              {/* <Toggle enabled={profile.enabled} /> */}
             </div>
-            <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{profile.lastActivity || "N/A"}</span></p>
+            <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{formatShortDate(profile.lastActivity)}</span></p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-4">
@@ -672,11 +802,10 @@ export default function SalespeopleDetailView({
           <SortDateButton selectedDate={dateFilter} onDateChange={setDateFilter} />
         </div>
       </div>
-      <DottedDivider className="my-6 lg:my-6" />
-
+      
       <div className="mt-5 inline-flex rounded-lg border border-[#2D2D2D] bg-[#171717] p-1">
-        <button onClick={() => setActiveTab("booking")} className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
-        <button onClick={() => setActiveTab("quotes")} className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
+        <button onClick={() => handleTabChange("booking")}className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
+        <button onClick={() => handleTabChange("quotes")}className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 lg:flex-row">
@@ -688,7 +817,7 @@ export default function SalespeopleDetailView({
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} />
+          {/* <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} /> */}
           {activeTab === "booking" ? (
             <BasicDropdown label="All Lead" value={filters.lead} options={["All Lead", "Hot", "Warm", "Cold"]} onChange={(value) => setFilters((current) => ({ ...current, lead: value }))} />
           ) : null}
@@ -709,11 +838,11 @@ export default function SalespeopleDetailView({
                 <div
                   key={`grid-column-${column.status}`}
                   onDragOver={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                   }}
                   onDrop={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                     reorderGridCards(column.status, draggedCard.id);
                     setDraggedCard(null);
@@ -737,11 +866,11 @@ export default function SalespeopleDetailView({
                         }}
                         onDragEnd={() => setDraggedCard(null)}
                         onDragOver={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                         }}
                         onDrop={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                           event.stopPropagation();
                           reorderGridCards(column.status, draggedCard.id, activeTab === "booking" ? row.lead_id : row.sales_quote_id);
@@ -824,7 +953,18 @@ export default function SalespeopleDetailView({
                   </td>
                 </tr>
               )) : (
-                  <tr key="no-leads"><td colSpan={7} className="px-5 py-8 text-center text-sm text-white/45">No booking leads found</td></tr>
+              <tr key="no-leads">
+                <td colSpan={7} className="px-5 py-8 text-center text-sm text-white/45">
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                      <span>Loading booking leads...</span>
+                    </div>
+                  ) : (
+                    "No booking leads found"
+                  )}
+                </td>
+              </tr>
               )}</tbody>
             </table>
           ) : (
@@ -850,7 +990,15 @@ export default function SalespeopleDetailView({
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">No quotes found</td></tr>
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                        <span>Loading quotes...</span>
+                      </div>
+                    ) : (
+                      "No quotes found"
+                    )}</td></tr>
               )}</tbody>
             </table>
           )}

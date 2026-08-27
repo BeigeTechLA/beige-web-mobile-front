@@ -398,25 +398,19 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
   const customItems = lineItems.filter((item) => item.section === "custom");
   const lineItemsSubtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
-  const subtotal = getQuoteNumber(quoteData.subtotal) ?? lineItemsSubtotal;
+  const storedSubtotal = getQuoteNumber(quoteData.subtotal);
+  const subtotal = lineItems.length > 0 ? lineItemsSubtotal : storedSubtotal ?? 0;
   const taxRate = getQuoteNumber(quoteData.tax_rate) ?? 0;
   const taxType = getQuoteText(quoteData.tax_type, "Sales Tax") || "Sales Tax";
-  const taxAmount =
-    getQuoteNumber(quoteData.tax_amount, quoteData.sales_tax) ?? subtotal * (taxRate / 100);
-  const amountAfterTax =
-    getQuoteNumber(quoteData.amount_after_tax, quoteData.total_after_tax) ?? subtotal + taxAmount;
+  const taxAmount = subtotal * (taxRate / 100);
+  const amountAfterTax = subtotal + taxAmount;
   const discountValue = getQuoteNumber(quoteData.discount_value) ?? 0;
   const discountType = getQuoteText(quoteData.discount_type).toLowerCase();
-  const discountAmount =
-    getQuoteNumber(quoteData.discount_amount) ??
-    (discountType.includes("percent") ? amountAfterTax * (discountValue / 100) : discountValue);
-  const finalTotal =
-    getQuoteNumber(
-      quoteData.final_total,
-      quoteData.total_amount,
-      quoteData.total,
-      quoteData.amount_after_discount
-    ) ?? Math.max(amountAfterTax - discountAmount, 0);
+  const rawDiscountAmount = discountType.includes("percent")
+    ? amountAfterTax * (discountValue / 100)
+    : discountValue;
+  const discountAmount = Math.min(rawDiscountAmount, amountAfterTax);
+  const finalTotal = Math.max(amountAfterTax - discountAmount, 0);
 
   const resolvedQuoteId = String(
     quoteData.sales_quote_id ?? quoteData.quote_id ?? quoteData.id ?? quoteId ?? ""

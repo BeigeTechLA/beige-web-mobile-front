@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, Search, SlidersHorizontal, X, Loader2 } from "luci
 import { BasicDropdown, type DropdownOption } from "@/components/admin/BasicDropdown";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import DatePicker from "@/components/ui/Datepicker";
+import { useDebounce } from "@/hooks/use-debounce";
 import { shiftManagementApi } from "@/lib/api";
 
 type HistoryItem = {
@@ -116,38 +117,65 @@ export default function AssignmentHistoryView({ onBack }: { onBack: () => void }
   ]);
 const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "Sales Person", value: "Sales Person" }]);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
+  const normalizedSearch = debouncedSearch.trim();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const selectedDateLabel = selectedDate ? formatLongDate(selectedDate) : "Select Date";
 
   useEffect(() => {
+    let ignore = false;
+
     const loadOptions = async () => {
-      const [shiftsRes, peopleRes] = await Promise.all([
+      const [shiftsResult, peopleResult] = await Promise.allSettled([
         shiftManagementApi.getShifts({ page: 1, limit: 100 }),
         shiftManagementApi.getAllSalespeople({ limit: 100 }),
       ]);
-      const shiftsData = shiftsRes?.data?.data || shiftsRes?.data;
-      const shiftsList = Array.isArray(shiftsData?.rows) ? shiftsData.rows : [];
-      const nextShiftOptions = shiftsList
-        .map((shift: any) => {
-          const label = shift.name || shift.shift_name;
-          const id = String(shift.id || shift.shift_id || "");
-          return label && id ? { label, value: id } : null;
-        })
-        .filter(Boolean);
-      setShiftOptions([{ label: "Select Shift", value: "Select Shift" }, ...nextShiftOptions]);
 
-      const peopleData = peopleRes?.data?.data || peopleRes?.data;
-      const peopleList = Array.isArray(peopleData?.rows) ? peopleData.rows : [];
-      const uniquePeople = new Map<string, DropdownOption>();
-      peopleList.filter((person: any) => person?.shift_id !== null).forEach((person: any) => {
-        const label = person.name || person.salesperson_name || person.email;
-        const id = String(person.sales_rep_id || person.id || person.user_id || "");
-        if (!label || !id || uniquePeople.has(id)) return;
-        uniquePeople.set(id, { label, value: id });
-      });
-      setPersonOptions([{ label: "Sales Person", value: "Sales Person" }, ...Array.from(uniquePeople.values())]);
+      if (ignore) return;
+
+      if (shiftsResult.status === "fulfilled" && shiftsResult.value?.success !== false) {
+        const shiftsRes = shiftsResult.value;
+        const shiftsData = shiftsRes?.data?.data || shiftsRes?.data;
+        const shiftsList = Array.isArray(shiftsData?.rows) ? shiftsData.rows : [];
+        const nextShiftOptions = shiftsList
+          .map((shift: any) => {
+            const label = shift.name || shift.shift_name;
+            const id = String(shift.id || shift.shift_id || "");
+            return label && id ? { label, value: id } : null;
+          })
+          .filter(Boolean) as DropdownOption[];
+
+        setShiftOptions([{ label: "Select Shift", value: "Select Shift" }, ...nextShiftOptions]);
+      } else {
+        console.error("Failed to load shift options:", shiftsResult.reason);
+        setShiftOptions([{ label: "Select Shift", value: "Select Shift" }]);
+      }
+
+      if (peopleResult.status === "fulfilled" && peopleResult.value?.success !== false) {
+        const peopleRes = peopleResult.value;
+        const peopleData = peopleRes?.data?.data || peopleRes?.data;
+        const peopleList = Array.isArray(peopleData?.rows) ? peopleData.rows : [];
+        const uniquePeople = new Map<string, DropdownOption>();
+        peopleList.filter((person: any) => person?.shift_id !== null).forEach((person: any) => {
+            const label = person.name || person.salesperson_name || person.email;
+            const id = String(person.sales_rep_id || person.id || person.user_id || "");
+            if (!label || !id || uniquePeople.has(id)) return;
+            uniquePeople.set(id, { label, value: id });
+          });
+
+        setPersonOptions([
+          { label: "Sales Person", value: "Sales Person" },
+          ...Array.from(uniquePeople.values()),
+        ]);
+      } else {
+        console.error("Failed to load salesperson options:", peopleResult.reason);
+        setPersonOptions([{ label: "Sales Person", value: "Sales Person" }]);
+      }
     };
     void loadOptions();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -158,7 +186,7 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
         try {
       const dateParam = convertDateForApi(filters.date);
       const response = await shiftManagementApi.getAssignmentHistory({
-        search: search || undefined,
+        search: normalizedSearch || undefined,
         shift_id: filters.shift === "Select Shift" ? undefined : filters.shift,
         sales_rep_id: filters.person === "Sales Person" ? undefined : filters.person,
         date: dateParam,
@@ -166,6 +194,11 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
         page: 1,
         limit: 20,
       });
+
+      if (response?.success === false) {
+        throw new Error(response?.error || "Failed to load assignment history");
+      }
+
       if (ignore) return;
       const data = response?.data?.data || response?.data;
       const list = Array.isArray(data?.rows) ? data.rows : [];
@@ -196,15 +229,12 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
     }
     };
 
-    const timeoutId = setTimeout(() => {
-      void loadHistory();
-    }, search ? 400 : 0);
+    void loadHistory();
 
     return () => {
       ignore = true;
-      clearTimeout(timeoutId);
     };
-  }, [filters.shift, filters.person, filters.date, filters.status, search]);
+  }, [filters.shift, filters.person, filters.date, filters.status, normalizedSearch]);
 
   return (
     <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">

@@ -109,7 +109,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
       <div
-        className={`fixed z-50 w-[220px] overflow-hidden rounded-[20px] border shadow-2xl transition-all duration-200 ${
+        className={`fixed z-50 max-h-[calc(100vh-32px)] w-[220px] overflow-y-auto overscroll-contain rounded-[20px] border shadow-2xl transition-all duration-200 ${
           isDark 
           ? "border-white/10 bg-[#0A0A0A] shadow-black/50" 
           : "border-[#E5E5E5] bg-white shadow-xl"

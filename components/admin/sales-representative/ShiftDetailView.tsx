@@ -3,11 +3,13 @@
 
 
 import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom";
 import {
   AlertTriangle,
   ArrowLeft,
   ChevronRight,
   Edit2,
+  Loader2,
   RefreshCw,
   Search,
   Trash2,
@@ -126,6 +128,54 @@ function TablePagination({
   );
 }
 
+function ShiftNameTooltip({
+  name,
+  className = "max-w-[160px]",
+}: {
+  name: string;
+  className?: string;
+}) {
+  const [tooltip, setTooltip] = useState<{
+    name: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const showTooltip = (
+    event: React.PointerEvent<HTMLSpanElement>,
+    name: string
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({name, left: rect.left + rect.width / 2, top: rect.top - 10});
+  };
+
+  return (
+    <>
+      {tooltip && typeof document !== "undefined"
+        ? ReactDOM.createPortal(
+            <div className="pointer-events-none fixed z-[9999]" style={{left: tooltip.left, top: tooltip.top}}>
+              <div className="relative max-w-[250px] -translate-x-1/2 -translate-y-full whitespace-normal break-words rounded-md bg-white px-3 py-2 text-left text-[11px] font-bold leading-[16px] text-black shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+                {tooltip.name}
+
+                <span className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white shadow-[2px_2px_6px_rgba(0,0,0,0.08)]" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      <span
+        className={`block truncate capitalize ${className}`}
+        onPointerEnter={(event) => showTooltip(event, name)}
+        onPointerMove={(event) => showTooltip(event, name)}
+        onPointerLeave={() => setTooltip(null)}
+      >
+        {name}
+      </span>
+    </>
+  );
+}
+
 function getInitials(name?: string) {
   return String(name || "NA")
     .trim()
@@ -136,16 +186,6 @@ function getInitials(name?: string) {
     .toUpperCase();
 }
 
-function ordinalDay(day: number) {
-  if (day > 3 && day < 21) return `${day}th`;
-  switch (day % 10) {
-    case 1: return `${day}st`;
-    case 2: return `${day}nd`;
-    case 3: return `${day}rd`;
-    default: return `${day}th`;
-  }
-}
-
 function parseDateValue(value?: string | null) {
   if (!value || String(value).trim().toLowerCase() === "n/a") return null;
   const normalized = String(value).includes("T") ? String(value) : String(value).replace(" ", "T");
@@ -153,12 +193,10 @@ function parseDateValue(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatLongDateTime(value?: string | null) {
+function formatShortDate(value?: string | null) {
   const parsed = parseDateValue(value);
   if (!parsed) return "N/A";
-  const date = `${ordinalDay(parsed.getDate())} ${parsed.toLocaleString("en-US", { month: "long" })} ${parsed.getFullYear()}`;
-  const time = parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  return `${date}, ${time}`;
+  return `${parsed.getDate()} ${parsed.toLocaleString("en-US", { month: "short" })}, ${parsed.getFullYear()}`;
 }
 
 function normalizeStatus(value: any): "active" | "inactive" {
@@ -240,7 +278,7 @@ export default function ShiftDetailView({
   shift: ShiftDetail;
   onBack: () => void;
   onConfigureChange?: (isConfiguring: boolean) => void;
-  onSalespersonChange?: (isOpen: boolean) => void;
+  onSalespersonChange?: (profile: SalespeopleProfile | null) => void;
   onRefresh?: () => void | Promise<void>;
   onEditShift?: (shift: ShiftDetail) => void;
   refreshKey?: number;
@@ -255,16 +293,25 @@ export default function ShiftDetailView({
   const [memberPagination, setMemberPagination] = useState<PaginationState>({ page: 1, limit: 10, total: 0, pages: 1 });
   const [deleteMember, setDeleteMember] = useState<SalesMember | null>(null);
   const [isDeletingMember, setIsDeletingMember] = useState(false);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const debouncedMemberSearch = useDebounce(memberSearch, 350);
 
   const handleConfigureChange = (nextValue: boolean) => {
+    if (onConfigureChange) {
+      onConfigureChange(nextValue);
+      return;
+    }
+
     setIsConfiguringOrder(nextValue);
-    onConfigureChange?.(nextValue);
   };
 
   const handleSalespersonChange = (profile: SalespeopleProfile | null) => {
+    if (onSalespersonChange) {
+      onSalespersonChange(profile);
+      return;
+    }
+    
     setSelectedSalesperson(profile);
-    onSalespersonChange?.(Boolean(profile));
   };
 
   const handleConfirmRemoveSalesperson = async () => {
@@ -292,7 +339,11 @@ export default function ShiftDetailView({
   }, [shift]);
 
   const loadShiftDetail = async () => {
-    if (!shift.id) return;
+  if (!shift.id) return;
+
+  setIsLoadingMembers(true);
+
+  try {
     const [detailRes, peopleRes] = await Promise.all([
       shiftManagementApi.getShiftDetail(shift.id),
       shiftManagementApi.getShiftSalespeople(shift.id, {
@@ -335,14 +386,17 @@ export default function ShiftDetailView({
           name,
           email,
           enabled: Boolean(person.user_status ?? person.enabled ?? person.is_enabled ?? person.is_active),
-          lastActivity: formatLongDateTime(person.last_activity || person.last_activity_at),
+          lastActivity: formatShortDate(person.last_activity || person.last_activity_at),
           initials: person.initials || getInitials(name),
           color: person.color || avatarColors[index % avatarColors.length],
           overlap: Boolean(person.shift_overlapping || person.overlap),
         };
       })
     );
-  };
+  } finally {
+    setIsLoadingMembers(false);
+  }
+};
 
   useEffect(() => {
     void loadShiftDetail();
@@ -398,7 +452,9 @@ export default function ShiftDetailView({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold capitalize">{shiftDetail.name}</h1>
+                <h1 className="min-w-0 text-2xl font-semibold">
+                  <ShiftNameTooltip name={shiftDetail.name} className="max-w-[220px] sm:max-w-[350px] lg:max-w-[500px]"/>
+                </h1>
               <StatusPill status={shiftDetail.status} />
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/60">
@@ -466,8 +522,17 @@ export default function ShiftDetailView({
                   <th className="px-5 py-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {salesMembers.length ? salesMembers.map((member) => (
+             <tbody>
+              {isLoadingMembers ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10">
+                    <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                      Loading salespeople...
+                    </div>
+                  </td>
+                </tr>
+              ) : salesMembers.length ? salesMembers.map((member) => (
                   <tr
                     key={member.sales_rep_id || member.email}
                     onClick={() => handleSalespersonChange(member)}
