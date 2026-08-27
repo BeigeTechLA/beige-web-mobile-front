@@ -41,7 +41,7 @@ const SERVICES: ServiceOption[] = [
     id: "livestream",
     title: "Livestream",
     description: "Live broadcasts, webinars, hybrid events",
-    iconSrc: "/images/misc/BookingFlow/Livestream.png",
+    iconSrc: "/images/misc/BookingFlow/LiveStream.png",
     disabled: true,
   },
 ];
