@@ -49,6 +49,11 @@ type ShootHeaderProject = {
     time_zone?: string | null;
   }> | null;
   time_zone?: string | null;
+  updated_by_user?: {
+    id?: number;
+    name?: string | null;
+    email?: string | null;
+  } | null;
   total_paid_amount?: string | number;
   total_value_amount?: string | number;
   converted_sales_quote_id?: string | number | null;
@@ -512,6 +517,7 @@ export default function ShootHeader({
   const projectDateText = hasScheduledDate ? getProjectDateText(project) : "TBD";
   const projectTimeText = hasScheduledDate ? getProjectScheduleTimeText(project) : "TBD";
   const scheduleTooltipText = getProjectScheduleTooltipText(project);
+  const updatedByName = toDisplayText(project?.updated_by_user?.name);
 
   useEffect(() => {
     if (!isScheduleModalOpen) return;
@@ -840,6 +846,7 @@ export default function ShootHeader({
                 isDark={isDark}
                 initialData={scheduleDraft}
                 onChange={setScheduleDraft}
+                allowPastBooking={true} // <--- Add this line here
               />
               <div className={`mt-5 rounded-xl px-4 py-3 text-xs leading-5 ${isDark ? "bg-white/[0.04] text-white/55" : "bg-[#F8F4EA] text-black/55"}`}>
                 {scheduleDraft?.booking_type === "tbd" ? (
@@ -849,6 +856,11 @@ export default function ShootHeader({
                     Location will stay as: <span className={isDark ? "text-white/80" : "text-black/75"}>{locationText}</span>
                   </>
                 )}
+                {updatedByName ? (
+                  <div className="mt-1">
+                    Updated by: <span className={isDark ? "text-white/80" : "text-black/75"}>{updatedByName}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -1069,6 +1081,14 @@ export default function ShootHeader({
                   {locationText}
                 </span>
               </div>
+              {updatedByName ? (
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="whitespace-nowrap">Updated By :</span>
+                  <span title={updatedByName} className={`${isDark ? "text-white" : "text-black"} whitespace-nowrap truncate text-right`}>
+                    {updatedByName}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-3 min-w-0">
