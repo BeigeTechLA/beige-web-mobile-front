@@ -6,11 +6,17 @@ import { formatCurrency } from "@/lib/utils";
 export interface StudiosSuccessProps {
   onContinue: () => void;
   onBack?: () => void;
+  subtitle?: string;
+  buttonText?: string;
+  price?: string;
 }
 
 export const StudioAddSuccess: React.FC<StudiosSuccessProps> = ({
   onContinue,
   onBack,
+  subtitle = "Your studio is all set. Let’s get started with your photography needs.",
+  price,
+  buttonText="Continue to book your shoot"
 }) => {
   return (
     <div className="container mx-auto px-4 md:px-0">
@@ -27,16 +33,22 @@ export const StudioAddSuccess: React.FC<StudiosSuccessProps> = ({
             />
           </div>
         </div>
-        <h2 className="text-lg lg:text-4xl font-medium mb-2 lg:mb-5 text-center">
+        <h2 className="text-lg lg:text-4xl font-medium text-center">
           Studio Added Successfully
         </h2>
-        <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency("4211")}</p>
+        {
+          !price ?
+            <p className="text-lg lg:text-[26px] text-white/50 mb-8 lg:mb-12">{subtitle}</p>
+            :
+            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mt-2 lg:mt-5 mb-8 lg:mb-12">{formatCurrency(price)}</p>
+        }
+
         <div className="w-full max-w-lg mb-6">
           <button
             onClick={() => onContinue()}
             className="w-full h-14 lg:h-20 rounded-[10px] bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-xl font-medium transition-colors flex items-center justify-center"
           >
-            Continue to book your shoot
+            {buttonText ? buttonText : "Continue to book your shoot"}
           </button>
         </div>
       </motion.div>

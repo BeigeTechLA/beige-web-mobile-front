@@ -1130,11 +1130,17 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           colors={darkThemeColors}
           disabled={false}
         />
+        <div className="pt-5">
+          <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-xl bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
+            Note : Studios are available for LA only
+          </span>
+        </div>
       </div>
-      <hr className={`border-t border-white/20 my-4 lg:my-10`} />
 
       {
         !isStudioFlow ? <>
+          <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+
           {/* Need a Studio Banner */}
           <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
             <div className="flex items-center gap-4">
@@ -1158,6 +1164,8 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             </button>
           </div>
         </> : <>
+          <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+
           {/* Need a Creator Banner */}
           <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
             <div className="flex items-center gap-4">

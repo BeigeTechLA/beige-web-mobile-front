@@ -37,6 +37,10 @@ interface AskingOccasionProps {
   onContinue: (selectedOccasionId: string) => void;
   onBack?: () => void;
   initialSelected?: string;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const STUDIO_SHOOT_TYPE_KEY = "studio";
@@ -60,6 +64,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onContinue,
   onBack,
   initialSelected = "corporate",
+  title = "What's the Occasion?",
+  subtitle = "Help us frame the right approachfor your shoot.",
+  stepNumber = "02",
+  completionPercentage = 30
 }) => {
   const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
 
@@ -215,10 +223,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 02
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div className="h-full bg-[#E8D1AB] transition-all duration-300" style={{ width: `${completionPercentage}%` }} />
           </div>
         </div>
 
@@ -226,10 +234,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           <div>
             {/* Section Heading */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-              What's the occasion?
+             {title}
             </h1>
             <p className="text-white/30 text-base md:text-xl font-light mb-8">
-              This helps us frame the right approach for your shoot.
+              {subtitle}
             </p>
           </div>
 

@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  MapPin,
 } from "lucide-react";
 import {
   format,
@@ -30,6 +31,24 @@ import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import { AnimatePresence, motion } from "framer-motion";
 import { getFormattedDateString } from "@/lib/utils";
+import Image from "next/image";
+import Link from "next/link";
+
+const PLACEHOLDER_STUDIO = {
+  id: "studio-1",
+  name: "Beige Media",
+  subtitle: "(Modern Resort Villa with Jacuzzi)",
+  location: "Woodland Hills, Los Angeles,",
+  rating: 4.5,
+  reviewCount: 120,
+  tags: ["Natural light", "Product-friendly"],
+  pricePerHour: 150,
+  availability: "Available Jun 24",
+  image:
+    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  link: "/studios/new-1787571533413",
+  isAdded: true
+}
 
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
@@ -55,7 +74,7 @@ export interface StudioScheduleSyncProps {
   title?: string;
   subtitle?: string;
   step?: string;
-  completionPercentage: number;
+  completionPercentage?: number;
 }
 
 export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
@@ -71,6 +90,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const [useSameSchedule, setUseSameSchedule] = useState<boolean>(initialUseSameSchedule);
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(initialBookingType);
   const [isAccordionOpen, setIsAccordionOpen] = useState<boolean>(true);
+
+  // Update parameter during integration
+  const [isStudioJourney3, setIsStudioJourney3] = useState(true);
+  const [selectedStudio, setSelectedStudio] = useState(PLACEHOLDER_STUDIO);
 
   // Single Day & Time States
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
@@ -535,7 +558,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
             STEP {step}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-3/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
@@ -770,7 +796,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                       </button> */}
                                       <div className="w-full px-6 py-5 flex justify-between items-center border-b rounded-b-2xl border-b-white/10">
                                         <span className="text-white font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
-                                        </div>
+                                      </div>
                                       <AnimatePresence>
                                         {/* {isExpanded && ( */}
                                         <motion.div
@@ -1312,6 +1338,136 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                   )}
                 </div>
               )}
+            </div>
+          </>}
+
+        {isStudioJourney3 &&
+          <>
+            <hr className="border-t border-white/20 my-5 lg:my-10" />
+            <div>
+              <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4 lg:mb-8">
+                Studio Selected based on your location
+              </h3>
+              <div className="border border-white/20 bg-[#101010] rounded-2xl">
+                <div className="w-full h-full flex flex-col md:flex-row items-stretch">
+                  {/* Studio Image + Rating Badge */}
+                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-l-xl overflow-hidden shrink-0">
+                    <Image
+                      src={selectedStudio.image}
+                      alt={selectedStudio.name}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm lg:text-lg font-medium flex items-center gap-1.5 border border-white/20">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M19.4965 7.2823C19.4339 7.08334 19.3158 6.90771 19.1569 6.7772C18.9981 6.6467 18.8055 6.56707 18.603 6.5482L12.9602 6.02112L10.7301 0.649329C10.5655 0.254664 10.1909 0 9.77386 0C9.35686 0 8.98209 0.254664 8.81849 0.649329L6.58842 6.02112L0.944711 6.5482C0.530959 6.58748 0.180623 6.87581 0.0511939 7.2823C-0.0118736 7.48143 -0.0167794 7.69522 0.0370842 7.89719C0.0909477 8.09916 0.201214 8.28044 0.354225 8.41857L4.61976 12.2668L3.36209 17.9661C3.27008 18.3851 3.42814 18.8185 3.76611 19.0698C3.94312 19.2023 4.15643 19.2736 4.37534 19.2734C4.56298 19.2734 4.7471 19.221 4.90806 19.1218L9.77386 16.1284L14.6388 19.1218C14.8133 19.2292 15.0146 19.2816 15.2178 19.2723C15.421 19.2631 15.617 19.1927 15.7816 19.0698C16.1196 18.8185 16.2777 18.3851 16.1857 17.9661L14.9279 12.2668L19.1935 8.41861C19.3465 8.28049 19.4568 8.09921 19.5107 7.89724C19.5645 7.69526 19.5596 7.48147 19.4965 7.28234V7.2823Z" fill="#FDE955" />
+                      </svg>
+                      <span>
+                        {selectedStudio.rating} ({selectedStudio.reviewCount})
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Studio Content & Details */}
+                  <div className="flex-1 flex flex-col justify-between rounded-r-xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-5">
+                    <div>
+                      {/* Title & Status Badge */}
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div>
+                          <h3 className="text-base lg:text-xl font-bold text-white">
+                            {selectedStudio.name}
+                            <br />{selectedStudio.subtitle}
+                          </h3>
+                        </div>
+
+                        {selectedStudio.isAdded && (
+                          <span className="flex items-center gap-1 bg-[#4CAF50] text-white border border-[#4CAF50] px-3 py-2 rounded-full text-sm lg:text-base shrink-0">
+                            <Check className="w-4 h-4" /> Added
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Location */}
+                      <div className="flex items-center gap-1 text-sm lg:text-lg text-white/70">
+                        <MapPin className="w-4 h-4 lg:w-6 lg:h-6" strokeWidth={1} />
+                        <span>{selectedStudio.location}</span>
+                      </div>
+
+                      <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+                      {/* Tags */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedStudio.tags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-5 py-1.5 rounded-md border border-white/20 bg-[#171716] text-sm lg:text-lg text-white/70 font-light"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+                    {/* Action & Price Footer */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {selectedStudio.isAdded ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // toggleSelectStudio(studio.id);
+                            }}
+                            className="px-6 py-2.5 lg:px-11 lg:py-3.5 rounded-full bg-[#FFC9C9] text-[#C31717] text-sm lg:text-xl font-medium hover:bg-[#FFC9C9]/80 transition-colors flex items-center gap-1.5 cursor-pointer z-20"
+                          >
+                            <X className="w-4 h-4 lg:w-5 lg:h-5" />
+                            <span>Remove</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // toggleSelectStudio(studio.id);
+                            }}
+                            className="px-6 py-2.5 lg:px-11 lg:py-3.5 rounded-full bg-white text-black text-sm lg:text-xl font-medium hover:bg-white/90 transition-colors cursor-pointer z-20"
+                          >
+                            Add this Studio
+                          </button>
+                        )}
+
+                        {/* Add studio detail page link */}
+                        <Link
+                          href={selectedStudio.link}
+                          target="_blank"
+                          className="w-10 h-10 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer z-20"
+                        >
+                          {/* <ArrowUpRight className="w-4 h-4 lg:w-6 lg:h-6" /> */}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34" fill="none">
+                            <path d="M23.3643 12.1704L10.22 21.4163" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
+                            <path d="M21.9857 20.091C20.3042 17.7006 20.8201 13.9603 23.3647 12.1703" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
+                            <path d="M15.444 10.7913C17.1255 13.1817 20.8201 13.9603 23.3647 12.1703" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
+                          </svg>
+                        </Link>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs lg:text-base text-[#1DAA23] block">
+                          {selectedStudio.availability}
+                        </span>
+                        <div className="text-[#E8D1AB] text-lg lg:text-4xl font-['Roboto_Condensed'] font-bold">
+                          ${selectedStudio.pricePerHour}{" "}
+                          <span className="text-sm md:text-xl text-white">
+                            / hour
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </>}
       </div>

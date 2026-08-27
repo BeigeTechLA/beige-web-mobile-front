@@ -302,7 +302,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                         </div>
 
                         {/* Studio Content & Details */}
-                        <div className="flex-1 flex flex-col justify-between bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-5">
+                        <div className="flex-1 flex flex-col justify-between rounded-r-xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-5">
                           <div>
                             {/* Title & Status Badge */}
                             <div className="flex items-start justify-between gap-2 mb-1">

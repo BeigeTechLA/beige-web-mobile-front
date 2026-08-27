@@ -22,6 +22,8 @@ export interface BrowseStudioTypesProps {
   subtitle?: string;
   stepNumber?: string;
   showCrewInput?: boolean;
+  showShootType?: boolean;
+  completionPercentage?: number;
 }
 
 const DEFAULT_STUDIO_CATEGORIES: StudioCategoryOption[] = [
@@ -57,9 +59,12 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   subtitle = "",
   stepNumber = "",
   showCrewInput = false,
+  showShootType = false,
+  completionPercentage = 60
 }) => {
   const [selectedKey, setSelectedKey] = useState<string>(initialSelectedKey);
   const [crewCount, setCrewCount] = useState<string>("");
+  const [shootType, setShootType] = useState<string>("");
 
   const handleContinue = () => {
     onContinue(selectedKey);
@@ -89,7 +94,9 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
             STEP {stepNumber ? stepNumber : "03"}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-3/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
@@ -169,26 +176,52 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
             {/* Crew Size Input Section */}
             <div className="space-y-4 lg:space-y-8">
               <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
-                How big will your crew be?
+                {
+                  showShootType ? "How big will your crew be and what kind of shoot is it?" : "How big will your crew be?"
+                }
               </h2>
 
-              {/* Styled Floating-label Input */}
-              <div className="relative space-y-2">
-                <Label
-                  htmlFor="crewSize"
-                  className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
-                >
-                  Enter no Cast & Crew for your studio
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="crewSize"
-                    type={"text"}
-                    value={crewCount}
-                    onChange={(e) => setCrewCount(e.target.value)}
-                    className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
-                  />
+              <div className="w-full flex flex-col lg:flex-row gap-5">
+                {/* Styled Floating-label Input */}
+                <div className="flex-1 relative space-y-2">
+                  <Label
+                    htmlFor="crewSize"
+                    className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+                  >
+                    Enter no Cast & Crew for your studio
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="crewSize"
+                      type={"text"}
+                      value={crewCount}
+                      onChange={(e) => setCrewCount(e.target.value)}
+                      className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                    />
+                  </div>
                 </div>
+
+                {showShootType &&
+                  <>
+                    <div className="flex-1 relative space-y-2">
+                      <Label
+                        htmlFor="crewSize"
+                        className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+                      >
+                        Shoot Type
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="crewSize"
+                          type={"text"}
+                          value={crewCount}
+                          onChange={(e) => setCrewCount(e.target.value)}
+                          className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                        />
+                      </div>
+                    </div>
+                  </>
+                }
               </div>
             </div>
           </>
