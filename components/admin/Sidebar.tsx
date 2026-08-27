@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useAppSelector } from '@/lib/redux/hooks';
 import { hasModulePermission, isSuperAdminUser } from '@/lib/permissions';
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = '/images/misc/Quotes.svg';
@@ -280,11 +281,15 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
               return null;
             }
 
-            if (item.name === "Users") {
-            const canViewUsers = hasModulePermission(permissions, item.permissionKeys, "view");
-              if (!canViewUsers) return null;
-            } else if (item.permissionKeys && item.permissionKeys.length > 0) {
-              const canView = hasModulePermission(permissions, item.permissionKeys, "view");
+            const hierarchyEntry = Object.entries(ADMIN_PERMISSION_MENU_HIERARCHY).find(
+              ([, group]) => group.label === item.name,
+            );
+            const parentPermissionKeys = hierarchyEntry
+              ? [hierarchyEntry[0], ...hierarchyEntry[1].children]
+              : item.permissionKeys;
+
+            if (parentPermissionKeys && parentPermissionKeys.length > 0) {
+              const canView = hasModulePermission(permissions, parentPermissionKeys, "view");
               if (!canView) return null;
             }
 
@@ -340,7 +345,14 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {/* Submenu */}
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
-                    {item.children!.map((child) => {
+                    {item.children!.filter((_, childIndex) => {
+                      if (!hierarchyEntry) return true;
+                      const childModuleKey = hierarchyEntry[1].children[childIndex];
+                      return Boolean(
+                        childModuleKey &&
+                        hasModulePermission(permissions, [childModuleKey], "view"),
+                      );
+                    }).map((child) => {
                       const childActive = isChildActive(item.name, child.link);
                       return (
                         <button
