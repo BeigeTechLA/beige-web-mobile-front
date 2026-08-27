@@ -379,8 +379,7 @@ export const BookAShootV4 = () => {
 
   const isStudioBooking =
     bookingState.selectedOccasion === "studio" ||
-    bookingState.selectedServices.includes("studios") ||
-    selectedStudios.length > 0;
+    bookingState.selectedServices.includes("studios");
   const baseContentTypes = mapServicesToContentTypes(bookingState.selectedServices);
   const contentTypes = isStudioBooking
     ? [...new Set([...baseContentTypes, "studio"])]
@@ -494,12 +493,26 @@ export const BookAShootV4 = () => {
 
   const handleServicesSelected = (services: string[]) => {
     const recommendedTeam = getRecommendedTeam(services);
+    const includesStudio = services.includes("studios");
     setCreativeTeam(recommendedTeam);
     setSelectedCreatives([]);
     setLetBeigeChoose(false);
+    if (!includesStudio) {
+      setSelectedStudios([]);
+      setPricingPreview(null);
+    }
     setBookingState((prev) => ({
       ...prev,
       selectedServices: services,
+      selectedOccasion:
+        !includesStudio && prev.selectedOccasion === "studio"
+          ? "corporate"
+          : prev.selectedOccasion,
+      scheduleData:
+        !includesStudio &&
+        (selectedStudios.length > 0 || prev.selectedOccasion === "studio")
+          ? null
+          : prev.scheduleData,
       teamSelectionData: null,
     }));
     setInternalStep(2);

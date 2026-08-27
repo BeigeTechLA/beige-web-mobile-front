@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, Info, Check, Minus, Plus, Video, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { CollapsibleEdit } from "./CollapsibleEdit";
 
 export interface EditsConfig {
@@ -103,6 +104,25 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   const photoSlug = photoEditOptions[0]?.key || "edited_photos";
 
   const handleNext = () => {
+    if (needsEdits) {
+      const hasVideoEditOptions = showVideoEdits && videoEditOptions.length > 0;
+      const hasPhotoEditOptions = showPhotoEdits && photoEditOptions.length > 0;
+      const selectedVideoEditCount = Object.values(videoEditCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+
+      if (hasVideoEditOptions && selectedVideoEditCount === 0) {
+        toast.error("Please select at least one video edit type");
+        return;
+      }
+
+      if (hasPhotoEditOptions && editedPhotosSets === 0) {
+        toast.error("Please select at least one photo edit type");
+        return;
+      }
+    }
+
     const videoEditTypes =
       needsEdits && showVideoEdits
         ? Object.entries(videoEditCounts).flatMap(([slug, count]) =>
