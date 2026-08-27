@@ -359,4 +359,6 @@ export interface RawCreator {
 export interface OnboardingStatusResponse {
   onboardingMissingDetail: boolean;
   is_registration_complete: number;
+  application_submitted_at?: string | null;
+  application_submission_email_sent_at?: string | null;
 }

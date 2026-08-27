@@ -2829,7 +2829,7 @@ export const adminApi = {
     }
   },
 
-  getPendingCP: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+  getPendingCP: async (params: { page?: number; limit?: number; search?: string; location?: string; onboarding_status?: string } = {}) => {
     try {
       const response = await api.get('admin/get-pending-cp', { params });
       return response.data;
@@ -3631,6 +3631,7 @@ export const salesApi = {
       limit?: number;
       search?: string;
       status?: string;
+      booking_type?: string;
       range?: string;
       date_on?: string;
       assigned_sales_rep_id?: number | string;
