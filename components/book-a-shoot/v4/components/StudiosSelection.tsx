@@ -49,6 +49,10 @@ export interface StudiosSelectionProps {
   onContinue: (selectedStudios: string[]) => void;
   onBack?: () => void;
   studios?: StudioItem[];
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const DEFAULT_STUDIOS: StudioItem[] = [
@@ -128,6 +132,10 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   onContinue,
   onBack,
   studios = DEFAULT_STUDIOS,
+  title = "Studios That Fit Your Project",
+  subtitle = "Browse available studios and find the right space for your shoot.",
+  stepNumber = "03",
+  completionPercentage = 20,
 }) => {
   const [selectedStudioId, setSelectedStudioId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,10 +183,11 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 03
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-3/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }} />
           </div>
         </div>
 
@@ -186,10 +195,10 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-2 tracking-tight">
-              Studios That Fit Your Project
+              {title}
             </h1>
             <p className="text-white/30 text-base lg:text-xl">
-              Browse available studios and find the right space for your shoot.
+              {subtitle}
             </p>
           </div>
 

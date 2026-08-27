@@ -16,6 +16,10 @@ interface EditsNeededProps {
   baseFreePhotos?: number;
   photosPerSet?: number;
   durationLabel?: string;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export const EditsNeeded: React.FC<EditsNeededProps> = ({
@@ -25,6 +29,10 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   baseFreePhotos = 100,
   photosPerSet = 25,
   durationLabel = "4 Hour Duration",
+  title = "Need edits for your occasion?",
+  subtitle = "Add professional editing to turn your raw footage into polished, share-ready content",
+  stepNumber = "02",
+  completionPercentage = 60
 }) => {
   const [needsEdits, setNeedsEdits] = useState<boolean>(initialConfig.needsEdits);
   const [editedPhotosSets, setEditedPhotosSets] = useState<number>(
@@ -70,7 +78,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {/* Step Indicator Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 01
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
             <div className="h-full w-1/5 bg-[#E8D1AB] transition-all duration-300" />
@@ -80,10 +88,10 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {/* Heading & Subtitle */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-            Need edits for your occasion?
+           {title}
           </h1>
           <p className="text-white/30 text-base md:text-xl font-light">
-            Add professional editing to turn your raw footage into polished, share-ready content
+            {subtitle}
           </p>
         </div>
 

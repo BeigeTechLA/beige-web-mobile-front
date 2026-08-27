@@ -168,7 +168,6 @@ const CreatorCarousel = ({
                             </span>
                           </div>
                         )}
-
                       </div>
                     </div>
 

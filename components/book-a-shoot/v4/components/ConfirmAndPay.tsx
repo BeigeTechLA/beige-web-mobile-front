@@ -48,6 +48,10 @@ interface ConfirmAndPayProps {
   onConnectTeam?: () => void;
   pricingData?: Partial<PricingBreakdown>;
   isSubmitting?: boolean;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const DEFAULT_PRICING: PricingBreakdown = {
@@ -85,6 +89,10 @@ export default function ConfirmAndPay({
   onConnectTeam,
   pricingData = {},
   isSubmitting = false,
+  title = "One Step Away",
+  subtitle = "Review your final total and ConfirmAndPay method to confirm your production.",
+  stepNumber = "09",
+  completionPercentage = 98,
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const data = { ...DEFAULT_PRICING, ...pricingData };
@@ -114,20 +122,23 @@ export default function ConfirmAndPay({
       {/* Progress Step Header */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 09
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full bg-[#E8D1AB] w-full rounded-full transition-all duration-300" />
+          <div
+            className="h-full bg-[#E8D1AB] w-full rounded-full transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Main Title & Description */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          One Step Away
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Review your final total and ConfirmAndPay method to confirm your production.
+          {subtitle}
         </p>
       </div>
 

@@ -13,6 +13,10 @@ interface CreativeTeamProps {
   onBack: () => void;
   onContinue: (team: { [key: string]: number }) => void;
   initialCounts?: { [key: string]: number };
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const DEFAULT_ROLES: TeamMember[] = [
@@ -24,6 +28,10 @@ export default function CreativeTeam({
   onBack,
   onContinue,
   initialCounts = { photographer: 0 },
+  title = "Your Creative Team",
+  subtitle = "We recommend 1–2 Creative Partners based on your project. You can add more if needed.",
+  stepNumber = "06",
+  completionPercentage = 30
 }: CreativeTeamProps) {
   const [counts, setCounts] = useState<{ [key: string]: number }>(initialCounts);
 
@@ -65,20 +73,23 @@ export default function CreativeTeam({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          Step 06
+          Step {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-4/6 bg-[#E8D1AB] transition-all duration-300" />
+          <div
+            className="h-full w-4/6 bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Heading */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Your Creative Team
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          We recommend 1–2 Creative Partners based on your project. You can add more if needed.
+          {subtitle}
         </p>
       </div>
 

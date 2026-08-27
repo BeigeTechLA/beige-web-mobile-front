@@ -48,12 +48,20 @@ interface AskingServicesProps {
   onContinue: (selectedServiceIds: string[]) => void;
   onBack?: () => void;
   initialSelected?: string[];
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export const AskingServices: React.FC<AskingServicesProps> = ({
   onContinue,
   onBack,
   initialSelected = ["photography"],
+  title = "What do you need?",
+  subtitle = "Pick everything that applies — we can combine them into one production.",
+  stepNumber = "01",
+  completionPercentage = 20,
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelected);
 
@@ -86,19 +94,22 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         {/* Step Indicator Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 01
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-1/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
         {/* Header Titles */}
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          What do you need?
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light mb-8">
-          Pick everything that applies — we can combine them into one production.
+          {subtitle}
         </p>
 
         {/* Grid of Service Selection Cards */}
@@ -111,8 +122,8 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                 key={service.id}
                 onClick={() => toggleService(service.id)}
                 className={`relative rounded-lg lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 cursor-pointer flex justify-between items-center border overflow-hidden min-h-[140px] ${isSelected
-                    ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
-                    : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
+                  ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
+                  : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
                   }`}
               >
                 {/* Left Card Details */}
@@ -136,8 +147,8 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                   <div className="mt-6">
                     <div
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isSelected
-                          ? "bg-black text-white"
-                          : "border border-white/30 bg-transparent"
+                        ? "bg-black text-white"
+                        : "border border-white/30 bg-transparent"
                         }`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}

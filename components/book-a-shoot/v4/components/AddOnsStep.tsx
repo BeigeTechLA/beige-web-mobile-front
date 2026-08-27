@@ -71,12 +71,20 @@ interface AddOnsStepProps {
   onBack?: () => void;
   onContinue?: (selectedAddOns: Record<string, number>, subtotal: number) => void;
   initialAddOns?: Record<string, number>;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export default function AddOnsStep({
   onBack,
   onContinue,
   initialAddOns = { additional_camera: 1 },
+  title = "Want to add anything extra?",
+  subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
+  stepNumber = "08",
+  completionPercentage = 88,
 }: AddOnsStepProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>(initialAddOns);
 
@@ -136,20 +144,21 @@ export default function AddOnsStep({
       {/* Progress Step Header */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 08
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full bg-[#E8D1AB] w-[88%] transition-all duration-300" />
+          <div className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }} />
         </div>
       </div>
 
       {/* Main Title & Description */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Want to add anything extra?
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.
+          {subtitle}
         </p>
       </div>
 
@@ -167,7 +176,7 @@ export default function AddOnsStep({
           return (
             <div
               key={item.id}
-              className={`w-full rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex items-center justify-between transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]":"border-white/20"}`}
+              className={`w-full rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex items-center justify-between transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]" : "border-white/20"}`}
             >
               {/* Info Column */}
               <div className="flex flex-col gap-1 pr-4 max-w-[65%]">

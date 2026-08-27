@@ -13,6 +13,10 @@ interface ShootDetailsStepProps {
   onBack?: () => void;
   initialNotes?: string;
   initialLinks?: string[];
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
@@ -20,6 +24,10 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   onBack,
   initialNotes = "",
   initialLinks = [],
+  title = " Tell us a little about your shoot.",
+  subtitle = "Share anything about your shoot, vibe, or ideas. We'll take it from there.",
+  stepNumber = "04",
+  completionPercentage = 50,
 }) => {
   const [notes, setNotes] = useState<string>(initialNotes);
   const [links, setLinks] = useState<string[]>(initialLinks);
@@ -69,20 +77,20 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 04
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-1/2 bg-[#E8D1AB] transition-all duration-300" />
+          <div className="h-full w-1/2 bg-[#E8D1AB] transition-all duration-300" style={{ width: `${completionPercentage}%` }} />
         </div>
       </div>
 
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Tell us a little about your shoot.
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Share anything about your shoot, vibe, or ideas. We'll take it from there.
+          {subtitle}
         </p>
       </div>
 

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowLeft, Calendar, Check, Clock, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 // Swiper imports & styles
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -141,6 +142,10 @@ interface ShootSummaryStepProps {
   onContinue?: (contactData: { fullName: string; phoneNumber: string }) => void;
   onEditStep?: (stepName: string) => void;
   summaryData?: ShootSummaryData;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export default function ShootSummaryStep({
@@ -148,9 +153,14 @@ export default function ShootSummaryStep({
   onContinue,
   onEditStep,
   summaryData = DEFAULT_SUMMARY_DATA,
+  title = "Your Shoot, All Set.",
+  subtitle = "Review your shoot details below. You can make changes before confirming your booking.",
+  stepNumber = "09",
+  completionPercentage = 95,
 }: ShootSummaryStepProps) {
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [errors, setErrors] = useState<string[]>([])
 
   const creativesList = summaryData.creatives || DEFAULT_CREATIVES_DATA;
   const initialSlideIndex = Math.floor(creativesList.length / 2);
@@ -161,12 +171,33 @@ export default function ShootSummaryStep({
   const firstDay = studio.bookingDays?.[0];
   const lastDay = studio.bookingDays?.[studio.bookingDays.length - 1];
 
+  const sanitizePhoneInput = (value: string) => value.replace(/[^\d+()\-\s]/g, "");
+  const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
+
+  const isValidPhoneNumber = (value: string) => {
+    const digitCount = getPhoneDigits(value).length;
+    return digitCount >= 7 && digitCount <= 15;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fullName || !phoneNumber) {
+      toast.error("Please fill in your contact information");
+      setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
+    if (!isValidPhoneNumber(phoneNumber)) {
+      toast.error("Please enter a valid phone number");
+      setErrors((prev) => [...prev, "contactError"]);
+      return;
+    }
+
     if (onContinue) {
       onContinue({ fullName, phoneNumber });
     }
   };
+
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
@@ -187,20 +218,23 @@ export default function ShootSummaryStep({
       {/* Progress Step Header */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 09
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full bg-[#E8D1AB] w-[95%] rounded-full transition-all duration-300" />
+          <div
+            className="h-full bg-[#E8D1AB] rounded-full transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Main Title & Description */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Your Shoot, All Set.
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Review your shoot details below. You can make changes before confirming your booking.
+          {subtitle}
         </p>
       </div>
 
@@ -601,6 +635,7 @@ export default function ShootSummaryStep({
                 id="fullName"
                 type="text"
                 value={fullName}
+                required
                 onChange={(e) => setFullName(e.target.value)}
                 className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
@@ -619,6 +654,7 @@ export default function ShootSummaryStep({
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                required
                 inputMode="tel"
                 autoComplete="tel"
                 className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowLeft, Check, Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export interface StudioCategoryOption {
   key: string;
@@ -56,8 +57,8 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   occasionTitle = "Corporate Shoots",
   initialSelectedKey = "production",
   title = "",
-  subtitle = "",
-  stepNumber = "",
+  subtitle = "Explore studios that match your selected shoot type.",
+  stepNumber = "03",
   showCrewInput = false,
   showShootType = false,
   completionPercentage = 60
@@ -91,7 +92,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP {stepNumber ? stepNumber : "03"}
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
             <div className="h-full bg-[#E8D1AB] transition-all duration-300"
@@ -106,7 +107,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
             {title ? title : `Browse Studios for your ${occasionTitle}`}
           </h1>
           <p className="text-white/30 text-base lg:text-xl">
-            {subtitle ? subtitle : "Explore studios that match your selected shoot type."}
+            {subtitle}
           </p>
         </div>
 

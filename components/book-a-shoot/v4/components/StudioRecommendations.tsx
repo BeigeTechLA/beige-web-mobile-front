@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowLeft, CheckCircle2, PencilLine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export interface StudioRecommendationProps {
   onContinue: (data: { studioType: string; crewCount: string }) => void;
@@ -14,6 +15,10 @@ export interface StudioRecommendationProps {
   recommendedStudioType?: string;
   recommendedStudioDescription?: string;
   studioImage?: string;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
@@ -24,6 +29,10 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
   recommendedStudioType = "Corporate Event",
   recommendedStudioDescription = "Conferences, summits, company offsites",
   studioImage = "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+  title = "We’ve Picked a Studio Type for Your Shoot",
+  subtitle = `Based on your ${occasionTitle}, we found a studio that fits your shoot.`,
+  stepNumber = "03",
+  completionPercentage = 40,
 }) => {
   const [crewCount, setCrewCount] = useState<string>("");
 
@@ -55,20 +64,22 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 03
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0)">
-            <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
         {/* Section Heading */}
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-            We’ve Picked a Studio Type for Your Shoot
+            {title}
           </h1>
           <p className="text-white/30 text-base lg:text-xl">
-            Based on your {occasionTitle}, we found a studio that fits your shoot.
+            {subtitle}
           </p>
         </div>
 

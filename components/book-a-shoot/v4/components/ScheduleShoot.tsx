@@ -54,13 +54,21 @@ interface ScheduleShootStepProps {
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
   isStudioFlow?: boolean;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
-  isStudioFlow = false
+  isStudioFlow = false,
+  title = " When & Where are you planning to shoot?",
+  subtitle = "We can always refine the exact dates together later.",
+  stepNumber = "03",
+  completionPercentage = 40,
 }) => {
   // Top level mode: "have-date" | "confirm-later"
   const [dateOption, setDateOption] = useState<"have-date" | "confirm-later">(
@@ -582,20 +590,23 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 03
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
+          <div
+            className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          When & Where are you planning to shoot?
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          We can always refine the exact dates together later.
+          {subtitle}
         </p>
       </div>
 

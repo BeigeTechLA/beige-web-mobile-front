@@ -58,7 +58,6 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
           </button>
         </div>
 
-
         {/* Expandable Body */}
         <AnimatePresence initial={false}>
           {isOpen && (

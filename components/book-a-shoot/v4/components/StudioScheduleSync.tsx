@@ -73,7 +73,7 @@ export interface StudioScheduleSyncProps {
   initialBookingType?: "single_day" | "multi_day";
   title?: string;
   subtitle?: string;
-  step?: string;
+  stepNumber?: string;
   completionPercentage?: number;
 }
 
@@ -84,7 +84,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   initialBookingType = "multi_day",
   title = "Should the studio use the same schedule?",
   subtitle = "You can use your shoot schedule or set a separate date and time for the studio.",
-  step = "03",
+  stepNumber = "03",
   completionPercentage = 60,
 }) => {
   const [useSameSchedule, setUseSameSchedule] = useState<boolean>(initialUseSameSchedule);
@@ -555,7 +555,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         {/* Progress Bar */}
         <div className="mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP {step}
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
             <div

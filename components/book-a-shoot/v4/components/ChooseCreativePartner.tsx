@@ -21,6 +21,10 @@ interface ChooseCreativePartnerProps {
   requiredCount?: number;
   contentTypes?: string[];
   locationDetails?: any;
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const MOCK_CREATIVES = [
@@ -318,6 +322,10 @@ export default function ChooseCreativePartner({
   requiredCount = 5,
   contentTypes = [],
   locationDetails,
+  title = "Choose Your Creative Partner",
+  subtitle = "Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.",
+  stepNumber = "07",
+  completionPercentage = 80,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -345,7 +353,6 @@ export default function ChooseCreativePartner({
 
     return () => clearInterval(timer);
   }, []);
-
 
   useEffect(() => {
     if (!profileModalUrl || typeof window === "undefined") return;
@@ -628,20 +635,23 @@ export default function ChooseCreativePartner({
       {/* Progress Bar */}
       <div className="mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 07
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-5/6 bg-[#E8D1AB] transition-all duration-300" />
+          <div
+            className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          Choose Your Creative Partner
+          {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">
-          Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.
+          {subtitle}
         </p>
       </div>
 
