@@ -1,5 +1,7 @@
 "use client";
 
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from "@/lib/permissions/menuHierarchy";
+
 export type PermissionAction = "view" | "create" | "edit" | "delete";
 
 export type PermissionActionsMap = Record<PermissionAction, boolean>;
@@ -65,11 +67,85 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/meetings", permissionKeys: ["meetings"] },
   { prefix: "/admin/messages", permissionKeys: ["messages"] },
   { prefix: "/admin/availability", permissionKeys: ["availability"] },
-  { prefix: "/admin/sales-representative", permissionKeys: ["sales_representative"] },
+  {
+    prefix: "/admin/sales-representative/shift-management",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[1],
+    ],
+  },
+  {
+    prefix: "/admin/sales-representative",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[1],
+      "admin_sales_representative",
+    ],
+  },
   { prefix: "/admin/invoice", permissionKeys: ["invoices"] },
-  { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
-  { prefix: "/admin/users", permissionKeys: ["users"] },
-  { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
+  {
+    prefix: "/admin/finances/transactions",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0]],
+  },
+  {
+    prefix: "/admin/finances/disputes",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1]],
+  },
+  {
+    prefix: "/admin/finances/creditPoints",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2]],
+  },
+  {
+    prefix: "/admin/finances/cpCompensation",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3]],
+  },
+  {
+    prefix: "/admin/finances",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3],
+      "admin_finances",
+    ],
+  },
+  {
+    prefix: "/admin/users/all",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0]],
+  },
+  {
+    prefix: "/admin/users/clients",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[1]],
+  },
+  {
+    prefix: "/admin/users/creative-partners",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[2]],
+  },
+  {
+    prefix: "/admin/users",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[2],
+      "admin_users",
+    ],
+  },
+  {
+    prefix: "/admin/quotes/change-requests",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1]],
+  },
+  {
+    prefix: "/admin/quotes/pricing",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2]],
+  },
+  {
+    prefix: "/admin/quotes",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2],
+      "admin_quotes",
+    ],
+  },
   { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
   { prefix: "/admin/settings", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
