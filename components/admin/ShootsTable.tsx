@@ -26,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -116,6 +116,32 @@ const FILTER_STATUS_OPTIONS = [
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+const parseApiDateForDisplay = (value?: string | null) => {
+  if (!value) return null;
+
+  const normalizedValue = String(value).trim();
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsedDate = new Date(normalizedValue);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const formatApiDateForDisplay = (value?: string | null) => {
+  const parsedDate = parseApiDateForDisplay(value);
+
+  return parsedDate
+    ? parsedDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "No Date";
+};
 
 const PRODUCTION_GAP_FILTER_SET = new Set([
   "pre_production_file_not_provided",
@@ -592,7 +618,7 @@ export const ShootsTable = ({
             : [];
 
           // Sorting Helpers
-          const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
+          const dateObj = parseApiDateForDisplay(project.event_date) ?? new Date(0);
           const resolvedPriceSource = project.total_value_amount ?? project.total_paid_amount ?? project.budget;
           const rawPaid = parseFloat(project.paid_amount || 0);
           const rawPending = parseFloat(project.pending_amount || 0);
@@ -617,7 +643,7 @@ export const ShootsTable = ({
             email: project.guest_email || "",
             phone: extractedPhone,
             initials,
-            date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            date: formatApiDateForDisplay(project.event_date),
             location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
