@@ -232,6 +232,8 @@ export const authApi = createApi({
       }>;
       next_incomplete_step: number | null;
       is_crew_verified: number;
+      application_submitted_at?: string | null;
+      application_submission_email_sent_at?: string | null;
       can_access_dashboard: boolean;
       should_resume_signup: boolean;
       profile_onboarding_status: {
