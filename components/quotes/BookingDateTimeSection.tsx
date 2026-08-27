@@ -64,6 +64,7 @@ type Props = {
   className?: string;
   initialData?: BookingScheduleData | null;
   onChange?: (value: BookingScheduleData | null) => void;
+  allowPastBooking?: boolean; 
 };
 
 const getDateKey = (date: Date) => format(date, "yyyy-MM-dd");
@@ -73,6 +74,7 @@ export default function BookingDateTimeSection({
   className = "",
   initialData = null,
   onChange,
+  allowPastBooking = false, 
 }: Props) {
   const [bookingType, setBookingType] = useState<BookingType>(
     initialData?.booking_type ?? "single_day",
@@ -189,7 +191,10 @@ export default function BookingDateTimeSection({
     return calculateDurationHours(startKey, endKey) !== null;
   };
 
-  const isTimeInPast = (timeKey: string, date: Date | null) => {
+ const isTimeInPast = (timeKey: string, date: Date | null) => {
+    // If allowPastBooking is true, we never consider a time as "in the past"
+    if (allowPastBooking) return false;
+
     if (!date || !isSameDay(date, new Date())) return false;
 
     const now = new Date();
