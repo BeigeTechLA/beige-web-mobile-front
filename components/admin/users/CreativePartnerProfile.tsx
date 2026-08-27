@@ -725,7 +725,14 @@ const convertLinksStringToArray = (jsonString: string | null) => {
   const completedCount = onboardingStatus?.completed_count ?? 0;
   const totalRequired = onboardingStatus?.total_required ?? 0;
   const missingCount = onboardingStatus?.missing_count ?? 0;
+  const missingFields = Array.isArray(onboardingStatus?.missing_fields)
+    ? onboardingStatus.missing_fields
+    : [];
   const showOnboardingBanner = onboardingStatus?.success !== false && missingCount > 0;
+  const isApprovedWithMissingFields = status === "Approved" && showOnboardingBanner;
+  const bannerTitle = isApprovedWithMissingFields
+    ? "Approved CP Profile: Details Missing"
+    : "Onboarding Status: Incomplete";
 
 return (
     <div className="flex flex-col">
@@ -745,7 +752,7 @@ return (
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                 <p className="truncate text-xs lg:text-sm font-medium">
-                  Onboarding Status: Incomplete
+                  {bannerTitle}
                 </p>                
               </div>
                 <p className="shrink-0 text-[13px] font-bold">
@@ -761,10 +768,19 @@ return (
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
-                  Please provide the {missingCount} remaining details to verify your profile.
-                </p>
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 space-y-2">
+                  {isApprovedWithMissingFields && (
+                    <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                      This CP is already approved. Missing fields are shown for profile cleanup only.
+                    </p>
+                  )}
+                  <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+                    {missingFields.length > 0
+                      ? missingFields.join(", ")
+                      : `${missingCount} field${missingCount === 1 ? "" : "s"}`}
+                  </p>
+                </div>
                 <p className="text-[14px] font-medium tracking-tighter">
                   {Math.round(progressPercent)}%
                 </p>
@@ -832,6 +848,7 @@ return (
               )}
               <button
                 type="button"
+                onClick={() => router.push(`/admin/users/creative-partners/${id.replace("#", "")}/edit`)}
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
                 ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
                 : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
