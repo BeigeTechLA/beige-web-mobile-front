@@ -1,21 +1,15 @@
 "use client";
 
-import { ChevronDown, Minus } from "lucide-react";
-import { Fragment } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
-  type PermissionColumnKey,
-  type PermissionMatrixRow,
+  PermissionColumnKey,
+  PermissionMatrixRow,
 } from "@/components/admin/roles-permissions/types";
-import {
-  ALL_PERMISSION_ACTIONS,
-  computeParentCheckState,
-} from "@/components/admin/roles-permissions/utils";
 
 type PermissionMatrixTableProps = {
   rows: PermissionMatrixRow[];
-  onChange?: React.Dispatch<React.SetStateAction<PermissionMatrixRow[]>>;
+  onChange?: (rows: PermissionMatrixRow[]) => void;
   showSelectionColumn?: boolean;
   className?: string;
   readOnly?: boolean;
@@ -23,10 +17,10 @@ type PermissionMatrixTableProps = {
 };
 
 const accessColumns: { key: PermissionColumnKey; label: string }[] = [
-  { key: "view", label: "View Access" },
-  { key: "create", label: "Create Access" },
-  { key: "edit", label: "Edit Access" },
-  { key: "delete", label: "Delete Access" },
+  { key: "view", label: "View" },
+  { key: "create", label: "Create" },
+  { key: "edit", label: "Edit" },
+  { key: "delete", label: "Delete" },
 ];
 
 export function PermissionMatrixTable({
@@ -39,130 +33,25 @@ export function PermissionMatrixTable({
 }: PermissionMatrixTableProps) {
   const { isDark } = useResolvedTheme();
 
-  const checkboxClass = `h-6 w-6 rounded-md bg-transparent disabled:cursor-not-allowed ${
-    isDark
-      ? "border-white/10 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
-      : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
-  }`;
-
-  const renderCheckbox = ({
-    checked,
-    indeterminate = false,
-    onCheckedChange,
-    disabled = false,
-    sizeClass = checkboxClass,
-    ariaLabel,
-  }: {
-    checked: boolean;
-    indeterminate?: boolean;
-    onCheckedChange: (checked: boolean) => void;
-    disabled?: boolean;
-    sizeClass?: string;
-    ariaLabel?: string;
-  }) => (
-    <span className="relative inline-flex">
-      <Checkbox
-        checked={checked}
-        onCheckedChange={(value) => onCheckedChange(value === true)}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        className={sizeClass}
-      />
-      {indeterminate ? (
-        <Minus
-          aria-hidden="true"
-          className={`pointer-events-none absolute inset-0 m-auto h-4 w-4 ${
-            isDark ? "text-[#E5D5B8]" : "text-[#8E6A2A]"
-          }`}
-        />
-      ) : null}
-    </span>
-  );
-
-  const getRowAccess = (row: PermissionMatrixRow) => {
-    if (!row.children) return row.access;
-    const checked = row.checkState === "checked";
-    return ALL_PERMISSION_ACTIONS.reduce(
-      (access, action) => {
-        access[action] = Boolean(row.allowedActions?.includes(action)) && checked;
-        return access;
-      },
-      { view: false, create: false, edit: false, delete: false },
-    );
-  };
-
-  const updateGroupedRow = (
-    row: PermissionMatrixRow,
-    children: PermissionMatrixRow[],
-    isExpanded = row.isExpanded,
-  ): PermissionMatrixRow => {
-    const checkState = computeParentCheckState(children);
-    const mirroredAccess = ALL_PERMISSION_ACTIONS.reduce(
-      (access, action) => {
-        access[action] = row.allowedActions?.includes(action)
-          ? checkState === "checked"
-          : false;
-        return access;
-      },
-      { view: false, create: false, edit: false, delete: false },
-    );
-
-    return {
-      ...row,
-      access: mirroredAccess,
-      children,
-      checkState,
-      selected: checkState === "checked",
-      isExpanded,
-    };
-  };
-
   const toggleSelection = (rowId: string, checked: boolean) => {
     if (readOnly) return;
-
     onChange?.(
-      (currentRows) => currentRows.map((row) => {
-        if (row.id === rowId && row.children) {
-          const shouldCheck = row.checkState !== "checked";
-          const children = row.children.map((child) => ({
-            ...child,
-            selected: shouldCheck,
-            access: ALL_PERMISSION_ACTIONS.reduce(
-              (access, action) => {
-                access[action] = child.allowedActions?.includes(action)
-                  ? shouldCheck
-                  : false;
-                return access;
-              },
-              { view: false, create: false, edit: false, delete: false },
-            ),
-          }));
-          return updateGroupedRow(row, children, true);
-        }
+      rows.map((row) => {
+        if (row.id === rowId) {
+          const newAccess = { ...row.access };
+          const actionsToToggle = row.allowedActions || accessColumns.map((c) => c.key);
 
-        if (row.children) {
-          const child = row.children.find((candidate) => candidate.id === rowId);
-          if (!child) return row;
-
-          const children = row.children.map((candidate) => {
-            if (candidate.id !== rowId) return candidate;
-            const access = { ...candidate.access };
-            (candidate.allowedActions || ALL_PERMISSION_ACTIONS).forEach((action) => {
-              access[action] = checked;
-            });
-            return { ...candidate, selected: checked, access };
+          actionsToToggle.forEach((action) => {
+            newAccess[action] = checked;
           });
 
-          return updateGroupedRow(row, children);
+          return {
+            ...row,
+            selected: checked,
+            access: newAccess,
+          };
         }
-
-        if (row.id !== rowId) return row;
-        const access = { ...row.access };
-        const actionsToToggle = row.allowedActions || ALL_PERMISSION_ACTIONS;
-        actionsToToggle.forEach((action) => {
-          access[action] = checked;
-        });
-        return { ...row, selected: checked, access };
+        return row;
       }),
     );
   };
@@ -178,246 +67,96 @@ export function PermissionMatrixTable({
     }
 
     onChange?.(
-      (currentRows) => currentRows.map((row) => {
-        if (row.id === rowId && row.children) return row;
-        if (row.id !== rowId) return row;
+      rows.map((row) => {
+        if (row.id === rowId) {
+          const updatedAccess = { ...row.access, [key]: checked };
+          const actionsToCheck = row.allowedActions || accessColumns.map((c) => c.key);
 
-        const updatedAccess = { ...row.access, [key]: checked };
-        const actionsToCheck = row.allowedActions || ALL_PERMISSION_ACTIONS;
-        if (checked && key !== "view") updatedAccess.view = true;
-        if (key === "view") {
-          actionsToCheck.forEach((action) => {
-            updatedAccess[action] = checked;
-          });
-        }
-        const allAllowedChecked = actionsToCheck.every(
-          (action) => updatedAccess[action],
-        );
+          // Any non-view permission depends on view access.
+          if (checked && key !== "view") {
+            updatedAccess.view = true;
+          }
 
-        return {
-          ...row,
-          access: updatedAccess,
-          selected: allAllowedChecked,
-        };
-      }),
-    );
-  };
+          if (key === "view") {
+            actionsToCheck.forEach((action) => {
+              updatedAccess[action] = checked;
+            });
+          }
+          const allAllowedChecked = actionsToCheck.every((action) => updatedAccess[action]);
 
-  const toggleChildAccess = (
-    parentId: string,
-    childId: string,
-    key: PermissionColumnKey,
-    checked: boolean,
-  ) => {
-    if (readOnly) {
-      onReadOnlyClick?.();
-      return;
-    }
-
-    onChange?.(
-      (currentRows) => currentRows.map((row) => {
-        if (row.id !== parentId || !row.children) return row;
-
-        const children = row.children.map((child) => {
-          if (child.id !== childId) return child;
-          const access = { ...child.access, [key]: checked };
           return {
-            ...child,
-            access,
-            selected: (child.allowedActions || ALL_PERMISSION_ACTIONS).every(
-              (action) => access[action],
-            ),
+            ...row,
+            access: updatedAccess,
+            selected: allAllowedChecked,
           };
-        });
-
-        return updateGroupedRow(row, children);
+        }
+        return row;
       }),
     );
   };
 
-  const toggleExpanded = (rowId: string) => {
-    onChange?.(
-      (currentRows) => currentRows.map((row) =>
-        row.id === rowId && row.children
-          ? { ...row, isExpanded: !row.isExpanded }
-          : row,
-      ),
-    );
-  };
-
-  const allSelected = rows.length > 0 && rows.every((row) => {
-    if (row.children) return row.checkState === "checked";
-    return row.selected;
-  });
+  const allSelected = rows.length > 0 && rows.every((row) => row.selected);
 
   const toggleAllRows = (checked: boolean) => {
     if (readOnly) return;
     onChange?.(
-      (currentRows) => currentRows.map((row) => {
-        if (row.children) {
-          const children = row.children.map((child) => ({
-            ...child,
-            selected: checked,
-            access: ALL_PERMISSION_ACTIONS.reduce(
-              (access, action) => {
-                access[action] = child.allowedActions?.includes(action)
-                  ? checked
-                  : false;
-                return access;
-              },
-              { view: false, create: false, edit: false, delete: false },
-            ),
-          }));
-          return updateGroupedRow(row, children, checked ? true : row.isExpanded);
-        }
+      rows.map((row) => {
+        const updatedAccess = { ...row.access };
+        const actionsToToggle = row.allowedActions || accessColumns.map((c) => c.key);
 
-        const access = { ...row.access };
-        (row.allowedActions || ALL_PERMISSION_ACTIONS).forEach((action) => {
-          access[action] = checked;
+        actionsToToggle.forEach((action) => {
+          updatedAccess[action] = checked;
         });
-        return { ...row, selected: checked, access };
+
+        return {
+          ...row,
+          selected: checked,
+          access: updatedAccess,
+        };
       }),
-    );
-  };
-
-  const renderRow = (
-    row: PermissionMatrixRow,
-    parentId?: string,
-    isChild = false,
-  ) => {
-    const isGroupedParent = Boolean(row.children);
-    const rowAccess = getRowAccess(row);
-    const checkState = isGroupedParent
-      ? row.checkState || "unchecked"
-      : row.selected
-        ? "checked"
-        : "unchecked";
-
-    return (
-      <tr
-        key={row.id}
-        className={`px-2 lg:px-0 group transition-colors ${
-          isDark
-            ? "text-white hover:bg-white/[0.02]"
-            : "text-[#101010] hover:bg-black/[0.015]"
-        } ${
-          isChild
-            ? isDark
-              ? "border-l-2 border-[#E5D5B8]/30 bg-white/[0.02]"
-              : "border-l-2 border-[#C9A96E]/40 bg-[#FFFCF6]"
-            : ""
-        }`}
-      >
-        {showSelectionColumn ? (
-          <td className={`w-px whitespace-nowrap p-4 lg:p-6 ${isChild ? "pl-8 lg:pl-12" : ""}`}>
-            {renderCheckbox({
-              checked: checkState === "checked",
-              indeterminate: checkState === "indeterminate",
-              onCheckedChange: (checked) => toggleSelection(row.id, checked),
-              disabled: readOnly,
-              ariaLabel: `${row.label} permissions`,
-              sizeClass: `h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
-                isDark
-                  ? "border-white/20 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
-                  : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
-              }`,
-            })}
-          </td>
-        ) : null}
-
-        <td
-        className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 text-sm lg:text-base font-medium transition-colors ${
-            isDark
-              ? "group-hover:text-[#E5D5B8]"
-              : "group-hover:text-[#8E6A2A]"
-          } ${isChild ? "pl-8 lg:pl-12 text-sm font-normal text-[#32323299] dark:text-white/60" : "font-semibold"}`}
-        >
-          <div className="flex items-center gap-2">
-            {isGroupedParent ? (
-              <button
-                type="button"
-                aria-label={`${row.isExpanded ? "Collapse" : "Expand"} ${row.label}`}
-                onClick={() => toggleExpanded(row.id)}
-                className="inline-flex shrink-0 items-center justify-center rounded p-1 hover:bg-black/5 dark:hover:bg-white/10"
-              >
-                <ChevronDown
-                  size={16}
-                  className={`shrink-0 transition-transform ${row.isExpanded ? "rotate-180" : ""}`}
-                />
-              </button>
-            ) : null}
-            <span>{row.label}</span>
-          </div>
-        </td>
-
-        {accessColumns.map((column) => (
-          <td key={column.key} className="w-px whitespace-nowrap py-4 px-2 lg:p-5 text-center">
-            <div
-              className="flex justify-center"
-              onClick={() => readOnly && onReadOnlyClick?.()}
-            >
-              {(!row.allowedActions || row.allowedActions.includes(column.key)) ? (
-                renderCheckbox({
-                  checked: Boolean(rowAccess[column.key]),
-                  onCheckedChange: (checked) =>
-                    isChild && parentId
-                      ? toggleChildAccess(parentId, row.id, column.key, checked)
-                      : toggleAccess(row.id, column.key, checked),
-                  disabled: readOnly || isGroupedParent,
-                  ariaLabel: `${row.label} ${column.label}`,
-                })
-              ) : (
-                <span className={isDark ? "text-white/10" : "text-[#32323240]"}>—</span>
-              )}
-            </div>
-          </td>
-        ))}
-      </tr>
     );
   };
 
   return (
     <div
       className={`overflow-hidden rounded-2xl ${
-        isDark
-          ? "border border-[#3D3D3D] bg-[#171717]"
-          : "border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"
+        isDark ? "border border-[#3D3D3D] bg-[#171717]" : "border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"
       } ${className}`}
     >
       <div className="overflow-x-auto no-scrollbar">
         <table className="w-full border-separate border-spacing-0">
-          <thead>
-            <tr className={`text-left text-sm font-medium capitalize ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#32323299]"}`}>
+          <thead className="sticky top-0 z-20">
+            <tr className={`text-left text-xs font-semibold uppercase ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#8B744D]"}`}>
               {showSelectionColumn ? (
-                <th className={`w-px whitespace-nowrap p-4 lg:p-5 rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+                <th className={`w-px whitespace-nowrap p-4 lg:p-5 rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
                   <div className="flex items-center gap-3">
-                    {renderCheckbox({
-                      checked: allSelected,
-                      onCheckedChange: toggleAllRows,
-                      disabled: readOnly,
-                      sizeClass: `h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={(value) => toggleAllRows(value === true)}
+                      disabled={readOnly}
+                      className={`h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
                         isDark
                           ? "border-white/20 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
                           : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
-                      }`,
-                    })}
+                      }`}
+                    />
                     <span>Select All</span>
                   </div>
                 </th>
               ) : (
-                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium rounded-l-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
                   Access To
                 </th>
               )}
               {showSelectionColumn ? (
-                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+                <th className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 font-medium border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}>
                   Access To
                 </th>
               ) : null}
               {accessColumns.map((column) => (
                 <th
                   key={column.key}
-                  className={`w-px whitespace-nowrap py-4 px-2 last:p-4 lg:p-5 text-center font-medium last:rounded-r-2xl border-b ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}
+                  className={`w-px whitespace-nowrap py-4 px-2 last:p-4 lg:p-5 text-center font-medium last:rounded-r-2xl border-b ${isDark ? "border-[#3D3D3D]":"border-[#E3E3E3]"}`}
                 >
                   {column.label}
                 </th>
@@ -427,12 +166,60 @@ export function PermissionMatrixTable({
 
           <tbody className={`divide-y ${isDark ? "divide-[#333]" : "divide-[#E3E3E3]"}`}>
             {rows.map((row) => (
-              <Fragment key={row.id}>
-                {renderRow(row)}
-                {row.children && row.isExpanded === true
-                  ? row.children.map((child) => renderRow(child, row.id, true))
-                  : null}
-              </Fragment>
+              <tr
+                key={row.id}
+                className={`px-2 lg:px-0 group transition-colors ${
+                  isDark ? "text-white hover:bg-white/[0.02]" : "text-[#101010] hover:bg-black/[0.015]"
+                }`}
+              >
+                {showSelectionColumn ? (
+                  <td className="w-px whitespace-nowrap p-4 lg:p-6">
+                    <Checkbox
+                      checked={row.selected}
+                      onCheckedChange={(value) =>
+                        toggleSelection(row.id, value === true)
+                      }
+                      disabled={readOnly}
+                      className={`h-5 w-5 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                        isDark
+                          ? "border-white/20 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                          : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
+                      }`}
+                    />
+                  </td>
+                ) : null}
+
+                <td
+                  className={`w-px whitespace-nowrap py-4 px-2 lg:p-5 text-sm lg:text-base font-medium transition-colors ${
+                    isDark ? "group-hover:text-[#E5D5B8]" : "group-hover:text-[#8E6A2A]"
+                  }`}
+                >
+                  {row.label}
+                </td>
+
+                {accessColumns.map((column) => (
+                  <td key={column.key} className="w-px whitespace-nowrap py-4 px-2 lg:p-5 text-center">
+                    <div className="flex justify-center" onClick={() => readOnly && onReadOnlyClick?.()}>
+                      {(!row.allowedActions || row.allowedActions.includes(column.key)) ? (
+                        <Checkbox
+                          checked={row.access[column.key]}
+                          onCheckedChange={(value) =>
+                            toggleAccess(row.id, column.key, value === true)
+                          }
+                          disabled={readOnly}
+                          className={`h-6 w-6 rounded-md bg-transparent disabled:cursor-not-allowed ${
+                            isDark
+                              ? "border-white/10 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black"
+                              : "border-[#D0D0D0] data-[state=checked]:border-[#C9A96E] data-[state=checked]:bg-[#C9A96E] data-[state=checked]:text-white"
+                          }`}
+                        />
+                      ) : (
+                        <span className={isDark ? "text-white/10" : "text-[#32323240]"}>—</span>
+                      )}
+                    </div>
+                  </td>
+                ))}
+              </tr>
             ))}
           </tbody>
         </table>
