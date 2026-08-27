@@ -944,30 +944,29 @@ export const CreativePartnersTable = () => {
         ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
         : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"}>
         {/* --- DESKTOP TABLE VIEW --- */}
-        <div className="hidden lg:block w-full overflow-x-auto no-scrollbar">
-          <div className="w-full overflow-x-auto no-scrollbar">
-            <table className="w-full border-collapse">
+        <div className="hidden lg:block w-full max-h-[calc(100vh-300px)] overflow-auto">
+          <table className="w-full min-w-[1540px] border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="p-5 font-medium rounded-bl-xl">User ID</th>
-                  <th className="p-5 font-medium">Creative Name</th>
-                  <th className="p-5 font-medium">Email</th>
-                  <th className="p-5 font-medium">Roles</th>
-                  <th className="p-5 font-medium">Location</th>
-                  <th className="p-5 font-medium text-center">Status</th>
-                  <th className="p-5 font-medium text-right rounded-br-xl">Action</th>
+                  <th className="w-[110px] p-5 font-medium rounded-bl-xl">User ID</th>
+                  <th className="w-[360px] p-5 font-medium">Creative Name</th>
+                  <th className="w-[320px] p-5 font-medium">Email</th>
+                  <th className="w-[220px] p-5 font-medium">Roles</th>
+                  <th className="w-[320px] p-5 font-medium">Location</th>
+                  <th className="w-[140px] p-5 font-medium text-center">Status</th>
+                  <th className="w-[210px] p-5 font-medium text-right rounded-br-xl">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                    <td colSpan={7} className="py-10 text-center text-[#888]">
                       <Loader2 className="animate-spin mx-auto" size={24} />
                     </td>
                   </tr>
                 ) : (!loading && users.length === 0) ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                    <td colSpan={7} className="py-10 text-center text-[#888]">
                       No creative partners found.
                     </td>
                   </tr>
@@ -1115,7 +1114,6 @@ export const CreativePartnersTable = () => {
                 )}
               </tbody>
             </table>
-          </div>
         </div>
         {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
         <div className="block lg:hidden w-full">
