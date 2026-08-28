@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import {
@@ -65,11 +65,22 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onBack,
   initialSelected = "corporate",
   title = "What's the Occasion?",
-  subtitle = "Help us frame the right approachfor your shoot.",
+  subtitle = "Help us frame the right approach for your shoot.",
   stepNumber = "02",
-  completionPercentage = 30
+  completionPercentage = 30,
 }) => {
   const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  // Screen size detection for dynamic mobile carousel spacing
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Derive initial shoot types list directly from withStudioOption
   const [availableShootTypes] = useState<ShootTypeOption[]>(() =>
@@ -139,16 +150,27 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
       >
         <div className="space-y-4">
           {/* Swipable Image Container */}
-          <div className="relative w-full h-30 lg:h-[152px] rounded-lg overflow-hidden bg-black/40 select-none">
+          <div className="relative w-full h-[152px] rounded-lg overflow-hidden bg-black/40 select-none">
             <Swiper
               modules={[Navigation, Pagination]}
               navigation={{
                 nextEl: `.grid-next-${occasion.key}`,
                 prevEl: `.grid-prev-${occasion.key}`,
               }}
-              pagination={{ clickable: true, dynamicBullets: true }}
+              pagination={{ clickable: true }}
               loop
-              className="w-full h-full [&_.swiper-pagination-bullet]:bg-white/60 [&_.swiper-pagination-bullet-active]:bg-white"
+              className="w-full h-full 
+                [&_.swiper-pagination]:!bottom-2.5
+                [&_.swiper-pagination]:!flex
+                [&_.swiper-pagination]:!justify-center
+                [&_.swiper-pagination]:!gap-[1px]
+                [&_.swiper-pagination-bullet]:!w-8
+                [&_.swiper-pagination-bullet]:!h-[2px]
+                [&_.swiper-pagination-bullet]:!rounded-sm
+                [&_.swiper-pagination-bullet]:!bg-white
+                [&_.swiper-pagination-bullet]:!opacity-100
+                [&_.swiper-pagination-bullet]:!transition-all
+                [&_.swiper-pagination-bullet-active]:!bg-[#E8D1AB]"
             >
               {occasion.images.map((img, idx) => (
                 <SwiperSlide key={idx} className="relative w-full h-full">
@@ -188,7 +210,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 
           {/* Card Details */}
           <div className="text-center select-none">
-            <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
+            <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-2 lg:mb-4">
               {occasion.title}
             </h3>
             <p className="text-sm lg:text-base text-white/70 font-light truncate">
@@ -206,14 +228,14 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
         {/* Top Header Row */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between lg:mb-6">
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
-              className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+              className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
             </button>
           ) : (
             <div />
@@ -221,20 +243,23 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full bg-[#E8D1AB] transition-all duration-300" style={{ width: `${completionPercentage}%` }} />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
         <div className="flex justify-between items-start">
           <div>
             {/* Section Heading */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-             {title}
+            <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+              {title}
             </h1>
             <p className="text-white/30 text-base md:text-xl font-light mb-8">
               {subtitle}
@@ -242,7 +267,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           </div>
 
           {/* View Mode Toggle Switcher */}
-          <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-2.5 gap-1">
+          <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-1.5 lg:p-2.5 gap-1">
             <button
               type="button"
               onClick={() => setViewMode("carousel")}
@@ -252,7 +277,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                 }`}
               title="Arc Carousel View"
             >
-              <PictureInPicture2 className="w-6 h-6" strokeWidth={1} />
+              <PictureInPicture2
+                className="w-3.5 h-3.5 lg:w-6 lg:h-6"
+                strokeWidth={1}
+              />
             </button>
             <button
               type="button"
@@ -263,7 +291,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                 }`}
               title="Grid View"
             >
-              <LayoutGrid className="w-6 h-6" strokeWidth={1} />
+              <LayoutGrid
+                className="w-3.5 h-3.5 lg:w-6 lg:h-6"
+                strokeWidth={1}
+              />
             </button>
           </div>
         </div>
@@ -290,9 +321,8 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                   const offset = index - activeCarouselIndex;
                   const absOffset = Math.abs(offset);
 
-                  // 1. Center-to-center offset incorporating card width (394px) + explicit gap space (~40px)
-                  // Adjust 440 to 480 or higher if you want an even wider gap
-                  const baseSpacing = 440;
+                  // Responsive spacing logic: Compact spacing for mobile to ensure visible adjacent cards
+                  const baseSpacing = isMobile ? 240 : 440;
                   const xOffset = offset * baseSpacing;
 
                   // Semi-circle math parameters
@@ -300,10 +330,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 
                   // Spacing Calibration: 360px base step guarantees non-overlapping spacing (gap-10 feel)
                   // 2. Tighter curve and scaling to prevent wide cards from touching
-                  const yOffset = Math.pow(absOffset, 1.8) * 35; // Slight downward dip
-                  const rotate = offset * 6; // Subtler card angle
-                  const scale = Math.max(0.70, 1 - absOffset * 0.15); // Scale down side cards slightly more
-                  const opacity = Math.max(0, 1 - absOffset * 0.35);
+                  const yOffset = Math.pow(absOffset, 1.8) * (isMobile ? 20 : 35);
+                  const rotate = offset * (isMobile ? 4 : 6);
+                  const scale = Math.max(0.7, 1 - absOffset * 0.15);
+                  const opacity = Math.max(0.15, 1 - absOffset * 0.35);
 
                   // Render immediate adjacent cards
                   if (absOffset > 3) return null;
@@ -410,12 +440,12 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -426,7 +456,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         <button
           type="button"
           onClick={() => onContinue(selectedId)}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

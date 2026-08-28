@@ -48,15 +48,15 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {step}
         </span>
@@ -67,11 +67,11 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      <div className="mb-5 lg:mb-8">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
+        <p className="text-white/30 text-sm md:text-xl font-light">
           {subtitle}
         </p>
       </div>
@@ -81,16 +81,16 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         {/* Option 1: Best match for you */}
         <div
           onClick={() => setTeamOption("best-match")}
-          className={`relative p-4 lg:p-7 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${teamOption === "best-match"
+          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${teamOption === "best-match"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/30 text-white"
             }`}
         >
           <div>
-            <div className={`w-13 h-13 rounded-full flex items-center justify-center mb-4 ${teamOption === "best-match" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
-              <Sparkles className="w-6 h-6" />
+            <div className={`w-8 h-8 lg:w-13 lg:h-13 rounded-full flex items-center justify-center mb-1.5 lg:mb-4 ${teamOption === "best-match" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
+              <Sparkles className="w-4 h-4 lg:w-6 lg:h-6" />
             </div>
-            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "best-match" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "best-match" ? "text-black" : "text-[#E8D1AB]"}`}>
               Best match for you
             </h3>
             <p className={`text-sm lg:text-base font-light ${teamOption === "best-match" ? "text-black/70" : "text-white/40"}`}>
@@ -103,16 +103,16 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         {/* Option 2: I'll choose my team */}
         <div
           onClick={() => setTeamOption("choose-own")}
-          className={`relative p-4 lg:p-7 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${teamOption === "choose-own"
+          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${teamOption === "choose-own"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/30 text-white"
             }`}
         >
           <div>
-            <div className={`w-13 h-13 rounded-full flex items-center justify-center mb-4 ${teamOption === "choose-own" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
-              <Users className="w-6 h-6" />
+            <div className={`w-8 h-8 lg:w-13 lg:h-13 rounded-full flex items-center justify-center mb-1.5 lg:mb-4 ${teamOption === "choose-own" ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#2A2A2A] text-white"}`}>
+              <Users className="w-4 h-4 lg:w-6 lg:h-6" />
             </div>
-            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "choose-own" ? "text-black" : "text-[#E8D1AB]"}`} >
+            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "choose-own" ? "text-black" : "text-[#E8D1AB]"}`} >
               I'll choose my team
             </h3>
             <p className={`text-sm lg:text-base font-light ${teamOption === "choose-own" ? "text-black/70" : "text-white/40"}`}>
@@ -124,8 +124,8 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       </div>
 
       {/* Dynamic Info Callout Box */}
-      <div className="p-4 lg:p-6 rounded-2xl bg-[#211F1C] flex items-center gap-3 text-sm md:text-base text-[#E8D1AB]">
-        <Info className="w-4 h-4 lg:w-6 lg:h-6 flex-shrink-0" />
+      <div className="p-4 lg:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm md:text-base text-[#E8D1AB]">
+        <Info className="w-6 h-6 flex-shrink-0" />
         {teamOption === "best-match" ? (
           <span>
             We'll find the right Creative Partner for your event and make sure
@@ -182,9 +182,9 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
           Included with Package
         </h2>
 
-        <div className="p-4 lg:p-8 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20">
+        <div className="p-4 lg:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20">
           <div className="flex items-center justify-between mb-5 border-b border-[#ECE5D8]/10 pb-5">
-            <h3 className="text-lg lg:text-[26px] font-bold font-['Roboto_Condensed'] text-[#E8D1AB]">
+            <h3 className="text-sm lg:text-[26px] font-bold font-['Roboto_Condensed'] text-[#E8D1AB]">
               {packageTitle}
             </h3>
             <span className="px-3 py-1 rounded-full border border-[#E8D1AB] text-[10px] lg:text-xs text-[#E8D1AB] font-mono tracking-widest uppercase">
@@ -205,8 +205,8 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         </div>
 
         {/* Dynamic Info Callout Box: studio journey 2 */}
-        <div className="p-4 lg:p-6 rounded-2xl bg-[#211F1C] flex items-center gap-3 text-sm md:text-base text-[#E8D1AB] mt-4">
-          <Info className="w-4 h-4 lg:w-6 lg:h-6 flex-shrink-0" />
+        <div className="p-4 lg:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm md:text-base text-[#E8D1AB] mt-4">
+          <Info className="w-6 h-6 flex-shrink-0" />
           <span>
             Your studio booking stays the same. Photography is an optional add-on and can be added to your package.
           </span>
@@ -214,7 +214,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between">
         {onBack ? (
           <button
             type="button"

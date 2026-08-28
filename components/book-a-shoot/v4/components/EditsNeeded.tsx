@@ -155,14 +155,14 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
         {/* Step Indicator Bar */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             {stepLabel}
           </span>
@@ -175,8 +175,8 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {/* Heading & Subtitle */}
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <div className="mb-5 lg:mb-8">
+          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
           <p className="text-white/30 text-base md:text-xl font-light">
@@ -189,14 +189,14 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <button
             type="button"
             onClick={() => setNeedsEdits(true)}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${needsEdits
+            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${needsEdits
               ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
               : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span>Yes</span>
             <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${needsEdits
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center border ${needsEdits
                 ? "border-black bg-black"
                 : "border-white/40 bg-transparent"
                 }`}
@@ -210,14 +210,14 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <button
             type="button"
             onClick={() => setNeedsEdits(false)}
-            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!needsEdits
+            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!needsEdits
               ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
               : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
             <span>No</span>
             <div
-              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!needsEdits
+              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center border ${!needsEdits
                 ? "border-black bg-black"
                 : "border-white/40 bg-transparent"
                 }`}
@@ -230,7 +230,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {/* Info Box */}
-        <div className="space-y-2 mb-10">
+        <div className="space-y-2 mb-5 lg:mb-10">
           <div className="flex items-center gap-2 tracking-wider text-white">
             <Info className="w-4 h-4 lg:w-6 lg:h-6" />
             <span className="text-base lg:text-xl font-medium">Editing includes</span>
@@ -246,14 +246,14 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         {needsEdits && (
           <div className="space-y-4 lg:space-y-8">
             {showVideoEdits && videoEditOptions.length > 0 && (
-              <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
-                <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isVideoOpen ? "border-b border-white/20 rounded-b-2xl" : ""}`}>
+              <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
+                <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isVideoOpen ? "border-b border-white/20 rounded-b-lg lg:rounded-b-2xl" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setIsVideoOpen((prev) => !prev)}
-                    className="w-full p-6 lg:px-7 lg:py-9 flex items-center justify-between text-left"
+                    className="w-full py-5 px-3.5 lg:px-7 lg:py-9 flex items-center justify-between text-left"
                   >
-                    <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                    <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                       Video Edits
                     </h3>
                     <div className="flex items-center gap-3 text-white/70">
@@ -273,18 +273,17 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-6 md:px-8 py-6 md:py-8 space-y-4">
+                      <div className="p-4 lg:p-8 space-y-4">
                         {videoEditOptions.map((option) => {
                           const count = videoEditCounts[option.key] || 0;
 
                           return (
                             <div
                               key={option.key}
-                              className={`flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between rounded-2xl border p-4 lg:p-5 bg-[#171717] transition-colors ${count > 0 ? "border-[#E8D1AB]" : "border-white/10"
-                                }`}
+                              className={`flex items-center justify-between gap-4 rounded-lg lg:rounded-2xl border p-3 lg:p-5 bg-[#171717] transition-colors ${count > 0 ? "border-[#E8D1AB]" : "border-white/10"}`}
                             >
                               <div>
-                                <h4 className="text-base lg:text-xl font-medium text-white">
+                                <h4 className="text-sm lg:text-xl font-medium text-white">
                                   {option.value}
                                 </h4>
                                 {option.note && (
@@ -292,7 +291,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 rounded-full font-semibold text-sm self-start xl:self-auto">
+                              <div className="flex items-center gap-1 lg:gap-3 bg-[#E8D1AB] text-black px-2 py-1.5 lg:px-3.5 lg:py-2 rounded-full font-semibold self-start xl:self-auto">
                                 <button
                                   type="button"
                                   onClick={() => handleVideoDecrement(option.key)}
@@ -300,7 +299,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                                 >
                                   <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
                                 </button>
-                                <span className="w-6 text-center text-base lg:text-xl font-medium">
+                                <span className="w-6 text-center text-sm lg:text-xl font-medium">
                                   {String(count).padStart(2, "0")}
                                 </span>
                                 <button
@@ -333,7 +332,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                 durationLabel={durationLabel}
                 totalExtra={totalAddedExtra}
                 totalCount={totalPhotos}
-                icon="Photo"
+                icon="📸"
               />
             )}
           </div>
@@ -341,12 +340,12 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -356,7 +355,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
 
         <button
           onClick={handleNext}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

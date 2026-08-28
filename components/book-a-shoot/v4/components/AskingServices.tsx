@@ -87,14 +87,14 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         {onBack && (
           <button
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
         {/* Step Indicator Bar */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
@@ -107,12 +107,14 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         </div>
 
         {/* Header Titles */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          {title}
-        </h1>
-        <p className="text-white/30 text-base md:text-xl font-light mb-8">
-          {subtitle}
-        </p>
+        <div className="mb-5 lg:mb-8">
+          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+            {title}
+          </h1>
+          <p className="text-white/30 text-sm md:text-xl font-light">
+            {subtitle}
+          </p>
+        </div>
 
         {/* Grid of Service Selection Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
@@ -123,11 +125,11 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
               <div
                 key={service.id}
                 onClick={() => !service.disabled && toggleService(service.id)}
-                className={`relative rounded-lg lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 flex justify-between items-center border overflow-hidden min-h-[140px]
+                className={`relative rounded-xl lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 flex justify-between items-center border overflow-hidden min-h-[140px]
                   ${service.disabled
                     ? "bg-[#141414]/60 text-white/5 border-white/50 cursor-not-allowed opacity-50"
                     : `cursor-pointer ${isSelected
-                      ? "bg-[#E8D1AB] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
+                      ? "bg-[linear-gradient(180deg,#E8D1AB_0.13%,#FFF_240.2%)] text-[#121212] border-[#E8D1AB] shadow-lg scale-[1.01]"
                       : "bg-[#141414] text-white border-white/10 hover:border-white/20 hover:bg-[#1a1a1a]"
                     }`
                   }`}
@@ -135,10 +137,10 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                 {/* Left Card Details */}
                 <div className="flex flex-col justify-between h-full z-10 max-w-[65%]">
                   <div>
-                    <h3 className={`text-lg lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] ${isSelected ? "text-black" : "text-white"}`}>
+                    <h3 className={`text-base lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] ${isSelected ? "text-black" : "text-white"}`}>
                       {service.title}
                     </h3>
-                    <p className={`text-sm lg:text-base font-light leading-relaxed ${isSelected ? "text-black/70" : "text-white/70"}`}>
+                    <p className={`text-xs lg:text-base font-light leading-relaxed ${isSelected ? "text-black/70" : "text-white/70"}`}>
                       {service.description}
                     </p>
                   </div>
@@ -174,13 +176,13 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
       </div>
 
       {/* Bottom Action Footer - Matches Exact Outer Bounds */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center lg:justify-between">
         <div />
 
         <button
           onClick={handleNext}
           disabled={selectedIds.length === 0}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="w-full lg:w-auto px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

@@ -122,7 +122,7 @@ export default function DropdownSelect({
       )}
 
       <div
-        className={`h-14 lg:h-[82px] relative ${bgColour} rounded-2xl px-5 py-4 flex items-center justify-between border transition-colors ${isDisabled
+        className={`h-14 lg:h-[82px] relative ${bgColour} rounded-lg lg:rounded-2xl px-5 py-4 flex items-center justify-between border transition-colors ${isDisabled
             ? "opacity-50 pointer-events-none cursor-not-allowed"
             : "cursor-pointer"
           } ${isDark ? "border-white/40" : "border-[#0000004D]"}`}

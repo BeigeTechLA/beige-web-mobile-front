@@ -730,20 +730,20 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 text-white select-none">
       {/* Top Navigation */}
-      <div className="mb-6">
+      <div className="lg:mb-6">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#181818] border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
@@ -756,11 +756,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      <div className="mb-5 lg:mb-8">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
+        <p className="text-white/30 text-sm md:text-xl font-light">
           {subtitle}
         </p>
       </div>
@@ -770,16 +770,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         {/* Card 1: I have a date */}
         <div
           onClick={() => setDateOption("have-date")}
-          className={`relative p-4 lg:p-7 rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${dateOption === "have-date"
+          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-center lg:items-start ${dateOption === "have-date"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-[#121212] border-white/10 text-white hover:border-white/20"
             }`}
         >
           <div>
-            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
               I have a date
             </h3>
-            <p className={`text-sm lg:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
+            <p className={`text-xs lg:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
               Specific shoot day and time
             </p>
           </div>
@@ -793,16 +793,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         {/* Card 2: I'll confirm later */}
         <div
           onClick={() => setDateOption("confirm-later")}
-          className={`relative p-4 lg:p-7 rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${dateOption === "confirm-later"
+          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${dateOption === "confirm-later"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-[#121212] border-white/10 text-white hover:border-white/20"
             }`}
         >
           <div>
-            <h3 className={`text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
               I'll confirm later
             </h3>
-            <p className={`text-sm lg:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
+            <p className={`text-xs lg:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
               Hold my spot for 30 days
             </p>
           </div>
@@ -814,19 +814,19 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       </div>
 
-      <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+      <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
       {/* DYNAMIC SECTION BASED ON DATE OPTION */}
       {dateOption === "have-date" ? (
         /* View 1: Booking For + Inputs */
-        <div className="space-y-4 lg:space-y-10 mb-10">
+        <div className="space-y-4 lg:space-y-10 lg:mb-10">
           <div>
-            <h2 className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
+            <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
               Booking For
             </h2>
 
             {/* Segmented Pill Switch */}
-            <div className="flex w-fit lg:h-20 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8">
+            <div className="flex w-fit h-15 lg:h-20 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8">
               <button
                 type="button"
                 onClick={() => setBookingType("single_day")}
@@ -860,8 +860,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
                     {/* Bottom Solid Indicator Bar */}
                     <div
-                      className="absolute bottom-0 h-[3px] bg-[#E8D1AB] rounded-t-full"
-                      style={{ left: "22%", right: "17.6%" }}
+                      className="absolute bottom-0 h-[3px] bg-[#E8D1AB] rounded-t-full left-0 right-0 md:left-[22%] md:right-[17.6%]"
                     />
                   </>
                 )}
@@ -901,8 +900,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
                     {/* Bottom Solid Indicator Bar */}
                     <div
-                      className="absolute bottom-0 h-[3px] bg-[#E8D1AB] rounded-t-full"
-                      style={{ left: "22%", right: "17.6%" }}
+                      className="absolute bottom-0 h-[3px] bg-[#E8D1AB] rounded-t-full left-0 right-0 md:left-[22%] md:right-[17.6%]"
                     />
                   </>
                 )}
@@ -924,7 +922,8 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                     colors={datePickerColours}
                     format="MM/dd/yyyy"
                     floating={true}
-                    borderRadius={"20px"}
+                    // borderRadius={"20px"}
+                    borderRadius={{ xs: "8px", lg: "16px" }}
                     sx={{
                       height: { xs: "56px", md: "82px" },
                     }}
@@ -962,12 +961,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           ) : (
             <>
               <div className="relative mb-8 lg:mb-15">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className={`text-lg lg:text-2xl font-['Roboto_Condensed'] font-medium transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
+                <div className="flex justify-between items-center mb-4 lg:mb-6">
+                  <h3 className={`text-base lg:text-2xl font-['Roboto_Condensed'] font-medium transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
                     Select Date
                   </h3>
-                  <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group ">
-                    <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">{format(currentCalendarMonth, "MMMM yyyy")}</span>
+                  <button type="button" onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex items-center gap-2 lg:px-4 lg:py-2 rounded-lg transition-colors group ">
+                    <span className="text-white font-medium group-hover:text-[#E8D1AB] text-base lg:text-2xl font-['Roboto_Condensed']">{format(currentCalendarMonth, "MMMM yyyy")}</span>
                     <CalendarIcon size={20} className="text-white group-hover:text-[#E8D1AB] " />
                   </button>
                 </div>
@@ -1026,20 +1025,20 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                           if (Date.now() < suppressChipClickUntil.current) return;
                           toggleDateSelection(date);
                         }}
-                        className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
+                        className={`shrink-0 flex flex-col items-center justify-center w-15 lg:w-[100px] h-15 lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
                       >
-                        <span className="text-lg lg:text-3xl font-bold">{format(date, "d")}</span>
+                        <span className="text-base lg:text-3xl font-bold">{format(date, "d")}</span>
                         <span className="text-[10px] lg:text-xs uppercase font-medium">{format(date, "EEE")}</span>
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                <div className="flex flex-col lg:flex-row gap-2 lg:gap-4">
+                  <div className="lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
                     <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
                   </div>
-                  <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                  <div className="lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
                     <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
                   </div>
                 </div>
@@ -1094,8 +1093,6 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                   )}
                 </AnimatePresence>
               </div>
-              {/* timings selector will go here */}
-
               {selectedDates.length > 0 && (
                 <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
                   <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
@@ -1105,13 +1102,10 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                       type="button"
                       onClick={() => handleSameTimingsModeChange(true)}
                       disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                     >
                       <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                      <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                          }`}
-                      >
+                      <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
                         {sameTimingsMulti && (
                           <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                         )}
@@ -1121,13 +1115,10 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                       type="button"
                       onClick={() => handleSameTimingsModeChange(false)}
                       disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
                     >
                       <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                      <div
-                        className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                          }`}
-                      >
+                      <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
                         {!sameTimingsMulti && (
                           <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
                         )}
@@ -1160,19 +1151,19 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                             />
                           </div>
                         </div>
-                        <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                          <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                        <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
+                          <Check className="text-white w-4 h-4 lg:w-6 lg:h-6" /> Applied to {selectedDates.length} selected dates
                         </p>
-                        <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                          <p className="text-white font-medium lg:text-[20px]">
+                        <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
+                          <p className="text-white font-medium text-sm lg:text-[20px]">
                             {getFormattedDateString(selectedDates)}
                           </p>
-                          <p className="text-white/60  font-medium lg:text-[20px]">
+                          <p className="text-white/60 font-medium text-sm lg:text-[20px]">
                             {getStartTimeKey() && getEndTimeKey()
                               ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
                               : "Select time"}
                           </p>
-                          <p className="text-[#E8D1AB]  font-medium lg:text-[20px]">
+                          <p className="text-[#E8D1AB] font-medium text-sm lg:text-[20px]">
                             {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
                               ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
                               : "Duration Hour/Day"}
@@ -1180,7 +1171,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-3 lg:space-y-4">
                         {selectedDates.map((date) => {
                           const dateKey = getDateKey(date);
                           const isExpanded = expandedDateKey === dateKey;
@@ -1190,7 +1181,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                               ref={(el) => {
                                 selectedDateCardRefs.current[dateKey] = el;
                               }}
-                              className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                              className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
                             >
                               <button
                                 type="button"
@@ -1207,9 +1198,9 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                                     });
                                   }
                                 }}
-                                className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10 " : ""}`}
+                                className={`w-full py-3 px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10 " : ""}`}
                               >
-                                <span className="text-white font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                <span className="text-white text-sm lg:text-base font-medium">{format(date, "MMMM dd, yyyy")}</span>
                                 <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                               </button>
                               <AnimatePresence>
@@ -1261,7 +1252,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       ) : (
         /* View 2: Not Ready to Schedule Banner */
-        <div className="p-4 lg:p-8 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex items-center gap-4">
+        <div className="p-4 lg:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex items-center gap-4">
           <div className="flex items-center justify-center flex-shrink-0">
             <Image
               src={"/images/misc/BookingFlow/CalendarBlock.png"}
@@ -1271,7 +1262,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             />
           </div>
           <div>
-            <h3 className="text-base lg:text-lg font-medium text-white mb-1">
+            <h3 className="text-sm lg:text-lg font-medium text-[#E8D1AB] mb-1">
               Not Ready to Schedule?
             </h3>
             <p className="text-xs lg:text-sm text-[#A9A9A9]">
@@ -1281,11 +1272,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       )}
 
-      <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+      <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
       {/* Location / Venue Section */}
-      <div className="mb-8">
-        <h2 className="text-lg lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
+      <div className="mb-5 lg:mb-8">
+        <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
           Location / Venue
         </h2>
         {/* Location Input */}
@@ -1312,16 +1303,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
       {
         !isStudioFlow ? <>
-          <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+          <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
           {/* Need a Studio Banner */}
           <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
             <div className="flex items-center gap-4">
-              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-xl bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-6 lg:w-11 h-6 lg:h-11 text-[#101010]" strokeWidth={1} />
+              <div className="w-12 lg:w-19 h-12 lg:h-19 lg:rounded-xl lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-8 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
               </div>
               <div>
-                <h3 className="text-base lg:text-xl font-medium text-white">Need a Studio?</h3>
+                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Studio?</h3>
                 <p className="text-xs lg:text-sm text-[#A9A9A9]">
                   Add a professional studio to your booking and get 15% off
                 </p>
@@ -1331,22 +1322,22 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             <button
               type="button"
               onClick={onBrowseStudios}
-              className="px-10 py-6 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+              className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Studios
             </button>
           </div>
         </> : <>
-          <hr className={`border-t border-white/20 my-4 lg:my-10`} />
+          <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
           {/* Need a Creator Banner */}
           <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
             <div className="flex items-center gap-4">
-              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-xl bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
-                <Camera className="w-6 lg:w-11 h-6 lg:h-11 text-[#101010]" strokeWidth={1} />
+              <div className="w-12 lg:w-19 h-12 lg:h-19 lg:rounded-xl lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Camera className="w-8 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
               </div>
               <div>
-                <h3 className="text-base lg:text-xl font-medium text-white">Need a Photographer or Videographer for your Studio?</h3>
+                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Photographer or Videographer for your Studio?</h3>
                 <p className="text-xs lg:text-sm text-[#A9A9A9]">
                   Bring your shoot to life with top photographers/videographers at your studio.
                 </p>
@@ -1356,7 +1347,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             <button
               type="button"
               onClick={onBrowseStudios}
-              className="px-10 py-6 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+              className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Creators
             </button>
@@ -1365,12 +1356,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       }
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -1381,7 +1372,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

@@ -28,7 +28,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
   baseFreeCount = 100,
   perSetCount = 25,
   durationLabel = "4 Hour Duration",
-  totalExtra = 0,
+  totalExtra = 25,
   totalCount = 100,
   icon = "📸",
   initialOpen = true,
@@ -37,15 +37,15 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
+      <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
         <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isOpen ? "border-b border-white/20 rounded-b-2xl" : ""}`}>
           {/* Toggle Header */}
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="w-full p-6 lg:px-7 lg:py-9 flex items-center justify-between text-left cursor-pointer  transition-colors"
+            className="w-full py-5 px-3.5 lg:px-7 lg:py-9 flex items-center justify-between text-left cursor-pointer  transition-colors"
           >
-            <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+            <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
               {title}
             </h3>
             <motion.div
@@ -68,19 +68,19 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="px-6 md:px-8 pb-6 md:pb-8 pt-0 space-y-6">
+              <div className="px-4 md:px-8 pb-4 md:pb-8 pt-0 space-y-3 lg:space-y-6">
                 {/* Quantity Counter Row */}
-                <div className="flex items-center justify-between pt-6">
+                <div className="flex items-center justify-between pt-4 lg:pt-6">
                   <div>
-                    <h4 className="text-base lg:text-xl font-medium text-white">
+                    <h4 className="text-sm lg:text-xl font-medium text-white">
                       {itemLabel}
                     </h4>
-                    <p className="text-sm lg:text-lg font-light text-white/70 mt-0.5">
+                    <p className="text-xs lg:text-lg font-light text-white/70 mt-0.5">
                       +{perSetCount} Per Set
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-[#E8D1AB] text-black px-3.5 py-1.5 rounded-full font-semibold text-sm">
+                  <div className="flex items-center gap-1 lg:gap-3 bg-[#E8D1AB] text-black px-2 py-1.5 lg:px-3.5 lg:py-2 rounded-full font-semibold self-start xl:self-auto">
                     <button
                       type="button"
                       onClick={onDecrement}
@@ -88,7 +88,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
                     >
                       <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
                     </button>
-                    <span className="w-6 text-center text-base lg:text-xl font-medium">
+                    <span className="w-6 text-center text-sm lg:text-xl font-medium">
                       {String(setsCount).padStart(2, "0")}
                     </span>
                     <button
@@ -101,19 +101,21 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
                   </div>
                 </div>
 
-                <hr className={`border-t my-4 lg:my-7 border-white/20`} />
+                <hr className={`border-t my-3.5 lg:my-7 border-white/20`} />
 
                 {/* Badges Stack */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <div className="flex items-center gap-2 bg-[#211F1C] px-5 py-2.5 rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
-                    <span>{icon}</span>
-                    <span>Includes {baseFreeCount} free photo edits</span>
-                    <span className="bg-white text-black px-2.5 py-4 rounded-md text-xs lg:text-sm font-medium ml-1">
+                  <div className="w-full lg:w-fit flex flex-col lg:flex-row lg:items-center gap-2 bg-[#211F1C] px-5 py-2.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
+                    <div className="flex gap-1 ">
+                      <span>{icon}</span>
+                      <span>Includes {baseFreeCount} free photo edits</span>
+                    </div>
+                    <span className="text-center bg-white text-black p-2.5 lg:py-4 rounded-md text-xs lg:text-sm font-medium ml-1">
                       {durationLabel}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-[#211F1C] px-5 py-5.5 rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
+                  <div className="flex items-center gap-2 bg-[#211F1C] py-3 px-5 lg:py-5.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
                     ➕ <span>{totalExtra} Added Extra</span>
                   </div>
                 </div>
@@ -124,7 +126,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
       </div>
 
       {/* Total Summary Badge */}
-      <div className="inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-4 rounded-xl font-bold text-base lg:text-xl shadow-lg">
+      <div className="w-full lg:w-fit inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-3 lg:p-4 rounded-md lg:rounded-xl font-bold text-sm lg:text-xl shadow-lg">
         <div className="bg-black rounded-full p-2">
           <Sparkles className="w-6 h-6 text-[#E8D1AB]" />
         </div>
