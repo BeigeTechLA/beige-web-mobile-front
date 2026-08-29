@@ -190,6 +190,7 @@ type QuoteActionMenuProps = {
   allowEdit?: boolean;
   allowDelete?: boolean;
   allowDuplicate?: boolean;
+  allowPayment?: boolean;
   mobile?: boolean;
   disabled?: boolean;
   isDark?: boolean;
@@ -259,6 +260,7 @@ const QuoteActionMenu = ({
   allowEdit = true,
   allowDelete = true,
   allowDuplicate = true,
+  allowPayment = true,
   mobile = false,
   disabled = false,
   isDark = true,
@@ -336,12 +338,14 @@ const QuoteActionMenu = ({
               isDark={isDark}
             />
           )}
-          <QuoteActionMenuButton
-            icon={<DollarSign size={18} />}
-            label="Record Payment"
-            onClick={handleAction(onPaymentTransaction)}
-            isDark={isDark}
-          />
+          {allowPayment && (
+            <QuoteActionMenuButton
+              icon={<DollarSign size={18} />}
+              label="Record Payment"
+              onClick={handleAction(onPaymentTransaction)}
+              isDark={isDark}
+            />
+          )}
 
           {/* Divider line using theme opacity logic */}
           <div className={`my-1 h-[1px] w-full ${isDark ? "bg-white/10" : "bg-[#000000]/10"}`} />
@@ -2152,6 +2156,7 @@ export default function QuotesDashboardPage({
                                 allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
+                                allowPayment={quote.statusKey !== "paid"}
                                 isDark={isDark}
                               />
                             </td>
@@ -2207,6 +2212,7 @@ export default function QuotesDashboardPage({
                                         allowEdit={canEdit}
                                 allowDelete={canDelete}
                                 allowDuplicate={canCreate}
+                                        allowPayment={quote.statusKey !== "paid"}
                                         isDark={isDark}
                                       />
                                     </div>
