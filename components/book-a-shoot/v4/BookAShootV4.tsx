@@ -1303,15 +1303,6 @@ export const BookAShootV4 = () => {
         );
       case matchmakerStep:
         return (
-          <ShootDetails
-            onContinue={handleDetailsSubmitted}
-            onBack={() => setInternalStep(needStudio ? 5 : 4)}
-            initialNotes={bookingState.shootDetailsData?.notes || ""}
-            initialLinks={bookingState.shootDetailsData?.links || []}
-          />
-        );
-      case 7:
-        return (
           <MatchMakerStep
             onContinue={handleTeamSelected}
             onBack={() => setInternalStep(detailsStep)}
@@ -1397,12 +1388,11 @@ export const BookAShootV4 = () => {
             onConfirmAndPay={handleConfirmAndPay}
             onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
             pricingData={getPricingData()}
-            isSubmitting={isSubmitting}
           />
         ) : (
           <BookingConfirmed />
         );
-      case 13:
+      case 12:
         return <BookingConfirmed />;
       default:
         return null;

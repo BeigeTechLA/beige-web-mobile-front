@@ -134,15 +134,15 @@ export default function AddOnsStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Step Header */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
@@ -153,17 +153,17 @@ export default function AddOnsStep({
       </div>
 
       {/* Main Title & Description */}
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      <div className="mb-5 lg:mb-8">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
+        <p className="text-white/30 text-sm md:text-xl font-light">
           {subtitle}
         </p>
       </div>
 
       {/* Section Subhead */}
-      <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
+      <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
         Optional Add-on
       </h2>
 
@@ -176,62 +176,67 @@ export default function AddOnsStep({
           return (
             <div
               key={item.id}
-              className={`w-full rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex items-center justify-between transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]" : "border-white/20"}`}
+              className={`w-full rounded-lg lg:rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex flex-col gap-7 transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]" : "border-white/20"}`}
             >
-              {/* Info Column */}
-              <div className="flex flex-col gap-1 pr-4 max-w-[65%]">
-                <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
-                  {item.title}
-                </h3>
-                <p className="text-sm lg:text-base text-white/70 font-light leading-snug">
-                  {item.description}
-                </p>
-              </div>
+              <div className="flex items-center justify-between ">
+                {/* Info Column */}
+                <div className="flex flex-col gap-1 pr-4 max-w-[65%]">
+                  <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-semibold lg:font-bold text-[#E8D1AB]">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs lg:text-base text-white/70 font-light leading-snug">
+                    {item.description}
+                  </p>
+                </div>
 
-              {/* Pricing & Control Column */}
-              <div className="flex items-center gap-4 md:gap-6 shrink-0">
-                <span className="text-lg lg:text-[26px] font-medium text-white">
-                  ${item.price}
-                </span>
+                {/* Pricing & Control Column */}
+                <div className="flex items-center gap-4 md:gap-6 shrink-0">
+                  <span className="hidden lg:block text-[26px] font-medium text-white">
+                    ${item.price}
+                  </span>
 
-                {isSelected ? (
-                  <div className="flex items-center bg-[#E8D1AB] text-black px-2 py-1 lg:py-2.5 lg:px-4 rounded-full gap-3 font-medium text-base lg:text-xl ">
-                    <button
-                      type="button"
-                      onClick={() => handleDecrement(item.id)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
-                    >
-                      <Minus className="w-5 h-5 text-black" />
-                    </button>
-                    <span className="w-5 text-center">
-                      {String(count).padStart(2, "0")}
-                    </span>
+                  {isSelected ? (
+                    <div className="flex items-center bg-[#E8D1AB] text-black px-2 py-1 lg:py-2.5 lg:px-4 rounded-full gap-1.5 lg:gap-3 font-medium text-sm lg:text-xl ">
+                      <button
+                        type="button"
+                        onClick={() => handleDecrement(item.id)}
+                        className="w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
+                      >
+                        <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
+                      </button>
+                      <span className="w-5 text-center">
+                        {String(count).padStart(2, "0")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(item.id)}
+                        className="w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
+                      >
+                        <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => handleIncrement(item.id)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
+                      className="px-6 py-1.5 lg:py-2.5 lg:px-9 rounded-full border border-[#E8D1AB]/50 text-white hover:bg-white/10 text-sm lg:text-xl font-medium transition-colors"
                     >
-                      <Plus className="w-5 h-5 text-black" />
+                      Add
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleIncrement(item.id)}
-                    className="px-6 py-1.5 lg:py-2.5 lg:px-9 rounded-full border border-[#E8D1AB]/50 text-white hover:bg-white/10 text-base lg:text-xl transition-colors"
-                  >
-                    Add
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
+              <span className="text-lg lg:hidden font-medium text-white">
+                ${item.price}
+              </span>
             </div>
           );
         })}
       </div>
 
       {/* Subtotal Footer Card */}
-      <div className="w-full rounded-2xl bg-[#211F1C] p-5 flex items-center justify-between mb-12">
-        <span className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
+      <div className="w-full rounded-lg lg:rounded-2xl bg-[#211F1C] p-4 lg:p-5 flex items-center justify-between lg:mb-12">
+        <span className="text-base lg:text-2xl font-['Roboto_Condensed'] text-white">
           Add-ons subtotal
         </span>
         <span className="text-xl lg:text-3xl font-medium text-[#E8D1AB]">

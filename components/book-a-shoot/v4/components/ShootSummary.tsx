@@ -212,15 +212,15 @@ export default function ShootSummaryStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Step Header */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
@@ -233,26 +233,26 @@ export default function ShootSummaryStep({
       </div>
 
       {/* Main Title & Description */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
+        <p className="text-white/30 text-sm md:text-xl font-light">
           {subtitle}
         </p>
       </div>
 
       <div className="flex flex-col gap-4">
         {/* Studio Data Card : Conditionally present Journey 2 */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Studios
             </h2>
             <button
               type="button"
               onClick={() => onEditStep?.("studio")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+              className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
@@ -327,15 +327,15 @@ export default function ShootSummaryStep({
         </div>
 
         {/* Project Card */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Project
             </h2>
             <button
               type="button"
               onClick={() => onEditStep?.("project")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+              className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
@@ -358,15 +358,15 @@ export default function ShootSummaryStep({
         </div>
 
         {/* Schedule & Location Card */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Schedule & Location
             </h2>
             <button
               type="button"
               onClick={() => onEditStep?.("schedule")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+              className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
@@ -383,21 +383,21 @@ export default function ShootSummaryStep({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[#A2A2A2]">Location</span>
-              <span className="text-[#D9D1C2]">{summaryData.schedule.location}</span>
+              <span className="text-[#D9D1C2] text-right max-w-1/2 truncate">{summaryData.schedule.location}</span>
             </div>
           </div>
         </div>
 
         {/* Editing Services Card */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Editing Services
             </h2>
             <button
               type="button"
               onClick={() => onEditStep?.("editing")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+              className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
@@ -405,37 +405,37 @@ export default function ShootSummaryStep({
           <hr className={`border-t border-white/20 my-4 lg:my-7`} />
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-1">
             <div className="flex flex-col gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <span className="text-sm lg:text-base text-[#A2A2A2]">Photo Edits:</span>
-                <span className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]">
+                <span className="px-3 py-1.5 lg:px-3.5 lg:py-2.5 rounded-md bg-[#E8D5B5]/20 text-xs lg:text-base text-[#E8D5B5]">
                   {summaryData.editingServices.photoEditsLabel}
                 </span>
               </div>
               {summaryData.editingServices.videoEditsLabel && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                   <span className="text-sm lg:text-base text-[#A2A2A2]">Video Edits:</span>
-                  <span className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]">
+                  <span className="px-3 py-1.5 lg:px-3.5 lg:py-2.5 rounded-md bg-[#E8D5B5]/20 text-xs lg:text-base text-[#E8D5B5]">
                     {summaryData.editingServices.videoEditsLabel}
                   </span>
                 </div>
               )}
             </div>
-            <div className="px-4 lg:px-7 py-2 lg:py-4 rounded-full bg-white text-[#101010] font-medium text-sm lg:text-lg italic">
+            <div className="w-full lg:w-fit px-4 lg:px-7 py-2 lg:py-4 text-center rounded-full bg-white text-[#101010] font-medium text-sm lg:text-lg italic">
               {summaryData.editingServices.totalPhotos}
             </div>
           </div>
         </div>
 
         {/* Studio Data Card : Conditionally present Journey 1 */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Studios
             </h2>
             <button
               type="button"
               onClick={() => onEditStep?.("studio")}
-              className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
+              className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium cursor-pointer"
             >
               EDIT
             </button>
@@ -510,9 +510,9 @@ export default function ShootSummaryStep({
         </div>
 
         {/* Dynamic Professional Creatives Swiper Card */}
-        <div className="w-full rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) py-4 lg:py-7 overflow-hidden">
+        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) py-4 lg:py-7 overflow-hidden">
           <div className="flex items-center justify-between px-4 lg:px-7">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Professional Creatives
             </h2>
           </div>
@@ -544,7 +544,7 @@ export default function ShootSummaryStep({
               >
                 {creativesList.map((creative, index) => (
                   <SwiperSlide key={creative.id || index} className="flex items-center justify-center">
-                    <div className="relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] lg:!h-[310px] lg:!w-[406px] rounded-2xl overflow-hidden transition-all duration-500 border border-white/20 shadow-2xl bg-black/40">
+                    <div className="relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] lg:!h-[310px] lg:!w-[406px] rounded-lg lg:rounded-2xl overflow-hidden transition-all duration-500 border border-white/20 shadow-2xl bg-black/40">
                       <Image
                         src={creative.image}
                         alt={creative.name}
@@ -576,18 +576,18 @@ export default function ShootSummaryStep({
         </div>
 
         {/* Add-ons & Included Services Row */}
-        <div className="flex gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Add-ons Subcard */}
-          <div className="w-full lg:w-1/3 rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex flex-col justify-between">
+          <div className="w-full lg:w-1/3 rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+                <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
                   Add-ons
                 </h2>
                 <button
                   type="button"
                   onClick={() => onEditStep?.("addons")}
-                  className="text-sm lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium"
+                  className="text-xs lg:text-base tracking-wider uppercase text-[#E8D1AB] hover:text-[#E8D1AB]/80 font-medium"
                 >
                   EDIT
                 </button>
@@ -597,7 +597,7 @@ export default function ShootSummaryStep({
                 {summaryData.addOns.map((addon, idx) => (
                   <span
                     key={idx}
-                    className="px-3.5 py-2.5 rounded-md bg-[#E8D5B5]/20 text-sm lg:text-base text-[#E8D5B5]"
+                    className="px-3 py-1.5 lg:px-3.5 lg:py-2.5 rounded-md bg-[#E8D5B5]/20 text-xs lg:text-base text-[#E8D5B5]"
                   >
                     {addon}
                   </span>
@@ -607,8 +607,8 @@ export default function ShootSummaryStep({
           </div>
 
           {/* Included Services Subcard */}
-          <div className="w-full lg:w-2/3 rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
-            <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+          <div className="w-full lg:w-2/3 rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+            <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Included Services
             </h2>
             <hr className="border-t border-white/20 my-4 lg:my-7" />
@@ -631,8 +631,8 @@ export default function ShootSummaryStep({
       <hr className="border-t border-white/20 my-5 lg:my-10" />
 
       {/* Contact Information Form */}
-      <div className="mb-8">
-        <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
+      <div className="mb-5 lg:mb-8">
+        <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
           Contact Information
         </h2>
         <form id="contact-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -684,7 +684,7 @@ export default function ShootSummaryStep({
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
