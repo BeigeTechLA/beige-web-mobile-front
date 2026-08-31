@@ -85,6 +85,7 @@ interface ExternalWorkspaceFolder {
   fullPath?: string;
   folderType?: string | null;
   fileCount?: number;
+  childFolderCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -483,6 +484,7 @@ export interface UiFolderItem {
   type?: string;
   resourcePath?: string;
   createdAt?: string;
+  childFolderCount?: number;
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
@@ -1607,6 +1609,21 @@ export const slugToWorkspaceName = (slug?: string) => {
 export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
   String(workspaceId || "").toLowerCase().startsWith("event_");
 
+export const isWorkflowPhaseFolderName = (value?: string | number) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  return ["pre-production", "preproduction", "post-production", "postproduction"].includes(normalized);
+};
+
+export const shouldShowCommonEventRootFolder = (
+  folder?: Pick<UiFolderItem, "rawName" | "title" | "fileCount" | "childFolderCount">
+) =>
+  !isWorkflowPhaseFolderName(folder?.rawName || folder?.title) ||
+  Number(folder?.fileCount || 0) > 0 ||
+  Number(folder?.childFolderCount || 0) > 0;
+
 export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) => {
   if (!visibleUntil) return true;
 
@@ -1647,6 +1664,7 @@ export const mapExternalFoldersToUi = (
     title: prettifyExternalFolderName(folder.name),
     rawName: folder.name,
     fileCount: folder.fileCount || 0,
+    childFolderCount: folder.childFolderCount || 0,
     category: folder.folderType || "folder",
     isLinked: true,
     lastOpened: formatRelativeTime(folder.updatedAt || folder.createdAt),
