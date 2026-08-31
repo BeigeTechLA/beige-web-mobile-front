@@ -104,6 +104,7 @@ export default function CreatorSubFolderDetailsPage() {
   const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceStorageName, setWorkspaceStorageName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [folders, setFolders] = useState<Array<Record<string, unknown>>>([]);
   const [files, setFiles] = useState<Array<Record<string, unknown>>>([]);
@@ -172,6 +173,11 @@ export default function CreatorSubFolderDetailsPage() {
         currentFolderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceStorageName(
+        workspaceData.workspace.storageFolderName ||
+        workspaceData.workspace.rootPath ||
+        workspaceData.workspace.folderName
+      );
       setWorkspaceCode(workspaceData.workspace.externalId);
       setFolders(workspaceData.folders || []);
       setFiles(workspaceData.files);
@@ -677,7 +683,7 @@ export default function CreatorSubFolderDetailsPage() {
     [canDeleteFolders, cpDeleteLockDays, currentFolderPath, isCommonEventWorkspace, phaseSlug]
   );
   const uploadFolderPath = useMemo(() => {
-    if (!canUpload || !workspaceName) return undefined;
+    if (!canUpload || !workspaceStorageName) return undefined;
     const versionToUpload = selectedUploadVersion || nextBulkUploadVersion || 1;
     let targetPath = currentFolderPath;
     if (isRevisionRootFolder) {
@@ -691,10 +697,10 @@ export default function CreatorSubFolderDetailsPage() {
       targetPath = `${editRoot || "Edits"}/Revisions/Version${versionToUpload}`;
     }
     if (isCommonEventWorkspace) {
-      return `${workspaceName}/${targetPath}`;
+      return `${workspaceStorageName}/${targetPath}`;
     }
     const phaseFolder = phaseSlug === "post-production" ? "Post-Production" : "Pre-Production";
-    return `${workspaceName}/${phaseFolder}/${targetPath}`;
+    return `${workspaceStorageName}/${phaseFolder}/${targetPath}`;
   }, [
     canUpload,
     currentFolderPath,
@@ -704,7 +710,7 @@ export default function CreatorSubFolderDetailsPage() {
     nextBulkUploadVersion,
     phaseSlug,
     selectedUploadVersion,
-    workspaceName,
+    workspaceStorageName,
   ]);
 
   const uploadModalVersion = selectedUploadVersion || nextBulkUploadVersion || 1;
@@ -1398,13 +1404,17 @@ export default function CreatorSubFolderDetailsPage() {
           }
           uploadPath={
             uploadFolderPath ??
-            (canUpload && workspaceName
+            (canUpload && workspaceStorageName
               ? isCommonEventRootFolder
-                ? `${workspaceName}/${currentFolderPath}`
-                : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"
+                ? `${workspaceStorageName}/${currentFolderPath}`
+                : `${workspaceStorageName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"
                 }/${currentFolderPath}`
               : undefined)
           }
+          existingFileNames={files.flatMap((file) => [
+            String(file.name || file.title || "").trim(),
+            String(file.path || file.filepath || "").trim(),
+          ]).filter(Boolean)}
           onUploadComplete={async () => {
             await loadFiles();
             setSelectedUploadVersion(null);

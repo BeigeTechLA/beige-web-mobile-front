@@ -128,6 +128,8 @@ export default function AdminFolderManagerPage() {
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
   const [isVisibilityModalOpen, setIsVisibilityModalOpen] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [isRenamingWorkspace, setIsRenamingWorkspace] = useState(false);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [boardProjects, setBoardProjects] = useState<UiFolderItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -502,6 +504,37 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const openRenameModal = (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder?.id) return;
+    setSelectedFolder(targetFolder);
+    setMenuAnchor(null);
+    setIsRenameModalOpen(true);
+  };
+
+  const handleRenameWorkspace = async ({ name }: { name: string }) => {
+    if (!selectedFolder?.id) return;
+    const displayName = name.trim();
+    if (!displayName) {
+      toast.error("Display name is required");
+      return;
+    }
+
+    try {
+      setIsRenamingWorkspace(true);
+      await fileManagerApi.updateWorkspaceDisplayName(selectedFolder.id, displayName);
+      toast.success("Folder display name updated");
+      setIsRenameModalOpen(false);
+      setSelectedFolder(null);
+      await loadProjects(currentPage, debouncedSearchTerm);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to rename folder"));
+      throw err;
+    } finally {
+      setIsRenamingWorkspace(false);
+    }
+  };
+
   const handleCreateCommonEventFolder = async ({ name, visibleUntil }: { name: string; visibleUntil?: string | null }) => {
     if (!canCreate) return;
     const eventName = String(name || "").trim();
@@ -700,7 +733,7 @@ export default function AdminFolderManagerPage() {
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
-                  onRename={() => toast.info("Workspace rename will be the next safe step.")}
+                  onRename={() => openRenameModal(folder)}
                 />
               ))}
             </div>
@@ -753,7 +786,7 @@ export default function AdminFolderManagerPage() {
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
-                  onRename={() => toast.info("Workspace rename will be the next safe step.")}
+                  onRename={() => openRenameModal(folder)}
                 />
               )}
             />
@@ -942,7 +975,7 @@ export default function AdminFolderManagerPage() {
                 ? () => openVisibilityModal(selectedFolder)
                 : undefined
             }
-            onRename={() => toast.info("Workspace rename will be the next safe step.")}
+            onRename={() => openRenameModal(selectedFolder)}
             isDark={isDark}
           />
         )}
@@ -993,6 +1026,20 @@ export default function AdminFolderManagerPage() {
           allowPastVisibleUntil
           nameDisabled
           submitLabel="Save Date"
+          submittingLabel="Saving..."
+          isDark={isDark}
+        />
+
+        <CreateFolderModal
+          isOpen={isRenameModalOpen}
+          onClose={() => {
+            if (!isRenamingWorkspace) setIsRenameModalOpen(false);
+          }}
+          onCreate={handleRenameWorkspace}
+          title="Rename Folder"
+          description="Change the display name shown inside the app"
+          initialName={selectedFolder?.title || ""}
+          submitLabel="Save Name"
           submittingLabel="Saving..."
           isDark={isDark}
         />

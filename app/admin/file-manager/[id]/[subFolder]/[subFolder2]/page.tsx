@@ -167,6 +167,7 @@ export default function SubFolderDetailsPage() {
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceStorageName, setWorkspaceStorageName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [folders, setFolders] = useState<any[]>([]);
@@ -226,6 +227,11 @@ export default function SubFolderDetailsPage() {
         folderPath
       );
       setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceStorageName(
+        workspaceData.workspace.storageFolderName ||
+        workspaceData.workspace.rootPath ||
+        workspaceData.workspace.folderName
+      );
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setFolders(workspaceData.folders || []);
@@ -609,9 +615,9 @@ export default function SubFolderDetailsPage() {
     </div>
   ) : null;
 
-  const uploadPath = workspaceName
+  const uploadPath = workspaceStorageName
     ? [
-        workspaceName,
+        workspaceStorageName,
         ...(isCommonEventWorkspace
           ? [folderPath]
           : [phaseSlug === "post-production" ? "Post-Production" : "Pre-Production", folderPath]),
@@ -1287,6 +1293,10 @@ export default function SubFolderDetailsPage() {
 	          onClose={() => setIsUploadModalOpen(false)}
 	          folderName={folderTitle}
 	          uploadPath={uploadPath}
+	          existingFileNames={files.flatMap((file) => [
+	            String(file.name || file.title || "").trim(),
+	            String(file.path || file.filepath || "").trim(),
+	          ]).filter(Boolean)}
 	          onUploadComplete={loadFiles}
 	          isDark={isDark}
 	        />

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   CalendarClock,
   FolderOpen,
+  Pencil,
   UserRoundPlus,
   Share2,
   Download,
@@ -42,6 +43,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   onOpen,
   onDownload,
   onDelete,
+  onRename,
   onShare,
   onAccess,
   onEditVisibility,
@@ -102,11 +104,13 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             onClick={handleOpenFolder}
             isDark={isDark}
           />
-          {/* Temporarily hidden actions: Rename / Link to Shoot */}
-          {/* <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
-            onRename?.();
-            onClose();
-          }} /> */}
+          {onRename ? (
+            <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
+              onRename();
+              onClose();
+            }} isDark={isDark} />
+          ) : null}
+          {/* Temporarily hidden action: Link to Shoot */}
           {/* <MenuButton
             icon={<LinkIcon size={18} />}
             label="Link to Shoot"
