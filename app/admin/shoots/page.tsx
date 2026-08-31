@@ -53,6 +53,7 @@ const RANGE_FILTER_OPTIONS = new Set([
   "last_15_days",
   "last_30_days",
   "custom",
+  "tbd",
 ]);
 const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
 type PaymentFilter = "all" | "pending" | "paid";
@@ -233,6 +234,7 @@ export default function ShootsPage() {
     setRange(value);
     setCustomRangeStartDate(null);
     setCustomRangeEndDate(null);
+    setSelectedDate(null); 
     setDraftCustomRangeStartDate(null);
     setDraftCustomRangeEndDate(null);
     setIsCustomRangeOpen(false);
@@ -550,7 +552,7 @@ export default function ShootsPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <Select value={range === "all" ? "" : range} onValueChange={handleRangeChange}>
+                  <Select value={range} onValueChange={handleRangeChange}>
                     <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Shoot Date" />
                     </SelectTrigger>
@@ -558,6 +560,8 @@ export default function ShootsPage() {
                       className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
                       viewportClassName="!h-auto max-h-56 overflow-y-auto"
                     >
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="tbd">TBD</SelectItem> 
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="next_7_days">Next 7 Days</SelectItem>
                       <SelectItem value="next_15_days">Next 15 Days</SelectItem>
