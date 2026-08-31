@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
-import { ArrowLeft, LinkIcon, Loader2, MoreVertical, Search, Unlink, Upload } from "lucide-react";
+import { ArrowLeft, LinkIcon, Loader2, MoreVertical, Pencil, Search, Unlink, Upload } from "lucide-react";
 
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -13,6 +13,7 @@ import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
+import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
@@ -38,6 +39,15 @@ import {
 
 const STATUSES = ["Linked", "Unlinked"];
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+};
 
 export default function AdminFolderDetailsPage() {
   const router = useRouter();
@@ -67,6 +77,8 @@ export default function AdminFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [isRenamingWorkspace, setIsRenamingWorkspace] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -121,8 +133,8 @@ export default function AdminFolderDetailsPage() {
           ? mappedFolders.filter(shouldShowCommonEventRootFolder)
           : mappedFolders
       );
-    } catch (err: any) {
-      setError(err?.message || "Failed to load project");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to load project"));
     } finally {
       setLoading(false);
     }
@@ -224,8 +236,8 @@ export default function AdminFolderDetailsPage() {
       if (result?.url) {
         fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to download folder");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to download folder"));
     }
   };
 
@@ -244,10 +256,31 @@ export default function AdminFolderDetailsPage() {
       setMenuAnchor(null);
       setSelectedFolder(null);
       await loadWorkspace();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete folder");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to delete folder"));
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleRenameWorkspace = async ({ name }: { name: string }) => {
+    const displayName = name.trim();
+    if (!displayName) {
+      toast.error("Display name is required");
+      return;
+    }
+
+    try {
+      setIsRenamingWorkspace(true);
+      await fileManagerApi.updateWorkspaceDisplayName(projectId, displayName);
+      toast.success("Folder display name updated");
+      setIsRenameModalOpen(false);
+      await loadWorkspace();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to rename folder"));
+      throw err;
+    } finally {
+      setIsRenamingWorkspace(false);
     }
   };
 
@@ -294,6 +327,18 @@ export default function AdminFolderDetailsPage() {
                       <h1 className="text-sm lg:text-2xl leading-[32px] font-semibold break-words">
                         {workspaceName}
                       </h1>
+                      <button
+                        type="button"
+                        onClick={() => setIsRenameModalOpen(true)}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${isDark
+                          ? "text-white/60 hover:bg-white/10 hover:text-white"
+                          : "text-gray-500 hover:bg-gray-100 hover:text-black"
+                          }`}
+                        title="Rename"
+                        aria-label="Rename folder"
+                      >
+                        <Pencil size={15} />
+                      </button>
                       <span className={`hidden lg:block px-1.5 lg:px-2.5 py-1 rounded-full text-[10px] lg:text-xs lg:font-medium border h-fit w-fit ${statusBadge.className}`}>
                         {statusBadge.label}
                       </span>
@@ -391,8 +436,8 @@ export default function AdminFolderDetailsPage() {
                             if (result?.url) {
                               fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
-                          } catch (err: any) {
-                            toast.error(err?.message || "Failed to download folder");
+                          } catch (err: unknown) {
+                            toast.error(getErrorMessage(err, "Failed to download folder"));
                           }
                         }}
                         onDelete={() => {
@@ -440,8 +485,8 @@ export default function AdminFolderDetailsPage() {
                             if (result?.url) {
                               fileManagerApi.downloadUrl(result.url, `${folder.title || "folder"}.zip`);
                             }
-                          } catch (err: any) {
-                            toast.error(err?.message || "Failed to download folder");
+                          } catch (err: unknown) {
+                            toast.error(getErrorMessage(err, "Failed to download folder"));
                           }
                         }}
                         onDelete={() => {
@@ -570,6 +615,20 @@ export default function AdminFolderDetailsPage() {
             setShareResource(null);
           }}
           resource={shareResource}
+        />
+
+        <CreateFolderModal
+          isOpen={isRenameModalOpen}
+          onClose={() => {
+            if (!isRenamingWorkspace) setIsRenameModalOpen(false);
+          }}
+          onCreate={handleRenameWorkspace}
+          title="Rename Folder"
+          description="Change the display name shown inside the app"
+          initialName={workspaceName}
+          submitLabel="Save Name"
+          submittingLabel="Saving..."
+          isDark={isDark}
         />
       </div>
     </>

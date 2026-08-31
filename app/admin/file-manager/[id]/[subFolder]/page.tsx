@@ -167,6 +167,7 @@ export default function AdminFileManagerPhasePage() {
   const { canCreate, canDelete } = usePermissions("file_manager");
 
   const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceStorageName, setWorkspaceStorageName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<any[]>([]);
@@ -232,6 +233,11 @@ export default function AdminFileManagerPhasePage() {
         isCommonEventRootFolder ? rootFolderPath : undefined
       );
       setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceStorageName(
+        workspaceData.workspace.storageFolderName ||
+        workspaceData.workspace.rootPath ||
+        workspaceData.workspace.folderName
+      );
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);
@@ -441,10 +447,10 @@ export default function AdminFileManagerPhasePage() {
   };
 
   const currentPhase = isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre";
-  const defaultUploadPath = workspaceName
+  const defaultUploadPath = workspaceStorageName
     ? isCommonEventWorkspace
-      ? `${workspaceName}/${rootFolderPath}`
-      : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+      ? `${workspaceStorageName}/${rootFolderPath}`
+      : `${workspaceStorageName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
 
   const getFolderPath = (folder?: UiFolderItem | null) => {
@@ -1528,6 +1534,7 @@ export default function AdminFileManagerPhasePage() {
           }}
           folderName={uploadFolderLabel || selectedFolder?.title || viewState.title}
           uploadPath={uploadPathOverride || defaultUploadPath}
+          existingFileNames={viewState.files.flatMap((file) => [file.title, file.filepath || ""])}
           onUploadComplete={loadPhase}
           isDark={isDark}
         />
