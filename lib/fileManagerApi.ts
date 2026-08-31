@@ -67,6 +67,8 @@ interface ProjectFilesResponse {
 interface ExternalWorkspaceSummary {
   externalId: string;
   folderName: string;
+  displayName?: string;
+  storageFolderName?: string;
   rootPath: string;
   fullPath?: string;
   consoleUrl?: string | null;
@@ -190,10 +192,12 @@ interface ExternalWorkspaceCreateResponse {
 interface ExternalUploadPolicyResponse {
   success: boolean;
   data: {
-    url: string;
-    fields: Record<string, string>;
-    filePath: string;
-    success: boolean;
+    url?: string;
+    fields?: Record<string, string>;
+    filePath?: string;
+    filepath?: string;
+    skipped?: boolean;
+    success?: boolean;
   };
 }
 
@@ -339,10 +343,39 @@ interface ExternalBatchUploadPolicyResponse {
     failureCount: number;
     items: Array<{
       filepath: string;
+      resolvedFilepath?: string;
       success: boolean;
+      skipped?: boolean;
       data?: ExternalUploadPolicyResponse["data"];
       error?: string;
       code?: number;
+    }>;
+  };
+}
+
+interface ExternalUploadConflictsResponse {
+  success: boolean;
+  data: {
+    total: number;
+    conflictCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      resolvedFilepath?: string;
+      fileName?: string;
+      success: boolean;
+      exists: boolean;
+      error?: string;
+      code?: number;
+      entry?: {
+        id?: string;
+        name?: string;
+        path?: string;
+        size?: number;
+        contentType?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      } | null;
     }>;
   };
 }
@@ -781,6 +814,18 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async updateWorkspaceDisplayName(externalId: string | number, displayName: string) {
+    const response = await apiClient.patch<{
+      success: boolean;
+      message?: string;
+      data?: { externalId: string; displayName: string };
+    }>(
+      `external-file-manager/workspace/${externalId}/display-name`,
+      { displayName }
+    );
+    return response.data;
+  },
+
   async listWorkspaceAccess(externalId: string | number) {
     const response = await apiClient.get<WorkspaceAccessResponse>(
       "external-file-manager/workspace-access",
@@ -980,22 +1025,32 @@ export const fileManagerApi = {
     return response.data;
   },
 
-  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number) {
+  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number, conflictMode: "replace" | "skip" | "keep_both" = "replace") {
     const response = await apiClient.post<ExternalUploadPolicyResponse>(
       "external-file-manager/upload-policy",
-      { filepath, fileContentType, fileSize }
+      { filepath, fileContentType, fileSize, conflictMode }
     );
     return response.data;
   },
 
   async getExternalUploadPoliciesBatch(
-    items: Array<{ filepath: string; fileContentType: string; fileSize: number }>
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; conflictMode?: "replace" | "skip" | "keep_both" }>
   ) {
     const response = await apiClient.post<ExternalBatchUploadPolicyResponse>(
       "external-file-manager/upload-policies/batch",
       { items }
     );
     return response.data;
+  },
+
+  async detectExternalUploadConflicts(
+    items: Array<{ filepath: string; fileName?: string }>
+  ) {
+    const response = await apiClient.post<ExternalUploadConflictsResponse>(
+      "external-file-manager/upload-conflicts",
+      { items }
+    );
+    return response;
   },
 
   async notifyExternalFileUploaded(filepath: string, file: File) {
@@ -1652,7 +1707,7 @@ export const mapExternalWorkspaceToFolderCard = (
   createdAt: workspace.createdAt,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
   visibleUntil: workspace.visibleUntil || null,
-  rawName: workspace.folderName,
+  rawName: workspace.storageFolderName || workspace.rootPath || workspace.folderName,
 });
 
 export const mapExternalFoldersToUi = (

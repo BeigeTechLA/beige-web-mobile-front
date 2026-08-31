@@ -116,6 +116,7 @@ export default function CreatorFileManagerPhasePage() {
   const routeStateKey = getFileManagerRouteStateKey(pathname);
 
   const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceStorageName, setWorkspaceStorageName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<Array<Record<string, unknown>>>([]);
@@ -188,6 +189,11 @@ export default function CreatorFileManagerPhasePage() {
         isCommonEventRootFolder ? rootFolderPath : undefined
       );
       setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceStorageName(
+        workspaceData.workspace.storageFolderName ||
+        workspaceData.workspace.rootPath ||
+        workspaceData.workspace.folderName
+      );
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);
@@ -377,10 +383,10 @@ export default function CreatorFileManagerPhasePage() {
   }, [visibleFiles]);
 
   const currentPhase = isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre";
-  const defaultUploadPath = workspaceName
+  const defaultUploadPath = workspaceStorageName
     ? isCommonEventRootFolder
-      ? `${workspaceName}/${rootFolderPath}`
-      : `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+      ? `${workspaceStorageName}/${rootFolderPath}`
+      : `${workspaceStorageName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
@@ -1299,6 +1305,7 @@ export default function CreatorFileManagerPhasePage() {
           onClose={() => setIsUploadModalOpen(false)}
           folderName={workspaceName || ""}
           uploadPath={canUpload ? defaultUploadPath : undefined}
+          existingFileNames={viewState.files.flatMap((file) => [file.title, file.filepath || ""])}
           onUploadComplete={loadPhase}
           isDark={isDark}
         />
