@@ -106,7 +106,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
         <p className="text-white/30 text-base md:text-xl font-light">

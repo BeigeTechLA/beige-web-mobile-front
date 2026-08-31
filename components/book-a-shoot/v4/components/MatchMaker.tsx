@@ -149,15 +149,15 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
               <div className="w-10 h-10 lg:w-15 lg:h-15 rounded-full bg-[#E8D1AB] text-black flex items-center justify-center">
                 <Sparkles className="w-5 h-5 lg:w-8 lg:h-8" strokeWidth={1} />
               </div>
-              <h3 className="text-lg lg:text-[22px] font-bold text-white">
+              <h3 className="text-base lg:text-[22px] font-bold text-white">
                 About <span className="text-[#E8D1AB]">AI Matchmaker</span>
               </h3>
             </div>
-            <p className="text-base lg:text-xl text-white mb-4">
+            <p className="text-sm lg:text-xl text-white mb-4">
               Our AI will analyse your project and match you with the perfect crew
               size and specialists
             </p>
-            <div className="flex flex-wrap gap-6 text-sm lg:text-lg text-[#A9A9A9]">
+            <div className="flex flex-wrap gap-4 lg:gap-6 text-sm lg:text-lg text-[#A9A9A9]">
               <div className="flex items-center gap-2">
                 <Check className="w-6 h-6 text-white" />
                 <span>Optimal team composition</span>

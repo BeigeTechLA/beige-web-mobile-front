@@ -84,7 +84,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
         </div>
 
         {/* Right Column: Studio Production Image */}
-        <div className="lg:col-span-5 h-[360px] md:h-[480px] lg:h-[520px] relative rounded-3xl overflow-hidden border border-white/10 shadow-inner">
+        <div className="lg:col-span-5 h-[280px] md:h-[480px] lg:h-[520px] relative rounded-3xl overflow-hidden border border-white/10 shadow-inner">
           <Image
             src={imageSrc}
             alt="Studio Production Crew"

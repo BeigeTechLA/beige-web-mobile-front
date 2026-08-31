@@ -142,7 +142,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
             {links.map((link, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-[#141414] border border-white/10 text-xs md:text-sm"
+                className="flex items-center justify-between p-3.5 rounded-lg lg:rounded-xl bg-[#141414] border border-white/10 text-xs md:text-sm"
               >
                 <div className="flex items-center gap-2 overflow-hidden mr-4">
                   <LinkIcon className="w-4 h-4 text-[#E8D1AB] flex-shrink-0" />
