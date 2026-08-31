@@ -1899,6 +1899,21 @@ export const adminApi = {
       };
     }
   },
+  getSignupCreditPromotionHistory: async (params: { page?: number; limit?: number } = {}) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/signup-promotion/history', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signup Credit Promotion History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signup credit promotion history',
+      };
+    }
+  },
   updateSignupCreditPromotion: async (payload: {
     is_enabled: boolean;
     amount: number;
