@@ -167,7 +167,7 @@ export default function AdminRoleEditDetailsRoute() {
     const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
       ? modulesResponse.data
       : [];
-    return buildPermissionRows(modules, scope);
+    return buildPermissionRows(modules);
   };
 
   useEffect(() => {
@@ -320,26 +320,6 @@ export default function AdminRoleEditDetailsRoute() {
 
     if (response?.success === false) {
       setError(response?.error || response?.message || "Failed to update role");
-      return;
-    }
-
-    const refreshedRoleResponse = await adminApi.getRoleById(roleId);
-    if (refreshedRoleResponse?.success && refreshedRoleResponse?.data?.role) {
-      const refreshedScope = resolvePermissionScope(
-        refreshedRoleResponse.data.role.name,
-      );
-      const refreshedBaseRows = await loadPermissionRows(refreshedScope);
-      setPermissionScope(refreshedScope);
-      setRows(
-        applyPermissionsToRows(
-          refreshedBaseRows,
-          refreshedRoleResponse.data.permissions || {},
-        ),
-      );
-    } else {
-      setError(
-        "The role was saved, but the updated permissions could not be reloaded for verification.",
-      );
       return;
     }
 

@@ -330,7 +330,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
-        phone_number: data.phoneNumber,
+        phone_number: data.phoneNumber.trim() || null,
         location: data.location,
         lat: data.lat,
         lng: data.lng,
@@ -606,7 +606,11 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
             await Promise.all(removedFileIds.map((crewFilesId) => deleteCrewFile(crewFilesId, "recent_work")));
           }
 
-          const hasFreshFiles = currentFiles.some((file: any) => file instanceof File || file?.file instanceof File);
+          const hasFreshFiles = currentFiles.some(
+            (file: any) =>
+              file instanceof File ||
+              (file?.file instanceof File && !getRecentWorkCrewFilesId(file))
+          );
           if (hasFreshFiles) {
             await uploadRecentWorkProject(item);
           }
@@ -713,11 +717,12 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const uploadRecentWorkProject = async (item: FeaturedWorkItem) => {
     const filesToUpload = Array.isArray(item.files)
       ? item.files
+          .filter((file: any) => file instanceof File || (file?.file instanceof File && !getRecentWorkCrewFilesId(file)))
           .map((file: any) => (file instanceof File ? file : file?.file))
           .filter((file: any): file is File => file instanceof File)
       : [];
 
-    if (filesToUpload.length === 0) return item;
+    if (filesToUpload.length === 0) return [];
 
     const normalizedTags = normalizeFeaturedWorkTags(item.tags);
 
@@ -729,6 +734,8 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
     if (response?.success === false || response?.error) {
       throw new Error(response?.error || "Failed to upload featured work");
     }
+
+    return extractUploadedFiles(response);
   };
 
   const handlePortfolioLinksChange = async (nextLinks: LinkItem[]) => {
@@ -988,6 +995,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           <>
             <StepOne
               data={data}
+              onPhoneNumberChange={(phoneNumber) => setData((prev) => ({ ...prev, phoneNumber }))}
               isDark={isDark}
               fieldStyles={fieldStyles}
               mutedText={mutedText}
@@ -1131,6 +1139,7 @@ function AdminEditLayout({
 
 function StepOne({
   data,
+  onPhoneNumberChange,
   isDark,
   fieldStyles,
   mutedText,
@@ -1138,6 +1147,7 @@ function StepOne({
   onUploadProfile,
 }: {
   data: any;
+  onPhoneNumberChange: (phoneNumber: string) => void;
   isDark: boolean;
   fieldStyles: string;
   mutedText: string;
@@ -1160,7 +1170,14 @@ function StepOne({
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Field label="Phone Number" value={data.phoneNumber} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
+        <Field
+          label="Phone Number"
+          value={data.phoneNumber}
+          labelStyles={labelStyles}
+          fieldStyles={fieldStyles}
+          type="tel"
+          onChange={onPhoneNumberChange}
+        />
         <Field label="Location" value={data.location} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
         <Field label="Shoot Radius" value={data.workingDistance} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
       </div>
@@ -1501,20 +1518,30 @@ function LinkRow({
 function Field({
   label,
   value,
+  onChange,
   labelStyles,
   fieldStyles,
+  type = "text",
   readOnly = false,
 }: {
   label: string;
   value: string;
+  onChange?: (value: string) => void;
   labelStyles: string;
   fieldStyles: string;
+  type?: React.HTMLInputTypeAttribute;
   readOnly?: boolean;
 }) {
   return (
     <div>
       <Label className={labelStyles}>{label}</Label>
-      <Input className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`} value={value} readOnly={readOnly} />
+      <Input
+        type={type}
+        className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`}
+        value={value}
+        readOnly={readOnly}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
     </div>
   );
 }
