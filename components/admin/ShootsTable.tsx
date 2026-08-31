@@ -26,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -116,6 +116,32 @@ const FILTER_STATUS_OPTIONS = [
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+const parseApiDateForDisplay = (value?: string | null) => {
+  if (!value) return null;
+
+  const normalizedValue = String(value).trim();
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsedDate = new Date(normalizedValue);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const formatApiDateForDisplay = (value?: string | null) => {
+  const parsedDate = parseApiDateForDisplay(value);
+
+  return parsedDate
+    ? parsedDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "No Date";
+};
 
 const PRODUCTION_GAP_FILTER_SET = new Set([
   "pre_production_file_not_provided",
@@ -592,7 +618,7 @@ export const ShootsTable = ({
             : [];
 
           // Sorting Helpers
-          const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
+          const dateObj = parseApiDateForDisplay(project.event_date) ?? new Date(0);
           const resolvedPriceSource = project.total_value_amount ?? project.total_paid_amount ?? project.budget;
           const rawPaid = parseFloat(project.paid_amount || 0);
           const rawPending = parseFloat(project.pending_amount || 0);
@@ -617,7 +643,7 @@ export const ShootsTable = ({
             email: project.guest_email || "",
             phone: extractedPhone,
             initials,
-            date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            date: formatApiDateForDisplay(project.event_date),
             location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
@@ -976,7 +1002,7 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+    <div className={`w-full overflow-visible transition-all duration-300 ${activeViewMode === "list"
       ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
       : "bg-transparent border-transparent"
       }`}>
@@ -1564,6 +1590,8 @@ export const ShootsTable = ({
                   {currentShoots.map((shoot, idx) => {
                     const missingFields = shoot.needsAttention?.missing_fields || [];
                     const hasMissingFields = missingFields.length > 0;
+                    const isMenuOpen = openCardActionId === shoot.id;
+                    const shouldOpenUpward = idx >= currentShoots.length - 2;
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
                     const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
 
@@ -1573,8 +1601,8 @@ export const ShootsTable = ({
 
                     return (
                       <tr
-                        key={idx}
-                        className={`group border-b transition-colors last:border-0 relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                        key={shoot.id}
+                        className={`group border-b transition-colors last:border-0 relative ${isMenuOpen ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
                         <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <Link
@@ -1699,9 +1727,9 @@ export const ShootsTable = ({
                               <MoreVertical size={24} />
                             </button>
 
-                            {openCardActionId === shoot.id && (
+                            {isMenuOpen && (
                               <div
-                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+                                className={`absolute right-0 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${shouldOpenUpward ? "bottom-9" : "top-9"} ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
