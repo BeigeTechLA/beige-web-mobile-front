@@ -13,6 +13,7 @@ import {
   Download,
   ArrowUpToLine,
   ChevronLeft,
+  Mail,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -317,6 +318,7 @@ export const CreativePartnersTable = () => {
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [reminderSendingIds, setReminderSendingIds] = useState<Set<string>>(new Set());
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -675,6 +677,33 @@ export const CreativePartnersTable = () => {
       setIsDeleting(false);
     }
   };
+
+  const handleSendProfileReminder = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cleanId = id.replace("#", "");
+    if (!cleanId || reminderSendingIds.has(cleanId)) return;
+
+    setReminderSendingIds((current) => new Set(current).add(cleanId));
+    try {
+      const response = await adminApi.sendCreativePartnerProfileReminder(cleanId);
+
+      if (response?.success !== false) {
+        toast.success(response?.message || "Profile reminder email sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send profile reminder.");
+      }
+    } catch (error) {
+      console.error("Send Profile Reminder Error:", error);
+      toast.error("An unexpected error occurred while sending the reminder.");
+    } finally {
+      setReminderSendingIds((current) => {
+        const next = new Set(current);
+        next.delete(cleanId);
+        return next;
+      });
+    }
+  };
+
   const handleExportCreativePartners = async () => {
     if (isExporting) return;
 
@@ -1204,13 +1233,31 @@ export const CreativePartnersTable = () => {
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                           {activeTab === "details_pending" && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleRowClick(user.id, e)}
-                              className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
-                            >
-                              <ChevronRight size={20} />
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                disabled={!canEdit || user.email === "No Email" || reminderSendingIds.has(user.id.replace("#", ""))}
+                                onClick={(e) => handleSendProfileReminder(user.id, e)}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                                  ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB] hover:bg-[#E8D1AB]/15"
+                                  : "border-[#D7BC8A] bg-[#FFF9E5] text-[#8A6500] hover:bg-[#F7ECD3]"
+                                  }`}
+                              >
+                                {reminderSendingIds.has(user.id.replace("#", "")) ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Mail size={14} />
+                                )}
+                                <span>{reminderSendingIds.has(user.id.replace("#", "")) ? "Sending..." : "Send Reminder"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleRowClick(user.id, e)}
+                                className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </>
                           )}
                           {activeTab === "submitted" && user.status === 'Approved' && (
                             <>
@@ -1421,6 +1468,24 @@ export const CreativePartnersTable = () => {
                             >
                               <Trash2 size={18} />
                             </button>
+                            )}
+                            {activeTab === "details_pending" && (
+                              <button
+                                type="button"
+                                disabled={!canEdit || user.email === "No Email" || reminderSendingIds.has(user.id.replace("#", ""))}
+                                onClick={(e) => handleSendProfileReminder(user.id, e)}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                                  ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                  : "border-[#D7BC8A] bg-[#FFF9E5] text-[#8A6500]"
+                                  }`}
+                              >
+                                {reminderSendingIds.has(user.id.replace("#", "")) ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Mail size={14} />
+                                )}
+                                <span>{reminderSendingIds.has(user.id.replace("#", "")) ? "Sending..." : "Reminder"}</span>
+                              </button>
                             )}
 
                           </div>

@@ -25,6 +25,7 @@ import {
   isCommonEventWorkspaceId,
   isVisibleToNonAdminByVisibleUntil,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -106,8 +107,7 @@ export default function AdminFolderDetailsPage() {
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceVisibleUntil(workspaceData.workspace.visibleUntil || null);
-      setFolders(
-        mapExternalFoldersToUi(
+      const mappedFolders = mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
             isCommonEventWorkspace
@@ -115,7 +115,11 @@ export default function AdminFolderDetailsPage() {
                 folder.name
               )}`
               : `/admin/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}`
-        )
+        );
+      setFolders(
+        isCommonEventWorkspace
+          ? mappedFolders.filter(shouldShowCommonEventRootFolder)
+          : mappedFolders
       );
     } catch (err: any) {
       setError(err?.message || "Failed to load project");

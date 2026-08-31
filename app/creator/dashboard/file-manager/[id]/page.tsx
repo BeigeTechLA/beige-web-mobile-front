@@ -18,6 +18,7 @@ import {
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -96,14 +97,17 @@ export default function CreatorFolderDetailsPage() {
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
-      setFolders(
-        mapExternalFoldersToUi(
+      const mappedFolders = mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
             `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
               folder.name
             )}`
-        )
+        );
+      setFolders(
+        isCommonEventWorkspace
+          ? mappedFolders.filter(shouldShowCommonEventRootFolder)
+          : mappedFolders
       );
 
       if (isCommonEventWorkspace) {

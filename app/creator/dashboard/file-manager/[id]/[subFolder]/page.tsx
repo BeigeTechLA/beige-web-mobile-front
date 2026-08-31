@@ -49,6 +49,7 @@ import {
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   slugToWorkspaceName,
   type UiFolderItem,
   type UiFileItem,
@@ -261,7 +262,7 @@ export default function CreatorFileManagerPhasePage() {
               childPath
             )}`;
           }
-        ),
+        ).filter(shouldShowCommonEventRootFolder),
         files: mapExternalFilesToUi(workspaceFiles as never[]),
       };
     }
