@@ -44,12 +44,14 @@ import { FileCard } from "@/components/admin/file-manager/FileCard";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
+  canCreativePartnerDeleteFile,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
   slugToWorkspaceName,
   type UiFolderItem,
+  type UiFileItem,
 } from "@/lib/fileManagerApi";
 import { getProject } from "@/lib/api";
 import { toast } from "sonner";
@@ -135,6 +137,7 @@ export default function CreatorFileManagerPhasePage() {
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
+  const [cpDeleteLockDays, setCpDeleteLockDays] = useState(7);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -219,6 +222,27 @@ export default function CreatorFileManagerPhasePage() {
       mounted = false;
     };
   }, [loadPhase, projectId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const settings = await fileManagerApi.getFileManagerSettings();
+        if (mounted) {
+          setCpDeleteLockDays(Number(settings?.cpDeleteLockDays ?? settings?.cp_delete_lock_days ?? 7));
+        }
+      } catch {
+        if (mounted) setCpDeleteLockDays(7);
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const viewState = useMemo(() => {
     if (!workspaceName) {
@@ -360,21 +384,39 @@ export default function CreatorFileManagerPhasePage() {
   const isCommonEventPreProductionRoot =
     isCommonEventWorkspace && phaseSlug === "pre-production";
   const canCreateFolder = isCommonEventWorkspace && !isCommonEventPreProductionRoot && canCreateByPermission;
-  const canDeleteFolders = isCommonEventWorkspace && canDeleteByPermission;
+  const canDeleteFolders = canDeleteByPermission;
   const canDeleteFiles = (isCommonEventWorkspace || phaseSlug === "post-production") && canDeleteByPermission;
-  const getFolderActionPath = (folder?: UiFolderItem | null) => {
+  const canDeleteFileWithinWindow = useCallback(
+    (file: Pick<UiFileItem, "createdAt" | "updatedAtRaw"> | null | undefined) =>
+      canDeleteFiles && canCreativePartnerDeleteFile(file, cpDeleteLockDays),
+    [canDeleteFiles, cpDeleteLockDays]
+  );
+  const getFolderActionPath = useCallback((folder?: UiFolderItem | null) => {
     if (!folder) return undefined;
     if (isCommonEventRootFolder) {
       return [rootFolderPath, folder.rawName || folder.title].filter(Boolean).join("/");
     }
     const slug = folder.href?.split("/").filter(Boolean).pop();
     return currentPhase === "post" && slug ? slugToWorkspaceName(slug) : undefined;
-  };
+  }, [currentPhase, isCommonEventRootFolder, rootFolderPath]);
+  const canDeleteFolderWithinWindow = useCallback(
+    (folder?: UiFolderItem | null) => {
+      if (!canDeleteFolders || !folder) return false;
+      if (!isCommonEventWorkspace && phaseSlug !== "post-production") return false;
+      const folderActionPath = isCommonEventRootFolder
+        ? [rootFolderPath, folder.rawName || folder.title].filter(Boolean).join("/")
+        : folder.resourcePath || getFolderActionPath(folder) || "";
+      const folderSegments = String(folderActionPath).split("/").filter(Boolean);
+      if (isCommonEventWorkspace && folderSegments.length <= 1) return false;
+      return canCreativePartnerDeleteFile(folder, cpDeleteLockDays);
+    },
+    [canDeleteFolders, cpDeleteLockDays, getFolderActionPath, isCommonEventRootFolder, isCommonEventWorkspace, phaseSlug, rootFolderPath]
+  );
 
   const handleDeleteSelectedFolder = async () => {
     if (!selectedFolder?.resourcePath) return;
-    if (!canDeleteFolders) {
-      toast.error("Folders can only be deleted in common events.");
+    if (!canDeleteFolderWithinWindow(selectedFolder)) {
+      toast.error(`Creative partners can delete their own folders only within ${cpDeleteLockDays} day${cpDeleteLockDays === 1 ? "" : "s"} of creation. Please request admin support.`);
       return;
     }
 
@@ -407,8 +449,8 @@ export default function CreatorFileManagerPhasePage() {
   const handleDeleteFile = async (file: Record<string, unknown> | null) => {
     const targetFile = file || selectedFile;
     if (!targetFile || typeof targetFile.filepath !== "string") return;
-    if (!canDeleteFiles) {
-      toast.error("Files can only be deleted in post-production for normal events.");
+    if (!canDeleteFileWithinWindow(targetFile as Pick<UiFileItem, "createdAt" | "updatedAtRaw">)) {
+      toast.error(`Creative partners can delete files only within ${cpDeleteLockDays} day${cpDeleteLockDays === 1 ? "" : "s"} of upload. Please request admin support.`);
       return;
     }
 
@@ -466,6 +508,13 @@ export default function CreatorFileManagerPhasePage() {
     visibleFiles.some((file) => selectedFilePaths.includes(file.filepath || "")) &&
     !allVisibleFilesSelected;
   const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
+  const selectedFiles = useMemo(
+    () => filteredFiles.filter((file) => selectedFilePaths.includes(file.filepath || "")),
+    [filteredFiles, selectedFilePaths]
+  );
+  const canDeleteSelectedFiles =
+    selectedFiles.length > 0 &&
+    selectedFiles.every((file) => canDeleteFileWithinWindow(file));
 
   const toggleFileSelection = (filepath: string) => {
     setSelectedFilePaths((prev) =>
@@ -490,8 +539,8 @@ export default function CreatorFileManagerPhasePage() {
 
   const handleBatchDelete = async () => {
     if (selectedFilePaths.length === 0) return;
-    if (!canDeleteFiles) {
-      toast.error("Files can only be deleted in post-production for normal events.");
+    if (!canDeleteSelectedFiles) {
+      toast.error(`Some selected files are locked. Creative partners can delete files only within ${cpDeleteLockDays} day${cpDeleteLockDays === 1 ? "" : "s"} of upload.`);
       return;
     }
 
@@ -668,7 +717,7 @@ export default function CreatorFileManagerPhasePage() {
                       >
                         <DownloadIcon size={16} />
                       </button>
-                      {canDeleteFiles ? (
+                      {canDeleteFileWithinWindow(file) ? (
                         <button
                           type="button"
                           className={`rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
@@ -989,7 +1038,7 @@ export default function CreatorFileManagerPhasePage() {
                           }
                         }}
                         onDelete={
-                          canDeleteFolders
+                          canDeleteFolderWithinWindow(folder)
                             ? () => {
                               setSelectedFolder(folder);
                               setSelectedFile(null);
@@ -1098,7 +1147,7 @@ export default function CreatorFileManagerPhasePage() {
                             onOpenLinkModal={() => undefined}
                             href={folder.href}
                             onDelete={
-                              canDeleteFolders
+                              canDeleteFolderWithinWindow(folder)
                                 ? () => {
                                   setSelectedFolder(folder);
                                   setSelectedFile(null);
@@ -1140,7 +1189,7 @@ export default function CreatorFileManagerPhasePage() {
                                 isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                                 onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                                 onDelete={
-                                  !selectionLockActive && canDeleteFiles
+                                  !selectionLockActive && canDeleteFileWithinWindow(file)
                                     ? () => {
                                       setSelectedFile(file as unknown as Record<string, unknown>);
                                       setIsDeleteModalOpen(true);
@@ -1198,7 +1247,7 @@ export default function CreatorFileManagerPhasePage() {
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
                           onDelete={
-                            !selectionLockActive && canDeleteFiles
+                            !selectionLockActive && canDeleteFileWithinWindow(file)
                               ? () => {
                                 setSelectedFile(file as unknown as Record<string, unknown>);
                                 setIsDeleteModalOpen(true);
@@ -1297,7 +1346,7 @@ export default function CreatorFileManagerPhasePage() {
               }
             }}
             onDelete={
-              canDeleteFolders
+              canDeleteFolderWithinWindow(selectedFolder)
                 ? () => {
                   setSelectedFile(null);
                   setIsDeleteModalOpen(true);
@@ -1426,7 +1475,7 @@ export default function CreatorFileManagerPhasePage() {
                   <DownloadIcon size={16} className="lg:size-[18px]" />
                   <span className="hidden lg:inline">Download</span>
                 </Button>
-                {canDeleteFiles && (
+                {canDeleteSelectedFiles && (
                   <Button
                     className={`gap-1.5 lg:gap-2 text-xs lg:text-sm h-9 lg:h-10 ${isDark
                       ? "bg-[#F04438] text-white hover:bg-[#F04438]/90"

@@ -364,7 +364,6 @@ export const CreditPointsSettings = ({
                 endDate: current.endDate && newStart && current.endDate < newStart ? "" : current.endDate
               }));
             }}
-            minDate={new Date()} 
             disabled={loading}
             placeholder="Select start date"
             isDark={isDark}

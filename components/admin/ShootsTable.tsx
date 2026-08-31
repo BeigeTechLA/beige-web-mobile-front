@@ -1002,7 +1002,7 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+    <div className={`w-full overflow-visible transition-all duration-300 ${activeViewMode === "list"
       ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
       : "bg-transparent border-transparent"
       }`}>
@@ -1590,6 +1590,8 @@ export const ShootsTable = ({
                   {currentShoots.map((shoot, idx) => {
                     const missingFields = shoot.needsAttention?.missing_fields || [];
                     const hasMissingFields = missingFields.length > 0;
+                    const isMenuOpen = openCardActionId === shoot.id;
+                    const shouldOpenUpward = idx >= currentShoots.length - 2;
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
                     const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
 
@@ -1599,8 +1601,8 @@ export const ShootsTable = ({
 
                     return (
                       <tr
-                        key={idx}
-                        className={`group border-b transition-colors last:border-0 relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                        key={shoot.id}
+                        className={`group border-b transition-colors last:border-0 relative ${isMenuOpen ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
                         <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <Link
@@ -1725,9 +1727,9 @@ export const ShootsTable = ({
                               <MoreVertical size={24} />
                             </button>
 
-                            {openCardActionId === shoot.id && (
+                            {isMenuOpen && (
                               <div
-                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+                                className={`absolute right-0 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${shouldOpenUpward ? "bottom-9" : "top-9"} ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
