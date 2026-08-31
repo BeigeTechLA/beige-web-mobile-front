@@ -47,6 +47,7 @@ import {
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   slugToWorkspaceName,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
@@ -276,7 +277,7 @@ export default function AdminFileManagerPhasePage() {
             const queryString = query.toString();
             return `/admin/file-manager/${projectId}/${phaseSlug}/${slug}${queryString ? `?${queryString}` : ""}`;
           }
-        ),
+        ).filter(shouldShowCommonEventRootFolder),
         files: mapExternalFilesToUi(workspaceFiles),
       };
     }

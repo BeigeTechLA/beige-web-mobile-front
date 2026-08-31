@@ -20,6 +20,7 @@ type SharedFolder = {
   name?: string;
   path?: string;
   fileCount?: number;
+  childFolderCount?: number;
 };
 
 type SharedFile = {
@@ -69,6 +70,9 @@ const canonicalizeWorkflowPath = (value?: string) =>
       return segment;
     })
     .join("/");
+
+const hasFolderVisibleContent = (folder?: SharedFolder) =>
+  Number(folder?.fileCount || 0) > 0 || Number(folder?.childFolderCount || 0) > 0;
 
 const isSharedResourceUnavailable = (error: unknown) => {
   const sharedError = error as SharedPageError;
@@ -323,7 +327,7 @@ export default function SharedFileManagerPage() {
       !normalizeSharedPhase(content?.phase) &&
       !content?.path
     ) {
-      return items.filter((folder) => !isWorkflowPhaseFolderName(folder?.name));
+      return items.filter((folder) => !isWorkflowPhaseFolderName(folder?.name) || hasFolderVisibleContent(folder));
     }
     return items;
   }, [content]);

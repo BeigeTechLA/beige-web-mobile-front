@@ -2858,6 +2858,25 @@ export const adminApi = {
     }
   },
 
+  sendCreativePartnerProfileReminder: async (crew_member_id: string | number) => {
+    try {
+      const response = await api.post(`admin/crew-member/${crew_member_id}/profile-reminder`);
+      return response.data;
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to send profile reminder';
+      console.error('Send Creative Partner Profile Reminder Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: message,
+      };
+    }
+  },
+
   checkCpDeleteStatus: async (crew_member_id: string | number) => {
     try {
       const response = await api.get(`admin/check-cp-delete-status`, {

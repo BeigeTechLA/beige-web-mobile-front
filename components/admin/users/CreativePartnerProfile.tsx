@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine, Instagram } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine, Instagram, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -103,6 +103,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true,
   const [activeImages, setActiveImages] = useState<string[]>([]);
 const [isVerifying, setIsVerifying] = useState(false);
 const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+const [isSendingProfileReminder, setIsSendingProfileReminder] = useState(false);
 const [manualResetLink, setManualResetLink] = useState<string | null>(null);
 const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
@@ -618,6 +619,27 @@ const convertLinksStringToArray = (jsonString: string | null) => {
     }
   };
 
+  const handleSendProfileReminder = async () => {
+    if (isSendingProfileReminder) return;
+
+    setIsSendingProfileReminder(true);
+    try {
+      const cleanId = id.startsWith("#") ? id.substring(1) : id;
+      const response = await adminApi.sendCreativePartnerProfileReminder(cleanId);
+
+      if (response?.success !== false) {
+        toast.success(response?.message || "Profile reminder email sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send profile reminder.");
+      }
+    } catch (error) {
+      console.error("Send Profile Reminder Error:", error);
+      toast.error("An unexpected error occurred while sending the reminder.");
+    } finally {
+      setIsSendingProfileReminder(false);
+    }
+  };
+
   const SECTION_TITLE_STYLE = `lg:text-xl font-medium p-5 lg:p-8 ${isDark ? "text-white" : "text-black"}`;
   const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
@@ -730,6 +752,7 @@ const convertLinksStringToArray = (jsonString: string | null) => {
     : [];
   const showOnboardingBanner = onboardingStatus?.success !== false && missingCount > 0;
   const isApprovedWithMissingFields = status === "Approved" && showOnboardingBanner;
+  const canSendProfileReminder = showOnboardingBanner && status === "Pending";
   const bannerTitle = isApprovedWithMissingFields
     ? "Approved CP Profile: Details Missing"
     : "Onboarding Status: Incomplete";
@@ -804,6 +827,26 @@ return (
           </button>
 
           <div className="flex items-center gap-3">
+              {canSendProfileReminder && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSendProfileReminder();
+                  }}
+                  disabled={isSendingProfileReminder || !partnerEmail}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border disabled:cursor-not-allowed disabled:opacity-60 ${isDark
+                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/30 text-[#E8D1AB] hover:bg-[#E8D1AB]/15"
+                    : "bg-[#FFF9E5] border-[#D7BC8A] text-[#8A6500] hover:bg-[#F7ECD3]"
+                    }`}
+                >
+                  {isSendingProfileReminder ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Mail size={16} />
+                  )}
+                  <span>{isSendingProfileReminder ? "Sending..." : "Send Reminder"}</span>
+                </button>
+              )}
               {manualResetLink ? (
                 <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"}`}>
                   <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${isDark ? "border-white/10 bg-white/5 text-[#E8D1AB]" : "border-gray-200 bg-gray-50 text-[#B08A3C]"}`}>
