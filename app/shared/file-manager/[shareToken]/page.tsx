@@ -33,6 +33,7 @@ type SharedPageError = Error & { status?: number };
 
 type SharedContent = {
   type?: "file" | "folder" | "workspace";
+  externalId?: string;
   phase?: string;
   path?: string;
   basePath?: string;
@@ -88,6 +89,7 @@ const formatFileSize = (bytes?: number) => {
 
 const isPreProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "pre-production";
 const isPostProdLabel = (value?: string) => String(value || "").trim().toLowerCase() === "post-production";
+const isWorkflowPhaseFolderName = (value?: string) => isPreProdLabel(value) || isPostProdLabel(value);
 
 const normalizeFolderSegment = (value?: string) =>
   String(value || "")
@@ -95,7 +97,13 @@ const normalizeFolderSegment = (value?: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
 
-const isSharedUploadLocationAllowed = (phase?: string, path?: string) => {
+const normalizeSharedPhase = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized || normalized === "root") return undefined;
+  return normalized;
+};
+
+const isSharedUploadLocationAllowed = (phase?: string, path?: string, isCommonEvent = false) => {
   const normalizedPhase = String(phase || "").trim().toLowerCase();
   const pathSegments = String(path || "")
     .split("/")
@@ -111,6 +119,7 @@ const isSharedUploadLocationAllowed = (phase?: string, path?: string) => {
   }
 
   if (!normalizedPhase || normalizedPhase === "root") {
+    if (isCommonEvent) return pathSegments.length > 0;
     const rootSegment = normalizeFolderSegment(pathSegments[0]);
     if (rootSegment === "preproduction") return pathSegments.length > 0;
     if (rootSegment === "postproduction") return pathSegments.length > 1;
@@ -266,8 +275,10 @@ export default function SharedFileManagerPage() {
 
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  // Old flow kept for rollback: const [step, setStep] = useState<ShareStep>("email");
   const [step, setStep] = useState<ShareStep>("email");
   const [loading, setLoading] = useState(false);
+  const [checkingPublicAccess, setCheckingPublicAccess] = useState(true);
   const [resendLoading, setResendLoading] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [accessPermission, setAccessPermission] = useState<"view_download" | "upload_download">("view_download");
@@ -305,7 +316,17 @@ export default function SharedFileManagerPage() {
     toast.error(getErrorMessage(error, fallback));
   };
 
-  const folders = useMemo(() => (Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : []), [content]);
+  const folders = useMemo(() => {
+    const items = Array.isArray(content?.folders) ? (content.folders as SharedFolder[]) : [];
+    if (
+      String(content?.externalId || "").startsWith("event_") &&
+      !normalizeSharedPhase(content?.phase) &&
+      !content?.path
+    ) {
+      return items.filter((folder) => !isWorkflowPhaseFolderName(folder?.name));
+    }
+    return items;
+  }, [content]);
   const files = useMemo(() => (Array.isArray(content?.files) ? (content.files as SharedFile[]) : []), [content]);
   const visibleFiles = useMemo(() => files.slice(0, visibleFileCount), [files, visibleFileCount]);
   const hasMoreFiles = visibleFileCount < files.length;
@@ -313,7 +334,7 @@ export default function SharedFileManagerPage() {
 
   const breadcrumbs = useMemo(() => {
     const crumbs: Array<{ label: string; phase?: string; path?: string }> = [{ label: "Shared Root" }];
-    if (currentPhase) {
+    if (currentPhase && currentPhase !== "root") {
       crumbs.push({ label: currentPhase === "pre" ? "Pre-Production" : "Post-Production", phase: currentPhase });
     }
     const segments = String(currentPath || "")
@@ -364,12 +385,51 @@ export default function SharedFileManagerPage() {
     const payload = response?.data || null;
     setContent(payload);
     if (payload?.permission) setAccessPermission(payload.permission);
-    setCurrentPhase(payload?.phase || options?.phase);
+    setCurrentPhase(normalizeSharedPhase(payload?.phase || options?.phase));
     setCurrentPath(payload?.path || options?.path);
     setCurrentUploadPath(resolveUploadPathFromPayload(payload, options?.uploadPath));
     setSelectedFilePaths([]);
     setVisibleFileCount(FILES_PAGE_SIZE);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const openAnyoneWithLinkShare = async () => {
+      if (!shareToken) {
+        setCheckingPublicAccess(false);
+        return;
+      }
+
+      try {
+        const result = await fileManagerApi.verifyExternalShareOtp(shareToken, "", "");
+        const token = result?.data?.accessToken;
+        if (result?.data?.accessMode === "anyone_with_link" && token) {
+          if (cancelled) return;
+          setAccessToken(token);
+          setAccessPermission(result?.data?.permission === "upload_download" ? "upload_download" : "view_download");
+          await loadContent(token);
+          if (cancelled) return;
+          setStep("content");
+        }
+      } catch (error: unknown) {
+        // Old email/OTP-first flow kept below; email-only shares land there.
+        if (!cancelled && isSharedResourceUnavailable(error)) {
+          handleUnavailableError(error);
+        }
+      } finally {
+        if (!cancelled) setCheckingPublicAccess(false);
+      }
+    };
+
+    void openAnyoneWithLinkShare();
+
+    return () => {
+      cancelled = true;
+    };
+    // Old flow rollback: remove this effect to always start from the email/OTP screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareToken]);
 
   const resolveFilePath = useCallback((fileOrPath?: SharedFile | string) => {
     const rawPath = typeof fileOrPath === "string" ? fileOrPath : fileOrPath?.path;
@@ -696,7 +756,11 @@ export default function SharedFileManagerPage() {
     step === "content" &&
     accessPermission === "upload_download" &&
     content?.type !== "file" &&
-    isSharedUploadLocationAllowed(currentPhase, currentPath);
+    isSharedUploadLocationAllowed(
+      currentPhase,
+      currentPath,
+      String(content?.externalId || "").startsWith("event_")
+    );
 
   const stepConfig = [
     { key: "email", label: "Email", icon: Mail },
@@ -724,6 +788,17 @@ export default function SharedFileManagerPage() {
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/55">{unavailableMessage}</p>
           <p className="mt-6 text-xs text-white/30">Please contact the sender if you still need access.</p>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (checkingPublicAccess) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#060608] px-4 text-white">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm text-white/65 backdrop-blur-xl">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-[#E5D5B8]" />
+          Opening shared files...
+        </div>
       </div>
     );
   }

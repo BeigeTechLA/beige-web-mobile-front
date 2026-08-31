@@ -3586,6 +3586,13 @@ function CreateQuotePageContent() {
     return String(bookingId);
   }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
+  const handleViewBooking = React.useCallback(() => {
+    if (!convertedBookingId) {
+      return;
+    }
+
+    router.push(`/admin/shoots/${encodeURIComponent(convertedBookingId)}`);
+  }, [convertedBookingId, router]);
   const showInvoiceActions =
     view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
@@ -3627,11 +3634,8 @@ function CreateQuotePageContent() {
     setPreProductionFile(null);
     setClearPreProductionFile(true);
   };
-  const convertBookingActionLabel = isConvertedToBooking
-    ? "Converted to Booking"
-    : "Convert to Booking";
   const isConvertBookingActionDisabled =
-    isConvertedToBooking || isViewingInvoice || isSendingInvoice || isConverting;
+    isViewingInvoice || isSendingInvoice || isConverting || (!isConvertedToBooking && !resolvedInvoiceQuoteId);
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -8710,13 +8714,17 @@ function CreateQuotePageContent() {
               <>
                 <Button
                   type="button"
-                  onClick={handleConvertToBooking}
+                  onClick={isConvertedToBooking ? handleViewBooking : handleConvertToBooking}
                   disabled={isConvertBookingActionDisabled}
                   variant="outline"
                   className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
                 >
                   {isConverting && !isConvertedToBooking ? <Loader2 size={20} className="animate-spin" /> : null}
-                  {isConverting ? "Converting..." : convertBookingActionLabel}
+                  {isConvertedToBooking
+                    ? "View Booking"
+                    : isConverting
+                      ? "Converting..."
+                      : "Convert to Booking"}
                 </Button>
                 <Button
                   type="button"
@@ -8784,11 +8792,15 @@ function CreateQuotePageContent() {
           <div className="grid grid-cols-1 gap-2">
             <Button
               type="button"
-              onClick={handleConvertToBooking}
+              onClick={isConvertedToBooking ? handleViewBooking : handleConvertToBooking}
               disabled={isConvertBookingActionDisabled}
               className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
-              {isConverting ? "Converting..." : convertBookingActionLabel}
+              {isConvertedToBooking
+                ? "View Booking"
+                : isConverting
+                  ? "Converting..."
+                  : "Convert to Booking"}
             </Button>
             <div className="flex items-center justify-center gap-2">
               <Button

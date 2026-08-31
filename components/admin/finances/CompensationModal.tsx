@@ -32,6 +32,7 @@ type AuditEntry = {
   id: string;
   label: string;
   subLabel?: string | null;
+  paidByName?: string | null;
   date?: string | null;
   dedupeKey: string;
 };
@@ -155,6 +156,7 @@ export default function CompensationModal({
           id: `payment-${paymentId}`,
           label: "Payment Processed",
           subLabel: `Paid to ${payment.creator_name || creator.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+          paidByName: payment.processed_by_name || null,
           date: payment.paid_at,
           dedupeKey: `payment-history|${paymentId}`,
         };
@@ -170,6 +172,7 @@ export default function CompensationModal({
             id: `payment-${paymentId}`,
             label: "Payment Processed",
             subLabel: `Paid to ${payment.creator_name || "Unknown Creator"}${amount ? ` - ${formatCurrency(amount)}` : ""}`,
+            paidByName: payment.processed_by_name || null,
             date: payment.paid_at,
             dedupeKey: `payment-history|${paymentId}`,
           };
@@ -179,7 +182,12 @@ export default function CompensationModal({
         .filter((log) => !isPaymentEvent(log.action))
         .map((log) => {
           const label = log.label || log.action || "Finance activity";
-          const subLabel = log.notes || null;
+          const isApprovedEntry = String(log.action || "").toLowerCase() === "approved";
+          const subLabelParts = [
+            isApprovedEntry && log.performed_by_name ? `By ${log.performed_by_name}` : null,
+            log.notes || null,
+          ].filter(Boolean);
+          const subLabel = subLabelParts.length ? subLabelParts.join(" - ") : null;
 
           return {
             id: `audit-${log.action}-${log.created_at || ""}`,
@@ -563,6 +571,7 @@ export default function CompensationModal({
                     <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
                       <div>
                         <span className="text-white">{entry.label}</span>
+                        {entry.paidByName && <p className="mt-0.5 text-xs text-white/45">{`Paid by ${entry.paidByName}`}</p>}
                         {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
                       </div>
                       <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>

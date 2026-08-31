@@ -135,6 +135,12 @@ interface ExternalShareAccessLogItem {
   createdAt?: string;
 }
 
+export interface FileManagerSettings {
+  cpDeleteLockDays: number;
+  cp_delete_lock_days?: number;
+  updatedAt?: string | null;
+}
+
 interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
@@ -476,6 +482,7 @@ export interface UiFolderItem {
   href?: string;
   type?: string;
   resourcePath?: string;
+  createdAt?: string;
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
@@ -495,6 +502,9 @@ export interface UiFileItem {
   filepath?: string;
   contentType?: string;
   metadata?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedAtRaw?: string;
 }
 
 export interface FileCommentUser {
@@ -1114,6 +1124,21 @@ export const fileManagerApi = {
     return apiClient.post("external-file-manager/delete", { filepath });
   },
 
+  async getFileManagerSettings() {
+    const response = await apiClient.get<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings"
+    );
+    return response.data;
+  },
+
+  async updateFileManagerSettings(payload: { cpDeleteLockDays?: number; cp_delete_lock_days?: number }) {
+    const response = await apiClient.getInstance().patch<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings",
+      payload
+    );
+    return response.data;
+  },
+
   async createExternalFolder(
     externalId: string | number,
     folderName: string,
@@ -1607,6 +1632,7 @@ export const mapExternalWorkspaceToFolderCard = (
   userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
   href: `${basePath}/${workspace.externalId}`,
   resourcePath: workspace.rootPath,
+  createdAt: workspace.createdAt,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
   visibleUntil: workspace.visibleUntil || null,
   rawName: workspace.folderName,
@@ -1627,6 +1653,7 @@ export const mapExternalFoldersToUi = (
   userInitials: getDisplayInitials(folder.name),
   href: buildHref(folder),
   resourcePath: folder.path,
+  createdAt: folder.createdAt,
   updatedAtRaw: folder.updatedAt || folder.createdAt,
 }));
 
@@ -1642,4 +1669,20 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     filepath: file.path,
     contentType: file.contentType || "application/octet-stream",
     metadata: file.metadata || {},
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+    updatedAtRaw: file.updatedAt || file.createdAt,
   }));
+
+export const canCreativePartnerDeleteFile = (
+  file: { createdAt?: string; updatedAtRaw?: string } | null | undefined,
+  lockDays = 7
+) => {
+  const normalizedLockDays = Math.max(0, Math.floor(Number(lockDays) || 0));
+  if (normalizedLockDays <= 0) return true;
+
+  const uploadedAt = new Date(file?.createdAt || file?.updatedAtRaw || "").getTime();
+  if (!Number.isFinite(uploadedAt)) return false;
+
+  return Date.now() - uploadedAt <= normalizedLockDays * 24 * 60 * 60 * 1000;
+};

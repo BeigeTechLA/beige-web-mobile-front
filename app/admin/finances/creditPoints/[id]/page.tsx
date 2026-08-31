@@ -30,6 +30,9 @@ type CreditActivityItem = {
   isExpired?: boolean;
   shootId?: string;
   invoiceId?: string;
+  addedByName?: string | null;
+  creditType?: string | null;
+  reason?: string | null;
 };
 
 type CreditUserDetails = {
@@ -203,6 +206,9 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
         pickFirstString(item, ["status"]).toLowerCase() === "expired",
       shootId: pickFirstString(item, ["source_booking_id"]) || undefined,
       invoiceId: pickFirstString(item, ["invoice_number", "invoice_id"]) || undefined,
+      addedByName: pickFirstString(item, ["added_by_name"]) || null,
+      creditType: pickFirstString(item, ["credit_type"]) || null,
+      reason: pickFirstString(item, ["reason", "notes"]) || null,
     };
   });
 
@@ -460,6 +466,17 @@ export default function AdminCreditPointDetailsPage() {
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
                           <p className={`text-[16px] ${isDark ? "text-white" : "text-[#171717]"}`}>{activity.title}</p>
+                          {activity.addedByName && (
+                            <p className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-[#6F6F6F]"}`}>
+                              Credited by {activity.addedByName}
+                            </p>
+                          )}
+                          {(activity.creditType || activity.reason) && (
+                            <div className={`mt-1 text-sm ${isDark ? "text-white/45" : "text-[#6F6F6F]"}`}>
+                              {activity.creditType && <p>Type: {activity.creditType}</p>}
+                              {activity.reason && <p className="mt-0.5">Reason: {activity.reason}</p>}
+                            </div>
+                          )}
                           <div className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${isDark ? "text-white/50" : "text-[#6F6F6F]"}`}>
                             <span className="inline-flex items-center gap-2">
                               <CalendarDays size={14} />
