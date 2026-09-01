@@ -159,6 +159,65 @@ interface ExternalWorkspacesResponse {
   };
 }
 
+export type FileManagerHistoryAction = "created" | "deleted";
+export type FileManagerHistoryStage = "pre_production" | "post_production";
+
+export interface FileManagerHistoryItem {
+  id?: string | number;
+  clientId?: string | number | null;
+  client_id?: string | number | null;
+  clientName?: string | null;
+  client_name?: string | null;
+  client?: {
+    name?: string | null;
+    fullName?: string | null;
+    full_name?: string | null;
+    email?: string | null;
+  } | null;
+  action?: FileManagerHistoryAction | string;
+  folderName?: string | null;
+  folder_name?: string | null;
+  stage?: FileManagerHistoryStage | string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
+  deletedAt?: string | null;
+  deleted_at?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
+  timestamp?: string | null;
+  date?: string | null;
+}
+
+export interface FileManagerHistoryFilters {
+  clientId?: string | number;
+  stage?: FileManagerHistoryStage;
+  action?: FileManagerHistoryAction;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface FileManagerHistoryResponse {
+  success: boolean;
+  data:
+    | FileManagerHistoryItem[]
+    | {
+        history?: FileManagerHistoryItem[];
+        items?: FileManagerHistoryItem[];
+        logs?: FileManagerHistoryItem[];
+        results?: FileManagerHistoryItem[];
+        pagination?: ExternalWorkspacesResponse["data"]["pagination"];
+        page?: number;
+        limit?: number;
+        total?: number;
+        totalPages?: number;
+        hasNextPage?: boolean;
+        hasPreviousPage?: boolean;
+      };
+  pagination?: ExternalWorkspacesResponse["data"]["pagination"];
+}
+
 interface ExternalWorkspaceResponse {
   success: boolean;
   data: {
@@ -790,6 +849,34 @@ export const fileManagerApi = {
         hasPreviousPage: false,
       },
     };
+  },
+
+  async listHistory(options?: FileManagerHistoryFilters) {
+    const params: Record<string, string | number> = {};
+    if (options?.clientId) params.clientId = options.clientId;
+    if (options?.stage) params.stage = options.stage;
+    if (options?.action) params.action = options.action;
+    if (options?.startDate) params.startDate = options.startDate;
+    if (options?.endDate) params.endDate = options.endDate;
+    if (options?.page) params.page = options.page;
+    if (options?.limit) params.limit = options.limit;
+
+    const response = await apiClient.get<FileManagerHistoryResponse>("file-manager/history", params);
+    const payload = response.data;
+    const history = Array.isArray(payload)
+      ? payload
+      : payload.history || payload.items || payload.logs || payload.results || [];
+    const paginationSource = Array.isArray(payload) ? response.pagination : payload.pagination || response.pagination;
+    const pagination = paginationSource || {
+      page: options?.page || 1,
+      limit: options?.limit || history.length || 1,
+      total: history.length,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    };
+
+    return { history, pagination };
   },
 
   async listCommonEvents() {

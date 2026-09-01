@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import WorkspaceAccessModal from "@/components/admin/file-manager/WorkspaceAccessModal";
+import FileManagerHistoryModal from "@/components/admin/file-manager/FileManagerHistoryModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { getFileManagerRouteState, getFileManagerRouteStateKey, setFileManagerRouteState } from "@/lib/fileManagerRouteState";
@@ -123,6 +124,7 @@ export default function AdminFolderManagerPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isCreateCommonEventModalOpen, setIsCreateCommonEventModalOpen] = useState(false);
@@ -575,15 +577,25 @@ export default function AdminFolderManagerPage() {
     setIsVisibilityModalOpen(true);
   };
 
-  const topbarActions = canCreate ? (
-    <Button
-      onClick={() => setIsCreateCommonEventModalOpen(true)}
-      disabled={isCreatingEvent}
-      className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-    >
-      {isCreatingEvent ? "Creating..." : "Create Common Event"}
-    </Button>
-  ) : null;
+  const topbarActions = (
+    <div className="flex items-center gap-2">
+      <Button
+        onClick={() => setIsHistoryModalOpen(true)}
+        className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+      >
+        View History
+      </Button>
+      {canCreate ? (
+        <Button
+          onClick={() => setIsCreateCommonEventModalOpen(true)}
+          disabled={isCreatingEvent}
+          className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+        >
+          {isCreatingEvent ? "Creating..." : "Create Common Event"}
+        </Button>
+      ) : null}
+    </div>
+  );
 
   return (
     <>
@@ -1071,15 +1083,29 @@ export default function AdminFolderManagerPage() {
           }
         />
 
+        <FileManagerHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          isDark={isDark}
+        />
+
         {/* --- FLOATING MOBILE BUTTON --- */}
-        <div className={`lg:hidden fixed flex items-center justify-center bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
+        <div className={`lg:hidden fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => setIsCreateCommonEventModalOpen(true)}
-            disabled={isCreatingEvent}
+            onClick={() => setIsHistoryModalOpen(true)}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
-            {isCreatingEvent ? "Creating..." : "Create Common Event"}
+            View History
           </Button>
+          {canCreate ? (
+            <Button
+              onClick={() => setIsCreateCommonEventModalOpen(true)}
+              disabled={isCreatingEvent}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
+            >
+              {isCreatingEvent ? "Creating..." : "Create Common Event"}
+            </Button>
+          ) : null}
         </div>
       </div>
     </>
