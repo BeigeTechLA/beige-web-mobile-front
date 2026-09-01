@@ -44,6 +44,8 @@ import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
+  getExternalWorkspaceStorageName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
@@ -235,12 +237,8 @@ export default function AdminFileManagerPhasePage() {
         phase,
         isCommonEventRootFolder ? rootFolderPath : undefined
       );
-      setWorkspaceName(workspaceData.workspace.folderName);
-      setWorkspaceStorageName(
-        workspaceData.workspace.storageFolderName ||
-        workspaceData.workspace.rootPath ||
-        workspaceData.workspace.folderName
-      );
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
+      setWorkspaceStorageName(getExternalWorkspaceStorageName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);

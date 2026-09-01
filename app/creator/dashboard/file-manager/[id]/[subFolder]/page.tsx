@@ -46,6 +46,8 @@ import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   canCreativePartnerDeleteFile,
+  getExternalWorkspaceDisplayName,
+  getExternalWorkspaceStorageName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
@@ -191,12 +193,8 @@ export default function CreatorFileManagerPhasePage() {
         phase,
         isCommonEventRootFolder ? rootFolderPath : undefined
       );
-      setWorkspaceName(workspaceData.workspace.folderName);
-      setWorkspaceStorageName(
-        workspaceData.workspace.storageFolderName ||
-        workspaceData.workspace.rootPath ||
-        workspaceData.workspace.folderName
-      );
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
+      setWorkspaceStorageName(getExternalWorkspaceStorageName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);

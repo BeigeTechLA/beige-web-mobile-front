@@ -43,6 +43,8 @@ import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
+  getExternalWorkspaceStorageName,
   getDisplayInitials,
   mapExternalFilesToUi,
   mapExternalFoldersToUi,
@@ -142,6 +144,7 @@ export default function SalesFileManagerPhasePage() {
   const fileCardStage = phaseSlug === "post-production" ? "post-production" : "pre-production";
 
   const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceStorageName, setWorkspaceStorageName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceConsoleUrl, setWorkspaceConsoleUrl] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<any[]>([]);
@@ -196,7 +199,8 @@ export default function SalesFileManagerPhasePage() {
       setError(null);
       const phase = phaseSlug === "post-production" ? "post" : "pre";
       const workspaceData = await fileManagerApi.getExternalWorkspaceFiles(projectId, phase);
-      setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
+      setWorkspaceStorageName(getExternalWorkspaceStorageName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceFolders(workspaceData.folders);
@@ -348,8 +352,8 @@ export default function SalesFileManagerPhasePage() {
   };
 
   const currentPhase = phaseSlug === "post-production" ? "post" : "pre";
-  const defaultUploadPath = workspaceName
-    ? `${workspaceName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
+  const defaultUploadPath = workspaceStorageName
+    ? `${workspaceStorageName}/${phaseSlug === "post-production" ? "Post-Production" : "Pre-Production"}`
     : undefined;
 
   const getSelectedFolderPath = () => {

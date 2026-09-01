@@ -81,6 +81,24 @@ interface ExternalWorkspaceSummary {
   visibleUntil?: string | null;
 }
 
+type ExternalWorkspaceNameFields = {
+  folderName?: string;
+  displayName?: string;
+  storageFolderName?: string | null;
+  rootPath?: string | null;
+};
+
+export const getExternalWorkspaceDisplayName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(workspace?.displayName || workspace?.folderName || "").trim();
+
+export const getExternalWorkspaceStorageName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(
+    workspace?.storageFolderName ||
+    workspace?.rootPath ||
+    workspace?.folderName ||
+    ""
+  ).trim();
+
 interface ExternalWorkspaceFolder {
   name: string;
   path: string;
@@ -1775,21 +1793,28 @@ export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) 
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,
   basePath: string
-): UiFolderItem => ({
-  id: workspace.externalId,
-  title: workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName),
-  fileCount: workspace.fileCount || 0,
-  category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
-  isLinked: true,
-  lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
-  userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
-  href: `${basePath}/${workspace.externalId}`,
-  resourcePath: workspace.rootPath,
-  createdAt: workspace.createdAt,
-  updatedAtRaw: workspace.updatedAt || workspace.createdAt,
-  visibleUntil: workspace.visibleUntil || null,
-  rawName: workspace.storageFolderName || workspace.rootPath || workspace.folderName,
-});
+): UiFolderItem => {
+  const displayName = getExternalWorkspaceDisplayName(workspace);
+  const title = workspace.isCommonEvent
+    ? displayName
+    : formatFileManagerWorkspaceName(displayName);
+
+  return {
+    id: workspace.externalId,
+    title,
+    fileCount: workspace.fileCount || 0,
+    category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
+    isLinked: true,
+    lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
+    userInitials: getDisplayInitials(title),
+    href: `${basePath}/${workspace.externalId}`,
+    resourcePath: workspace.rootPath,
+    createdAt: workspace.createdAt,
+    updatedAtRaw: workspace.updatedAt || workspace.createdAt,
+    visibleUntil: workspace.visibleUntil || null,
+    rawName: getExternalWorkspaceStorageName(workspace),
+  };
+};
 
 export const mapExternalFoldersToUi = (
   folders: ExternalWorkspaceFolder[],
