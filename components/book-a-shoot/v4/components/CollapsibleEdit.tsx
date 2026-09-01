@@ -38,7 +38,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
   return (
     <div className="space-y-6">
       <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
-        <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isOpen ? "border-b border-white/20 rounded-b-2xl" : ""}`}>
+        <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isOpen ? "border-b border-white/20 rounded-b-lg lg:rounded-b-2xl" : ""}`}>
           {/* Toggle Header */}
           <button
             type="button"

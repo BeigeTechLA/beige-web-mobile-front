@@ -730,17 +730,15 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 text-white select-none">
       {/* Top Navigation */}
-      <div className="lg:mb-6">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
-          </button>
-        )}
-      </div>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+        </button>
+      )}
 
       {/* Progress Bar */}
       <div className="mb-5 lg:mb-8">
@@ -1361,7 +1359,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>

@@ -103,7 +103,7 @@ export default function ConfirmAndPay({
   pricingData = {},
   isSubmitting = false,
   title = "One Step Away",
-  subtitle = "Review your final total and ConfirmAndPay method to confirm your production.",
+  subtitle = "Review your final total and payment method to confirm your production.",
   stepNumber = "09",
   completionPercentage = 98,
 }: ConfirmAndPayProps) {
@@ -470,7 +470,7 @@ export default function ConfirmAndPay({
       </label>
 
       {/* Sticky Bottom Navigation Footer */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center gap-3 lg:justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"

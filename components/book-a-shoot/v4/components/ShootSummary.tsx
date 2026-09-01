@@ -260,8 +260,8 @@ export default function ShootSummaryStep({
           <hr className="border-t border-white/20 my-4 lg:my-7" />
 
           <div>
-            <div className="flex flex-col md:flex-row gap-4 md:items-start">
-              <div className="relative w-full lg:w-[275px] h-[120px] lg:h-[190px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+            <div className="flex flex-col md:flex-row gap-3 lg:gap-4 md:items-start">
+              <div className="relative w-full lg:w-[275px] h-[150px] lg:h-[190px] rounded-md lg:rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
                 <Image
                   src="https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png"
                   alt={studio.name}
@@ -274,12 +274,12 @@ export default function ShootSummaryStep({
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                   <div className="min-w-0 space-y-2">
                     <div className="text-sm lg:text-base text-white font-medium truncate">{studio.name}</div>
-                    <div className="text-xs lg:text-sm text-[#8C8C8C] flex items-center gap-1">
+                    <div className="text-sm text-[#8C8C8C] flex items-center gap-1">
                       <MapPin size={16} />
                       <span className="truncate">{studio.location}</span>
                     </div>
                   </div>
-                  <div className="bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-lg px-4 py-1.5 text-xs lg:text-sm font-medium">
+                  <div className="w-fit bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-md lg:rounded-lg px-2 py-1 lg:px-4 lg:py-1.5 text-[10px] lg:text-sm font-medium">
                     Duration : 8 Hours
                   </div>
                 </div>
@@ -443,8 +443,8 @@ export default function ShootSummaryStep({
           <hr className="border-t border-white/20 my-4 lg:my-7" />
 
           <div>
-            <div className="flex flex-col md:flex-row gap-4 md:items-start">
-              <div className="relative w-full lg:w-[275px] h-[120px] lg:h-[190px] rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
+            <div className="flex flex-col md:flex-row gap-3 lg:gap-4 md:items-start">
+              <div className="relative w-full lg:w-[275px] h-[150px] lg:h-[190px] rounded-md lg:rounded-xl overflow-hidden border border-white/10 bg-black/30 shrink-0">
                 <Image
                   src="https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png"
                   alt={studio.name}
@@ -457,12 +457,12 @@ export default function ShootSummaryStep({
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                   <div className="min-w-0 space-y-2">
                     <div className="text-sm lg:text-base text-white font-medium truncate">{studio.name}</div>
-                    <div className="text-xs lg:text-sm text-[#8C8C8C] flex items-center gap-1">
+                    <div className="text-sm text-[#8C8C8C] flex items-center gap-1">
                       <MapPin size={16} />
                       <span className="truncate">{studio.location}</span>
                     </div>
                   </div>
-                  <div className="bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-lg px-4 py-1.5 text-xs lg:text-sm font-medium">
+                  <div className="w-fit bg-[#E8D5B5]/20 text-[#E8D1AB] rounded-md lg:rounded-lg px-2 py-1 lg:px-4 lg:py-1.5 text-[10px] lg:text-sm font-medium">
                     Duration : 8 Hours
                   </div>
                 </div>
@@ -556,7 +556,7 @@ export default function ShootSummaryStep({
                 ))}
               </Swiper>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-white/50">
+              <div className="h-[200px] flex items-center justify-center text-white/50 text-sm lg:text-base">
                 No creative partners assigned.
               </div>
             )}
@@ -565,7 +565,7 @@ export default function ShootSummaryStep({
           {/* Active Creative Details Display */}
           {activeCreative && (
             <div className="w-full flex flex-col items-center justify-center gap-1 mt-3 text-center">
-              <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+              <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                 {activeCreative.name}
               </h3>
               <p className="text-xs lg:text-sm text-[#A9A9A9]">
@@ -640,7 +640,7 @@ export default function ShootSummaryStep({
           <div className="relative space-y-2">
             <Label
               htmlFor="fullName"
-              className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Full Name*
             </Label>
@@ -651,14 +651,14 @@ export default function ShootSummaryStep({
                 value={fullName}
                 required
                 onChange={(e) => setFullName(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>
           </div>
           <div className="relative space-y-2">
             <Label
               htmlFor="phone"
-              className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Phone Number*
             </Label>
@@ -671,7 +671,7 @@ export default function ShootSummaryStep({
                 required
                 inputMode="tel"
                 autoComplete="tel"
-                className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>
           </div>
@@ -679,12 +679,12 @@ export default function ShootSummaryStep({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -695,7 +695,7 @@ export default function ShootSummaryStep({
         <button
           type="submit"
           form="contact-form"
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>
