@@ -17,6 +17,7 @@ import {
   Share2,
   Trash2,
   Unlink,
+  X,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -1136,9 +1137,10 @@ export default function AdminFolderManagerPage() {
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className={`rounded-full px-3 py-1 text-sm ${isDark ? "hover:bg-white/10" : "hover:bg-black/5"}`}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
+                  aria-label="Close folder activity"
                 >
-                  Close
+                  <X size={18} />
                 </button>
               </div>
 
@@ -1156,18 +1158,18 @@ export default function AdminFolderManagerPage() {
                     <div className={`sticky -top-4 z-20 -mx-4 -mt-4 grid grid-cols-1 gap-3 border-b px-4 pb-3 pt-4 sm:-top-5 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 md:grid-cols-2 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}>
                       {[
                         { label: "Uploads", items: activityData.summary.uploads },
-                        { label: "Deletes", items: activityData.summary.deletes },
+                        { label: "Deletion", items: activityData.summary.deletes },
                       ].map((group) => (
                         <div key={group.label} className={`rounded-xl border p-4 shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
-                          <h3 className="text-sm font-semibold">{group.label}</h3>
+                          <h3 className="text-base font-bold">{group.label}</h3>
                           <div className="mt-3 space-y-2">
                             {group.items.length === 0 ? (
                               <p className={`text-xs ${isDark ? "text-white/40" : "text-[#727272]"}`}>No records</p>
                             ) : (
                               group.items.slice(0, 5).map((item) => (
-                                <div key={`${group.label}-${item.userId || item.name}`} className="flex items-center justify-between gap-3 text-sm">
+                                <div key={`${group.label}-${item.userId || item.name}`} className="flex items-center justify-between gap-3 text-[15px] font-semibold">
                                   <span className="truncate">{item.name || "Unknown"}</span>
-                                  <span className="shrink-0 font-semibold text-[#BFA780]">
+                                  <span className="shrink-0 font-bold text-[#BFA780]">
                                     {item.fileCount} files
                                   </span>
                                 </div>

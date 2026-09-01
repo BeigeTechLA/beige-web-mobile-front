@@ -140,12 +140,12 @@ export default function MediaLightboxModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex flex-col bg-black/95 backdrop-blur-xl select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-[2147483647] isolate flex flex-col bg-black/95 backdrop-blur-xl select-none animate-in fade-in duration-200"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
       {/* Top Navigation / Action Bar */}
-      <div className="relative z-20 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-black/60 px-4 sm:px-6 backdrop-blur-md">
+      <div className="relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-black/60 px-4 sm:px-6 backdrop-blur-md pointer-events-auto">
         {/* Left: File metadata */}
         <div className="flex items-center gap-3 min-w-0 max-w-[40%] sm:max-w-[50%]">
           <div className="min-w-0">
@@ -247,7 +247,7 @@ export default function MediaLightboxModal({
 
       {/* Main Media Stage */}
       <div
-        className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden p-4 sm:p-8"
+        className="relative z-10 flex-1 min-h-0 flex items-center justify-center overflow-hidden p-4 sm:p-8"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose();
@@ -329,7 +329,7 @@ export default function MediaLightboxModal({
 
       {/* Bottom Floating Hint Bar for Images */}
       {isImageFile && (
-        <div className="relative z-20 flex h-10 shrink-0 items-center justify-center border-t border-white/5 bg-black/40 px-4 text-[11px] text-white/40 backdrop-blur-sm">
+        <div className="relative z-30 flex h-10 shrink-0 items-center justify-center border-t border-white/5 bg-black/40 px-4 text-[11px] text-white/40 backdrop-blur-sm pointer-events-auto">
           <span>Use +/- to zoom &bull; Click &amp; drag to pan &bull; Press R to rotate &bull; Press Esc to close</span>
         </div>
       )}
