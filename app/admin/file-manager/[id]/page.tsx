@@ -22,6 +22,7 @@ import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   isVisibleToNonAdminByVisibleUntil,
@@ -115,7 +116,7 @@ export default function AdminFolderDetailsPage() {
         setFolders([]);
         return;
       }
-      setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setWorkspaceVisibleUntil(workspaceData.workspace.visibleUntil || null);

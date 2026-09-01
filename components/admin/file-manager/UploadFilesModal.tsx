@@ -45,6 +45,7 @@ interface BatchPolicyItem {
   data?: {
     url?: string;
     fields?: Record<string, string>;
+    filePath?: string;
     filepath?: string;
     skipped?: boolean;
   };
@@ -407,6 +408,30 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const getUploadFilepath = (fileName: string) =>
     `${uploadPath?.replace(/\/+$/, "") || ""}/${fileName}`;
 
+  const normalizeUploadPathKey = (value?: string) => {
+    const normalized = String(value || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    try {
+      return decodeURIComponent(normalized);
+    } catch {
+      return normalized;
+    }
+  };
+
+  const getPolicyPathKeys = (item: BatchPolicyItem, requestedFilepath?: string) =>
+    Array.from(
+      new Set(
+        [
+          requestedFilepath,
+          item.filepath,
+          item.resolvedFilepath,
+          item.data?.filepath,
+          item.data?.filePath,
+        ]
+          .map(normalizeUploadPathKey)
+          .filter(Boolean)
+      )
+    );
+
   const setConflictResolution = (id: string, mode: UploadConflictMode) => {
     setConflictResolutions((prev) => ({ ...prev, [id]: mode }));
   };
@@ -585,7 +610,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         fileSize: item.file.size,
         conflictMode: shouldDetectConflicts ? "skip" as UploadConflictMode : conflictResolutions[item.id] || "replace" as UploadConflictMode,
       }));
-      policyRequests.forEach((item) => fileIdByFilePath.set(item.filepath, item.id));
+      policyRequests.forEach((item) => fileIdByFilePath.set(normalizeUploadPathKey(item.filepath), item.id));
 
       const policyChunks = chunkArray(policyRequests, UPLOAD_POLICY_BATCH_SIZE);
       for (let index = 0; index < policyChunks.length; index += 1) {
@@ -611,20 +636,28 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 ? response.data.items
                 : [];
 
-            batchItems.forEach((item) => {
+            batchItems.forEach((item, itemIndex) => {
+              const requestedFilepath = chunk[itemIndex]?.filepath || item.filepath;
+              const pathKeys = getPolicyPathKeys(item, requestedFilepath);
+              const policyFilepath = item.data?.filepath || item.data?.filePath || item.resolvedFilepath || item.filepath || requestedFilepath;
+
               if (item.success && item.data?.skipped) {
-                policyByFilePath.set(item.filepath, {
-                  filepath: item.data.filepath || item.filepath,
-                  skipped: true,
+                pathKeys.forEach((pathKey) => {
+                  policyByFilePath.set(pathKey, {
+                    filepath: policyFilepath,
+                    skipped: true,
+                  });
                 });
               } else if (item.success && item.data?.url && item.data?.fields) {
-                policyByFilePath.set(item.filepath, {
-                  url: item.data.url,
-                  fields: item.data.fields,
-                  filepath: item.data.filepath || item.filepath,
+                pathKeys.forEach((pathKey) => {
+                  policyByFilePath.set(pathKey, {
+                    url: item.data!.url,
+                    fields: item.data!.fields,
+                    filepath: policyFilepath,
+                  });
                 });
               } else {
-                policyFailedPaths.add(item.filepath);
+                policyFailedPaths.add(normalizeUploadPathKey(requestedFilepath));
               }
             });
             continue;
@@ -659,6 +692,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 filepath: single.data.filepath || item.filepath,
                 skipped: true,
               });
+              policyByFilePath.set(normalizeUploadPathKey(item.filepath), {
+                filepath: single.data.filepath || item.filepath,
+                skipped: true,
+              });
               return;
             }
             if (single?.data?.url && single?.data?.fields) {
@@ -667,11 +704,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 fields: single.data.fields,
                 filepath: single.data.filepath || item.filepath,
               });
+              policyByFilePath.set(normalizeUploadPathKey(item.filepath), {
+                url: single.data.url,
+                fields: single.data.fields,
+                filepath: single.data.filepath || item.filepath,
+              });
               return;
             }
-            policyFailedPaths.add(item.filepath);
+            policyFailedPaths.add(normalizeUploadPathKey(item.filepath));
           } catch {
-            policyFailedPaths.add(item.filepath);
+            policyFailedPaths.add(normalizeUploadPathKey(item.filepath));
           }
         });
       }
@@ -708,6 +750,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         if (cancelUploadRef.current) return;
         const selectedFile = item.file;
         const filepath = getUploadFilepath(selectedFile.name);
+        const filepathKey = normalizeUploadPathKey(filepath);
         setFileStatus(item.id, "uploading");
 
         if (cancelUploadRef.current) {
@@ -715,7 +758,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           return;
         }
 
-        if (policyFailedPaths.has(filepath) || !policyByFilePath.has(filepath)) {
+        if (policyFailedPaths.has(filepathKey) || !policyByFilePath.has(filepathKey)) {
           failed += 1;
           setFileStatus(item.id, "failed", "Failed to prepare upload policy.");
           setStatusMessage(
@@ -725,7 +768,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         }
 
         try {
-          const uploadPolicy = policyByFilePath.get(filepath)!;
+          const uploadPolicy = policyByFilePath.get(filepathKey)!;
           if (uploadPolicy.skipped) {
             skipped += 1;
             setFileStatus(item.id, "skipped", "Skipped duplicate.");
