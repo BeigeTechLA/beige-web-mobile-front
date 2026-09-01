@@ -35,6 +35,7 @@ import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
 import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
@@ -166,6 +167,8 @@ export default function SalesFileManagerPhasePage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<any | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<any | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -449,6 +452,25 @@ export default function SalesFileManagerPhasePage() {
       console.error("Failed to open file:", error);
     } finally {
       setOpeningFileId(null);
+    }
+  };
+
+  const handleQuickView = async (file: any) => {
+    if (!file) return;
+    const existingUrl = previewUrls[file.id] || file.previewUrl || null;
+    setLightboxFile(file);
+    if (existingUrl) {
+      setLightboxUrl(existingUrl);
+    }
+    if (file.filepath) {
+      try {
+        const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+        if (result?.url) {
+          setLightboxUrl(result.url);
+        }
+      } catch (error) {
+        console.error("Failed to load quick view media URL:", error);
+      }
     }
   };
 
@@ -848,6 +870,7 @@ export default function SalesFileManagerPhasePage() {
                                   file={{ ...file, previewUrl: previewUrls[file.id] }}
                                   stage={fileCardStage}
                                   onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+                                  onQuickView={selectionLockActive ? undefined : () => handleQuickView(file)}
                                   onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
                                   onDelete={!selectionLockActive ? () => {
                                     setSelectedFile(file);
@@ -1078,6 +1101,7 @@ export default function SalesFileManagerPhasePage() {
                           file={{ ...file, previewUrl: previewUrls[file.id] }}
                           stage={fileCardStage}
                           onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+                          onQuickView={selectionLockActive ? undefined : () => handleQuickView(file)}
                           onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
                           onDelete={!selectionLockActive ? () => {
                             setSelectedFile(file);
@@ -1297,6 +1321,22 @@ export default function SalesFileManagerPhasePage() {
           fileUrl={viewerUrl}
           contentType={viewerFile?.contentType}
           fileMetaId={viewerFile?.filepath || null}
+          onOpenLightbox={() => {
+            setLightboxFile(viewerFile);
+            setLightboxUrl(viewerUrl);
+          }}
+        />
+
+        <MediaLightboxModal
+          isOpen={!!lightboxFile}
+          onClose={() => {
+            setLightboxFile(null);
+            setLightboxUrl(null);
+          }}
+          fileName={lightboxFile?.title}
+          fileUrl={lightboxUrl}
+          contentType={lightboxFile?.contentType}
+          fileMetaId={lightboxFile?.filepath || null}
         />
 
         {/* Batch Action Toolbar */}

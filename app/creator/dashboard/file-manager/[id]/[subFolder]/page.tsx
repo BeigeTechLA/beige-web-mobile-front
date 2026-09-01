@@ -38,6 +38,7 @@ import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderM
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
@@ -138,6 +139,8 @@ export default function CreatorFileManagerPhasePage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<Record<string, unknown> | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
   const [cpDeleteLockDays, setCpDeleteLockDays] = useState(7);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
@@ -499,6 +502,25 @@ export default function CreatorFileManagerPhasePage() {
       }
     } catch (error) {
       console.error("Failed to open file:", error);
+    }
+  };
+
+  const handleQuickView = async (file: Record<string, unknown>) => {
+    if (!file || typeof file.id !== "string") return;
+    const existingUrl = previewUrls[file.id] || (typeof file.previewUrl === "string" ? file.previewUrl : null);
+    setLightboxFile(file);
+    if (existingUrl) {
+      setLightboxUrl(existingUrl);
+    }
+    if (typeof file.filepath === "string") {
+      try {
+        const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+        if (result?.url) {
+          setLightboxUrl(result.url);
+        }
+      } catch (error) {
+        console.error("Failed to load quick view media URL:", error);
+      }
     }
   };
 
@@ -1192,6 +1214,7 @@ export default function CreatorFileManagerPhasePage() {
                                 file={{ ...file, previewUrl: previewUrls[file.id] }}
                                 stage={fileCardStage}
                                 onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                                onQuickView={selectionLockActive ? undefined : () => handleQuickView(file as unknown as Record<string, unknown>)}
                                 onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                                 isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                                 onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
@@ -1250,6 +1273,7 @@ export default function CreatorFileManagerPhasePage() {
                           file={{ ...file, previewUrl: previewUrls[file.id] }}
                           stage={fileCardStage}
                           onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          onQuickView={selectionLockActive ? undefined : () => handleQuickView(file as unknown as Record<string, unknown>)}
                           onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           isSelected={isSelectionMode && selectedFilePaths.includes(file.filepath || "")}
                           onSelect={isSelectionMode ? () => toggleFileSelection(file.filepath || "") : undefined}
@@ -1386,6 +1410,22 @@ export default function CreatorFileManagerPhasePage() {
           fileUrl={viewerUrl}
           contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
           fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
+          isDark={isDark}
+          onOpenLightbox={() => {
+            setLightboxFile(viewerFile);
+            setLightboxUrl(viewerUrl);
+          }}
+        />
+        <MediaLightboxModal
+          isOpen={!!lightboxFile}
+          onClose={() => {
+            setLightboxFile(null);
+            setLightboxUrl(null);
+          }}
+          fileName={String(lightboxFile?.title || "")}
+          fileUrl={lightboxUrl}
+          contentType={typeof lightboxFile?.contentType === "string" ? lightboxFile.contentType : undefined}
+          fileMetaId={typeof lightboxFile?.filepath === "string" ? lightboxFile.filepath : null}
           isDark={isDark}
         />
         <ShareResourceModal
