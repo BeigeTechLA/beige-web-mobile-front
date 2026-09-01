@@ -68,6 +68,7 @@ const UPLOAD_METADATA_BATCH_SIZE = Math.max(
   10,
   Number(process.env.NEXT_PUBLIC_UPLOAD_METADATA_BATCH_SIZE || 100)
 );
+const UPLOAD_POLICY_SIZE_BUFFER_BYTES = 1024 * 1024;
 const MAX_UPLOAD_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 800;
 
@@ -625,7 +626,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
               chunk.map((item) => ({
                 filepath: item.filepath,
                 fileContentType: item.fileContentType,
-                fileSize: item.fileSize,
+                fileSize: item.fileSize + UPLOAD_POLICY_SIZE_BUFFER_BYTES,
                 conflictMode: item.conflictMode,
               }))
             );
@@ -683,7 +684,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
               fileManagerApi.getExternalUploadPolicy(
                 item.filepath,
                 item.fileContentType,
-                item.fileSize,
+                item.fileSize + UPLOAD_POLICY_SIZE_BUFFER_BYTES,
                 item.conflictMode
               )
             );
@@ -813,7 +814,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         }
       };
 
-      const workerCount = Math.min(MAX_PARALLEL_UPLOADS, filesToUpload.length);
+      const workerCount = Math.min(1, MAX_PARALLEL_UPLOADS, filesToUpload.length);
       await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
       if (pendingMetadataItems.length > 0) {
