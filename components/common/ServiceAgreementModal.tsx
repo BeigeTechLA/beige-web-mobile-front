@@ -150,24 +150,24 @@ export function ServiceAgreementModal({
     <div className="fixed inset-0 z-[100] bg-black/70 p-3 lg:p-6 flex items-center justify-center">
       <div className={`w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-2xl border transition-colors duration-200 ${isDark ? "border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]" : "border-[#D7D7D7] bg-white shadow-2xl"}`}>
         {/* Header Section */}
-        <div className={`flex items-center justify-between px-6 lg:px-12 py-5 lg:py-8 border-b  ${isDark ? "border-white/20" : "border-[#D7D7D7]"}`}>
-          <h3 className={`text-lg lg:text-3xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+        <div className={`flex items-center justify-between p-5 lg:px-12 lg:py-8 border-b ${isDark ? "border-white/20" : "border-[#D7D7D7]"}`}>
+          <h3 className={`text-xs lg:text-3xl font-bold ${isDark ? "text-white" : "text-black"}`}>
             Service Agreement & Terms of Engagement
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className={`h-8 w-8 lg:w-15 lg:h-15 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#1F1F1F] text-white hover:bg-[#2C2C2C]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"}`}
+            className={`h-7 w-7 lg:w-15 lg:h-15 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-[#1F1F1F] text-white hover:bg-[#2C2C2C]" : "bg-[#F4F5F7] text-black hover:bg-[#E5E7EB]"}`}
             aria-label="Close service agreement"
           >
-            <X className="h-4 w-4 lg:w-7 lg:h-7" />
+            <X className="h-3.5 w-3.5 lg:w-7 lg:h-7" />
           </button>
         </div>
 
         <div className="p-5 lg:p-12 lg:pb-20 overflow-y-auto max-h-[calc(90vh-90px)]">
-          <div className="rounded-lg lg:rounded-2xl bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] text-black p-4 lg:p-9 mb-4 lg:mb-8">
-            <p className="text-base lg:text-xl font-bold mb-1 lg:mb-3">Services Agreement</p>
-            <p className="text-sm lg:text-lg">{SERVICE_AGREEMENT_INTRO}</p>
+          <div className="rounded-lg lg:rounded-2xl bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] text-black p-3 lg:p-9 mb-5 lg:mb-8">
+            <p className="text-xs lg:text-xl font-bold mb-1 lg:mb-3">Services Agreement</p>
+            <p className="text-[9px] lg:text-lg">{SERVICE_AGREEMENT_INTRO}</p>
           </div>
 
           {/* Accordion Layout Container */}
@@ -179,7 +179,7 @@ export function ServiceAgreementModal({
                   <button
                     type="button"
                     onClick={() => setExpandedSection(isExpanded ? "" : section.id)}
-                    className={`w-full px-4 py-3 lg:py-5 text-left text-base lg:text-xl flex items-center justify-between transition-colors ${isDark
+                    className={`w-full px-4 py-2 lg:py-5 text-left text-[10px] lg:text-xl flex items-center justify-between transition-colors ${isDark
                         ? "bg-[#171717] text-white hover:bg-[#1F1F1F]"
                         : "bg-[#FAFAFA] text-black hover:bg-[#F4F5F7]"
                       }`}
@@ -202,7 +202,7 @@ export function ServiceAgreementModal({
                         transition={{ duration: 0.22, ease: "easeInOut" }}
                         className="overflow-hidden"
                       >
-                        <div className={`px-4 py-3 lg:py-5 text-sm lg:text-lg border-y ${isDark ? "bg-[#0A0A0A] text-[#A1A1AA] border-[#5B5A5A]" : "bg-white text-[#727272] border-[#D7D7D7]"}`}>
+                        <div className={`px-4 py-3 lg:py-5 text-[9px] lg:text-lg border-y ${isDark ? "bg-[#0A0A0A] text-[#A1A1AA] border-[#5B5A5A]" : "bg-white text-[#727272] border-[#D7D7D7]"}`}>
                           {section.content}
                         </div>
                       </motion.div>
@@ -221,9 +221,9 @@ export function ServiceAgreementModal({
               checked={checked}
               disabled={isAcceptedLocked}
               onChange={(e) => setChecked(e.target.checked)}
-              className="w-5 h-5 accent-[#E8D1AB] shrink-0"
+              className="w-4 h-4 lg:w-5 lg:h-5 accent-[#E8D1AB] shrink-0"
             />
-            <span className={`text-xs lg:text-sm ${isDark ? "text-[#999999]" : "text-[#727272]"}`}>
+            <span className={`text-[10px] lg:text-sm ${isDark ? "text-[#999999]" : "text-[#727272]"}`}>
               I have read and agree to the Terms & Services Agreement.
             </span>
           </label>
@@ -236,7 +236,7 @@ export function ServiceAgreementModal({
                 onAccept();
               }}
               disabled={!checked || isAcceptedLocked}
-              className="h-11 lg:h-20 px-5 bg-[#E8D1AB] hover:opacity-90 text-[#101010] lg:text-xl font-medium rounded-[10px] disabled:opacity-40 transition-opacity"
+              className="w-full lg:w-fit h-11 lg:h-20 px-5 bg-[#E8D1AB] hover:opacity-90 text-[#101010] lg:text-xl font-medium rounded-[10px] disabled:opacity-40 transition-opacity"
             >
               {isAcceptedLocked ? "Already Signed" : "Accept & Continue"}
             </button>
