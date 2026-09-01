@@ -10,7 +10,6 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
@@ -19,6 +18,7 @@ import {
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -51,8 +51,6 @@ export default function CreatorFolderDetailsPage() {
   const [status, setStatus] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingMyFolder, setIsCreatingMyFolder] = useState(false);
   const [hasCreatedCpFolders, setHasCreatedCpFolders] = useState<boolean | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -99,14 +97,17 @@ export default function CreatorFolderDetailsPage() {
       setWorkspaceName(workspaceData.workspace.folderName);
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
-      setFolders(
-        mapExternalFoldersToUi(
+      const mappedFolders = mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
             `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
               folder.name
             )}`
-        )
+        );
+      setFolders(
+        isCommonEventWorkspace
+          ? mappedFolders.filter(shouldShowCommonEventRootFolder)
+          : mappedFolders
       );
 
       if (isCommonEventWorkspace) {
@@ -197,28 +198,6 @@ export default function CreatorFolderDetailsPage() {
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download folder");
-    }
-  };
-
-  const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
-    if (!isCommonEventWorkspace) {
-      toast.error("Folders can only be deleted in common events.");
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
-      toast.success("Folder deleted");
-      setIsDeleteModalOpen(false);
-      setMenuAnchor(null);
-      setSelectedFolder(null);
-      await loadWorkspace();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete folder");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -438,14 +417,7 @@ export default function CreatorFolderDetailsPage() {
                         });
                         setIsShareModalOpen(true);
                       }}
-                      onDelete={
-                        isCommonEventWorkspace
-                          ? () => {
-                            setSelectedFolder(folder);
-                            setIsDeleteModalOpen(true);
-                          }
-                          : undefined
-                      }
+                      onDelete={undefined}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -569,7 +541,7 @@ export default function CreatorFolderDetailsPage() {
               });
               setIsShareModalOpen(true);
             }}
-            onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
+            onDelete={undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
@@ -579,16 +551,6 @@ export default function CreatorFolderDetailsPage() {
           isOpen={isLinkModalOpen}
           onClose={() => setIsLinkModalOpen(false)}
           folderName={selectedFolder?.title || ""}
-          isDark={isDark}
-        />
-
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleDeleteSelectedFolder}
-          itemName={selectedFolder?.title || "this folder"}
-          itemType="folder"
-          isDeleting={isDeleting}
           isDark={isDark}
         />
 

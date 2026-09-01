@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 
 import Topbar from "@/components/admin/Topbar";
 import { CreditPointsSettings } from "@/components/admin/finances/CreditPointsSettings";
+import { FileManagerSettings } from "@/components/admin/file-manager/FileManagerSettings";
 
 export default function Settings() {
   const { theme } = useTheme();
@@ -21,12 +22,13 @@ export default function Settings() {
 
   return (
     <>
-    <Topbar pathname={pathname} title="Credit Points Settings" />
+    <Topbar pathname={pathname} title="Settings" />
       <div
         className="overflow-x-hidden overflow-y-visible p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <CreditPointsSettings isDark={isDark} />
+        <FileManagerSettings isDark={isDark} />
       </div>
     </>
   );

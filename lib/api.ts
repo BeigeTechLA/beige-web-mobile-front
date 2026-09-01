@@ -1899,6 +1899,21 @@ export const adminApi = {
       };
     }
   },
+  getSignupCreditPromotionHistory: async (params: { page?: number; limit?: number } = {}) => {
+    try {
+      const response = await api.get('finance/admin/credit-points/signup-promotion/history', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Signup Credit Promotion History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch signup credit promotion history',
+      };
+    }
+  },
   updateSignupCreditPromotion: async (payload: {
     is_enabled: boolean;
     amount: number;
@@ -2839,6 +2854,25 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch pending creative partners',
+      };
+    }
+  },
+
+  sendCreativePartnerProfileReminder: async (crew_member_id: string | number) => {
+    try {
+      const response = await api.post(`admin/crew-member/${crew_member_id}/profile-reminder`);
+      return response.data;
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to send profile reminder';
+      console.error('Send Creative Partner Profile Reminder Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: message,
       };
     }
   },

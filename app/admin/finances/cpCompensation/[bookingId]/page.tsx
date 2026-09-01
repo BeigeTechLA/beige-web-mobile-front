@@ -17,6 +17,8 @@ type HistoryEntry = {
   id: string;
   title: string;
   subtitle: string;
+  approvedByName?: string | null;
+  paidByName?: string | null;
   amount: string;
   extraAmount: number;
   extraAmountLabel?: string | null;
@@ -119,6 +121,8 @@ const mapPaymentEntry = (item: CpPaymentHistoryItem, index: number): HistoryEntr
     id: String(item.id || `payment-${index}`),
     title: extraAmount > 0 ? "Dispute resolution payment" : item.type === "partial_payment" ? "Applied as partial payment" : title,
     subtitle: String(item.notes || item.status || "Payment recorded"),
+    approvedByName: item.approved_by_name || null,
+    paidByName: item.processed_by_name || null,
     amount: formatCurrency(amount),
     extraAmount,
     extraAmountLabel: extraAmount > 0 ? formatCurrency(extraAmount) : null,
@@ -436,6 +440,16 @@ export default function CpCompensationHistoryPage() {
                                   {entry.dateLabel}
                                   {entry.subtitle ? ` - ${entry.subtitle}` : ""}
                                 </p>
+                                {entry.approvedByName && (
+                                  <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                    Approved by {entry.approvedByName}
+                                  </p>
+                                )}
+                                {entry.paidByName && (
+                                  <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                    Paid by {entry.paidByName}
+                                  </p>
+                                )}
 
                                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
                                   {entry.receiptUrl ? (

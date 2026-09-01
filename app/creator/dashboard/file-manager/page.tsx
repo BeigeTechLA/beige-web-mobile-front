@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
@@ -19,7 +19,6 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
@@ -43,11 +42,18 @@ import {
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 
+type CreatorAuthUser = {
+  user_type_id?: number | string;
+  userTypeId?: number | string;
+  crew_member_id?: number | string | null;
+};
+
 export default function CreatorFileManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const isCreatorUser = (user as any)?.user_type_id === 2 || (user as any)?.userTypeId === 2;
+  const authUser = user as CreatorAuthUser | null;
+  const isCreatorUser = Number(authUser?.user_type_id ?? authUser?.userTypeId) === 2;
   const { data: onboardingStatus, isLoading: isOnboardingStatusLoading } = useGetOnboardingStatusQuery(undefined, {
     skip: !isCreatorUser,
   });
@@ -62,8 +68,6 @@ export default function CreatorFileManagerPage() {
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
@@ -87,8 +91,8 @@ export default function CreatorFileManagerPage() {
       if (!onboardingStatus) return;
 
       const userStr = typeof window !== "undefined" ? localStorage.getItem("revure_user") : null;
-      const localUser = userStr ? JSON.parse(userStr) : null;
-      const crewId = (user as any)?.crew_member_id || localUser?.crew_member_id;
+      const localUser = userStr ? (JSON.parse(userStr) as CreatorAuthUser) : null;
+      const crewId = authUser?.crew_member_id || localUser?.crew_member_id;
       const registrationComplete =
         onboardingStatus.is_registration_complete === 1 ||
         onboardingStatus.onboardingMissingDetail === false;
@@ -119,7 +123,7 @@ export default function CreatorFileManagerPage() {
 
     if (isOnboardingStatusLoading) return;
     checkAccess();
-  }, [isOnboardingStatusLoading, onboardingStatus, router, user]);
+  }, [authUser, isOnboardingStatusLoading, onboardingStatus, router]);
 
   useEffect(() => {
     const savedState = getFileManagerRouteState(routeStateKey);
@@ -160,7 +164,7 @@ export default function CreatorFileManagerPage() {
     // { name: "Trash", icon: Trash2 },
   ];
 
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     if (!isAccessAllowed) return;
 
     try {
@@ -178,7 +182,7 @@ export default function CreatorFileManagerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAccessAllowed]);
 
   useEffect(() => {
     let mounted = true;
@@ -194,7 +198,7 @@ export default function CreatorFileManagerPage() {
     return () => {
       mounted = false;
     };
-  }, [isAccessAllowed]);
+  }, [isAccessAllowed, loadProjects]);
 
   const filteredFolders = useMemo(() => {
     let items = [...projects];
@@ -260,28 +264,6 @@ export default function CreatorFileManagerPage() {
       router.push(`/creator/dashboard/file-manager/${workspaceId}`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to open workspace");
-    }
-  };
-
-  const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
-    if (!isCommonEventWorkspaceId(selectedFolder.id)) {
-      toast.error("Only common event folders can be deleted.");
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
-      toast.success("Workspace deleted");
-      setIsDeleteModalOpen(false);
-      setMenuAnchor(null);
-      setSelectedFolder(null);
-      await loadProjects();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete workspace");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -478,12 +460,7 @@ export default function CreatorFileManagerPage() {
                     void handleOpenFolder(folder);
                   }}
                   href={folder.href}
-                  onDelete={() => {
-                    if (isCommonEventWorkspaceId(folder.id)) {
-                      setSelectedFolder(folder);
-                      setIsDeleteModalOpen(true);
-                    }
-                  }}
+                  onDelete={undefined}
                   onDownload={() => handleDownloadSelectedFolder(folder)}
                   onShare={() => {
                     void (async () => {
@@ -607,11 +584,7 @@ export default function CreatorFileManagerPage() {
                 }
               })();
             }}
-            onDelete={
-              selectedFolder && isCommonEventWorkspaceId(selectedFolder.id)
-                ? () => setIsDeleteModalOpen(true)
-                : undefined
-            }
+            onDelete={undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
@@ -624,15 +597,6 @@ export default function CreatorFileManagerPage() {
           isDark={isDark}
         />
 
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleDeleteSelectedFolder}
-          itemName={selectedFolder?.title || "this folder"}
-          itemType="folder"
-          isDeleting={isDeleting}
-          isDark={isDark}
-        />
         <ShareResourceModal
           isOpen={isShareModalOpen}
           onClose={() => {

@@ -67,6 +67,8 @@ interface ProjectFilesResponse {
 interface ExternalWorkspaceSummary {
   externalId: string;
   folderName: string;
+  displayName?: string;
+  storageFolderName?: string;
   rootPath: string;
   fullPath?: string;
   consoleUrl?: string | null;
@@ -85,6 +87,7 @@ interface ExternalWorkspaceFolder {
   fullPath?: string;
   folderType?: string | null;
   fileCount?: number;
+  childFolderCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -135,6 +138,12 @@ interface ExternalShareAccessLogItem {
   createdAt?: string;
 }
 
+export interface FileManagerSettings {
+  cpDeleteLockDays: number;
+  cp_delete_lock_days?: number;
+  updatedAt?: string | null;
+}
+
 interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
@@ -183,10 +192,12 @@ interface ExternalWorkspaceCreateResponse {
 interface ExternalUploadPolicyResponse {
   success: boolean;
   data: {
-    url: string;
-    fields: Record<string, string>;
-    filePath: string;
-    success: boolean;
+    url?: string;
+    fields?: Record<string, string>;
+    filePath?: string;
+    filepath?: string;
+    skipped?: boolean;
+    success?: boolean;
   };
 }
 
@@ -332,10 +343,39 @@ interface ExternalBatchUploadPolicyResponse {
     failureCount: number;
     items: Array<{
       filepath: string;
+      resolvedFilepath?: string;
       success: boolean;
+      skipped?: boolean;
       data?: ExternalUploadPolicyResponse["data"];
       error?: string;
       code?: number;
+    }>;
+  };
+}
+
+interface ExternalUploadConflictsResponse {
+  success: boolean;
+  data: {
+    total: number;
+    conflictCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      resolvedFilepath?: string;
+      fileName?: string;
+      success: boolean;
+      exists: boolean;
+      error?: string;
+      code?: number;
+      entry?: {
+        id?: string;
+        name?: string;
+        path?: string;
+        size?: number;
+        contentType?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      } | null;
     }>;
   };
 }
@@ -476,6 +516,8 @@ export interface UiFolderItem {
   href?: string;
   type?: string;
   resourcePath?: string;
+  createdAt?: string;
+  childFolderCount?: number;
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
@@ -495,6 +537,9 @@ export interface UiFileItem {
   filepath?: string;
   contentType?: string;
   metadata?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedAtRaw?: string;
 }
 
 export interface FileCommentUser {
@@ -769,6 +814,18 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async updateWorkspaceDisplayName(externalId: string | number, displayName: string) {
+    const response = await apiClient.patch<{
+      success: boolean;
+      message?: string;
+      data?: { externalId: string; displayName: string };
+    }>(
+      `external-file-manager/workspace/${externalId}/display-name`,
+      { displayName }
+    );
+    return response.data;
+  },
+
   async listWorkspaceAccess(externalId: string | number) {
     const response = await apiClient.get<WorkspaceAccessResponse>(
       "external-file-manager/workspace-access",
@@ -968,22 +1025,32 @@ export const fileManagerApi = {
     return response.data;
   },
 
-  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number) {
+  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number, conflictMode: "replace" | "skip" | "keep_both" = "replace") {
     const response = await apiClient.post<ExternalUploadPolicyResponse>(
       "external-file-manager/upload-policy",
-      { filepath, fileContentType, fileSize }
+      { filepath, fileContentType, fileSize, conflictMode }
     );
     return response.data;
   },
 
   async getExternalUploadPoliciesBatch(
-    items: Array<{ filepath: string; fileContentType: string; fileSize: number }>
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; conflictMode?: "replace" | "skip" | "keep_both" }>
   ) {
     const response = await apiClient.post<ExternalBatchUploadPolicyResponse>(
       "external-file-manager/upload-policies/batch",
       { items }
     );
     return response.data;
+  },
+
+  async detectExternalUploadConflicts(
+    items: Array<{ filepath: string; fileName?: string }>
+  ) {
+    const response = await apiClient.post<ExternalUploadConflictsResponse>(
+      "external-file-manager/upload-conflicts",
+      { items }
+    );
+    return response;
   },
 
   async notifyExternalFileUploaded(filepath: string, file: File) {
@@ -1112,6 +1179,21 @@ export const fileManagerApi = {
 
   async deleteExternalEntry(filepath: string) {
     return apiClient.post("external-file-manager/delete", { filepath });
+  },
+
+  async getFileManagerSettings() {
+    const response = await apiClient.get<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings"
+    );
+    return response.data;
+  },
+
+  async updateFileManagerSettings(payload: { cpDeleteLockDays?: number; cp_delete_lock_days?: number }) {
+    const response = await apiClient.getInstance().patch<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings",
+      payload
+    );
+    return response.data;
   },
 
   async createExternalFolder(
@@ -1582,6 +1664,21 @@ export const slugToWorkspaceName = (slug?: string) => {
 export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
   String(workspaceId || "").toLowerCase().startsWith("event_");
 
+export const isWorkflowPhaseFolderName = (value?: string | number) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  return ["pre-production", "preproduction", "post-production", "postproduction"].includes(normalized);
+};
+
+export const shouldShowCommonEventRootFolder = (
+  folder?: Pick<UiFolderItem, "rawName" | "title" | "fileCount" | "childFolderCount">
+) =>
+  !isWorkflowPhaseFolderName(folder?.rawName || folder?.title) ||
+  Number(folder?.fileCount || 0) > 0 ||
+  Number(folder?.childFolderCount || 0) > 0;
+
 export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) => {
   if (!visibleUntil) return true;
 
@@ -1607,9 +1704,10 @@ export const mapExternalWorkspaceToFolderCard = (
   userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
   href: `${basePath}/${workspace.externalId}`,
   resourcePath: workspace.rootPath,
+  createdAt: workspace.createdAt,
   updatedAtRaw: workspace.updatedAt || workspace.createdAt,
   visibleUntil: workspace.visibleUntil || null,
-  rawName: workspace.folderName,
+  rawName: workspace.storageFolderName || workspace.rootPath || workspace.folderName,
 });
 
 export const mapExternalFoldersToUi = (
@@ -1621,12 +1719,14 @@ export const mapExternalFoldersToUi = (
     title: prettifyExternalFolderName(folder.name),
     rawName: folder.name,
     fileCount: folder.fileCount || 0,
+    childFolderCount: folder.childFolderCount || 0,
     category: folder.folderType || "folder",
     isLinked: true,
     lastOpened: formatRelativeTime(folder.updatedAt || folder.createdAt),
   userInitials: getDisplayInitials(folder.name),
   href: buildHref(folder),
   resourcePath: folder.path,
+  createdAt: folder.createdAt,
   updatedAtRaw: folder.updatedAt || folder.createdAt,
 }));
 
@@ -1642,4 +1742,20 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     filepath: file.path,
     contentType: file.contentType || "application/octet-stream",
     metadata: file.metadata || {},
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+    updatedAtRaw: file.updatedAt || file.createdAt,
   }));
+
+export const canCreativePartnerDeleteFile = (
+  file: { createdAt?: string; updatedAtRaw?: string } | null | undefined,
+  lockDays = 7
+) => {
+  const normalizedLockDays = Math.max(0, Math.floor(Number(lockDays) || 0));
+  if (normalizedLockDays <= 0) return true;
+
+  const uploadedAt = new Date(file?.createdAt || file?.updatedAtRaw || "").getTime();
+  if (!Number.isFinite(uploadedAt)) return false;
+
+  return Date.now() - uploadedAt <= normalizedLockDays * 24 * 60 * 60 * 1000;
+};
