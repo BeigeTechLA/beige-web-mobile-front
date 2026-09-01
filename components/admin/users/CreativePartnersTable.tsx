@@ -1139,7 +1139,7 @@ export const CreativePartnersTable = () => {
         ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
         : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"}>
         {/* --- DESKTOP TABLE VIEW --- */}
-        <div className="hidden lg:block w-full overflow-x-auto overflow-y-hidden no-scrollbar">
+        <div className="hidden lg:block w-full overflow-x-auto overflow-y-hidden">
           <table className="w-full min-w-[1540px] border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>

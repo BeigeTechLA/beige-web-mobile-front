@@ -81,6 +81,24 @@ interface ExternalWorkspaceSummary {
   visibleUntil?: string | null;
 }
 
+type ExternalWorkspaceNameFields = {
+  folderName?: string;
+  displayName?: string;
+  storageFolderName?: string | null;
+  rootPath?: string | null;
+};
+
+export const getExternalWorkspaceDisplayName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(workspace?.displayName || workspace?.folderName || "").trim();
+
+export const getExternalWorkspaceStorageName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(
+    workspace?.storageFolderName ||
+    workspace?.rootPath ||
+    workspace?.folderName ||
+    ""
+  ).trim();
+
 interface ExternalWorkspaceFolder {
   name: string;
   path: string;
@@ -136,6 +154,52 @@ interface ExternalShareAccessLogItem {
   ipAddress?: string;
   userAgent?: string;
   createdAt?: string;
+}
+
+export interface ExternalFolderActivityLogItem {
+  id?: string;
+  _id?: string;
+  folderPath: string;
+  rootPath?: string;
+  action: "upload" | "delete";
+  actorUserId?: string | null;
+  actorName?: string;
+  actorEmail?: string | null;
+  fileCount: number;
+  totalSize: number;
+  targetPath?: string;
+  targetName?: string;
+  targetIsFolder?: boolean;
+  files?: Array<{
+    path?: string;
+    name?: string;
+    size?: number;
+    contentType?: string;
+    isFolder?: boolean;
+  }>;
+  createdAt?: string;
+}
+
+export interface ExternalFolderActivitySummaryItem {
+  userId?: string | null;
+  name: string;
+  fileCount: number;
+  totalSize: number;
+  events: number;
+}
+
+export interface ExternalFolderActivityResponse {
+  logs: ExternalFolderActivityLogItem[];
+  summary: {
+    uploads: ExternalFolderActivitySummaryItem[];
+    deletes: ExternalFolderActivitySummaryItem[];
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface FileManagerSettings {
@@ -502,6 +566,24 @@ const downloadBlob = (blob: Blob, filename: string) => {
     triggerBrowserDownload(objectUrl, filename);
   } finally {
     window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+  }
+};
+
+const getCurrentFileManagerUser = () => {
+  if (typeof window === "undefined") {
+    return { userId: undefined, authorName: undefined, userEmail: undefined };
+  }
+
+  try {
+    const raw = window.localStorage.getItem("revure_user");
+    if (!raw) return { userId: undefined, authorName: undefined, userEmail: undefined };
+    const user = JSON.parse(raw) as Record<string, unknown>;
+    const userId = String(user.id || user._id || user.user_id || "").trim() || undefined;
+    const authorName = String(user.name || user.full_name || user.email || "").trim() || undefined;
+    const userEmail = String(user.email || "").trim() || undefined;
+    return { userId, authorName, userEmail };
+  } catch {
+    return { userId: undefined, authorName: undefined, userEmail: undefined };
   }
 };
 
@@ -1054,20 +1136,23 @@ export const fileManagerApi = {
   },
 
   async notifyExternalFileUploaded(filepath: string, file: File) {
+    const currentUser = getCurrentFileManagerUser();
     return apiClient.post("external-file-manager/file-uploaded", {
       filepath,
       fileContentType: file.type,
       fileSize: file.size,
       fileName: file.name,
+      ...currentUser,
     });
   },
 
   async notifyExternalFilesUploadedBatch(
     items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>
   ) {
+    const currentUser = getCurrentFileManagerUser();
     const response = await apiClient.post<ExternalBatchFileUploadedResponse>(
       "external-file-manager/files-uploaded/batch",
-      { items }
+      { items, ...currentUser }
     );
     return response.data;
   },
@@ -1178,7 +1263,21 @@ export const fileManagerApi = {
   },
 
   async deleteExternalEntry(filepath: string) {
-    return apiClient.post("external-file-manager/delete", { filepath });
+    return apiClient.post("external-file-manager/delete", { filepath, ...getCurrentFileManagerUser() });
+  },
+
+  async getExternalFolderActivityLogs(params: {
+    folderPath?: string;
+    rootPath?: string;
+    page?: number;
+    limit?: number;
+    action?: "upload" | "delete";
+  }) {
+    const response = await apiClient.get<{ success: boolean; data: ExternalFolderActivityResponse }>(
+      "external-file-manager/folder-activity-logs",
+      params as Record<string, unknown>
+    );
+    return response.data;
   },
 
   async getFileManagerSettings() {
@@ -1694,21 +1793,28 @@ export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) 
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,
   basePath: string
-): UiFolderItem => ({
-  id: workspace.externalId,
-  title: workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName),
-  fileCount: workspace.fileCount || 0,
-  category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
-  isLinked: true,
-  lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
-  userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
-  href: `${basePath}/${workspace.externalId}`,
-  resourcePath: workspace.rootPath,
-  createdAt: workspace.createdAt,
-  updatedAtRaw: workspace.updatedAt || workspace.createdAt,
-  visibleUntil: workspace.visibleUntil || null,
-  rawName: workspace.storageFolderName || workspace.rootPath || workspace.folderName,
-});
+): UiFolderItem => {
+  const displayName = getExternalWorkspaceDisplayName(workspace);
+  const title = workspace.isCommonEvent
+    ? displayName
+    : formatFileManagerWorkspaceName(displayName);
+
+  return {
+    id: workspace.externalId,
+    title,
+    fileCount: workspace.fileCount || 0,
+    category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
+    isLinked: true,
+    lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
+    userInitials: getDisplayInitials(title),
+    href: `${basePath}/${workspace.externalId}`,
+    resourcePath: workspace.rootPath,
+    createdAt: workspace.createdAt,
+    updatedAtRaw: workspace.updatedAt || workspace.createdAt,
+    visibleUntil: workspace.visibleUntil || null,
+    rawName: getExternalWorkspaceStorageName(workspace),
+  };
+};
 
 export const mapExternalFoldersToUi = (
   folders: ExternalWorkspaceFolder[],

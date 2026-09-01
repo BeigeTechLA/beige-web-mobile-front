@@ -15,6 +15,7 @@ import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
@@ -94,7 +95,7 @@ export default function CreatorFolderDetailsPage() {
         setHasCreatedCpFolders(null);
         return;
       }
-      setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       const mappedFolders = mapExternalFoldersToUi(

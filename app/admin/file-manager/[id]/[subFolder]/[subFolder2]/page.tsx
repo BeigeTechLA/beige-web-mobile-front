@@ -32,6 +32,7 @@ import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoard";
@@ -40,6 +41,8 @@ import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
+  getExternalWorkspaceStorageName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
@@ -185,6 +188,8 @@ export default function SubFolderDetailsPage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<any | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<typeof viewerFile>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
@@ -226,12 +231,8 @@ export default function SubFolderDetailsPage() {
         currentPhase,
         folderPath
       );
-      setWorkspaceName(workspaceData.workspace.folderName);
-      setWorkspaceStorageName(
-        workspaceData.workspace.storageFolderName ||
-        workspaceData.workspace.rootPath ||
-        workspaceData.workspace.folderName
-      );
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
+      setWorkspaceStorageName(getExternalWorkspaceStorageName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setFolders(workspaceData.folders || []);
@@ -1328,6 +1329,23 @@ export default function SubFolderDetailsPage() {
           contentType={viewerFile?.contentType}
           isDark={isDark}
           fileMetaId={viewerFile?.filepath || null}
+          onOpenLightbox={() => {
+            setLightboxFile(viewerFile);
+            setLightboxUrl(viewerUrl);
+          }}
+        />
+
+        <MediaLightboxModal
+          isOpen={!!lightboxFile}
+          onClose={() => {
+            setLightboxFile(null);
+            setLightboxUrl(null);
+          }}
+          fileName={lightboxFile?.title}
+          fileUrl={lightboxUrl}
+          contentType={lightboxFile?.contentType}
+          fileMetaId={lightboxFile?.filepath || null}
+          isDark={isDark}
         />
 
         <ShareResourceModal

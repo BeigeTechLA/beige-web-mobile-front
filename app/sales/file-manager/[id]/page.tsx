@@ -16,6 +16,7 @@ import { useViewMode } from "@/hooks/useViewMode";
 
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
   getDisplayInitials,
   mapExternalFoldersToUi,
   type UiFolderItem,
@@ -79,7 +80,7 @@ export default function SalesFolderDetailsPage() {
         setFolders([]);
         return;
       }
-      setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
       setFolders(

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Clock3, Download, ExternalLink, FileText, Loader2, MessageSquare, Reply, Send, Trash2, X } from "lucide-react";
+import { Clock3, Download, ExternalLink, FileText, Loader2, Maximize2, MessageSquare, Reply, Send, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { fileManagerApi, type FileCommentItem } from "@/lib/fileManagerApi";
@@ -15,6 +15,7 @@ interface FileViewerModalProps {
   contentType?: string;
   fileMetaId?: string | null;
   isDark?: boolean;
+  onOpenLightbox?: () => void;
 }
 
 const isImage = (contentType?: string, fileName?: string) => {
@@ -234,7 +235,8 @@ export default function FileViewerModal({
   fileUrl,
   contentType,
   fileMetaId,
-  isDark = true
+  isDark = true,
+  onOpenLightbox
 }: FileViewerModalProps) {
   const { user } = useAuth();
   const currentUserId = user?.id != null ? String(user.id) : null;
@@ -343,21 +345,21 @@ export default function FileViewerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={`left-auto right-2 top-2 h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[520px] translate-x-0 translate-y-0 gap-0 flex flex-col rounded-2xl border p-0 shadow-2xl sm:rounded-2xl lg:right-3 lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:max-h-[calc(100dvh-1.5rem)] [&>button:last-child]:hidden ${
-        isDark ? "border-white/10 bg-black text-white" : "border-black/10 bg-white text-black"
+      <DialogContent className={`left-auto right-2 top-2 h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] sm:w-[560px] md:w-[620px] lg:w-[680px] xl:w-[740px] 2xl:w-[780px] max-w-[min(94vw,780px)] translate-x-0 translate-y-0 gap-0 flex flex-col rounded-2xl border p-0 shadow-2xl sm:rounded-2xl lg:right-3 lg:top-3 lg:h-[calc(100dvh-1.5rem)] lg:max-h-[calc(100dvh-1.5rem)] [&>button:last-child]:hidden ${
+        isDark ? "border-white/10 bg-[#0e0e0e] text-white" : "border-black/10 bg-white text-black"
       }`}>
         <div className="flex h-full flex-col">
-          <div className={`shrink-0 border-b px-5 py-5 ${isDark ? "border-white/10" : "border-black/10"}`}>
+          <div className={`shrink-0 border-b px-6 py-5 ${isDark ? "border-white/10" : "border-black/10"}`}>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogTitle className={`truncate text-lg font-semibold leading-6 ${textContrastClass}`}>
-                  {fileName || "File Viewer"}
+                  {fileName || "File Details"}
                 </DialogTitle>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${isDark ? "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#86EFAC]" : "border-green-200 bg-green-50 text-green-700"}`}>
+                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${isDark ? "border-[#22C55E]/30 bg-[#22C55E]/15 text-[#86EFAC]" : "border-green-200 bg-green-50 text-green-700"}`}>
                     {currentVersionLabel}
                   </span>
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${isDark ? "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
+                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${isDark ? "border-[#3B82F6]/30 bg-[#3B82F6]/15 text-[#93C5FD]" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
                     {fileTypeLabel}
                   </span>
                 </div>
@@ -365,31 +367,45 @@ export default function FileViewerModal({
               <button
                 type="button"
                 onClick={onClose}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 [scrollbar-gutter:stable]">
             <div className="mb-4 flex flex-wrap items-center gap-2">
+              {fileUrl && onOpenLightbox ? (
+                <button
+                  type="button"
+                  onClick={onOpenLightbox}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+                    isDark
+                      ? "border-[#E5D5B8]/30 bg-[#E5D5B8]/15 text-[#E5D5B8] hover:bg-[#E5D5B8]/25"
+                      : "border-[#B18A00]/30 bg-[#B18A00]/15 text-[#B18A00] hover:bg-[#B18A00]/25"
+                  }`}
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  Full Image View
+                </button>
+              ) : null}
               {fileUrl ? (
                 <a
                   href={fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-[11px] font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Open
+                  Open in New Tab
                 </a>
               ) : null}
               {fileUrl ? (
                 <a
                   href={fileUrl}
                   download={fileName}
-                  className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-[11px] font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition ${isDark ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10" : "border-black/10 bg-black/[0.03] text-black/75 hover:bg-black/[0.06]"}`}
                 >
                   <Download className="h-3.5 w-3.5" />
                   Download
@@ -397,31 +413,48 @@ export default function FileViewerModal({
               ) : null}
             </div>
 
-            <div className={`mb-4 overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
-              <div className="flex min-h-[220px] items-center justify-center p-2">
+            <div className={`mb-5 overflow-hidden rounded-2xl border transition-all ${isDark ? "border-white/10 bg-[#161616]" : "border-black/10 bg-black/[0.02]"}`}>
+              <div className="relative flex min-h-[260px] max-h-[440px] items-center justify-center p-3 group/preview">
                 {!fileUrl ? (
                   <div className={`flex items-center gap-2 text-sm ${secondaryTextClass}`}>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading file...
                   </div>
                 ) : isImage(contentType, fileName) ? (
-                  <img
-                    src={fileUrl}
-                    alt={fileName || "Preview"}
-                    className="max-h-[290px] w-full rounded-xl object-contain"
-                  />
+                  <div
+                    className="relative w-full h-full flex items-center justify-center cursor-pointer overflow-hidden rounded-xl"
+                    onClick={onOpenLightbox}
+                    title="Click to view full image"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={fileUrl}
+                      alt={fileName || "Preview"}
+                      className="max-h-[380px] w-full rounded-xl object-contain transition-transform duration-300 group-hover/preview:scale-[1.02]"
+                    />
+                    {onOpenLightbox && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/preview:opacity-100 transition-opacity duration-200 backdrop-blur-[2px] rounded-xl">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 hover:bg-white text-white hover:text-black px-4 py-2 text-xs font-semibold backdrop-blur-md border border-white/30 shadow-xl transition transform hover:scale-105">
+                          <Maximize2 className="h-4 w-4" />
+                          Click to view full image
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 ) : isVideo(contentType, fileName) ? (
-                  <video
-                    ref={videoRef}
-                    src={fileUrl}
-                    controls
-                    className="max-h-[290px] w-full rounded-xl bg-black object-contain"
-                  />
+                  <div className="relative w-full flex items-center justify-center">
+                    <video
+                      ref={videoRef}
+                      src={fileUrl}
+                      controls
+                      className="max-h-[380px] w-full rounded-xl bg-black object-contain shadow-lg"
+                    />
+                  </div>
                 ) : isPdf(contentType, fileName) ? (
                   <iframe
                     src={fileUrl}
                     title={fileName || "PDF preview"}
-                    className={`h-[290px] w-full rounded-xl border ${isDark ? "border-transparent bg-white" : "border-black/10 bg-white"}`}
+                    className={`h-[360px] w-full rounded-xl border ${isDark ? "border-transparent bg-white" : "border-black/10 bg-white"}`}
                   />
                 ) : (
                   <div className={`flex flex-col items-center justify-center gap-3 py-10 text-center text-sm ${secondaryTextClass}`}>
@@ -432,7 +465,7 @@ export default function FileViewerModal({
               </div>
             </div>
 
-            <div className={`mb-4 grid grid-cols-2 gap-4 rounded-2xl border p-5 ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
+            <div className={`mb-5 grid grid-cols-3 gap-3 sm:gap-4 rounded-2xl border p-4 sm:p-5 ${isDark ? "border-white/10 bg-[#161616]" : "border-black/10 bg-black/[0.02]"}`}>
               <div>
                 <p className={`text-[11px] ${isDark ? "text-white/35" : "text-black/40"}`}>Last updated</p>
                 <p className={`mt-1 truncate text-xs font-medium ${textContrastClass}`}>Recently</p>
@@ -447,7 +480,7 @@ export default function FileViewerModal({
               </div>
             </div>
 
-            <div className={`mb-4 flex flex-col overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#181818]" : "border-black/10 bg-black/[0.02]"}`}>
+            <div className={`mb-4 flex flex-col overflow-hidden rounded-2xl border ${isDark ? "border-white/10 bg-[#161616]" : "border-black/10 bg-black/[0.02]"}`}>
               <div className="shrink-0 flex items-center gap-2 px-5 py-4">
                 <MessageSquare className={`h-4 w-4 ${isDark ? "text-[#E5D5B8]" : "text-[#B18A00]"}`} />
                 <h3 className={`text-sm font-semibold ${textContrastClass}`}>Comments</h3>

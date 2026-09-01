@@ -35,11 +35,14 @@ import UploadModal from "@/components/admin/file-manager/UploadFilesModal";
 import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderModal";
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
   canCreativePartnerDeleteFile,
+  getExternalWorkspaceDisplayName,
+  getExternalWorkspaceStorageName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFilesToUi,
@@ -123,6 +126,8 @@ export default function CreatorSubFolderDetailsPage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [viewerFile, setViewerFile] = useState<Record<string, unknown> | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<Record<string, unknown> | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<Record<string, unknown> | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<Record<string, unknown> | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
@@ -172,12 +177,8 @@ export default function CreatorSubFolderDetailsPage() {
         isCommonEventRootFolder ? undefined : phaseSlug === "post-production" ? "post" : "pre",
         currentFolderPath
       );
-      setWorkspaceName(workspaceData.workspace.folderName);
-      setWorkspaceStorageName(
-        workspaceData.workspace.storageFolderName ||
-        workspaceData.workspace.rootPath ||
-        workspaceData.workspace.folderName
-      );
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
+      setWorkspaceStorageName(getExternalWorkspaceStorageName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setFolders(workspaceData.folders || []);
       setFiles(workspaceData.files);
@@ -401,6 +402,25 @@ export default function CreatorSubFolderDetailsPage() {
       console.error("Failed to open file:", error);
     } finally {
       setOpeningFileId(null);
+    }
+  };
+
+  const handleQuickView = async (file: Record<string, unknown>) => {
+    if (!file || typeof file.id !== "string") return;
+    const existingUrl = previewUrls[file.id] || (typeof file.previewUrl === "string" ? file.previewUrl : null);
+    setLightboxFile(file);
+    if (existingUrl) {
+      setLightboxUrl(existingUrl);
+    }
+    if (typeof file.filepath === "string") {
+      try {
+        const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+        if (result?.url) {
+          setLightboxUrl(result.url);
+        }
+      } catch (error) {
+        console.error("Failed to load quick view media URL:", error);
+      }
     }
   };
 
@@ -1343,6 +1363,7 @@ export default function CreatorSubFolderDetailsPage() {
                           }}
                           stage={fileCardStage}
                           onOpen={selectionLockActive ? undefined : () => handleOpenFile(file as unknown as Record<string, unknown>)}
+                          onQuickView={selectionLockActive ? undefined : () => handleQuickView(file as unknown as Record<string, unknown>)}
                           onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file as unknown as Record<string, unknown>)}
                           onUploadEdited={
                             !selectionLockActive && isSelectedForEditsFolder && revisionState.nextUploadVersion
@@ -1463,6 +1484,23 @@ export default function CreatorSubFolderDetailsPage() {
           fileUrl={viewerUrl}
           contentType={typeof viewerFile?.contentType === "string" ? viewerFile.contentType : undefined}
           fileMetaId={typeof viewerFile?.filepath === "string" ? viewerFile.filepath : null}
+          isDark={isDark}
+          onOpenLightbox={() => {
+            setLightboxFile(viewerFile);
+            setLightboxUrl(viewerUrl);
+          }}
+        />
+
+        <MediaLightboxModal
+          isOpen={!!lightboxFile}
+          onClose={() => {
+            setLightboxFile(null);
+            setLightboxUrl(null);
+          }}
+          fileName={typeof lightboxFile?.title === "string" ? lightboxFile.title : undefined}
+          fileUrl={lightboxUrl}
+          contentType={typeof lightboxFile?.contentType === "string" ? lightboxFile.contentType : undefined}
+          fileMetaId={typeof lightboxFile?.filepath === "string" ? lightboxFile.filepath : null}
           isDark={isDark}
         />
 
