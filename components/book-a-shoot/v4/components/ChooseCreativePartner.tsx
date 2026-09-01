@@ -519,18 +519,15 @@ export default function ChooseCreativePartner({
     const selectedCreators = creators.filter(c => ids.includes(c.crew_member_id));
     let videoCount = 0;
     let photoCount = 0;
-    const both: Creator[] = [];
 
     selectedCreators.forEach(c => {
       const caps = getCreatorCapabilities(c);
       const assignedRole = roleAssignments[c.crew_member_id];
 
-      if (assignedRole === "video") videoCount++;
-      if (assignedRole === "photo") photoCount++;
+      if (assignedRole === "video" && caps.isVideo) videoCount++;
+      if (assignedRole === "photo" && caps.isPhoto) photoCount++;
 
-      if (!assignedRole && caps.isVideo && caps.isPhoto) {
-        both.push(c);
-      } else if (!assignedRole) {
+      if (!assignedRole && !(caps.isVideo && caps.isPhoto)) {
         const flexibleCreator = c as FlexibleCreator;
         const role = (c.role_name || flexibleCreator.role?.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
@@ -551,11 +548,24 @@ export default function ChooseCreativePartner({
     if (!caps.isVideo && caps.isPhoto) return "photo";
     if (!caps.isVideo && !caps.isPhoto) return null;
 
-    if (currentCounts.video < requirements.required.video) {
+    const needsVideo = currentCounts.video < requirements.required.video;
+    const needsPhoto = currentCounts.photo < requirements.required.photo;
+
+    if (needsVideo && !needsPhoto) {
       return "video";
     }
 
-    return currentCounts.video <= currentCounts.photo ? "video" : "photo";
+    if (needsPhoto && !needsVideo) {
+      return "photo";
+    }
+
+    if (needsVideo && needsPhoto) {
+      const remainingVideo = requirements.required.video - currentCounts.video;
+      const remainingPhoto = requirements.required.photo - currentCounts.photo;
+      return remainingVideo >= remainingPhoto ? "video" : "photo";
+    }
+
+    return null;
   };
 
   const toggleSelection = (id: number) => {
