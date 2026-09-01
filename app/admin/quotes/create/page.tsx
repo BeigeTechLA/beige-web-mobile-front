@@ -4533,7 +4533,7 @@ function CreateQuotePageContent() {
     router.push(targetUrl);
   }, [effectiveQuoteId, previewQuoteId, router, shouldRedirectToSummaryAfterPreviewClose]);
 
-  const handleConvertToBooking = () => {
+  const handleConvertToBooking = async () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -4542,18 +4542,49 @@ function CreateQuotePageContent() {
       return;
     }
 
-    const directBookingData = buildConvertBookingModalInitialDataFromSchedule(
-      effectiveBookingSchedule,
-      address,
-    );
+    setIsConverting(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedInvoiceQuoteId);
 
-    if (directBookingData) {
-      void handleConvertBookingSubmit(directBookingData);
-      return;
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking",
+        );
+      }
+
+      const bookingId =
+        response.data?.booking_id !== undefined &&
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+
+      if (bookingId) {
+        setConvertedBookingIdOverride(bookingId);
+      }
+      setIsConvertedOverride(true);
+      setQuoteToEdit((current) =>
+        current
+          ? {
+            ...current,
+            ...(bookingId ? { booking_id: bookingId } : {}),
+          }
+          : current,
+      );
+
+      toast.success(
+        `Converted to booking${bookingId ? ` #${bookingId}` : ""}`,
+      );
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking",
+      );
+    } finally {
+      setIsConverting(false);
     }
-
-    setConvertIntent("convert_only");
-    setIsConvertModalOpen(true);
   };
 
   const handleConvertBookingSubmit = async (

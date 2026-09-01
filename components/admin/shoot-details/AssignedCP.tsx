@@ -129,6 +129,15 @@ export default function AssignedCP({
     goToAddCreatives();
   };
 
+  const handleViewProfile = (crewMemberId: number) => {
+    const returnTo = pathname ? encodeURIComponent(pathname) : "";
+    router.push(
+      returnTo
+        ? `/admin/users/creative-partners/${crewMemberId}?returnTo=${returnTo}`
+        : `/admin/users/creative-partners/${crewMemberId}`
+    );
+  };
+
   const handleRemoveCP = async (crewMemberId: number) => {
     if (!canRemoveCP) return;
 
@@ -277,7 +286,7 @@ export default function AssignedCP({
                           <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
                             <button
                               type="button"
-                              onClick={() => router.push(`/admin/users/creative-partners/${crewMemberId}`)}
+                              onClick={() => handleViewProfile(crewMemberId)}
                               className="h-8 px-3 py-1.5 bg-white text-black hover:bg-zinc-200 text-[10px] font-semibold rounded-full shadow transition-all"
                             >
                               View Profile
