@@ -30,6 +30,7 @@ interface UploadQueueItem {
 const MAX_PARALLEL_UPLOADS = Math.max(1, Number(process.env.NEXT_PUBLIC_FILE_UPLOAD_PARALLELISM || 3));
 const UPLOAD_POLICY_BATCH_SIZE = Math.max(10, Number(process.env.NEXT_PUBLIC_UPLOAD_POLICY_BATCH_SIZE || 100));
 const UPLOAD_METADATA_BATCH_SIZE = Math.max(10, Number(process.env.NEXT_PUBLIC_UPLOAD_METADATA_BATCH_SIZE || 100));
+const UPLOAD_POLICY_SIZE_BUFFER_BYTES = 1024 * 1024;
 
 const chunkArray = <T,>(items: T[], size: number) => {
   const chunks: T[][] = [];
@@ -266,7 +267,7 @@ export default function SharedUploadFilesModal({
             fileName,
             filepath,
             fileContentType,
-            fileSize,
+            fileSize: fileSize + UPLOAD_POLICY_SIZE_BUFFER_BYTES,
             phase: filepath ? undefined : phase,
             path: filepath ? undefined : path,
           })),
@@ -296,7 +297,7 @@ export default function SharedUploadFilesModal({
         fileName: string;
       }> = [];
 
-      await runWithConcurrency(filesToUpload, MAX_PARALLEL_UPLOADS, async (item) => {
+      await runWithConcurrency(filesToUpload, Math.min(1, MAX_PARALLEL_UPLOADS), async (item) => {
         const filepath = policyPathById.get(item.id);
         setFileStatus(item.id, "uploading");
         if (!filepath || policyFailedPaths.has(filepath) || !policyByFilePath.has(filepath)) {
