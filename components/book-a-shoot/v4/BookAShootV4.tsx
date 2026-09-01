@@ -21,6 +21,11 @@ import AddOnsStep from "./components/AddOnsStep";
 import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
+import StudioRecommendations from "./components/StudioRecommendations";
+import BrowseStudioTypes from "./components/BrowseStudioTypes";
+import StudioAddSuccess from "./components/StudioAddSuccess";
+import StudiosSelection from "./components/StudiosSelection";
+import StudioScheduleSync from "./components/StudioScheduleSync";
 
 import type { Creator } from "@/lib/types";
 import type { QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
