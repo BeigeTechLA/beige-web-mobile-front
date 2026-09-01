@@ -4,7 +4,7 @@ import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine, Instagram, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
@@ -95,6 +95,7 @@ function EventDot({ color, label }: any) {
 
 export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true, onboardingStatus }: ProfileProps) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -154,6 +155,16 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
     if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
 
     return fullUrl;
+  };
+
+  const handleBack = () => {
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
+
+    router.push("/admin/users/creative-partners");
   };
 
   useEffect(() => {
@@ -819,7 +830,7 @@ return (
       {!hideActions && (
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
-            onClick={() => router.push("/admin/users/creative-partners")}
+            onClick={handleBack}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
