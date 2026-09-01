@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
+import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { FileCard } from "@/components/admin/file-manager/FileCard";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
@@ -201,6 +202,8 @@ export default function AffiliateFileManager() {
   const [viewerType, setViewerType] = useState("");
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerMetaId, setViewerMetaId] = useState<string | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<BrowserFile | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isFaceScanning, setIsFaceScanning] = useState(false);
   const [faceMatches, setFaceMatches] = useState<FaceMatchItem[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -471,6 +474,25 @@ export default function AffiliateFileManager() {
       setViewerUrl(response.url || null);
     } catch {
       setViewerOpen(false);
+    }
+  };
+
+  const handleQuickView = async (file: BrowserFile) => {
+    if (!file) return;
+    const existingUrl = previewUrls[file.id] || file.previewUrl || null;
+    setLightboxFile(file);
+    if (existingUrl) {
+      setLightboxUrl(existingUrl);
+    }
+    if (file.filepath) {
+      try {
+        const response = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+        if (response?.url) {
+          setLightboxUrl(response.url);
+        }
+      } catch (err) {
+        console.error("Failed to load quick view media URL:", err);
+      }
     }
   };
 
@@ -1828,6 +1850,7 @@ export default function AffiliateFileManager() {
       }}
       stage={fileCardStage}
       onOpen={selectionLockActive ? undefined : () => handleOpenFile(file)}
+      onQuickView={selectionLockActive ? undefined : () => handleQuickView(file)}
       onDownload={selectionLockActive ? undefined : () => handleDownloadFile(file)}
       isSelected={
         isSelectionMode && selectedFilePaths.includes(file.filepath || "")
@@ -2435,6 +2458,29 @@ export default function AffiliateFileManager() {
         fileUrl={viewerUrl}
         contentType={viewerType}
         fileMetaId={viewerMetaId}
+        isDark={isDark}
+        onOpenLightbox={() => {
+          setLightboxFile({
+            id: viewerMetaId || "current",
+            title: viewerName,
+            contentType: viewerType,
+            filepath: viewerMetaId || undefined,
+            name: viewerName,
+          } as BrowserFile);
+          setLightboxUrl(viewerUrl);
+        }}
+      />
+
+      <MediaLightboxModal
+        isOpen={!!lightboxFile}
+        onClose={() => {
+          setLightboxFile(null);
+          setLightboxUrl(null);
+        }}
+        fileName={lightboxFile?.title || viewerName}
+        fileUrl={lightboxUrl || viewerUrl}
+        contentType={lightboxFile?.contentType || viewerType}
+        fileMetaId={lightboxFile?.filepath || viewerMetaId}
         isDark={isDark}
       />
     </div>
