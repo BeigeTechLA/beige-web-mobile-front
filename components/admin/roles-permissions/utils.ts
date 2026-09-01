@@ -32,11 +32,24 @@ export const normalizeModuleKeyToRowId = (moduleKey: string) =>
 export const normalizeRowIdToModuleKey = (rowId: string) =>
   rowId.replace(/-/g, "_");
 
+const MODULE_LABEL_ACRONYMS = new Set(["cp"]);
+
 export const formatModuleLabel = (moduleKey: string) =>
   moduleKey
     .split("_")
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => {
+      const normalized = part.trim();
+      if (!normalized) return "";
+      if (MODULE_LABEL_ACRONYMS.has(normalized.toLowerCase())) {
+        return normalized.toUpperCase();
+      }
+      if (/^[A-Z0-9]+$/.test(normalized)) {
+        return normalized;
+      }
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .filter(Boolean)
     .join(" ");
 
 const getAllowedActions = (row: PermissionMatrixRow) =>
