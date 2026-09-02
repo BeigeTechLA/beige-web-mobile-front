@@ -17,6 +17,7 @@ import {
   useSearchCreatorsQuery,
 } from "@/lib/redux/features/creators/creatorsApi";
 import CreatorCarousel from "./CreatorsCarousel";
+import Image from "next/image";
 
 interface ChooseCreativePartnerProps {
   onBack: () => void;
@@ -683,38 +684,12 @@ export default function ChooseCreativePartner({
     return (
       <div className="w-full min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         {/* Glow & Sparkle Animation */}
-        <div className="relative w-32 h-32 mb-8">
-          {/* Animated Logo Ring */}
-          <svg className="w-full h-full" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#333"
-              strokeWidth="2"
-            />
-            <motion.circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#E8D1AB"
-              strokeWidth="2"
-              strokeLinecap="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: progress / 100 }}
-              transition={{ duration: 0.1 }}
-              style={{ rotate: -90, transformOrigin: "center" }}
-            />
-          </svg>
-
-          {/* Center Logo Icon */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 bg-[#E8D1AB] rounded-full flex items-center justify-center text-black font-bold text-xl">
-              B
-            </div>
-          </div>
+        <div className="relative w-60 h-60 lg:w-100 lg:h-100 mb-5 lg:mb-8 [mask-image:radial-gradient(circle,black_30%,transparent_100%)]">
+          <Image
+            src={"/images/misc/BookingFlow/sparkleLoader.gif"}
+            alt="Loader gif"
+            fill
+          />
         </div>
 
         <h2 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white">
