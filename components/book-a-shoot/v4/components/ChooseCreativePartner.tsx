@@ -23,6 +23,10 @@ interface ChooseCreativePartnerProps {
   onContinue: (selectedCreatives: Creator[], letBeigeChoose: boolean) => void;
   requiredCount?: number;
   contentTypes?: string[];
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
   locationLatitude?: number;
   locationLongitude?: number;
   requiredRoles?: {
@@ -327,7 +331,7 @@ const MOCK_CREATIVES = [
     "distance": 6.2,
     "distanceText": "6.2 mi"
   }
-];
+] as unknown as Creator[];
 
 export default function ChooseCreativePartner({
   onBack,
@@ -339,6 +343,10 @@ export default function ChooseCreativePartner({
   requiredRoles,
   initialSelectedCreatives = [],
   initialLetBeigeChoose = false,
+  title = "Choose Your Creative Partner",
+  subtitle = "Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.",
+  stepNumber = "07",
+  completionPercentage = 80,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedIds, setSelectedIds] = useState<number[]>(
@@ -368,7 +376,6 @@ export default function ChooseCreativePartner({
 
     return () => clearInterval(timer);
   }, []);
-
 
   useEffect(() => {
     if (!profileModalUrl || typeof window === "undefined") return;
@@ -710,7 +717,7 @@ export default function ChooseCreativePartner({
           </div>
         </div>
 
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white">
+        <h2 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white">
           Finding Creative Partners for Your Shoot
         </h2>
       </div>
@@ -726,35 +733,38 @@ export default function ChooseCreativePartner({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 07
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-5/6 bg-[#E8D1AB] transition-all duration-300" />
+          <div
+            className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
-          Choose Your Creative Partner
+      <div className="mb-5 lg:mb-8">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+          {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
-          Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.
+        <p className="text-white/30 text-sm md:text-xl font-light">
+          {subtitle}
         </p>
       </div>
 
       {/* 3D Carousel Section */}
-      <div className="relative w-full flex items-center justify-center min-h-[460px]">
+      <div className="relative w-full flex items-center justify-center lg:min-h-[460px]">
         {filteredCreators.length > 0 ? (
           <CreatorCarousel
             creators={filteredCreators}
@@ -775,36 +785,36 @@ export default function ChooseCreativePartner({
       <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
         <button
           onClick={handleLetBeigeChoose}
-          className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-2 transition bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]`}
+          className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-2 transition bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]`}
         >
-          <Sparkles className="w-4 h-4 lg:w-7 lg:h-7 text-black" strokeWidth={1} />
+          <Sparkles className="w-5 h-5 lg:w-7 lg:h-7 text-black" strokeWidth={1} />
           Let Beige Choose.
         </button>
 
-        <div className="px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-          <Camera className="w-4 h-4 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+          <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
           <span>
-            Photo: {String(selectedCounts.photo).padStart(2, "0")}/
+            Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
             {String(requirements.required.photo).padStart(2, "0")}
           </span>
         </div>
 
-        <div className="px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-          <Video className="w-4 h-4 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+          <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
           <span>
-            Video: {String(selectedCounts.video).padStart(2, "0")}/
+            Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
             {String(requirements.required.video).padStart(2, "0")}
           </span>
         </div>
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-10 mt-12 border-t border-white/10 flex flex-wrap items-center lg:justify-between gap-2.5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-6 lg:px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -820,7 +830,7 @@ export default function ChooseCreativePartner({
               letBeigeChoose
             )
           }
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-5 lg:px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue with {String(selectedIds.length).padStart(2, "0")} Creatives
         </button>

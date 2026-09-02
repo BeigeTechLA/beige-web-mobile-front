@@ -317,7 +317,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       >
         <label
           style={{ backgroundColor: colors.inputBg, color: hasError ? colors.errorText : colors.labelText }}
-          className="absolute -top-3 left-4 px-2 text-base transition-colors duration-300"
+          className="absolute -top-2 lg:-top-3 left-4 px-2 text-xs lg:text-base transition-colors duration-300"
         >
           {label}
         </label>
