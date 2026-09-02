@@ -2258,6 +2258,36 @@ export const adminApi = {
       };
     }
   },
+  getProjectsBoard: async (params: {
+    status?: string;
+    range?: string;
+    start_date?: string;
+    end_date?: string;
+    date_on?: string;
+    search?: string;
+    category?: string;
+    cp_assignment?: string;
+    payment_filter?: string;
+    production_filter?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('admin/get-projects-board', {
+        params,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Projects Board Error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch projects board',
+      };
+    }
+  },
   exportShootsCsv: async (
   params: {
     start_date?: string;
@@ -3510,6 +3540,8 @@ export const salesApi = {
     search?: string;
     start_date?: string;
     end_date?: string;
+    created_start_date?: string;
+    created_end_date?: string;
     intent?: string;
     cp_assignment?: string;
     production_filter?: string;
@@ -3535,6 +3567,8 @@ export const salesApi = {
     search?: string;
     start_date?: string;
     end_date?: string;
+    created_start_date?: string;
+    created_end_date?: string;
     intent?: string;
     cp_assignment?: string;
     production_filter?: string;
