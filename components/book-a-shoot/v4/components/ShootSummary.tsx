@@ -244,7 +244,7 @@ export default function ShootSummaryStep({
 
       <div className="flex flex-col gap-4">
         {/* Studio Data Card : Conditionally present Journey 2 */}
-        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        {/* <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
             <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Studios
@@ -324,7 +324,7 @@ export default function ShootSummaryStep({
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Project Card */}
         <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
@@ -427,7 +427,7 @@ export default function ShootSummaryStep({
         </div>
 
         {/* Studio Data Card : Conditionally present Journey 1 */}
-        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+        {/* <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
           <div className="flex items-center justify-between">
             <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Studios
@@ -507,10 +507,10 @@ export default function ShootSummaryStep({
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Dynamic Professional Creatives Swiper Card */}
-        <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) py-4 lg:py-7 overflow-hidden">
+        {/* <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) py-4 lg:py-7 overflow-hidden">
           <div className="flex items-center justify-between px-4 lg:px-7">
             <h2 className="text-sm lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
               Professional Creatives
@@ -518,7 +518,7 @@ export default function ShootSummaryStep({
           </div>
           <hr className="border-t border-white/20 my-4 lg:my-7" />
 
-          {/* Dynamic Swiper Section */}
+          Dynamic Swiper Section
           <div className="relative w-full">
             {creativesList.length > 0 ? (
               <Swiper
@@ -562,7 +562,7 @@ export default function ShootSummaryStep({
             )}
           </div>
 
-          {/* Active Creative Details Display */}
+          Active Creative Details Display
           {activeCreative && (
             <div className="w-full flex flex-col items-center justify-center gap-1 mt-3 text-center">
               <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
@@ -573,7 +573,7 @@ export default function ShootSummaryStep({
               </p>
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Add-ons & Included Services Row */}
         <div className="flex flex-col lg:flex-row gap-4">

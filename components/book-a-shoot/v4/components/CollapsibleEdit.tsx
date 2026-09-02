@@ -115,8 +115,8 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-[#211F1C] py-3 px-5 lg:py-5.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
-                    ➕ <span>{totalExtra} Added Extra</span>
+                  <div className="flex items-center gap-1.5 bg-[#211F1C] py-3 px-5 lg:py-5.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
+                    <Plus strokeWidth={4} className="text-[#464646] w-3.5 h-3.5 lg:w-5.5 lg:h-5.5" /> <span>{totalExtra} Added Extra</span>
                   </div>
                 </div>
               </div>
