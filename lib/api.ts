@@ -45,6 +45,7 @@ export type AdminRoleRecord = {
   role_id: number;
   name: string;
   description: string | null;
+  is_internal_member?: number;
   is_system: number;
   is_active: number;
   created_by: number | null;
@@ -127,6 +128,7 @@ export type UserRoleDetailsResponse = {
     email: string;
     user_type: number | null;
     user_type_name: string | null;
+    is_internal_member?: number;
     is_active: number;
     status_label: 'Active' | 'In-Active';
     created_at: string | null;
@@ -136,6 +138,7 @@ export type UserRoleDetailsResponse = {
     role_id: number | null;
     name: string | null;
     description?: string | null;
+    is_internal_member?: number;
     is_active?: number;
     created_at?: string | null;
     updated_at?: string | null;
@@ -143,6 +146,8 @@ export type UserRoleDetailsResponse = {
   display_role: string | null;
   archive_history?: ArchiveHistoryRecord[];
   permissions: Record<string, Record<string, boolean>>;
+  role_permissions?: Record<string, Record<string, boolean>>;
+  user_permissions?: Record<string, Record<string, boolean>>;
 };
 
 export type ShiftManagementApiResponse<T = unknown> = {

@@ -1,13 +1,13 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, type LucideIcon, Receipt, Settings, User, CalendarRange, Save } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, CircleDollarSign, DollarSign, X, Receipt, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission, isSuperAdminUser } from '@/lib/permissions';
+import { hasModulePermission } from '@/lib/permissions';
 import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
@@ -43,7 +43,16 @@ const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   );
 };
 
-const menuItems = [
+type MenuItem = {
+  name: string;
+  icon: React.ElementType<{ size?: number; isActive?: boolean }>;
+  link?: string;
+  children?: { name: string; link: string; isDisabled?: boolean }[];
+  isDisabled?: boolean;
+  permissionKeys?: string[];
+};
+
+const menuItems: MenuItem[] = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
@@ -105,13 +114,23 @@ const menuItems = [
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
 
-type MenuItem = {
-  name: string;
-  icon: LucideIcon;
-  link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean }[];
-  isDisabled?: boolean;
-  permissionKeys?: string[];
+const USER_TYPE_LABELS: Record<number, string> = {
+  1: "Admin",
+  5: "Sales Representative",
+  6: "Production Manager",
+  7: "Sales Admin",
+  8: "Super Admin",
+};
+
+const formatRoleLabel = (value?: string | null) => {
+  if (!value) return "";
+
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 };
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -159,10 +178,11 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   }, [pathname, onClose]);
 
   const isDark = !mounted || theme === "dark";
+  const userTypeId = Number(user?.user_type_id ?? user?.userTypeId);
   const userRoleLabel =
-    user?.user_type_id === 8 || user?.userTypeId === 8
-      ? "Super Admin"
-      : "Admin";
+    formatRoleLabel(user?.role ?? user?.userRole) ||
+    USER_TYPE_LABELS[userTypeId] ||
+    "Admin";
 
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
@@ -260,10 +280,6 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto mb-6 pr-2 no-scrollbar">
         <nav className="space-y-2" key={`admin-nav-${permissionsVersion}`}>
           {menuItems.map((item) => {
-            if (item.name === "Roles & Permissions" && !isSuperAdminUser(user)) {
-              return null;
-            }
-
             const hierarchyEntry = Object.entries(ADMIN_PERMISSION_MENU_HIERARCHY).find(
               ([, group]) => group.label === item.name,
             );

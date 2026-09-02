@@ -17,11 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { pushToDataLayer } from "@/lib/gtm"
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google"
+import { getDashboardPathForUser } from "@/lib/auth-routing"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
-  rememberMe: z.boolean().default(false),
+  rememberMe: z.boolean(),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
@@ -44,27 +45,9 @@ const USER_TYPE: Record<number, string> = {
   3: "Client",
   4: "Creative",
   5: "Sales Representative",
-  6: "Production Manager"
-}
-
-const getDashboardPathForUserType = (userTypeId?: number) => {
-  if (userTypeId === 1 || userTypeId === 8) {
-    return "/admin/dashboard"
-  }
-  if (userTypeId === 2) {
-    return "/creator/dashboard"
-  }
-  if (userTypeId === 3) {
-    return "/affiliate/dashboard"
-  }
-  if (userTypeId === 4 || userTypeId === 5 || userTypeId === 7) {
-    return "/sales/dashboard"
-  }
-  if (userTypeId === 6) {
-    return "/production-manager/dashboard"
-  }
-
-  return "/admin/dashboard"
+  6: "Production Manager",
+  7: "Sales Admin",
+  8: "Super Admin",
 }
 
 export function LoginForm() {
@@ -136,7 +119,7 @@ export function LoginForm() {
         page_name: "Login Page",
         location_in_website: "login_page",
         duration_on_page: performance.now() / 1000,
-        phone: user?.phone || null,
+        phone: user?.phone_number || null,
       });
       // ---------------------------
 
@@ -145,7 +128,7 @@ export function LoginForm() {
         return
       }
 
-      router.push(getDashboardPathForUserType(userTypeId))
+      router.push(getDashboardPathForUser(user))
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error, "Login failed. Please check your credentials."))
     }
@@ -186,7 +169,7 @@ export function LoginForm() {
         return
       }
 
-      router.push(getDashboardPathForUserType(userTypeId))
+      router.push(getDashboardPathForUser(user))
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error, "Google login failed"))
     }

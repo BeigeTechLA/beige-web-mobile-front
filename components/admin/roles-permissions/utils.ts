@@ -216,6 +216,74 @@ export const applyPermissionsToRows = (
   permissions: RolePermissionsMap = {},
 ): PermissionMatrixRow[] => rows.map((row) => applyPermissionsToRow(row, permissions));
 
+const getAllowedActionsFromPermissions = (
+  row: PermissionMatrixRow,
+  permissions: RolePermissionsMap,
+) => {
+  const moduleKey = normalizeRowIdToModuleKey(row.id);
+  const permissionValue = permissions[moduleKey];
+
+  if (Array.isArray(permissionValue)) {
+    return ALL_PERMISSION_ACTIONS.filter((action) =>
+      permissionValue.includes(action),
+    );
+  }
+
+  if (permissionValue && typeof permissionValue === "object") {
+    return ALL_PERMISSION_ACTIONS.filter((action) =>
+      Boolean(permissionValue[action]),
+    );
+  }
+
+  return [];
+};
+
+const constrainPermissionRowToParent = (
+  row: PermissionMatrixRow,
+  parentPermissions: RolePermissionsMap,
+): PermissionMatrixRow | null => {
+  const allowedActions = getAllowedActionsFromPermissions(row, parentPermissions);
+
+  if (!row.children) {
+    if (!allowedActions.length) return null;
+
+    return {
+      ...row,
+      allowedActions,
+      access: createAccess(allowedActions),
+      selected: false,
+    };
+  }
+
+  const children = row.children
+    .map((child) => constrainPermissionRowToParent(child, parentPermissions))
+    .filter((child): child is PermissionMatrixRow => Boolean(child));
+
+  if (!allowedActions.length && !children.length) return null;
+
+  const nextRow = {
+    ...row,
+    allowedActions,
+    access: createAccess(allowedActions),
+    children,
+    selected: false,
+    isExpanded: children.length > 0 ? row.isExpanded : false,
+  };
+
+  return {
+    ...nextRow,
+    checkState: computeParentCheckState(children),
+  };
+};
+
+export const constrainPermissionRowsToParent = (
+  rows: PermissionMatrixRow[],
+  parentPermissions: RolePermissionsMap = {},
+) =>
+  rows
+    .map((row) => constrainPermissionRowToParent(row, parentPermissions))
+    .filter((row): row is PermissionMatrixRow => Boolean(row));
+
 const getMirroredParentAccess = (
   row: PermissionMatrixRow,
 ): Record<PermissionColumnKey, boolean> => {

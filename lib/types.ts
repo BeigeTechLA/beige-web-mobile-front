@@ -17,6 +17,7 @@ export interface User {
   profile_image?: string | null;
   userTypeId: number;
   userRole: string;
+  role?: string;
   role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
@@ -30,6 +31,7 @@ export interface User {
     };
   };
   user_type_id?: number;
+  is_internal_member?: boolean | number;
   permissions_version?: number | string;
   has_password?: boolean;
 }
