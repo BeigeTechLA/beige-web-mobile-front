@@ -8,6 +8,7 @@ import {
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { ResponsiveStyleValue } from "@mui/system";
 
 export interface DatePickerColors {
   inputBackground: string;
@@ -116,7 +117,7 @@ interface Props {
   isDark?: boolean;
   disablePortal?: boolean;
   shouldDisableDate?: (date: Date) => boolean;
-  borderRadius?:string;
+  borderRadius?: ResponsiveStyleValue<string | number>;
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -140,6 +141,7 @@ export const DatePicker: React.FC<Props> = ({
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
   const [open, setOpen] = useState(false);
+  const inputRootSx = !sx || typeof sx === "function" || Array.isArray(sx) ? {} : sx;
 
   const interiorStyles = {
     // Hide scrollbar in the Year selection dropdown
@@ -207,7 +209,7 @@ export const DatePicker: React.FC<Props> = ({
         )}
 
         <MuiDatePicker
-          label={floating ? label : undefined}
+          label={label}
           value={value}
           onChange={onChange}
           format={format}
@@ -243,9 +245,9 @@ export const DatePicker: React.FC<Props> = ({
               sx: {
                 "& .MuiOutlinedInput-root": {
                   height: "100%",
-                  ...sx,
+                  ...inputRootSx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: borderRadius ? borderRadius: "12px",
+                  borderRadius: borderRadius ? borderRadius : "12px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorder },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
@@ -259,7 +261,7 @@ export const DatePicker: React.FC<Props> = ({
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: floating ? "16.5px 14px" : "16px 14px",
+                  padding: "16.5px 14px",
                   height: "100%",
                   "&.Mui-disabled": {
                     WebkitTextFillColor: colors.inputText,
@@ -271,7 +273,7 @@ export const DatePicker: React.FC<Props> = ({
                   fontSize: "20px",
                   opacity: disabled ? 0.5 : 1,
                 },
-              },
+              } as SxProps<Theme>,
             },
             popper: {
               disablePortal,

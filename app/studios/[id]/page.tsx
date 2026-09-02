@@ -1,35 +1,124 @@
 "use client";
 
-import React, { Suspense, useMemo, useState, useEffect } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
-  Check,
+  Clapperboard,
+  DoorClosed,
+  ExternalLink,
   Heart,
   Home,
-  Images,
+  LayoutGrid,
   Loader2,
   MapPin,
-  Shield,
+  Mic,
+  PartyPopper,
   Share2,
+  Sparkles,
+  Star,
   X,
 } from "lucide-react";
 
-import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
-import HostRulesAccordion from "../components/HostRulesAccordion";
+import { Navbar } from "@/src/components/landing/Navbar";
 import { studioCatalogApi, type StudioCatalogListItem } from "@/lib/api";
+import HostRulesAccordion from "../components/HostRulesAccordion";
 
 const STUDIO_IMAGE_FALLBACK =
   "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png";
 const DEFAULT_DISPLAY_ADDRESS = "Los Angeles, California, USA";
 const S3_PREFIX = String(process.env.NEXT_PUBLIC_S3_PREFIX || "").replace(/\/+$/, "");
 const STUDIO_ASSET_BASE_URL = "https://d2jhn32fsulyac.cloudfront.net/assets/studio";
+
+type StudioReview = {
+  id: string;
+  name: string;
+  date: string;
+  avatar: string;
+  comment: string;
+};
+
+type StudioRatingBreakdown = {
+  cleanliness: number;
+  communication: number;
+  checkIn: number;
+};
+
+type StudioDetailExtras = StudioCatalogListItem & {
+  hostName?: string | null;
+  hostAvatar?: string | null;
+  guestsCount?: number | null;
+  securityDeposit?: number | null;
+  billsIncluded?: boolean | null;
+  preferredGuests?: string | null;
+  availableDate?: string | null;
+  reviewsCount?: number | null;
+  ratingBreakdown?: StudioRatingBreakdown | null;
+  userReviews?: StudioReview[] | null;
+  safetyRules?: string[] | null;
+};
+
+const FALLBACK_AMENITIES = [
+  "Natural light",
+  "High-speed WiFi",
+  "Production-friendly layout",
+  "Furniture and decor included",
+  "Kitchen access",
+  "Flexible staging areas",
+  "Crew-friendly common areas",
+  "Street parking nearby",
+];
+
+const FALLBACK_RULES = [
+  "Minimum booking and usage details follow the catalog listing.",
+  "Setup and breakdown must be included in the reservation.",
+  "Guests must respect the property and studio guidelines.",
+];
+
+const FALLBACK_REVIEWS: StudioReview[] = [
+  {
+    id: "r1",
+    name: "Jose",
+    date: "December 2021",
+    avatar: "/images/crew/CREW(5).png",
+    comment: "Host was very attentive.",
+  },
+  {
+    id: "r2",
+    name: "Shayna",
+    date: "December 2021",
+    avatar: "/images/crew/CREW(5).png",
+    comment:
+      "Wonderful neighborhood, easy access to restaurants, and a cozy studio setup with a responsive host.",
+  },
+  {
+    id: "r3",
+    name: "Vladko",
+    date: "November 2020",
+    avatar: "/images/crew/CREW(5).png",
+    comment:
+      "Clean, organized, and production friendly. The space had everything needed for a smooth shoot.",
+  },
+];
+
+const FALLBACK_RATING_BREAKDOWN: StudioRatingBreakdown = {
+  cleanliness: 5,
+  communication: 5,
+  checkIn: 5,
+};
+
+const BOOKING_INCLUDES = {
+  production: ["Photo shoots", "Video shoots", "Product shoots"],
+  audio: ["Podcast recording", "Voiceover sessions", "Music content"],
+  events: ["Private events", "Brand gatherings", "Launch activations"],
+};
 
 const normalizeStudioImageSrc = (src?: string | null) => {
   if (!src) return STUDIO_IMAGE_FALLBACK;
@@ -40,9 +129,22 @@ const normalizeStudioImageSrc = (src?: string | null) => {
     : `${STUDIO_ASSET_BASE_URL}/${relativePath}`;
 };
 
+const LoadingState = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
+  </div>
+);
+
 const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
   const router = useRouter();
+  const detail = studio as StudioDetailExtras;
+
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [bookingType, setBookingType] =
+    useState<keyof typeof BOOKING_INCLUDES>("production");
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showFullLocation, setShowFullLocation] = useState(false);
+  const [showAllAmenitiesModal, setShowAllAmenitiesModal] = useState(false);
 
   const galleryImages = useMemo(() => {
     const imageSet = new Set<string>();
@@ -53,44 +155,55 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
     return Array.from(imageSet);
   }, [studio]);
 
+  const location = studio.location || DEFAULT_DISPLAY_ADDRESS;
+  const minimumBookingHours = studio.minimumBookingHours || 2;
+  const propertyType = studio.propertyType || studio.poolType || "Studio";
+  const operatingHours =
+    studio.operatingHours || studio.weeklySchedule || "Inquire for hours";
+  const amenities = studio.amenities?.length ? studio.amenities : FALLBACK_AMENITIES;
+  const rules = studio.rules?.length ? studio.rules : FALLBACK_RULES;
+  const safetyRules = detail.safetyRules?.length
+    ? detail.safetyRules
+    : ["Host Rules", "Cleaning Protocol", "Cancellation Policy"];
+  const userReviews = detail.userReviews?.length ? detail.userReviews : FALLBACK_REVIEWS;
+  const ratingBreakdown = detail.ratingBreakdown || FALLBACK_RATING_BREAKDOWN;
+  const hostName = detail.hostName || "Beige Studio Host";
+  const hostAvatar = detail.hostAvatar || "/images/crew/CREW(5).png";
+  const guestsCount = detail.guestsCount || 2;
+  const bedsCount = studio.beds || 1;
+  const bathsCount = studio.baths || 1;
+  const reviewCount = detail.reviewsCount || studio.reviews || userReviews.length;
+  const priceValue = studio.priceValue || 0;
+
   const studioMeta = [
     studio.size,
     studio.beds ? `${studio.beds} bed${studio.beds > 1 ? "s" : ""}` : null,
     studio.baths ? `${studio.baths} bath${studio.baths > 1 ? "s" : ""}` : null,
-    studio.propertyType,
+    propertyType,
     studio.pricingMode,
   ].filter(Boolean);
 
-  const amenities = studio.amenities?.length
-    ? studio.amenities
-    : [
-        "Natural light",
-        "High-speed WiFi",
-        "Production-friendly layout",
-        "Furniture and decor included",
-      ];
-  const rules = [
-    "Minimum booking and usage details follow the catalog listing.",
-    "Setup and breakdown must be included in the reservation.",
-    "Guests must respect the property and studio guidelines.",
-  ];
-  const highlights = [
-    "Live catalog studio details are loaded by slug.",
-    "Designed for shoots, content creation, campaigns, and meetings.",
-    "Booking information stays in sync with the catalog entry.",
-  ];
-  const minimumBookingHours = studio.minimumBookingHours || 2;
+  const operatingDays = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ].map((day) => ({ day, hours: operatingHours }));
 
   return (
-    <div className="relative pt-24 lg:pt-36 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
+    <div className="relative pt-24 lg:pt-32 pb-24 text-white">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-center justify-between">
           <button
+            type="button"
             onClick={() => router.back()}
-            className="group flex items-center text-zinc-400 hover:text-white transition-colors text-sm"
+            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors"
+            aria-label="Go back"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            <ArrowLeft className="w-6 h-6" />
           </button>
           <div className="flex gap-2">
             <button className="p-2.5 rounded-full border border-zinc-800 hover:bg-zinc-900 text-white transition-colors">
@@ -112,226 +225,394 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
               </span>
             )}
           </h1>
-          <div className="flex items-center gap-2 text-zinc-400 text-sm">
-            <MapPin size={16} className="text-[#E8D1AB]" />
-            <span className="underline underline-offset-4 decoration-white/20">
-              {DEFAULT_DISPLAY_ADDRESS}
-            </span>
+          <div className="flex items-center justify-between gap-4 text-xs lg:text-sm">
+            <div className="flex items-center gap-2 text-white/60">
+              <MapPin size={16} className="text-[#E8D1AB]" />
+              <span className="underline underline-offset-4 decoration-white/20">
+                {location}
+              </span>
+            </div>
+            <button className="flex items-center gap-1 text-white font-medium">
+              <ExternalLink size={16} />
+              Share
+            </button>
           </div>
         </div>
 
-        <div className="mb-12 grid h-[320px] grid-cols-1 overflow-hidden rounded-[24px] md:h-[480px] md:grid-cols-2 gap-2">
+        <div className="mb-10 grid h-[320px] md:h-[500px] grid-cols-1 md:grid-cols-12 gap-2 overflow-hidden rounded-3xl">
           <div
-            className="relative h-full w-full cursor-pointer bg-zinc-900"
+            className="relative md:col-span-6 h-full w-full cursor-pointer bg-zinc-900 group overflow-hidden rounded-xl"
             onClick={() => setActiveImageIndex(0)}
           >
             <Image
-              src={normalizeStudioImageSrc(galleryImages[0])}
-              alt="Main"
+              src={galleryImages[0]}
+              alt="Main studio photo"
               fill
-              className="object-cover hover:opacity-90 transition-opacity"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
               priority
             />
           </div>
-          <div className="hidden h-full grid-cols-2 grid-rows-2 gap-2 md:grid">
+          <div className="hidden md:col-span-6 md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
             {[1, 2, 3, 4].map((idx) => (
               <div
                 key={idx}
-                className="relative cursor-pointer bg-zinc-900"
-                onClick={() =>
-                  setActiveImageIndex(Math.min(idx, galleryImages.length - 1))
-                }
+                className="relative cursor-pointer bg-zinc-900 overflow-hidden group rounded-xl"
+                onClick={() => setActiveImageIndex(Math.min(idx, galleryImages.length - 1))}
               >
                 <Image
-                  src={normalizeStudioImageSrc(galleryImages[idx] || galleryImages[0])}
-                  alt={`Gallery ${idx}`}
+                  src={galleryImages[idx] || galleryImages[0]}
+                  alt={`Studio grid image ${idx}`}
                   fill
-                  className="object-cover hover:opacity-90 transition-opacity"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 {idx === 4 && (
-                  <div className="absolute bottom-4 right-4 bg-white text-black px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-2xl">
-                    <Images size={14} /> {galleryImages.length} Photos
-                  </div>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setActiveImageIndex(0);
+                    }}
+                    className="absolute bottom-4 right-4 bg-white/95 text-black hover:bg-white px-4 py-2 rounded-lg font-medium text-xs lg:text-sm flex items-center gap-2 shadow-xl backdrop-blur-sm transition-all"
+                  >
+                    <LayoutGrid size={18} /> Show all photos
+                  </button>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           <div className="lg:col-span-8 space-y-12">
-            <section className="flex flex-col gap-8 border-b border-white/10 pb-10">
-              <div className="flex items-start gap-5">
-                <Home
-                  size={26}
-                  strokeWidth={1.5}
-                  className="text-[#E8D1AB] shrink-0 mt-1"
-                />
+            <div className="text-white flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-lg lg:text-2xl font-medium mb-1">
+                  Production space hosted by {hostName}
+                </h2>
+                <p className="text-xs lg:text-sm text-white/70">
+                  {guestsCount} guests - {bedsCount} bed - {bathsCount} bath
+                </p>
+              </div>
+              <div className="relative w-14 h-14 rounded-full overflow-hidden shrink-0">
+                <Image src={hostAvatar} alt={hostName} fill className="object-cover" />
+              </div>
+            </div>
+
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section className="space-y-4">
+              <h3 className="text-lg lg:text-2xl font-medium text-white">Booking For</h3>
+              <div className="grid grid-cols-3 p-1.5 bg-[#171717] border border-white/40 rounded-2xl w-full">
+                {[
+                  { key: "production", label: "Production", icon: Clapperboard },
+                  { key: "audio", label: "Audio", icon: Mic },
+                  { key: "events", label: "Events", icon: PartyPopper },
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setBookingType(key as keyof typeof BOOKING_INCLUDES)}
+                    className={`flex items-center justify-center gap-2 py-3 px-2 rounded-lg text-xs lg:text-lg transition-all ${
+                      bookingType === key
+                        ? "bg-[#E8D1AB] text-black"
+                        : "text-[#8B8B8B] hover:text-white"
+                    }`}
+                  >
+                    <Icon size={24} strokeWidth={1.2} />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <p className="text-base lg:text-xl text-[#E8D1AB] font-medium mb-3">
+                  {bookingType[0].toUpperCase() + bookingType.slice(1)} Includes
+                </p>
+                <div className="flex flex-wrap gap-6 text-xs lg:text-sm text-[#A9A9A9]">
+                  {BOOKING_INCLUDES[bookingType].map((item) => (
+                    <div key={item} className="flex items-center gap-2">
+                      <Check size={22} className="text-white" /> {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section className="text-white space-y-6">
+              <div className="flex items-start gap-4">
+                <Home size={22} className="shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-bold text-white text-lg">
-                    Private production space
-                  </h3>
-                  <p className="text-zinc-400 text-sm">
+                  <h4 className="font-medium text-sm lg:text-base">Private production space</h4>
+                  <p className="text-xs lg:text-sm text-[#8B8B8B]">
                     Reserved for your approved booking window.
                   </p>
                 </div>
               </div>
-              <div className="flex items-start gap-5">
-                <CalendarDays
-                  size={26}
-                  strokeWidth={1.5}
-                  className="text-[#E8D1AB] shrink-0 mt-1"
-                />
+              <div className="flex items-start gap-4">
+                <Sparkles size={22} className="shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-bold text-white text-lg">
-                    Hourly booking
-                  </h3>
-                  <p className="text-zinc-400 text-sm">
-                    {minimumBookingHours}-hour minimum booking •{" "}
-                    {studio.operatingHours || studio.weeklySchedule || "Inquire for hours"}
+                  <h4 className="font-medium text-sm lg:text-base">Production-ready</h4>
+                  <p className="text-xs lg:text-sm text-[#8B8B8B]">
+                    Designed for shoots, content creation, campaigns, and meetings.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <DoorClosed size={22} className="shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm lg:text-base">Catalog synced</h4>
+                  <p className="text-xs lg:text-sm text-[#8B8B8B]">
+                    Studio details, pricing, and booking rules load from the live catalog.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <CalendarDays size={22} className="shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm lg:text-base">Hourly booking</h4>
+                  <p className="text-xs lg:text-sm text-[#8B8B8B]">
+                    {minimumBookingHours}-hour minimum booking - {operatingHours}
                   </p>
                 </div>
               </div>
             </section>
 
-            <section className="space-y-6">
-              <p className="text-zinc-300 leading-relaxed text-lg">
-                {studio.description || "Explore this studio's live catalog listing for booking details, images, and usage guidance."}
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section className="space-y-3">
+              <p
+                className={`text-white text-sm lg:text-base leading-relaxed ${
+                  !showFullDescription ? "line-clamp-3" : ""
+                }`}
+              >
+                {studio.description ||
+                  studio.short_description ||
+                  "Explore this studio's live catalog listing for booking details, images, and usage guidance."}
               </p>
-              {highlights.length > 0 && (
-                <div className="mt-8">
-                  <h4 className="text-white font-bold mb-4 uppercase tracking-widest text-xs">
-                    What makes it unique
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {highlights.map((highlight) => (
-                      <div
-                        key={highlight}
-                        className="flex items-center gap-3 text-zinc-400 text-sm"
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
-                        {highlight}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className="text-white font-medium underline underline-offset-2 text-xs lg:text-sm flex items-center gap-1 hover:text-white mt-2"
+              >
+                {showFullDescription ? "Show less" : "Show more"}
+                <ChevronRight size={14} className={showFullDescription ? "rotate-90" : ""} />
+              </button>
             </section>
 
-            <section className="pt-6">
-              <h3 className="text-xl font-bold text-white mb-6">
-                Pricing & Tags
-              </h3>
-              <div className="bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800/50">
-                <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
-                  <div>
-                    <h4 className="text-4xl font-bold text-[#E8D1AB]">
-                      ${Number(studio.priceValue || 0).toLocaleString()}
-                      <span className="text-lg text-zinc-500">/hr</span>
-                    </h4>
-                    <p className="text-zinc-500 text-sm mt-1">
-                      {minimumBookingHours}-hour minimum booking
-                    </p>
-                  </div>
+            {studio.highlights && studio.highlights.length > 0 && (
+              <section className="space-y-4">
+                <h3 className="text-lg lg:text-2xl font-medium text-white">
+                  What makes it unique
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {studio.highlights.map((highlight) => (
+                    <div key={highlight} className="flex items-center gap-3 text-zinc-400 text-sm">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
+                      {highlight}
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-[2px] mb-4">
-                    Tags
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {(studio.tags || []).map((item) => (
-                      <span
-                        key={item}
-                        className="px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-xs"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
 
-            <section className="border-t border-white/10 pt-10">
-              <h3 className="text-xl font-bold text-white mb-8">
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section>
+              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">
                 What this place offers
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6">
-                {amenities.map((item) => (
-                  <div key={item} className="flex items-center gap-4 text-zinc-300">
-                    <Check size={18} className="text-[#E8D1AB]" />
-                    <span className="text-base">{item}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
+                {amenities.slice(0, 10).map((item) => (
+                  <div key={item} className="flex items-center gap-3 text-[#C7C7C7] text-sm lg:text-base">
+                    <Check size={18} />
+                    <span>{item}</span>
                   </div>
                 ))}
               </div>
+              <button
+                onClick={() => setShowAllAmenitiesModal(true)}
+                className="px-4 py-2 rounded-lg bg-[#E8D1AB] hover:bg-[#E8D1AB]/80 text-black font-medium text-sm transition-colors"
+              >
+                Show all {amenities.length} amenities
+              </button>
             </section>
 
-            <section className="border-t border-white/10 pt-10">
-              <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
-                <Shield size={22} className="text-[#E8D1AB]" /> House Rules
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section>
+              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">
+                Operating Hours
               </h3>
-              <div className="grid gap-4 max-w-2xl">
-                {rules.map((rule, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/5"
-                  >
-                    <span className="text-[#E8D1AB] font-mono text-xs mt-1">
-                      0{idx + 1}
-                    </span>
-                    <p className="text-zinc-400 text-sm leading-relaxed">
-                      {rule}
-                    </p>
+              <div className="bg-[#171717] rounded-xl p-4 lg:p-8 max-w-md space-y-4">
+                {operatingDays.map((item) => (
+                  <div key={item.day} className="flex items-center justify-between gap-4 text-sm lg:text-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#14C573] inline-block" />
+                      <span className="font-medium text-white">{item.day}</span>
+                    </div>
+                    <span className="text-white/60 text-right">{item.hours}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="border-t border-white/10 pt-10">
-              <h3 className="text-xl font-bold text-white mb-8">
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section>
+              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">
+                Where you will be
+              </h3>
+              <div className="relative w-full h-[360px] rounded-2xl overflow-hidden bg-white mb-4">
+                <Image
+                  src={galleryImages[0]}
+                  alt="Location preview"
+                  fill
+                  className="object-cover opacity-70 grayscale hover:grayscale-0 transition-all duration-500"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-white text-black font-semibold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2">
+                    <Home size={16} className="text-[#101010]" />
+                    Exact location provided after booking
+                  </div>
+                </div>
+              </div>
+              <h4 className="text-sm lg:text-lg font-medium text-white mb-2 lg:mb-4">
+                {location}
+              </h4>
+              <p
+                className={`text-white/70 text-sm lg:text-base mb-2 lg:mb-4 ${
+                  !showFullLocation ? "line-clamp-3" : ""
+                }`}
+              >
+                This studio is listed in the Beige catalog with location and access
+                information shared after booking confirmation.
+              </p>
+              <button
+                onClick={() => setShowFullLocation(!showFullLocation)}
+                className="text-[#E8D1AB] font-medium underline underline-offset-2 text-xs lg:text-sm flex items-center gap-1 hover:text-[#E8D1AB]/80 mt-2"
+              >
+                {showFullLocation ? "Show less" : "Show more"}
+                <ChevronRight size={14} className={showFullLocation ? "rotate-90" : ""} />
+              </button>
+            </section>
+
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section>
+              <div className="flex items-center gap-2 mb-6">
+                <Star size={32} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+                <h3 className="text-lg lg:text-2xl font-medium text-white">
+                  {studio.rating || "5.0"} - {reviewCount} reviews
+                </h3>
+              </div>
+              <div className="flex flex-col gap-4 mb-8 max-w-xl">
+                {[
+                  ["Cleanliness", ratingBreakdown.cleanliness],
+                  ["Communication", ratingBreakdown.communication],
+                  ["Check-in", ratingBreakdown.checkIn],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-sm lg:text-base text-white">{label}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-24 h-1 bg-[#454545] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#E8D1AB] w-4/5 rounded-full" />
+                      </div>
+                      <span className="text-xs">{Number(value).toFixed(1)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-6">
+                {userReviews.map((review) => (
+                  <div key={review.id} className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-14 h-14 rounded-full overflow-hidden border border-white">
+                        <Image
+                          src={review.avatar}
+                          alt={review.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div>
+                        <h5 className="font-medium text-white text-sm lg:text-base">
+                          {review.name}
+                        </h5>
+                        <p className="text-xs lg:text-sm text-[#6B7280]">{review.date}</p>
+                      </div>
+                    </div>
+                    <p className="text-white text-sm lg:text-base">{review.comment}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+            <section className="space-y-6">
+              <h3 className="text-lg lg:text-2xl font-medium text-white">
                 Rules & Health Safety Measures
               </h3>
-              <HostRulesAccordion rules={studio.rules || rules} defaultOpenAll />
+              <HostRulesAccordion rules={rules.length ? rules : safetyRules} defaultOpenAll />
             </section>
           </div>
 
           <div className="lg:col-span-4">
-            <aside className="sticky top-32 bg-[#171717] border border-[#E8D1AB]/30 rounded-[32px] p-8 shadow-2xl shadow-black">
-              <div className="flex justify-between items-baseline mb-6">
-                <div>
-                  <span className="text-4xl font-bold text-white">
-                    ${(studio.priceValue || 0).toLocaleString()}
+            <aside className="sticky top-32 bg-[#171717] border border-[#E8D1AB] rounded-2xl p-4 lg:px-8 lg:py-10">
+              <div className="flex justify-between items-baseline gap-4 mb-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg lg:text-3xl font-medium text-[#E8D1AB]">
+                    ${priceValue.toLocaleString()}
                   </span>
-                  <span className="text-zinc-500 ml-1">/ hour</span>
+                  <span className="text-base lg:text-2xl">/ Hour</span>
+                </div>
+                <div className="flex items-center gap-1 text-sm lg:text-xl font-medium text-white">
+                  <Star size={20} className="text-white" />
+                  <span>{studio.rating || "4.5"}</span>
+                  <span className="text-white underline underline-offset-2 ml-0.5">
+                    {reviewCount} reviews
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-5 py-6 border-y border-white/10 text-sm">
-                <div className="flex justify-between gap-4">
-                  <span className="text-zinc-500">Minimum booking</span>
-                  <span className="text-white font-medium">
-                    2 hours
+              <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+              <div className="space-y-4 text-sm lg:text-xl text-[#9A9898]">
+                <div className="flex justify-between items-center gap-4">
+                  <span>Bills</span>
+                  <span>{detail.billsIncluded === false ? "Excluded" : "Included"}</span>
+                </div>
+                <div className="flex justify-between items-center gap-4">
+                  <span>Security deposit</span>
+                  <span className="text-[#14C573]">
+                    ${(detail.securityDeposit || 0).toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-zinc-500">Property type</span>
-                  <span className="text-white font-medium">
-                    {studio.propertyType || "Studio"}
-                  </span>
+                <div className="flex justify-between items-center gap-4">
+                  <span>Property type</span>
+                  <span className="text-right">{propertyType}</span>
                 </div>
-                <div className="flex justify-between gap-4">
-                  <span className="text-zinc-500">Availability</span>
-                  <span className="text-white font-medium text-right max-w-[150px]">
-                    {studio.operatingHours || studio.weeklySchedule || "Flexible"}
-                  </span>
+                <div className="flex justify-between items-center gap-4">
+                  <span>Minimum booking</span>
+                  <span>{minimumBookingHours} hours</span>
                 </div>
+                <div className="flex justify-between items-center gap-4">
+                  <span>Preferred</span>
+                  <span>{detail.preferredGuests || "Creators"}</span>
+                </div>
+              </div>
+
+              <hr className="border-t my-4 lg:my-7 border-white/20" />
+
+              <div className="flex justify-between items-center gap-4 text-sm lg:text-xl text-[#9A9898] font-medium pb-4 lg:pb-7">
+                <span>Available</span>
+                <span className="text-right">{detail.availableDate || operatingHours}</span>
               </div>
 
               <Link
                 href={`/book-a-studio?studioId=${studio.slug || studio.id}`}
-                className="mt-8 flex h-14 w-full items-center justify-center rounded-2xl bg-[#E8D1AB] font-bold text-black hover:bg-[#dcb98a] active:scale-95 transition-all shadow-lg shadow-[#E8D1AB]/10"
+                className="flex h-12 lg:h-14 w-full items-center justify-center rounded-lg bg-[#E8D1AB] text-black font-medium text-sm lg:text-lg hover:bg-[#dfc498] active:scale-[0.98] transition-all"
               >
-                Book this Studio
+                Add this Studio
               </Link>
               <p className="text-center text-zinc-500 text-[11px] mt-4 uppercase tracking-widest font-bold">
                 Secure checkout via Beige
@@ -344,7 +625,7 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
       {activeImageIndex !== null && (
         <div className="fixed inset-0 z-[999999] bg-black flex flex-col">
           <div className="flex justify-between items-center p-6 bg-black/50 z-10">
-            <span className="text-white/50 font-mono text-xs tracking-widest">
+            <span className="text-white/50 text-xs tracking-widest">
               {activeImageIndex + 1} / {galleryImages.length}
             </span>
             <button
@@ -357,8 +638,8 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
 
           <div className="flex-1 relative flex items-center justify-center px-4">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 setActiveImageIndex((prev) =>
                   prev !== null
                     ? (prev - 1 + galleryImages.length) % galleryImages.length
@@ -372,8 +653,8 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
 
             <div className="relative w-full h-full max-h-[75vh]">
               <Image
-                src={normalizeStudioImageSrc(galleryImages[activeImageIndex])}
-                alt="Full view"
+                src={galleryImages[activeImageIndex]}
+                alt="Full studio image preview"
                 fill
                 className="object-contain"
                 priority
@@ -381,8 +662,8 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
             </div>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 setActiveImageIndex((prev) =>
                   prev !== null ? (prev + 1) % galleryImages.length : null,
                 );
@@ -395,9 +676,9 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
 
           <div className="w-full bg-black py-8">
             <div className="flex justify-start md:justify-center gap-2 overflow-x-auto px-6 no-scrollbar">
-              {galleryImages.map((img, idx) => (
+              {galleryImages.map((image, idx) => (
                 <button
-                  key={idx}
+                  key={image}
                   onClick={() => setActiveImageIndex(idx)}
                   className={`relative flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border transition-all duration-200 ${
                     activeImageIndex === idx
@@ -405,14 +686,32 @@ const StudioDetailContent = ({ studio }: { studio: StudioCatalogListItem }) => {
                       : "border-transparent opacity-30 hover:opacity-60"
                   }`}
                 >
-                  <Image
-                    src={normalizeStudioImageSrc(img)}
-                    alt=""
-                    fill
-                    sizes="56px"
-                    className="object-cover"
-                  />
+                  <Image src={image} alt="" fill sizes="56px" className="object-cover" />
                 </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAllAmenitiesModal && (
+        <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#171717] border border-white/20 w-full max-w-2xl max-h-[80vh] rounded-3xl p-6 flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-white/20">
+              <h3 className="text-xl font-bold text-white">All Amenities</h3>
+              <button
+                onClick={() => setShowAllAmenitiesModal(false)}
+                className="p-1 text-white hover:text-white/80 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto py-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {amenities.map((item) => (
+                <div key={item} className="flex items-center gap-3 text-white text-sm py-1">
+                  <Check size={16} className="text-[#E8D1AB]" />
+                  <span>{item}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -465,17 +764,9 @@ export default function StudioDetailsPage() {
   return (
     <main className="min-h-screen bg-[#101010] text-white selection:bg-[#E8D1AB] selection:text-black">
       <Navbar />
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
-          </div>
-        }
-      >
+      <Suspense fallback={<LoadingState />}>
         {loading ? (
-          <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="animate-spin text-[#E8D1AB]" size={40} />
-          </div>
+          <LoadingState />
         ) : studio ? (
           <StudioDetailContent studio={studio} />
         ) : (
