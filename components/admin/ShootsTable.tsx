@@ -57,6 +57,27 @@ type ShootStatus =
   | "Assets Delivered"
   | "Unknown";
 
+// Helper to detect when user scrolls to the bottom of a column
+const KanbanLoadMoreTrigger = ({ onIntersect }: { onIntersect: () => void }) => {
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onIntersect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (triggerRef.current) observer.observe(triggerRef.current);
+    return () => observer.disconnect();
+  }, [onIntersect]);
+
+  return <div ref={triggerRef} className="h-4 w-full" />;
+};
+
 interface ShootRecord {
   id: string;
   sourceProject?: Record<string, unknown>;
@@ -326,6 +347,10 @@ export const ShootsTable = ({
   const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
+  const BOARD_PAGE_SIZE = 10;
+  const [boardVisibleCounts, setBoardVisibleCounts] = useState<Record<string, number>>({});
+  const [boardAllShoots, setBoardAllShoots] = useState<ShootRecord[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const hasInitializedSearchResetRef = React.useRef(false);
   const hasInitializedFilterResetRef = React.useRef(false);
@@ -500,6 +525,7 @@ export const ShootsTable = ({
       return;
     }
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [debouncedSearchQuery, filtersReady]);
 
   useEffect(() => {
@@ -509,6 +535,7 @@ export const ShootsTable = ({
       return;
     }
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [
     filtersReady,
     statusFilter,
@@ -523,6 +550,7 @@ export const ShootsTable = ({
 
   useEffect(() => {
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [activePaymentFilter]);
 
   useEffect(() => {
@@ -540,20 +568,29 @@ export const ShootsTable = ({
     const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
+      const isBoardFetch = activeViewMode === "grid";
       const hasCustomRangeSelection = Boolean(customRangeStartDate || customRangeEndDate || externalSelectedDate);
       if (isCustomDateRange && !hasCustomRangeSelection) {
-        setShoots([]);
+        if (isBoardFetch) {
+          setBoardAllShoots([]);
+        } else {
+          setShoots([]);
+        }
         setTotalRecords(0);
         setLoading(false);
+        setBoardLoading(false);
         return;
       }
 
-      setLoading(true);
+      if (isBoardFetch) {
+        setBoardLoading(true);
+      } else {
+        setLoading(true);
+      }
       try {
         const params: Record<string, string | number> = {
           range: fetchRangeMode,
-          page: currentPage,
-          limit: itemsPerPage,
+          ...(isBoardFetch ? {} : { page: currentPage, limit: itemsPerPage }),
         };
         if (statusFilter !== "all") {
           params.status = statusFilter;
@@ -589,7 +626,9 @@ export const ShootsTable = ({
           params.cp_assignment = activeCpAssignmentFilter;
         }
 
-        const projectsResponse = await adminApi.getProjects(params);
+                const projectsResponse = isBoardFetch
+          ? await adminApi.getProjectsBoard(params)
+          : await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
         const pagination = projectsResponse?.data?.pagination;
         const nextTotalRecords = Number(pagination?.totalRecords ?? projectsList.length);
@@ -667,18 +706,31 @@ export const ShootsTable = ({
           };
         });
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
-          setShoots(mappedShoots);
+          if (isBoardFetch) {
+            setBoardAllShoots(mappedShoots);
+            setBoardVisibleCounts({});
+          } else {
+            setShoots(mappedShoots);
+          }
           setTotalRecords(Number.isFinite(nextTotalRecords) ? nextTotalRecords : mappedShoots.length);
         }
       } catch (error) {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
           console.error("Failed to fetch shoots:", error);
-          setShoots([]);
+          if (isBoardFetch) {
+            setBoardAllShoots([]);
+          } else {
+            setShoots([]);
+          }
           setTotalRecords(0);
         }
       } finally {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
-          setLoading(false);
+          if (isBoardFetch) {
+            setBoardLoading(false);
+          } else {
+            setLoading(false);
+          }
         }
       }
     };
@@ -687,11 +739,11 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
 
   // --- CLIENT-SIDE PROCESSING (Sort only; filters/search run on the API) ---
   const processedShoots = useMemo(() => {
-    const result = [...shoots];
+    const result = activeViewMode === "grid" ? [...boardAllShoots] : [...shoots];
 
     if (sortConfig.direction !== null) {
       result.sort((a, b) => {
@@ -722,6 +774,8 @@ export const ShootsTable = ({
     return result;
   }, [
     shoots,
+    boardAllShoots,
+    activeViewMode,
     sortConfig,
   ]);
 
@@ -803,18 +857,36 @@ export const ShootsTable = ({
     return visibleKanbanStatuses.map((status) => {
       const items = grouped.get(status) || [];
       const itemMap = new Map(items.map((item) => [item.id, item]));
-      const orderedIds = kanbanOrder[status] || items.map((item) => item.id);
+      const savedOrderIds = kanbanOrder[status] || [];
+      const orderedIds = savedOrderIds.length === items.length
+        ? savedOrderIds
+        : items.map((item) => item.id);
       const orderedItems = orderedIds
         .map((id) => itemMap.get(id))
         .filter((item): item is ShootRecord => Boolean(item));
 
+      const visibleCount = activeViewMode === "grid"
+        ? (boardVisibleCounts[status] ?? BOARD_PAGE_SIZE)
+        : orderedItems.length;
+      const displayedItems = activeViewMode === "grid"
+        ? orderedItems.slice(0, visibleCount)
+        : orderedItems;
+
       return {
         status,
         totalItems: orderedItems.length,
-        items: orderedItems,
+        items: displayedItems,
+        hasMore: activeViewMode === "grid" && orderedItems.length > visibleCount,
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, activeViewMode, boardVisibleCounts]);
+
+  const loadMoreBoardRecordsForStatus = useCallback((status: ShootStatus) => {
+    setBoardVisibleCounts((prev) => ({
+      ...prev,
+      [status]: (prev[status] ?? BOARD_PAGE_SIZE) + BOARD_PAGE_SIZE,
+    }));
+  }, []);
 
   const totalPages = listTotalPages;
 
@@ -1142,7 +1214,7 @@ export const ShootsTable = ({
         </div>
       )}
 
-      {loading ? (
+      {(activeViewMode === "grid" ? boardLoading : loading) ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -1349,7 +1421,7 @@ export const ShootsTable = ({
                                     {shoot.initials}
                                   </div>
                                   <div className="min-w-0 pt-1">
-                                    <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                    <h4 className={`text-xs font-semibold leading-snug break-words whitespace-normal ${isDark ? "text-white" : "text-[#111111]"}`}>
                                       {shoot.customerName}
                                     </h4>
                                     <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
@@ -1550,6 +1622,17 @@ export const ShootsTable = ({
                             </div>
                           );
                         })}
+                        {column.hasMore && column.items.length > 0 && (
+                          <div className="flex flex-col items-center justify-center py-4">
+                            <div className={`flex items-center text-xs font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              <Loader2 className="animate-spin mr-2" size={14} />
+                              Loading more...
+                            </div>
+                            <KanbanLoadMoreTrigger 
+                              onIntersect={() => loadMoreBoardRecordsForStatus(column.status)} 
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1824,7 +1907,7 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && (
+        activeViewMode !== "grid" && !loading && processedShoots.length > 0 && (
           <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
             }`}>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
