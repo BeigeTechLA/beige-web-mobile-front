@@ -114,13 +114,13 @@ export default function StudioSelection({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
-        <div className="mb-8">
+         <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP 03
           </span>
@@ -129,11 +129,11 @@ export default function StudioSelection({
           </div>
         </div>
 
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
+         <div className="mb-5 lg:mb-8">
+           <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             Choose your studio.
           </h1>
-          <p className="text-white/30 text-base md:text-xl font-light">
+          <p className="text-white/30 text-sm md:text-xl font-light">
             Pick a studio, package, date, and time for your production.
           </p>
         </div>
@@ -169,7 +169,7 @@ export default function StudioSelection({
                     )}
                   </div>
                   <div className="p-5 space-y-3">
-                    <h3 className="text-xl lg:text-[26px] font-['Cormorant_Garamond'] font-bold text-[#E8D1AB]">
+                    <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                       {studio.name}
                     </h3>
                     <p className="flex items-start gap-2 text-sm text-white/60">
@@ -187,7 +187,7 @@ export default function StudioSelection({
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#171717] p-5 h-fit space-y-5">
-            <h2 className="text-2xl font-['Cormorant_Garamond'] text-white">
+            <h2 className="text-2xl font-['Roboto_Condensed'] text-white">
               Studio Details
             </h2>
 

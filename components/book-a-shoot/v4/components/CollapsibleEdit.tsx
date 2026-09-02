@@ -38,7 +38,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
   return (
     <div className="space-y-6">
       <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
-        <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isOpen ? "border-b border-white/20 rounded-b-2xl" : ""}`}>
+        <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isOpen ? "border-b border-white/20 rounded-b-lg lg:rounded-b-2xl" : ""}`}>
           {/* Toggle Header */}
           <button
             type="button"
@@ -115,8 +115,8 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-[#211F1C] py-3 px-5 lg:py-5.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
-                    ➕ <span>{totalExtra} Added Extra</span>
+                  <div className="flex items-center gap-1.5 bg-[#211F1C] py-3 px-5 lg:py-5.5 rounded-md lg:rounded-xl text-sm lg:text-lg font-medium text-[#E8D1AB]">
+                    <Plus strokeWidth={4} className="text-[#464646] w-3.5 h-3.5 lg:w-5.5 lg:h-5.5" /> <span>{totalExtra} Added Extra</span>
                   </div>
                 </div>
               </div>

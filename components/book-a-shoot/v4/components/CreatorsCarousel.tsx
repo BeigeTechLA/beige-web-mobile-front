@@ -44,7 +44,6 @@ const getCreatorImage = (creator: Creator, index: number) => {
   return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 };
 
-
 const CreatorCarousel = ({
   creators,
   selectedIds,
@@ -63,13 +62,10 @@ const CreatorCarousel = ({
   const count = creators.length;
 
   const dynamicSlides = {
-    mobile: Math.min(count, 1.4),
+    mobile: Math.min(count, 1.5),
     tablet: Math.min(count, 3),
-    desktop: Math.min(count, 5)
+    desktop: 5,
   };
-
-  // Loop requires at least (slidesPerView * 2) items to be smooth
-  const shouldLoop = count >= 10;
 
   return (
     <div className="relative w-full max-w-full lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10 px-2 lg:px-0">
@@ -96,10 +92,10 @@ const CreatorCarousel = ({
           effect="coverflow"
           centeredSlides={true}
           grabCursor={true}
+          watchSlidesProgress={true}
           initialSlide={Math.floor(creators.length / 2)}
           slidesPerView={dynamicSlides.mobile}
           spaceBetween={0}
-          // loop={shouldLoop}
           allowTouchMove={true}
           allowSlideNext={true}
           allowSlidePrev={true}
@@ -113,9 +109,9 @@ const CreatorCarousel = ({
           /* --- SAFARI FIXES END --- */
           coverflowEffect={{
             rotate: 15,
-            stretch: 0,
-            depth: 150,
-            modifier: 1.6,
+            stretch: 20,
+            depth: 160,
+            modifier: 1.2,
             slideShadows: false,
           }}
           breakpoints={{
@@ -141,26 +137,32 @@ const CreatorCarousel = ({
                 depth: 150,
                 modifier: 1.6,
                 slideShadows: false,
-              }
+              },
             },
             1024: {
-              slidesPerView: dynamicSlides.desktop,
+              slidesPerView: 5,
               centeredSlides: true,
-              spaceBetween: 30,
+              spaceBetween: 0,
               coverflowEffect: {
                 rotate: 15,
-                stretch: 0,
-                depth: 150,
-                modifier: 1.6,
+                stretch: 30,
+                depth: 170,
+                modifier: 1.2,
                 slideShadows: false,
-              }
+              },
             },
           }}
           navigation={{
             prevEl: ".creator-prev-btn",
             nextEl: ".creator-next-btn",
           }}
-          className="w-full creator-swiper !py-10 lg:!py-5"
+          className="w-full creator-swiper !py-10 lg:!py-5
+            [&_.swiper-slide]:opacity-0 [&_.swiper-slide]:pointer-events-none [&_.swiper-slide]:transition-all [&_.swiper-slide]:duration-300
+            [&_.swiper-slide-active]:!opacity-100 [&_.swiper-slide-active]:!pointer-events-auto
+            [&_.swiper-slide-prev]:!opacity-100 [&_.swiper-slide-prev]:!pointer-events-auto
+            [&_.swiper-slide-next]:!opacity-100 [&_.swiper-slide-next]:!pointer-events-auto
+            [&_.swiper-slide-next+.swiper-slide]:!opacity-100 [&_.swiper-slide-next+.swiper-slide]:!pointer-events-auto
+            [&_.swiper-slide:has(+.swiper-slide-prev)]:!opacity-100 [&_.swiper-slide:has(+.swiper-slide-prev)]:!pointer-events-auto"
         >
           {creators.map((creator, index) => {
             const creatorId = creator.crew_member_id;
