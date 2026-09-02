@@ -17,6 +17,7 @@ import {
   Share2,
   Trash2,
   Unlink,
+  X,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -36,6 +37,7 @@ import {
   isVisibleToNonAdminByVisibleUntil,
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
+  type ExternalFolderActivityResponse,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -103,6 +105,27 @@ const isVisibilityExpiredFolder = (folder: UiFolderItem) =>
   Boolean(folder.visibleUntil) &&
   !isVisibleToNonAdminByVisibleUntil(folder.visibleUntil);
 
+const formatFileSize = (bytes?: number) => {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+};
+
+const formatActivityDate = (value?: string) => {
+  if (!value) return "Recently";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Recently";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+};
+
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,6 +147,9 @@ export default function AdminFolderManagerPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityData, setActivityData] = useState<ExternalFolderActivityResponse | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
@@ -506,6 +532,30 @@ export default function AdminFolderManagerPage() {
     }
   };
 
+  const handleOpenActivity = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    const rootPath = targetFolder?.resourcePath || targetFolder?.rawName || "";
+    if (!rootPath) return;
+
+    setSelectedFolder(targetFolder);
+    setMenuAnchor(null);
+    setIsActivityModalOpen(true);
+    setActivityLoading(true);
+    setActivityData(null);
+
+    try {
+      const data = await fileManagerApi.getExternalFolderActivityLogs({
+        rootPath,
+        limit: 50,
+      });
+      setActivityData(data);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to load folder activity"));
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   const openRenameModal = (folder?: UiFolderItem | null) => {
     const targetFolder = folder || selectedFolder;
     if (!targetFolder?.id) return;
@@ -742,6 +792,7 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsAccessModalOpen(true);
                   } : undefined}
+                  onActivity={() => handleOpenActivity(folder)}
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
@@ -795,6 +846,7 @@ export default function AdminFolderManagerPage() {
                     setSelectedFolder(folder);
                     setIsAccessModalOpen(true);
                   } : undefined}
+                  onActivity={() => handleOpenActivity(folder)}
                   onEditVisibility={
                     folder.category === "Common Event" ? () => openVisibilityModal(folder) : undefined
                   }
@@ -981,6 +1033,7 @@ export default function AdminFolderManagerPage() {
             onDownload={handleDownloadSelectedFolder}
             onShare={() => setIsShareModalOpen(true)}
             onAccess={selectedFolder?.category !== "Common Event" ? () => setIsAccessModalOpen(true) : undefined}
+            onActivity={() => handleOpenActivity(selectedFolder)}
             onDelete={() => setIsDeleteModalOpen(true)}
             onEditVisibility={
               selectedFolder?.category === "Common Event" && selectedFolder
@@ -1082,6 +1135,93 @@ export default function AdminFolderManagerPage() {
               : null
           }
         />
+
+        {isActivityModalOpen ? (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-3 py-4 sm:px-4 sm:py-8">
+            <div className={`flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl max-h-[min(760px,calc(100dvh-32px))] sm:max-h-[min(760px,calc(100dvh-64px))] ${isDark ? "border-white/10 bg-[#101010] text-white" : "border-[#D7D7D7] bg-white text-black"}`}>
+              <div className={`shrink-0 flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}>
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold">Folder Activity</h2>
+                  <p className={`truncate text-sm ${isDark ? "text-white/50" : "text-[#727272]"}`}>
+                    {selectedFolder?.title || "Selected folder"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsActivityModalOpen(false)}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
+                  aria-label="Close folder activity"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 [scrollbar-width:thin] ${isDark ? "[scrollbar-color:rgba(255,255,255,0.22)_transparent]" : "[scrollbar-color:rgba(0,0,0,0.18)_transparent]"} [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full ${isDark ? "[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-white/30" : "[&::-webkit-scrollbar-thumb]:bg-black/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30"}`}>
+                {activityLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="animate-spin text-[#BFA780]" size={30} />
+                  </div>
+                ) : !activityData || activityData.logs.length === 0 ? (
+                  <p className={`py-10 text-center text-sm ${isDark ? "text-white/45" : "text-[#727272]"}`}>
+                    No upload or delete activity logged yet.
+                  </p>
+                ) : (
+                  <div className="space-y-5">
+                    <div className={`sticky -top-4 z-20 -mx-4 -mt-4 grid grid-cols-1 gap-3 border-b px-4 pb-3 pt-4 sm:-top-5 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 md:grid-cols-2 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}>
+                      {[
+                        { label: "Uploads", items: activityData.summary.uploads },
+                        { label: "Deletion", items: activityData.summary.deletes },
+                      ].map((group) => (
+                        <div key={group.label} className={`rounded-xl border p-4 shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+                          <h3 className="text-base font-bold">{group.label}</h3>
+                          <div className="mt-3 space-y-2">
+                            {group.items.length === 0 ? (
+                              <p className={`text-xs ${isDark ? "text-white/40" : "text-[#727272]"}`}>No records</p>
+                            ) : (
+                              group.items.slice(0, 5).map((item) => (
+                                <div key={`${group.label}-${item.userId || item.name}`} className="flex items-center justify-between gap-3 text-[15px] font-semibold">
+                                  <span className="truncate">{item.name || "Unknown"}</span>
+                                  <span className="shrink-0 font-bold text-[#BFA780]">
+                                    {item.fileCount} files
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-3">
+                      {activityData.logs.map((log) => (
+                        <div key={log.id || log._id || `${log.action}-${log.createdAt}`} className={`rounded-xl border p-4 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">
+                                {log.actorName || "Unknown"} {log.action === "upload" ? "uploaded" : "deleted"} {log.fileCount} {log.fileCount === 1 ? "file" : "files"}
+                              </p>
+                              <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
+                                {log.targetName || log.targetPath || log.folderPath}
+                              </p>
+                            </div>
+                            <div className={`shrink-0 text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
+                              {formatActivityDate(log.createdAt)}
+                            </div>
+                          </div>
+                          <div className={`mt-3 text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
+                            {formatFileSize(log.totalSize)}
+                            {log.files?.length ? ` • ${log.files.slice(0, 3).map((file) => file.name || file.path).filter(Boolean).join(", ")}` : ""}
+                            {log.files && log.files.length > 3 ? `, +${log.files.length - 3} more` : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <FileManagerHistoryModal
           isOpen={isHistoryModalOpen}

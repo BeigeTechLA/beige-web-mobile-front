@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   CalendarClock,
+  History,
   FolderOpen,
   Pencil,
   UserRoundPlus,
@@ -25,6 +26,7 @@ interface FileActionMenuProps {
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
+  onActivity?: () => void;
   onEditVisibility?: () => void;
   downloadDisabled?: boolean;
   deleteDisabled?: boolean;
@@ -46,6 +48,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   onRename,
   onShare,
   onAccess,
+  onActivity,
   onEditVisibility,
   downloadDisabled = false,
   deleteDisabled = false,
@@ -175,6 +178,17 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
                 onClose();
               }}
               disabled={downloadDisabled}
+              isDark={isDark}
+            />
+          ) : null}
+          {onActivity ? (
+            <MenuButton
+              icon={<History size={18} />}
+              label="Activity"
+              onClick={() => {
+                onActivity();
+                onClose();
+              }}
               isDark={isDark}
             />
           ) : null}
