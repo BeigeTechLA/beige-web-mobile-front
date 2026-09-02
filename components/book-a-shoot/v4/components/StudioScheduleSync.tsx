@@ -538,22 +538,18 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
         {/* Top Header Row */}
-        <div className="flex items-center justify-between mb-6">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+          </button>
+        )}
 
         {/* Progress Bar */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
@@ -566,7 +562,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         </div>
 
         {/* Section Heading */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
@@ -576,16 +572,16 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         </div>
 
         {/* Radio Options Toggle */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4 mb-5 lg:mb-8">
           {/* Option 1: Yes, same schedule */}
           <div
             onClick={() => setUseSameSchedule(true)}
-            className={`h-14 lg:h-[82px] rounded-2xl border px-2 lg:px-6 flex items-center gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${useSameSchedule
+            className={`h-14 lg:h-[82px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${useSameSchedule
               ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
               : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
-            <span className="font-semibold text-base md:text-lg">
+            <span className="font-semibold text-sm md:text-lg">
               Yes, same schedule
             </span>
             <div
@@ -603,12 +599,12 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           {/* Option 2: No, different schedule */}
           <div
             onClick={() => setUseSameSchedule(false)}
-            className={`h-14 lg:h-[82px] rounded-2xl border px-2 lg:px-6 flex items-center gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!useSameSchedule
+            className={`h-14 lg:h-[82px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between gap-2.5 transition-colors duration-300 ease-in-out text-sm lg:text-lg font-medium cursor-pointer ${!useSameSchedule
               ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] border-transparent text-black"
               : "bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20 hover:border-white/20 text-[#A9A9A9]"
               }`}
           >
-            <span className="font-semibold text-base md:text-lg">
+            <span className="font-semibold text-sm md:text-lg">
               No, different schedule
             </span>
             <div
@@ -626,14 +622,14 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
 
         {/* Accordion Schedule Edit Card when "No, different schedule" is active */}
         {useSameSchedule ? (
-          <div className="w-full rounded-2xl border border-white/20 bg-[#101010] overflow-hidden transition-all duration-300">
+          <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-[#101010] overflow-hidden transition-all duration-300">
             {/* Accordion Header */}
             <button
               type="button"
               onClick={() => setIsAccordionOpen(!isAccordionOpen)}
               className="w-full p-4 lg:px-5 lg:py-7 flex items-center justify-between text-left cursor-pointer transition-colors"
             >
-              <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-[#E8D1AB]">
+              <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-[#E8D1AB]">
                 {bookingType === "single_day" ? "Single Day" : "Multiple Days"}
               </h3>
               {isAccordionOpen ? (
@@ -646,7 +642,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
             {/* Accordion Body */}
             {
               isAccordionOpen && (
-                <div className="px-5 md:px-6 pb-6 pt-2 border-t border-white/5 space-y-6">
+                <div className="px-5 md:px-6 pb-5 lg:pb-6 pt-2 border-t border-white/5 space-y-6">
                   {bookingType === "single_day" ? (
                     <div className="space-y-3 lg:space-y-5 pt-4">
                       <div className="flex flex-col lg:flex-row gap-6">
@@ -659,7 +655,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                             colors={datePickerColours}
                             format="MM/dd/yyyy"
                             floating={true}
-                            borderRadius={"20px"}
+                            borderRadius={{ xs: "8px", lg: "16px" }}
                             sx={{
                               height: { xs: "56px", md: "82px" },
                             }}
@@ -698,7 +694,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                     </div>
                   ) : (
                     /* MULTI DAY VIEW */
-                    <div className="space-y-6">
+                    <div className="space-y-3 lg:space-y-6">
                       {/* Timings Selector with Fallback Dummy Dates */}
                       {(() => {
                         const datesToRender =
@@ -707,10 +703,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                             : [new Date("2026-10-24"), new Date("2026-10-25")];
 
                         return (
-                          <div className="pt-4 space-y-3 lg:space-y-5">
+                          <div className="pt-2 lg:pt-4 space-y-3 lg:space-y-5">
                             {sameTimingsMulti ? (
                               <div>
-                                <div className="flex flex-col lg:flex-row gap-6">
+                                <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
                                   <div className="flex-1">
                                     <DropdownSelect
                                       title="Start Time"
@@ -734,21 +730,21 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                     />
                                   </div>
                                 </div>
-                                <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                                  <Check size={24} className="text-white" /> Applied to {datesToRender.length} selected dates
+                                <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
+                                  <Check className="w-4 h-4 lg:w-6 lg:h-6 text-white" /> Applied to {datesToRender.length} selected dates
                                 </p>
-                                <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                                  <p className="text-white font-medium lg:text-[20px]">
+                                <div className="bg-[#171717] rounded-lg lg:rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                                  <p className="text-white font-medium text-sm lg:text-xl">
                                     {selectedDates.length > 0
                                       ? getFormattedDateString(selectedDates)
                                       : "Oct 24, 2026, Oct 25, 2026"}
                                   </p>
-                                  <p className="text-white/60 font-medium lg:text-[20px]">
+                                  <p className="text-white/60 font-medium text-sm lg:text-xl">
                                     {getStartTimeKey() && getEndTimeKey()
                                       ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
                                       : "09:00 AM - 05:00 PM"}
                                   </p>
-                                  <p className="text-[#E8D1AB] font-medium lg:text-[20px]">
+                                  <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
                                     {getStartTimeKey() &&
                                       getEndTimeKey() &&
                                       calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
@@ -768,8 +764,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                       ref={(el) => {
                                         selectedDateCardRefs.current[dateKey] = el;
                                       }}
-                                      // className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
-                                      className={`border border-white/10 rounded-2xl bg-[#171717] overflow-visible`}
+                                      // className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                                      className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] overflow-visible`}
 
                                     >
                                       {/* <button
@@ -803,7 +799,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                           initial={{ height: 0 }}
                                           animate={{ height: "auto" }}
                                           exit={{ height: 0 }}
-                                          className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-2xl"
+                                          className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-lg lg:rounded-2xl"
                                         >
                                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                             <div className="flex-1">
@@ -867,7 +863,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           <>
             <div className=" pb-6 pt-2 space-y-6">
               {/* Segmented Pill Switch */}
-              <div className="flex w-fit lg:h-20 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8 my-4">
+              <div className="flex w-fit lg:h-20 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8 my-4">
                 <button
                   type="button"
                   onClick={() => setBookingType("single_day")}
@@ -964,7 +960,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         colors={datePickerColours}
                         format="MM/dd/yyyy"
                         floating={true}
-                        borderRadius={"20px"}
+                        borderRadius={{ xs: "8px", lg: "16px" }}
                         sx={{
                           height: { xs: "56px", md: "82px" },
                         }}
@@ -1001,9 +997,9 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
               ) : (
                 /* MULTI DAY VIEW */
                 <div className="space-y-6">
-                  <div className="relative mb-8 lg:mb-15">
+                  <div className="relative lg:mb-15">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg lg:text-2xl font-['Roboto_Condensed'] font-medium text-white/90">
+                      <h3 className="text-base lg:text-2xl font-['Roboto_Condensed'] font-medium text-white/90">
                         Select Date
                       </h3>
                       <button
@@ -1011,7 +1007,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group"
                       >
-                        <span className="text-white font-medium group-hover:text-[#E8D1AB] lg:text-[20px]">
+                        <span className="text-white font-medium group-hover:text-[#E8D1AB] text-base lg:text-xl">
                           {format(currentCalendarMonth, "MMMM yyyy")}
                         </span>
                         <CalendarIcon size={20} className="text-white group-hover:text-[#E8D1AB]" />
@@ -1072,23 +1068,20 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                               if (Date.now() < suppressChipClickUntil.current) return;
                               toggleDateSelection(dateItem);
                             }}
-                            className={`shrink-0 flex flex-col items-center justify-center w-[60px] lg:w-[100px] h-[60px] lg:h-[100px] rounded-full border transition-all ${isSelected
-                              ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
-                              : "bg-transparent border-white/10 text-white/40 hover:border-white/30"
-                              }`}
+                            className={`shrink-0 flex flex-col items-center justify-center w-15 lg:w-[100px] h-15 lg:h-[100px] rounded-full border transition-all ${isSelected ? "bg-[#E8D1AB] border-[#E8D1AB] text-black" : "bg-transparent border-white/10 text-white/40 hover:border-white/30"}`}
                           >
-                            <span className="text-lg lg:text-3xl font-bold">{format(dateItem, "d")}</span>
+                            <span className="text-base lg:text-3xl font-bold">{format(dateItem, "d")}</span>
                             <span className="text-[10px] lg:text-xs uppercase font-medium">{format(dateItem, "EEE")}</span>
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="flex gap-4">
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                    <div className="flex flex-col lg:flex-row gap-2 lg:gap-4">
+                      <div className="lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
                         <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Total Days: {selectedDates.length}</p>
                       </div>
-                      <div className="mt-4 lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                      <div className="lg:mt-8 rounded-lg lg:rounded-xl bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
                         <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">Selected Days: {getFormattedDateString(selectedDates)}</p>
                       </div>
                     </div>
@@ -1100,7 +1093,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl w-[320px]"
+                          className="absolute right-0 top-14 z-50 bg-[#111] border border-white/10 p-5 rounded-lg lg:rounded-2xl shadow-2xl w-[320px]"
                         >
                           <div className="flex justify-between items-center mb-6">
                             <button
@@ -1158,7 +1151,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                   {/* Timings Selector */}
                   {selectedDates.length > 0 && (
                     <div className="pt-6 lg:pt-10 border-t border-white/10 space-y-6">
-                      <h3 className="text-lg lg:text-[28px] font-medium mb-3 lg:mb-6">
+                      <h3 className="text-base lg:text-[28px] font-medium mb-3 lg:mb-6">
                         Are timings same for all selected dates?
                       </h3>
 
@@ -1166,7 +1159,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         <button
                           type="button"
                           onClick={() => handleSameTimingsModeChange(true)}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti
                             ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
                             : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
                             }`}
@@ -1182,15 +1175,14 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         <button
                           type="button"
                           onClick={() => handleSameTimingsModeChange(false)}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti
+                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti
                             ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
                             : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
                             }`}
                         >
                           <span className="font-medium text-sm lg:text-lg pr-2">No</span>
                           <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
-                              }`}
+                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}
                           >
                             {!sameTimingsMulti && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
                           </div>
@@ -1221,19 +1213,19 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                               />
                             </div>
                           </div>
-                          <p className="flex gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9]">
-                            <Check size={24} className="text-white" /> Applied to {selectedDates.length} selected dates
+                          <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
+                            <Check className="w-4 h-4 lg:w-6 lg:h-6 text-white" /> Applied to {selectedDates.length} selected dates
                           </p>
-                          <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                            <p className="text-white font-medium lg:text-[20px]">
+                          <div className="bg-[#171717] rounded-lg lg:rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
+                            <p className="text-white font-medium text-sm lg:text-xl">
                               {getFormattedDateString(selectedDates)}
                             </p>
-                            <p className="text-white/60 font-medium lg:text-[20px]">
+                            <p className="text-white/60 font-medium text-sm lg:text-xl">
                               {getStartTimeKey() && getEndTimeKey()
                                 ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
                                 : "Select time"}
                             </p>
-                            <p className="text-[#E8D1AB] font-medium lg:text-[20px]">
+                            <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
                               {getStartTimeKey() &&
                                 getEndTimeKey() &&
                                 calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
@@ -1253,7 +1245,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                 ref={(el) => {
                                   selectedDateCardRefs.current[dateKey] = el;
                                 }}
-                                className={`border border-white/10 rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                                className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
                               >
                                 <button
                                   type="button"
@@ -1270,13 +1262,11 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                       });
                                     }
                                   }}
-                                  className={`w-full px-6 py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-2xl border-b-white/10" : ""
-                                    }`}
+                                  className={`w-full p-4 lg:px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10" : ""}`}
                                 >
-                                  <span className="text-white font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
+                                  <span className="text-white text-sm lg:text-base font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
                                   <ChevronDown
-                                    className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""
-                                      }`}
+                                    className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                                   />
                                 </button>
                                 <AnimatePresence>
@@ -1285,7 +1275,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                       initial={{ height: 0 }}
                                       animate={{ height: "auto" }}
                                       exit={{ height: 0 }}
-                                      className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-2xl"
+                                      className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-lg lg:rounded-2xl"
                                     >
                                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <div className="flex-1">
@@ -1345,21 +1335,21 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           <>
             <hr className="border-t border-white/20 my-5 lg:my-10" />
             <div>
-              <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4 lg:mb-8">
+              <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4 lg:mb-8">
                 Studio Selected based on your location
               </h3>
-              <div className="border border-white/20 bg-[#101010] rounded-2xl">
+              <div className="border border-white/20 bg-[#101010] rounded-lg lg:rounded-2xl">
                 <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                   {/* Studio Image + Rating Badge */}
-                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-l-xl overflow-hidden shrink-0">
+                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                     <Image
                       src={selectedStudio.image}
                       alt={selectedStudio.name}
                       fill
                       className="object-cover"
                     />
-                    <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm lg:text-lg font-medium flex items-center gap-1.5 border border-white/20">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-lg font-medium flex items-center gap-1.5 border border-white/20">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 lg:w-5 lg:h-5" viewBox="0 0 20 20" fill="none">
                         <path d="M19.4965 7.2823C19.4339 7.08334 19.3158 6.90771 19.1569 6.7772C18.9981 6.6467 18.8055 6.56707 18.603 6.5482L12.9602 6.02112L10.7301 0.649329C10.5655 0.254664 10.1909 0 9.77386 0C9.35686 0 8.98209 0.254664 8.81849 0.649329L6.58842 6.02112L0.944711 6.5482C0.530959 6.58748 0.180623 6.87581 0.0511939 7.2823C-0.0118736 7.48143 -0.0167794 7.69522 0.0370842 7.89719C0.0909477 8.09916 0.201214 8.28044 0.354225 8.41857L4.61976 12.2668L3.36209 17.9661C3.27008 18.3851 3.42814 18.8185 3.76611 19.0698C3.94312 19.2023 4.15643 19.2736 4.37534 19.2734C4.56298 19.2734 4.7471 19.221 4.90806 19.1218L9.77386 16.1284L14.6388 19.1218C14.8133 19.2292 15.0146 19.2816 15.2178 19.2723C15.421 19.2631 15.617 19.1927 15.7816 19.0698C16.1196 18.8185 16.2777 18.3851 16.1857 17.9661L14.9279 12.2668L19.1935 8.41861C19.3465 8.28049 19.4568 8.09921 19.5107 7.89724C19.5645 7.69526 19.5596 7.48147 19.4965 7.28234V7.2823Z" fill="#FDE955" />
                       </svg>
                       <span>
@@ -1374,33 +1364,33 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                       {/* Title & Status Badge */}
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div>
-                          <h3 className="text-base lg:text-xl font-bold text-white">
+                          <h3 className="text-xs lg:text-xl font-bold text-white">
                             {selectedStudio.name}
                             <br />{selectedStudio.subtitle}
                           </h3>
                         </div>
 
                         {selectedStudio.isAdded && (
-                          <span className="flex items-center gap-1 bg-[#4CAF50] text-white border border-[#4CAF50] px-3 py-2 rounded-full text-sm lg:text-base shrink-0">
+                          <span className="flex items-center gap-1 bg-[#4CAF50] text-white border border-[#4CAF50] px-3 py-2 rounded-full text-[10px] lg:text-base shrink-0">
                             <Check className="w-4 h-4" /> Added
                           </span>
                         )}
                       </div>
 
                       {/* Location */}
-                      <div className="flex items-center gap-1 text-sm lg:text-lg text-white/70">
+                      <div className="flex items-center gap-1 text-[10px] lg:text-lg text-white/70">
                         <MapPin className="w-4 h-4 lg:w-6 lg:h-6" strokeWidth={1} />
                         <span>{selectedStudio.location}</span>
                       </div>
 
-                      <hr className="border-t my-4 lg:my-7 border-white/20" />
+                      <hr className="border-t my-3 lg:my-7 border-white/20" />
 
                       {/* Tags */}
                       <div className="flex flex-wrap items-center gap-2">
                         {selectedStudio.tags.map((tag, idx) => (
                           <span
                             key={idx}
-                            className="px-5 py-1.5 rounded-md border border-white/20 bg-[#171716] text-sm lg:text-lg text-white/70 font-light"
+                            className="px-3 py-1 lg:px-5 lg:py-1.5 rounded-md border border-white/20 bg-[#171716] text-xs lg:text-lg text-white/70 font-light"
                           >
                             {tag}
                           </span>
@@ -1408,7 +1398,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                       </div>
                     </div>
 
-                    <hr className="border-t my-4 lg:my-7 border-white/20" />
+                    <hr className="border-t my-3 lg:my-7 border-white/20" />
 
                     {/* Action & Price Footer */}
                     <div className="flex items-center justify-between">
@@ -1420,7 +1410,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                               e.stopPropagation();
                               // toggleSelectStudio(studio.id);
                             }}
-                            className="px-6 py-2.5 lg:px-11 lg:py-3.5 rounded-full bg-[#FFC9C9] text-[#C31717] text-sm lg:text-xl font-medium hover:bg-[#FFC9C9]/80 transition-colors flex items-center gap-1.5 cursor-pointer z-20"
+                            className="px-4 py-2 lg:px-11 lg:py-3.5 rounded-full bg-[#FFC9C9] text-[#C31717] text-xs lg:text-xl font-medium hover:bg-[#FFC9C9]/80 transition-colors flex items-center gap-1.5 cursor-pointer z-20"
                           >
                             <X className="w-4 h-4 lg:w-5 lg:h-5" />
                             <span>Remove</span>
@@ -1432,7 +1422,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                               e.stopPropagation();
                               // toggleSelectStudio(studio.id);
                             }}
-                            className="px-6 py-2.5 lg:px-11 lg:py-3.5 rounded-full bg-white text-black text-sm lg:text-xl font-medium hover:bg-white/90 transition-colors cursor-pointer z-20"
+                            className="px-4 py-2 lg:px-11 lg:py-3.5 rounded-full bg-white text-black text-xs lg:text-xl font-medium hover:bg-white/90 transition-colors cursor-pointer z-20"
                           >
                             Add this Studio
                           </button>
@@ -1442,10 +1432,10 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         <Link
                           href={selectedStudio.link}
                           target="_blank"
-                          className="w-10 h-10 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer z-20"
+                          className="w-7 h-7 lg:h-13 lg:w-13 rounded-full border-[0.874px] border-white/40 bg-white/20 text-white flex items-center justify-center hover:text-white transition-colors cursor-pointer z-20"
                         >
                           {/* <ArrowUpRight className="w-4 h-4 lg:w-6 lg:h-6" /> */}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34" fill="none">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 lg:w-8 lg:h-8" viewBox="0 0 34 34" fill="none">
                             <path d="M23.3643 12.1704L10.22 21.4163" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
                             <path d="M21.9857 20.091C20.3042 17.7006 20.8201 13.9603 23.3647 12.1703" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
                             <path d="M15.444 10.7913C17.1255 13.1817 20.8201 13.9603 23.3647 12.1703" stroke="white" strokeWidth="1.74897" strokeLinecap="square" />
@@ -1457,7 +1447,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         <span className="text-xs lg:text-base text-[#1DAA23] block">
                           {selectedStudio.availability}
                         </span>
-                        <div className="text-[#E8D1AB] text-lg lg:text-4xl font-['Roboto_Condensed'] font-bold">
+                        <div className="text-[#E8D1AB] text-2xl lg:text-4xl font-['Roboto_Condensed'] font-bold">
                           ${selectedStudio.pricePerHour}{" "}
                           <span className="text-sm md:text-xl text-white">
                             / hour
@@ -1473,12 +1463,12 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="pt-10 mt-12 border-t border-white/20 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -1489,7 +1479,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>

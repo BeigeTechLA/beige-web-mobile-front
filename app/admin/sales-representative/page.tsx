@@ -490,6 +490,15 @@ const getSelectedLeadDateParams = (selectedDate: Date | null) => {
   };
 };
 
+const getCreatedDateParams = (date: Date | null) => {
+  if (!date) return {};
+  const formattedDate = format(startOfDay(date), "yyyy-MM-dd");
+  return {
+    created_start_date: formattedDate,
+    created_end_date: formattedDate,
+  };
+};
+
 export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -500,6 +509,7 @@ export default function AdminSaleRepManagerPage() {
   const hasRestoredFiltersRef = useRef(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedCreatedDate, setSelectedCreatedDate] = useState<Date | null>(null);
   const [sortBy, setSortBy] = React.useState("");
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -658,6 +668,13 @@ export default function AdminSaleRepManagerPage() {
           setSelectedDate(restoredDate);
         }
       }
+      if (parsed.selectedCreatedDate) {
+      const restoredDate = new Date(parsed.selectedCreatedDate);
+      if (!Number.isNaN(restoredDate.getTime())) {
+        restoredDate.setHours(0, 0, 0, 0); 
+        setSelectedCreatedDate(restoredDate);
+      }
+    }
     } catch (error) {
       console.error("Failed to restore sales representative page filters:", error);
     } finally {
@@ -752,6 +769,7 @@ export default function AdminSaleRepManagerPage() {
           leadsCurrentPage,
           usersCurrentPage,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
+          selectedCreatedDate: selectedCreatedDate ? selectedCreatedDate.toISOString() : null,
         })
       );
     } catch (error) {
@@ -807,6 +825,7 @@ export default function AdminSaleRepManagerPage() {
       // Note: If your API slice interface doesn't include 'intent', you may need to add it there too
       intent: intentFilter === "All" ? undefined : intentFilter,
       ...(leadsViewMode !== "grid" ? getSelectedLeadDateParams(selectedDate) : {}),
+      ...getCreatedDateParams(selectedCreatedDate),
     }
     : skipToken;
 
@@ -834,6 +853,7 @@ export default function AdminSaleRepManagerPage() {
         : undefined,
     intent: intentFilter === "All" ? undefined : intentFilter,
     ...(leadsViewMode !== "grid" ? getSelectedLeadDateParams(selectedDate) : {}),
+    ...getCreatedDateParams(selectedCreatedDate),
   });
 
   const mergeBoardColumns = (
@@ -1362,29 +1382,65 @@ export default function AdminSaleRepManagerPage() {
                   onChange={(val) => setStatusFilter(normalizeBookingStatusFilterValue(val))}
                   openAlign={"right"}
                 />
-                <div className="w-[170px]">
-                  <DatePicker
-                    value={selectedDate}
-                    onChange={handleDateSort}
-                    isDark={isDark}
-                    placeholder="Select Date"
-                    sx={{
+              <div className="relative w-[170px]">
+                <DatePicker 
+                  value={selectedDate} 
+                  onChange={handleDateSort} 
+                  isDark={isDark} 
+                  placeholder="Shoot Date" 
+                  sx={{
                       "& .MuiInputBase-input": {
                         padding: "12px 12px",
                         fontSize: "13px",
                       },
-                    }}
-                  />
-                </div>
+                  }}
+                />
+                
                 {selectedDate && (
                   <button
                     type="button"
                     onClick={() => setSelectedDate(null)}
-                    className={`h-9 self-end px-2 text-xs font-medium underline ${isDark ? "text-white/60 hover:text-white" : "text-black/50 hover:text-black"}`}
+                    className={`absolute right-9 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                      isDark
+                        ? "text-white/60 hover:bg-white/10 hover:text-white"
+                        : "text-black/40 hover:bg-black/5 hover:text-black"
+                    }`}
+                    aria-label="Clear shoot date"
                   >
-                    Clear date
+                    <X size={15} />
                   </button>
                 )}
+              </div>
+
+              <div className="relative w-[170px]">
+                <DatePicker 
+                  value={selectedCreatedDate} 
+                  onChange={(date) => setSelectedCreatedDate(date)} 
+                  isDark={isDark} 
+                  placeholder="Created Date" 
+                  sx={{ 
+                    "& .MuiInputBase-input": { 
+                      padding: "12px 32px 12px 12px", 
+                      fontSize: "13px", 
+                    }, 
+                  }} 
+                />
+
+                {selectedCreatedDate && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCreatedDate(null)}
+                    className={`absolute right-9 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                      isDark
+                        ? "text-white/60 hover:bg-white/10 hover:text-white"
+                        : "text-black/40 hover:bg-black/5 hover:text-black"
+                    }`}
+                    aria-label="Clear created date"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
                 <div className={`flex items-center px-3 text-sm font-medium whitespace-nowrap ml-auto ${isDark ? "text-white/60" : "text-black/60"}`}>
                   Total: {leadsTotalRecords} Leads
                 </div>

@@ -64,7 +64,7 @@ export default function CreativeTeam({
       <div>
         <button
           onClick={onBack}
-         className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
         </button>

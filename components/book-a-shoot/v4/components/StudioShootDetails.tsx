@@ -79,20 +79,20 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
       {/* Top Navigation */}
-      <div className="mb-6 lg:mb-10">
+      <div>
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors cursor-pointer"
+             className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
@@ -105,11 +105,11 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
       </div>
 
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
+        <p className="text-white/30 text-sm md:text-xl font-light">
           {subtitle}
         </p>
       </div>
@@ -118,7 +118,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
         <div className="relative space-y-2">
           <Label
             htmlFor="projectName"
-            className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+            className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
           >
             Project Name
           </Label>
@@ -128,7 +128,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+              className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
             />
           </div>
         </div>
@@ -136,7 +136,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
         <div className="relative space-y-2">
           <Label
             htmlFor="description"
-            className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+            className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
           >
             Description
           </Label>
@@ -145,7 +145,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-45 border-white/30 bg-[#101010] text-white rounded-xl px-4 outline-none focus:border-white text-sm lg:text-base"
+              className="min-h-45 border-white/30 bg-[#101010] text-white rounded-lg lg:rounded-xl px-4 outline-none focus:border-white text-sm lg:text-base"
             />
           </div>
         </div>
@@ -154,8 +154,8 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
       <hr className="border-t border-white/20 my-5 lg:my-10" />
 
       {/* Contact Information Form */}
-      <div className="mb-8">
-        <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
+      <div className="mb-5 lg:mb-8">
+        <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
           Contact Information
         </h2>
         <form id="contact-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +163,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
           <div className="relative space-y-2">
             <Label
               htmlFor="fullName"
-              className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Full Name*
             </Label>
@@ -173,14 +173,14 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>
           </div>
           <div className="relative space-y-2">
             <Label
               htmlFor="phone"
-              className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Phone Number*
             </Label>
@@ -192,7 +192,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 inputMode="tel"
                 autoComplete="tel"
-                className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>
           </div>
@@ -200,12 +200,12 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -216,7 +216,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
         <button
           type="button"
           onClick={() => handleSubmit()}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>

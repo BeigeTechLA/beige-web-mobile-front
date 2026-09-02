@@ -137,16 +137,16 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                 {/* Left Card Details */}
                 <div className="flex flex-col justify-between h-full z-10 max-w-[65%]">
                   <div>
-                    <h3 className={`text-base lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] ${isSelected ? "text-black" : "text-white"}`}>
+                    <h3 className={`text-base lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] leading-none ${isSelected ? "text-black" : "text-[#E8D1AB]"}`}>
                       {service.title}
                     </h3>
-                    <p className={`text-xs lg:text-base font-light leading-relaxed ${isSelected ? "text-black/70" : "text-white/70"}`}>
+                    <p className={`text-xs lg:text-base font-light leading-none ${isSelected ? "text-black/70" : "text-white/70"}`}>
                       {service.description}
                     </p>
                   </div>
 
                   {/* Checkbox Indicator */}
-                  <div className="mt-6">
+                  <div className="mt-7 lg:mt-9">
                     <div
                       className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isSelected
                         ? "bg-black text-white"
