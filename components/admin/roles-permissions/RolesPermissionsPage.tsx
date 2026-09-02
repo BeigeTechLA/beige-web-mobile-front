@@ -100,6 +100,70 @@ const mapUserToPermissionUser = (
   deleted_at: user.deleted_at,
 });
 
+const RoleCardSkeleton = ({ isDark }: { isDark: boolean }) => {
+  return (
+    <div className={`w-full min-h-[240px] animate-pulse rounded-[28px] border p-6 ${
+        isDark
+          ? "border-white/10 bg-[#111111]"
+          : "border-[#E3E3E3] bg-white"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div
+            className={`h-6 w-32 rounded-md ${
+              isDark ? "bg-white/10" : "bg-black/10"
+            }`}
+          />
+
+          <div
+            className={`mt-3 h-4 w-24 rounded-md ${
+              isDark ? "bg-white/5" : "bg-black/5"
+            }`}
+          />
+        </div>
+
+        <div
+          className={`h-10 w-10 rounded-full ${
+            isDark ? "bg-white/10" : "bg-black/10"
+          }`}
+        />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <div
+          className={`h-4 w-full rounded-md ${
+            isDark ? "bg-white/5" : "bg-black/5"
+          }`}
+        />
+
+        <div
+          className={`h-4 w-[85%] rounded-md ${
+            isDark ? "bg-white/5" : "bg-black/5"
+          }`}
+        />
+
+        <div
+          className={`h-4 w-[65%] rounded-md ${
+            isDark ? "bg-white/5" : "bg-black/5"
+          }`}
+        />
+      </div>
+
+      <div className="mt-7 flex items-center gap-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={index}
+            className={`h-9 w-9 rounded-full ${
+              isDark ? "bg-white/10" : "bg-black/10"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export function RolesPermissionsPage({
   searchQuery = "",
   canCreateUser
@@ -111,8 +175,7 @@ export function RolesPermissionsPage({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [roles, setRoles] = useState<AdminRoleRecord[]>([]);
   const [users, setUsers] = useState<PermissionUser[]>([]);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [rolesError, setRolesError] = useState("");
   const [usersError, setUsersError] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -141,7 +204,6 @@ export function RolesPermissionsPage({
   const isDark = !mounted || theme === "dark";
 
   const loadRoles = useCallback(async () => {
-    setIsLoadingRoles(true);
     setRolesError("");
 
     const response = await adminApi.getRoles({
@@ -157,11 +219,9 @@ export function RolesPermissionsPage({
       setRolesError(response?.error || response?.message || "Failed to load roles");
     }
 
-    setIsLoadingRoles(false);
   }, [searchQuery, sortOrder]);
 
   const loadUsers = useCallback(async () => {
-    setIsLoadingUsers(true);
     setUsersError("");
 
     const response = await adminApi.getUsersWithRoles({
@@ -177,16 +237,24 @@ export function RolesPermissionsPage({
       setUsersError(response?.error || response?.message || "Failed to load users");
     }
 
-    setIsLoadingUsers(false);
   }, [searchQuery, sortOrder]);
 
-  useEffect(() => {
-    const loadPage = async () => {
-      await Promise.all([loadRoles(), loadUsers()]);
-    };
+useEffect(() => {
+  const loadPage = async () => {
+    setIsLoading(true);
 
-    void loadPage();
-  }, [loadRoles, loadUsers]);
+    try {
+      await Promise.all([
+        loadRoles(),
+        loadUsers(),
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  void loadPage();
+}, [loadRoles, loadUsers]);
 
   const roleCards = useMemo<RoleCardData[]>(() => {
     return sortRolesForDisplay(roles).map((role, index) => {
@@ -222,11 +290,12 @@ export function RolesPermissionsPage({
   }, [roles, users]);
 
   const rolesSummary = useMemo(() => {
-    if (isLoadingRoles) return "Loading roles...";
+    if (isLoading) return "";
     if (rolesError) return rolesError;
-    if (!roleCards.length) return "No roles found for the current filters.";
+    if (!roleCards.length) {return "No roles found for the current filters.";}
+
     return `${roleCards.length} role${roleCards.length === 1 ? "" : "s"} loaded`;
-  }, [isLoadingRoles, roleCards.length, rolesError]);
+  }, [isLoading, roleCards.length, rolesError]);
 
   const handleOpenDeleteModal = (user: PermissionUser) => {
     setSelectedUser(user);
@@ -310,7 +379,9 @@ export function RolesPermissionsPage({
                 depending on assigned role an administrator can have access to what
                 user needs.
               </p>
-              <p className={`mt-1 lg:mt-2 text-sm transition-colors duration-300 ${isDark ? "text-white/35" : "text-[#010101]"}`}>{rolesSummary}</p>
+              {rolesSummary && (
+                <p className={`mt-1 lg:mt-2 text-sm transition-colors duration-300 ${isDark ? "text-white/35" : "text-[#010101]"}`}>{rolesSummary}</p>
+              )}
             </div>
 
             <button
@@ -333,7 +404,7 @@ export function RolesPermissionsPage({
           </div>
 
           <div className="grid justify-items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {!isLoadingRoles &&
+            {!isLoading &&
               roleCards.map((card) => (
                 <RoleCard
                   key={card.id}
@@ -348,7 +419,7 @@ export function RolesPermissionsPage({
                       const role = roles.find((item) => String(item.role_id) === String(id));
                       router.push(
                         `/admin/roles-permissions/role-users?role_id=${id}&role_name=${encodeURIComponent(
-                          role?.name || "Role",
+                          role?.name || "Role"
                         )}`,
                       );
                     }
@@ -356,16 +427,16 @@ export function RolesPermissionsPage({
                 />
               ))}
 
-            {isLoadingRoles && (
-              <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
-                }`}>
-                Loading roles...
-              </div>
-            )}
+            {isLoading &&
+              Array.from({ length: 3 }).map((_, index) => (
+                <RoleCardSkeleton
+                  key={`role-skeleton-${index}`}
+                  isDark={isDark}
+                />
+              ))}
 
-            {!isLoadingRoles && !roles.length && (
-              <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center transition-colors duration-300 ${isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"
-                }`}>
+            {!isLoading && !roles.length && (
+              <div className={`col-span-full rounded-[32px] border px-6 py-10 text-center ${isDark ? "border-white/10 bg-[#111111] text-white/50" : "border-[#E3E3E3] bg-white text-[#32323266]"}`}>
                 {rolesError || "No roles found."}
               </div>
             )}
@@ -375,7 +446,7 @@ export function RolesPermissionsPage({
             users={users}
             sortOrder={sortOrder}
             isDark={isDark}
-            isLoading={isLoadingUsers}
+            isLoading={isLoading}
             error={usersError}
             onEdit={handleOpenUserDetails}
             onRowClick={handleOpenUserDetails}

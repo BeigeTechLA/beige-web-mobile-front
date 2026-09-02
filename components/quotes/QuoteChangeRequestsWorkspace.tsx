@@ -806,9 +806,8 @@ export default function QuoteChangeRequestsWorkspace({
       toast.error(response?.message || response?.error || `Failed to ${decision} request`);
       return;
     }
-
-    const updatedRequest = response.data?.request ?? null;
-    setSelectedRequest(updatedRequest);
+    
+    setSelectedRequest(null);
     await loadRequests();
 
     toast.success(
