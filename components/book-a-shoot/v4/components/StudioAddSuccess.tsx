@@ -33,12 +33,12 @@ export const StudioAddSuccess: React.FC<StudiosSuccessProps> = ({
             />
           </div>
         </div>
-        <h2 className="text-lg lg:text-4xl font-medium text-center">
+        <h2 className="text-xl lg:text-4xl font-medium text-center">
           Studio Added Successfully
         </h2>
         {
           !price ?
-            <p className="text-lg lg:text-[26px] text-white/50 mb-8 lg:mb-12">{subtitle}</p>
+            <p className="text-base lg:text-[26px] text-white/50 mb-8 lg:mb-12">{subtitle}</p>
             :
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mt-2 lg:mt-5 mb-8 lg:mb-12">{formatCurrency(price)}</p>
         }

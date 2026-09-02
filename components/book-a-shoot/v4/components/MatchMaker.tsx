@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ArrowLeft, Sparkles, Users, Info, Check } from "lucide-react";
+import Image from "next/image";
 
 export interface TeamSelectionData {
   teamOption: "best-match" | "choose-own";
@@ -159,15 +160,30 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
             </p>
             <div className="flex flex-wrap gap-4 lg:gap-6 text-sm lg:text-lg text-[#A9A9A9]">
               <div className="flex items-center gap-2">
-                <Check className="w-6 h-6 text-white" />
+                <Image
+                  src={"/images/misc/BookingFlow/Tick.svg"}
+                  alt="Check mark icon"
+                  width={18}
+                  height={18}
+                />
                 <span>Optimal team composition</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="w-6 h-6 text-white" />
+                <Image
+                  src={"/images/misc/BookingFlow/Tick.svg"}
+                  alt="Check mark icon"
+                  width={18}
+                  height={18}
+                />
                 <span>Matched based on your budget</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="w-6 h-6 text-white" />
+                <Image
+                  src={"/images/misc/BookingFlow/Tick.svg"}
+                  alt="Check mark icon"
+                  width={18}
+                  height={18}
+                />
                 <span>Industry best practices</span>
               </div>
             </div>

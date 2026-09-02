@@ -75,22 +75,18 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
         {/* Top Header Row */}
-        <div className="flex items-center justify-between mb-6">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+          </button>
+        )}
 
         {/* Progress Bar */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
@@ -102,17 +98,17 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         </div>
 
         {/* Section Heading */}
-        <div className="mb-8">
+        <div className="mb-5 lg:mb-8">
           <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title ? title : `Browse Studios for your ${occasionTitle}`}
           </h1>
-          <p className="text-white/30 text-base lg:text-xl">
+          <p className="text-white/30 text-sm md:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Category Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-5 mb-5 lg:mb-8">
           {DEFAULT_STUDIO_CATEGORIES.map((category) => {
             const isSelected = selectedKey === category.key;
 
@@ -120,7 +116,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
               <div
                 key={category.key}
                 onClick={() => setSelectedKey(category.key)}
-                className={`group relative rounded-2xl p-4 lg:p-7 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden min-h-[190px] ${isSelected
+                className={`group relative rounded-lg lg:rounded-2xl p-5 lg:p-7 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border transition-all duration-300 cursor-pointer flex flex-col justify-between overflow-hidden lg:min-h-[190px] ${isSelected
                   ? "border-white/30"
                   : "border-white/20 hover:border-white/30"
                   }`}
@@ -137,16 +133,16 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
 
                 {/* Content Overlay */}
                 <div className="relative z-10 max-w-[70%] space-y-2">
-                  <h3 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                  <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                     {category.title}
                   </h3>
-                  <p className="text-sm lg:text-base text-white/70 font-light leading-relaxed">
+                  <p className="text-xs lg:text-base text-white/70 font-light">
                     {category.description}
                   </p>
                 </div>
 
                 {/* Selection Checkbox indicator */}
-                <div className="relative z-10 mt-6">
+                <div className="relative z-10 mt-4 lg:mt-6">
                   <div
                     className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center ${isSelected
                       ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
@@ -162,9 +158,9 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         </div>
 
         {/* Information Banner */}
-        <div className="flex gap-2 w-full rounded-2xl bg-[#211F1C] p-4 lg:px-6 items-center">
+        <div className="flex gap-2 w-full rounded-lg lg:rounded-2xl bg-[#211F1C] p-4 lg:px-6 items-center">
           <Info className="w-5 h-5 text-[#E8D1AB] shrink-0" />
-          <p className="text-sm lg:text-base text-[#E8D1AB]">
+          <p className="text-xs lg:text-base text-[#E8D1AB]">
             Note: Studios are shown based on your selected category. Pricing, availability, and rules may vary.
           </p>
         </div>
@@ -176,7 +172,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
 
             {/* Crew Size Input Section */}
             <div className="space-y-4 lg:space-y-8">
-              <h2 className="text-lg lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
                 {
                   showShootType ? "How big will your crew be and what kind of shoot is it?" : "How big will your crew be?"
                 }
