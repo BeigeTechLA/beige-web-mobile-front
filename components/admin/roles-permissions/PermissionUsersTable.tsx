@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, History, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -190,6 +190,8 @@ export function PermissionUsersTable({
   const [serverLoading, setServerLoading] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
+  const tableTopRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollToTableRef = useRef(false);
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
@@ -364,6 +366,21 @@ export function PermissionUsersTable({
     }
   }, [currentPage, totalPages]);
 
+  useEffect(() => {
+    if (!shouldScrollToTableRef.current || !filteredUsers.length) return;
+
+    shouldScrollToTableRef.current = false;
+
+    const frame = window.requestAnimationFrame(() => {
+      tableTopRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentPage, filteredUsers.length]);
+
   const allSelected =
     paginatedUsers.length > 0 &&
     paginatedUsers.every((user) => selectedRows.includes(user.id));
@@ -384,6 +401,11 @@ export function PermissionUsersTable({
     setSelectedRows((current) =>
       checked ? [...current, id] : current.filter((item) => item !== id),
     );
+  };
+
+  const goToPage = (page: number) => {
+    shouldScrollToTableRef.current = true;
+    setCurrentPage(page);
   };
 
   const showLoading = isLoading || serverLoading;
@@ -412,7 +434,7 @@ export function PermissionUsersTable({
 
   return (
     <>
-      <div className={shellClass}>
+      <div ref={tableTopRef} className={shellClass}>
         <div className={`p-5 ${isDark ? "bg-[#101010]" : "bg-[#FFFCF6]"}`}>
           {/* Table Header Section: Title and Right-aligned Filters */}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -842,7 +864,7 @@ export function PermissionUsersTable({
               <div className="flex flex-wrap gap-2 items-center justify-center md:justify-end w-full max-w-full min-w-0 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  onClick={() => goToPage(Math.max(1, safeCurrentPage - 1))}
                   disabled={safeCurrentPage === 1}
                   className={`inline-flex items-center justify-center rounded-lg border p-2  text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
                 >
@@ -861,7 +883,7 @@ export function PermissionUsersTable({
                     <button
                       key={item}
                       type="button"
-                      onClick={() => setCurrentPage(item)}
+                      onClick={() => goToPage(item)}
                       className={`flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm font-medium transition ${safeCurrentPage === item
                         ? "border-[#E8D1AB] bg-[#E8D1AB] text-[#111111]"
                         : paginatorSurface
@@ -874,7 +896,7 @@ export function PermissionUsersTable({
 
                 <button
                   type="button"
-                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  onClick={() => goToPage(Math.min(totalPages, safeCurrentPage + 1))}
                   disabled={safeCurrentPage === totalPages}
                   className={`inline-flex items-center justify-center rounded-lg border p-2  text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-35 ${paginatorSurface}`}
                 >
