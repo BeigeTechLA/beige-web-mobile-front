@@ -4130,6 +4130,31 @@ export const salesApi = {
       };
     }
   },
+  updateShootType: async (
+    shootTypeId: number | string,
+    data: {
+      name?: string;
+      content_type?: number;
+      display_order?: number;
+      image_url?: string | null;
+      description?: string | null;
+      tags?: string | Record<string, unknown> | null;
+      edited_photos_note?: string | null;
+      is_active?: number | boolean;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/shoot-types/${shootTypeId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot type',
+      };
+    }
+  },
   getShootTypes: async (id: number | string) => {
     try {
       const response = await api.get(`/sales/quotes/shoot-types/${id}`);
@@ -4166,6 +4191,29 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to create AI editing type',
+      };
+    }
+  },
+  updateAiEditingType: async (
+    id: number | string,
+    data: {
+      category?: "video" | "photo";
+      label?: string;
+      type_key?: string;
+      note?: string | null;
+      display_order?: number;
+      is_active?: number | boolean;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/ai-editing-types/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update AI editing type',
       };
     }
   },

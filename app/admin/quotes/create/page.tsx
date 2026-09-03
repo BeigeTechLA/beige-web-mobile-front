@@ -2934,7 +2934,7 @@ function CreateQuotePageContent() {
               </div>
 
               <div className="mt-8 space-y-6">
-                <Button
+                {/* <Button
                   onClick={() =>
                     setActiveShootTypeForm(isFormOpen ? null : kind)
                   }
@@ -2945,7 +2945,7 @@ function CreateQuotePageContent() {
                 >
                   <Plus size={16} strokeWidth={3} />
                   {`Add ${sectionLabel}`}
-                </Button>
+                </Button> */}
 
                 <AnimatePresence>
                   {isFormOpen && (
@@ -5799,7 +5799,7 @@ function CreateQuotePageContent() {
                 <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
                 {/* Dynamic Custom Creation Form Component */}
-                <div className="p-4 lg:p-8 lg:pb-6">
+                {/* <div className="p-4 lg:p-8 lg:pb-6">
                   <h3 className={`lg:text-xl font-medium mb-6 ${isDark ? "text-white" : "text-black"}`}>
                     Add Custom Logistics Item
                   </h3>
@@ -5885,7 +5885,7 @@ function CreateQuotePageContent() {
                     <Plus size={16} strokeWidth={3} />
                     Add More Logistics
                   </Button>
-                </div>
+                </div> */}
 
                 {selectedLogistics.length > 0 && (
                   <>
@@ -6182,7 +6182,7 @@ function CreateQuotePageContent() {
                 </div>
 
                 <div className="space-y-6 p-4 lg:p-8 !pt-0">
-                  <Button
+                  {/* <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
                     className={`${isDark
                       ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]"
@@ -6191,7 +6191,7 @@ function CreateQuotePageContent() {
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Add-ons
-                  </Button>
+                  </Button> */}
 
                   <AnimatePresence>
                     {showAddAddonForm && (
@@ -6673,13 +6673,13 @@ function CreateQuotePageContent() {
                   </div>
 
                   <div className="mt-5 lg:mt-7 space-y-6">
-                    <Button
+                    {/* <Button
                       onClick={() => setShowAddServiceForm(!showAddServiceForm)}
                       className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Add Services
-                    </Button>
+                    </Button> */}
 
                     <AnimatePresence>
                       {showAddServiceForm && (
@@ -6903,7 +6903,7 @@ function CreateQuotePageContent() {
                                   </div>
 
                                   <div className="mt-8 space-y-6">
-                                    <Button
+                                    {/* <Button
                                       onClick={() =>
                                         setShowAddEditingTypeForm(
                                           !showAddEditingTypeForm,
@@ -6916,7 +6916,7 @@ function CreateQuotePageContent() {
                                     >
                                       <Plus size={16} strokeWidth={3} />
                                       Add Editing Types
-                                    </Button>
+                                    </Button> */}
 
                                     <AnimatePresence>
                                       {showAddEditingTypeForm && (
