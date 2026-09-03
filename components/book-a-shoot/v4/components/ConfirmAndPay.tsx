@@ -208,7 +208,7 @@ export default function ConfirmAndPay({
               </div>
             </div>
 
-            Editing Services Breakdown
+            {/* Editing Services Breakdown */}
             <div className="space-y-2 mb-4 text-sm text-white/70">
               <p className="text-white/40 mb-4 text-sm">+ Editing services</p>
               <div className="flex justify-between items-center">
@@ -247,29 +247,29 @@ export default function ConfirmAndPay({
               <span className="text-[#A9A9A9] text-sm">{data.studioName}</span>
               <span className="text-white text-base font-bold">{formatCurrency(data.studioFee)}</span>
             </div>
-          </div> */}
+          </div>
 
-          {/* <div className="border-t border-white/20 p-4 lg:p-8">
+          <div className="border-t border-white/20 p-4 lg:p-8">
             <div className="flex justify-between items-start">
               <div className="space-y-5">
                 <div className="flex gap-3 items-center">
                   <div className="p-3 rounded-full bg-[#E8D1AB] text-black">
                     <Clapperboard size={24} strokeWidth={1} />
                   </div>
-                  <p className="text-base lg:text-lg font-medium text-white">{data.studioType}</p>
+                  <p className="text-lg font-medium text-white">{data.studioType}</p>
                 </div>
                 <div className="flex gap-2 items-center">
                   <div className="space-y-2">
-                    <p className="text-white text-xs lg:text-sm">Min Duration:</p>
-                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-center min-w-25">
+                    <p className="text-white text-sm">Min Duration:</p>
+                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-xs text-center min-w-25">
                       <span>
                         {data.studioDuration}
                       </span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-white text-xs lg:text-sm">Max People:</p>
-                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-center min-w-25">
+                    <p className="text-white text-sm">Max People:</p>
+                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-xs text-center min-w-25">
                       <span>
                         {data.studioCrewSize}
                       </span>
@@ -277,7 +277,7 @@ export default function ConfirmAndPay({
                   </div>
                 </div>
               </div>
-              <span className="text-[#E8D1AB] text-sm lg:text-base font-bold">{formatCurrency(data.studioFee)}</span>
+              <span className="text-[#E8D1AB] text-base font-bold mt-3">{formatCurrency(data.studioFee)}</span>
             </div>
           </div> */}
 

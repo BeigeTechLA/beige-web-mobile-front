@@ -526,25 +526,54 @@ export default function ShootSummaryStep({
                 effect={"coverflow"}
                 grabCursor={true}
                 centeredSlides={true}
-                spaceBetween={24}
-                slidesPerView={3}
                 initialSlide={initialSlideIndex}
-                loop={creativesList.length >= 3}
+                loop={false}
                 mousewheel={{ forceToAxis: true }}
-                coverflowEffect={{
-                  rotate: 15,
-                  stretch: 0,
-                  depth: 100,
-                  modifier: 1,
-                  slideShadows: false,
-                }}
                 modules={[EffectCoverflow, Mousewheel]}
                 onSlideChange={(swiper) => setActiveCreativeIndex(swiper.realIndex)}
                 className="w-full py-4"
+                breakpoints={{
+                  0: {
+                    slidesPerView: "auto",
+                    centeredSlides: true,
+                    spaceBetween: -40,
+                    coverflowEffect: {
+                      rotate: 15,
+                      stretch: 0,
+                      depth: 100,
+                      modifier: 1,
+                      slideShadows: false,
+                    },
+                  },
+                  768: {
+                    slidesPerView: Math.min(creativesList.length, 3),
+                    centeredSlides: true,
+                    spaceBetween: 20,
+                    coverflowEffect: {
+                      rotate: 15,
+                      stretch: 0,
+                      depth: 150,
+                      modifier: 1.6,
+                      slideShadows: false,
+                    },
+                  },
+                  1024: {
+                    slidesPerView: 5,
+                    centeredSlides: true,
+                    spaceBetween: 0,
+                    coverflowEffect: {
+                      rotate: 15,
+                      stretch: 30,
+                      depth: 170,
+                      modifier: 1.2,
+                      slideShadows: false,
+                    },
+                  },
+                }}
               >
                 {creativesList.map((creative, index) => (
-                  <SwiperSlide key={creative.id || index} className="flex items-center justify-center">
-                    <div className="relative !w-[184px] !h-[140px] md:!w-[280px] md:!h-[212px] lg:!h-[310px] lg:!w-[406px] rounded-lg lg:rounded-2xl overflow-hidden transition-all duration-500 border border-white/20 shadow-2xl bg-black/40">
+                  <SwiperSlide key={creative.id || index} className="!w-auto flex items-center justify-center">
+                    <div className="relative w-[184px] h-[140px] md:w-[280px] md:h-[212px] lg:h-[310px] lg:w-[406px] rounded-lg lg:rounded-2xl overflow-hidden transition-all duration-500 border border-white/20 shadow-2xl bg-black/40">
                       <Image
                         src={creative.image}
                         alt={creative.name}

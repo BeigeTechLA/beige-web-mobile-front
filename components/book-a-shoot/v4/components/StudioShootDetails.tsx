@@ -118,7 +118,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
         <div className="relative space-y-2">
           <Label
             htmlFor="projectName"
-            className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+            className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
           >
             Project Name
           </Label>
@@ -136,7 +136,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
         <div className="relative space-y-2">
           <Label
             htmlFor="description"
-            className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+            className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
           >
             Description
           </Label>
@@ -154,16 +154,16 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
       <hr className="border-t border-white/20 my-5 lg:my-10" />
 
       {/* Contact Information Form */}
-      <div className="mb-5 lg:mb-8">
+      <div className="lg:mb-8">
         <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white mb-5 lg:mb-10">
           Contact Information
         </h2>
-        <form id="contact-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id="contact-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-7 lg:gap-4">
           {/* Full Name Input */}
           <div className="relative space-y-2">
             <Label
               htmlFor="fullName"
-              className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Full Name*
             </Label>
@@ -180,7 +180,7 @@ export const StudioShootDetails: React.FC<StudioShootDetailsStepProps> = ({
           <div className="relative space-y-2">
             <Label
               htmlFor="phone"
-              className="absolute -top-1 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
             >
               Phone Number*
             </Label>
