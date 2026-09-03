@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -30,12 +30,28 @@ import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type SectionKey = "service" | "addon" | "logistics";
+type PageTab = "all" | SectionKey | "types";
+type ShootTypeKind = "video" | "photo";
+type EditingCategory = ShootTypeKind | "both";
+
+interface ManagedTypeItem {
+  id: string;
+  apiId: string | null;
+  label: string;
+  isSystemDefault: boolean;
+}
+
+interface EditingTypeItem extends ManagedTypeItem {
+  categories: EditingCategory[];
+  apiIds: Partial<Record<ShootTypeKind, string | null>>;
+}
 
 interface PricingItem {
   id: string;
   label: string;
   price: number;
   createdAt: string | null;
+  isSystemDefault?: boolean;
 }
 
 interface CatalogData {
@@ -81,6 +97,13 @@ const SECTION_META: Record<SectionKey, SectionMeta> = {
 };
 
 const SECTION_KEYS: SectionKey[] = ["service", "addon", "logistics"];
+const PAGE_TABS: Array<{ key: PageTab; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "service", label: "Services" },
+  { key: "addon", label: "Add-ons" },
+  { key: "logistics", label: "Logistics" },
+  { key: "types", label: "Types" },
+];
 
 const PROTECTED_SERVICES = [
   "videography",
@@ -108,6 +131,76 @@ const sanitizeCurrencyInput = (value: string) => {
 const isProtectedService = (label: string) =>
   PROTECTED_SERVICES.includes(label.trim().toLowerCase());
 
+const normalizeTypeLabel = (value: string) =>
+  value.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
+
+const mapManagedShootTypes = (rows: Array<Record<string, unknown>> = []): ManagedTypeItem[] =>
+  rows.map((row, idx) => {
+    const apiId = Number(row.sales_shoot_type_id ?? row.id ?? 0);
+    return {
+      id: Number.isInteger(apiId) && apiId > 0 ? String(apiId) : `shoot-${idx}`,
+      apiId: Number.isInteger(apiId) && apiId > 0 ? String(apiId) : null,
+      label: String(row.name ?? row.label ?? "Untitled").trim(),
+      isSystemDefault: Number(row.is_system_default ?? row.isSystemDefault ?? 0) === 1,
+    };
+  });
+
+const mapManagedEditingTypes = (rows: Array<Record<string, unknown>> = []): EditingTypeItem[] =>
+  rows.map((row, idx) => {
+    const apiId = Number(row.ai_editing_type_id ?? row.id ?? 0);
+    const category = row.category === "photo" ? "photo" : "video";
+    return {
+      id: Number.isInteger(apiId) && apiId > 0 ? String(apiId) : `edit-${idx}`,
+      apiId: Number.isInteger(apiId) && apiId > 0 ? String(apiId) : null,
+      label: String(row.value ?? row.label ?? "Untitled").trim(),
+      isSystemDefault: Number(row.is_system_default ?? row.isSystemDefault ?? 0) === 1,
+      categories: [category],
+      apiIds: { [category]: Number.isInteger(apiId) && apiId > 0 ? String(apiId) : null },
+    };
+  });
+
+const mergeEditingTypes = (videoRows: Array<Record<string, unknown>> = [], photoRows: Array<Record<string, unknown>> = []) => {
+  const merged = new Map<string, EditingTypeItem>();
+  const addRows = (rows: Array<Record<string, unknown>>, category: ShootTypeKind) => {
+    mapManagedEditingTypes(rows).forEach((item) => {
+      const key = normalizeTypeLabel(item.label);
+      const existing = merged.get(key);
+      if (existing) {
+        if (!existing.categories.includes(category)) existing.categories.push(category);
+        existing.apiIds[category] = item.apiId;
+        existing.apiId = existing.apiId ?? item.apiId;
+        existing.isSystemDefault = existing.isSystemDefault || item.isSystemDefault;
+        return;
+      }
+      merged.set(key, {
+        ...item,
+        categories: [category],
+        apiIds: { [category]: item.apiId },
+      });
+    });
+  };
+
+  addRows(videoRows, "video");
+  addRows(photoRows, "photo");
+  return Array.from(merged.values());
+};
+
+const resolveTypeTargets = (services: PricingItem[]) => {
+  const byName = (names: string[]) => services.find((item) => names.includes(normalizeTypeLabel(item.label)));
+  const defaults = services.filter((item) => item.isSystemDefault);
+  const video = byName(["videography", "video production"]) ?? defaults[0];
+  const photo = byName(["photography", "photo production"]) ?? defaults[1];
+  const editing = byName(["ai editing", "editing"]) ?? defaults[2];
+
+  return {
+    videoId: video?.id ?? null,
+    photoId: photo?.id ?? null,
+    videoLabel: video?.label || "Video Shoot Types",
+    photoLabel: photo?.label || "Photo Shoot Types",
+    editingLabel: editing?.label || "Editing Types",
+  };
+};
+
 const getServiceIcon = (label: string) => {
   const normalized = label.toLowerCase();
   if (normalized.includes("video")) return Video;
@@ -127,6 +220,14 @@ const getSectionIcon = (section: SectionKey) => {
     case "logistics":
       return MapPin;
   }
+};
+
+const getTypeCardIcon = (title: string) => {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("editing")) return Scissors;
+  if (normalized.includes("photo")) return Camera;
+  if (normalized.includes("video")) return Video;
+  return Scissors;
 };
 
 interface ItemRowProps {
@@ -596,6 +697,536 @@ function PricingSection({
   );
 }
 
+interface TypeCardProps {
+  title: string;
+  subtitle: string;
+  items: Array<ManagedTypeItem | EditingTypeItem>;
+  count: number;
+  isDark: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  onAdd: (name: string) => Promise<void>;
+  onRename: (item: ManagedTypeItem | EditingTypeItem, name: string) => Promise<void>;
+  onDelete: (item: ManagedTypeItem | EditingTypeItem) => Promise<void>;
+  addPlaceholder: string;
+  defaultExpanded?: boolean;
+  relatedLines?: string[];
+}
+
+function TypeAddForm({
+  isDark,
+  canCreate,
+  placeholder,
+  onAdd,
+  onClose,
+}: {
+  isDark: boolean;
+  canCreate: boolean;
+  placeholder: string;
+  onAdd: (name: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleAdd = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || !canCreate) return;
+    setSaving(true);
+    await onAdd(trimmed);
+    setSaving(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleAdd();
+    if (e.key === "Escape") onClose();
+  };
+
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? "border-[#8E826A]/25 bg-[#1D1A15]" : "border-zinc-200 bg-zinc-50"}`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${isDark ? "border-[#8E826A]/25 bg-[#2A251E] text-[#E8D1AB]" : "border-zinc-300 bg-zinc-200 text-zinc-700"}`}>
+        <Plus size={14} strokeWidth={3} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <Input
+          ref={inputRef}
+          value={name}
+          disabled={!canCreate}
+          onChange={(e) => setName(e.target.value.slice(0, 80))}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          maxLength={80}
+          className={`h-10 rounded-xl text-sm transition-colors ${isDark ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]" : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"}`}
+        />
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          onClick={onClose}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-colors ${isDark ? "border-white/10 bg-[#1B1B1B] text-white/50 hover:text-white" : "border-zinc-200 bg-zinc-200 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900"}`}
+        >
+          <X size={14} />
+        </button>
+        <button
+          onClick={handleAdd}
+          disabled={saving || !name.trim() || !canCreate}
+          className={`flex h-8 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "border-[#2D4A2D] bg-[#1A2E1A] text-[#4ADE80] hover:bg-[#1E381E]" : "border-[#0DC752] bg-[#0DC752] text-black hover:bg-[#0DC752]/80"}`}
+        >
+          {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
+          {saving ? "Adding..." : "Add"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TypeListItem({
+  item,
+  isDark,
+  canEdit,
+  canDelete,
+  onRename,
+  onDelete,
+}: {
+  item: ManagedTypeItem | EditingTypeItem;
+  isDark: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  onRename: (name: string) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(item.label);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  useEffect(() => {
+    setName(item.label);
+  }, [item.label]);
+
+  const handleSave = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || !canEdit) return;
+    setSaving(true);
+    await onRename(trimmed);
+    setSaving(false);
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setName(item.label);
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") handleCancel();
+  };
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${isDark ? "border-white/10 bg-black/30" : "border-zinc-200 bg-zinc-50"}`}>
+      <div className="min-w-0 flex-1">
+        {editing ? (
+          <Input
+            ref={inputRef}
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, 80))}
+            onKeyDown={handleKeyDown}
+            maxLength={80}
+            className={`h-10 rounded-xl text-sm ${isDark ? "border-white/10 bg-[#0F0F0F] text-white placeholder:text-white/30 focus:border-[#8E826A]" : "border-zinc-300 bg-white text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-500"}`}
+          />
+        ) : (
+          <span className={`block truncate text-sm font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>{item.label}</span>
+        )}
+      </div>
+      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${item.isSystemDefault ? (isDark ? "border-[#E8D1AB30] bg-[#E8D1AB1A] text-[#E8D1AB]" : "border-zinc-300 bg-zinc-100 text-zinc-700") : (isDark ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-700")}`}>
+        {item.isSystemDefault ? "Default" : "Custom"}
+      </span>
+      {editing ? (
+        <>
+          <button
+            onClick={handleCancel}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#161616] text-white/60" : "bg-white text-zinc-600"}`}
+          >
+            <X size={14} />
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !name.trim() || !canEdit}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-50 ${isDark ? "bg-[#161616] text-[#E8D1AB]" : "bg-white text-zinc-600"}`}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => setEditing(true)}
+            disabled={!canEdit}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-50 ${isDark ? "bg-[#161616] text-white/60" : "bg-white text-zinc-600"}`}
+          >
+            <Pencil size={14} />
+          </button>
+          {!item.isSystemDefault ? (
+            <button
+              onClick={onDelete}
+              disabled={!canDelete}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-50 ${isDark ? "bg-[#161616] text-white/60" : "bg-white text-zinc-600"}`}
+            >
+              <Trash2 size={14} />
+            </button>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TypeCard({
+  title,
+  subtitle,
+  items,
+  count,
+  isDark,
+  canCreate,
+  canEdit,
+  canDelete,
+  onAdd,
+  onRename,
+  onDelete,
+  addPlaceholder,
+  defaultExpanded = false,
+  relatedLines = [],
+}: TypeCardProps) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const Icon = getTypeCardIcon(title);
+  return (
+    <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.18)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <button
+          onClick={() => setExpanded((prev) => !prev)}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+        >
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
+            <Icon size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>{title}</h3>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isDark ? "bg-white/10 text-white/55" : "bg-zinc-200 text-zinc-600"}`}>{count}</span>
+            </div>
+            <p className={`text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>{subtitle}</p>
+            {relatedLines.length > 0 ? (
+              <div className={`mt-1 flex flex-wrap gap-2 text-[11px] ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                {relatedLines.map((line) => <span key={line}>{line}</span>)}
+              </div>
+            ) : null}
+          </div>
+          <ChevronDown className={`ml-auto h-5 w-5 shrink-0 transition-transform ${isDark ? "text-white/40" : "text-zinc-400"} ${expanded ? "rotate-180" : ""}`} />
+        </button>
+        <Button
+          onClick={() => {
+            if (!canCreate) return;
+            setExpanded(true);
+            setShowAddForm((prev) => !prev);
+          }}
+          disabled={!canCreate}
+          className={`h-9 rounded-lg px-3 text-sm font-semibold ${showAddForm ? (isDark ? "border border-white/10 bg-[#24201A] text-[#E8D1AB]" : "border border-zinc-200 bg-zinc-100 text-zinc-800") : isDark ? "bg-[#E5D5B8] text-black" : "bg-black text-white"}`}
+        >
+          {showAddForm ? <X size={13} /> : <Plus size={14} />}
+          {showAddForm ? "Cancel" : "Add New"}
+        </Button>
+      </div>
+
+      {expanded ? (
+        <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+          {showAddForm ? (
+            <TypeAddForm
+              isDark={isDark}
+              canCreate={canCreate}
+              placeholder={addPlaceholder}
+              onClose={() => setShowAddForm(false)}
+              onAdd={async (name) => {
+                await onAdd(name);
+                setShowAddForm(false);
+              }}
+            />
+          ) : null}
+          {items.length === 0 && !showAddForm ? (
+            <div className={`rounded-xl border p-4 text-sm ${isDark ? "border-white/10 text-white/50" : "border-zinc-200 text-zinc-500"}`}>
+              No items yet.
+            </div>
+          ) : (
+            items.map((item) => (
+              <TypeListItem
+                key={item.id}
+                item={item}
+                isDark={isDark}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onRename={async (name) => onRename(item, name)}
+                onDelete={async () => onDelete(item)}
+              />
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TypesManagementPanel({
+  services,
+  searchQuery,
+  isDark,
+  canCreate,
+  canEdit,
+  canDelete,
+  onCountChange,
+  refreshToken,
+  showFooter = true,
+}: {
+  services: PricingItem[];
+  searchQuery: string;
+  isDark: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  onCountChange: (count: number) => void;
+  refreshToken: number;
+  showFooter?: boolean;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [videoShootTypes, setVideoShootTypes] = useState<ManagedTypeItem[]>([]);
+  const [photoShootTypes, setPhotoShootTypes] = useState<ManagedTypeItem[]>([]);
+  const [editingTypes, setEditingTypes] = useState<EditingTypeItem[]>([]);
+  const targets = useMemo(() => resolveTypeTargets(services), [services]);
+
+  const loadTypes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [videoRes, photoRes, editingRes] = await Promise.all([
+        targets.videoId ? salesApi.getShootTypes(targets.videoId) : Promise.resolve(null),
+        targets.photoId ? salesApi.getShootTypes(targets.photoId) : Promise.resolve(null),
+        salesApi.getAiEditingTypes(),
+      ]);
+
+      setVideoShootTypes(videoRes && !videoRes.error && Array.isArray(videoRes.data) ? mapManagedShootTypes(videoRes.data as Array<Record<string, unknown>>) : []);
+      setPhotoShootTypes(photoRes && !photoRes.error && Array.isArray(photoRes.data) ? mapManagedShootTypes(photoRes.data as Array<Record<string, unknown>>) : []);
+
+      const editingData = editingRes && !editingRes.error ? editingRes.data : null;
+      const mergedEditing = mergeEditingTypes(
+        Array.isArray(editingData?.video_edit_types) ? (editingData.video_edit_types as Array<Record<string, unknown>>) : [],
+        Array.isArray(editingData?.photo_edit_types) ? (editingData.photo_edit_types as Array<Record<string, unknown>>) : []
+      );
+      setEditingTypes(mergedEditing);
+      onCountChange(
+        [
+          ...mapManagedShootTypes(videoRes && !videoRes.error && Array.isArray(videoRes.data) ? videoRes.data as Array<Record<string, unknown>> : []),
+          ...mapManagedShootTypes(photoRes && !photoRes.error && Array.isArray(photoRes.data) ? photoRes.data as Array<Record<string, unknown>> : []),
+          ...mergedEditing,
+        ].length
+      );
+    } catch {
+      onCountChange(0);
+      toast.error("Failed to load shoot type data");
+    } finally {
+      setLoading(false);
+    }
+  }, [onCountChange, targets.photoId, targets.videoId]);
+
+  useEffect(() => {
+    void loadTypes();
+  }, [loadTypes, refreshToken]);
+
+  const matchesSearch = (label: string) => label.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const renameType = async (item: ManagedTypeItem | EditingTypeItem, kind: "shoot" | "edit", nextValue: string) => {
+    if (!canEdit) return;
+    if (!nextValue?.trim()) return;
+
+    if (kind === "shoot") {
+      const res = await salesApi.updateShootType(item.apiId ?? item.id, { name: nextValue.trim() });
+      if (res && !res.error) {
+        toast.success(`${nextValue.trim()} updated`);
+        await loadTypes();
+      } else {
+        toast.error("Failed to update shoot type");
+      }
+      return;
+    }
+
+    const editItem = item as EditingTypeItem;
+    const editingCategories = editItem.categories.includes("both") ? ["video", "photo"] : editItem.categories;
+    const responses = await Promise.all(
+      editingCategories.map((category) => salesApi.updateAiEditingType(editItem.apiIds[category] ?? editItem.apiId ?? editItem.id, { label: nextValue.trim(), category }))
+    );
+    if (responses.every((res) => res && !res.error)) {
+      toast.success(`${nextValue.trim()} updated`);
+      await loadTypes();
+    } else {
+      toast.error("Failed to update editing type");
+    }
+  };
+
+  const deleteType = async (item: ManagedTypeItem | EditingTypeItem, kind: "shoot" | "edit") => {
+    if (!canDelete || item.isSystemDefault) return;
+
+    if (kind === "shoot") {
+      const res = await salesApi.deleteShootType(item.apiId ?? item.id);
+      if (res && !res.error) {
+        toast.success(`${item.label} deleted`);
+        await loadTypes();
+      } else {
+        toast.error("Failed to delete shoot type");
+      }
+      return;
+    }
+
+    const editItem = item as EditingTypeItem;
+    const editingCategories = editItem.categories.includes("both") ? ["video", "photo"] : editItem.categories;
+    const responses = await Promise.all(
+      editingCategories.map((category) => salesApi.deleteAiEditingType(editItem.apiIds[category] ?? editItem.apiId ?? editItem.id))
+    );
+    if (responses.every((res) => res && !res.error)) {
+      toast.success(`${item.label} deleted`);
+      await loadTypes();
+    } else {
+      toast.error("Failed to delete editing type");
+    }
+  };
+
+  const addShootType = async (kind: ShootTypeKind, label: string) => {
+    if (!canCreate || !label.trim()) return;
+    const targetId = kind === "video" ? targets.videoId : targets.photoId;
+    if (!targetId) {
+      toast.error(`Missing ${kind} service`);
+      return;
+    }
+    const res = await salesApi.createShootType({ name: label.trim(), content_type: Number(targetId) });
+    if (res && !res.error) {
+      toast.success(`${label.trim()} added`);
+      await loadTypes();
+    } else {
+      toast.error("Failed to add shoot type");
+    }
+  };
+
+  const addEditingType = async (_kind: ShootTypeKind, label: string) => {
+    if (!canCreate || !label.trim()) return;
+
+    // Keep editing type creation aligned with the quote builder flow:
+    // one server-side category is enough because the UI merges labels
+    // across video/photo editing types when it reloads.
+    const res = await salesApi.createAiEditingType({
+      category: "video",
+      label: label.trim(),
+    });
+
+    if (res && !res.error) {
+      toast.success(`${label.trim()} added`);
+      await loadTypes();
+    } else {
+      toast.error("Failed to add editing type");
+    }
+  };
+
+  const cards = [
+    {
+      title: `${targets.videoLabel} - Shoot Types`,
+      subtitle: "Rename defaults or add custom video shoot types.",
+      items: videoShootTypes.filter((item) => matchesSearch(item.label)),
+      count: videoShootTypes.length,
+      onAdd: (name: string) => addShootType("video", name),
+      onRename: (item: ManagedTypeItem, name: string) => renameType(item, "shoot", name),
+      onDelete: (item: ManagedTypeItem) => deleteType(item, "shoot"),
+      relatedLines: [],
+    },
+    {
+      title: `${targets.photoLabel} - Shoot Types`,
+      subtitle: "Rename defaults or add custom photo shoot types.",
+      items: photoShootTypes.filter((item) => matchesSearch(item.label)),
+      count: photoShootTypes.length,
+      onAdd: (name: string) => addShootType("photo", name),
+      onRename: (item: ManagedTypeItem, name: string) => renameType(item, "shoot", name),
+      onDelete: (item: ManagedTypeItem) => deleteType(item, "shoot"),
+      relatedLines: [],
+    },
+    {
+      title: "Editing Types",
+      subtitle: "Shared editing labels used across create quotes.",
+      items: editingTypes.filter((item) => matchesSearch(item.label)),
+      count: editingTypes.length,
+      onAdd: (name: string) => addEditingType("video", name),
+      onRename: (item: ManagedTypeItem, name: string) => renameType(item, "edit", name),
+      onDelete: (item: ManagedTypeItem) => deleteType(item, "edit"),
+      relatedLines: [
+        `Video ${editingTypes.filter((item) => item.categories.includes("video")).length}`,
+        `Photo ${editingTypes.filter((item) => item.categories.includes("photo")).length}`,
+      ],
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      {loading ? (
+        <div className={`flex flex-col items-center justify-center gap-4 rounded-3xl border py-24 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
+          <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-zinc-800"}`} />
+          <p className={`text-sm ${isDark ? "text-white/55" : "text-zinc-500"}`}>Loading types...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {cards.map((card) => (
+            <TypeCard
+              key={card.title}
+              title={card.title}
+              subtitle={card.subtitle}
+              items={card.items}
+              isDark={isDark}
+              canCreate={canCreate}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onAdd={card.onAdd}
+              onRename={card.onRename}
+              onDelete={card.onDelete}
+              addPlaceholder={card.title === "Editing Types" ? "Enter editing type name..." : `Enter ${card.title.toLowerCase().replace(/\s+-\s+shoot types$/, "").replace(/\s+types$/, "")} name...`}
+              defaultExpanded={false}
+              count={card.count}
+              relatedLines={card.relatedLines}
+            />
+          ))}
+        </div>
+      )}
+
+      {showFooter ? (
+        <div className={`flex items-start gap-3 rounded-lg lg:rounded-3xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg lg:rounded-2xl ${isDark ? "bg-[#302E2E] text-[#E8D1AB]" : "bg-[#E8D1AB] text-black"}`}>
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>
+              Create quote options stay the same
+            </p>
+            <p className={`mt-1 text-xs lg:text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+              These lists manage the source data used by the quote builder. Existing create-quote flows stay unchanged.
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function QuotePricingPage() {
   const pathname = usePathname();
   const { theme } = useTheme();
@@ -607,8 +1238,10 @@ export default function QuotePricingPage() {
     logistics: [],
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | SectionKey>("all");
+  const [activeTab, setActiveTab] = useState<PageTab>("all");
   const [search, setSearch] = useState("");
+  const [typesCount, setTypesCount] = useState(0);
+  const [typesRefreshToken, setTypesRefreshToken] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -637,6 +1270,7 @@ export default function QuotePricingPage() {
             label: it.name?.trim() || "Unnamed",
             price: parseFloat(String(it.effective_rate ?? 0)) || 0,
             createdAt: it.created_at ?? null,
+            isSystemDefault: Number((it as { is_system_default?: unknown }).is_system_default ?? 0) === 1,
           }));
 
         setData({
@@ -654,6 +1288,11 @@ export default function QuotePricingPage() {
 
   useEffect(() => {
     fetchCatalog();
+  }, [fetchCatalog]);
+
+  const refreshAll = useCallback(async () => {
+    setTypesRefreshToken((prev) => prev + 1);
+    await fetchCatalog();
   }, [fetchCatalog]);
 
   const handleSave = useCallback(
@@ -764,14 +1403,23 @@ export default function QuotePricingPage() {
     }
   }, [canCreate]);
 
-  const totalItems = Object.values(data).flat().length;
-  const visibleSections: SectionKey[] = activeTab === "all" ? SECTION_KEYS : [activeTab];
-  const tabs: Array<{ key: "all" | SectionKey; label: string; count: number }> = [
-    { key: "all", label: "All", count: totalItems },
-    { key: "service", label: "Services", count: data.service.length },
-    { key: "addon", label: "Add-ons", count: data.addon.length },
-    { key: "logistics", label: "Logistics", count: data.logistics.length },
-  ];
+  const totalTypes = typesCount;
+  const totalPricingItems = Object.values(data).flat().length;
+  const totalAllItems = totalPricingItems + totalTypes;
+  const visibleSections: SectionKey[] = activeTab === "all" ? SECTION_KEYS : SECTION_KEYS.includes(activeTab as SectionKey) ? [activeTab as SectionKey] : [];
+  const tabs = PAGE_TABS.map((tab) => ({
+    ...tab,
+    count:
+      tab.key === "all"
+        ? totalAllItems
+        : tab.key === "service"
+          ? data.service.length
+          : tab.key === "addon"
+            ? data.addon.length
+            : tab.key === "logistics"
+              ? data.logistics.length
+              : totalTypes,
+  }));
 
   return (
     <>
@@ -780,7 +1428,7 @@ export default function QuotePricingPage() {
         breadcrumbOverrides={{ create: "Master Pricing" }}
         actions={
           <Button
-            onClick={fetchCatalog}
+            onClick={refreshAll}
             disabled={loading}
             className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10" : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"}`}
           >
@@ -809,14 +1457,13 @@ export default function QuotePricingPage() {
           </div>
 
           <div className={`rounded-lg lg:rounded-2xl border px-4 py-3 text-center shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:min-w-32 transition-colors duration-100 ${isDark ? "border-[#807E7E] bg-[#171717]" : "border-[#DFDDDD] bg-white"}`}>
-            <p className={`text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{totalItems}</p>
+            <p className={`text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{totalAllItems}</p>
             <p className={`text-xs ${isDark ? "text-[#FFFFFF99]" : "text-[#000000B2]"}`}>Total Items</p>
           </div>
         </div>
 
         <div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Search Input Wrapper */}
             <div className="relative w-full max-w-md">
               <Search
                 size={15}
@@ -825,7 +1472,7 @@ export default function QuotePricingPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search pricing items..."
+                placeholder={activeTab === "types" ? "Search shoot and editing types..." : "Search pricing items..."}
                 className={`h-11 rounded-lg lg:rounded-2xl text-sm pl-9 transition-colors duration-100 ${isDark
                   ? "border-white/10 bg-[#111111] text-white placeholder:text-white/30 focus:border-[#8E826A]"
                   : "border-zinc-200 bg-zinc-50 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400"
@@ -868,7 +1515,7 @@ export default function QuotePricingPage() {
             </div>
           </div>
 
-          {search ? (
+          {activeTab !== "types" && search ? (
             <p className={`mt-3 text-sm ${isDark ? "text-white/50" : "text-zinc-400"}`}>
               Searching across all sections
             </p>
@@ -876,7 +1523,19 @@ export default function QuotePricingPage() {
         </div>
 
         {/* Loader / Content Area */}
-        {loading ? (
+        {activeTab === "types" ? (
+          <TypesManagementPanel
+            services={data.service}
+            searchQuery={search}
+            isDark={isDark}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onCountChange={setTypesCount}
+            refreshToken={typesRefreshToken}
+            showFooter
+          />
+        ) : loading ? (
           <div className={`flex flex-col items-center justify-center gap-4 rounded-3xl border py-24 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"
             }`}>
             <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-zinc-800"}`} />
@@ -900,6 +1559,19 @@ export default function QuotePricingPage() {
                 isDark={isDark}
               />
             ))}
+            {activeTab === "all" ? (
+              <TypesManagementPanel
+                services={data.service}
+                searchQuery={search}
+                isDark={isDark}
+                canCreate={canCreate}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onCountChange={setTypesCount}
+                refreshToken={typesRefreshToken}
+                showFooter={false}
+              />
+            ) : null}
 
             {/* Sync Footer Banner */}
             <div className={`flex items-start gap-3 rounded-lg lg:rounded-3xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
@@ -921,7 +1593,7 @@ export default function QuotePricingPage() {
         {/* --- FLOATING MOBILE BUTTON PANEL --- */}
         <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
           <Button
-            onClick={fetchCatalog}
+            onClick={refreshAll}
             disabled={loading}
             className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors w-full shadow-sm ${isDark
               ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10"
