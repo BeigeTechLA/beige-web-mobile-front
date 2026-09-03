@@ -74,6 +74,31 @@ export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const hasShownAdminOnlyToast = React.useRef(false)
+
+  React.useEffect(() => {
+    const html = document.documentElement
+
+    const wasDark = html.classList.contains("dark")
+    const wasLight = html.classList.contains("light")
+    const previousColorScheme = html.style.colorScheme
+
+    html.classList.remove("light")
+    html.classList.add("dark")
+    html.style.colorScheme = "dark"
+
+    return () => {
+      html.classList.remove("dark", "light")
+
+      if (wasDark) {
+        html.classList.add("dark")
+      } else if (wasLight) {
+        html.classList.add("light")
+      }
+
+      html.style.colorScheme = previousColorScheme
+    }
+  }, [])
+
   const returnTo = React.useMemo(() => {
     const value = searchParams?.get("returnTo")?.trim() || ""
     return value.startsWith("/") ? value : ""
@@ -196,7 +221,41 @@ export function LoginForm() {
   };
 
   return (
-    <div className="w-full">
+  <>
+    <style jsx global>{`
+      .login-dark-input {
+        color-scheme: dark !important;
+      }
+
+      .login-dark-input:-webkit-autofill,
+      .login-dark-input:-webkit-autofill:hover,
+      .login-dark-input:-webkit-autofill:focus,
+      .login-dark-input:-webkit-autofill:active {
+        -webkit-text-fill-color: #ffffff !important;
+        caret-color: #ffffff !important;
+
+        -webkit-box-shadow: 0 0 0 1000px #161616 inset !important;
+        box-shadow: 0 0 0 1000px #161616 inset !important;
+
+        border-color: rgba(255, 255, 255, 0.2) !important;
+
+        transition: background-color 9999s ease-out 0s !important;
+      }
+
+      @media (min-width: 1024px) {
+        .login-dark-input:-webkit-autofill,
+        .login-dark-input:-webkit-autofill:hover,
+        .login-dark-input:-webkit-autofill:focus,
+        .login-dark-input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 1000px #101010 inset !important;
+          box-shadow: 0 0 0 1000px #101010 inset !important;
+
+          border-color: rgba(255, 255, 255, 0.3) !important;
+        }
+      }
+    `}</style>
+
+    <div className="dark w-full text-white" style={{ colorScheme: "dark" }}>
       <div className="absolute top-0 left-0 w-screen h-[380px] overflow-hidden lg:hidden -z-10 bg-[#101010]">
         <div className="relative h-full w-full">
           {/* <Image
@@ -240,9 +299,11 @@ export function LoginForm() {
               id="email"
               placeholder="you@example.com"
               type="email"
+              autoComplete="email"
               disabled={isLoginLoading}
               {...form.register("email")}
-              className="h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
+              style={{ colorScheme: "dark" }}
+              className="login-dark-input h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm lg:text-base text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0"
             />
             {form.formState.errors.email && (
               <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
@@ -277,9 +338,11 @@ export function LoginForm() {
                 id="password"
                 placeholder="Enter your password"
                 type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 disabled={isLoginLoading}
                 {...form.register("password")}
-                className="h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0 lg:text-base"
+                style={{ colorScheme: "dark" }}
+                className="login-dark-input h-12 lg:h-[82px] w-full rounded-[8px] lg:rounded-[12px] border border-white/20 lg:border-white/30 bg-[#161616] lg:bg-[#101010] px-4 text-sm lg:text-base text-white outline-none transition-colors focus:border-[#E8D1AB] focus-visible:ring-0"
               />
 
               <button
@@ -478,5 +541,6 @@ export function LoginForm() {
         </div>
       </div>
     </div>
+  </>
   )
 }
