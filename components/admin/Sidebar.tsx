@@ -336,7 +336,7 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           {menuItems.map((item) => {
             if (
               item.name === "Roles & Permissions" &&
-              !isSuperAdminUser(user)
+              !hasModulePermission(permissions, ["roles_permissions"], "view")
             ) {
               return null;
             }
