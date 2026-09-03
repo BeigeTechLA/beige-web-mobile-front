@@ -4,8 +4,10 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
+  AlertTriangle,
   Calendar,
   CalendarX,
+  Check,
   ChevronLeft,
   History,
   Link,
@@ -14,10 +16,11 @@ import {
   MoreVertical,
   Search,
   ChevronRight,
-  Share2,
+  Square,
   Trash2,
   Unlink,
   X,
+  XCircle,
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -38,6 +41,7 @@ import {
   isRecentWithinHours,
   mapExternalWorkspaceToFolderCard,
   type ExternalFolderActivityResponse,
+  type FolderDeletionRequestItem,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -48,11 +52,26 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { getFileManagerRouteState, getFileManagerRouteStateKey, setFileManagerRouteState } from "@/lib/fileManagerRouteState";
 
-const STATUSES = ["Linked", "Unlinked"];
 const LIST_PAGE_SIZE = 10;
 const BOARD_PAGE_SIZE = 24;
 const PAGINATION_WINDOW = 1;
 const ADMIN_FILE_MANAGER_VIEW_MODE_KEY = "admin-file-manager-view-mode";
+const DELETE_REQUESTS_TAB = "Folder Delete Requests";
+
+type FolderDeleteRequestStatus = "pending" | "approved" | "rejected";
+
+type FolderDeleteRequest = {
+  id: string;
+  folderName: string;
+  creative: string;
+  reason: string;
+  project: string;
+  description: string;
+  requestedAt: string;
+  fileCount: number;
+  size: string;
+  status: FolderDeleteRequestStatus;
+};
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -125,6 +144,19 @@ const formatActivityDate = (value?: string) => {
   }).format(parsed);
 };
 
+const mapFolderDeletionRequest = (request: FolderDeletionRequestItem): FolderDeleteRequest => ({
+  id: String(request.id),
+  folderName: String(request.title || "Untitled folder"),
+  creative: String(request.creative?.name || "Unknown"),
+  reason: String(request.reason || "NA"),
+  project: String(request.project || "NA"),
+  description: String(request.description || "NA"),
+  requestedAt: formatActivityDate(request.requested_at || undefined),
+  fileCount: Number(request.file_count || 0),
+  size: formatFileSize(request.total_size_bytes),
+  status: request.status,
+});
+
 export default function AdminFolderManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -156,6 +188,15 @@ export default function AdminFolderManagerPage() {
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isRenamingWorkspace, setIsRenamingWorkspace] = useState(false);
+  const [deleteRequests, setDeleteRequests] = useState<FolderDeleteRequest[]>([]);
+  const [deleteRequestStatusFilter, setDeleteRequestStatusFilter] = useState("All");
+  const [confirmingDeleteRequest, setConfirmingDeleteRequest] = useState<FolderDeleteRequest | null>(null);
+  const [deleteRequestAgreement, setDeleteRequestAgreement] = useState(false);
+  const [deleteRequestsLoading, setDeleteRequestsLoading] = useState(false);
+  const [deleteRequestsError, setDeleteRequestsError] = useState<string | null>(null);
+  const [deleteRequestPage, setDeleteRequestPage] = useState(1);
+  const [approvingDeleteRequestId, setApprovingDeleteRequestId] = useState<string | null>(null);
+  const [rejectingDeleteRequestId, setRejectingDeleteRequestId] = useState<string | null>(null);
   const [projects, setProjects] = useState<UiFolderItem[]>([]);
   const [boardProjects, setBoardProjects] = useState<UiFolderItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -176,12 +217,21 @@ export default function AdminFolderManagerPage() {
     hasNextPage: false,
     hasPreviousPage: false,
   });
+  const [deleteRequestsPagination, setDeleteRequestsPagination] = useState({
+    page: 1,
+    limit: LIST_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [loading, setLoading] = useState(true);
   const [boardLoadingInitial, setBoardLoadingInitial] = useState(false);
   const [boardLoadingMore, setBoardLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const projectsRequestRef = useRef(0);
   const boardProjectsRequestRef = useRef(0);
+  const deleteRequestsRequestRef = useRef(0);
   const [routeStateReady, setRouteStateReady] = useState(false);
   const hasSkippedInitialFilterResetRef = useRef(false);
 
@@ -224,6 +274,7 @@ export default function AdminFolderManagerPage() {
   const tabs = [
     { name: "All folders", icon: FolderOpen },
     { name: "Shoot folders", icon: Link },
+    { name: DELETE_REQUESTS_TAB, icon: Trash2, count: deleteRequests.filter((request) => request.status === "pending").length, compact: true },
     { name: "Common events", icon: Calendar },
     { name: "Visibility expired", icon: CalendarX },
     { name: "Recent", icon: History },
@@ -239,7 +290,11 @@ export default function AdminFolderManagerPage() {
     setError(null);
     setCurrentPage(1);
     setBoardPage(1);
+    setDeleteRequestPage(1);
     setSelectedTab(nextTab);
+    if (nextTab === DELETE_REQUESTS_TAB) {
+      setLoading(false);
+    }
   };
 
   const loadProjects = async (page: number = 1, searchQuery: string = debouncedSearchTerm) => {
@@ -334,6 +389,53 @@ export default function AdminFolderManagerPage() {
     [debouncedSearchTerm]
   );
 
+  const loadFolderDeletionRequests = useCallback(
+    async (page: number = 1) => {
+      const requestId = ++deleteRequestsRequestRef.current;
+
+      try {
+        setDeleteRequestsLoading(true);
+        setDeleteRequestsError(null);
+
+        const result = await fileManagerApi.listFolderDeletionRequests({
+          status: deleteRequestStatusFilter.toLowerCase() as "pending" | "approved" | "rejected" | "all",
+          page,
+          limit: LIST_PAGE_SIZE,
+          search: debouncedSearchTerm,
+        });
+
+        if (requestId !== deleteRequestsRequestRef.current) return;
+
+        setDeleteRequests(result.requests.map(mapFolderDeletionRequest));
+        if (result.pagination) {
+          setDeleteRequestsPagination(result.pagination);
+          if (result.pagination.page !== page) {
+            setDeleteRequestPage(result.pagination.page);
+          }
+        } else {
+          setDeleteRequestsPagination({
+            page,
+            limit: LIST_PAGE_SIZE,
+            total: result.requests.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: page > 1,
+          });
+        }
+      } catch (err: unknown) {
+        if (requestId !== deleteRequestsRequestRef.current) return;
+        const message = getErrorMessage(err, "Failed to load deletion requests");
+        setDeleteRequestsError(message);
+        toast.error(message);
+      } finally {
+        if (requestId === deleteRequestsRequestRef.current) {
+          setDeleteRequestsLoading(false);
+        }
+      }
+    },
+    [debouncedSearchTerm, deleteRequestStatusFilter]
+  );
+
   useEffect(() => {
     if (!routeStateReady) return;
     if (!hasSkippedInitialFilterResetRef.current) {
@@ -343,10 +445,21 @@ export default function AdminFolderManagerPage() {
 
     setCurrentPage(1);
     setBoardPage(1);
+    setDeleteRequestPage(1);
   }, [debouncedSearchTerm, routeStateReady, selectedTab]);
 
   useEffect(() => {
     if (!routeStateReady) return;
+    setDeleteRequestPage(1);
+  }, [deleteRequestStatusFilter, routeStateReady]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    if (selectedTab === DELETE_REQUESTS_TAB) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let mounted = true;
 
     const load = async () => {
@@ -363,6 +476,7 @@ export default function AdminFolderManagerPage() {
   useEffect(() => {
     if (!routeStateReady) return;
     if (viewMode !== "board") return;
+    if (selectedTab === DELETE_REQUESTS_TAB) return;
     let mounted = true;
 
     const load = async () => {
@@ -375,7 +489,13 @@ export default function AdminFolderManagerPage() {
     return () => {
       mounted = false;
     };
-  }, [viewMode, debouncedSearchTerm, loadBoardProjects, routeStateReady]);
+  }, [viewMode, debouncedSearchTerm, loadBoardProjects, routeStateReady, selectedTab]);
+
+  useEffect(() => {
+    if (!routeStateReady) return;
+    if (selectedTab !== DELETE_REQUESTS_TAB) return;
+    void loadFolderDeletionRequests(deleteRequestPage);
+  }, [deleteRequestPage, loadFolderDeletionRequests, routeStateReady, selectedTab]);
 
   const handleLoadMoreBoardProjects = useCallback(async () => {
     if (viewMode !== "board") return;
@@ -416,6 +536,8 @@ export default function AdminFolderManagerPage() {
   };
 
   const filteredFolders = useMemo(() => {
+    if (selectedTab === DELETE_REQUESTS_TAB) return [];
+
     const source = viewMode === "board" ? boardProjects : projects;
     let items = [...source];
 
@@ -434,6 +556,10 @@ export default function AdminFolderManagerPage() {
 
     return applySharedFilters(items);
   }, [projects, boardProjects, selectedTab, status, selectedDate, viewMode]);
+
+  const filteredDeleteRequests = useMemo(() => {
+    return deleteRequests;
+  }, [deleteRequests]);
 
   const boardColumns = useMemo(
     () => [
@@ -625,6 +751,46 @@ export default function AdminFolderManagerPage() {
     setIsVisibilityModalOpen(true);
   };
 
+  const handleApproveDeleteRequest = async () => {
+    if (!confirmingDeleteRequest || !deleteRequestAgreement) return;
+
+    try {
+      setApprovingDeleteRequestId(confirmingDeleteRequest.id);
+      await fileManagerApi.approveFolderDeletionRequest(confirmingDeleteRequest.id);
+      toast.success(`Request approved - ${confirmingDeleteRequest.creative} can now delete this folder`);
+      setConfirmingDeleteRequest(null);
+      setDeleteRequestAgreement(false);
+      await loadFolderDeletionRequests(deleteRequestPage);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to approve request"));
+    } finally {
+      setApprovingDeleteRequestId(null);
+    }
+  };
+
+  const handleRejectDeleteRequest = async (request: FolderDeleteRequest) => {
+    try {
+      setRejectingDeleteRequestId(request.id);
+      await fileManagerApi.rejectFolderDeletionRequest(request.id);
+      toast.success("Request rejected - folder retained");
+      await loadFolderDeletionRequests(deleteRequestPage);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Failed to reject request"));
+    } finally {
+      setRejectingDeleteRequestId(null);
+    }
+  };
+
+  const openApproveDeleteRequestModal = (request: FolderDeleteRequest) => {
+    setDeleteRequestAgreement(false);
+    setConfirmingDeleteRequest(request);
+  };
+
+  const closeApproveDeleteRequestModal = () => {
+    setConfirmingDeleteRequest(null);
+    setDeleteRequestAgreement(false);
+  };
+
   const topbarActions = canCreate ? (
     <Button
       onClick={() => setIsCreateCommonEventModalOpen(true)}
@@ -670,7 +836,7 @@ export default function AdminFolderManagerPage() {
                 <Button
                   key={tab.name}
                   onClick={() => handleTabChange(tab.name)}
-                  className={`flex items-center gap-2 px-4 lg:px-6 py-2 text-sm font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${isActive
+                  className={`flex items-center gap-2 ${"compact" in tab && tab.compact ? "px-3 lg:px-4 text-xs lg:text-sm" : "px-4 lg:px-6 text-sm"} py-2 font-medium transition-all rounded-lg h-10 lg:h-12 shrink-0 whitespace-nowrap ${isActive
                     ? isDark
                       ? "bg-white text-black shadow-lg scale-[1.02]"
                       : "bg-black text-[#E8D1AB] shadow-md scale-[1.02] hover:bg-black/90"
@@ -681,6 +847,11 @@ export default function AdminFolderManagerPage() {
                 >
                   <tab.icon size={20} className="shrink-0" />
                   <span className="leading-none">{tab.name}</span>
+                  {"count" in tab && tab.count > 0 ? (
+                    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold ${isActive ? "bg-[#E8D1AB] text-black" : "bg-[#E8D1AB] text-black"}`}>
+                      {tab.count}
+                    </span>
+                  ) : null}
                 </Button>
               );
             })}
@@ -694,7 +865,7 @@ export default function AdminFolderManagerPage() {
             <span className="whitespace-nowrap">Projects:</span>
             <p className="font-medium">
               <span className={"text-[#E8D1AB] font-bold"}>
-                {viewMode === "board" ? boardPagination.total : pagination.total}
+                {selectedTab === DELETE_REQUESTS_TAB ? deleteRequestsPagination.total : viewMode === "board" ? boardPagination.total : pagination.total}
               </span>
               <span className={`mx-1 ${isDark ? "text-[#8F8F8F]" : "text-[#000000]"}`}>total</span>
             </p>
@@ -720,7 +891,14 @@ export default function AdminFolderManagerPage() {
 
             {/* Control Actions / Toggle Layout Wrapper */}
             <div className="flex gap-2">
-              {/* <BasicDropdown label="Status" value={status} onChange={setStatus} options={STATUSES} isDark={isDark} /> */}
+              {selectedTab === DELETE_REQUESTS_TAB ? (
+                <BasicDropdown
+                  label="Status"
+                  value={deleteRequestStatusFilter}
+                  onChange={setDeleteRequestStatusFilter}
+                  options={["All", "Pending", "Approved", "Rejected"]}
+                />
+              ) : null}
 
               <FileManagerViewToggle
                 isOpen={isOpen}
@@ -732,7 +910,110 @@ export default function AdminFolderManagerPage() {
             </div>
           </div>
 
-          {(viewMode === "board" ? boardLoadingInitial : loading) ? (
+          {selectedTab === DELETE_REQUESTS_TAB ? (
+            <div className="space-y-3">
+              <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Deletion Requests</h2>
+              {deleteRequestsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <div
+                      key={`delete-request-skeleton-${index}`}
+                      className={`h-[188px] animate-pulse rounded-xl border-[0.5px] ${isDark ? "border-[rgba(250,218,136,0.18)] bg-[linear-gradient(135deg,rgba(251,191,36,0.04)_0%,rgba(255,255,255,0.02)_100%)]" : "border-[#E3D4AF] bg-white"}`}
+                    />
+                  ))}
+                </div>
+              ) : deleteRequestsError ? (
+                <div className="text-red-300 text-sm">{deleteRequestsError}</div>
+              ) : filteredDeleteRequests.length === 0 ? (
+                <div className={`rounded-xl border px-5 py-10 text-center text-sm ${isDark ? "border-white/10 bg-[#171717] text-white/50" : "border-[#E3E3E3] bg-white text-[#727272]"}`}>
+                  No folder deletion requests found.
+                </div>
+              ) : (
+                filteredDeleteRequests.map((request) => {
+                  const isPending = request.status === "pending";
+                  const isRejected = request.status === "rejected";
+                  const isApproved = request.status === "approved";
+                  const isApproving = approvingDeleteRequestId === request.id;
+                  const isRejecting = rejectingDeleteRequestId === request.id;
+
+                  return (
+                    <div
+                      key={request.id}
+                      className={`relative overflow-hidden rounded-xl border-[0.5px] px-4 py-4 lg:px-5 lg:py-5 ${isDark ? "border-[rgba(250,218,136,0.18)] bg-[linear-gradient(135deg,rgba(251,191,36,0.04)_0%,rgba(255,255,255,0.02)_100%)] text-white" : "border-[#E3D4AF] bg-[linear-gradient(135deg,rgba(251,191,36,0.09)_0%,rgba(255,255,255,0.9)_100%)] text-black"} ${isPending ? "before:bg-[#E6B52F]" : isRejected ? "before:bg-[#EF4444]" : "before:bg-[#22C55E]"} before:absolute before:left-0 before:top-0 before:h-full before:w-1`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                          <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${isPending ? "border-[#E6B52F]/25 bg-[#E6B52F]/15 text-[#E8D1AB]" : isRejected ? "border-[#EF4444]/25 bg-[#EF4444]/15 text-[#EF4444]" : "border-[#22C55E]/25 bg-[#22C55E]/15 text-[#22C55E]"}`}>
+                            {isApproved ? <Check size={16} /> : isRejected ? <Check size={16} /> : <Trash2 size={16} />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-bold uppercase leading-none text-[#F4D36A]">Folder Deletion Request</p>
+                            <h3 className="mt-1 truncate text-sm font-semibold" title={request.folderName}>{request.folderName}</h3>
+                          </div>
+                        </div>
+                        <button type="button" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isDark ? "text-white/75 hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`} aria-label="Dismiss request">
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1.2fr_1fr] lg:items-start">
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold">Creative</p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-[#727272]"}`}>{request.creative}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold">Reason</p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-[#727272]"}`}>{request.reason}</p>
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold">Project</p>
+                            <p className={`mt-1 truncate text-xs ${isDark ? "text-white/55" : "text-[#727272]"}`}>{request.project}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold">Description</p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-[#727272]"}`}>{request.description}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold">Requested</p>
+                          <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-[#727272]"}`}>{request.requestedAt}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {isPending ? (
+                            <>
+                              <Button type="button" disabled={Boolean(approvingDeleteRequestId || rejectingDeleteRequestId)} onClick={() => openApproveDeleteRequestModal(request)} className="h-9 bg-[#22C55E] px-6 text-sm text-black hover:bg-[#22C55E]/90">
+                                {isApproving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                {isApproving ? "Approving..." : "Approve"}
+                              </Button>
+                              <Button type="button" disabled={Boolean(approvingDeleteRequestId || rejectingDeleteRequestId)} onClick={() => handleRejectDeleteRequest(request)} className="h-9 border border-[#EF4444]/35 bg-[#401C20] px-6 text-sm text-[#FF7373] hover:bg-[#4D2025]">
+                                {isRejecting ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                                {isRejecting ? "Rejecting..." : "Reject"}
+                              </Button>
+                            </>
+                          ) : (
+                            <div className={`rounded-full border px-6 py-2 text-xs font-medium ${isRejected ? "border-[#EF4444]/10 bg-[#EF4444]/5 text-[#EF4444]/45" : "border-[#22C55E]/15 bg-[#22C55E]/10 text-[#22C55E]"}`}>
+                              {isRejected ? "Request rejected - folder retained" : "Request approved - folder can be deleted"}
+                            </div>
+                          )}
+                        </div>
+                        <Button type="button" className="h-10 bg-[#E8D1AB] px-5 text-sm text-black hover:bg-[#ECE1CE]">
+                          Review Request
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (viewMode === "board" ? boardLoadingInitial : loading) ? (
             <div className={`flex items-center justify-center py-20 border rounded-2xl transition-colors duration-300 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#e3e3e3] bg-[#F0F0F0]"}`}>
               <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
             </div>
@@ -947,7 +1228,31 @@ export default function AdminFolderManagerPage() {
             </div>
           )}
 
-          {!loading && !error && viewMode !== "board" && pagination.totalPages > 1 && (
+          {selectedTab === DELETE_REQUESTS_TAB && !deleteRequestsLoading && !deleteRequestsError && deleteRequestsPagination.totalPages > 1 && (
+            <div className="mt-6 flex w-full items-center justify-center gap-2">
+              <Button
+                type="button"
+                disabled={!deleteRequestsPagination.hasPreviousPage}
+                onClick={() => setDeleteRequestPage((prev) => Math.max(1, prev - 1))}
+                className={`h-10 border px-4 ${isDark ? "border-white/10 bg-[#131313] text-white/70 hover:bg-white/10" : "border-[#D7D7D7] bg-white text-[#727272] hover:bg-black/5"}`}
+              >
+                Previous
+              </Button>
+              <span className={`text-sm ${isDark ? "text-white/55" : "text-[#727272]"}`}>
+                Page {deleteRequestsPagination.page} of {deleteRequestsPagination.totalPages}
+              </span>
+              <Button
+                type="button"
+                disabled={!deleteRequestsPagination.hasNextPage}
+                onClick={() => setDeleteRequestPage((prev) => prev + 1)}
+                className={`h-10 border px-4 ${isDark ? "border-white/10 bg-[#131313] text-white/70 hover:bg-white/10" : "border-[#D7D7D7] bg-white text-[#727272] hover:bg-black/5"}`}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+
+          {selectedTab !== DELETE_REQUESTS_TAB && !loading && !error && viewMode !== "board" && pagination.totalPages > 1 && (
             <div className="w-full mt-6 flex items-center justify-center">
               <div className={`flex flex-wrap items-center justify-center lg:gap-2 rounded-2xl border transition-colors duration-200 p-2 max-w-full ${isDark ? "border-white/10 bg-[#0E0E0E]" : "border-[#D7D7D7] bg-white"}`}>
                 {/* Previous Button */}
@@ -1049,6 +1354,52 @@ export default function AdminFolderManagerPage() {
           isDeleting={isDeleting}
           isDark={isDark}
         />
+
+        {confirmingDeleteRequest ? (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-4">
+            <div className="w-full max-w-[560px] rounded-lg border border-white/15 bg-black p-5 shadow-2xl">
+              <div className="flex items-start gap-4 rounded-md border border-[#EF4444]/60 bg-[#3A0E10] px-4 py-3 text-white">
+                <AlertTriangle className="mt-0.5 shrink-0 text-[#EF4444]" size={22} />
+                <p className="text-sm leading-5">
+                  Approve this request? {confirmingDeleteRequest.creative} will be able to delete this folder.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDeleteRequestAgreement((current) => !current)}
+                className="mt-4 flex items-center gap-3 text-left text-sm text-white/50 transition hover:text-white/75"
+              >
+                <span className={`flex h-5 w-5 items-center justify-center rounded border ${deleteRequestAgreement ? "border-[#E8D1AB] bg-[#E8D1AB] text-black" : "border-[#E8D1AB]/45 bg-transparent text-transparent"}`}>
+                  {deleteRequestAgreement ? <Check size={14} /> : <Square size={14} />}
+                </span>
+                I confirm &amp; agree.
+              </button>
+
+              <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  onClick={closeApproveDeleteRequestModal}
+                  disabled={approvingDeleteRequestId === confirmingDeleteRequest.id}
+                  className="h-10 min-w-[120px] border border-white/20 bg-[#101010] text-white hover:bg-white/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!deleteRequestAgreement || approvingDeleteRequestId === confirmingDeleteRequest.id}
+                  onClick={handleApproveDeleteRequest}
+                  className="h-10 min-w-[150px] bg-[#E8D1AB] text-black hover:bg-[#ECE1CE] disabled:bg-[#E8D1AB]/45 disabled:text-black/60"
+                >
+                  {approvingDeleteRequestId === confirmingDeleteRequest.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : null}
+                  Confirm &amp; Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <CreateFolderModal
           isOpen={isCreateCommonEventModalOpen}

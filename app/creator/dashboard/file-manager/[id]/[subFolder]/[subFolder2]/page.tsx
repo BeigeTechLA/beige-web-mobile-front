@@ -461,20 +461,49 @@ export default function CreatorSubFolderDetailsPage() {
   const handleDeleteFolder = async (folder: Record<string, unknown> | null) => {
     const targetFolder = folder || selectedFolder;
     if (!targetFolder || typeof targetFolder.resourcePath !== "string") return;
-    if (!canDeleteFolderWithinWindow(targetFolder as UiFolderItem)) {
-      toast.error(`Creative partners can delete their own folders only within ${cpDeleteLockDays} day(s) of creation. Please request admin support.`);
-      return;
-    }
 
     try {
       setIsDeleting(true);
-      await fileManagerApi.deleteExternalEntry(targetFolder.resourcePath);
-      toast.success("Folder deleted");
+      const response = await fileManagerApi.requestFolderDeletion(
+        String(targetFolder.id || targetFolder.resourcePath),
+        { reason: "Delete requested from file manager" }
+      );
+      const result = response.data || response;
+
+      if (result.deleted && result.status === "approved") {
+        toast.success("Folder permanently deleted");
+        setIsDeleteModalOpen(false);
+        setSelectedFolder(null);
+        await loadFiles();
+        return;
+      }
+
+      if (result.deleted) {
+        toast.success("Folder deleted");
+        setIsDeleteModalOpen(false);
+        setSelectedFolder(null);
+        await loadFiles();
+        return;
+      }
+
+      if (result.already_requested) {
+        toast.info("You already have a pending delete request for this folder");
+      } else if (result.status === "pending") {
+        toast.success("Delete request sent - waiting for admin approval");
+      } else {
+        toast.success(response.message || "Delete request sent - waiting for admin approval");
+      }
       setIsDeleteModalOpen(false);
       setSelectedFolder(null);
-      await loadFiles();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete folder");
+      const statusCode = typeof err === "object" && err !== null && "status" in err ? (err as { status?: number }).status : undefined;
+      toast.error(
+        statusCode === 403
+          ? "Your deletion request for this folder was rejected"
+          : err instanceof Error
+          ? err.message
+          : "Something went wrong, please try again"
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -1269,11 +1298,11 @@ export default function CreatorSubFolderDetailsPage() {
                         setIsShareModalOpen(true);
                       }}
                       onDelete={
-                        canDeleteFolderWithinWindow(folder)
+                        !isDeleting && canDeleteFolders && (isCommonEventWorkspace || phaseSlug === "post-production")
                           ? () => {
                             setSelectedFolder(folder as unknown as Record<string, unknown>);
                             setSelectedFile(null);
-                            setIsDeleteModalOpen(true);
+                            void handleDeleteFolder(folder as unknown as Record<string, unknown>);
                           }
                           : undefined
                       }

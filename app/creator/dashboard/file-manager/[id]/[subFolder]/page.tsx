@@ -421,22 +421,51 @@ export default function CreatorFileManagerPhasePage() {
     [canDeleteFolders, cpDeleteLockDays, getFolderActionPath, isCommonEventRootFolder, isCommonEventWorkspace, phaseSlug, rootFolderPath]
   );
 
-  const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
-    if (!canDeleteFolderWithinWindow(selectedFolder)) {
-      toast.error(`Creative partners can delete their own folders only within ${cpDeleteLockDays} day${cpDeleteLockDays === 1 ? "" : "s"} of creation. Please request admin support.`);
-      return;
-    }
+  const handleDeleteSelectedFolder = async (folder?: UiFolderItem | null) => {
+    const targetFolder = folder || selectedFolder;
+    if (!targetFolder?.resourcePath) return;
 
     try {
       setIsDeleting(true);
-      await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
-      toast.success("Folder deleted");
+      const response = await fileManagerApi.requestFolderDeletion(targetFolder.id || targetFolder.resourcePath, {
+        reason: "Delete requested from file manager",
+      });
+      const result = response.data || response;
+
+      if (result.deleted && result.status === "approved") {
+        toast.success("Folder permanently deleted");
+        setIsDeleteModalOpen(false);
+        setSelectedFolder(null);
+        await loadPhase();
+        return;
+      }
+
+      if (result.deleted) {
+        toast.success("Folder deleted");
+        setIsDeleteModalOpen(false);
+        setSelectedFolder(null);
+        await loadPhase();
+        return;
+      }
+
+      if (result.already_requested) {
+        toast.info("You already have a pending delete request for this folder");
+      } else if (result.status === "pending") {
+        toast.success("Delete request sent - waiting for admin approval");
+      } else {
+        toast.success(response.message || "Delete request sent - waiting for admin approval");
+      }
       setIsDeleteModalOpen(false);
       setSelectedFolder(null);
-      await loadPhase();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete folder");
+      const statusCode = typeof err === "object" && err !== null && "status" in err ? (err as { status?: number }).status : undefined;
+      toast.error(
+        statusCode === 403
+          ? "Your deletion request for this folder was rejected"
+          : err instanceof Error
+          ? err.message
+          : "Something went wrong, please try again"
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -1065,11 +1094,11 @@ export default function CreatorFileManagerPhasePage() {
                           }
                         }}
                         onDelete={
-                          canDeleteFolderWithinWindow(folder)
+                          !isDeleting && canDeleteFolders && (isCommonEventWorkspace || phaseSlug === "post-production")
                             ? () => {
                               setSelectedFolder(folder);
                               setSelectedFile(null);
-                              setIsDeleteModalOpen(true);
+                              void handleDeleteSelectedFolder(folder);
                             }
                             : undefined
                         }
@@ -1174,11 +1203,11 @@ export default function CreatorFileManagerPhasePage() {
                             onOpenLinkModal={() => undefined}
                             href={folder.href}
                             onDelete={
-                              canDeleteFolderWithinWindow(folder)
+                              !isDeleting && canDeleteFolders && (isCommonEventWorkspace || phaseSlug === "post-production")
                                 ? () => {
                                   setSelectedFolder(folder);
                                   setSelectedFile(null);
-                                  setIsDeleteModalOpen(true);
+                                  void handleDeleteSelectedFolder(folder);
                                 }
                                 : undefined
                             }
@@ -1376,10 +1405,10 @@ export default function CreatorFileManagerPhasePage() {
               }
             }}
             onDelete={
-              canDeleteFolderWithinWindow(selectedFolder)
+              !isDeleting && canDeleteFolders && (isCommonEventWorkspace || phaseSlug === "post-production")
                 ? () => {
                   setSelectedFile(null);
-                  setIsDeleteModalOpen(true);
+                  void handleDeleteSelectedFolder(selectedFolder);
                 }
                 : undefined
             }

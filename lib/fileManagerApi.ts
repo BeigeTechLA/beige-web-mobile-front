@@ -208,6 +208,52 @@ export interface FileManagerSettings {
   updatedAt?: string | null;
 }
 
+export type FolderDeletionRequestStatus = "pending" | "approved" | "rejected";
+
+export interface FolderDeletionRequestItem {
+  id: string | number;
+  title: string;
+  creative?: {
+    name?: string | null;
+  } | null;
+  project?: string | null;
+  reason?: string | null;
+  description?: string | null;
+  status: FolderDeletionRequestStatus;
+  file_count?: number;
+  total_size_bytes?: number;
+  requested_at?: string | null;
+}
+
+export interface FolderDeletionRequestsPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface FolderDeletionRequestActionResponse {
+  success: boolean;
+  data?: FolderDeletionRequestItem;
+  message?: string;
+}
+
+export interface FolderDeletionRequestCreateResponse {
+  success?: boolean;
+  deleted?: boolean;
+  already_requested?: boolean;
+  status?: FolderDeletionRequestStatus;
+  message?: string;
+  data?: {
+    deleted?: boolean;
+    already_requested?: boolean;
+    status?: FolderDeletionRequestStatus;
+    request?: FolderDeletionRequestItem;
+  };
+}
+
 interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
@@ -220,6 +266,14 @@ interface ExternalWorkspacesResponse {
       hasNextPage: boolean;
       hasPreviousPage: boolean;
     };
+  };
+}
+
+interface FolderDeletionRequestsResponse {
+  success: boolean;
+  data: {
+    requests: FolderDeletionRequestItem[];
+    pagination?: FolderDeletionRequestsPagination;
   };
 }
 
@@ -1293,6 +1347,44 @@ export const fileManagerApi = {
       payload
     );
     return response.data;
+  },
+
+  async listFolderDeletionRequests(params: {
+    status?: "pending" | "approved" | "rejected" | "all";
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) {
+    const response = await apiClient.get<FolderDeletionRequestsResponse>(
+      "admin/file-manager/deletion-requests",
+      params as Record<string, unknown>
+    );
+    return response.data;
+  },
+
+  async approveFolderDeletionRequest(id: string | number) {
+    return apiClient.post<FolderDeletionRequestActionResponse>(
+      `admin/file-manager/deletion-requests/${id}/approve`,
+      {}
+    );
+  },
+
+  async rejectFolderDeletionRequest(id: string | number, rejectReason?: string) {
+    const payload = rejectReason?.trim() ? { reject_reason: rejectReason.trim() } : {};
+    return apiClient.post<FolderDeletionRequestActionResponse>(
+      `admin/file-manager/deletion-requests/${id}/reject`,
+      payload
+    );
+  },
+
+  async requestFolderDeletion(folderId: string | number, payload?: { reason?: string; description?: string }) {
+    return apiClient.post<FolderDeletionRequestCreateResponse>(
+      `file-manager/folders/${encodeURIComponent(String(folderId))}/deletion-request`,
+      {
+        reason: payload?.reason || "Delete requested from file manager",
+        ...(payload?.description ? { description: payload.description } : {}),
+      }
+    );
   },
 
   async createExternalFolder(
