@@ -143,13 +143,17 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
     pickFirstString(summary, ["email", "client_email", "guest_email"]) ||
     "-";
 
-  const currentBalance = pickFirstNumber(summary, [
+  const summaryCurrentBalance = pickFirstNumber(summary, [
     "current_balance",
     "available_balance",
     "remaining_balance",
     "total_credits_available",
     "total_available_credits",
   ]);
+  const latestRunningBalance = pickFirstNumber(activitiesRaw[0] || {}, [
+    "remaining_balance",
+  ]);
+  const currentBalance = Math.max(summaryCurrentBalance, latestRunningBalance);
 
   const totalUsed = pickFirstNumber(summary, [
     "total_used",
@@ -158,32 +162,13 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
     "used_total",
   ]);
 
-  const nonExpiredTotalFromLedger = activitiesRaw.reduce((total, item) => {
-    const isExpired =
-      isTruthyFlag(item.is_expired) ||
-      pickFirstString(item, ["status"]).toLowerCase() === "expired";
-    if (isExpired) return total;
-
-    const status = pickFirstString(item, ["status"]).toLowerCase();
-    if (status && status !== "approved") return total;
-
-    const direction = pickFirstString(item, ["direction"]).toLowerCase();
-    if (direction && direction !== "credit") return total;
-
-    const creditedAmount = pickFirstNumber(item, ["credited_amount", "amount"]);
-    const usedAmount = pickFirstNumber(item, ["used_amount"]);
-    const remainingBalance = pickFirstNumber(item, ["remaining_balance"]);
-
-    if (creditedAmount > 0) return total + creditedAmount;
-    if (remainingBalance > 0 || usedAmount > 0) return total + remainingBalance + usedAmount;
-
-    return total;
-  }, 0);
-
   const totalCreditPoints =
-    nonExpiredTotalFromLedger > 0
-      ? nonExpiredTotalFromLedger
-      : currentBalance + totalUsed;
+    pickFirstNumber(summary, [
+      "total_credit_points",
+      "total_credits_issued",
+      "total_credit_points_issued",
+      "issued_credit_amount",
+    ]) || currentBalance + totalUsed;
 
   const activities: CreditActivityItem[] = activitiesRaw.map((item, index) => {
     const amountNumber = pickFirstNumber(item, ["amount", "used_amount", "credited_amount"]);

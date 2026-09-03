@@ -73,7 +73,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   quotes: ["admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
   request_shoots: ["request_shoots", "request-shoots", "crew_request_shoots", "client_book_a_shoot"],
   affiliate: ["crew_affiliate", "client_affiliate_overview"],
-  roles_permissions: ["roles_permissions", "roles-permissions", "admin_users"],
+  roles_permissions: ["roles_permissions", "roles-permissions"],
   sales: ["sales", "sales_rep_sales"],
   sales_representative: ["admin_sales_representative", "sales_admin_sales_people", "sales_representative", "sales-representative", "users"],
   settings: ["settings", "crew_settings", "crew_profile", "client_profile"],

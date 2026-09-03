@@ -9,7 +9,7 @@ import {
 
 type PermissionActionRecord = string | { action_key?: string };
 
-type PermissionModuleRecord = {
+export type PermissionModuleRecord = {
   module_key: string;
   actions: PermissionActionRecord[];
 };
