@@ -34,8 +34,44 @@ export const normalizeRowIdToModuleKey = (rowId: string) =>
 
 const MODULE_LABEL_ACRONYMS = new Set(["cp"]);
 
-export const formatModuleLabel = (moduleKey: string) =>
-  moduleKey
+const DISPLAY_LABEL_PREFIXES = [
+  "admin_sales_representative_",
+  "admin_finances_",
+  "admin_users_",
+  "admin_quotes_",
+  "production_manager_",
+  "creative_partner_",
+  "sales_admin_",
+  "sales_rep_",
+  "client_",
+  "admin_",
+  "crew_",
+];
+
+const MODULE_LABEL_OVERRIDES: Record<string, string> = {
+  cp_compensation: "CP Compensation",
+};
+
+const getDisplayModuleKey = (moduleKey: string) => {
+  const normalized = moduleKey.trim().toLowerCase();
+
+  for (const prefix of DISPLAY_LABEL_PREFIXES) {
+    if (normalized.startsWith(prefix)) {
+      return normalized.slice(prefix.length);
+    }
+  }
+
+  return normalized;
+};
+
+export const formatModuleLabel = (moduleKey: string) => {
+  const displayModuleKey = getDisplayModuleKey(moduleKey);
+
+  if (MODULE_LABEL_OVERRIDES[displayModuleKey]) {
+    return MODULE_LABEL_OVERRIDES[displayModuleKey];
+  }
+
+  return displayModuleKey
     .split("_")
     .filter(Boolean)
     .map((part) => {
@@ -51,6 +87,7 @@ export const formatModuleLabel = (moduleKey: string) =>
     })
     .filter(Boolean)
     .join(" ");
+};
 
 const getAllowedActions = (row: PermissionMatrixRow) =>
   row.allowedActions?.length ? row.allowedActions : ALL_PERMISSION_ACTIONS;

@@ -282,7 +282,7 @@ export default function AdminFinancesPage() {
   const { theme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
-  const { canCreate } = usePermissions("finances");
+  const { canCreate } = usePermissions("admin_finances_beige_credit_points");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [historyMonth, setHistoryMonth] = useState("All Time");
