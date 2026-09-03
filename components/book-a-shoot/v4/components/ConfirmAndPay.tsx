@@ -12,7 +12,6 @@ import {
   FolderDown,
   BadgeCheck,
   PencilLine,
-  Clapperboard,
 } from "lucide-react";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
@@ -306,15 +305,6 @@ export default function ConfirmAndPay({
               <div className="flex justify-between">
                 <span className="text-[#A9A9A9] text-sm ">{data.creativeRoleTitle}</span>
                 <span className="text-white text-base font-bold">{formatCurrency(data.creativeRoleCost)}</span>
-              </div>
-              {/* If studio added */}
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Studio Rental 4 hours × $150/hr</span>
-                <span className="text-white text-base font-bold">{formatCurrency(600)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Studio Platform fee</span>
-                <span className="text-white text-base font-bold">{formatCurrency(25)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-[#A9A9A9] text-sm  flex items-center lg:gap-1.5 max-w-1/2">
