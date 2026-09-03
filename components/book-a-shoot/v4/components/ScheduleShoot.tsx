@@ -1329,18 +1329,21 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
           {/* Need a Creator Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+          <div className="p-5 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 lg:mb-12">
             <div className="flex items-center gap-4">
-              <div className="w-12 lg:w-19 h-12 lg:h-19 lg:rounded-xl lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
-                <Camera className="w-8 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
+              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-md lg:rounded-xl bg-[#101010] lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Camera className="w-7 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
               </div>
               <div>
-                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Photographer or Videographer for your Studio?</h3>
-                <p className="text-xs lg:text-sm text-[#A9A9A9]">
-                  Bring your shoot to life with top photographers/videographers at your studio.
+                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Photographer or Videographer for your location?</h3>
+                <p className="hidden lg:block text-xs lg:text-sm text-[#A9A9A9]">
+                  Bring your shoot to life with top photographers/videographers at your location.
                 </p>
               </div>
             </div>
+            <p className="lg:hidden text-xs lg:text-sm text-[#A9A9A9]">
+              Bring your shoot to life with top photographers/videographers at your location.
+            </p>
 
             <button
               type="button"

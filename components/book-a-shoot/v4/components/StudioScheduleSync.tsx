@@ -1341,7 +1341,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
               <div className="border border-white/20 bg-[#101010] rounded-lg lg:rounded-2xl">
                 <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                   {/* Studio Image + Rating Badge */}
-                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
+                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-t-lg md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                     <Image
                       src={selectedStudio.image}
                       alt={selectedStudio.name}
@@ -1359,7 +1359,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                   </div>
 
                   {/* Studio Content & Details */}
-                  <div className="flex-1 flex flex-col justify-between rounded-r-xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-5">
+                  <div className="flex-1 flex flex-col justify-between rounded-r-lg lg:rounded-r-xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-5">
                     <div>
                       {/* Title & Status Badge */}
                       <div className="flex items-start justify-between gap-2 mb-1">
@@ -1371,8 +1371,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         </div>
 
                         {selectedStudio.isAdded && (
-                          <span className="flex items-center gap-1 bg-[#4CAF50] text-white border border-[#4CAF50] px-3 py-2 rounded-full text-[10px] lg:text-base shrink-0">
-                            <Check className="w-4 h-4" /> Added
+                          <span className="flex items-center gap-1 bg-[#4CAF50] text-white border border-[#4CAF50] p-1.5 pr-2 lg:px-3 lg:py-2 rounded-full text-[10px] lg:text-base shrink-0">
+                            <Check className="w-3 h-3 lg:w-4 lg:h-4" /> Added
                           </span>
                         )}
                       </div>
