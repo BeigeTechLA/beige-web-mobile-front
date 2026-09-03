@@ -58,7 +58,7 @@ export default function AdminRolesPermissionsRoute() {
 
             <ExportUsersButton isDark={isDark} />
 
-            {/* <Button
+            <Button
               onClick={() => router.push("/admin/roles-permissions/add-new-role")}
               disabled={!canCreate}
               title={canCreate ? "Add New Role" : "Create permission not allowed"}
@@ -66,7 +66,7 @@ export default function AdminRolesPermissionsRoute() {
             >
               <Plus size={18} />
               Add New Role
-            </Button> */}
+            </Button>
 
             <Button
               onClick={() => router.push("/admin/internal-credentials")}
