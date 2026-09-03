@@ -12,7 +12,6 @@ import {
   FolderDown,
   BadgeCheck,
   PencilLine,
-  Clapperboard,
 } from "lucide-react";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 

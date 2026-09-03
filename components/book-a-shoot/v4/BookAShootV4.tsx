@@ -26,6 +26,9 @@ import BrowseStudioTypes from "./components/BrowseStudioTypes";
 import StudioAddSuccess from "./components/StudioAddSuccess";
 import StudiosSelection from "./components/StudiosSelection";
 import StudioScheduleSync from "./components/StudioScheduleSync";
+import StudioShootDetails, {
+  StudioShootDetailsData,
+} from "./components/StudioShootDetails";
 
 import type { Creator } from "@/lib/types";
 import type { QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
@@ -49,6 +52,7 @@ import {
 } from "../v3/utils";
 import {
   getSelectedStudiosTotal,
+  HOURLY_STUDIO_LIST,
   normalizeSelectedStudios,
   type SelectedStudio,
   serializeStudioMeta,
@@ -369,6 +373,7 @@ export const BookAShootV4 = () => {
     addOnsQuantities: Record<string, number>;
     addOnsSubtotal: number;
     contactInformation: { fullName: string; phoneNumber: string } | null;
+    studioCategory: string | null;
   }>({
     email: "",
     selectedServices: ["photography"],
@@ -385,6 +390,7 @@ export const BookAShootV4 = () => {
     addOnsQuantities: { additional_camera: 1 },
     addOnsSubtotal: 350,
     contactInformation: null,
+    studioCategory: null,
   });
 
   const [creativeTeam, setCreativeTeam] = useState<{ [key: string]: number }>(
@@ -408,6 +414,9 @@ export const BookAShootV4 = () => {
 
   const isStudioBooking =
     bookingState.selectedOccasion === "studio" ||
+    bookingState.selectedServices.includes("studios");
+  const isStudioOnlyBooking =
+    bookingState.selectedServices.length === 1 &&
     bookingState.selectedServices.includes("studios");
   const baseContentTypes = mapServicesToContentTypes(bookingState.selectedServices);
   const contentTypes = isStudioBooking
@@ -504,9 +513,23 @@ export const BookAShootV4 = () => {
   const matchmakerStep = 6;
   const creativeTeamStep = 7;
   const chooseCreativesStep = 8;
+  const studioOnlyDetailsStep = 2;
+  const studioOnlyTypeStep = 3;
+  const studioOnlyScheduleStep = 4;
+  const studioOnlySelectionStep = 5;
+  const studioOnlySummaryStep = 6;
+  const studioOnlyConfirmStep = 7;
   const addOnsStep = shouldChooseOwn ? 9 : 8;
-  const summaryStep = shouldChooseOwn ? 10 : 9;
-  const confirmStep = shouldChooseOwn ? 11 : 10;
+  const summaryStep = isStudioOnlyBooking
+    ? studioOnlySummaryStep
+    : shouldChooseOwn
+      ? 10
+      : 9;
+  const confirmStep = isStudioOnlyBooking
+    ? studioOnlyConfirmStep
+    : shouldChooseOwn
+      ? 11
+      : 10;
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -545,6 +568,7 @@ export const BookAShootV4 = () => {
   const handleServicesSelected = (services: string[]) => {
     const recommendedTeam = getRecommendedTeam(services);
     const includesStudio = services.includes("studios");
+    const isOnlyStudio = services.length === 1 && includesStudio;
     setCreativeTeam(recommendedTeam);
     setSelectedCreatives([]);
     setLetBeigeChoose(false);
@@ -555,8 +579,18 @@ export const BookAShootV4 = () => {
     setBookingState((prev) => ({
       ...prev,
       selectedServices: services,
+      editsConfig: isOnlyStudio
+        ? {
+            needsEdits: false,
+            editedPhotosSets: 0,
+            videoEditTypes: [],
+            photoEditTypes: [],
+          }
+        : prev.editsConfig,
       selectedOccasion:
-        !includesStudio && prev.selectedOccasion === "studio"
+        isOnlyStudio
+          ? "studio"
+          : !includesStudio && prev.selectedOccasion === "studio"
           ? "corporate"
           : prev.selectedOccasion,
       scheduleData:
@@ -565,10 +599,13 @@ export const BookAShootV4 = () => {
           ? null
           : prev.scheduleData,
       teamSelectionData: null,
+      addOnsQuantities: isOnlyStudio ? {} : prev.addOnsQuantities,
+      addOnsSubtotal: isOnlyStudio ? 0 : prev.addOnsSubtotal,
     }));
-    setInternalStep(2);
+    setInternalStep(isOnlyStudio ? studioOnlyDetailsStep : 2);
     void saveLeadProgress({
       content_type: mapServicesToContentTypes(services).join(","),
+      shoot_type: isOnlyStudio ? "studio" : undefined,
     });
   };
 
@@ -690,6 +727,111 @@ export const BookAShootV4 = () => {
       location: scheduleData.location,
       location_latitude: coords.lat,
       location_longitude: coords.lng,
+    });
+  };
+
+  const handleStudioOnlyDetailsSubmitted = (details: StudioShootDetailsData) => {
+    setBookingState((prev) => ({
+      ...prev,
+      selectedOccasion: "studio",
+      shootDetailsData: {
+        notes: [details.projectName, details.description]
+          .filter((entry) => String(entry || "").trim())
+          .join("\n\n"),
+        links: [],
+      },
+      contactInformation: {
+        fullName: details.fullName,
+        phoneNumber: details.phoneNumber,
+      },
+    }));
+    setInternalStep(studioOnlyTypeStep);
+    void saveLeadProgress({
+      shoot_type: "studio",
+      content_type: "studio",
+    });
+  };
+
+  const handleStudioTypeSelected = (studioCategory: string) => {
+    setBookingState((prev) => ({ ...prev, studioCategory }));
+    setInternalStep(studioOnlyScheduleStep);
+  };
+
+  const handleStudioOnlyScheduleSubmitted = (scheduleData: ScheduleData) => {
+    const browserTimeZone = getBrowserTimeZone();
+    const coords = getCoordinates(scheduleData.locationDetails);
+
+    setBookingState((prev) => ({ ...prev, scheduleData }));
+    setInternalStep(studioOnlySelectionStep);
+    void saveLeadProgress({
+      content_type: "studio",
+      shoot_type: "studio",
+      start_date: getLocalDatePart(scheduleData.startDate),
+      start_time: scheduleData.startTime,
+      end_time: scheduleData.endTime,
+      time_zone: browserTimeZone,
+      startDate: scheduleData.startDate ? toUtcIsoIfValid(scheduleData.startDate) : undefined,
+      endDate: scheduleData.endDate ? toUtcIsoIfValid(scheduleData.endDate) : undefined,
+      booking_type: scheduleData.bookingType || "single_day",
+      booking_days: scheduleData.bookingDays.map((day) => ({
+        ...day,
+        time_zone: day.time_zone || day.timeZone || browserTimeZone,
+      })),
+      location: scheduleData.location,
+      location_latitude: coords.lat,
+      location_longitude: coords.lng,
+    });
+  };
+
+  const handleStudioOnlyStudiosSelected = (studioIds: string[]) => {
+    const schedule = bookingState.scheduleData;
+    const firstBookingDay = schedule?.bookingDays?.[0];
+    const selectedDate =
+      getLocalDatePart(schedule?.startDate) ||
+      firstBookingDay?.date ||
+      undefined;
+    const startTime =
+      schedule?.startTime ||
+      firstBookingDay?.startTime ||
+      firstBookingDay?.start_time;
+    const endTime =
+      schedule?.endTime ||
+      firstBookingDay?.endTime ||
+      firstBookingDay?.end_time;
+    const hours = Math.max(
+      1,
+      getTotalDurationHours(
+        schedule?.bookingType || undefined,
+        schedule?.startDate || undefined,
+        schedule?.endDate || undefined,
+        schedule?.bookingDays || []
+      ) || 0
+    );
+    const normalizedStudios = normalizeSelectedStudios({
+      selectedStudioIds: studioIds,
+    }).map((studio) => ({
+      ...studio,
+      selectedDate,
+      startTime,
+      endTime,
+      quantity: hours,
+      totalPrice: studio.unitPrice * hours + (studio.cleaningFee || 0),
+    }));
+
+    setSelectedStudios(normalizedStudios);
+    setInternalStep(studioOnlySummaryStep);
+    void saveLeadProgress({
+      content_type: "studio",
+      shoot_type: "studio",
+      studio_total: getSelectedStudiosTotal(normalizedStudios),
+      studio_items: normalizedStudios.map((item) => ({
+        studio_id: item.studioId,
+        name: item.name,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        total: item.totalPrice,
+        pricing_mode: item.pricingMode,
+      })),
     });
   };
 
@@ -1363,7 +1505,18 @@ export const BookAShootV4 = () => {
           />
         );
       case 2:
-        return (
+        return isStudioOnlyBooking ? (
+          <StudioShootDetails
+            onContinue={handleStudioOnlyDetailsSubmitted}
+            onBack={() => setInternalStep(1)}
+            initialProjectName=""
+            initialDescription={bookingState.shootDetailsData?.notes || ""}
+            initialFullName={bookingState.contactInformation?.fullName || ""}
+            initialPhoneNumber={bookingState.contactInformation?.phoneNumber || ""}
+            stepNumber="01"
+            completionPercentage={35}
+          />
+        ) : (
           <AskingOccasion
             onContinue={handleOccasionSelected}
             onBack={() => setInternalStep(1)}
@@ -1371,7 +1524,18 @@ export const BookAShootV4 = () => {
           />
         );
       case bookingDetailsStep:
-        return isStudioBooking ? (
+        return isStudioOnlyBooking ? (
+          <BrowseStudioTypes
+            onContinue={handleStudioTypeSelected}
+            onBack={() => setInternalStep(studioOnlyDetailsStep)}
+            initialSelectedKey={bookingState.studioCategory || "production"}
+            title="What kind of space do you need?"
+            subtitle="Choose the setup that best fits your project."
+            stepNumber="02"
+            completionPercentage={50}
+            showCrewInput
+          />
+        ) : isStudioBooking ? (
           <StudioSelection
             onContinue={handleStudioSubmitted}
             onBack={() => setInternalStep(2)}
@@ -1386,7 +1550,17 @@ export const BookAShootV4 = () => {
           />
         );
       case editsStep:
-        return (
+        return isStudioOnlyBooking ? (
+          <ScheduleShoot
+            onContinue={handleStudioOnlyScheduleSubmitted}
+            onBack={() => setInternalStep(studioOnlyTypeStep)}
+            onBrowseStudios={() => toast.info("You can add creators after selecting a studio.")}
+            isStudioFlow
+            initialData={bookingState.scheduleData}
+            stepNumber="03"
+            completionPercentage={70}
+          />
+        ) : (
           <EditsNeeded
             onContinue={handleEditsSubmitted}
             onBack={() => setInternalStep(bookingDetailsStep)}
@@ -1401,7 +1575,27 @@ export const BookAShootV4 = () => {
           />
         );
       case detailsStep:
-        return (
+        return isStudioOnlyBooking ? (
+          <StudiosSelection
+            onContinue={handleStudioOnlyStudiosSelected}
+            onBack={() => setInternalStep(studioOnlyScheduleStep)}
+            studios={HOURLY_STUDIO_LIST.map((studio) => ({
+              id: studio.id,
+              name: studio.name,
+              subtitle: studio.poolType ? `(${studio.poolType})` : "",
+              location: studio.location,
+              rating: Number(studio.rating || 4.5),
+              reviewCount: Number(studio.reviews || 0),
+              tags: studio.bestFor?.slice(0, 2) || ["Production-friendly"],
+              pricePerHour: Number(studio.priceValue || 0),
+              availability: "Available by booking",
+              image: studio.image,
+              link: `/studios/${studio.id}`,
+            }))}
+            stepNumber="04"
+            completionPercentage={85}
+          />
+        ) : (
           <ShootDetails
             onContinue={handleDetailsSubmitted}
             onBack={() => setInternalStep(editsStep)}
@@ -1410,7 +1604,15 @@ export const BookAShootV4 = () => {
           />
         );
       case matchmakerStep:
-        return (
+        return isStudioOnlyBooking ? (
+          <ShootSummaryStep
+            onBack={() => setInternalStep(studioOnlySelectionStep)}
+            onContinue={handleSummarySubmitted}
+            onEditStep={handleEditStepByName}
+            summaryData={getSummaryData()}
+            initialContact={bookingState.contactInformation}
+          />
+        ) : (
           <MatchMakerStep
             onContinue={handleTeamSelected}
             onBack={() => setInternalStep(detailsStep)}
@@ -1426,7 +1628,14 @@ export const BookAShootV4 = () => {
           />
         );
       case creativeTeamStep:
-        return (
+        return isStudioOnlyBooking ? (
+          <ConfirmAndPay
+            onBack={() => setInternalStep(studioOnlySummaryStep)}
+            onConfirmAndPay={handleConfirmAndPay}
+            onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
+            pricingData={getPricingData()}
+          />
+        ) : (
           <CreativeTeam
             initialCounts={creativeTeam}
             onBack={() => setInternalStep(matchmakerStep)}

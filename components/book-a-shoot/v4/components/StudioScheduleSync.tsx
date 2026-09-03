@@ -71,6 +71,18 @@ export interface StudioScheduleSyncProps {
   onBack?: () => void;
   initialUseSameSchedule?: boolean;
   initialBookingType?: "single_day" | "multi_day";
+  initialScheduleData?: {
+    bookingType?: "single_day" | "multi_day" | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    bookingDays?: Array<{
+      date: string;
+      startTime?: string;
+      endTime?: string;
+      start_time?: string;
+      end_time?: string;
+    }>;
+  } | null;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -81,14 +93,36 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   onContinue,
   onBack,
   initialUseSameSchedule = true,
-  initialBookingType = "multi_day",
+  initialBookingType = "single_day",
+  initialScheduleData,
   title = "Should the studio use the same schedule?",
   subtitle = "You can use your shoot schedule or set a separate date and time for the studio.",
   stepNumber = "03",
   completionPercentage = 60,
 }) => {
+  const sourceBookingDays = initialScheduleData?.bookingDays || [];
+  const sourceStartDate = initialScheduleData?.startDate || "";
+  const sourceEndDate = initialScheduleData?.endDate || "";
+  const sourceBookingType =
+    initialScheduleData?.bookingType || initialBookingType;
+  const sourceSelectedDates =
+    sourceBookingDays.length > 0
+      ? sourceBookingDays
+          .map((day) => parseDate(day.date))
+          .filter((date): date is Date => Boolean(date))
+      : sourceStartDate
+        ? [parseDate(sourceStartDate)].filter((date): date is Date => Boolean(date))
+        : [];
+  const sourceMultiDayTimes = sourceBookingDays.reduce<Record<string, { startKey?: string; endKey?: string }>>((acc, day) => {
+    acc[day.date] = {
+      startKey: day.startTime || day.start_time,
+      endKey: day.endTime || day.end_time,
+    };
+    return acc;
+  }, {});
+
   const [useSameSchedule, setUseSameSchedule] = useState<boolean>(initialUseSameSchedule);
-  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(initialBookingType);
+  const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(sourceBookingType);
   const [isAccordionOpen, setIsAccordionOpen] = useState<boolean>(true);
 
   // Update parameter during integration
@@ -96,7 +130,9 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const [selectedStudio, setSelectedStudio] = useState(PLACEHOLDER_STUDIO);
 
   // Single Day & Time States
-  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(new Date());
+  const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
+    sourceStartDate ? parseDate(sourceStartDate) : null
+  );
   const [timeOptions, setTimeOptions] = useState<{ key: string; value: string }[]>([]);
   const [data, setData] = useState<{
     startDate: string;
@@ -104,16 +140,22 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
     bookingType: "single_day" | "multi_day";
     bookingDays: Array<{ date: string; startTime?: string; endTime?: string }>;
   }>({
-    startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
-    endDate: format(new Date(Date.now() + 8 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm:ss"),
-    bookingType: initialBookingType,
-    bookingDays: [],
+    startDate: sourceStartDate,
+    endDate: sourceEndDate,
+    bookingType: sourceBookingType,
+    bookingDays: sourceBookingDays.map((day) => ({
+      date: day.date,
+      startTime: day.startTime || day.start_time,
+      endTime: day.endTime || day.end_time,
+    })),
   });
 
   // Multi Day States
-  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>({});
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(
+    sourceSelectedDates[0] || new Date()
+  );
+  const [selectedDates, setSelectedDates] = useState<Date[]>(sourceSelectedDates);
+  const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>(sourceMultiDayTimes);
   const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -688,7 +730,11 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
 
                       <div className="pt-1">
                         <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-full bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
-                          Duration : 8 Hours
+                          Duration : {getStartTimeKey() &&
+                            getEndTimeKey() &&
+                            calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                            ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours`
+                            : "0 Hours"}
                         </span>
                       </div>
                     </div>
@@ -697,10 +743,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                     <div className="space-y-3 lg:space-y-6">
                       {/* Timings Selector with Fallback Dummy Dates */}
                       {(() => {
-                        const datesToRender =
-                          selectedDates.length > 0
-                            ? selectedDates
-                            : [new Date("2026-10-24"), new Date("2026-10-25")];
+                        const datesToRender = selectedDates;
 
                         return (
                           <div className="pt-2 lg:pt-4 space-y-3 lg:space-y-5">
@@ -737,19 +780,19 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                                   <p className="text-white font-medium text-sm lg:text-xl">
                                     {selectedDates.length > 0
                                       ? getFormattedDateString(selectedDates)
-                                      : "Oct 24, 2026, Oct 25, 2026"}
+                                      : "No date selected"}
                                   </p>
                                   <p className="text-white/60 font-medium text-sm lg:text-xl">
                                     {getStartTimeKey() && getEndTimeKey()
                                       ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
-                                      : "09:00 AM - 05:00 PM"}
+                                      : "No time selected"}
                                   </p>
                                   <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
                                     {getStartTimeKey() &&
                                       getEndTimeKey() &&
                                       calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
                                       ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
-                                      : "8 Hours/Day"}
+                                      : "0 Hours/Day"}
                                   </p>
                                 </div>
                               </div>

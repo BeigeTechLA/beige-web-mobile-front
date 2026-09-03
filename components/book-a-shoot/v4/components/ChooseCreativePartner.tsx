@@ -357,7 +357,6 @@ export default function ChooseCreativePartner({
   const [progress, setProgress] = useState(0);
   const [activeRoleFilter] = useState<"video" | "photo" | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<SelectedCrewRoles>({});
-  const [profileModalUrl, setProfileModalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const totalTimeMs = 5000;
@@ -377,23 +376,6 @@ export default function ChooseCreativePartner({
 
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (!profileModalUrl || typeof window === "undefined") return;
-
-    const handleProfileReady = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "creator-profile-modal-ready") return;
-
-      // setIsProfileModalLoading(false);
-    };
-
-    window.addEventListener("message", handleProfileReady);
-
-    return () => {
-      window.removeEventListener("message", handleProfileReady);
-    };
-  }, [profileModalUrl]);
 
   const searchableContentTypes = useMemo(
     () =>
@@ -649,6 +631,11 @@ export default function ChooseCreativePartner({
       const nextIds = [...prev, id];
       const nextCounts = calculateCounts(nextIds, nextRoles);
 
+      if (resolvedRequiredCount === 1 && prev.length >= resolvedRequiredCount) {
+        setSelectedRoles(desiredRole ? { [id]: desiredRole } : {});
+        return [id];
+      }
+
       const isVideoFull = nextCounts.video > requirements.required.video;
       const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
@@ -670,10 +657,6 @@ export default function ChooseCreativePartner({
       setSelectedRoles(nextRoles);
       return nextIds;
     });
-  };
-
-  const handleViewProfile = (url: string) => {
-    setProfileModalUrl(url);
   };
 
   const selectedCounts = calculateCounts(selectedIds, selectedRoles);
@@ -747,7 +730,6 @@ export default function ChooseCreativePartner({
             selectedRoles={selectedRoles}
             activeRoleFilter={activeRoleFilter}
             toggleSelection={toggleSelection}
-            onViewProfile={handleViewProfile}
           />
         ) : (
           <div className="text-center text-white/60 py-16">

@@ -48,11 +48,13 @@ const pushToDataLayer = (...args: any[]) => { };
 const scrollToRef = (ref: any) => { };
 const areBookingDaysEqual = (a: any[], b: any[]) => JSON.stringify(a) === JSON.stringify(b);
 const USER_TYPE: Record<number, string> = {};
+const LA_STUDIO_LOCATION = "Los Angeles, CA";
 
 interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
   onBrowseStudios?: () => void;
+  onBrowseCreators?: (data: any) => void;
   isStudioFlow?: boolean;
   title?: string;
   subtitle?: string;
@@ -79,6 +81,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBack,
   onContinue,
   onBrowseStudios,
+  onBrowseCreators,
   isStudioFlow = false,
   title = " When & Where are you planning to shoot?",
   subtitle = "We can always refine the exact dates together later.",
@@ -169,7 +172,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const validate = () => {
     if (dateOption !== "have-date") return true;
 
-    if (!location) {
+    if (!isStudioFlow && !location) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return false;
@@ -249,26 +252,35 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     return true;
   };
 
-  const handleContinue = () => {
-    if (!validate()) return;
-
+  const getSchedulePayload = () => {
     const startDateValue = dateOption === "have-date" ? data.startDate || null : null;
     const endDateValue = dateOption === "have-date" ? data.endDate || null : null;
 
+    return {
+      dateOption,
+      bookingType: dateOption === "have-date" ? bookingType : null,
+      date: startDateValue,
+      startDate: startDateValue,
+      endDate: endDateValue,
+      startTime: dateOption === "have-date" ? getStartTimeKey() : null,
+      endTime: dateOption === "have-date" ? getEndTimeKey() : null,
+      bookingDays: dateOption === "have-date" ? data.bookingDays || [] : [],
+      location: isStudioFlow ? LA_STUDIO_LOCATION : location,
+      locationDetails: isStudioFlow ? null : locationDetails,
+    };
+  };
+
+  const handleContinue = () => {
+    if (!validate()) return;
+
     if (onContinue) {
-      onContinue({
-        dateOption,
-        bookingType: dateOption === "have-date" ? bookingType : null,
-        date: startDateValue,
-        startDate: startDateValue,
-        endDate: endDateValue,
-        startTime: dateOption === "have-date" ? getStartTimeKey() : null,
-        endTime: dateOption === "have-date" ? getEndTimeKey() : null,
-        bookingDays: dateOption === "have-date" ? data.bookingDays || [] : [],
-        location,
-        locationDetails,
-      });
+      onContinue(getSchedulePayload());
     }
+  };
+
+  const handleBrowseCreators = () => {
+    if (!validate()) return;
+    onBrowseCreators?.(getSchedulePayload());
   };
 
   // Generate time options
@@ -1272,32 +1284,24 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
       <hr className={`border-t border-white/20 my-5 lg:my-10`} />
 
-      {/* Location / Venue Section */}
-      <div className="mb-5 lg:mb-8">
-        <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
-          Location / Venue
-        </h2>
-        {/* Location Input */}
-        <LocationPicker
-          value={location}
-          onChange={(address, details) => {
-            setLocation(address);
-            setLocationDetails(details || null);
-          }}
-          placeholder="Search for a location"
-          colors={darkThemeColors}
-          hasError={errors.includes("locationError")}
-          disabled={false}
-        />
-        {
-          isStudioFlow &&
-          <div className="pt-5">
-            <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-xl bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
-              Note : Studios are available for LA only
-            </span>
-          </div>
-        }
-      </div>
+      {!isStudioFlow && (
+        <div className="mb-5 lg:mb-8">
+          <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
+            Location / Venue
+          </h2>
+          <LocationPicker
+            value={location}
+            onChange={(address, details) => {
+              setLocation(address);
+              setLocationDetails(details || null);
+            }}
+            placeholder="Search for a location"
+            colors={darkThemeColors}
+            hasError={errors.includes("locationError")}
+            disabled={false}
+          />
+        </div>
+      )}
 
       {
         !isStudioFlow ? <>
@@ -1344,7 +1348,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
             <button
               type="button"
-              onClick={onBrowseStudios}
+              onClick={handleBrowseCreators}
               className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Creators
