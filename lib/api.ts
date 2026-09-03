@@ -1826,9 +1826,14 @@ export const adminApi = {
       };
     }
   },
-  getCreditPointsUserById: async (userId: string | number) => {
+  getCreditPointsUserById: async (
+    userId: string | number,
+    params: { page?: number; limit?: number } = {}
+  ) => {
     try {
-      const response = await api.get(`finance/admin/credit-points/users/${userId}`);
+      const response = await api.get(`finance/admin/credit-points/users/${userId}`, {
+        params,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Credit Points User Error:', error.response?.data || error.message);
@@ -1839,10 +1844,13 @@ export const adminApi = {
       };
     }
   },
-  getCreditPointsUserByGuestEmail: async (guestEmail: string) => {
+  getCreditPointsUserByGuestEmail: async (
+    guestEmail: string,
+    params: { page?: number; limit?: number } = {}
+  ) => {
     try {
       const response = await api.get('finance/admin/credit-points/users', {
-        params: { guest_email: guestEmail },
+        params: { guest_email: guestEmail, ...params },
       });
       return response.data;
     } catch (error: any) {

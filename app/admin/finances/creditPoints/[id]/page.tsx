@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { adminApi } from "@/lib/api";
 
-const filterOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const filterOptions = ["All Time", "Month", "Last 30 Days", "This Quarter", "This Year"];
 const typeOptions = ["All", "Used", "Available"];
 
 type CreditActivityItem = {
@@ -104,6 +104,36 @@ const formatDisplayDate = (value?: string) => {
   return date.toLocaleDateString("en-GB").replace(/\//g, "-");
 };
 
+const passesDateRange = (value: string, range: string) => {
+  if (range === "All Time") return true;
+  if (!value || value === "-") return false;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const rowDate =
+    Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)
+      ? new Date(year, month - 1, day)
+      : new Date(value);
+
+  if (Number.isNaN(rowDate.getTime())) return false;
+
+  const now = new Date();
+  if (range === "Last 30 Days") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 30);
+    return rowDate >= from;
+  }
+  if (range === "This Quarter") {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return rowDate >= from;
+  }
+  if (range === "This Year") {
+    return rowDate.getFullYear() === now.getFullYear();
+  }
+
+  return rowDate.getMonth() === now.getMonth() && rowDate.getFullYear() === now.getFullYear();
+};
+
 const getInitials = (name: string) =>
   name
     .split(" ")
@@ -162,13 +192,7 @@ const mapUserDetails = (payload: unknown, fallbackKey: string): CreditUserDetail
     "used_total",
   ]);
 
-  const totalCreditPoints =
-    pickFirstNumber(summary, [
-      "total_credit_points",
-      "total_credits_issued",
-      "total_credit_points_issued",
-      "issued_credit_amount",
-    ]) || currentBalance + totalUsed;
+  const totalCreditPoints = currentBalance + totalUsed;
 
   const activities: CreditActivityItem[] = activitiesRaw.map((item, index) => {
     const amountNumber = pickFirstNumber(item, ["amount", "used_amount", "credited_amount"]);
@@ -217,7 +241,7 @@ export default function AdminCreditPointDetailsPage() {
   const { theme, resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
-  const [monthFilter, setMonthFilter] = useState("Month");
+  const [monthFilter, setMonthFilter] = useState("All Time");
   const [typeFilter, setTypeFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [userDetails, setUserDetails] = useState<CreditUserDetails | null>(null);
@@ -242,12 +266,13 @@ export default function AdminCreditPointDetailsPage() {
         let response: { error?: string; data?: unknown } | null = null;
 
         const numericId = Number(routeId);
+        const historyParams = { page: 1, limit: 200 };
         if (Number.isInteger(numericId) && numericId > 0) {
-          response = await adminApi.getCreditPointsUserById(numericId);
+          response = await adminApi.getCreditPointsUserById(numericId, historyParams);
         } else {
           const guestEmail = queryGuestEmail || (routeId.includes("@") ? routeId : "");
           if (guestEmail) {
-            response = await adminApi.getCreditPointsUserByGuestEmail(guestEmail);
+            response = await adminApi.getCreditPointsUserByGuestEmail(guestEmail, historyParams);
           }
         }
 
@@ -289,11 +314,12 @@ export default function AdminCreditPointDetailsPage() {
 
   const filteredActivities = useMemo(() => {
     if (!userDetails) return [];
-    if (typeFilter === "All") return userDetails.activities;
-    return userDetails.activities.filter((activity) =>
-      typeFilter === "Used" ? activity.amount.startsWith("-") : activity.amount.startsWith("+")
-    );
-  }, [typeFilter, userDetails]);
+    return userDetails.activities.filter((activity) => {
+      if (!passesDateRange(activity.date, monthFilter)) return false;
+      if (typeFilter === "All") return true;
+      return typeFilter === "Used" ? activity.amount.startsWith("-") : activity.amount.startsWith("+");
+    });
+  }, [monthFilter, typeFilter, userDetails]);
 
   if (!loading && !userDetails) {
     return (
@@ -404,11 +430,11 @@ export default function AdminCreditPointDetailsPage() {
             <div>
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <h3 className={`text-[18px] font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                  Recent Credit Activity
+                  Credit Activity History
                 </h3>
                 <div className="flex items-center gap-2 self-start lg:self-auto">
                   <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className={`h-9 w-[110px] rounded-full text-xs focus:ring-0 ${isDark ? "border-[#3D3D3D] bg-zinc-900 text-white/70" : "border-[#DCCFB9] bg-white text-[#5C4B2D]"}`}>
+                    <SelectTrigger className={`h-9 w-[120px] rounded-full text-xs focus:ring-0 ${isDark ? "border-[#3D3D3D] bg-zinc-900 text-white/70" : "border-[#DCCFB9] bg-white text-[#5C4B2D]"}`}>
                       <SelectValue placeholder="Month" />
                     </SelectTrigger>
                     <SelectContent className={isDark ? "border-[#3D3D3D] bg-[#111111]" : "border-[#DCCFB9] bg-white text-[#171717]"}>
