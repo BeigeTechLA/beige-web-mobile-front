@@ -19,16 +19,19 @@ import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal
 export interface PricingBreakdown {
   serviceName: string;
   baseServiceCost: number;
+  showBaseServiceCost: boolean;
   packageOffers: string[];
   photosIncluded: number;
   extraPhotoUnitsText: string;
   extraPhotosCount: number;
   totalPhotosCount: number;
+  totalEditsText: string;
   videoEditUnitsText: string;
   videoEditsCount: number;
   editingServiceCost: number;
   creativeRoleTitle: string;
   creativeRoleCost: number;
+  showCreativeRoleCost: boolean;
   addOnsCount: number;
   addOnsCost: number;
   addOnsText: string;
@@ -36,6 +39,8 @@ export interface PricingBreakdown {
   studioText: string;
   mandatoryFeeCost: number;
   mandatoryFeeText: string;
+  pricingBalanceCost: number;
+  pricingBalanceText: string;
   totalAmount: number;
   depositAmount: number;
   studioName: string;
@@ -63,6 +68,7 @@ interface ConfirmAndPayProps {
 const DEFAULT_PRICING: PricingBreakdown = {
   serviceName: "Photography Services",
   baseServiceCost: 3000,
+  showBaseServiceCost: true,
   packageOffers: [
     "All Raw Images, Lighting & Insurance Provided",
     "Up to 45 Minutes Setup Time",
@@ -72,11 +78,13 @@ const DEFAULT_PRICING: PricingBreakdown = {
   extraPhotoUnitsText: "Extra Photo Units x1",
   extraPhotosCount: 25,
   totalPhotosCount: 125,
+  totalEditsText: "125 Photos",
   videoEditUnitsText: "",
   videoEditsCount: 0,
   editingServiceCost: 500,
   creativeRoleTitle: "Photographer x1",
   creativeRoleCost: 250,
+  showCreativeRoleCost: true,
   addOnsCount: 1,
   addOnsCost: 350,
   addOnsText: "Added 1 Add-on",
@@ -84,6 +92,8 @@ const DEFAULT_PRICING: PricingBreakdown = {
   studioText: "",
   mandatoryFeeCost: 0,
   mandatoryFeeText: "",
+  pricingBalanceCost: 0,
+  pricingBalanceText: "",
   totalAmount: 4125,
   depositAmount: 500,
   studioName: "Beige Media (Modern Resort Villa with Jacuzzi)",
@@ -181,9 +191,11 @@ export default function ConfirmAndPay({
                 <span className="text-[#A9A9A9] text-sm">{data.serviceName}</span>
                 <Info className="w-5 h-5 text-white cursor-pointer" />
               </div>
-              <span className="text-base font-bold text-white">
-                {formatCurrency(data.baseServiceCost)}
-              </span>
+              {data.showBaseServiceCost && (
+                <span className="text-base font-bold text-white">
+                  {formatCurrency(data.baseServiceCost)}
+                </span>
+              )}
             </div>
 
             {/* Package Offer Card */}
@@ -237,7 +249,7 @@ export default function ConfirmAndPay({
             {/* Total Edits Pill Box */}
             <div className="bg-[#1D1C1A] border border-[#E8D1AB]/30 rounded-lg p-4 flex justify-between items-center text-[#E8D1AB]">
               <span className="text-sm ">Total Edits</span>
-              <span className="font-bold text-base">{data.totalPhotosCount} Photos</span>
+              <span className="font-bold text-base">{data.totalEditsText}</span>
             </div>
           </div>
 
@@ -303,19 +315,12 @@ export default function ConfirmAndPay({
                 <span className="text-[#A9A9A9] text-sm ">Editing Service</span>
                 <span className="text-white text-base font-bold">{formatCurrency(data.editingServiceCost)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">{data.creativeRoleTitle}</span>
-                <span className="text-white text-base font-bold">{formatCurrency(data.creativeRoleCost)}</span>
-              </div>
-              {/* If studio added */}
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Studio Rental 4 hours × $150/hr</span>
-                <span className="text-white text-base font-bold">{formatCurrency(600)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Studio Platform fee</span>
-                <span className="text-white text-base font-bold">{formatCurrency(25)}</span>
-              </div>
+              {data.showCreativeRoleCost && data.creativeRoleCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#A9A9A9] text-sm ">{data.creativeRoleTitle}</span>
+                  <span className="text-white text-base font-bold">{formatCurrency(data.creativeRoleCost)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-[#A9A9A9] text-sm  flex items-center lg:gap-1.5 max-w-1/2">
                   {data.addOnsText || `Added ${data.addOnsCount} Add-ons`}
@@ -340,6 +345,16 @@ export default function ConfirmAndPay({
                   </span>
                   <span className="text-white text-base font-bold">
                     {formatCurrency(data.mandatoryFeeCost)}
+                  </span>
+                </div>
+              )}
+              {data.pricingBalanceCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#A9A9A9] text-sm ">
+                    {data.pricingBalanceText || "Production Fee"}
+                  </span>
+                  <span className="text-white text-base font-bold">
+                    {formatCurrency(data.pricingBalanceCost)}
                   </span>
                 </div>
               )}

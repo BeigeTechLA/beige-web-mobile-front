@@ -13,6 +13,8 @@ interface TeamSelectionStepProps {
   onBack?: () => void;
   initialOption?: "best-match" | "choose-own";
   packageTitle?: string;
+  packageInclusions?: string[];
+  showStudioCallout?: boolean;
   title?: string;
   subtitle?: string;
   step?: string;
@@ -31,6 +33,8 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   onBack,
   initialOption = "best-match",
   packageTitle = "Corporate - Photography",
+  packageInclusions = PLACEHOLDER_INCLUSIONS,
+  showStudioCallout = false,
   title = "Who shoots your event?",
   subtitle = "Let Beige find the right creative team for you, or choose your own.",
   step = "05",
@@ -209,7 +213,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6 text-sm md:text-base font-light text-white/70">
-            {PLACEHOLDER_INCLUSIONS.map((item, index) => (
+            {packageInclusions.map((item, index) => (
               <div key={index} className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-full border border-[#E8D1AB]/40 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 text-[#E8D1AB]" />
@@ -221,12 +225,14 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         </div>
 
         {/* Dynamic Info Callout Box: studio journey 2 */}
-        <div className="p-4 lg:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm md:text-base text-[#E8D1AB] mt-4">
-          <Info className="w-6 h-6 flex-shrink-0" />
-          <span>
-            Your studio booking stays the same. Photography is an optional add-on and can be added to your package.
-          </span>
-        </div>
+        {showStudioCallout && (
+          <div className="p-4 lg:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm md:text-base text-[#E8D1AB] mt-4">
+            <Info className="w-6 h-6 flex-shrink-0" />
+            <span>
+              Your studio booking stays the same. Creative services are optional add-ons and can be added to your package.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Bottom Action Footer Bar */}

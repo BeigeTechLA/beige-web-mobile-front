@@ -266,6 +266,30 @@ const getRecommendedTeam = (services: string[]) => ({
     services.includes("videography") || services.includes("livestream") ? 1 : 0,
 });
 
+const getServiceDisplayName = (occasion: string, services: string[]) => {
+  const occasionName = titleize(occasion);
+  const hasPhoto = services.includes("photography");
+  const hasVideo = services.includes("videography") || services.includes("livestream");
+
+  if (hasPhoto && hasVideo) return `${occasionName} Photo + Video`;
+  if (hasPhoto) return `${occasionName} Photography`;
+  if (hasVideo) return `${occasionName} Videography`;
+
+  return `${occasionName} ${titleize(services[0] || "Service")}`;
+};
+
+const getPackageDisplayName = (occasion: string, services: string[]) => {
+  const occasionName = titleize(occasion);
+  const hasPhoto = services.includes("photography");
+  const hasVideo = services.includes("videography") || services.includes("livestream");
+
+  if (hasPhoto && hasVideo) return `${occasionName} - Photo + Video`;
+  if (hasPhoto) return `${occasionName} - Photography`;
+  if (hasVideo) return `${occasionName} - Videography`;
+
+  return `${occasionName} - ${titleize(services[0] || "Service")}`;
+};
+
 const getEditOptionsForShootType = (
   shootType: string,
   canShowVideo: boolean,
@@ -449,9 +473,31 @@ export const BookAShootV4 = () => {
       return `${label} x${count}`;
     });
   })();
+  const videoEditCount = bookingState.editsConfig.videoEditTypes.length;
+  const totalEditsText = [
+    roundedPhotoEditSummary.totalCount > 0
+      ? `${roundedPhotoEditSummary.totalCount} Photos`
+      : "",
+    videoEditCount > 0
+      ? `${videoEditCount} Video${videoEditCount === 1 ? "" : "s"}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
   const shouldChooseOwn =
     bookingState.teamSelectionData?.teamOption === "choose-own";
+  const packageInclusions = [
+    Number(creativeTeam.photographer || 0) > 0
+      ? `Photographer x${creativeTeam.photographer}`
+      : "",
+    Number(creativeTeam.videographer || 0) > 0
+      ? `Videographer x${creativeTeam.videographer}`
+      : "",
+    "All Raw Images, Lighting & Insurance Provided",
+    "Up to 45 Minutes Setup Time",
+    "Digital Delivery",
+  ].filter(Boolean);
   const bookingDetailsStep = 3;
   const editsStep = 4;
   const detailsStep = 5;
@@ -1082,9 +1128,16 @@ export const BookAShootV4 = () => {
       ].includes(category);
     });
     const visibleMandatoryFees = previewLineItems.filter((item) => {
-      if (!item.is_mandatory || item.hidden) return false;
+      if (!item.is_mandatory) return false;
       const category = String(item.category_slug || "").toLowerCase();
-      return !["studio", "editing", "services", "photography", "videography"].includes(category);
+      return ![
+        "studio",
+        "editing",
+        "services",
+        "photography",
+        "videography",
+        "crew-labor",
+      ].includes(category);
     });
     const mandatoryFeeCost = visibleMandatoryFees.reduce(
       (sum, item) => sum + Number(item.line_total || 0),
@@ -1098,7 +1151,6 @@ export const BookAShootV4 = () => {
       pricingInputs.totalRoleCount *
       CREATIVE_PARTNER_HOURLY_RATE *
       Math.max(1, pricingInputs.shootHours || 1);
-    const videoEditCount = bookingState.editsConfig.videoEditTypes.length;
     const fallbackEditingServiceCost = bookingState.editsConfig.needsEdits
       ? videoEditCount * 500 + photoEditSetCount * 125
       : 0;
@@ -1114,15 +1166,65 @@ export const BookAShootV4 = () => {
     const addOnsCost = previewLineItems.length > 0
       ? previewAddOnsCost
       : bookingState.addOnsSubtotal;
-    const studioCost = previewLineItems.length > 0
-      ? previewStudioCost
-      : selectedStudiosTotal;
+    const studioCost =
+      selectedStudios.length > 0
+        ? previewLineItems.length > 0
+          ? previewStudioCost
+          : selectedStudiosTotal
+        : 0;
     const displayedRoleCost = previewLineItems.length > 0 && previewServiceCost > 0
       ? previewServiceCost
       : roleCost;
     const fallbackTotal =
       displayedRoleCost + editingServiceCost + addOnsCost + studioCost + mandatoryFeeCost;
     const totalAmount = pricingPreview?.total ?? fallbackTotal;
+    const visibleBreakdownTotal =
+      displayedRoleCost + editingServiceCost + addOnsCost + studioCost + mandatoryFeeCost;
+    const pricingBalanceCost =
+      previewLineItems.length > 0
+        ? Math.max(
+            0,
+            Math.round((totalAmount - visibleBreakdownTotal) * 100) / 100
+          )
+        : 0;
+    const pricingBalanceText = previewLineItems
+      .filter((item) => !item.hidden && !item.is_mandatory)
+      .filter((item) => {
+        const category = String(item.category_slug || "").toLowerCase();
+        return ![
+          "studio",
+          "editing",
+          "services",
+          "photography",
+          "videography",
+          "crew-labor",
+          "equipment-addons",
+          "post-production",
+          "artist",
+          "livestream",
+          "travel",
+          "scripting",
+        ].includes(category);
+      })
+      .map((item) => String(item.item_name || "").trim())
+      .filter((name) => {
+        const lowerName = name.toLowerCase();
+        return (
+          name &&
+          !["photographer", "videographer", "cinematographer"].includes(lowerName) &&
+          !lowerName.includes("editing") &&
+          !lowerName.includes("photo") &&
+          !lowerName.includes("video") &&
+          !lowerName.includes("studio") &&
+          !lowerName.includes("resort") &&
+          !lowerName.includes("location platform") &&
+          !selectedAddOnLabels.some((label) =>
+            label.toLowerCase().includes(lowerName)
+          )
+        );
+      })
+      .filter((name, index, allNames) => allNames.indexOf(name) === index)
+      .join(", ");
     const roleTitleParts = [
       creativeTeam.photographer ? `Photographer x${creativeTeam.photographer}` : "",
       creativeTeam.videographer ? `Videographer x${creativeTeam.videographer}` : "",
@@ -1132,10 +1234,12 @@ export const BookAShootV4 = () => {
       serviceName:
         selectedStudios.length > 0
           ? selectedStudios.map((studio) => studio.name).join(", ")
-          : `${titleize(bookingState.selectedOccasion)} ${titleize(
-              bookingState.selectedServices[0] || "Service"
-            )}`,
-      baseServiceCost: studioCost,
+          : getServiceDisplayName(
+              bookingState.selectedOccasion,
+              bookingState.selectedServices
+            ),
+      baseServiceCost: selectedStudios.length > 0 ? studioCost : displayedRoleCost,
+      showBaseServiceCost: selectedStudios.length > 0,
       packageOffers: [
         "All Raw Images, Lighting & Insurance Provided",
         "Up to 45 Minutes Setup Time",
@@ -1145,11 +1249,13 @@ export const BookAShootV4 = () => {
       extraPhotoUnitsText: `Extra Photo Units x${photoEditSetCount}`,
       extraPhotosCount: roundedPhotoEditSummary.extraCount,
       totalPhotosCount: roundedPhotoEditSummary.totalCount,
+      totalEditsText: totalEditsText || "No edits selected",
       videoEditUnitsText: selectedVideoEditLabels.join(", "),
       videoEditsCount: videoEditCount,
       editingServiceCost,
       creativeRoleTitle: roleTitleParts.join(", ") || "Studio Booking",
       creativeRoleCost: displayedRoleCost,
+      showCreativeRoleCost: displayedRoleCost > 0,
       addOnsCount,
       addOnsCost,
       addOnsText:
@@ -1165,16 +1271,18 @@ export const BookAShootV4 = () => {
           : "",
       mandatoryFeeCost,
       mandatoryFeeText,
+      pricingBalanceCost,
+      pricingBalanceText,
       totalAmount,
       depositAmount: Math.min(500, totalAmount || 500),
     };
   };
 
   const getSummaryData = (): ShootSummaryData => {
-    const serviceName =
-      bookingState.selectedServices.length > 0
-        ? bookingState.selectedServices.map(titleize).join(" & ")
-        : "Photography";
+    const serviceName = getServiceDisplayName(
+      bookingState.selectedOccasion,
+      bookingState.selectedServices
+    );
     const occasionName =
       bookingState.selectedOccasion === "studio"
         ? "Studio"
@@ -1223,7 +1331,7 @@ export const BookAShootV4 = () => {
           bookingState.editsConfig.needsEdits && selectedVideoEditLabels.length > 0
             ? selectedVideoEditLabels.join(", ")
             : "",
-        totalPhotos: `You'll Receive ${roundedPhotoEditSummary.totalCount} Photos`,
+        totalPhotos: `You'll Receive ${totalEditsText || "No edits selected"}`,
       },
       addOns:
         [...formattedAddOns, ...studioAddOns].length > 0
@@ -1309,9 +1417,12 @@ export const BookAShootV4 = () => {
             initialOption={
               bookingState.teamSelectionData?.teamOption || "best-match"
             }
-            packageTitle={`${titleize(bookingState.selectedOccasion)} - ${titleize(
-              bookingState.selectedServices[0]
-            )}`}
+            packageTitle={getPackageDisplayName(
+              bookingState.selectedOccasion,
+              bookingState.selectedServices
+            )}
+            packageInclusions={packageInclusions}
+            showStudioCallout={selectedStudios.length > 0}
           />
         );
       case creativeTeamStep:
