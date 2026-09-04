@@ -26,6 +26,8 @@ import {
   Upload,
   X as CloseIcon,
   Folder,
+  AlertCircle,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,6 +60,8 @@ import {
   getFileManagerRouteStateKey,
   setFileManagerRouteState,
 } from "@/lib/fileManagerRouteState";
+import DeleteAccessRequestModal from "@/components/creator/file-manager/RequestDeleteAccess";
+import DeletionRequestSubmittedModal from "@/components/creator/file-manager/DeletionRequestSubmittedModal";
 
 const FILES_PAGE_SIZE = 20;
 const getFileExtension = (title?: string) => {
@@ -137,6 +141,10 @@ export default function CreatorSubFolderDetailsPage() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedUploadVersion, setSelectedUploadVersion] = useState<number | null>(null);
   const [isCreatingRevisionVersion, setIsCreatingRevisionVersion] = useState(false);
+
+  // Temporary variable to track Deletion Request banner
+  const [isDeletionApprovalPending, setIsDeletionApprovalPending] = useState(false);
+  const [deletionAccessGranted, setDeletionAccessGranted] = useState(false);
 
   useEffect(() => {
     const savedState = getFileManagerRouteState(routeStateKey);
@@ -1041,8 +1049,31 @@ export default function CreatorSubFolderDetailsPage() {
           </div>
         ) : null}
       />
-      <div className="overflow-x-hidden overflow-y-auto p-4 pb-24 lg:px-10 lg:py-9">
-        <div className="flex items-center justify-between">
+
+      <div className={`overflow-x-hidden overflow-y-auto p-4 pt-0 pb-24 lg:px-10 lg:pb-10 overflow-y-auto no-scrollbar`}>
+        {/* Render this when Deletion Request has been submitted */}
+        {
+          isDeletionApprovalPending && (
+            <div
+              className={`sticky top-0 z-20 -mx-4 -mt-4 mb-4 lg:-mx-10 lg:-mt-10 lg:mb-6 flex items-center justify-between gap-4 border-b px-4 py-3 lg:px-6
+                ${isDark
+                  ? "border-[#E8D1AB] bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                  : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+                }`}
+            >
+              <p className="min-w-0 truncate font-medium text-xs lg:text-sm">
+                {folderTitle} - Deletion Approval Pending
+              </p>
+
+              <div className="flex gap-[1px] items-center shrink-0 rounded-sm bg-black px-3.5 py-1.5 text-xs lg:text-sm font-medium text-[#E8D1AB] underline transition-colors hover:bg-black/90">
+                <AlertCircle size={14} className="mr-2" />
+                Approval Pending
+              </div>
+            </div>
+          )
+        }
+
+        <div className="flex items-center justify-between pt-4 lg:pt-10">
           <Button
             onClick={() => router.back()}
             className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}
@@ -1090,8 +1121,8 @@ export default function CreatorSubFolderDetailsPage() {
           <div className="text-sm text-red-300">{error || "Folder not found"}</div>
         ) : (
           <>
-            <div>
-              <div className="mb-2 flex items-start gap-5 lg:mb-6">
+            <div className="flex justify-between items-center gap-5 lg:mb-6">
+              <div className="flex items-start gap-5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#C8E1FF] text-[#000] lg:h-21 lg:w-21 lg:rounded-2xl lg:text-[30px] lg:font-medium">
                   {getDisplayInitials(workspaceName)}
                 </div>
@@ -1120,6 +1151,13 @@ export default function CreatorSubFolderDetailsPage() {
                   </div>
                 </div>
               </div>
+
+              {deletionAccessGranted && (
+                <div className="flex gap-1.5 items-center bg-[#D4FFE4] rounded-full text-[#16A34A] py-2 px-3 lg:py-3.5 lg:px-6">
+                  <BadgeCheck className="fill-[#16A34A] text-[#D4FFE4]" />
+                <p>Deletion Access Granted - Valid for 3 days</p>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -1411,6 +1449,7 @@ export default function CreatorSubFolderDetailsPage() {
             )}
           </div>
         ) : null}
+
 
         <UploadModal
           isOpen={isUploadModalOpen}
