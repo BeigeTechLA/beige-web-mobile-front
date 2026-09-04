@@ -19,6 +19,7 @@ import { Separator } from "@/src/components/landing/Separator";
 import { EarlySignup } from "./EarlySignup";
 import { WelcomeSection } from "./WelcomeSection";
 import { TopCreatives } from "./TopCreatives";
+import { AppBanner } from "./AppBanner";
 
 export default function LandingPageV2() {
   return (
@@ -65,6 +66,9 @@ export default function LandingPageV2() {
 
       {/* <Waitlist /> */}
       <EarlySignup />
+      <Separator />
+
+      <AppBanner />
 
       <Footer />
     </main>
