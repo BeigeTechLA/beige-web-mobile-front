@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
+import Cookies from "js-cookie";
 import {
   ChevronRight,
   Search,
@@ -59,6 +61,7 @@ type UserStatus = "Approved" | "Pending" | "Rejected";
 type CreativePartnerTab = "submitted" | "details_pending";
 
 const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
 type PersistedCreativePartnersFilters = {
   currentPage: number;
@@ -318,6 +321,7 @@ export const CreativePartnersTable = () => {
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDetailsPendingExporting, setIsDetailsPendingExporting] = useState(false);
   const [reminderSendingIds, setReminderSendingIds] = useState<Set<string>>(new Set());
 
   // Accordion state tracking for mobile card rows
@@ -819,6 +823,84 @@ export const CreativePartnersTable = () => {
     }
   };
 
+  const handleExportDetailsPending = async () => {
+    if (isDetailsPendingExporting) return;
+
+    setIsDetailsPendingExporting(true);
+
+    try {
+      const token = Cookies.get("revure_token");
+      const response = await axios.get<Blob>(
+        "admin/creative-partners/details-pending/export",
+        {
+          baseURL: API_BASE_URL,
+          params: {
+            search: normalizedSearch || undefined,
+            location: normalizedLocation || undefined,
+          },
+          responseType: "blob",
+          withCredentials: true,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      const blob = response.data;
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("Invalid or empty export response.");
+      }
+
+      const contentDispositionHeader = response.headers["content-disposition"];
+      const filenameHeader = typeof contentDispositionHeader === "string"
+        ? contentDispositionHeader
+        : "";
+      const utf8Match = filenameHeader.match(/filename\*=UTF-8''([^;]+)/i);
+      const filenameMatch = filenameHeader.match(/filename="?([^";]+)"?/i);
+      const fileName = utf8Match?.[1]
+        ? decodeURIComponent(utf8Match[1].replace(/['"]/g, ""))
+        : filenameMatch?.[1] || "details-pending-cps-export.xlsx";
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Details pending creative partners exported successfully.");
+    } catch (error) {
+      let message = "Failed to export creative partners.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+          }
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      console.error("Export Details Pending Creative Partners Error:", error);
+
+      toast.error(message);
+    } finally {
+      setIsDetailsPendingExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Header */}
@@ -1096,6 +1178,37 @@ export const CreativePartnersTable = () => {
               </div>
             </PopoverContent>
           </Popover>
+          )}
+
+          {activeTab === "details_pending" && (
+            <Button
+              type="button"
+              disabled={isDetailsPendingExporting}
+              aria-label="Export details pending creative partners"
+              title="Export details pending creative partners"
+              onClick={() => {
+                void handleExportDetailsPending();
+              }}
+              className={`h-12 px-4 rounded-lg flex items-center justify-center gap-2 ${isDark
+                ? "bg-[#111] border border-[#333] text-white hover:bg-[#1A1A1A]"
+                : "bg-white border border-[#E3E3E3] text-[#323232] hover:bg-[#F7F7F7]"
+                }`}
+            >
+              {isDetailsPendingExporting ? (
+                <Loader2
+                  size={18}
+                  className="animate-spin"
+                />
+              ) : (
+                <ArrowUpToLine size={18} />
+              )}
+
+              <span className="hidden lg:inline">
+                {isDetailsPendingExporting
+                  ? "Exporting..."
+                  : "Export"}
+              </span>
+            </Button>
           )}
         </div>
 
