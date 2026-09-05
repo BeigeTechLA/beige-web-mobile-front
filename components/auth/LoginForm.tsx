@@ -88,7 +88,6 @@ export function LoginForm() {
 
     return () => {
       html.classList.remove("dark", "light")
-
       if (wasDark) {
         html.classList.add("dark")
       } else if (wasLight) {

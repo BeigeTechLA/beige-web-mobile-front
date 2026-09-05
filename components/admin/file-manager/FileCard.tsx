@@ -180,7 +180,14 @@ export const FileCard = ({
   return (
     <div
       className={`group w-full h-full cursor-pointer rounded-xl border shadow-md overflow-hidden relative transition-all flex flex-col ${isDark ? 'bg-[#111111]' : 'bg-white'} ${isSelected ? activeBorder : inactiveBorder}`}
-      onClick={onOpen}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest("button, input, label, a, [role='button']")) {
+          return;
+        }
+
+        onOpen?.();
+      }}
     >
       {/* Top row with Checkbox, ID, and File Size */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
@@ -249,12 +256,9 @@ export const FileCard = ({
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                if (onQuickView) {
-                  onQuickView();
-                } else if (onOpen) {
-                  onOpen();
-                }
+                onQuickView?.();
               }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white text-white hover:text-black font-semibold text-xs backdrop-blur-md border border-white/30 shadow-lg transition-all transform hover:scale-105 active:scale-95"
               title="Quick Preview"
@@ -265,6 +269,7 @@ export const FileCard = ({
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 onOpen?.();
               }}

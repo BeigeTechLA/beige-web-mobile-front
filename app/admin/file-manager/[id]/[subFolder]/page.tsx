@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useViewMode } from "@/hooks/useViewMode";
 import {
@@ -198,6 +198,7 @@ export default function AdminFileManagerPhasePage() {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [lightboxFile, setLightboxFile] = useState<any | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const fileOpenRequestRef = useRef(0);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -559,36 +560,53 @@ export default function AdminFileManagerPhasePage() {
 
   const handleOpenFile = async (file: any) => {
     if (!file?.filepath) return;
+    const requestId = ++fileOpenRequestRef.current;
+    setLightboxFile(null);
+    setLightboxUrl(null);
+
     try {
       setOpeningFileId(file.id);
       const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+      if (requestId !== fileOpenRequestRef.current) {
+        return;
+      }
+
       if (result?.url) {
         setViewerFile(file);
         setViewerUrl(result.url);
       }
     } catch (error) {
-      console.error("Failed to open file:", error);
+      if (requestId === fileOpenRequestRef.current) {
+        console.error("Failed to open file:", error);
+      }
     } finally {
-      setOpeningFileId(null);
+      if (requestId === fileOpenRequestRef.current) {
+        setOpeningFileId(null);
+      }
     }
   };
 
   const handleQuickView = async (file: any) => {
     if (!file) return;
+    fileOpenRequestRef.current += 1;
+    setViewerFile(null);
+    setViewerUrl(null);
+    setOpeningFileId(null);
     const existingUrl = previewUrls[file.id] || file.previewUrl || null;
     setLightboxFile(file);
-    if (existingUrl) {
-      setLightboxUrl(existingUrl);
-    }
-    if (file.filepath) {
-      try {
-        const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
-        if (result?.url) {
-          setLightboxUrl(result.url);
-        }
-      } catch (error) {
-        console.error("Failed to load quick view media URL:", error);
+    setLightboxUrl(existingUrl);
+    if (!file.filepath) return;
+
+    try {
+      const result = await fileManagerApi.getExternalFileViewUrl(file.filepath);
+      if (result?.url) {
+        setLightboxUrl(result.url);
       }
+    } catch (error) {
+      console.error(
+        "Failed to load quick view media URL:",
+        error
+      );
     }
   };
 
