@@ -5,14 +5,15 @@ import {
   CalendarRange, 
   DollarSign, 
   History, 
-  Loader2, 
-  Save } from "lucide-react";
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { format, isValid, parseISO } from "date-fns";
 
+import { Label } from "@/components/ui/label";
 import DatePicker from "@/components/ui/Datepicker";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/src/components/landing/ui/button";
+import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
 
 type CreditPointsSettingsProps = {
@@ -334,311 +335,425 @@ export const CreditPointsSettings = ({
     }
   };
 
+  const inputClassName = `
+    h-10
+    lg:h-14
+    lg:text-lg
+    rounded-lg
+    lg:rounded-xl
+    transition-all
+    ${
+      isDark
+        ? "bg-[#1A1A1A] border-white/10 text-white placeholder:text-white/30 focus:border-[#E8D1AB]/50"
+        : "bg-[#F9F9F9] border-zinc-200 text-black placeholder:text-zinc-400 focus:border-[#E8D1AB]"
+    }
+  `;
+
+  const labelClassName = `
+    text-sm
+    font-medium
+    transition-colors
+    ${isDark ? "text-white/60" : "text-zinc-500"}
+  `;
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-[700px] space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1
-            className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${
-              isDark ? "text-white" : "text-[#000]"
-            }`}
-          >
-            New User Sign up Credits
-          </h1>
-
-          <button
-            type="button"
-            onClick={() => setShowChangeHistory(true)}
-            title="View change history"
-            aria-label="View change history"
-            className={`mb-1 flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-              isDark
-                ? "bg-white/10 text-white/70 hover:bg-white/15 hover:text-[#E8D1AB]"
-                : "bg-black/5 text-black/60 hover:bg-black/10 hover:text-black"
-            }`}
-          >
-            <History size={14} />
-          </button>
-        </div>
-
-        <p
-          className={`text-xs transition-colors duration-100 lg:text-sm ${
-            isDark ? "text-white/70" : "text-[#000000B2]"
-          }`}
-        >
-          Credits apply only to users who sign up during the selected date range while this setting is enabled.
-        </p>
-      </div>
-
-      {/* Enable / Disable */}
-      <div
-        className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-4 ${
-          isDark 
-          ? "border-white/15 bg-[#101010]" 
-          : "border-[#E5E5E5] bg-[#FAFAFA]"
+    <>
+      <form
+        onSubmit={handleSubmit}
+        className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
+          isDark
+            ? "bg-[#111] border-white/5"
+            : "bg-white border-zinc-200"
         }`}
       >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold">New Client Signup Credits</p>
-
-            <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                form.isEnabled && form.isActiveNow
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : form.isEnabled
-                    ? "bg-amber-500/15 text-amber-300"
-                    : isDark
-                      ? "bg-white/10 text-white/60"
-                      : "bg-black/5 text-black/60"
+        {/* Card Heading */}
+        <div className="mb-4 lg:mb-8">
+          <div className="flex items-center gap-2">
+            <h2
+              className={`lg:text-xl font-bold tracking-tight transition-colors ${
+                isDark
+                  ? "text-white"
+                  : "text-[#171717]"
               }`}
             >
-              {form.isEnabled 
-              ? (form.isActiveNow 
-              ? "Active now" 
-              : "Scheduled") 
-              : "Disabled"}
-            </span>
+              New User Sign up Credits
+            </h2>
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowChangeHistory(true)
+              }
+              title="View change history"
+              aria-label="View change history"
+              className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                isDark
+                  ? "bg-white/10 text-white/70 hover:bg-white/15 hover:text-[#E8D1AB]"
+                  : "bg-black/5 text-black/60 hover:bg-black/10 hover:text-black"
+              }`}
+            >
+              <History size={14} />
+            </button>
           </div>
 
-          <p 
-          className={`mt-1 text-xs ${
-            isDark ? "text-white/55" : "text-black/55"
+          <p
+            className={`mt-1 text-xs lg:text-sm leading-5 transition-colors ${
+              isDark
+                ? "text-white/60"
+                : "text-zinc-500"
             }`}
-            >
-            Credits apply only to users who sign up during the selected date range while this setting is enabled.
+          >
+            Configure signup credits and control when
+            the promotion is available to new clients.
           </p>
         </div>
 
-        <button
-          type="button"
-          role="switch"
-          aria-checked={form.isEnabled}
-          disabled={loading}
-          onClick={() =>
-            setForm((current) => ({
-              ...current,
-              isEnabled: !current.isEnabled,
-            }))
-          }
-          className={`relative h-7 w-12 shrink-0 rounded-full border transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            form.isEnabled
-              ? "border-[#E8D1AB] bg-[#E8D1AB]"
-              : isDark
-                ? "border-white/15 bg-[#242424]"
-                : "border-black/15 bg-[#E9E9E9]"
-          }`}
-        >
-          <span
-            className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full shadow-sm transition-all ${
-              form.isEnabled
-                ? "left-[22px] bg-black"
-                : isDark
-                  ? "left-1 bg-white/70"
-                  : "left-1 bg-white"
-            }`}
-          />
-        </button>
-      </div>
-
-      {/* Credit Amount */}
-      <fieldset
-        className={`w-fit rounded-lg border px-4 pb-3 pt-1.5 ${
-          isDark ? "border-white/25" : "border-black/20"
-        }`}
-      >
-        <legend
-          className={`px-1 text-[11px] leading-none ${
-            isDark 
-            ? "text-white/55" 
-            : "text-black/55"
-          }`}
-        >
-          Credit Amount*
-        </legend>
-
-        <div className="flex items-center gap-2">
-          <DollarSign 
-          size={18} 
-          className={
-            isDark 
-          ? "text-[#E8D1AB]" 
-          : "text-black/60"
-          }
-           />
-
-          <Input
-            type="text"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={form.amount}
-            onChange={(event) => {
-              const val = event.target.value;
-              if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
-                setForm((current) => ({
-                  ...current,
-                  amount: val,
-                }));
-              }
-            }}
-            onBlur={() => {
-              if (form.amount && !Number.isNaN(Number(form.amount))) {
-                setForm((prev) => ({
-                  ...prev,
-                  amount: parseFloat(prev.amount).toFixed(2),
-                }));
-              }
-            }}
-            disabled={loading}
-            placeholder="250.00"
-            className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${
+        <div className="space-y-6">
+          {/* Enable / Disable */}
+          <div
+            className={`flex items-center justify-between gap-4 rounded-lg lg:rounded-xl border p-4 lg:p-5 transition-colors ${
               isDark
-                ? "text-white placeholder:text-white/35"
-                : "text-black placeholder:text-black/35"
+                ? "border-white/10 bg-[#1A1A1A]"
+                : "border-zinc-200 bg-[#F9F9F9]"
             }`}
-          />
-        </div>
-      </fieldset>
-
-      <div className="space-y-2">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <div
-              className={`flex items-center gap-2 text-xs font-semibold ${
-                isDark 
-                ? "text-white/65" 
-                : "text-black/65"
-              }`}
-            >
-              <CalendarRange size={15} />
-              Start Date
-            </div>
-
-            <DatePicker
-              label=""
-              value={parseIsoDateOnly(form.startDate)}
-              onChange={(date) => {
-                const newStart = date && isValid(date) ? format(date, "yyyy-MM-dd") : "";
-                setForm((current) => ({
-                  ...current,
-                  startDate: newStart,
-                  endDate: current.endDate && newStart && current.endDate < newStart ? "" : current.endDate,
-                }));
-              }}
-              disabled={loading}
-              placeholder="Select start date"
-              isDark={isDark}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div
-              className={`flex items-center gap-2 text-xs font-semibold ${
-                isDark 
-                ? "text-white/65" 
-                : "text-black/65"
-              }`}
-            >
-              <CalendarRange size={15} />
-              End Date
-            </div>
-
-            <DatePicker
-              label=""
-              value={parseIsoDateOnly(form.endDate)}
-              onChange={(date) =>
-                setForm((current) => ({
-                  ...current,
-                  endDate: 
-                  date && isValid(date) 
-                  ? format(date, "yyyy-MM-dd") 
-                  : "",
-                }))
-              }
-              minDate={
-                parseIsoDateOnly(form.startDate) || new Date()
-              }
-              disabled={loading}
-              placeholder="Select end date"
-              isDark={isDark}
-            />
-            {(form.startDate || form.endDate) && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, startDate: "", endDate: "" }))}
-                  className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                    isDark ? "text-white/50 hover:text-white" : "text-black/45 hover:text-black"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p
+                  className={`text-sm lg:text-base font-semibold ${
+                    isDark
+                      ? "text-white"
+                      : "text-[#171717]"
                   }`}
                 >
-                  Clear
-                </button>
+                  New Client Signup Credits
+                </p>
+
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    form.isEnabled &&
+                    form.isActiveNow
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : form.isEnabled
+                        ? "bg-amber-500/15 text-amber-300"
+                        : isDark
+                          ? "bg-white/10 text-white/60"
+                          : "bg-black/5 text-black/60"
+                  }`}
+                >
+                  {form.isEnabled
+                    ? form.isActiveNow
+                      ? "Active now"
+                      : "Scheduled"
+                    : "Disabled"}
+                </span>
               </div>
-            )}
+
+              <p
+                className={`mt-1 text-xs leading-5 ${
+                  isDark
+                    ? "text-white/50"
+                    : "text-zinc-500"
+                }`}
+              >
+                Credits apply only to users who sign up
+                during the selected date range while
+                this setting is enabled.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.isEnabled}
+              disabled={loading}
+              onClick={() =>
+                setForm((current) => ({
+                  ...current,
+                  isEnabled:
+                    !current.isEnabled,
+                }))
+              }
+              className={`relative h-7 w-12 shrink-0 rounded-full border transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                form.isEnabled
+                  ? "border-[#E8D1AB] bg-[#E8D1AB]"
+                  : isDark
+                    ? "border-white/15 bg-[#242424]"
+                    : "border-black/15 bg-[#E9E9E9]"
+              }`}
+            >
+              <span
+                className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full shadow-sm transition-all ${
+                  form.isEnabled
+                    ? "left-[22px] bg-black"
+                    : isDark
+                      ? "left-1 bg-white/70"
+                      : "left-1 bg-white"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Credit Amount */}
+          <div className="max-w-md space-y-3">
+            <Label
+              htmlFor="signup-credit-amount"
+              className={labelClassName}
+            >
+              Credit Amount
+            </Label>
+
+            <div className="relative">
+              <DollarSign
+                size={18}
+                className={`absolute left-4 top-1/2 z-10 -translate-y-1/2 ${
+                  isDark
+                    ? "text-[#E8D1AB]"
+                    : "text-black/50"
+                }`}
+              />
+
+              <Input
+                id="signup-credit-amount"
+                type="text"
+                inputMode="decimal"
+                value={form.amount}
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
+
+                  if (
+                    value === "" ||
+                    /^\d*\.?\d{0,2}$/.test(
+                      value,
+                    )
+                  ) {
+                    setForm((current) => ({
+                      ...current,
+                      amount: value,
+                    }));
+                  }
+                }}
+                onBlur={() => {
+                  if (
+                    form.amount &&
+                    !Number.isNaN(
+                      Number(form.amount),
+                    )
+                  ) {
+                    setForm((current) => ({
+                      ...current,
+                      amount: parseFloat(
+                        current.amount,
+                      ).toFixed(2),
+                    }));
+                  }
+                }}
+                disabled={loading}
+                placeholder="250.00"
+                className={`${inputClassName} pl-11`}
+              />
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+            {/* Start Date */}
+            <div className="space-y-3">
+              <Label
+                className={`${labelClassName} flex items-center gap-2`}
+              >
+                <CalendarRange size={15} />
+                Start Date
+              </Label>
+
+              <DatePicker
+                label=""
+                value={parseIsoDateOnly(
+                  form.startDate,
+                )}
+                onChange={(date) => {
+                  const newStart =
+                    date && isValid(date)
+                      ? format(
+                          date,
+                          "yyyy-MM-dd",
+                        )
+                      : "";
+
+                  setForm((current) => ({
+                    ...current,
+
+                    startDate: newStart,
+
+                    endDate:
+                      current.endDate &&
+                      newStart &&
+                      current.endDate <
+                        newStart
+                        ? ""
+                        : current.endDate,
+                  }));
+                }}
+                disabled={loading}
+                placeholder="Select start date"
+                isDark={isDark}
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="space-y-3">
+              <Label
+                className={`${labelClassName} flex items-center gap-2`}
+              >
+                <CalendarRange size={15} />
+                End Date
+              </Label>
+
+              <DatePicker
+                label=""
+                value={parseIsoDateOnly(
+                  form.endDate,
+                )}
+                onChange={(date) =>
+                  setForm((current) => ({
+                    ...current,
+
+                    endDate:
+                      date &&
+                      isValid(date)
+                        ? format(
+                            date,
+                            "yyyy-MM-dd",
+                          )
+                        : "",
+                  }))
+                }
+                minDate={
+                  parseIsoDateOnly(
+                    form.startDate,
+                  ) || new Date()
+                }
+                disabled={loading}
+                placeholder="Select end date"
+                isDark={isDark}
+              />
+
+              {(form.startDate ||
+                form.endDate) && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        startDate: "",
+                        endDate: "",
+                      }))
+                    }
+                    className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      isDark
+                        ? "text-white/50 hover:text-white"
+                        : "text-black/45 hover:text-black"
+                    }`}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action */}
+          <div
+            className={`pt-4 border-t transition-colors ${
+              isDark
+                ? "border-white/5"
+                : "border-zinc-100"
+            }`}
+          >
+            <Button
+              type="submit"
+              disabled={loading || saving}
+              className="
+                h-10
+                lg:h-14
+                bg-[#E8D1AB]
+                text-black
+                font-medium
+                lg:text-lg
+                rounded-lg
+                lg:rounded-xl
+                min-w-[140px]
+                lg:min-w-[200px]
+                disabled:opacity-50
+                disabled:cursor-not-allowed
+              "
+            >
+              {saving
+                ? "Saving..."
+                : "Save Settings"}
+            </Button>
           </div>
         </div>
-      </div>
+      </form>
 
-      <div
-        className={`flex justify-end border-t pt-4 ${
-          isDark 
-          ? "border-white/10" 
-          : "border-[#E5E5E5]"
-        }`}
-      >
-        <Button
-          type="submit"
-          variant="beige"
-          disabled={loading || saving}
-          className="h-11 rounded-lg px-5 text-sm font-semibold text-black"
-        >
-          <Save size={17} />
-
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
-      </div>
-      
       {/* Change History Modal */}
       {showChangeHistory && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setShowChangeHistory(false)}
+          onClick={() =>
+            setShowChangeHistory(false)
+          }
         >
           <div
-            className={`relative max-h-[85vh] w-full max-w-[650px] overflow-hidden rounded-xl border shadow-2xl ${
+            className={`relative max-h-[85vh] w-full max-w-[650px] overflow-hidden rounded-lg lg:rounded-2xl border shadow-2xl ${
               isDark
-                ? "border-white/15 bg-[#101010] text-white"
-                : "border-[#E5E5E5] bg-white text-black"
+                ? "border-white/10 bg-[#111] text-white"
+                : "border-zinc-200 bg-white text-black"
             }`}
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) =>
+              event.stopPropagation()
+            }
           >
+            {/* Modal Header */}
             <div
               className={`flex items-center justify-between border-b px-5 py-4 ${
-                isDark ? "border-white/10" : "border-[#E5E5E5]"
+                isDark
+                  ? "border-white/10"
+                  : "border-zinc-200"
               }`}
             >
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                    isDark ? "bg-white/10" : "bg-black/5"
+                    isDark
+                      ? "bg-white/10"
+                      : "bg-black/5"
                   }`}
                 >
                   <History
                     size={18}
                     className={
-                      isDark ? "text-[#E8D1AB]" : "text-black/60"
+                      isDark
+                        ? "text-[#E8D1AB]"
+                        : "text-black/60"
                     }
                   />
                 </div>
 
                 <div>
-                  <h2 className="text-base font-semibold">Change History</h2>
-                  <p 
-                  className={`text-xs ${
-                    isDark ? "text-white/45" : "text-black/45"
+                  <h2 className="text-base font-semibold">
+                    Change History
+                  </h2>
+
+                  <p
+                    className={`text-xs ${
+                      isDark
+                        ? "text-white/45"
+                        : "text-black/45"
                     }`}
-                    >
+                  >
                     {historyLabel}
                   </p>
                 </div>
@@ -646,7 +761,9 @@ export const CreditPointsSettings = ({
 
               <button
                 type="button"
-                onClick={() => setShowChangeHistory(false)}
+                onClick={() =>
+                  setShowChangeHistory(false)
+                }
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-lg transition-colors ${
                   isDark
                     ? "text-white/50 hover:bg-white/10 hover:text-white"
@@ -654,7 +771,7 @@ export const CreditPointsSettings = ({
                 }`}
                 aria-label="Close change history"
               >
-                x
+                ×
               </button>
             </div>
 
@@ -664,99 +781,182 @@ export const CreditPointsSettings = ({
                 <div className="flex items-center justify-center px-5 py-10">
                   <Loader2
                     size={20}
-                    className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
+                    className={`animate-spin ${
+                      isDark
+                        ? "text-[#E8D1AB]"
+                        : "text-black/60"
+                    }`}
                   />
                 </div>
-              ) : changeHistory.length === 0 ? (
-                <div className={`px-5 py-8 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                  No history records found yet.
+              ) : changeHistory.length ===
+                0 ? (
+                <div
+                  className={`px-5 py-8 text-sm ${
+                    isDark
+                      ? "text-white/60"
+                      : "text-black/60"
+                  }`}
+                >
+                  No history records found
+                  yet.
                 </div>
               ) : (
-                changeHistory.map((entry) => {
-                  const changedByName =
-                    entry.changed_by?.name || entry.changed_by?.email || "Unknown";
+                changeHistory.map(
+                  (entry) => {
+                    const changedByName =
+                      entry.changed_by
+                        ?.name ||
+                      entry.changed_by
+                        ?.email ||
+                      "Unknown";
 
-                  const resolvedChanges = entry.changes.length
-                    ? entry.changes
-                    : entry.before && entry.after
-                      ? Object.keys(entry.after).map((field) => ({
-                          field,
-                          before: entry.before?.[field],
-                          after: entry.after?.[field],
-                        }))
-                      : [];
+                    const resolvedChanges =
+                      entry.changes.length
+                        ? entry.changes
+                        : entry.before &&
+                            entry.after
+                          ? Object.keys(
+                              entry.after,
+                            ).map(
+                              (field) => ({
+                                field,
 
-                  return (
-                    <div
-                      key={entry.signup_credit_promo_history_id}
-                      className={`border-b px-5 py-4 last:border-b-0 ${
-                        isDark ? "border-white/10" : "border-[#E5E5E5]"
-                      }`}
-                    >
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold">{changedByName}</p>
-                          <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                            {formatDisplayDate(entry.changed_at)}
-                          </p>
-                        </div>
+                                before:
+                                  entry
+                                    .before?.[
+                                    field
+                                  ],
 
-                        <span
-                          className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                            isDark ? "bg-white/10 text-white/60" : "bg-black/5 text-black/50"
-                          }`}
-                        >
-                          {resolvedChanges.length}{" "}
-                          {resolvedChanges.length === 1 ? "change" : "changes"}
-                        </span>
-                      </div>
+                                after:
+                                  entry
+                                    .after?.[
+                                    field
+                                  ],
+                              }),
+                            )
+                          : [];
 
-                      <div className="mt-3 space-y-2">
-                        {resolvedChanges.map((change, index) => (
-                          <div
-                            key={`${entry.signup_credit_promo_history_id}-${change.field}-${index}`}
-                            className={`flex items-start gap-2 text-xs ${
-                              isDark 
-                              ? "text-white/70" 
-                              : "text-black/65"
+                    return (
+                      <div
+                        key={
+                          entry.signup_credit_promo_history_id
+                        }
+                        className={`border-b px-5 py-4 last:border-b-0 ${
+                          isDark
+                            ? "border-white/10"
+                            : "border-zinc-200"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold">
+                              {
+                                changedByName
+                              }
+                            </p>
+
+                            <p
+                              className={`text-xs ${
+                                isDark
+                                  ? "text-white/45"
+                                  : "text-black/45"
+                              }`}
+                            >
+                              {formatDisplayDate(
+                                entry.changed_at,
+                              )}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                              isDark
+                                ? "bg-white/10 text-white/60"
+                                : "bg-black/5 text-black/50"
                             }`}
                           >
-                            <span
-                              className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                                isDark ? "bg-[#E8D1AB]" : "bg-black/40"
-                              }`}
-                            />
+                            {
+                              resolvedChanges.length
+                            }{" "}
+                            {resolvedChanges.length ===
+                            1
+                              ? "change"
+                              : "changes"}
+                          </span>
+                        </div>
 
-                            <span>
-                              <strong>{formatChangeLabel(change.field)}:</strong>{" "}
-                              {formatFieldChangeText(change)}
-                            </span>
-                          </div>
-                        ))}
-                        {resolvedChanges.length === 0 && (
-                          <div className={`text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
-                            No detailed field changes available.
-                          </div>
-                        )}
+                        <div className="mt-3 space-y-2">
+                          {resolvedChanges.map(
+                            (
+                              change,
+                              index,
+                            ) => (
+                              <div
+                                key={`${entry.signup_credit_promo_history_id}-${change.field}-${index}`}
+                                className={`flex items-start gap-2 text-xs ${
+                                  isDark
+                                    ? "text-white/70"
+                                    : "text-black/65"
+                                }`}
+                              >
+                                <span
+                                  className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                                    isDark
+                                      ? "bg-[#E8D1AB]"
+                                      : "bg-black/40"
+                                  }`}
+                                />
+
+                                <span>
+                                  <strong>
+                                    {formatChangeLabel(
+                                      change.field,
+                                    )}
+                                    :
+                                  </strong>{" "}
+                                  {formatFieldChangeText(
+                                    change,
+                                  )}
+                                </span>
+                              </div>
+                            ),
+                          )}
+
+                          {resolvedChanges.length ===
+                            0 && (
+                            <div
+                              className={`text-xs ${
+                                isDark
+                                  ? "text-white/60"
+                                  : "text-black/60"
+                              }`}
+                            >
+                              No detailed field
+                              changes available.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  },
+                )
               )}
             </div>
 
+            {/* Modal Footer */}
             <div
               className={`flex justify-end border-t px-5 py-3 ${
-                isDark 
-                ? "border-white/10" 
-                : "border-[#E5E5E5]"
+                isDark
+                  ? "border-white/10"
+                  : "border-zinc-200"
               }`}
             >
               <Button
                 type="button"
-                variant="beige"
-                onClick={() => setShowChangeHistory(false)}
-                className="h-9 rounded-lg px-4 text-xs font-semibold text-black"
+                onClick={() =>
+                  setShowChangeHistory(false)
+                }
+                className="h-9 bg-[#E8D1AB] text-black rounded-lg px-4 text-xs font-semibold"
               >
                 Close
               </Button>
@@ -764,7 +964,6 @@ export const CreditPointsSettings = ({
           </div>
         </div>
       )}
-
-    </form>
+    </>
   );
 };

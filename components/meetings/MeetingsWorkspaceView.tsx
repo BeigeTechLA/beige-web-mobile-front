@@ -347,7 +347,7 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
       ) : filteredMeetings.length === 0 ? (
         <div className={`min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4 lg:p-5 transition-colors ${isDark ? "border-[#222222] bg-black" : "border-zinc-200 bg-white"}`}>
           <div className={`py-16 text-center text-xs lg:text-sm ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>
-            {search.trim() || selectedDate ? "No meetings match your filters." : <EmptyMeetingState />}
+            {search.trim() || selectedDate ? "No meetings match your filters." : <EmptyMeetingState isDark={isDark} />}
           </div>
         </div>
       ) : (

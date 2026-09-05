@@ -19,6 +19,7 @@ import { useAppSelector } from "@/lib/redux/hooks";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import { useTheme } from "next-themes";
 import EmptyNotesState from "./EmptyNotesState";
 
 // Quick reactions for emoji picker
@@ -320,7 +321,7 @@ export default function NotesDrawer({
   isOpen,
   onClose,
   shootId,
-  isDark = true,
+  isDark: isDarkProp,
   onNotesCountChange,
 }: {
   isOpen: boolean;
@@ -329,7 +330,9 @@ export default function NotesDrawer({
   isDark?: boolean;
   onNotesCountChange?: (shootId: string, count: number) => void;
 }) {
+  const { resolvedTheme } = useTheme();
   const authUserId = useAppSelector((state) => state.auth.user?.id);
+  const [themeMounted, setThemeMounted] = useState(false);
   const [notes, setNotes] = useState<NoteUiItem[]>([]);
   const [storedCurrentUserId, setStoredCurrentUserId] = useState("");
   const [inputValue, setInputValue] = useState('');
@@ -350,6 +353,14 @@ export default function NotesDrawer({
   const bookingId = String(shootId || "").replace("#", "");
   const isApiBusy = isSubmitting || isActionLoading;
   const currentUserId = normalizeId(authUserId) || storedCurrentUserId;
+  const isDark =
+    typeof isDarkProp === "boolean"
+      ? isDarkProp
+      : !themeMounted || resolvedTheme !== "light";
+
+  useEffect(() => {
+    setThemeMounted(true);
+  }, []);
 
   useEffect(() => {
     setStoredCurrentUserId(getStoredCurrentUserId());
@@ -612,7 +623,7 @@ export default function NotesDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="fixed inset-0 backdrop-blur-[3px] z-40"
+            className={`fixed inset-0 z-40 backdrop-blur-[3px] transition-colors ${isDark ? "bg-black/50" : "bg-slate-900/20"}`}
             onClick={onClose}
           />
 
@@ -622,33 +633,33 @@ export default function NotesDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full w-full sm:w-[540px] bg-[#0a0a0a] z-50 flex flex-col shadow-2xl"
+            className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col shadow-2xl transition-colors sm:w-[540px] ${isDark ? "bg-[#0a0a0a] text-white" : "bg-white text-[#171717]"}`}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#0a0a0a] px-7 py-6 flex items-center justify-between border-b border-white/10">
-              <h2 className="text-xl font-bold text-white tracking-tight">Notes</h2>
+            <div className={`sticky top-0 z-10 flex items-center justify-between border-b px-7 py-6 transition-colors ${isDark ? "border-white/10 bg-[#0a0a0a]" : "border-[#E5E7EB] bg-white"}`}>
+              <h2 className={`text-xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#171717]"}`}>Notes</h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/15 text-white/80 hover:text-white transition-all"
+                className={`rounded-full p-2 transition-all ${isDark ? "bg-white/10 text-white/80 hover:bg-white/15 hover:text-white" : "bg-[#F2F4F7] text-[#667085] hover:bg-[#E4E7EC] hover:text-[#101828]"}`}
               >
                 <X size={18} strokeWidth={2.5} />
               </button>
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className={`flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent ${isDark ? "scrollbar-thumb-white/10" : "scrollbar-thumb-black/10"}`}>
               <div className="w-fit min-w-full px-6 py-5 space-y-6">
                 {loadingNotes ? (
-                <div className="py-8 flex items-center justify-center text-white/60 text-sm">Loading notes...</div>
+                <div className={`flex items-center justify-center py-8 text-sm ${isDark ? "text-white/60" : "text-[#667085]"}`}>Loading notes...</div>
               ) : null}
               {isActionLoading ? (
-                <div className="sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/90 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">
+                <div className={`sticky top-0 z-10 mb-2 flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs backdrop-blur-sm transition-colors ${isDark ? "border-white/10 bg-[#111111]/90 text-white/80" : "border-[#E5E7EB] bg-white/95 text-[#475467]"}`}>
                   <Loader2 size={14} className="animate-spin" />
                   Updating notes...
                 </div>
               ) : null}
               {!loadingNotes && notes.length === 0 ? (
-                <EmptyNotesState />
+                <div className={isDark ? "text-white" : "text-[#171717]"}><EmptyNotesState isDark={isDark} /></div>
               ) : (
                 notes.map((note) => (
                   <NoteCard
@@ -673,15 +684,15 @@ export default function NotesDrawer({
             </div>
 
             {/* Bottom Composer */}
-            <div className="sticky bottom-0 bg-[#0a0a0a] px-6 py-5 border-t border-white/10">
+            <div className={`sticky bottom-0 border-t px-6 py-5 transition-colors ${isDark ? "border-white/10 bg-[#0a0a0a]" : "border-[#E5E7EB] bg-white"}`}>
               {replyingToId ? (
-                <div className="mb-2 flex items-center justify-between text-xs text-white/60">
+                <div className={`mb-2 flex items-center justify-between text-xs ${isDark ? "text-white/60" : "text-[#667085]"}`}>
                   <span>Replying to note #{replyingToId}</span>
-                  <button className="text-white/70 hover:text-white" onClick={() => setReplyingToId(null)}>Cancel</button>
+                  <button className={isDark ? "text-white/70 hover:text-white" : "text-[#667085] hover:text-[#101828]"} onClick={() => setReplyingToId(null)}>Cancel</button>
                 </div>
               ) : null}
-              <div className={`flex items-center gap-3 bg-[#161616] rounded-full px-5 py-3.5 border border-white/5 focus-within:border-white/10 transition-colors relative ${isApiBusy ? "opacity-80" : ""}`}>
-                <label className={`text-white/40 hover:text-white/70 transition-colors flex-shrink-0 cursor-pointer ${isApiBusy ? "pointer-events-none opacity-50" : ""}`}>
+              <div className={`relative flex items-center gap-3 rounded-full border px-5 py-3.5 transition-colors ${isDark ? "border-white/5 bg-[#161616] focus-within:border-white/10" : "border-[#E4E7EC] bg-[#F9FAFB] focus-within:border-[#D0D5DD]"} ${isApiBusy ? "opacity-80" : ""}`}>
+                <label className={`flex-shrink-0 cursor-pointer transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"} ${isApiBusy ? "pointer-events-none opacity-50" : ""}`}>
                   <Paperclip size={18} />
                   <input
                     type="file"
@@ -692,7 +703,7 @@ export default function NotesDrawer({
                   />
                 </label>
                 <button
-                  className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+                  className={`flex-shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"}`}
                   onClick={() => setShowComposerEmojis((current) => !current)}
                   disabled={isApiBusy}
                 >
@@ -708,15 +719,20 @@ export default function NotesDrawer({
                     if (e.key === 'Enter') handleSubmit();
                   }}
                   placeholder="Write a Note.."
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none"
+                  className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-[#101828] placeholder:text-[#98A2B3]"}`}
                   disabled={isApiBusy}
                 />
                 <button
                   onClick={handleSubmit}
-                  className={`flex-shrink-0 transition-colors ${(inputValue.trim() || selectedAttachments.length > 0)
-                    ? 'text-[#E8D1AB] hover:text-[#dccaa9]'
-                    : 'text-white/30 cursor-not-allowed'
-                    }`}
+                  className={`flex-shrink-0 transition-colors ${
+                    inputValue.trim() || selectedAttachments.length > 0
+                      ? isDark
+                        ? 'text-[#E8D1AB] hover:text-[#dccaa9]'
+                        : 'text-[#8B6B3D] hover:text-[#75582F]'
+                      : isDark
+                        ? 'text-white/30 cursor-not-allowed'
+                        : 'text-[#B6BDC7] cursor-not-allowed'
+                  }`}
                   disabled={(!inputValue.trim() && selectedAttachments.length === 0) || isApiBusy}
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
@@ -725,8 +741,7 @@ export default function NotesDrawer({
                 {showComposerEmojis && (
                   <div
                     ref={composerEmojiRef}
-                    className={`absolute bottom-[calc(100%+12px)] right-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-2xl border shadow-2xl lg:right-8 transition-colors ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E5E5] bg-white"
-                      }`}
+                    className={`absolute bottom-[calc(100%+12px)] right-4 z-30 w-[320px] max-w-[calc(100%-2rem)] overflow-hidden rounded-2xl border shadow-2xl transition-colors lg:right-8 ${isDark ? "border-white/10 bg-[#111111]" : "border-[#E5E7EB] bg-white"}`}
                   >
                     <EmojiPicker
                       onEmojiClick={handleComposerEmojiClick}
@@ -742,12 +757,12 @@ export default function NotesDrawer({
               {selectedAttachments.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedAttachments.map((file, idx) => (
-                    <div key={`${file.name}-${idx}`} className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-white/10 text-white/80">
+                    <div key={`${file.name}-${idx}`} className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] ${isDark ? "bg-white/10 text-white/80" : "border border-[#E4E7EC] bg-[#F2F4F7] text-[#475467]"}`}>
                       <span className="max-w-[180px] truncate">{file.name}</span>
                       <button
                         type="button"
                         onClick={() => removeSelectedAttachment(idx)}
-                        className="text-white/60 hover:text-white"
+                        className={isDark ? "text-white/60 hover:text-white" : "text-[#98A2B3] hover:text-[#344054]"}
                         aria-label={`Remove ${file.name}`}
                       >
                         <X size={12} />
@@ -845,20 +860,20 @@ function NoteCard({
   }, [showActionsMenu]);
 
   return (
-    <div className="bg-[#161616] rounded-[22px] py-4 px-5 border border-white/5 relative w-fit max-w-none">
+    <div className={`relative w-fit max-w-none rounded-[22px] border px-5 py-4 transition-colors ${isDark ? "border-white/5 bg-[#161616]" : "border-[#EAECF0] bg-[#F9FAFB]"}`}>
       {/* Parent Note */}
       <div className="flex gap-4">
         <div className="relative flex flex-col items-center">
           <UserNameBox name={note.user.name} />
           {hasReplies && (
-            <div className="w-px flex-1 bg-white/10 mt-3 mb-[-16px]" />
+            <div className={`mb-[-16px] mt-3 w-px flex-1 ${isDark ? "bg-white/10" : "bg-[#D0D5DD]"}`} />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-sm font-semibold text-white truncate">{note.user.name}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">
+              <span className={`truncate text-sm font-semibold ${isDark ? "text-white" : "text-[#101828]"}`}>{note.user.name}</span>
+              <span className={`whitespace-nowrap text-xs ${isDark ? "text-white/30" : "text-[#98A2B3]"}`}>
                 {note.timestamp.date} • {note.timestamp.time}
               </span>
             </div>
@@ -866,7 +881,7 @@ function NoteCard({
               <div ref={actionsMenuRef} className="relative">
                 <button
                   type="button"
-                  className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0 -mr-1 p-1"
+                  className={`-mr-1 flex-shrink-0 p-1 transition-colors ${isDark ? "text-white/30 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"}`}
                   onClick={() => {
                     if (isCurrentNoteDisabled) return;
                     setShowReactionPickerId(null);
@@ -883,7 +898,7 @@ function NoteCard({
                 {showActionsMenu ? (
                   <div
                     className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                      isDark ? "border-white/10 bg-[#151515]" : "border-[#E4E7EC] bg-white"
                     }`}
                     role="menu"
                   >
@@ -904,7 +919,7 @@ function NoteCard({
             ) : null}
           </div>
 
-          <p className="text-sm text-white/60 leading-relaxed mb-3 max-w-[440px]">
+          <p className={`mb-3 max-w-[440px] text-sm leading-relaxed ${isDark ? "text-white/60" : "text-[#475467]"}`}>
             {note.message}
           </p>
           {note.attachments.length > 0 ? (
@@ -912,12 +927,12 @@ function NoteCard({
               {note.attachments.map((file) => (
                 <div
                   key={`${note.id}-attachment-${file.id}`}
-                  className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-white/10 text-[#E8D1AB]"
+                  className={`inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs ${isDark ? "bg-white/10 text-[#E8D1AB]" : "border border-[#E4E7EC] bg-white text-[#8B6B3D]"}`}
                 >
                   <span className="max-w-[170px] truncate">{file.fileName}</span>
                   <button
                     type="button"
-                    className="hover:text-white"
+                    className={isDark ? "hover:text-white" : "hover:text-[#101828]"}
                     onClick={() => onPreviewAttachment?.(file)}
                     title="Preview"
                   >
@@ -928,7 +943,7 @@ function NoteCard({
                     target="_blank"
                     rel="noreferrer"
                     download={file.fileName}
-                    className="hover:text-white"
+                    className={isDark ? "hover:text-white" : "hover:text-[#101828]"}
                     title="Download"
                   >
                     <Download size={12} />
@@ -941,7 +956,7 @@ function NoteCard({
           {/* Action Row */}
           <div className="flex items-center gap-1 relative">
             <button
-              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? 'text-[#E8D1AB]' : 'text-white/40 hover:text-white/70'
+              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${note.likedByMe || note.likes > 0 ? (isDark ? 'text-[#E8D1AB]' : 'text-[#8B6B3D]') : (isDark ? 'text-white/40 hover:text-white/70' : 'text-[#667085] hover:text-[#101828]')
                 }`}
               onClick={() => onReact?.(note.id.toString(), "👍")}
               disabled={isCurrentNoteDisabled}
@@ -954,17 +969,17 @@ function NoteCard({
               />
               {note.likes > 0 ? note.likes : 'Like'}
             </button>
-            <span className="w-px h-3 bg-white/10" />
+            <span className={`h-3 w-px ${isDark ? "bg-white/10" : "bg-[#D0D5DD]"}`} />
             <button
-              className="text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5"
+              className={`px-0.5 text-xs font-medium transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#667085] hover:text-[#101828]"}`}
               onClick={() => onReply?.(note.id)}
               disabled={isCurrentNoteDisabled}
             >
               Reply
             </button>
-            <span className="w-px h-3 bg-white/10" />
+            <span className={`h-3 w-px ${isDark ? "bg-white/10" : "bg-[#D0D5DD]"}`} />
             <button
-              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 font-medium transition-colors px-0.5 relative"
+              className={`relative flex items-center gap-1.5 px-0.5 text-xs font-medium transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#667085] hover:text-[#101828]"}`}
               disabled={isCurrentNoteDisabled}
               onClick={() => setShowReactionPickerId(showReactionPickerId === note.id.toString() ? null : note.id.toString())}
             >
@@ -976,7 +991,7 @@ function NoteCard({
             {showReactionPickerId === note.id.toString() && (
               <div
                 ref={reactionPickerRef}
-                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${isDark ? "border-white/10 bg-[#151515]" : "border-[#E4E7EC] bg-white"
                   }`}
               >
                 {QUICK_REACTIONS.map((emoji) => (
@@ -1010,8 +1025,12 @@ function NoteCard({
                     title={formatReactionUsers(reaction) || undefined}
                     className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
                       reactedByMe
-                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                        ? isDark
+                          ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                          : "border-[#8B6B3D]/35 bg-[#8B6B3D]/10 text-[#8B6B3D]"
+                        : isDark
+                          ? "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                          : "border-[#E4E7EC] bg-white text-[#475467] hover:bg-[#F2F4F7]"
                     }`}
                   >
                     {emoji} {count}
@@ -1027,7 +1046,7 @@ function NoteCard({
                 if (!usersText) return null;
                 const emoji = REACTION_TO_EMOJI[reaction] || "🙂";
                 return (
-                  <p key={`${note.id}-reaction-users-${reaction}`} className="text-[11px] text-white/45" title={formatReactionUsers(reaction)}>
+                  <p key={`${note.id}-reaction-users-${reaction}`} className={`text-[11px] ${isDark ? "text-white/45" : "text-[#667085]"}`} title={formatReactionUsers(reaction)}>
                     {emoji} {usersText}
                   </p>
                 );
@@ -1039,7 +1058,7 @@ function NoteCard({
 
       {/* Thread Replies */}
       {hasReplies && (
-        <div className="mt-5 ml-[19px] pl-6 border-l border-white/10 space-y-7 w-fit pr-4">
+        <div className={`ml-[19px] mt-5 w-fit space-y-7 border-l pl-6 pr-4 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
           {note.replies.map((reply) => (
             <NoteReply
               key={reply.id}
@@ -1138,16 +1157,16 @@ function NoteReply({
         <div className="relative flex flex-col items-center">
           <UserNameBox name={reply.user.name} small />
           {hasReplies && (
-             <div className="w-px flex-1 bg-white/10 mt-2" />
+             <div className={`mt-2 w-px flex-1 ${isDark ? "bg-white/10" : "bg-[#D0D5DD]"}`} />
           )}
         </div>
         <div className="flex-1 min-w-0 pb-1">
           <div className="flex items-center gap-3 mb-1">
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex flex-col max-w-[280px]">
-                <span className="text-sm font-semibold text-white/90 truncate">{reply.user.name}</span>
+                <span className={`truncate text-sm font-semibold ${isDark ? "text-white/90" : "text-[#101828]"}`}>{reply.user.name}</span>
               </div>
-              <span className="text-[10px] text-white/25 whitespace-nowrap self-start mt-0.5">
+              <span className={`mt-0.5 self-start whitespace-nowrap text-[10px] ${isDark ? "text-white/25" : "text-[#98A2B3]"}`}>
                 {reply.timestamp.date} • {reply.timestamp.time}
               </span>
             </div>
@@ -1155,7 +1174,7 @@ function NoteReply({
               <div ref={actionsMenuRef} className="relative">
                 <button
                   type="button"
-                  className="text-white/20 hover:text-white/50 transition-colors flex-shrink-0 -mr-1 p-1"
+                  className={`-mr-1 flex-shrink-0 p-1 transition-colors ${isDark ? "text-white/20 hover:text-white/50" : "text-[#98A2B3] hover:text-[#475467]"}`}
                   onClick={() => {
                     if (isCurrentReplyDisabled) return;
                     setShowReactionPickerId(null);
@@ -1172,7 +1191,7 @@ function NoteReply({
                 {showActionsMenu ? (
                   <div
                     className={`absolute right-0 top-full z-30 mt-2 w-36 overflow-hidden rounded-xl border p-1 shadow-2xl ${
-                      isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                      isDark ? "border-white/10 bg-[#151515]" : "border-[#E4E7EC] bg-white"
                     }`}
                     role="menu"
                   >
@@ -1193,7 +1212,7 @@ function NoteReply({
             ) : null}
           </div>
 
-          <p className="text-sm text-white/50 leading-relaxed mb-2 max-w-[400px]">
+          <p className={`mb-2 max-w-[400px] text-sm leading-relaxed ${isDark ? "text-white/50" : "text-[#475467]"}`}>
             {reply.message}
           </p>
           {reply.attachments.length > 0 ? (
@@ -1201,12 +1220,12 @@ function NoteReply({
               {reply.attachments.map((file) => (
                 <div
                   key={`${reply.id}-attachment-${file.id}`}
-                  className="inline-flex items-center gap-2 text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-[#E8D1AB]/80 border border-white/5"
+                  className={`inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-[10px] ${isDark ? "border-white/5 bg-white/5 text-[#E8D1AB]/80" : "border-[#E4E7EC] bg-white text-[#8B6B3D]"}`}
                 >
                   <span className="max-w-[140px] truncate">{file.fileName}</span>
                   <button
                     type="button"
-                    className="hover:text-white"
+                    className={isDark ? "hover:text-white" : "hover:text-[#101828]"}
                     onClick={() => onPreviewAttachment?.(file)}
                     title="Preview"
                   >
@@ -1217,7 +1236,7 @@ function NoteReply({
                     target="_blank"
                     rel="noreferrer"
                     download={file.fileName}
-                    className="hover:text-white"
+                    className={isDark ? "hover:text-white" : "hover:text-[#101828]"}
                     title="Download"
                   >
                     <Download size={12} />
@@ -1231,7 +1250,13 @@ function NoteReply({
           <div className="flex items-center gap-1.5 relative">
             <button
               className={`text-[11px] font-medium transition-colors px-0.5 ${
-                reply.likedByMe || reply.likes > 0 ? "text-[#E8D1AB]" : "text-white/30 hover:text-white/60"
+                reply.likedByMe || reply.likes > 0
+                  ? isDark
+                    ? "text-[#E8D1AB]"
+                    : "text-[#8B6B3D]"
+                  : isDark
+                    ? "text-white/30 hover:text-white/60"
+                    : "text-[#667085] hover:text-[#101828]"
               }`}
               onClick={() => onReact?.(reply.id.toString(), "👍")}
               disabled={isCurrentReplyDisabled}
@@ -1239,17 +1264,17 @@ function NoteReply({
             >
               {reply.likes > 0 ? reply.likes : "Like"}
             </button>
-            <span className="w-px h-2.5 bg-white/5" />
+            <span className={`h-2.5 w-px ${isDark ? "bg-white/5" : "bg-[#D0D5DD]"}`} />
             <button
-              className="text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
+              className={`px-0.5 text-[11px] font-medium transition-colors ${isDark ? "text-white/30 hover:text-white/60" : "text-[#667085] hover:text-[#101828]"}`}
               onClick={() => onReply?.(reply.id)}
               disabled={isCurrentReplyDisabled}
             >
               Reply
             </button>
-            <span className="w-px h-2.5 bg-white/5" />
+            <span className={`h-2.5 w-px ${isDark ? "bg-white/5" : "bg-[#D0D5DD]"}`} />
             <button
-              className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 font-medium transition-colors px-0.5"
+              className={`flex items-center gap-1 px-0.5 text-[11px] font-medium transition-colors ${isDark ? "text-white/30 hover:text-white/60" : "text-[#667085] hover:text-[#101828]"}`}
               disabled={isCurrentReplyDisabled}
               onClick={() => setShowReactionPickerId(showReactionPickerId === reply.id.toString() ? null : reply.id.toString())}
             >
@@ -1261,7 +1286,7 @@ function NoteReply({
               <div
                 ref={reactionPickerRef}
                 className={`absolute bottom-full left-0 mb-2 z-20 flex items-center gap-1 rounded-full border px-2 py-1 shadow-2xl ${
-                  isDark ? "border-white/10 bg-[#151515]" : "border-zinc-200 bg-white"
+                  isDark ? "border-white/10 bg-[#151515]" : "border-[#E4E7EC] bg-white"
                 }`}
               >
                 {QUICK_REACTIONS.map((emoji) => (
@@ -1296,8 +1321,12 @@ function NoteReply({
                     title={formatReactionUsers(reaction) || undefined}
                     className={`rounded-full border px-1.5 py-0 text-[10px] transition-colors ${
                       reactedByMe
-                        ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
-                        : "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
+                        ? isDark
+                          ? "border-[#E8D1AB]/40 bg-[#E8D1AB]/15 text-[#E8D1AB]"
+                          : "border-[#8B6B3D]/35 bg-[#8B6B3D]/10 text-[#8B6B3D]"
+                        : isDark
+                          ? "border-white/5 bg-white/5 text-white/50 hover:bg-white/10"
+                          : "border-[#E4E7EC] bg-white text-[#667085] hover:bg-[#F2F4F7]"
                     }`}
                   >
                     {emoji} {count}
@@ -1308,7 +1337,7 @@ function NoteReply({
           ) : null}
 
           {hasReplies ? (
-            <div className="mt-6 ml-[15px] pl-5 border-l border-white/10 space-y-7 w-fit pr-2">
+            <div className={`ml-[15px] mt-6 w-fit space-y-7 border-l pl-5 pr-2 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
               {reply.replies.map((childReply) => (
                 <NoteReply
                   key={childReply.id}
@@ -1349,15 +1378,15 @@ function AttachmentSelectionModal({
 }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70" onClick={onCancel} />
+      <div className={`absolute inset-0 ${isDark ? "bg-black/70" : "bg-slate-900/30"}`} onClick={onCancel} />
       <div
         className={`relative z-10 w-full max-w-2xl rounded-2xl border p-5 ${
-          isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+          isDark ? "border-white/10 bg-[#111111]" : "border-[#E4E7EC] bg-white"
         }`}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Preview Attachments</h3>
-          <button onClick={onCancel} className="text-white/70 hover:text-white" type="button">
+          <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-[#101828]"}`}>Preview Attachments</h3>
+          <button onClick={onCancel} className={isDark ? "text-white/70 hover:text-white" : "text-[#667085] hover:text-[#101828]"} type="button">
             <X size={16} />
           </button>
         </div>
@@ -1367,14 +1396,14 @@ function AttachmentSelectionModal({
             const isPdf = isPdfAttachment(file.name, file.type);
 
             return (
-              <div key={`${file.name}-${idx}`} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <p className="mb-2 truncate text-xs text-white/80">{file.name}</p>
+              <div key={`${file.name}-${idx}`} className={`rounded-xl border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-[#EAECF0] bg-[#F9FAFB]"}`}>
+                <p className={`mb-2 truncate text-xs ${isDark ? "text-white/80" : "text-[#475467]"}`}>{file.name}</p>
                 {isImage ? (
                   <img src={previewUrl} alt={file.name} className="max-h-56 w-full rounded-lg object-contain" />
                 ) : isPdf ? (
-                  <iframe src={previewUrl} title={file.name} className="h-56 w-full rounded-lg border border-white/10" />
+                  <iframe src={previewUrl} title={file.name} className={`h-56 w-full rounded-lg border ${isDark ? "border-white/10" : "border-[#E4E7EC]"}`} />
                 ) : (
-                  <div className="rounded-lg border border-dashed border-white/15 p-4 text-xs text-white/60">
+                  <div className={`rounded-lg border border-dashed p-4 text-xs ${isDark ? "border-white/15 text-white/60" : "border-[#D0D5DD] text-[#667085]"}`}>
                     Preview not available for this file type.
                   </div>
                 )}
@@ -1386,14 +1415,14 @@ function AttachmentSelectionModal({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/75 hover:text-white"
+            className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${isDark ? "border-white/15 text-white/75 hover:bg-white/5 hover:text-white" : "border-[#D0D5DD] text-[#475467] hover:bg-[#F2F4F7] hover:text-[#101828]"}`}
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-lg bg-[#E8D1AB] px-3 py-1.5 text-sm font-medium text-black hover:bg-[#ddc79f]"
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#ddc79f]" : "bg-[#8B6B3D] text-white hover:bg-[#75582F]"}`}
           >
             Confirm Attachments
           </button>
@@ -1417,26 +1446,26 @@ function StoredAttachmentPreviewModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className={`absolute inset-0 ${isDark ? "bg-black/70" : "bg-slate-900/30"}`} onClick={onClose} />
       <div
         className={`relative z-10 w-full max-w-3xl rounded-2xl border p-5 ${
-          isDark ? "border-white/10 bg-[#111111]" : "border-zinc-200 bg-white"
+          isDark ? "border-white/10 bg-[#111111]" : "border-[#E4E7EC] bg-white"
         }`}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="truncate text-base font-semibold text-white">{attachment.name}</h3>
+          <h3 className={`truncate text-base font-semibold ${isDark ? "text-white" : "text-[#101828]"}`}>{attachment.name}</h3>
           <div className="flex items-center gap-2">
             <a
               href={attachment.url}
               target="_blank"
               rel="noreferrer"
               download={attachment.name}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/80 hover:text-white"
+              className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs transition-colors ${isDark ? "border-white/15 text-white/80 hover:bg-white/5 hover:text-white" : "border-[#D0D5DD] text-[#475467] hover:bg-[#F2F4F7] hover:text-[#101828]"}`}
             >
               <Download size={13} />
               Download
             </a>
-            <button onClick={onClose} className="text-white/70 hover:text-white" type="button">
+            <button onClick={onClose} className={isDark ? "text-white/70 hover:text-white" : "text-[#667085] hover:text-[#101828]"} type="button">
               <X size={16} />
             </button>
           </div>
@@ -1445,9 +1474,9 @@ function StoredAttachmentPreviewModal({
         {image ? (
           <img src={attachment.url} alt={attachment.name} className="max-h-[70vh] w-full rounded-lg object-contain" />
         ) : pdf ? (
-          <iframe src={attachment.url} title={attachment.name} className="h-[70vh] w-full rounded-lg border border-white/10" />
+          <iframe src={attachment.url} title={attachment.name} className={`h-[70vh] w-full rounded-lg border ${isDark ? "border-white/10" : "border-[#E4E7EC]"}`} />
         ) : (
-          <div className="rounded-lg border border-dashed border-white/15 p-5 text-sm text-white/70">
+          <div className={`rounded-lg border border-dashed p-5 text-sm ${isDark ? "border-white/15 text-white/70" : "border-[#D0D5DD] text-[#667085]"}`}>
             Inline preview is not available for this file type. Use the download button.
           </div>
         )}

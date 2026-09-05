@@ -189,7 +189,7 @@ export default function RequestsShootsPage() {
       const upcomingAccepted = acceptedSource;
 
       if (upcomingAccepted.length > 0) {
-        const acceptedProjects = upcomingAccepted.map((p) => ({
+        const acceptedProjects: ProjectItem[] = upcomingAccepted.map((p): ProjectItem => ({
           ...p,
           status: isCompletedFlag(p) ? "Completed" : "Confirmed",
           project_id: p.project_id || p.id,
@@ -401,28 +401,27 @@ export default function RequestsShootsPage() {
     <>
       <Topbar pathname={pathname} />
       <div 
-        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden
-          ${isDark 
-            ? `bg-[#0A0A0A] 
-              border border-[#E8D1AB]/30 
-              shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
-            : "bg-white border-zinc-200 shadow-sm"
-          }`}
+        className={`mx-4 mb-20 mt-6 overflow-hidden rounded-2xl border transition-all duration-700 lg:mx-8 ${isDark
+          ? `bg-[#0A0A0A] text-white border-[#E8D1AB]/30
+             shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]`
+          : "bg-white text-[#171717] border-zinc-200 shadow-sm"
+        }`}
       >
         <div className="p-8 lg:p-12 space-y-6 lg:space-y-10">
             {/* 1. Simple Header: Title & Description */}
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold">Requests & Shoots</h1>
+            <h1 className={`text-2xl font-bold transition-colors lg:text-3xl ${isDark ? "text-white" : "text-[#171717]"}`}>
+              Requests & Shoots
+            </h1>
             <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Manage your production schedule and requests</p>
           </div>
 
           {/* 2. Tabs */}
           <div
-            // className="inline-flex items-center gap-1 rounded-xl bg-[#171717] border border-white/10 p-1"
-            className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-all duration-300 ${isDark
-              ? "bg-[#111] border-[#333]"
-              : "bg-[#fff] border-[#E5E5E5]"
-              }`}
+            className={`flex w-fit items-center gap-1 rounded-xl border p-1 transition-all duration-300 ${isDark
+              ? "border-[#333] bg-[#111]"
+              : "border-[#E5E5E5] bg-white"
+            }`}
           >
             <button
               onClick={() => handleTabChange("requests")}
@@ -458,8 +457,8 @@ export default function RequestsShootsPage() {
               label="Pending Requests"
               value={(computedStats?.pendingRequests ?? dashboardStats?.pendingRequests) || 0}
               icon={Clock}
-              iconColor="text-yellow-500"
-              valueColor="text-yellow-500"
+              iconColor={isDark ? "text-yellow-400" : "text-yellow-600"}
+              valueColor={isDark ? "text-yellow-400" : "text-yellow-600"}
               hoverBorder="hover:border-yellow-500/30"
               isDark={isDark}
             />
@@ -467,7 +466,7 @@ export default function RequestsShootsPage() {
               label="Confirmed Shoots"
               value={(computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests) || 0}
               icon={Camera}
-              iconColor="text-[#E8D1AB]"
+              iconColor={isDark ? "text-[#E8D1AB]" : "text-[#9A7542]"}
               hoverBorder="hover:border-[#E8D1AB]/30"
               isDark={isDark}
             />
@@ -475,8 +474,8 @@ export default function RequestsShootsPage() {
               label="Completed"
               value={(computedStats?.completedShoots ?? dashboardStats?.completedShoots) || 0}
               icon={CheckCircle2}
-              iconColor="text-green-400"
-              valueColor="text-green-400"
+              iconColor={isDark ? "text-green-400" : "text-green-600"}
+              valueColor={isDark ? "text-green-400" : "text-green-600"}
               hoverBorder="hover:border-green-400/30"
               isDark={isDark}
             />
@@ -484,8 +483,8 @@ export default function RequestsShootsPage() {
               label="Declined"
               value={(computedStats?.declinedRequests ?? dashboardStats?.declinedRequests) || 0}
               icon={Ban}
-              iconColor="text-red-400"
-              valueColor="text-red-400"
+              iconColor={isDark ? "text-red-400" : "text-red-600"}
+              valueColor={isDark ? "text-red-400" : "text-red-600"}
               hoverBorder="hover:border-red-400/30"
               isDark={isDark}
             />
@@ -493,18 +492,7 @@ export default function RequestsShootsPage() {
 
           {/* 3. Filter Bar: Search, Select, and View Toggle */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            {/* Search Box - Now Left Aligned */}
-            {/* <div className="relative w-full lg:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-              <Input
-                placeholder="Search projects..."
-                className="pl-10 bg-[#1A1A1A] border-white/5 w-full md:w-[250px]"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div> */}
-
-            <div className={`relative flex w-full lg:max-w-xl items-center gap-1 p-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#111] border-[#333]" : "bg-[#fff] border-[#E5E5E5]"}`}>
+            <div className={`relative flex w-full items-center gap-1 rounded-xl border p-1 transition-all duration-300 lg:max-w-xl ${isDark ? "border-[#333] bg-[#111]" : "border-[#E5E5E5] bg-white"}`}>
               <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
               <input
                 type="text"
@@ -522,10 +510,20 @@ export default function RequestsShootsPage() {
             {/* Filter Group - Grouped to stay on the Right */}
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className={`rounded-xl min-w-[170px] ${isDark ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50 " : "bg-[#fff] border-[#E3E3E3] text-[#323232]"} `}>
+                <SelectTrigger
+                  className={`min-w-[170px] rounded-xl transition-colors ${isDark
+                    ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50"
+                    : "border-[#E3E3E3] bg-white text-[#323232] data-[placeholder]:text-[#667085]"
+                  }`}
+                >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className={`${isDark ? "bg-[#1A1A1A] border-white/10 text-white " : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232]"}`}>
+                <SelectContent
+                  className={`border transition-colors ${isDark
+                    ? "border-white/10 bg-[#1A1A1A] text-white"
+                    : "border-[#E3E3E3] bg-white text-[#323232] shadow-lg"
+                  }`}
+                >
                   <SelectItem value="all" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>All Status</SelectItem>
                   <SelectItem value="confirmed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Confirmed</SelectItem>
                   {activeTab === "requests" ? (
@@ -547,7 +545,10 @@ export default function RequestsShootsPage() {
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                  <div className={`absolute top-full right-0 mt-2 w-48 border border-white/10 rounded-xl shadow-2xl z-[50] overflow-hidden ${isDark ? "border-[#FFFFFF33] bg-[#171717] text-white" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
+                  <div className={`absolute right-0 top-full z-[50] mt-2 w-48 overflow-hidden rounded-xl border shadow-2xl transition-colors ${isDark
+                    ? "border-[#FFFFFF33] bg-[#171717] text-white"
+                    : "border-[#E5E5E5] bg-white text-[#171717]"
+                  }`}>
                     <button
                       onClick={() => handleViewChange('grid')}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid'
@@ -610,19 +611,25 @@ export default function RequestsShootsPage() {
                   {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
-                    className={`border rounded-2xl p-4 lg:p-6 transition-all group ${isDark
+                    className={`group rounded-2xl border p-4 transition-all duration-300 lg:p-6 ${isDark
                       ? "bg-[#111] border-white/5 hover:border-[#E8D1AB]/40"
                       : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/60 shadow-sm"
                       }`}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === "Completed"
-                          ? "bg-emerald-400/10 text-emerald-400"
+                        className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${item.status === "Completed"
+                          ? isDark
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : item.status === "Confirmed"
-                            ? "bg-green-400/10 text-green-400"
-                            : "bg-blue-400/10 text-blue-400"
-                          }`}
+                            ? isDark
+                              ? "border-green-400/20 bg-green-400/10 text-green-300"
+                              : "border-green-200 bg-green-50 text-green-700"
+                            : isDark
+                              ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                        }`}
                       >
                         {item.status}
                       </span>
@@ -652,8 +659,8 @@ export default function RequestsShootsPage() {
                       <Button
                         onClick={() => handleOpenProjectDetails(item.project_id)}
                         className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
-                          ? "bg-transparent border-white/10 text-white"
-                          : "bg-[#FFFCF6] border-black/15 text-black"
+                          ? "border-white/10 bg-transparent text-white hover:bg-white/5"
+                          : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"
                           }`}
                       >
                         View Details
@@ -664,14 +671,20 @@ export default function RequestsShootsPage() {
                           <Button
                             size="icon"
                             onClick={() => setAcceptShootEvent(item)}
-                            className="bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-colors"
+                            className={`transition-colors ${isDark
+                              ? "bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white"
+                              : "bg-green-50 text-green-600 hover:bg-green-600 hover:text-white"
+                            }`}
                           >
                             <Check size={18} />
                           </Button>
                           <Button
                             size="icon"
                             onClick={() => setDeclineShootEvent(item)}
-                            className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                            className={`transition-colors ${isDark
+                              ? "bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white"
+                              : "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"
+                            }`}
                           >
                             <X size={18} />
                           </Button>
@@ -683,7 +696,7 @@ export default function RequestsShootsPage() {
               </div>
             ) : (
               /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
-              <div className={`border rounded-xl overflow-hidden transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
+              <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${isDark ? "border-white/5 bg-[#111]" : "border-[#E5E5E5] bg-white shadow-sm"}`}>
                 {/* DESKTOP TABLE VIEW */}
                 <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -701,21 +714,25 @@ export default function RequestsShootsPage() {
                     <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
                       {filteredProjects.map((item) => {
                         // Status Logic Mapping
-                        let statusBg = "bg-[#FEF9C3]"; // Light Yellow
-                        let statusText = "text-[#854D0E]"; // Dark Yellow/Brown
+                        let statusClass = isDark
+                          ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                          : "border-amber-200 bg-[#FEF9C3] text-[#854D0E]";
                         let label = "Pending";
 
                         if (item.status === "Confirmed") {
-                          statusBg = "bg-[#DCFCE7]"; // Light Green
-                          statusText = "text-[#166534]"; // Dark Green
+                          statusClass = isDark
+                            ? "border-green-400/20 bg-green-400/10 text-green-300"
+                            : "border-green-200 bg-[#DCFCE7] text-[#166534]";
                           label = "Approved";
                         } else if (item.status === "Completed") {
-                          statusBg = "bg-[#D1FAE5]"; // Light Emerald
-                          statusText = "text-[#065F46]"; // Dark Emerald
+                          statusClass = isDark
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                            : "border-emerald-200 bg-[#D1FAE5] text-[#065F46]";
                           label = "Completed";
                         } else if (item.status === "Rejected" || item.status === "Declined") {
-                          statusBg = "bg-[#FEE2E2]"; // Light Red
-                          statusText = "text-[#991B1B]"; // Dark Red
+                          statusClass = isDark
+                            ? "border-red-400/20 bg-red-400/10 text-red-300"
+                            : "border-red-200 bg-[#FEE2E2] text-[#991B1B]";
                           label = "Rejected";
                         }
 
@@ -766,7 +783,7 @@ export default function RequestsShootsPage() {
 
                             {/* Status Pill Column */}
                             <td className="px-6 py-5">
-                              <span className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-[12px] font-bold min-w-[100px] ${statusBg} ${statusText}`}>
+                              <span className={`inline-flex min-w-[100px] items-center justify-center rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${statusClass}`}>
                                 {label}
                               </span>
                             </td>
@@ -779,7 +796,10 @@ export default function RequestsShootsPage() {
                                     {/* Pill Shape Approve Button */}
                                     <button
                                       onClick={() => setAcceptShootEvent(item)}
-                                      className="px-4 py-1 rounded-full bg-[#DCFCE7] text-[#166534] text-xs font-bold hover:bg-green-200 transition-colors"
+                                      className={`rounded-full px-4 py-1 text-xs font-bold transition-colors ${isDark
+                                        ? "border border-green-400/20 bg-green-400/10 text-green-300 hover:bg-green-400/20"
+                                        : "bg-[#DCFCE7] text-[#166534] hover:bg-green-200"
+                                      }`}
                                     >
                                       Approve
                                     </button>
@@ -839,7 +859,12 @@ export default function RequestsShootsPage() {
               </div>
             )
           ) : (
-            <div className="col-span-full bg-[#111] border border-white/5 rounded-xl p-12 text-center text-white/40">
+            <div
+              className={`col-span-full rounded-xl border p-12 text-center text-sm transition-colors ${isDark
+                ? "border-white/5 bg-[#111] text-white/40"
+                : "border-[#E5E5E5] bg-[#FAFAFA] text-[#667085]"
+              }`}
+            >
               No projects found matching your criteria.
             </div>
           )}
@@ -912,8 +937,8 @@ export default function RequestsShootsPage() {
                 </Label>
                 <Select value={declineReason} onValueChange={setDeclineReason}>
                   <SelectTrigger className={`transition-colors ${isDark
-                    ? "bg-[#1A1A1A] border-white/5 text-white"
-                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black"
+                    ? "border-white/5 bg-[#1A1A1A] text-white focus:ring-[#E8D1AB]/40"
+                    : "border-[#E5E5E5] bg-white text-black focus:ring-[#E8D1AB]/50"
                     }`}>
                     <SelectValue />
                   </SelectTrigger>
@@ -921,10 +946,30 @@ export default function RequestsShootsPage() {
                     ? "bg-[#1A1A1A] border-white/10 text-white"
                     : "bg-[#FFFCF6] border-[#E5E5E5] text-black shadow-lg"
                     }`}>
-                    <SelectItem value="Schedule conflict">Schedule conflict</SelectItem>
-                    <SelectItem value="Rate too low">Rate too low</SelectItem>
-                    <SelectItem value="Location too far">Location too far</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem
+                      value="Schedule conflict"
+                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                    >
+                      Schedule conflict
+                    </SelectItem>
+                    <SelectItem
+                      value="Rate too low"
+                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                    >
+                      Rate too low
+                    </SelectItem>
+                    <SelectItem
+                      value="Location too far"
+                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                    >
+                      Location too far
+                    </SelectItem>
+                    <SelectItem
+                      value="Other"
+                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                    >
+                      Other
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -937,8 +982,8 @@ export default function RequestsShootsPage() {
                 </Label>
                 <Textarea
                   className={`transition-colors ${isDark
-                    ? "bg-[#1A1A1A] border-white/5 text-white placeholder:text-white/30"
-                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black placeholder:text-black/30"
+                    ? "border-white/5 bg-[#1A1A1A] text-white placeholder:text-white/30 focus-visible:ring-[#E8D1AB]/40"
+                    : "border-[#E5E5E5] bg-white text-black placeholder:text-black/35 focus-visible:ring-[#E8D1AB]/50"
                     }`}
                   placeholder="Let the team know why..."
                   value={declineComments}
