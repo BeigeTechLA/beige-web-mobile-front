@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ChevronRight,
   Search,
@@ -14,6 +14,9 @@ import {
   ArrowUpToLine,
   ChevronLeft,
   Mail,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -82,6 +85,13 @@ interface CreativePartner {
   onboardingMissingCount?: number;
   onboardingMissingFields?: string[];
 }
+
+type CreativePartnerSortKey = "id" | "name" | "status";
+
+type CreativePartnerSortConfig = {
+  key: CreativePartnerSortKey;
+  direction: "asc" | "desc";
+} | null;
 
 const formatLocation = (locationInput?: unknown) => {
   const raw =
@@ -301,6 +311,7 @@ export const CreativePartnersTable = () => {
   const [locationQuery, setLocationQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<CreativePartnerTab>("submitted");
+  const [sortConfig, setSortConfig] = useState<CreativePartnerSortConfig>(null);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const debouncedLocation = useDebounce(locationQuery, 500);
   const normalizedSearch = normalizeSearchQuery(debouncedSearch);
@@ -390,13 +401,58 @@ export const CreativePartnersTable = () => {
     }
   };
 
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig) return users;
+
+    const statusRank: Record<UserStatus, number> = { Approved: 1, Pending: 2, Rejected: 3 };
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+
+    return users
+      .map((user, index) => ({ user, index }))
+      .sort((aItem, bItem) => {
+        let comparison = 0;
+        if (sortConfig.key === "id") {
+          comparison = Number(aItem.user.id.replace("#", "")) - Number(bItem.user.id.replace("#", ""));
+        } else if (sortConfig.key === "status") {
+          comparison = (statusRank[aItem.user.status] ?? 999) - (statusRank[bItem.user.status] ?? 999);
+        } else {
+          comparison = aItem.user.name.localeCompare(bItem.user.name, undefined, {
+            sensitivity: "base",
+            numeric: true,
+          });
+        }
+        return comparison === 0 ? aItem.index - bItem.index : comparison * direction;
+      })
+      .map(({ user }) => user);
+  }, [sortConfig, users]);
+
+  const displayedUsers = useMemo(() => {
+    if (!sortConfig) return sortedUsers;
+    const start = (currentPage - 1) * limit;
+    return sortedUsers.slice(start, start + limit);
+  }, [currentPage, limit, sortConfig, sortedUsers]);
+
+  const requestSort = (key: CreativePartnerSortKey) => {
+    const direction = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key: CreativePartnerSortKey) => {
+    if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+    return sortConfig.direction === "asc"
+      ? <ArrowUp size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />
+      : <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />;
+  };
+
   useEffect(() => {
     const fetchCreativePartners = async () => {
       setLoading(true);
       try {
         const params: any = {
-          page: hasMultiWordSearch ? 1 : currentPage,
+          page: hasMultiWordSearch || sortConfig ? 1 : currentPage,
           limit: hasMultiWordSearch ? 200 : limit,
+          fetch_all: Boolean(sortConfig),
         };
 
         if (crewSearchParam) params.search = crewSearchParam;
@@ -488,7 +544,10 @@ export const CreativePartnersTable = () => {
             : mappedUsers;
 
           setUsers(visibleUsers);
-          if (hasMultiWordSearch) {
+          if (sortConfig) {
+            setTotalRecords(visibleUsers.length);
+            setTotalPages(Math.max(1, Math.ceil(visibleUsers.length / limit)));
+          } else if (hasMultiWordSearch) {
             setTotalRecords(visibleUsers.length);
             setTotalPages(1);
           }
@@ -517,7 +576,7 @@ export const CreativePartnersTable = () => {
     }
 
     fetchCreativePartners();
-  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, normalizedLocation, statusFilter, activeTab, filtersInitialized]);
+  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, normalizedLocation, statusFilter, activeTab, filtersInitialized, sortConfig]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent navigation if clicking on action buttons
@@ -569,6 +628,7 @@ export const CreativePartnersTable = () => {
   const handleTabChange = (tab: CreativePartnerTab) => {
     setActiveTab(tab);
     setCurrentPage(1);
+    setSortConfig(null);
     setExpandedRows(new Set());
   };
 
@@ -1143,12 +1203,12 @@ export const CreativePartnersTable = () => {
           <table className="w-full min-w-[1540px] border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="w-[110px] p-5 font-medium rounded-bl-xl">User ID</th>
-                  <th className="w-[360px] p-5 font-medium">Creative Name</th>
+                  <th className="w-[110px] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
+                  <th className="w-[360px] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">Creative Name {getSortIcon("name")}</div></th>
                   <th className="w-[320px] p-5 font-medium">Email</th>
                   <th className="w-[220px] p-5 font-medium">Roles</th>
                   <th className="w-[320px] p-5 font-medium">Location</th>
-                  <th className="w-[200px] p-5 font-medium text-center">{activeTab === "details_pending" ? "Progress" : "Status"}</th>
+                  <th className={`w-[200px] p-5 font-medium text-center ${activeTab === "submitted" ? "cursor-pointer" : ""}`} onClick={activeTab === "submitted" ? () => requestSort("status") : undefined}><div className="flex items-center justify-center gap-1">{activeTab === "details_pending" ? "Progress" : <>Status {getSortIcon("status")}</>}</div></th>
                   <th className="w-[210px] p-5 font-medium text-right rounded-br-xl">Action</th>
                 </tr>
               </thead>
@@ -1166,7 +1226,7 @@ export const CreativePartnersTable = () => {
                     </td>
                   </tr>
                 ) : (
-                  users.map((user, idx) => {
+                  displayedUsers.map((user, idx) => {
                     const partnerDetailHref = getCreativePartnerDetailHref(user.id);
                     return (
                     <tr
@@ -1356,7 +1416,7 @@ export const CreativePartnersTable = () => {
               No users found for the selected filters.
             </div>
           ) : (
-            users.map((user) => {
+            displayedUsers.map((user) => {
               const isExpanded = expandedRows.has(user.id);
               // console.log(user);
 

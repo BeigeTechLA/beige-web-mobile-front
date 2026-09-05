@@ -37,6 +37,7 @@ interface UserData {
   type: UserType;
   status: UserStatus;
   joinDate: string;
+  createdAt?: string | null;
   initials: string;
   phoneNumber?: string;
   role?: string;
@@ -55,6 +56,7 @@ type UserFetchParams = {
   limit: number;
   search?: string;
   status?: string;
+  fetch_all?: boolean;
 };
 
 type PaginationData = {
@@ -217,9 +219,14 @@ export const UserManagementTabbed = () => {
   }, [activeTab, currentPage, searchQuery, statusFilter, filtersInitialized]);
 
   const sortedUsers = useMemo(() => {
-    if (!sortConfig) return users;
+    // The combined All tab is newest-first by default. An explicit column sort
+    // always takes precedence over this default order.
+    const activeSort = sortConfig || (activeTab === "All"
+      ? { key: "joinDate" as keyof UserData, direction: "desc" as const }
+      : null);
+    if (!activeSort) return users;
 
-    const directionMultiplier = sortConfig.direction === "asc" ? 1 : -1;
+    const directionMultiplier = activeSort.direction === "asc" ? 1 : -1;
     const statusRank: Record<UserStatus, number> = {
       Active: 1,
       Approved: 2,
@@ -240,7 +247,7 @@ export const UserManagementTabbed = () => {
       .sort((aItem, bItem) => {
         const a = aItem.user;
         const b = bItem.user;
-        const key = sortConfig.key;
+        const key = activeSort.key;
         let compareResult = 0;
 
         if (key === "id") {
@@ -252,8 +259,8 @@ export const UserManagementTabbed = () => {
         } else if (key === "type") {
           compareResult = (typeRank[a.type] ?? 999) - (typeRank[b.type] ?? 999);
         } else if (key === "joinDate") {
-          const aTime = new Date(a.joinDate).getTime() || 0;
-          const bTime = new Date(b.joinDate).getTime() || 0;
+          const aTime = new Date(a.createdAt || a.joinDate).getTime() || 0;
+          const bTime = new Date(b.createdAt || b.joinDate).getTime() || 0;
           compareResult = aTime - bTime;
         } else {
           const aText = normalizeText(a[key]);
@@ -270,7 +277,17 @@ export const UserManagementTabbed = () => {
         return compareResult * directionMultiplier;
       })
       .map((item) => item.user);
-  }, [users, sortConfig]);
+  }, [activeTab, users, sortConfig]);
+
+  // A sorted view contains the complete filtered result set (see fetchUsers), so
+  // pagination must happen after sorting rather than before it.
+  const displayedUsers = useMemo(() => {
+    const usesLocalPagination = Boolean(sortConfig) || activeTab === "All";
+    if (!usesLocalPagination) return sortedUsers;
+
+    const start = (currentPage - 1) * limit;
+    return sortedUsers.slice(start, start + limit);
+  }, [activeTab, currentPage, limit, sortConfig, sortedUsers]);
 
   const requestSort = (key: keyof UserData) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -278,6 +295,7 @@ export const UserManagementTabbed = () => {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+    setCurrentPage(1);
   };
 
   const getSortIcon = (key: keyof UserData, isDark: boolean) => {
@@ -305,8 +323,18 @@ export const UserManagementTabbed = () => {
         (activeTab === "All" && !isActiveFilter);
 
       const isCombinedAllUsers = shouldFetchClients && shouldFetchCreatives;
+      // API pagination happens before data reaches this component.  Request the
+      // complete filtered sets while sorting so the sort is global across every
+      // page, then paginate the sorted result locally.
+      const shouldFetchAll = Boolean(sortConfig) || activeTab === "All";
       const sourceLimit = isCombinedAllUsers ? Math.ceil(limit / 2) : limit;
-      const params: UserFetchParams = { page: currentPage, limit: sourceLimit };
+      const params: UserFetchParams = {
+        // The full set is always fetched from its first API page; currentPage is
+        // applied below to the already globally sorted array.
+        page: shouldFetchAll ? 1 : currentPage,
+        limit: sourceLimit,
+        fetch_all: shouldFetchAll,
+      };
       if (debouncedSearch) params.search = debouncedSearch;
 
       let allUsers: UserData[] = [];
@@ -326,6 +354,7 @@ export const UserManagementTabbed = () => {
             type: "Client" as UserType,
             status: (client.is_active === 1 || client.is_active === true ? "Active" : "Inactive") as UserStatus,
             joinDate: client.created_at ? new Date(client.created_at).toLocaleDateString() : "N/A",
+            createdAt: client.created_at || null,
             initials: (client.name || "U").split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
             phoneNumber: client.phone_number || "N/A",
             imageUrl: client.profile_image || null,
@@ -358,6 +387,7 @@ export const UserManagementTabbed = () => {
               status: (member.status?.toLowerCase() === "approved" ? "Approved" :
                 member.status?.toLowerCase() === "rejected" ? "Rejected" : "Pending") as UserStatus,
               joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString() : "N/A",
+              createdAt: member.created_at || null,
               initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
               role: member.role?.role_name || "N/A",
               imageUrl: profilePhoto ? `${S3_PREFIX}${profilePhoto.file_path}` : null,
@@ -376,10 +406,13 @@ export const UserManagementTabbed = () => {
         ? combinedTotalRecords || allUsers.length
         : paginationData?.total_records || allUsers.length;
 
-      setUsers(allUsers.slice(0, limit));
+      setUsers(shouldFetchAll ? allUsers : allUsers.slice(0, limit));
       setTotalRecords(resolvedTotalRecords);
       setTotalPages(
-        isCombinedAllUsers
+        // While globally sorting, records are fetched in one large API page.
+        // Pagination in the table still uses the visible page size (10), not
+        // the API fetch limit.
+        shouldFetchAll || isCombinedAllUsers
           ? Math.max(1, Math.ceil(resolvedTotalRecords / limit))
           : paginationData?.total_pages || 1
       );
@@ -389,7 +422,7 @@ export const UserManagementTabbed = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, currentPage, debouncedSearch, limit, statusFilter]);
+  }, [activeTab, currentPage, debouncedSearch, limit, sortConfig, statusFilter]);
 
   useEffect(() => {
     if (!filtersInitialized) return;
@@ -511,7 +544,7 @@ export const UserManagementTabbed = () => {
                     </td>
                   </tr>
                 ) : (
-                  sortedUsers.map((user, idx) => {
+                  displayedUsers.map((user, idx) => {
                     const userDetailHref = getUserDetailHref(user);
                     return (
                       <tr
@@ -609,7 +642,7 @@ export const UserManagementTabbed = () => {
               No users found.
             </div>
           ) : (
-            sortedUsers.map((user, idx) => {
+            displayedUsers.map((user, idx) => {
               const isExpanded = expandedRowId === user.id;
               return (
                 <div
