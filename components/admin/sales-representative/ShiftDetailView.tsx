@@ -256,12 +256,13 @@ function StatusPill({ status }: { status: "active" | "inactive" }) {
   );
 }
 
-function MemberToggle({ enabled, onClick }: { enabled: boolean; onClick: React.MouseEventHandler<HTMLButtonElement> }) {
+function MemberToggle({ enabled, onClick, disabled = false }: { enabled: boolean; onClick: React.MouseEventHandler<HTMLButtonElement>; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative h-[24px] w-[38px] rounded-md p-1 transition ${enabled ? "bg-[#E5D5B8]" : "bg-[#454545]"}`}
+      disabled={disabled}
+      className={`relative h-[24px] w-[38px] rounded-md p-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${enabled ? "bg-[#E5D5B8]" : "bg-[#454545]"}`}
       aria-label={enabled ? "Disable user" : "Enable user"}
     >
       <span className={`absolute left-1 top-1 h-4 w-4 rounded bg-white transition-transform ${enabled ? "translate-x-[14px]" : "translate-x-0"}`} />
@@ -277,6 +278,8 @@ export default function ShiftDetailView({
   onRefresh,
   onEditShift,
   refreshKey,
+  canEdit = true,
+  canDelete = true,
 }: {
   shift: ShiftDetail;
   onBack: () => void;
@@ -285,6 +288,8 @@ export default function ShiftDetailView({
   onRefresh?: () => void | Promise<void>;
   onEditShift?: (shift: ShiftDetail) => void;
   refreshKey?: number;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -326,6 +331,10 @@ export default function ShiftDetailView({
   };
 
   const handleConfirmRemoveSalesperson = async () => {
+    if (!canDelete) {
+      toast.error("You do not have permission to remove salespeople");
+      return;
+    }
     if (!shift.id || !deleteMember?.sales_rep_id) return;
     setIsDeletingMember(true);
     const response = await shiftManagementApi.removeShiftSalesperson(shift.id, deleteMember.sales_rep_id);
@@ -418,7 +427,7 @@ export default function ShiftDetailView({
   }, [shift.id, debouncedMemberSearch, statusFilter]);
 
   if (isConfiguringOrder) {
-    return <RoundRobinConfigurationView shiftId={shift.id} shiftName={shift.name} onBack={() => handleConfigureChange(false)} />;
+    return <RoundRobinConfigurationView shiftId={shift.id} shiftName={shift.name} canEdit={canEdit} onBack={() => handleConfigureChange(false)} />;
   }
 
   if (selectedSalesperson) {
@@ -486,7 +495,8 @@ export default function ShiftDetailView({
               <button
                 type="button"
                 onClick={() => handleConfigureChange(true)}
-                className={`flex h-12 items-center gap-2 rounded-lg border px-5 text-sm font-semibold transition hover:border-[#E5D5B8]/60 ${isDark ? "border-[#2D2D2D] bg-[#202020] text-white" : "border-[#E3E3E3] bg-[#F4F5F7] text-[#323232]"}`}
+                disabled={!canEdit}
+                className={`flex h-12 items-center gap-2 rounded-lg border px-5 text-sm font-semibold transition hover:border-[#E5D5B8]/60 disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "border-[#2D2D2D] bg-[#202020] text-white" : "border-[#E3E3E3] bg-[#F4F5F7] text-[#323232]"}`}
               >
                 <RefreshCw size={16} />
                 Configure RR Order
@@ -494,7 +504,8 @@ export default function ShiftDetailView({
               <button
                 type="button"
                 onClick={() => onEditShift?.(shiftDetail)}
-                className="flex h-12 items-center gap-2 rounded-lg bg-[#E5D5B8] px-6 text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+                disabled={!canEdit}
+                className="flex h-12 items-center gap-2 rounded-lg bg-[#E5D5B8] px-6 text-sm font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Edit2 size={16} />
                 Edit Shift
@@ -570,8 +581,13 @@ export default function ShiftDetailView({
                     <td className="px-5 py-4">
                       <MemberToggle
                         enabled={member.enabled}
+                        disabled={!canEdit}
                         onClick={async (event) => {
                           event.stopPropagation();
+                          if (!canEdit) {
+                            toast.error("You do not have permission to edit shifts");
+                            return;
+                          }
                           if (!shift.id || !member.sales_rep_id) return;
                           const nextUserStatus = !member.enabled;
                           const response = await shiftManagementApi.toggleShiftSalesperson(shift.id, member.sales_rep_id, nextUserStatus);
@@ -598,9 +614,14 @@ export default function ShiftDetailView({
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
+                            if (!canDelete) {
+                              toast.error("You do not have permission to remove salespeople");
+                              return;
+                            }
                             setDeleteMember(member);
                           }}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[#F05454]/15 hover:text-[#F05454] ${isDark ? "text-white/70" : "text-[#32323299]"}`}
+                          disabled={!canDelete}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[#F05454]/15 hover:text-[#F05454] disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/70" : "text-[#32323299]"}`}
                           aria-label={`Remove ${member.name}`}
                         >
                           <Trash2 size={19} />

@@ -389,7 +389,7 @@ useEffect(() => {
               onClick={() =>
                 setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
               }
-              className={`w-fit inline-flex h-8 lg:h-12 items-center gap-2 lg:gap-3 rounded-full border px-3 lg:px-6 text-xs lg:text-base transition-colors duration-300 ${isDark
+              className={`w-fit inline-flex h-8 lg:h-12 items-center gap-2 lg:gap-3 rounded-full border px-3 cursor-pointer lg:px-6 text-xs lg:text-base transition-colors duration-300 ${isDark
                 ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4] hover:border-white/20 hover:bg-[#161616] hover:text-white"
                 : "border-[#D9D9D9] bg-white text-[#323232] hover:border-[#CFCFCF] hover:bg-[#F7F7F7] hover:text-[#101010]"
                 }`}

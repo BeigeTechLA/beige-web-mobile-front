@@ -23,10 +23,12 @@ export default function RoundRobinConfigurationView({
   shiftId,
   shiftName,
   onBack,
+  canEdit = true,
 }: {
   shiftId?: number | string;
   shiftName?: string;
   onBack: () => void;
+  canEdit?: boolean;
 }) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -162,8 +164,9 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
             return (
               <div
                 key={assignee.id}
-                draggable
+                draggable={canEdit}
                 onDragStart={(e) => {
+                  if (!canEdit) return;
                   dragIdRef.current = assignee.id;
                   setDraggingId(assignee.id);
                   
@@ -173,6 +176,7 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
                   e.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(e) => {
+                  if (!canEdit) return;
                   e.preventDefault();
                   if (dragOverId !== assignee.id) setDragOverId(assignee.id);
                   if (draggingId && draggingId !== assignee.id) {
@@ -227,16 +231,16 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
                     <button
                       type="button"
                       onClick={() => moveAssignee(assignee.id, "up")}
-                      disabled={index === 0}
-                      className={`rounded p-1 disabled:opacity-0 ${isDark ? "hover:bg-white/10 hover:text-white/70" : "hover:bg-black/5 hover:text-[#323232]"}`}
+                      disabled={!canEdit || index === 0}
+                      className={`rounded p-1 disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "hover:bg-white/10 hover:text-white/70" : "hover:bg-black/5 hover:text-[#323232]"}`}
                     >
                       <ChevronUp size={14} />
                     </button>
                     <button
                       type="button"
                       onClick={() => moveAssignee(assignee.id, "down")}
-                      disabled={index === visibleRows.length - 1}
-                      className={`rounded p-1 disabled:opacity-0 ${isDark ? "hover:bg-white/10 hover:text-white/70" : "hover:bg-black/5 hover:text-[#323232]"}`}
+                      disabled={!canEdit || index === visibleRows.length - 1}
+                      className={`rounded p-1 disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "hover:bg-white/10 hover:text-white/70" : "hover:bg-black/5 hover:text-[#323232]"}`}
                     >
                       <ChevronDown size={14} />
                     </button>
@@ -259,8 +263,12 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
         </button>
         <button
           type="button"
-          disabled={isSaving}
+          disabled={isSaving || !canEdit}
           onClick={async () => {
+            if (!canEdit) {
+              toast.error("You do not have permission to edit shifts");
+              return;
+            }
             if (!shiftId) {
               onBack();
               return;
@@ -277,7 +285,7 @@ const reorderByDrag = (draggedId: number | string, targetId: number | string) =>
             }
             toast.success("Round robin order saved");
           }}
-          className="h-14 min-w-[150px] rounded-lg bg-[#E5D5B8] px-8 text-base font-semibold text-black transition hover:bg-[#D9C49E]"
+          className="h-14 min-w-[150px] rounded-lg bg-[#E5D5B8] px-8 text-base font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Saving..." : "Save Order"}
         </button>

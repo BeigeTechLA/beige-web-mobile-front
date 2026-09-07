@@ -43,6 +43,7 @@ import SalespeopleDetailView, {
   type SalespeopleProfile,
 } from "@/components/admin/sales-representative/SalespeopleDetailView";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 type Metric = {
   id: string;
@@ -711,6 +712,7 @@ export default function ShiftManagementPage({
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useTheme();
+  const { canCreate, canEdit, canDelete } = usePermissions("admin_sales_representative_shift_management");
   const [mounted, setMounted] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMetric, setActiveMetric] = useState("active");
@@ -886,12 +888,20 @@ export default function ShiftManagementPage({
   };
 
   const openCreateShiftModal = () => {
+    if (!canCreate) {
+      toast.error("You do not have permission to create shifts");
+      return;
+    }
     setEditingShift(null);
     resetShiftForm();
     setIsCreateShiftOpen(true);
   };
 
   const openEditShiftModal = async (shift: ShiftDetail) => {
+    if (!canEdit) {
+      toast.error("You do not have permission to edit shifts");
+      return;
+    }
     const response = shift.id
       ? await shiftManagementApi.getShiftDetail(shift.id)
       : null;
@@ -1433,11 +1443,16 @@ export default function ShiftManagementPage({
             <button
               type="button"
               onClick={() => {
+                if (!canEdit) {
+                  toast.error("You do not have permission to edit shifts");
+                  return;
+                }
                 setAddSalespeopleShift(selectedShift);
                 setSelectedSalespersonIds([]);
                 setIsAddSalespeopleOpen(true);
               }}
-              className="rounded-lg bg-[#E5D5B8] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+              disabled={!canEdit}
+              className="rounded-lg bg-[#E5D5B8] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add Salespeople
             </button>
@@ -1445,7 +1460,8 @@ export default function ShiftManagementPage({
             <button
               type="button"
               onClick={openCreateShiftModal}
-              className="rounded-lg bg-[#E5D5B8] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+              disabled={!canCreate}
+              className="rounded-lg bg-[#E5D5B8] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Create Shift
             </button>
@@ -1464,6 +1480,7 @@ export default function ShiftManagementPage({
           <RoundRobinConfigurationView
             shiftId={selectedShift.id}
             shiftName={selectedShift.name}
+            canEdit={canEdit}
             onBack={() =>
               router.push(
                 `${SHIFT_MANAGEMENT_BASE_PATH}/shift/${selectedShift.id}`,
@@ -1562,6 +1579,8 @@ export default function ShiftManagementPage({
             }}
             onEditShift={openEditShiftModal}
             refreshKey={shiftDetailRefreshKey}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         ) : (
           <div
@@ -1633,10 +1652,17 @@ export default function ShiftManagementPage({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {quickActions.map((action) => {
                 const Icon = action.icon;
+                const isActionDisabled =
+                  action.title === "Create Shift"
+                    ? !canCreate
+                    : ["Manage Salespeople", "Configure RR Order"].includes(action.title)
+                      ? !canEdit
+                      : false;
                 return (
                   <button
                     key={action.title}
                     type="button"
+                    disabled={isActionDisabled}
                     onClick={() => {
                       if (action.title === "Create Shift") {
                         openCreateShiftModal();
@@ -1658,7 +1684,7 @@ export default function ShiftManagementPage({
                         setIsShiftSelectModalOpen(true);
                       }
                     }}
-                    className={`flex min-h-[62px] items-center gap-3 rounded-xl border px-4 text-left transition hover:border-[#E5D5B8]/45 ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}
+                    className={`flex min-h-[62px] items-center gap-3 rounded-xl border px-4 text-left transition hover:border-[#E5D5B8]/45 disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2A241D] text-[#E5D5B8]">
                       <Icon size={15} />
@@ -2346,8 +2372,12 @@ export default function ShiftManagementPage({
                 </button>
                 <button
                   type="button"
-                  disabled={isSavingShift}
+                  disabled={isSavingShift || (editingShift ? !canEdit : !canCreate)}
                   onClick={async () => {
+                    if (editingShift ? !canEdit : !canCreate) {
+                      toast.error(`You do not have permission to ${editingShift ? "edit" : "create"} shifts`);
+                      return;
+                    }
                     let hasError = false;
 
                     if (!shiftName.trim()) {
@@ -2457,7 +2487,7 @@ export default function ShiftManagementPage({
                     canSaveShift
                       ? "bg-[#E5D5B8] text-black hover:bg-[#D9C49E]"
                       : "bg-[#E5D5B8]/50 text-black"
-                  } ${isSavingShift ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                  } ${isSavingShift || (editingShift ? !canEdit : !canCreate) ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
                 >
                   {isSavingShift ? "Saving..." : "Save"}
                 </button>
@@ -2743,8 +2773,12 @@ export default function ShiftManagementPage({
                 </button>
                 <button
                   type="button"
-                  disabled={isAddingSalesperson}
+                  disabled={isAddingSalesperson || !canEdit}
                   onClick={async () => {
+                    if (!canEdit) {
+                      toast.error("You do not have permission to edit shifts");
+                      return;
+                    }
                     if (
                       !addSalespeopleShift?.id ||
                       !selectedSalespersonIds.length
@@ -2790,7 +2824,7 @@ export default function ShiftManagementPage({
                       await loadSelectedShift();
                     }
                   }}
-                  className="h-10 rounded-md bg-[#E5D5B8] text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+                  className="h-10 rounded-md bg-[#E5D5B8] text-sm font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isAddingSalesperson ? "Saving..." : "Save"}
                 </button>

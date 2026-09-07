@@ -1437,8 +1437,12 @@ export default function LeadDetailPage() {
   const handleUpdateConvertedBooking = async (
     bookingData: ConvertBookingModalSubmitData
   ) => {
-    if (isClosedLostLead) {
-      toast.error("Booking edits are disabled for Closed - Lost leads");
+    if (isClosedLostLead || !canEditSalesRep) {
+      toast.error(
+        isClosedLostLead
+          ? "Booking edits are disabled for Closed - Lost leads"
+          : "Booking edits are disabled because edit permission is not allowed",
+      );
       return;
     }
 
@@ -1920,13 +1924,19 @@ export default function LeadDetailPage() {
                 {!isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
-                      onClick={() => router.push(`/admin/sales-representative/client/${params.id}/edit-booking`)}
-                      disabled={isClosedLostLead || !canEditShoots}
+                      onClick={() => {
+                        if (!canEditSalesRep) {
+                          toast.error("Booking edits are disabled because edit permission is not allowed");
+                          return;
+                        }
+                        router.push(`/admin/sales-representative/client/${params.id}/edit-booking`);
+                      }}
+                      disabled={isClosedLostLead || !canEditSalesRep}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                       title={
                         isClosedLostLead
                           ? "Booking edits are disabled for Closed - Lost leads"
-                          : !canEditShoots
+                          : !canEditSalesRep
                             ? "Edit permission not allowed"
                             : undefined
                       }
@@ -1938,13 +1948,19 @@ export default function LeadDetailPage() {
                 {isQuoteConvertedLead && (
                   <div className="group relative inline-flex">
                     <Button
-                      onClick={() => setIsConvertedBookingEditModalOpen(true)}
-                      disabled={isClosedLostLead || !canEditShoots || !convertedBookingInitialValues || isUpdatingConvertedBooking}
+                      onClick={() => {
+                        if (!canEditSalesRep) {
+                          toast.error("Booking edits are disabled because edit permission is not allowed");
+                          return;
+                        }
+                        setIsConvertedBookingEditModalOpen(true);
+                      }}
+                      disabled={isClosedLostLead || !canEditSalesRep || !convertedBookingInitialValues || isUpdatingConvertedBooking}
                       className={`h-10 w-fit font-semibold py-2 px-4 rounded-lg transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? "bg-[#E8D1AB] hover:bg-[#D4C3A3] text-[#101010]" : "bg-[#E8D1AB] hover:bg-[#D9C19A] text-black"}`}
                       title={
                         isClosedLostLead
                           ? "Booking edits are disabled for Closed - Lost leads"
-                          : !canEditShoots
+                          : !canEditSalesRep
                             ? "Edit permission not allowed"
                             : undefined
                       }
