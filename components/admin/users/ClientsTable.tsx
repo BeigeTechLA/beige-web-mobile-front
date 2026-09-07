@@ -65,6 +65,11 @@ interface Client {
   isArchived?: boolean;
 }
 
+type ClientSortConfig = {
+  key: keyof Client;
+  direction: "asc" | "desc";
+} | null;
+
 const StatusBadge = ({ status }: { status: UserStatus }) => {
   const styles = {
     Active: "bg-[#D4FFE4] text-[#16A34A] border-[#D4FFE4]/20",
@@ -139,6 +144,7 @@ export const ClientsTable = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortConfig, setSortConfig] = useState<ClientSortConfig>(null);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const router = useRouter();
 
@@ -211,13 +217,71 @@ export const ClientsTable = () => {
     setCurrentPage(1);
   };
 
+  const sortedClients = useMemo(() => {
+    if (!sortConfig) return clients;
+
+    const statusRank: Record<UserStatus, number> = {
+      Active: 1,
+      Approved: 2,
+      Pending: 3,
+      Inactive: 4,
+      Rejected: 5,
+    };
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+    const normalizeText = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+    return clients
+      .map((client, index) => ({ client, index }))
+      .sort((aItem, bItem) => {
+        const a = aItem.client;
+        const b = bItem.client;
+        let comparison = 0;
+
+        if (sortConfig.key === "id") {
+          comparison = Number(a.id.replace("#", "")) - Number(b.id.replace("#", ""));
+        } else if (sortConfig.key === "status") {
+          comparison = (statusRank[a.status] ?? 999) - (statusRank[b.status] ?? 999);
+        } else {
+          comparison = normalizeText(a[sortConfig.key]).localeCompare(
+            normalizeText(b[sortConfig.key]),
+            undefined,
+            { sensitivity: "base", numeric: true }
+          );
+        }
+
+        return comparison === 0 ? aItem.index - bItem.index : comparison * direction;
+      })
+      .map(({ client }) => client);
+  }, [clients, sortConfig]);
+
+  const displayedClients = useMemo(() => {
+    if (!sortConfig) return sortedClients;
+
+    const start = (currentPage - 1) * limit;
+    return sortedClients.slice(start, start + limit);
+  }, [currentPage, limit, sortConfig, sortedClients]);
+
+  const requestSort = (key: keyof Client) => {
+    const direction = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key: keyof Client) => {
+    if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+    return sortConfig.direction === "asc"
+      ? <ArrowUp size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />
+      : <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />;
+  };
+
   useEffect(() => {
     const fetchClients = async () => {
       setLoading(true);
       try {
         const params: any = {
-          page: currentPage,
+          page: sortConfig ? 1 : currentPage,
           limit: limit,
+          fetch_all: Boolean(sortConfig),
         };
 
         if (range !== "all") {
@@ -244,7 +308,9 @@ export const ClientsTable = () => {
         if (response && response.data) {
           const pagination = response.pagination;
           setTotalRecords(pagination?.total_records || 0);
-          setTotalPages(pagination?.total_pages || 1);
+          setTotalPages(sortConfig
+            ? Math.max(1, Math.ceil((pagination?.total_records || 0) / limit))
+            : pagination?.total_pages || 1);
 
           const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
 
@@ -288,7 +354,7 @@ export const ClientsTable = () => {
     };
     if (!filtersInitialized) return;
     fetchClients();
-  }, [activeTab, currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized, refreshKey]);
+  }, [activeTab, currentPage, limit, debouncedSearch, statusFilter, range, selectedDate, filtersInitialized, refreshKey, sortConfig]);
 
   // const handleRowClick = (id: string) => {
   //     // const cleanId = id.replace('#', '');
@@ -819,11 +885,11 @@ export const ClientsTable = () => {
             <table className="w-full table-fixed border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="w-[10%] p-5 font-medium rounded-bl-xl">User ID</th>
-                  <th className="w-[20%] p-5 font-medium">User Name</th>
+                  <th className="w-[10%] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
+                  <th className="w-[20%] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">User Name {getSortIcon("name")}</div></th>
                   <th className="w-[18%] p-5 font-medium">Email ID</th>
                   <th className="w-[14%] p-5 font-medium">Mobile Number</th>
-                  <th className="w-[11%] p-5 font-medium">Status</th>
+                  <th className="w-[11%] p-5 font-medium cursor-pointer" onClick={() => requestSort("status")}><div className="flex items-center gap-1">Status {getSortIcon("status")}</div></th>
                   <th className="w-[12%] p-5 font-medium">Client Type</th>
                   <th className="w-[15%] p-5 font-medium text-center">Referral Code</th>
                   <th className="w-[10%] p-5 font-medium text-right rounded-br-xl">Action</th>
@@ -843,7 +909,7 @@ export const ClientsTable = () => {
                     </td>
                   </tr>
                 ) : (
-                  clients.map((client, idx) => {
+                  displayedClients.map((client, idx) => {
                     const clientDetailHref = getClientDetailHref(client.id);
                     return (
                     <tr
@@ -963,7 +1029,7 @@ export const ClientsTable = () => {
               No users found for the selected filters.
             </div>
           ) : (
-            clients.map((client, idx) => {
+            displayedClients.map((client, idx) => {
               const isExpanded = expandedRowId !== null && String(expandedRowId) === String(client.id);
               return (
                 <div
