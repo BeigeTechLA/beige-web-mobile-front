@@ -12,7 +12,7 @@ export const AppBanner = () => {
         {/* Background Image Container */}
         <div className="absolute inset-0 z-0">
           <Image
-            src="/images/misc/AppBanner.png"
+            src="/images/misc/ClientAppBanner.png"
             alt="App Banner Background"
             fill
             className="object-contain object-right pointer-events-none"
@@ -39,6 +39,7 @@ export const AppBanner = () => {
             <div className="flex gap-3 lg:gap-5">
               <Link
                 href="https://apps.apple.com/"
+                target="_blank"
                 className="relative rounded-full h-12 w-40 lg:w-[220px] lg:h-[69px]"
               >
                 <Image
