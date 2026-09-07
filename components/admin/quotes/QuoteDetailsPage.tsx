@@ -880,7 +880,7 @@ export default function QuoteDetailsPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
-  const { canEdit, canDelete } = usePermissions("quotes");
+  const { canEdit, canDelete } = usePermissions("admin_quotes_all_quotes");
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -500,7 +500,7 @@ export default function AdminSaleRepManagerPage() {
   const { theme, resolvedTheme } = useTheme();
   const { token } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
-  const { canCreate } = usePermissions("sales_representative");
+  const { canCreate } = usePermissions("admin_sales_representative_dashboard");
   const hasRestoredFiltersRef = useRef(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

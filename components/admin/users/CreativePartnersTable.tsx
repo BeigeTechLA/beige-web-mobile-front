@@ -300,7 +300,7 @@ const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string
 
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
-  const { canEdit, canDelete } = usePermissions("users");
+  const { canEdit, canDelete } = usePermissions("admin_users_creative_partners");
   const [mounted, setMounted] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);

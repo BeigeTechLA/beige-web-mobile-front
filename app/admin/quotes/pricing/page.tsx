@@ -1261,7 +1261,7 @@ function TypesManagementPanel({
 export default function QuotePricingPage() {
   const pathname = usePathname();
   const { theme } = useTheme();
-  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
+  const { canCreate, canEdit, canDelete } = usePermissions("admin_quotes_master_pricing");
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<CatalogData>({
     service: [],

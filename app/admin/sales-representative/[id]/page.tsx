@@ -316,9 +316,9 @@ export default function LeadDetailPage() {
   };
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { canEdit: canEditSalesRep } = usePermissions("sales_representative");
+  const { canEdit: canEditSalesRep } = usePermissions("admin_sales_representative_dashboard");
   const { canEdit: canEditShoots } = usePermissions("shoots");
-  const { canEdit: canEditQuotes } = usePermissions("quotes");
+  const { canEdit: canEditQuotes } = usePermissions("admin_quotes_all_quotes");
   const canManageLeadActions = canEditSalesRep || canEditShoots || canEditQuotes;
 
   const [discount, setDiscount] = useState("");

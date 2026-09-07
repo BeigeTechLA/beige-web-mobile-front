@@ -49,7 +49,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   const [deleteClientLead, { isLoading: isDeletingClientLead }] =
     useDeleteClientLeadMutation();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const { canDelete: canDeleteByPermission } = usePermissions("sales_representative");
+  const { canDelete: canDeleteByPermission } = usePermissions("admin_sales_representative_dashboard");
   const numericLeadId = Number(leadId);
   const resolvedPath = basePath ? basePath : pathname;
 
