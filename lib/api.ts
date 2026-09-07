@@ -2568,7 +2568,7 @@ export const adminApi = {
       };
     }
   },
-  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; location?: string; status?: string } = {}) => {
+  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; location?: string; status?: string; fetch_all?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-crew-members', {
         params: {
@@ -2577,6 +2577,7 @@ export const adminApi = {
           search: params.search,
           location: params.location,
           status: params.status,
+          fetch_all: params.fetch_all,
         },
       });
       return response.data;
@@ -2821,7 +2822,7 @@ export const adminApi = {
       };
     }
   },
-  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean } = {}) => {
+  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean; fetch_all?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-clients', { params });
       return response.data;
@@ -2887,7 +2888,7 @@ export const adminApi = {
     }
   },
 
-  getPendingCP: async (params: { page?: number; limit?: number; search?: string; location?: string; onboarding_status?: string } = {}) => {
+  getPendingCP: async (params: { page?: number; limit?: number; search?: string; location?: string; onboarding_status?: string; fetch_all?: boolean } = {}) => {
     try {
       const response = await api.get('admin/get-pending-cp', { params });
       return response.data;

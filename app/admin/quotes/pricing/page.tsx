@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import axios from "axios";
+import Cookies from "js-cookie";
 import {
   Video,
   Camera,
@@ -21,6 +23,7 @@ import {
   ChevronDown,
   AlertCircle,
   RefreshCw,
+  ArrowUpToLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { salesApi } from "@/lib/api";
@@ -104,6 +107,7 @@ const PAGE_TABS: Array<{ key: PageTab; label: string }> = [
   { key: "logistics", label: "Logistics" },
   { key: "types", label: "Types" },
 ];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
 const PROTECTED_SERVICES = [
   "videography",
@@ -130,6 +134,33 @@ const sanitizeCurrencyInput = (value: string) => {
 
 const isProtectedService = (label: string) =>
   PROTECTED_SERVICES.includes(label.trim().toLowerCase());
+
+const getFilenameFromContentDisposition = (
+  contentDisposition: string | undefined,
+  fallback: string,
+) => {
+  if (!contentDisposition) return fallback;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1].replace(/['"]/g, ""));
+  }
+
+  const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return filenameMatch?.[1] || fallback;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const normalizeTypeLabel = (value: string) =>
   value.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
@@ -1238,6 +1269,7 @@ export default function QuotePricingPage() {
     logistics: [],
   });
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<PageTab>("all");
   const [search, setSearch] = useState("");
   const [typesCount, setTypesCount] = useState(0);
@@ -1294,6 +1326,72 @@ export default function QuotePricingPage() {
     setTypesRefreshToken((prev) => prev + 1);
     await fetchCatalog();
   }, [fetchCatalog]);
+
+  const handleExport = useCallback(async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+
+    try {
+      const token = Cookies.get("revure_token");
+      const response = await axios.get<Blob>("quotes/master-pricing/export", {
+        baseURL: API_BASE_URL,
+        responseType: "blob",
+        withCredentials: true,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const blob = response.data;
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("Invalid or empty export response.");
+      }
+
+      const contentDispositionHeader = response.headers["content-disposition"];
+      const filename = getFilenameFromContentDisposition(
+        typeof contentDispositionHeader === "string"
+          ? contentDispositionHeader
+          : undefined,
+        "master-pricing-export.xlsx",
+      );
+
+      downloadBlob(blob, filename);
+      toast.success("Master pricing exported successfully.");
+    } catch (error: unknown) {
+      let message = "Failed to export master pricing.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || message;
+          } catch {
+            // Keep fallback message.
+          }
+        } else if (
+          responseData &&
+          typeof responseData === "object" &&
+          "message" in responseData
+        ) {
+          message =
+            String((responseData as { message?: unknown }).message || "") ||
+            message;
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      console.error("Export Master Pricing Error:", error);
+      toast.error(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting]);
 
   const handleSave = useCallback(
     async (id: string, name: string, rate: number) => {
@@ -1427,14 +1525,35 @@ export default function QuotePricingPage() {
         pathname={pathname}
         breadcrumbOverrides={{ create: "Master Pricing" }}
         actions={
-          <Button
-            onClick={refreshAll}
-            disabled={loading}
-            className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10" : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"}`}
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              aria-label={isExporting ? "Exporting master pricing" : "Export master pricing"}
+              title={isExporting ? "Exporting master pricing" : "Export master pricing"}
+              className={`text-sm font-semibold h-12 px-4 lg:px-7 rounded-lg ${
+                isDark
+                  ? "text-white bg-[#202020] border-white/20 hover:bg-white/10"
+                  : "text-[#323232] bg-[#F0F0F0] border-[#E3E3E3] hover:bg-[#E3E3E3]"
+              } border transition-colors disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {isExporting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <ArrowUpToLine />
+              )}
+              {isExporting ? "Exporting..." : "Export"}
+            </Button>
+            <Button
+              onClick={refreshAll}
+              disabled={loading}
+              className={`h-12 rounded-lg px-4 lg:px-7 text-sm font-semibold transition-colors ${isDark ? "border border-white/15 bg-[#202020] text-white hover:bg-white/10" : "border border-[#E3E3E3] bg-[#F0F0F0] text-[#323232] hover:bg-[#E3E3E3]"}`}
+            >
+              <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </Button>
+          </div>
         }
       />
 
