@@ -259,6 +259,24 @@ const extractPhoneNumber = (project: any) => {
   return phoneMatch ? phoneMatch[1].replace(/[^\d+]/g, "") : "";
 };
 
+type ProjectDisplaySource = Record<string, unknown> & {
+  project_name?: unknown;
+  lead_source?: unknown;
+  client_name?: unknown;
+};
+
+const getShootDisplayName = (project: ProjectDisplaySource) => {
+  const isQuoteConvertedBooking =
+    String(project.lead_source || "").trim().toLowerCase() === "converted bookings";
+  const clientName = typeof project.client_name === "string" ? project.client_name.trim() : "";
+
+  return isQuoteConvertedBooking && clientName
+    ? `Custom - ${clientName}`
+    : typeof project.project_name === "string" && project.project_name.trim()
+      ? project.project_name
+      : "Untitled Project";
+};
+
 interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   customRangeStartDate?: Date | null;
@@ -637,7 +655,7 @@ export const ShootsTable = ({
           const project = item.project || item;
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
-          const customerName = project.project_name || "Untitled Project";
+          const customerName = getShootDisplayName(project);
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
           const extractedPhone = extractPhoneNumber(project);
           const resolvedLocation =

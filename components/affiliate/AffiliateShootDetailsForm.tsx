@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, X, Check, ArrowRight, RotateCcw, Sparkles, Users } from "lucide-react";
+import { ChevronLeft, ChevronDown, X, Check, ArrowRight, RotateCcw, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -319,6 +319,7 @@ export const AffiliateShootDetailsForm = ({
   const [referralCode, setReferralCode] = useState<string>("");
   const [showReferralCode, setShowReferralCode] = useState(false);
   const [isProjectLoading, setIsProjectLoading] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
   const isDark =
     typeof isDarkProp === "boolean"
       ? isDarkProp
@@ -330,12 +331,67 @@ export const AffiliateShootDetailsForm = ({
     setMounted(true);
   }, []);
 
-  // Reset scroll position to top when step changes
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  const updateScrollHint = React.useCallback(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      setShowScrollHint(false);
+      return;
     }
-  }, [step]);
+
+    const hasScrollableContent =
+      container.scrollHeight > container.clientHeight + 10;
+
+    const hasMoreContentBelow =
+      container.scrollTop + container.clientHeight <
+      container.scrollHeight - 20;
+
+    setShowScrollHint(hasScrollableContent && hasMoreContentBelow);
+  }, []);
+
+  const scrollToMoreFields = () => {
+    const container = scrollContainerRef.current;
+
+    if (!container) return;
+
+    container.scrollBy({
+      top: Math.max(container.clientHeight * 0.65, 240),
+      behavior: "smooth",
+    });
+  };
+
+  // Reset the modal body to the top whenever the step changes and
+  // keep the "more fields" hint synced with the rendered content.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container || !isOpen) {
+      setShowScrollHint(false);
+      return;
+    }
+
+    container.scrollTo({ top: 0, behavior: "auto" });
+
+    const animationFrame = requestAnimationFrame(updateScrollHint);
+    const timeout = window.setTimeout(updateScrollHint, 350);
+
+    const resizeObserver = new ResizeObserver(updateScrollHint);
+    resizeObserver.observe(container);
+
+    const mutationObserver = new MutationObserver(updateScrollHint);
+    mutationObserver.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.clearTimeout(timeout);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [step, isOpen, isProjectLoading, updateScrollHint]);
 
   useEffect(() => {
     const fetchReferralCode = async () => {
@@ -735,7 +791,7 @@ export const AffiliateShootDetailsForm = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className={`max-w-[90vw] lg:max-w-4xl p-0 overflow-hidden max-h-[90vh] flex flex-col transition-colors duration-300 [&>button]:hidden no-scrollbar ${isDark
+        className={`max-w-[90vw] lg:max-w-4xl h-[90vh] max-h-[90vh] p-0 overflow-hidden !flex !flex-col gap-0 transition-colors duration-300 [&>button]:hidden ${isDark
           ? "bg-[#0A0A0A] border-white/10 shadow-[0_0_50px_rgba(232,209,171,0.1)] text-white"
           : "bg-white border-zinc-200 shadow-2xl text-black"
           }`}
@@ -782,8 +838,13 @@ export const AffiliateShootDetailsForm = ({
         </DialogHeader>
 
         {/* --- SCROLLABLE CONTAINER BODY --- */}
-        <div ref={scrollContainerRef} className="relative flex-1 overflow-y-auto no-scrollbar min-h-0">
-          <AnimatePresence mode="wait">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+          <div
+            ref={scrollContainerRef}
+            onScroll={updateScrollHint}
+            className="absolute inset-0 overflow-y-auto overscroll-contain touch-pan-y"
+          >
+            <AnimatePresence mode="wait">
 
             {/* STEP 1: INITIAL WELCOME SCREEN */}
             {step === 1 && (
@@ -1330,6 +1391,56 @@ export const AffiliateShootDetailsForm = ({
                       </span>
                     </p>
                   </div>
+                </div>
+              </motion.div>
+            )}
+            </AnimatePresence>
+          </div>
+
+          {/* --- MORE FIELDS / SCROLL INDICATOR --- */}
+          <AnimatePresence>
+            {showScrollHint && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.2 }}
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-20"
+              >
+                <div
+                  className={`h-24 bg-gradient-to-t ${
+                    isDark
+                      ? "from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent"
+                      : "from-white via-white/95 to-transparent"
+                  }`}
+                />
+
+                <div className="absolute inset-x-0 bottom-3 flex justify-center px-4">
+                  <button
+                    type="button"
+                    onClick={scrollToMoreFields}
+                    className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 shadow-lg backdrop-blur-md transition-all hover:-translate-y-0.5 ${
+                      isDark
+                        ? "border-[#E8D1AB]/25 bg-[#171717]/95 text-[#E8D1AB] hover:border-[#E8D1AB]/40"
+                        : "border-[#E8D1AB]/50 bg-white/95 text-[#8A7656] hover:border-[#BFA780]"
+                    }`}
+                    aria-label="Scroll to view more fields"
+                  >
+                    <ChevronDown size={16} className="animate-bounce shrink-0" />
+
+                    <span className="text-left leading-tight">
+                      <span className="block text-[11px] lg:text-xs font-bold">
+                        More fields below
+                      </span>
+                      <span
+                        className={`block text-[9px] lg:text-[10px] font-medium ${
+                          isDark ? "text-white/50" : "text-zinc-500"
+                        }`}
+                      >
+                        Scroll to continue
+                      </span>
+                    </span>
+                  </button>
                 </div>
               </motion.div>
             )}
