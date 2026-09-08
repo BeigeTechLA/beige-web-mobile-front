@@ -23,7 +23,7 @@ import { Button } from "@/src/components/landing/ui/button";
 import { affiliateApi } from "@/lib/api";
 
 const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
-const historyMonthOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const historyMonthOptions = ["All Time", "Month", "Last 30 Days", "This Quarter", "This Year"];
 const historyStatusOptions = ["All", "Added", "Used"];
 
 type ClientCreditSummary = {
@@ -58,7 +58,7 @@ export default function AffiliateFinancesPage() {
   const [loading, setLoading] = useState(true);
   const [activeMetricId, setActiveMetricId] = useState("available");
   const [metricRange, setMetricRange] = useState("Month");
-  const [historyMonth, setHistoryMonth] = useState("Month");
+  const [historyMonth, setHistoryMonth] = useState("All Time");
   const [historyStatus, setHistoryStatus] = useState("All");
   const [creditSummary, setCreditSummary] = useState<ClientCreditSummary | null>(null);
   const [creditHistory, setCreditHistory] = useState<ClientCreditHistoryEntry[]>([]);
@@ -136,6 +136,7 @@ export default function AffiliateFinancesPage() {
   };
 
   const passesDateRange = (createdAt?: string | null, range = "Month") => {
+    if (range === "All Time") return true;
     if (!createdAt) return false;
     const rowDate = new Date(createdAt);
     if (Number.isNaN(rowDate.getTime())) return false;

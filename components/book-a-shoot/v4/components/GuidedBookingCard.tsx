@@ -58,12 +58,17 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
 
               <input
                 id="email"
+                name="email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Please enter your email"
-                className="w-full bg-transparent border-b border-white/20 pb-3 text-lg md:text-2xl text-[#D8D7D6] font-['Roboto_Condensed'] placeholder-white/50 outline-none focus:border-[#E8D1AB] transition-colors duration-200"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="book-a-shoot-email-input w-full bg-transparent border-0 border-b border-white/20 rounded-none pb-3 text-lg md:text-2xl text-[#D8D7D6] font-['Roboto_Condensed'] placeholder-white/50 outline-none ring-0 focus:border-[#E8D1AB] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 transition-colors duration-200"
               />
             </div>
 

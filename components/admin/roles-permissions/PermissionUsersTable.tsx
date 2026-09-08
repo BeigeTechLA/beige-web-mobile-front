@@ -510,8 +510,13 @@ export function PermissionUsersTable({
 
         {/* LOADING & ERROR BOUNDS FOR BOTH MOBILE AND DESKTOP VIEWS */}
         {showLoading && (
-          <div className={`px-4 py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
-            Loading users...
+          <div className="flex min-h-[220px] items-center justify-center px-4 py-20">
+            <div className="flex flex-col items-center gap-2">
+              <div className={`w-6 h-6 border-2 border-t-transparent rounded-full animate-spin ${isDark ? "border-[#E5D5B8]" : "border-black/70"}`}/>
+              <span className={isDark ? "text-[#888]" : "text-black/50"}>
+                Loading data...
+              </span>
+            </div>
           </div>
         )}
 

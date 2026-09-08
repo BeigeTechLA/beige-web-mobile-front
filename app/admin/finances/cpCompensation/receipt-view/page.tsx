@@ -22,7 +22,7 @@ function CpReceiptViewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isDark } = useResolvedTheme();
-  const { canView, isLoading: isPermissionLoading } = usePermissions("finances");
+  const { canView, isLoading: isPermissionLoading } = usePermissions("admin_finances_cp_compensation");
   const permissions = useAppSelector((state) => state.auth.permissions);
 
   const receiptUrl = searchParams.get("url") || "";

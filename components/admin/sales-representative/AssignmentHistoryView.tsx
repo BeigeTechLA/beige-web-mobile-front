@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { BasicDropdown, type DropdownOption } from "@/components/admin/BasicDropdown";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import DatePicker from "@/components/ui/Datepicker";
@@ -103,6 +104,8 @@ function convertDateForApi(date: string) {
 }
 
 export default function AssignmentHistoryView({ onBack }: { onBack: () => void }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [filters, setFilters] = useState({
     shift: "Select Shift",
     person: "Sales Person",
@@ -121,6 +124,12 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
   const normalizedSearch = debouncedSearch.trim();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const selectedDateLabel = selectedDate ? formatLongDate(selectedDate) : "Select Date";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = !mounted || theme === "dark";
 
   useEffect(() => {
     let ignore = false;
@@ -237,33 +246,71 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
   }, [filters.shift, filters.person, filters.date, filters.status, normalizedSearch]);
 
   return (
-    <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
+    <div
+      className={`min-h-full px-4 py-6 font-[var(--font-geist-sans)] transition-colors duration-300 lg:px-9 lg:py-8 ${
+        isDark
+          ? "bg-[#101010] text-white"
+          : "bg-[#F4F5F7] text-[#323232]"
+      }`}
+    >
       <button
         type="button"
         onClick={onBack}
-        className="mb-7 flex items-center gap-2 text-sm text-white/85 transition hover:text-[#E5D5B8]"
+        className={`mb-7 flex items-center gap-2 text-sm transition ${
+          isDark
+            ? "text-white/85 hover:text-[#E5D5B8]"
+            : "text-[#323232CC] hover:text-[#BFA780]"
+        }`}
       >
         <ArrowLeft size={18} />
         Back
       </button>
 
       <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Assignment History</h1>
-        <p className="mt-1 text-sm text-white/45">Immutable record of all lead assignments</p>
+        <h1
+          className={`text-2xl font-semibold ${
+            isDark ? "text-white" : "text-[#323232]"
+          }`}
+        >
+          Assignment History
+        </h1>
+        <p
+          className={`mt-1 text-sm ${
+            isDark ? "text-white/45" : "text-[#32323299]"
+          }`}
+        >
+          Immutable record of all lead assignments
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row">
         <label className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/28" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-12 w-full rounded-lg border border-[#2D2D2D] bg-[#242424] pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/35" placeholder="Search" />
+          <Search
+            className={`absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${
+              isDark ? "text-white/28" : "text-[#999999]"
+            }`}
+          />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm outline-none transition-colors ${
+              isDark
+                ? "border-[#2D2D2D] bg-[#242424] text-white placeholder:text-white/35 focus:border-[#E5D5B8]/60"
+                : "border-[#E5E5E5] bg-white text-[#323232] placeholder:text-[#999999] focus:border-[#E8D1AB]"
+            }`}
+            placeholder="Search"
+          />
         </label>
+
         <button
           type="button"
           onClick={() => setShowFilters((current) => !current)}
-          className={`flex h-12 items-center justify-center gap-2 rounded-lg px-5 text-sm font-semibold transition ${
+          className={`flex h-12 items-center justify-center gap-2 rounded-lg border px-5 text-sm font-semibold transition ${
             showFilters
-              ? "bg-[#E5D5B8] text-black"
-              : "bg-[#242424] text-white"
+              ? "border-[#E5D5B8] bg-[#E5D5B8] text-black"
+              : isDark
+                ? "border-[#2D2D2D] bg-[#242424] text-white hover:border-[#E5D5B8]/40"
+                : "border-[#E3E3E3] bg-white text-[#323232] hover:border-[#E8D1AB]"
           }`}
         >
           <SlidersHorizontal size={16} />
@@ -271,112 +318,261 @@ const [personOptions, setPersonOptions] = useState<DropdownOption[]>([{ label: "
         </button>
       </div>
 
-{showFilters && (
-  <section className="mt-5 rounded-xl bg-[#171717] p-4">
-    <div className="flex flex-wrap gap-3">
-          <BasicDropdown label="Select Shift" value={filters.shift} options={shiftOptions} onChange={(value) => setFilters((current) => ({ ...current, shift: value }))} styles="text-white/70 text-xs" />
-          <BasicDropdown label="Sales Person" value={filters.person} options={personOptions} onChange={(value) => setFilters((current) => ({ ...current, person: value }))} styles="text-white/70 text-xs" />
-          <div className="relative h-8 w-[182px] lg:h-10">
-            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-between rounded-lg border border-white/10 bg-[#18181b] px-3 text-xs font-medium text-white/70 transition-all lg:px-6">
-              <span className={selectedDate ? "text-white/70" : "text-white/45"}>
-                {selectedDateLabel}
-              </span>
-              {selectedDate ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedDate(null);
-                    setFilters((current) => ({ ...current, date: "Select Date" }));
-                  }}
-                  className="pointer-events-auto z-40 rounded-full p-1 text-white/50 transition-all duration-150 hover:scale-110 hover:bg-white/10 hover:text-white active:scale-95"
-                >
-                  <X size={14} />
-                </button>
-              ) : (
-                <Calendar size={18} className="text-white/60" />
-              )}
-            </div>
-            <div className="absolute inset-0 z-20 [&_.MuiInputBase-input]:!text-transparent [&_.MuiOutlinedInput-notchedOutline]:!border-transparent [&_.MuiSvgIcon-root]:!opacity-0">
-              <DatePicker
-                label=""
-                value={selectedDate}
-                onChange={(date) => {
-                  const nextDateLabel = date ? format(date, "yyyy-MM-dd") : "Select Date";
-                  setSelectedDate(date);
-                  setFilters((current) => ({
-                    ...current,
-                    date: nextDateLabel,
-                  }));
-                }}
-                format="do MMMM yyyy"
-                placeholder="Select Date"
+      {showFilters && (
+        <section
+          className={`mt-5 rounded-xl border p-4 transition-colors duration-300 ${
+            isDark
+              ? "border-[#2D2D2D] bg-[#171717]"
+              : "border-[#E3E3E3] bg-white"
+          }`}
+        >
+          <div className="flex flex-wrap gap-3">
+            <BasicDropdown
+              label="Select Shift"
+              value={filters.shift}
+              options={shiftOptions}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  shift: value,
+                }))
+              }
+              styles={
                 isDark
-                disablePortal
-                colors={{
-                  inputBackground: "#18181b",
-                  inputText: "rgba(255, 255, 255, 0.7)",
-                  inputBorder: "rgba(255, 255, 255, 0.1)",
-                  inputBorderHover: "rgba(255, 255, 255, 0.2)",
-                  inputBorderFocus: "#E8D1AB",
-                  iconColor: "rgba(255, 255, 255, 0.8)",
-                }}
-                sx={{
-                  height: "40px",
-                  borderRadius: "8px",
-                  backgroundColor: "#18181b",
-                }}
-              />
+                  ? "text-white/70 text-xs"
+                  : "text-[#323232] text-xs"
+              }
+            />
+
+            <BasicDropdown
+              label="Sales Person"
+              value={filters.person}
+              options={personOptions}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  person: value,
+                }))
+              }
+              styles={
+                isDark
+                  ? "text-white/70 text-xs"
+                  : "text-[#323232] text-xs"
+              }
+            />
+
+            <div className="relative h-8 w-[182px] lg:h-10">
+              <div
+                className={`pointer-events-none absolute inset-0 z-30 flex items-center justify-between rounded-lg border px-3 text-xs font-medium transition-all lg:px-6 ${
+                  isDark
+                    ? "border-white/10 bg-[#18181b] text-white/70"
+                    : "border-[#E3E3E3] bg-white text-[#323232]"
+                }`}
+              >
+                <span
+                  className={
+                    selectedDate
+                      ? isDark
+                        ? "text-white/70"
+                        : "text-[#323232]"
+                      : isDark
+                        ? "text-white/45"
+                        : "text-[#999999]"
+                  }
+                >
+                  {selectedDateLabel}
+                </span>
+
+                {selectedDate ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedDate(null);
+                      setFilters((current) => ({
+                        ...current,
+                        date: "Select Date",
+                      }));
+                    }}
+                    className={`pointer-events-auto z-40 rounded-full p-1 transition-all duration-150 hover:scale-110 active:scale-95 ${
+                      isDark
+                        ? "text-white/50 hover:bg-white/10 hover:text-white"
+                        : "text-[#666666] hover:bg-black/5 hover:text-black"
+                    }`}
+                    aria-label="Clear selected date"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : (
+                  <Calendar
+                    size={18}
+                    className={isDark ? "text-white/60" : "text-[#666666]"}
+                  />
+                )}
+              </div>
+
+              <div className="absolute inset-0 z-20 [&_.MuiInputBase-input]:!text-transparent [&_.MuiOutlinedInput-notchedOutline]:!border-transparent [&_.MuiSvgIcon-root]:!opacity-0">
+                <DatePicker
+                  label=""
+                  value={selectedDate}
+                  onChange={(date) => {
+                    const nextDateLabel = date
+                      ? format(date, "yyyy-MM-dd")
+                      : "Select Date";
+                    setSelectedDate(date);
+                    setFilters((current) => ({
+                      ...current,
+                      date: nextDateLabel,
+                    }));
+                  }}
+                  format="do MMMM yyyy"
+                  placeholder="Select Date"
+                  isDark={isDark}
+                  disablePortal
+                  colors={{
+                    inputBackground: isDark ? "#18181b" : "#FFFFFF",
+                    inputText: isDark
+                      ? "rgba(255, 255, 255, 0.7)"
+                      : "#323232",
+                    inputBorder: isDark
+                      ? "rgba(255, 255, 255, 0.1)"
+                      : "#E3E3E3",
+                    inputBorderHover: isDark
+                      ? "rgba(255, 255, 255, 0.2)"
+                      : "#D7D7D7",
+                    inputBorderFocus: "#E8D1AB",
+                    iconColor: isDark
+                      ? "rgba(255, 255, 255, 0.8)"
+                      : "#666666",
+                  }}
+                  sx={{
+                    height: "40px",
+                    borderRadius: "8px",
+                    backgroundColor: isDark ? "#18181b" : "#FFFFFF",
+                  }}
+                />
+              </div>
             </div>
+
+            <BasicDropdown
+              label="Status"
+              value={filters.status}
+              options={[
+                "Status",
+                "Signed Up - Lead Created",
+                "Book a shoot - Lead Created",
+                "Manual - Lead Created",
+                "Booking In Progress",
+                "Proposal Sent",
+                "Ready for Payment",
+                "Payment Sent",
+                "Booked",
+                "Closed - Lost",
+              ]}
+              onChange={(value) =>
+                setFilters((current) => ({
+                  ...current,
+                  status: value,
+                }))
+              }
+              styles={
+                isDark
+                  ? "text-white/70 text-xs"
+                  : "text-[#323232] text-xs"
+              }
+            />
           </div>
-          <BasicDropdown label="Status" value={filters.status} options={["Status", "Signed Up - Lead Created", "Book a shoot - Lead Created", "Manual - Lead Created", "Booking In Progress", "Proposal Sent", "Ready for Payment", "Payment Sent", "Booked", "Closed - Lost"]} onChange={(value) => setFilters((current) => ({ ...current, status: value }))} styles="text-white/70 text-xs" />
-           </div>
-  </section>
+        </section>
       )}
 
       <section className="mt-5">
-              <div className="relative">
-                <div className="absolute left-[7px] top-4 h-[calc(100%-32px)] w-px bg-[#2D2D2D]" />
-                {loading ? (
-        <div className="flex min-h-[200px] items-center justify-center">
-          <Loader2 className={`animate-spin text-[#BFA780]`} size={40} />
-        </div>
-      ) : items.length ? (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item.id} className="relative pl-7">
-              <span className="absolute left-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[#E5D5B8]" />
-              <div className="flex min-h-[58px] items-center justify-between gap-4 rounded-xl border border-[#2D2D2D] bg-[#111] px-5 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2A2A2A] text-[10px] font-semibold text-white/65">
-                    {item.initials}</span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-white">
-                        {item.company}
-                      </p>
-                      <LeadsStatusBadge status={item.status} />
+        <div className="relative">
+          <div
+            className={`absolute left-[7px] top-4 h-[calc(100%-32px)] w-px ${
+              isDark ? "bg-[#2D2D2D]" : "bg-[#E3E3E3]"
+            }`}
+          />
+
+          {loading ? (
+            <div className="flex min-h-[200px] items-center justify-center">
+              <Loader2
+                className={`animate-spin ${
+                  isDark ? "text-[#E5D5B8]" : "text-[#BFA780]"
+                }`}
+                size={40}
+              />
+            </div>
+          ) : items.length ? (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="relative pl-7">
+                  <span className="absolute left-0 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[#E5D5B8]" />
+
+                  <div
+                    className={`flex min-h-[58px] items-center justify-between gap-4 rounded-xl border px-5 py-3 transition-colors duration-200 ${
+                      isDark
+                        ? "border-[#2D2D2D] bg-[#111111] hover:bg-white/[0.02]"
+                        : "border-[#E3E3E3] bg-white hover:bg-black/[0.02]"
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                          isDark
+                            ? "bg-[#2A2A2A] text-white/65"
+                            : "bg-[#F4F5F7] text-[#323232]"
+                        }`}
+                      >
+                        {item.initials}
+                      </span>
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p
+                            className={`text-sm font-medium ${
+                              isDark ? "text-white" : "text-[#323232]"
+                            }`}
+                          >
+                            {item.company}
+                          </p>
+                          <LeadsStatusBadge status={item.status} />
+                        </div>
+
+                        <div
+                          className={`mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs ${
+                            isDark ? "text-white/45" : "text-[#32323299]"
+                          }`}
+                        >
+                          <span>{item.person}</span>
+                          <span>{item.shift}</span>
+                          <span>{item.source}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/45">
-                      <span>{item.person}</span>
-                      <span>{item.shift}</span>
-                      <span>{item.source}</span>
-                    </div>
+
+                    <span
+                      className={`shrink-0 text-right text-xs ${
+                        isDark ? "text-white/45" : "text-[#32323299]"
+                      }`}
+                    >
+                      <span className="block">{item.date}</span>
+                      <span className="mt-1 block">{item.time}</span>
+                    </span>
                   </div>
                 </div>
-                <span className="shrink-0 text-right text-xs text-white/45">
-                  <span className="block">{item.date}</span>
-                  <span className="mt-1 block">{item.time}</span>
-                </span>
-              </div>
+              ))}
             </div>
-          ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-[#2D2D2D] bg-[#111] px-5 py-8 text-center text-sm text-white/45">
-            No assignment history found
-          </div>
-        )}
+          ) : (
+            <div
+              className={`rounded-xl border px-5 py-8 text-center text-sm ${
+                isDark
+                  ? "border-[#2D2D2D] bg-[#111111] text-white/45"
+                  : "border-[#E3E3E3] bg-white text-[#32323299]"
+              }`}
+            >
+              No assignment history found
+            </div>
+          )}
         </div>
       </section>
     </div>

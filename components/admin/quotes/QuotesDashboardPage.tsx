@@ -876,7 +876,7 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
-  const { canCreate, canEdit, canDelete } = usePermissions("quotes");
+  const { canCreate, canEdit, canDelete } = usePermissions("admin_quotes_all_quotes");
   const pathname = usePathname();
   const router = useRouter();
   const detailBaseHref = createHref.endsWith("/create")

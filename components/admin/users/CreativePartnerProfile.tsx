@@ -25,6 +25,7 @@ import DottedDivider from "../DottedDivider";
 import { formatCreatorRoles } from "@/lib/creatorRoles";
 import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import { useGenerateUserResetLinkForAdminMutation } from "@/lib/redux/features/auth/authApi";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface ProfileProps {
   id: string;
@@ -96,6 +97,7 @@ function EventDot({ color, label }: any) {
 export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true, onboardingStatus }: ProfileProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { canEdit } = usePermissions("admin_users_creative_partners");
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -903,13 +905,19 @@ return (
               <button
                 type="button"
                 onClick={() => router.push(`/admin/users/creative-partners/${id.replace("#", "")}/edit`)}
-              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
-                ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
-                }`}
-            >
-              <span>Edit Profile</span>
-            </button>
+                disabled={!canEdit}
+                title={!canEdit ? "You do not have permission to edit creative partners" : undefined}
+                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${!canEdit
+                  ? isDark
+                    ? "cursor-not-allowed border-white/10 bg-white/5 text-white/30"
+                    : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                  : isDark
+                    ? "active:scale-95 bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "active:scale-95 bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                  }`}
+              >
+                <span>Edit Profile</span>
+              </button>
 
             <button
               onClick={() => {

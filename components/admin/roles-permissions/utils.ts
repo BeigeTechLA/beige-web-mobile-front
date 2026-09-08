@@ -9,7 +9,7 @@ import {
 
 type PermissionActionRecord = string | { action_key?: string };
 
-type PermissionModuleRecord = {
+export type PermissionModuleRecord = {
   module_key: string;
   actions: PermissionActionRecord[];
 };
@@ -34,8 +34,44 @@ export const normalizeRowIdToModuleKey = (rowId: string) =>
 
 const MODULE_LABEL_ACRONYMS = new Set(["cp"]);
 
-export const formatModuleLabel = (moduleKey: string) =>
-  moduleKey
+const DISPLAY_LABEL_PREFIXES = [
+  "admin_sales_representative_",
+  "admin_finances_",
+  "admin_users_",
+  "admin_quotes_",
+  "production_manager_",
+  "creative_partner_",
+  "sales_admin_",
+  "sales_rep_",
+  "client_",
+  "admin_",
+  "crew_",
+];
+
+const MODULE_LABEL_OVERRIDES: Record<string, string> = {
+  cp_compensation: "CP Compensation",
+};
+
+const getDisplayModuleKey = (moduleKey: string) => {
+  const normalized = moduleKey.trim().toLowerCase();
+
+  for (const prefix of DISPLAY_LABEL_PREFIXES) {
+    if (normalized.startsWith(prefix)) {
+      return normalized.slice(prefix.length);
+    }
+  }
+
+  return normalized;
+};
+
+export const formatModuleLabel = (moduleKey: string) => {
+  const displayModuleKey = getDisplayModuleKey(moduleKey);
+
+  if (MODULE_LABEL_OVERRIDES[displayModuleKey]) {
+    return MODULE_LABEL_OVERRIDES[displayModuleKey];
+  }
+
+  return displayModuleKey
     .split("_")
     .filter(Boolean)
     .map((part) => {
@@ -51,6 +87,7 @@ export const formatModuleLabel = (moduleKey: string) =>
     })
     .filter(Boolean)
     .join(" ");
+};
 
 const getAllowedActions = (row: PermissionMatrixRow) =>
   row.allowedActions?.length ? row.allowedActions : ALL_PERMISSION_ACTIONS;
@@ -215,6 +252,74 @@ export const applyPermissionsToRows = (
   rows: PermissionMatrixRow[],
   permissions: RolePermissionsMap = {},
 ): PermissionMatrixRow[] => rows.map((row) => applyPermissionsToRow(row, permissions));
+
+const getAllowedActionsFromPermissions = (
+  row: PermissionMatrixRow,
+  permissions: RolePermissionsMap,
+) => {
+  const moduleKey = normalizeRowIdToModuleKey(row.id);
+  const permissionValue = permissions[moduleKey];
+
+  if (Array.isArray(permissionValue)) {
+    return ALL_PERMISSION_ACTIONS.filter((action) =>
+      permissionValue.includes(action),
+    );
+  }
+
+  if (permissionValue && typeof permissionValue === "object") {
+    return ALL_PERMISSION_ACTIONS.filter((action) =>
+      Boolean(permissionValue[action]),
+    );
+  }
+
+  return [];
+};
+
+const constrainPermissionRowToParent = (
+  row: PermissionMatrixRow,
+  parentPermissions: RolePermissionsMap,
+): PermissionMatrixRow | null => {
+  const allowedActions = getAllowedActionsFromPermissions(row, parentPermissions);
+
+  if (!row.children) {
+    if (!allowedActions.length) return null;
+
+    return {
+      ...row,
+      allowedActions,
+      access: createAccess(allowedActions),
+      selected: false,
+    };
+  }
+
+  const children = row.children
+    .map((child) => constrainPermissionRowToParent(child, parentPermissions))
+    .filter((child): child is PermissionMatrixRow => Boolean(child));
+
+  if (!allowedActions.length && !children.length) return null;
+
+  const nextRow = {
+    ...row,
+    allowedActions,
+    access: createAccess(allowedActions),
+    children,
+    selected: false,
+    isExpanded: children.length > 0 ? row.isExpanded : false,
+  };
+
+  return {
+    ...nextRow,
+    checkState: computeParentCheckState(children),
+  };
+};
+
+export const constrainPermissionRowsToParent = (
+  rows: PermissionMatrixRow[],
+  parentPermissions: RolePermissionsMap = {},
+) =>
+  rows
+    .map((row) => constrainPermissionRowToParent(row, parentPermissions))
+    .filter((row): row is PermissionMatrixRow => Boolean(row));
 
 const getMirroredParentAccess = (
   row: PermissionMatrixRow,
