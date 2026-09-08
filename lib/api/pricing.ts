@@ -98,7 +98,8 @@ export interface SavedQuote extends QuoteCalculation {
 }
 
 export interface SelectedItem {
-  item_id: number;
+  item_id?: number;
+  slug?: string;
   quantity: number;
 }
 

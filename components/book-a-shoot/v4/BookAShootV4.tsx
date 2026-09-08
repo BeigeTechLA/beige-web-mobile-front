@@ -158,6 +158,10 @@ const ITEM_IDS = {
   gaffer: 48,
 };
 
+const ITEM_SLUGS = {
+  photoVideoCreator: "photo-video-creator",
+};
+
 const ADD_ON_LABELS: Record<string, string> = {
   additional_camera: "Additional Camera",
   teleprompter: "Teleprompter",
@@ -183,6 +187,17 @@ const ADD_ON_PRICES: Record<string, number> = {
 };
 
 const CREATIVE_PARTNER_HOURLY_RATE = 250;
+const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 375;
+
+const EDITING_SERVICE_PRICES: Record<string, number> = {
+  highlight_video_4_7: 350,
+  feature_video_10_20: 500,
+  full_feature_video_30_40: 500,
+  reel_10_60: 250,
+  interview_video_1_5: 350,
+  music_video_edit: 500,
+  edited_photos: 250,
+};
 
 const titleize = (value?: string) =>
   String(value || "")
@@ -272,6 +287,38 @@ const getRecommendedTeam = (services: string[]) => ({
 const getPrimaryCreativeServiceLabel = (services: string[]) => {
   const service = services.find((item) => item !== "studios") || "photography";
   return titleize(service);
+};
+
+const getIncludedPackageOffers = ({
+  hasPhoto,
+  hasVideo,
+}: {
+  hasPhoto: boolean;
+  hasVideo: boolean;
+}) => {
+  if (hasPhoto && hasVideo) {
+    return [
+      "All Raw Files, Images, Audio, Lighting & Insurance Provided",
+      "Up to 45 Minutes Setup Time",
+      "2x Complimentary Revision Rounds",
+      "Digital Delivery",
+    ];
+  }
+
+  if (hasVideo) {
+    return [
+      "All Raw Files, Audio, Lighting & Insurance Provided",
+      "Up to 45 Minutes Setup Time",
+      "2x Complimentary Revision Rounds",
+      "Digital Delivery",
+    ];
+  }
+
+  return [
+    "All Raw Images, Lighting & Insurance Provided",
+    "Up to 45 Minutes Setup Time",
+    "Digital Delivery",
+  ];
 };
 
 const getStudioListItems = () =>
@@ -382,8 +429,8 @@ export const BookAShootV4 = () => {
     scheduleData: null,
     shootDetailsData: null,
     teamSelectionData: null,
-    addOnsQuantities: { additional_camera: 1 },
-    addOnsSubtotal: 350,
+    addOnsQuantities: {},
+    addOnsSubtotal: 0,
     contactInformation: null,
     studioCategory: null,
   });
@@ -419,10 +466,17 @@ export const BookAShootV4 = () => {
   const contentTypes = isStudioBooking
     ? [...new Set([...baseContentTypes, "studio"])]
     : baseContentTypes;
+  const selectedHybridCreators = Number(creativeTeam.photoVideoCreator || 0);
+  const hasPhotoCoverage =
+    contentTypes.includes("photographer") ||
+    selectedHybridCreators > 0;
+  const hasVideoCoverage =
+    contentTypes.includes("videographer") ||
+    selectedHybridCreators > 0;
   const canShowVideoEdits =
-    contentTypes.includes("videographer") || contentTypes.includes("editing");
+    hasVideoCoverage || contentTypes.includes("editing");
   const canShowPhotoEdits =
-    contentTypes.includes("photographer") || contentTypes.includes("editing");
+    hasPhotoCoverage || contentTypes.includes("editing");
   const editOptions = getEditOptionsForShootType(
     bookingState.selectedOccasion,
     canShowVideoEdits,
@@ -465,6 +519,10 @@ export const BookAShootV4 = () => {
     shootType: bookingState.selectedOccasion,
     durationHours: safeDurationHours,
     selectedAddOnSets: photoEditSetCount,
+    includedPerHourOverride:
+      selectedHybridCreators > 0
+        ? 25 * Number(creativeTeam.photographer || 0) + 10 * selectedHybridCreators
+        : undefined,
   });
   const roundedPhotoEditSummary = {
     includedPerHour: Math.round(photoEditSummary.includedPerHour),
@@ -715,7 +773,7 @@ export const BookAShootV4 = () => {
     const coords = getCoordinates(scheduleData.locationDetails);
 
     setBookingState((prev) => ({ ...prev, scheduleData }));
-    setInternalStep(editsStep);
+    setInternalStep(detailsStep);
     void saveLeadProgress({
       content_type: contentTypes.join(","),
       shoot_type: bookingState.selectedOccasion,
@@ -984,7 +1042,7 @@ export const BookAShootV4 = () => {
     );
 
     setSelectedStudios(scheduledStudios);
-    setInternalStep(combinedEditsStep);
+    setInternalStep(combinedMatchmakerStep);
     void saveLeadProgress({
       content_type: contentTypes.join(","),
       shoot_type: bookingState.selectedOccasion,
@@ -1002,7 +1060,9 @@ export const BookAShootV4 = () => {
 
   const handleCombinedEditsSubmitted = (editsConfig: EditsConfig) => {
     setBookingState((prev) => ({ ...prev, editsConfig }));
-    setInternalStep(combinedMatchmakerStep);
+    setInternalStep(
+      shouldChooseOwn ? combinedChooseCreativesStep : combinedAddOnsStep
+    );
     void saveLeadProgress({
       edits_needed: editsConfig.needsEdits,
       video_edit_types: editsConfig.videoEditTypes,
@@ -1012,7 +1072,7 @@ export const BookAShootV4 = () => {
 
   const handleEditsSubmitted = (editsConfig: EditsConfig) => {
     setBookingState((prev) => ({ ...prev, editsConfig }));
-    setInternalStep(detailsStep);
+    setInternalStep(shouldChooseOwn ? chooseCreativesStep : addOnsStep);
     void saveLeadProgress({
       edits_needed: editsConfig.needsEdits,
       video_edit_types: editsConfig.videoEditTypes,
@@ -1039,16 +1099,8 @@ export const BookAShootV4 = () => {
   const handleCreativeTeamSubmitted = (updatedTeam: { [key: string]: number }) => {
     setCreativeTeam(updatedTeam);
 
-    if (bookingState.teamSelectionData?.teamOption === "choose-own") {
-      setInternalStep(
-        isCombinedStudioBooking ? combinedChooseCreativesStep : chooseCreativesStep
-      );
-      return;
-    }
-
-    setLetBeigeChoose(true);
-    setSelectedCreatives([]);
-    setInternalStep(isCombinedStudioBooking ? combinedAddOnsStep : 8);
+    setInternalStep(isCombinedStudioBooking ? combinedEditsStep : editsStep);
+    setPricingPreview(null);
   };
 
   const handleChooseCreativePartnerSubmitted = (
@@ -1119,6 +1171,7 @@ export const BookAShootV4 = () => {
       videographer: Number(creativeTeam.videographer || 0),
       photographer: Number(creativeTeam.photographer || 0),
       cinematographer: Number(creativeTeam.cinematographer || 0),
+      photoVideoCreator: Number(creativeTeam.photoVideoCreator || 0),
     };
     const totalRoleCount = Object.values(roleCounts).reduce(
       (sum, count) => sum + count,
@@ -1133,6 +1186,12 @@ export const BookAShootV4 = () => {
         const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
         if (itemId && count > 0) {
           roleItems.push({ item_id: itemId, quantity: count });
+          return;
+        }
+
+        const slug = ITEM_SLUGS[role as keyof typeof ITEM_SLUGS];
+        if (slug && count > 0) {
+          roleItems.push({ slug, quantity: count });
         }
       });
     }
@@ -1482,12 +1541,18 @@ export const BookAShootV4 = () => {
       .filter(Boolean)
       .join(", ");
     const roleCost =
-      pricingInputs.totalRoleCount *
-      CREATIVE_PARTNER_HOURLY_RATE *
-      Math.max(1, pricingInputs.shootHours || 1);
+      (
+        Number(creativeTeam.photographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.videographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.cinematographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.photoVideoCreator || 0) * PHOTO_VIDEO_CREATOR_HOURLY_RATE
+      ) * Math.max(1, pricingInputs.shootHours || 1);
     const videoEditCount = bookingState.editsConfig.videoEditTypes.length;
     const fallbackEditingServiceCost = bookingState.editsConfig.needsEdits
-      ? videoEditCount * 500 + photoEditSetCount * 125
+      ? bookingState.editsConfig.videoEditTypes.reduce(
+          (sum, slug) => sum + (EDITING_SERVICE_PRICES[slug] || 0),
+          0
+        ) + photoEditSetCount * EDITING_SERVICE_PRICES.edited_photos
       : 0;
     const editingServiceCost =
       bookingState.editsConfig.needsEdits && previewLineItems.length > 0
@@ -1513,7 +1578,14 @@ export const BookAShootV4 = () => {
     const roleTitleParts = [
       creativeTeam.photographer ? `Photographer x${creativeTeam.photographer}` : "",
       creativeTeam.videographer ? `Videographer x${creativeTeam.videographer}` : "",
+      creativeTeam.photoVideoCreator
+        ? `Photographer + Videographer (1 person) x${creativeTeam.photoVideoCreator}`
+        : "",
     ].filter(Boolean);
+    const packageOffers = getIncludedPackageOffers({
+      hasPhoto: hasPhotoCoverage,
+      hasVideo: hasVideoCoverage,
+    });
 
     return {
       serviceName:
@@ -1523,11 +1595,7 @@ export const BookAShootV4 = () => {
               bookingState.selectedServices[0] || "Service"
             )}`,
       baseServiceCost: studioCost,
-      packageOffers: [
-        "All Raw Images, Lighting & Insurance Provided",
-        "Up to 45 Minutes Setup Time",
-        "Digital Delivery",
-      ],
+      packageOffers,
       photosIncluded: roundedPhotoEditSummary.includedCount,
       extraPhotoUnitsText: `Extra Photo Units x${photoEditSetCount}`,
       extraPhotosCount: roundedPhotoEditSummary.extraCount,
@@ -1616,11 +1684,10 @@ export const BookAShootV4 = () => {
         [...formattedAddOns, ...studioAddOns].length > 0
           ? [...formattedAddOns, ...studioAddOns]
           : ["No add-ons selected"],
-      includedServices: [
-        "All Raw Images, Lighting & Insurance Provided",
-        "Up to 45 Minutes Setup Time",
-        "Digital Delivery",
-      ],
+      includedServices: getIncludedPackageOffers({
+        hasPhoto: hasPhotoCoverage,
+        hasVideo: hasVideoCoverage,
+      }),
     };
   };
 
@@ -1733,7 +1800,7 @@ export const BookAShootV4 = () => {
           return (
             <EditsNeeded
               onContinue={handleCombinedEditsSubmitted}
-              onBack={() => setInternalStep(combinedStudioScheduleStep)}
+              onBack={() => setInternalStep(combinedCreativeTeamStep)}
               initialConfig={bookingState.editsConfig}
               baseFreePhotos={roundedPhotoEditSummary.includedCount}
               photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
@@ -1750,7 +1817,7 @@ export const BookAShootV4 = () => {
           return (
             <MatchMakerStep
               onContinue={handleTeamSelected}
-              onBack={() => setInternalStep(combinedEditsStep)}
+              onBack={() => setInternalStep(combinedStudioScheduleStep)}
               initialOption={
                 bookingState.teamSelectionData?.teamOption || "best-match"
               }
@@ -1770,7 +1837,7 @@ export const BookAShootV4 = () => {
         case combinedChooseCreativesStep:
           return shouldChooseOwn ? (
             <ChooseCreativePartner
-              onBack={() => setInternalStep(combinedCreativeTeamStep)}
+              onBack={() => setInternalStep(combinedEditsStep)}
               onContinue={handleChooseCreativePartnerSubmitted}
               requiredCount={Object.values(creativeTeam).reduce(
                 (sum, count) => sum + Number(count || 0),
@@ -1782,13 +1849,14 @@ export const BookAShootV4 = () => {
               requiredRoles={{
                 video: Number(creativeTeam.videographer || 0),
                 photo: Number(creativeTeam.photographer || 0),
+                hybrid: Number(creativeTeam.photoVideoCreator || 0),
               }}
               initialSelectedCreatives={selectedCreatives}
               initialLetBeigeChoose={letBeigeChoose}
             />
           ) : (
             <AddOnsStep
-              onBack={() => setInternalStep(combinedCreativeTeamStep)}
+              onBack={() => setInternalStep(combinedEditsStep)}
               onContinue={handleAddOnsSubmitted}
               initialAddOns={bookingState.addOnsQuantities}
             />
@@ -1917,7 +1985,7 @@ export const BookAShootV4 = () => {
         ) : (
           <EditsNeeded
             onContinue={handleEditsSubmitted}
-            onBack={() => setInternalStep(bookingDetailsStep)}
+            onBack={() => setInternalStep(creativeTeamStep)}
             initialConfig={bookingState.editsConfig}
             baseFreePhotos={roundedPhotoEditSummary.includedCount}
             photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
@@ -1952,7 +2020,7 @@ export const BookAShootV4 = () => {
         ) : (
           <ShootDetails
             onContinue={handleDetailsSubmitted}
-            onBack={() => setInternalStep(editsStep)}
+            onBack={() => setInternalStep(bookingDetailsStep)}
             initialNotes={bookingState.shootDetailsData?.notes || ""}
             initialLinks={bookingState.shootDetailsData?.links || []}
           />
@@ -1996,7 +2064,7 @@ export const BookAShootV4 = () => {
       case chooseCreativesStep:
         return shouldChooseOwn ? (
           <ChooseCreativePartner
-            onBack={() => setInternalStep(creativeTeamStep)}
+            onBack={() => setInternalStep(editsStep)}
             onContinue={handleChooseCreativePartnerSubmitted}
             requiredCount={Object.values(creativeTeam).reduce(
               (sum, count) => sum + Number(count || 0),
@@ -2008,13 +2076,14 @@ export const BookAShootV4 = () => {
             requiredRoles={{
               video: Number(creativeTeam.videographer || 0),
               photo: Number(creativeTeam.photographer || 0),
+              hybrid: Number(creativeTeam.photoVideoCreator || 0),
             }}
             initialSelectedCreatives={selectedCreatives}
             initialLetBeigeChoose={letBeigeChoose}
           />
         ) : (
           <AddOnsStep
-            onBack={() => setInternalStep(creativeTeamStep)}
+            onBack={() => setInternalStep(editsStep)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
           />

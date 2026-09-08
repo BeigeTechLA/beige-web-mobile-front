@@ -111,7 +111,6 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   const handleNext = () => {
     if (needsEdits) {
       const hasVideoEditOptions = showVideoEdits && videoEditOptions.length > 0;
-      const hasPhotoEditOptions = showPhotoEdits && photoEditOptions.length > 0;
       const selectedVideoEditCount = Object.values(videoEditCounts).reduce(
         (sum, count) => sum + count,
         0
@@ -122,10 +121,6 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         return;
       }
 
-      if (hasPhotoEditOptions && editedPhotosSets === 0) {
-        toast.error("Please select at least one photo edit type");
-        return;
-      }
     }
 
     const videoEditTypes =

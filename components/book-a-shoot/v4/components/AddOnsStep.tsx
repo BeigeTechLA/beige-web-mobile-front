@@ -62,7 +62,7 @@ const ADD_ONS_DATA: AddOnItem[] = [
   {
     id: "expedited_editing",
     title: "Expedited Editing (1 Week)",
-    description: "Prioritized 72-hour turnaround.",
+    description: "Prioritized one-week turnaround.",
     price: 500,
   },
 ];
@@ -80,7 +80,7 @@ interface AddOnsStepProps {
 export default function AddOnsStep({
   onBack,
   onContinue,
-  initialAddOns = { additional_camera: 1 },
+  initialAddOns = {},
   title = "Want to add anything extra?",
   subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
   stepNumber = "08",

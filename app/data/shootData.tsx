@@ -165,70 +165,141 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
   },
 ];
 
+// Previous v4 shoot type catalog kept for rollback/reference.
+// export const legacyNewshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
+//   // COACHELLA_SHOOT_TYPE,
+//   {
+//     key: "music", title: "Music Video", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg", stats: [
+//       { label: "People", value: "50-300" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "6-10 hrs" }
+//     ]
+//   },
+//   {
+//     key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+//       { label: "People", value: "50-2K" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "3-8 hrs" }
+//     ]
+//   },
+//   {
+//     key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+//       { label: "People", value: "10-100" },
+//       { label: "Highlight Reel", value: "6-10 hrs" },
+//       { label: "Videographer", value: "6-10 hrs" },
+//       { label: "Hours", value: "2-5 hrs" }
+//     ]
+//   },
+// ];
+
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   // COACHELLA_SHOOT_TYPE,
   {
-    key: "music", title: "Music Video", details: "Artists-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "6-10 hrs" }
-    ]
-  },
-  {
     key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
+      { label: "Type", value: "Event" },
       { label: "Hours", value: "6-10 hrs" }
     ]
   },
   {
-    key: "commercial", title: "Commercial & Advertising", details: "Brand ads, promos, campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
+    key: "music", title: "Music Video", details: "Artist-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
+      { label: "Type", value: "Video" },
       { label: "Hours", value: "6-10 hrs" }
     ]
   },
   {
-    key: "social_content", title: "Social Content", details: "Reels, TikToks, Youtube", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/social_content.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "6-10 hrs" }
+    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+      { label: "Type", value: "Event" },
+      { label: "People", value: "50-2K" }
     ]
   },
   {
-    key: "podcast", title: "Podcasts & Shows", details: "Video podcasts, livestreams", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/podcast.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "6-10 hrs" }
+    key: "corporate", title: "Corporate", details: "Company events, offsites, and business content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+      { label: "Type", value: "Business" },
+      { label: "People", value: "50-2K" }
     ]
   },
   {
-    key: "short_film", title: "Short Films & Narrative", details: "Scripted, cinematic stories", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/short_film.jpg", stats: [
-      { label: "People", value: "50-300" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "6-10 hrs" }
+    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+      { label: "Type", value: "Event" },
+      { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
-      { label: "People", value: "50-2K" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "3-8 hrs" }
+    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+      { label: "Type", value: "Party" },
+      { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
-      { label: "People", value: "10-100" },
-      { label: "Highlight Reel", value: "6-10 hrs" },
-      { label: "Videographer", value: "6-10 hrs" },
-      { label: "Hours", value: "2-5 hrs" }
+    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/people_teams.jpg", stats: [
+      { label: "Type", value: "Memorial" },
+      { label: "Tone", value: "Respectful" }
+    ]
+  },
+  {
+    key: "real_estate", title: "Real Estate", details: "Property, listing, and architectural shoots", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+      { label: "Type", value: "Property" },
+      { label: "Use", value: "Listings" }
+    ]
+  },
+  {
+    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
+      { label: "Type", value: "Brand" },
+      { label: "Use", value: "Promotional" }
+    ]
+  },
+  {
+    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+      { label: "Type", value: "Product" },
+      { label: "Use", value: "Commerce" }
+    ]
+  },
+  {
+    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/behind_scenes.jpg", stats: [
+      { label: "Type", value: "Custom" },
+      { label: "Details", value: "Describe later" }
     ]
   },
 ];
@@ -249,63 +320,23 @@ export const shootTypes: { key: string; value: string }[] = [
 // VIDEO EDIT TYPES
 // ============================================
 
-export const corporateEventEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
-  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
-  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
+export const selfServeVideoEditTypes: { key: string; value: string }[] = [
+  { key: "highlight_video_4_7", value: "Highlight Video (4-7 min)" },
+  { key: "feature_video_10_20", value: "Feature Video (10-20 min)" },
+  { key: "full_feature_video_30_40", value: "Full Feature Video (30-40 min)" },
+  { key: "reel_10_60", value: "Reel (10-60 sec)" },
+  { key: "interview_video_1_5", value: "Interview Video (1-5 min)" },
+  { key: "music_video_edit", value: "Music Video Edit" },
 ];
 
-export const weddingEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
-  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
-  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
-];
-
-export const privateEventEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "mini_highlight_1_2", value: "Mini Highlight Video (1-2 mins)" },
-  { key: "highlight_4_7", value: "Highlight Video (4-7 min)" },
-  { key: "feature_30_40", value: "Feature Video (30-40 min)" },
-];
-
-export const commercialEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "commercial_2_4", value: "Commercial (2 min-4 min)" },
-  { key: "commercial_4_10", value: "Commercial (4 min-10 min)" },
-];
-
-export const socialContentEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "social_reel_2_4", value: "Social Media Reel (2 min-4 min)" },
-];
-
-export const podcastEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "full_podcast_15_30", value: "Full Length Podcast (15 min-30 min)" },
-  { key: "full_podcast_30_60", value: "Longer Full Length Podcast (30 min-60 min)" },
-];
-
-export const musicEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "music_video_2_3", value: "Edited Music Video (2-3 min)" },
-  { key: "music_video_vfx_2_3", value: "Edited Music Video with VFX (2-3 min)" },
-];
-
-export const shortFilmEditTypes: { key: string; value: string }[] = [
-  { key: "social_reel_15_30", value: "Social Media Reel (15 sec-30 sec)" },
-  { key: "social_reel_30_90", value: "Social Media Reel (30 sec-90 sec)" },
-  { key: "short_film_2_5", value: "Edited Short Film (2 Min-5 Min)" },
-  { key: "short_film_5_10", value: "Edited Short Film (5 Min-10 Min)" },
-];
+export const corporateEventEditTypes = selfServeVideoEditTypes;
+export const weddingEditTypes = selfServeVideoEditTypes;
+export const privateEventEditTypes = selfServeVideoEditTypes;
+export const commercialEditTypes = selfServeVideoEditTypes;
+export const socialContentEditTypes = selfServeVideoEditTypes;
+export const podcastEditTypes = selfServeVideoEditTypes;
+export const musicEditTypes = selfServeVideoEditTypes;
+export const shortFilmEditTypes = selfServeVideoEditTypes;
 
 // Legacy movie and TV types (keeping for backward compatibility)
 export const tvSeriesEditTypes: { key: string; value: string }[] = [
@@ -323,39 +354,39 @@ export const movieEditTypes: { key: string; value: string }[] = [
 // ============================================
 
 export const corporateEventPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const weddingPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "50 edited photos per hour for weddings" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const privateEventPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const brandProductPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const socialContentPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const peopleTeamsPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const behindScenesPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const musicPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export const commercialPhotoEditTypes: { key: string; value: string; note?: string }[] = [
-  { key: "edited_photos", value: "Edited Photos", note: "25 edited photos per hour" },
+  { key: "edited_photos", value: "Extra Edited Photos (25 Photos)", note: "25 edited photos per hour" },
 ];
 
 export type Addon = {

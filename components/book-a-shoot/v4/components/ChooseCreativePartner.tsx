@@ -11,7 +11,6 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import type { Creator } from "@/lib/types";
-import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
 import {
   useGetRandomCrewQuery,
   useSearchCreatorsQuery,
@@ -33,10 +32,14 @@ interface ChooseCreativePartnerProps {
   requiredRoles?: {
     video?: number;
     photo?: number;
+    hybrid?: number;
   };
   initialSelectedCreatives?: Creator[];
   initialLetBeigeChoose?: boolean;
 }
+
+type CrewRole = "video" | "photo" | "hybrid";
+type SelectedCrewRoles = Record<number, CrewRole>;
 
 type FlexibleCreator = Omit<Creator, "role_id"> & {
   role_id?: number | string | Array<number | string>;
@@ -377,13 +380,17 @@ export default function ChooseCreativePartner({
     return () => clearInterval(timer);
   }, []);
 
-  const searchableContentTypes = useMemo(
-    () =>
-      contentTypes.filter(
-        (type) => !["editing", "studio", "ai editing"].includes(type)
-      ),
-    [contentTypes]
-  );
+  const searchableContentTypes = useMemo(() => {
+    const types = contentTypes.filter(
+      (type) => !["editing", "studio", "ai editing"].includes(type)
+    );
+
+    if (Number(requiredRoles?.hybrid || 0) > 0) {
+      types.push("photographer", "videographer");
+    }
+
+    return [...new Set(types)];
+  }, [contentTypes, requiredRoles?.hybrid]);
 
   const normalizedRequiredRoles = useMemo(() => {
     const requestedVideo =
@@ -400,13 +407,14 @@ export default function ChooseCreativePartner({
     return {
       video: Math.max(0, Number(requestedVideo) || 0),
       photo: Math.max(0, Number(requestedPhoto) || 0),
+      hybrid: Math.max(0, Number(requiredRoles?.hybrid) || 0),
     };
-  }, [requiredRoles?.photo, requiredRoles?.video, searchableContentTypes]);
+  }, [requiredRoles?.hybrid, requiredRoles?.photo, requiredRoles?.video, searchableContentTypes]);
 
   const resolvedRequiredCount = Math.max(
     1,
     requiredCount,
-    normalizedRequiredRoles.video + normalizedRequiredRoles.photo
+    normalizedRequiredRoles.video + normalizedRequiredRoles.photo + normalizedRequiredRoles.hybrid
   );
 
   const {
@@ -491,6 +499,18 @@ export default function ChooseCreativePartner({
   }, [normalizedRequiredRoles]);
 
   const filteredCreators = useMemo(() => {
+    const requiresOnlyHybrid =
+      requirements.required.hybrid > 0 &&
+      requirements.required.video === 0 &&
+      requirements.required.photo === 0;
+
+    if (requiresOnlyHybrid) {
+      return creators.filter((creator) => {
+        const caps = getCreatorCapabilities(creator);
+        return caps.isVideo && caps.isPhoto;
+      });
+    }
+
     if (activeRoleFilter === "video") {
       return creators.filter((creator) => getCreatorCapabilities(creator).isVideo);
     }
@@ -509,6 +529,7 @@ export default function ChooseCreativePartner({
     const selectedCreators = creators.filter(c => ids.includes(c.crew_member_id));
     let videoCount = 0;
     let photoCount = 0;
+    let hybridCount = 0;
 
     selectedCreators.forEach(c => {
       const caps = getCreatorCapabilities(c);
@@ -516,6 +537,7 @@ export default function ChooseCreativePartner({
 
       if (assignedRole === "video" && caps.isVideo) videoCount++;
       if (assignedRole === "photo" && caps.isPhoto) photoCount++;
+      if (assignedRole === "hybrid" && caps.isVideo && caps.isPhoto) hybridCount++;
 
       if (!assignedRole && !(caps.isVideo && caps.isPhoto)) {
         const flexibleCreator = c as FlexibleCreator;
@@ -525,12 +547,12 @@ export default function ChooseCreativePartner({
       }
     });
 
-    return { video: videoCount, photo: photoCount };
+    return { video: videoCount, photo: photoCount, hybrid: hybridCount };
   }, [creators]);
 
   const getDefaultRoleForCreator = (
     creator: Creator,
-    currentCounts: { video: number; photo: number },
+    currentCounts: { video: number; photo: number; hybrid: number },
   ): CrewRole | null => {
     const caps = getCreatorCapabilities(creator);
 
@@ -538,8 +560,13 @@ export default function ChooseCreativePartner({
     if (!caps.isVideo && caps.isPhoto) return "photo";
     if (!caps.isVideo && !caps.isPhoto) return null;
 
+    const needsHybrid = currentCounts.hybrid < requirements.required.hybrid;
     const needsVideo = currentCounts.video < requirements.required.video;
     const needsPhoto = currentCounts.photo < requirements.required.photo;
+
+    if (needsHybrid) {
+      return "hybrid";
+    }
 
     if (needsVideo && !needsPhoto) {
       return "video";
@@ -593,6 +620,7 @@ export default function ChooseCreativePartner({
         const nextCounts = calculateCounts(nextIds, nextRoles);
         const isVideoFull = nextCounts.video > requirements.required.video;
         const isPhotoFull = nextCounts.photo > requirements.required.photo;
+        const isHybridFull = nextCounts.hybrid > requirements.required.hybrid;
 
         if (activeRole === "video" && isVideoFull) {
           toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
@@ -601,6 +629,11 @@ export default function ChooseCreativePartner({
 
         if (activeRole === "photo" && isPhotoFull) {
           toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+          return prev;
+        }
+
+        if (isHybridFull) {
+          toast.error(`You have already selected the required ${requirements.required.hybrid} Photo + Video Creative(s).`);
           return prev;
         }
 
@@ -638,6 +671,12 @@ export default function ChooseCreativePartner({
 
       const isVideoFull = nextCounts.video > requirements.required.video;
       const isPhotoFull = nextCounts.photo > requirements.required.photo;
+      const isHybridFull = nextCounts.hybrid > requirements.required.hybrid;
+
+      if (isHybridFull) {
+        toast.error(`You have already selected the required ${requirements.required.hybrid} Photo + Video Creative(s).`);
+        return prev;
+      }
 
       if (isVideo && isVideoFull) {
         toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
@@ -660,6 +699,25 @@ export default function ChooseCreativePartner({
   };
 
   const selectedCounts = calculateCounts(selectedIds, selectedRoles);
+  const canContinue =
+    letBeigeChoose ||
+    (
+      selectedIds.length === resolvedRequiredCount &&
+      selectedCounts.video >= requirements.required.video &&
+      selectedCounts.photo >= requirements.required.photo &&
+      selectedCounts.hybrid >= requirements.required.hybrid
+    );
+  const handleContinue = () => {
+    if (!canContinue) {
+      toast.error("Please select the requested creative partner mix.");
+      return;
+    }
+
+    onContinue(
+      creators.filter((c) => selectedIds.includes(c.crew_member_id)),
+      letBeigeChoose
+    );
+  };
   const shouldShowLoading =
     loading || ((isCreatorsFetching || isRandomCrewFetching) && creators.length === 0);
 
@@ -763,6 +821,16 @@ export default function ChooseCreativePartner({
             {String(requirements.required.video).padStart(2, "0")}
           </span>
         </div>
+
+        {requirements.required.hybrid > 0 && (
+          <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+            <span>
+              Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
+              {String(requirements.required.hybrid).padStart(2, "0")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Bottom Action Footer Bar */}
@@ -781,12 +849,8 @@ export default function ChooseCreativePartner({
 
         <button
           type="button"
-          onClick={() =>
-            onContinue(
-              creators.filter((c) => selectedIds.includes(c.crew_member_id)),
-              letBeigeChoose
-            )
-          }
+          onClick={handleContinue}
+          disabled={!canContinue}
           className="px-5 lg:px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue with {String(selectedIds.length).padStart(2, "0")} Creatives

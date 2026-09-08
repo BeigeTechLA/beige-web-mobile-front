@@ -12,6 +12,7 @@ import {
   FolderDown,
   BadgeCheck,
   PencilLine,
+  RotateCcw,
 } from "lucide-react";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
@@ -199,7 +200,9 @@ export default function ConfirmAndPay({
                     <div className="w-10 h-10 rounded-full bg-[#171717] flex items-center justify-center shrink-0">
                       {idx === 0 && <ShieldCheck className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
                       {idx === 1 && <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                      {idx === 2 && <FolderDown className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
+                      {idx === 2 && offer.toLowerCase().includes("revision") && <RotateCcw className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
+                      {idx === 2 && !offer.toLowerCase().includes("revision") && <FolderDown className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
+                      {idx > 2 && <FolderDown className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
                     </div>
                     <span>{offer}</span>
                   </div>
@@ -207,7 +210,6 @@ export default function ConfirmAndPay({
               </div>
             </div>
 
-            Editing Services Breakdown
             <div className="space-y-2 mb-4 text-sm text-white/70">
               <p className="text-white/40 mb-4 text-sm">+ Editing services</p>
               <div className="flex justify-between items-center">
@@ -219,10 +221,12 @@ export default function ConfirmAndPay({
                 </div>
                 <span className="text-[#E8D1AB] text-base font-bold">{data.photosIncluded} Photos</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#A9A9A9] text-sm ">{data.extraPhotoUnitsText}</span>
-                <span className="text-white text-base font-bold">{data.extraPhotosCount} Photos</span>
-              </div>
+              {data.extraPhotosCount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[#A9A9A9] text-sm ">{data.extraPhotoUnitsText}</span>
+                  <span className="text-white text-base font-bold">{data.extraPhotosCount} Photos</span>
+                </div>
+              )}
               {data.videoEditsCount > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="text-[#A9A9A9] text-sm max-w-1/2">{data.videoEditUnitsText}</span>
