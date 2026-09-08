@@ -260,7 +260,10 @@ export default function AdminFolderManagerPage() {
             ? "common-events"
             : selectedTab === "Visibility expired"
             ? "visibility-expired"
-              : undefined,
+            : selectedTab === "Recent"
+            ? "recent"
+            : undefined,
+        recentDays: selectedTab === "Recent" ? 5 : undefined,
       });
 
       if (requestId !== projectsRequestRef.current) return;
