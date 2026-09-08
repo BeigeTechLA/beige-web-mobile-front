@@ -1043,7 +1043,7 @@ export default function CreatorDashboardPage() {
               {...viewState}
               onMove={(evt) => setViewState(evt.viewState)}
               style={{ width: "100%", height: "100%" }}
-              mapStyle="mapbox://styles/mapbox/dark-v11"
+              mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
               mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
             >
               <NavigationControl position="top-right" showCompass={false} />
