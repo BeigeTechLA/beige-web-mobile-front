@@ -170,10 +170,17 @@ export default function CreatorFileManagerPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await fileManagerApi.listExternalWorkspaces();
+      const { workspaces } = await fileManagerApi.listExternalWorkspacesPaginated({
+        page: currentPage,
+        limit: 200,
+        search: searchTerm,
+        workspaceType:
+          selectedTab === "Common events" ? "common-events" : selectedTab === "Recent" ? "recent" : undefined,
+        recentDays: selectedTab === "Recent" ? 5 : undefined,
+      });
 
       setProjects(
-        data.map((workspace) =>
+        workspaces.map((workspace) =>
           mapExternalWorkspaceToFolderCard(workspace, "/creator/dashboard/file-manager")
         )
       );
@@ -182,7 +189,7 @@ export default function CreatorFileManagerPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAccessAllowed]);
+  }, [currentPage, isAccessAllowed, searchTerm, selectedTab]);
 
   useEffect(() => {
     let mounted = true;
