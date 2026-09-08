@@ -21,7 +21,7 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
     <div className="w-full max-w-6xl mx-auto p-4 md:p-8">
       {/* Outer Dark Container Card */}
       <div
-        className="relative w-full rounded-[50px] p-8 md:p-14 lg:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
+        className="relative w-full rounded-3xl lg:rounded-[50px] p-5 lg:p-10 2xl:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
       >
         {/* Left Column: Form Content */}
         <div className="lg:col-span-7 flex flex-col justify-center pr-0 lg:pr-4">
@@ -31,13 +31,13 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
           </span>
 
           {/* Heading */}
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white leading-[1.08] mb-6 capitalize">
+          <h1 className="text-3xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white leading-[1.08] mb-4 lg:mb-6">
             {service} <br />
             & Studio selected
-          </h2>
+          </h1>
 
           {/* Subtext */}
-          <p className="text-base md:text-xl text-white/40 font-normal leading-relaxed mb-10 max-w-md">
+          <p className="text-sm lg:text-base 2xl:text-xl text-white/40 font-normal leading-relaxed mb-6 lg:mb-10 max-w-md">
             We’ll help you choose your studio now. You can set up your videography service in the next step.
           </p>
 
@@ -106,7 +106,6 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
 
           </div>
         </div>
-
       </div>
     </div>
   );
