@@ -233,7 +233,8 @@ export default function AffiliateFileManager() {
           page,
           limit: ROOT_PAGE_SIZE,
           search: searchQuery,
-          workspaceType: tab === "Common events" ? "common-events" : undefined,
+          workspaceType: tab === "Common events" ? "common-events" : tab === "Recent" ? "recent" : undefined,
+          recentDays: tab === "Recent" ? 5 : undefined,
         });
 
       const mapped = externalWorkspaces

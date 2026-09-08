@@ -849,13 +849,15 @@ export const fileManagerApi = {
     page?: number;
     limit?: number;
     search?: string;
-    workspaceType?: "common-events" | "visibility-expired";
+    workspaceType?: "common-events" | "visibility-expired" | "recent";
+    recentDays?: number;
   }) {
     const params: Record<string, string | number> = {};
     if (options?.page) params.page = options.page;
     if (options?.limit) params.limit = options.limit;
     if (options?.search) params.search = options.search;
     if (options?.workspaceType) params.workspaceType = options.workspaceType;
+    if (options?.recentDays) params.recentDays = options.recentDays;
 
     const response = await apiClient.get<ExternalWorkspacesResponse>(
       "external-file-manager/workspaces",
