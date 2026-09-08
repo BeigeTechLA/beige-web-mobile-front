@@ -446,7 +446,7 @@ export default function CreatorFolderDetailsPage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <div className="lg:hidden">
+                  <div className="lg:hidden flex flex-col gap-3">
                     {visibleFolders.map((folder) => (
                       <MobileFolderRow
                         key={folder.id}
@@ -455,8 +455,28 @@ export default function CreatorFolderDetailsPage() {
                         isDark={isDark}
                       />
                     ))}
-                  </div>
 
+                    {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                      <button
+                        onClick={handleCreateMyEventFolder}
+                        disabled={isCreatingMyFolder}
+                        className={`flex w-full items-center gap-4 p-4 border transition-all rounded-xl disabled:opacity-60 ${
+                          isDark
+                            ? "border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22]"
+                            : "border-[#e5e5e5] bg-white text-[#cbb38b] hover:border-[#cbb38b]/70 hover:bg-neutral-100/70"
+                        }`}
+                      >
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
+                          isDark ? "border-[#E5D5B8]/50 bg-[#E5D5B8]/10" : "border-[#e5e5e5] bg-[#cbb38b]/10"
+                        }`}>
+                          <Plus size={20} />
+                        </div>
+                        <span className="text-sm font-medium">
+                          {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
                   <div className={`border rounded-xl hidden overflow-x-auto lg:block transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
                     <table className="w-full border-collapse text-left">
                       <thead>
@@ -478,8 +498,7 @@ export default function CreatorFolderDetailsPage() {
                             }}
                           >
                             <td className="flex items-center gap-2 px-6 py-5">
-                              <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"
-                                }`}>
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"}`}>
                                 <FolderOpen
                                   className={isDark ? "fill-[#E8D1AB]/20 text-[#E8D1AB]" : "fill-[#cbb38b]/20 text-[#cbb38b]"}
                                   size={24}
@@ -508,6 +527,31 @@ export default function CreatorFolderDetailsPage() {
                             </td>
                           </tr>
                         ))}
+
+                        {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                          <tr>
+                            <td colSpan={4} className="p-4">
+                              <button
+                                onClick={handleCreateMyEventFolder}
+                                disabled={isCreatingMyFolder}
+                                className={`flex w-full items-center justify-center gap-3 py-5 border transition-all rounded-xl disabled:opacity-60 ${
+                                  isDark
+                                    ? "border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22]"
+                                    : "border-[#e5e5e5] bg-white text-[#cbb38b] hover:border-[#cbb38b]/70 hover:bg-neutral-100/70"
+                                }`}
+                              >
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                                  isDark ? "border-[#E5D5B8]/50 bg-[#E5D5B8]/10" : "border-[#e5e5e5] bg-[#cbb38b]/10"
+                                }`}>
+                                  <Plus size={18} />
+                                </div>
+                                <span className="text-sm font-medium">
+                                  {isCreatingMyFolder ? "Creating your folder..." : "Create Your Folder"}
+                                </span>
+                              </button>
+                            </td>
+                          </tr>
+                        ) : null}
                       </tbody>
                     </table>
                   </div>
