@@ -50,13 +50,15 @@ const PLACEHOLDER_STUDIO = {
   isAdded: true
 }
 
+export type StudioScheduleSyncStudio = typeof PLACEHOLDER_STUDIO;
+
 const parseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
   const parsed = parseISO(dateStr);
   return isValid(parsed) ? parsed : new Date(dateStr);
 };
 
-const areBookingDaysEqual = (a: any[], b: any[]) =>
+const areBookingDaysEqual = (a: unknown[], b: unknown[]) =>
   JSON.stringify(a) === JSON.stringify(b);
 
 export interface StudioScheduleSyncProps {
@@ -83,6 +85,7 @@ export interface StudioScheduleSyncProps {
       end_time?: string;
     }>;
   } | null;
+  selectedStudio?: Partial<StudioScheduleSyncStudio>;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -95,6 +98,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   initialUseSameSchedule = true,
   initialBookingType = "single_day",
   initialScheduleData,
+  selectedStudio: selectedStudioProp,
   title = "Should the studio use the same schedule?",
   subtitle = "You can use your shoot schedule or set a separate date and time for the studio.",
   stepNumber = "03",
@@ -125,9 +129,13 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const [bookingType, setBookingType] = useState<"single_day" | "multi_day">(sourceBookingType);
   const [isAccordionOpen, setIsAccordionOpen] = useState<boolean>(true);
 
-  // Update parameter during integration
-  const [isStudioJourney3, setIsStudioJourney3] = useState(true);
-  const [selectedStudio, setSelectedStudio] = useState(PLACEHOLDER_STUDIO);
+  const isStudioJourney3 = true;
+  const selectedStudio = {
+    ...PLACEHOLDER_STUDIO,
+    ...selectedStudioProp,
+    tags: selectedStudioProp?.tags || PLACEHOLDER_STUDIO.tags,
+    isAdded: true,
+  };
 
   // Single Day & Time States
   const [selectedShootDate, setSelectedShootDate] = useState<Date | null>(
