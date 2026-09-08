@@ -260,7 +260,10 @@ export default function AdminFolderManagerPage() {
             ? "common-events"
             : selectedTab === "Visibility expired"
             ? "visibility-expired"
-              : undefined,
+            : selectedTab === "Recent"
+            ? "recent"
+            : undefined,
+        recentDays: selectedTab === "Recent" ? 5 : undefined,
       });
 
       if (requestId !== projectsRequestRef.current) return;
@@ -894,7 +897,7 @@ export default function AdminFolderManagerPage() {
 
                         {/* Category Field */}
                         <td className="py-5 px-6 text-base">
-                          <span className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark? "bg-[#171717] text-white": "bg-[#F4F5F7] text-[#727272]"}`}>
+                          <span className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark ? "bg-[#171717] text-white" : "bg-[#F4F5F7] text-[#727272]"}`}>
                             {folder.category}
                           </span>
                         </td>
@@ -1125,52 +1128,84 @@ export default function AdminFolderManagerPage() {
         />
 
         {isActivityModalOpen ? (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-3 py-4 sm:px-4 sm:py-8">
-            <div className={`flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl max-h-[min(760px,calc(100dvh-32px))] sm:max-h-[min(760px,calc(100dvh-64px))] ${isDark ? "border-white/10 bg-[#101010] text-white" : "border-[#D7D7D7] bg-white text-black"}`}>
-              <div className={`shrink-0 flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}>
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-semibold">Folder Activity</h2>
-                  <p className={`truncate text-sm ${isDark ? "text-white/50" : "text-[#727272]"}`}>
-                    {selectedFolder?.title || "Selected folder"}
-                  </p>
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-3 py-4 sm:px-4 sm:py-8 backdrop-blur-md transition-all">
+            <div className={`flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl max-h-[min(760px,calc(100dvh-32px))] sm:max-h-[min(760px,calc(100dvh-64px))] ${isDark ? "border-white/10 bg-[#121212] text-white shadow-black/80" : "border-[#E5E7EB] bg-[#FAFAFA] text-slate-900 shadow-slate-300/50"}`}>
+              {/* Modal Header */}
+              <div className={`shrink-0 flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-white/10 bg-[#181818]" : "border-[#E5E7EB] bg-white"}`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB]" : "bg-[#E8D1AB]/25 text-[#9E8155]"}`}>
+                    <History size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-base sm:text-lg font-bold tracking-tight">Folder Activity</h2>
+                    <p className={`truncate text-xs ${isDark ? "text-white/60" : "text-slate-500"}`}>
+                      {selectedFolder?.title || "Selected folder"}
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsActivityModalOpen(false)}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-black hover:bg-black/10"}`}
+                  className={`flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
                   aria-label="Close folder activity"
                 >
                   <X size={18} />
                 </button>
               </div>
 
+              {/* Modal Body Content */}
               <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 [scrollbar-width:thin] ${isDark ? "[scrollbar-color:rgba(255,255,255,0.22)_transparent]" : "[scrollbar-color:rgba(0,0,0,0.18)_transparent]"} [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full ${isDark ? "[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-white/30" : "[&::-webkit-scrollbar-thumb]:bg-black/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30"}`}>
                 {activityLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="animate-spin text-[#BFA780]" size={30} />
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <Loader2 className="animate-spin text-[#E8D1AB]" size={36} />
+                    <span className={`text-xs font-medium ${isDark ? "text-white/50" : "text-slate-400"}`}>Loading activity logs...</span>
                   </div>
                 ) : !activityData || activityData.logs.length === 0 ? (
-                  <p className={`py-10 text-center text-sm ${isDark ? "text-white/45" : "text-[#727272]"}`}>
-                    No upload or delete activity logged yet.
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-full ${isDark ? "bg-white/5 text-white/40" : "bg-slate-100 text-slate-400"}`}>
+                      <History size={24} />
+                    </div>
+                    <p className={`text-sm font-medium ${isDark ? "text-white/60" : "text-slate-600"}`}>
+                      No upload or delete activity logged yet
+                    </p>
+                    <p className={`text-xs ${isDark ? "text-white/40" : "text-slate-400"}`}>
+                      Actions performed on this folder will appear here.
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-5">
-                    <div className={`sticky -top-4 z-20 -mx-4 -mt-4 grid grid-cols-1 gap-3 border-b px-4 pb-3 pt-4 sm:-top-5 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 md:grid-cols-2 ${isDark ? "border-white/10 bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}>
+                  <div className="space-y-6">
+                    {/* Summary Cards */}
+                    <div className={`sticky -top-4 z-20 -mx-4 -mt-4 grid grid-cols-1 gap-3 border-b px-4 pb-4 pt-4 sm:-top-5 sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5 md:grid-cols-2 ${isDark ? "border-white/10 bg-[#121212]" : "border-[#E5E7EB] bg-[#FAFAFA]"}`}>
                       {[
-                        { label: "Uploads", items: activityData.summary.uploads },
-                        { label: "Deletion", items: activityData.summary.deletes },
+                        { label: "Uploads", items: activityData.summary.uploads, isUpload: true },
+                        { label: "Deletion", items: activityData.summary.deletes, isUpload: false },
                       ].map((group) => (
-                        <div key={group.label} className={`rounded-xl border p-4 shadow-sm ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
-                          <h3 className="text-base font-bold">{group.label}</h3>
-                          <div className="mt-3 space-y-2">
+                        <div key={group.label} className={`rounded-xl border p-4 shadow-sm transition-all ${isDark ? "border-white/10 bg-[#1B1B1B] hover:border-white/20" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#E8D1AB]" : "text-[#9E8155]"}`}>
+                              {group.label}
+                            </h3>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${group.isUpload ? (isDark ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" : "bg-emerald-50 text-emerald-700 border border-emerald-200") : (isDark ? "bg-rose-500/15 text-rose-400 border border-rose-500/20" : "bg-rose-50 text-rose-700 border border-rose-200")}`}>
+                              {group.items.reduce((acc, curr) => acc + (curr.fileCount || 0), 0)} total files
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
                             {group.items.length === 0 ? (
-                              <p className={`text-xs ${isDark ? "text-white/40" : "text-[#727272]"}`}>No records</p>
+                              <p className={`text-xs italic ${isDark ? "text-white/35" : "text-slate-400"}`}>No records</p>
                             ) : (
                               group.items.slice(0, 5).map((item) => (
-                                <div key={`${group.label}-${item.userId || item.name}`} className="flex items-center justify-between gap-3 text-[15px] font-semibold">
-                                  <span className="truncate">{item.name || "Unknown"}</span>
-                                  <span className="shrink-0 font-bold text-[#BFA780]">
-                                    {item.fileCount} files
+                                <div key={`${group.label}-${item.userId || item.name}`} className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                                      {(item.name || "U").charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className={`truncate font-medium ${isDark ? "text-white/90" : "text-slate-800"}`}>
+                                      {item.name || "Unknown"}
+                                    </span>
+                                  </div>
+                                  <span className={`shrink-0 font-semibold text-xs px-2 py-0.5 rounded-md ${isDark ? "bg-white/5 text-[#E8D1AB]" : "bg-slate-100 text-[#9E8155]"}`}>
+                                    {item.fileCount} {item.fileCount === 1 ? "file" : "files"}
                                   </span>
                                 </div>
                               ))
@@ -1180,29 +1215,53 @@ export default function AdminFolderManagerPage() {
                       ))}
                     </div>
 
+                    {/* Timeline Activity Log List */}
                     <div className="space-y-3">
-                      {activityData.logs.map((log) => (
-                        <div key={log.id || log._id || `${log.action}-${log.createdAt}`} className={`rounded-xl border p-4 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
-                          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold">
-                                {log.actorName || "Unknown"} {log.action === "upload" ? "uploaded" : "deleted"} {log.fileCount} {log.fileCount === 1 ? "file" : "files"}
-                              </p>
-                              <p className={`mt-1 truncate text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
-                                {log.targetName || log.targetPath || log.folderPath}
-                              </p>
+                      <h4 className={`text-xs font-semibold uppercase tracking-wider px-1 ${isDark ? "text-white/40" : "text-slate-400"}`}>
+                        Detailed Activity Log
+                      </h4>
+                      {activityData.logs.map((log) => {
+                        const isUpload = log.action === "upload";
+                        return (
+                          <div key={log.id || log._id || `${log.action}-${log.createdAt}`} className={`rounded-xl border p-4 transition-all duration-200 ${isDark ? "border-white/10 bg-[#1B1B1B] hover:border-white/20 hover:bg-[#222]" : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"}`}>
+                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mt-0.5 ${isUpload ? (isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-100 text-emerald-700") : (isDark ? "bg-rose-500/15 text-rose-400" : "bg-rose-100 text-rose-700")}`}>
+                                  {isUpload ? <FolderOpen size={16} /> : <Trash2 size={16} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
+                                      {log.actorName || "Unknown"}
+                                    </span>
+                                    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${isUpload ? (isDark ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" : "bg-emerald-50 text-emerald-700 border border-emerald-200") : (isDark ? "bg-rose-500/15 text-rose-400 border border-rose-500/20" : "bg-rose-50 text-rose-700 border border-rose-200")}`}>
+                                      {isUpload ? "Uploaded" : "Deleted"} {log.fileCount} {log.fileCount === 1 ? "file" : "files"}
+                                    </span>
+                                  </div>
+                                  <p className={`mt-1 truncate text-xs font-mono ${isDark ? "text-white/50" : "text-slate-500"}`}>
+                                    {log.targetName || log.targetPath || log.folderPath}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className={`shrink-0 text-xs font-medium self-start md:self-auto ${isDark ? "text-white/45" : "text-slate-400"}`}>
+                                {formatActivityDate(log.createdAt)}
+                              </div>
                             </div>
-                            <div className={`shrink-0 text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
-                              {formatActivityDate(log.createdAt)}
+                            
+                            <div className={`mt-3 pt-2.5 border-t text-xs flex items-center justify-between gap-2 flex-wrap ${isDark ? "border-white/5 text-white/50" : "border-slate-100 text-slate-500"}`}>
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="font-semibold text-amber-500/90">{formatFileSize(log.totalSize)}</span>
+                                {log.files?.length ? (
+                                  <span className="truncate">
+                                    • {log.files.slice(0, 3).map((file) => file.name || file.path).filter(Boolean).join(", ")}
+                                    {log.files.length > 3 ? `, +${log.files.length - 3} more` : ""}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
-                          <div className={`mt-3 text-xs ${isDark ? "text-white/45" : "text-[#727272]"}`}>
-                            {formatFileSize(log.totalSize)}
-                            {log.files?.length ? ` • ${log.files.slice(0, 3).map((file) => file.name || file.path).filter(Boolean).join(", ")}` : ""}
-                            {log.files && log.files.length > 3 ? `, +${log.files.length - 3} more` : ""}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
