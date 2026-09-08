@@ -535,22 +535,22 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -561,18 +561,18 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           </div>
         </div>
 
-        {/* Section Heading */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        {/* Header Titles */}
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
-          <p className="text-white/30 text-base lg:text-xl">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Radio Options Toggle */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4 mb-5 lg:mb-8">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 lg:gap-4 mb-5 2xl:mb-8">
           {/* Option 1: Yes, same schedule */}
           <div
             onClick={() => setUseSameSchedule(true)}
@@ -629,7 +629,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
               onClick={() => setIsAccordionOpen(!isAccordionOpen)}
               className="w-full p-4 lg:px-5 lg:py-7 flex items-center justify-between text-left cursor-pointer transition-colors"
             >
-              <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-[#E8D1AB]">
+              <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-medium text-[#E8D1AB]">
                 {bookingType === "single_day" ? "Single Day" : "Multiple Days"}
               </h3>
               {isAccordionOpen ? (
@@ -863,7 +863,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           <>
             <div className=" pb-6 pt-2 space-y-6">
               {/* Segmented Pill Switch */}
-              <div className="flex w-fit lg:h-20 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8 my-4">
+              <div className="flex w-fit h-15 lg:h-20 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8 my-4">
                 <button
                   type="button"
                   onClick={() => setBookingType("single_day")}
@@ -1007,7 +1007,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors group"
                       >
-                        <span className="text-white font-medium group-hover:text-[#E8D1AB] text-base lg:text-xl">
+                        <span className="text-white font-medium group-hover:text-[#E8D1AB] text-base lg:text-2xl font-['Roboto_Condensed']">
                           {format(currentCalendarMonth, "MMMM yyyy")}
                         </span>
                         <CalendarIcon size={20} className="text-white group-hover:text-[#E8D1AB]" />
@@ -1150,181 +1150,182 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
 
                   {/* Timings Selector */}
                   {selectedDates.length > 0 && (
-                    <div className="pt-6 lg:pt-10 border-t border-white/10 space-y-6">
-                      <h3 className="text-base lg:text-[28px] font-medium mb-3 lg:mb-6">
-                        Are timings same for all selected dates?
-                      </h3>
+                    <>
+                    <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
+                      <div className="space-y-6">
+                    <h3 className={`text-base lg:text-2xl font-['Roboto_Condensed'] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
 
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          onClick={() => handleSameTimingsModeChange(true)}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti
-                            ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                            : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                            }`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                        <div className="flex gap-4">
+                          <button
+                            type="button"
+                            onClick={() => handleSameTimingsModeChange(true)}
+                            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti
+                              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
                               }`}
                           >
-                            {sameTimingsMulti && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSameTimingsModeChange(false)}
-                          className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti
-                            ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
-                            : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
-                            }`}
-                        >
-                          <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                          <div
-                            className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}
+                            <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                            <div
+                              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"
+                                }`}
+                            >
+                              {sameTimingsMulti && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSameTimingsModeChange(false)}
+                            className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-2 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti
+                              ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black"
+                              : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"
+                              }`}
                           >
-                            {!sameTimingsMulti && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
-                          </div>
-                        </button>
-                      </div>
-
-                      {sameTimingsMulti ? (
-                        <div>
-                          <div className="flex flex-col lg:flex-row gap-6">
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="Start Time"
-                                options={filteredStartTimeOptions}
-                                value={getStartTimeKey()}
-                                onChange={handleStartTimeChange}
-                                bgColour="bg-[#101010]"
-                                floatingTitle={true}
-                              />
+                            <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                            <div
+                              className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}
+                            >
+                              {!sameTimingsMulti && <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />}
                             </div>
-                            <div className="flex-1">
-                              <DropdownSelect
-                                title="End Time"
-                                options={filteredEndTimeOptions}
-                                value={getEndTimeKey()}
-                                onChange={handleEndTimeChange}
-                                bgColour="bg-[#101010]"
-                                floatingTitle={true}
-                              />
-                            </div>
-                          </div>
-                          <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
-                            <Check className="w-4 h-4 lg:w-6 lg:h-6 text-white" /> Applied to {selectedDates.length} selected dates
-                          </p>
-                          <div className="bg-[#171717] rounded-lg lg:rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col lg:flex-row lg:justify-between lg:items-center">
-                            <p className="text-white font-medium text-sm lg:text-xl">
-                              {getFormattedDateString(selectedDates)}
-                            </p>
-                            <p className="text-white/60 font-medium text-sm lg:text-xl">
-                              {getStartTimeKey() && getEndTimeKey()
-                                ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
-                                : "Select time"}
-                            </p>
-                            <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
-                              {getStartTimeKey() &&
-                                getEndTimeKey() &&
-                                calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
-                                ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
-                                : "Duration Hour/Day"}
-                            </p>
-                          </div>
+                          </button>
                         </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {selectedDates.map((dateItem) => {
-                            const dateKey = getDateKey(dateItem);
-                            const isExpanded = expandedDateKey === dateKey;
-                            return (
-                              <div
-                                key={dateItem.toISOString()}
-                                ref={(el) => {
-                                  selectedDateCardRefs.current[dateKey] = el;
-                                }}
-                                className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const nextExpanded = isExpanded ? null : dateKey;
-                                    setExpandedDateKey(nextExpanded);
-                                    if (nextExpanded) {
-                                      requestAnimationFrame(() => {
-                                        selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "nearest",
-                                          inline: "nearest",
-                                        });
-                                      });
-                                    }
-                                  }}
-                                  className={`w-full p-4 lg:px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10" : ""}`}
-                                >
-                                  <span className="text-white text-sm lg:text-base font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
-                                  <ChevronDown
-                                    className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                                  />
-                                </button>
-                                <AnimatePresence>
-                                  {isExpanded && (
-                                    <motion.div
-                                      initial={{ height: 0 }}
-                                      animate={{ height: "auto" }}
-                                      exit={{ height: 0 }}
-                                      className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-lg lg:rounded-2xl"
-                                    >
-                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="Start Time"
-                                            options={getDateSpecificStartOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.startKey || ""}
-                                            onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                            floatingTitle={true}
-                                          />
-                                        </div>
-                                        <div className="flex-1">
-                                          <DropdownSelect
-                                            title="End Time"
-                                            options={getDateSpecificEndOptions(dateKey)}
-                                            value={multiDayTimes[dateKey]?.endKey || ""}
-                                            onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
-                                            bgColour="bg-[#101010]"
-                                            floatingTitle={true}
-                                          />
-                                        </div>
-                                      </div>
 
-                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-full bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
-                                          Duration:{" "}
-                                          {multiDayTimes[dateKey]?.startKey &&
-                                            multiDayTimes[dateKey]?.endKey &&
-                                            calculateDurationHours(
-                                              multiDayTimes[dateKey]?.startKey || "",
-                                              multiDayTimes[dateKey]?.endKey || ""
-                                            ) !== null
-                                            ? `${calculateDurationHours(
-                                              multiDayTimes[dateKey]?.startKey || "",
-                                              multiDayTimes[dateKey]?.endKey || ""
-                                            )} hours`
-                                            : "Select time"}
-                                        </p>
-                                      </div>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
+                        {sameTimingsMulti ? (
+                          <div>
+                            <div className="flex flex-col lg:flex-row gap-6">
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="Start Time"
+                                  options={filteredStartTimeOptions}
+                                  value={getStartTimeKey()}
+                                  onChange={handleStartTimeChange}
+                                  bgColour="bg-[#101010]"
+                                  floatingTitle={true}
+                                />
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                              <div className="flex-1">
+                                <DropdownSelect
+                                  title="End Time"
+                                  options={filteredEndTimeOptions}
+                                  value={getEndTimeKey()}
+                                  onChange={handleEndTimeChange}
+                                  bgColour="bg-[#101010]"
+                                  floatingTitle={true}
+                                />
+                              </div>
+                            </div>
+                            <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
+                              <Check className="w-4 h-4 lg:w-6 lg:h-6 text-white" /> Applied to {selectedDates.length} selected dates
+                            </p>
+                            <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
+                              <p className="text-white font-medium text-sm lg:text-xl">
+                                {getFormattedDateString(selectedDates)}
+                              </p>
+                              <p className="text-white/60 font-medium text-sm lg:text-xl">
+                                {getStartTimeKey() && getEndTimeKey()
+                                  ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                  : "Select time"}
+                              </p>
+                              <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
+                                {getStartTimeKey() &&
+                                  getEndTimeKey() &&
+                                  calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                  ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                  : "Duration Hour/Day"}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {selectedDates.map((dateItem) => {
+                              const dateKey = getDateKey(dateItem);
+                              const isExpanded = expandedDateKey === dateKey;
+                              return (
+                                <div
+                                  key={dateItem.toISOString()}
+                                  ref={(el) => {
+                                    selectedDateCardRefs.current[dateKey] = el;
+                                  }}
+                                  className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextExpanded = isExpanded ? null : dateKey;
+                                      setExpandedDateKey(nextExpanded);
+                                      if (nextExpanded) {
+                                        requestAnimationFrame(() => {
+                                          selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
+                                            behavior: "smooth",
+                                            block: "nearest",
+                                            inline: "nearest",
+                                          });
+                                        });
+                                      }
+                                    }}
+                                    className={`w-full p-4 lg:px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10" : ""}`}
+                                  >
+                                    <span className="text-white text-sm lg:text-base font-medium">{format(dateItem, "MMMM dd, yyyy")}</span>
+                                    <ChevronDown
+                                      className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                    />
+                                  </button>
+                                  <AnimatePresence>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0 }}
+                                        animate={{ height: "auto" }}
+                                        exit={{ height: 0 }}
+                                        className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-lg lg:rounded-2xl"
+                                      >
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="Start Time"
+                                              options={getDateSpecificStartOptions(dateKey)}
+                                              value={multiDayTimes[dateKey]?.startKey || ""}
+                                              onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                              floatingTitle={true}
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <DropdownSelect
+                                              title="End Time"
+                                              options={getDateSpecificEndOptions(dateKey)}
+                                              value={multiDayTimes[dateKey]?.endKey || ""}
+                                              onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                              bgColour="bg-[#101010]"
+                                              floatingTitle={true}
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-full bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                          <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                            Duration:{" "}
+                                            {multiDayTimes[dateKey]?.startKey &&
+                                              multiDayTimes[dateKey]?.endKey &&
+                                              calculateDurationHours(
+                                                multiDayTimes[dateKey]?.startKey || "",
+                                                multiDayTimes[dateKey]?.endKey || ""
+                                              ) !== null
+                                              ? `${calculateDurationHours(
+                                                multiDayTimes[dateKey]?.startKey || "",
+                                                multiDayTimes[dateKey]?.endKey || ""
+                                              )} hours`
+                                              : "Select time"}
+                                          </p>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -1333,9 +1334,9 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
 
         {isStudioJourney3 &&
           <>
-            <hr className="border-t border-white/20 my-5 lg:my-10" />
+            <hr className="border-t border-white/20 my-5 lg:my-7 2xl:my-10" />
             <div>
-              <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4 lg:mb-8">
+              <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4 lg:mb-8">
                 Studio Selected based on your location
               </h3>
               <div className="border border-white/20 bg-[#101010] rounded-lg lg:rounded-2xl">
@@ -1383,7 +1384,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                         <span>{selectedStudio.location}</span>
                       </div>
 
-                      <hr className="border-t my-3 lg:my-7 border-white/20" />
+                      <hr className="border-t my-3 lg:my-5 2xl:my-7 border-white/20" />
 
                       {/* Tags */}
                       <div className="flex flex-wrap items-center gap-2">
@@ -1398,7 +1399,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
                       </div>
                     </div>
 
-                    <hr className="border-t my-3 lg:my-7 border-white/20" />
+                    <hr className="border-t my-3 lg:my-5 2xl:my-7 border-white/20" />
 
                     {/* Action & Price Footer */}
                     <div className="flex items-center justify-between">
@@ -1462,13 +1463,13 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
           </>}
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      {/* Bottom Action Footer Bar */}
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -1479,7 +1480,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>

@@ -168,7 +168,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <style>{customSwiperStyles}</style>
       <div>
         {/* Top Header Row */}
@@ -182,9 +182,9 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -194,12 +194,12 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         </div>
 
         {/* Section Heading & View Toggle */}
-        <div className="flex items-start justify-between mb-4 lg:mb-6">
+        <div className="flex items-start justify-between mb-5 2xl:mb-8">
           <div>
-            <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+            <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
               {title}
             </h1>
-            <p className="text-white/30 text-sm md:text-xl font-light">
+            <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
               {subtitle}
             </p>
           </div>
@@ -337,7 +337,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                               <span>{studio.location}</span>
                             </div>
 
-                            <hr className="border-t my-3 lg:my-7 border-white/20" />
+                            <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                             {/* Tags */}
                             <div className="flex flex-wrap items-center gap-2">
@@ -352,7 +352,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                             </div>
                           </div>
 
-                          <hr className="border-t my-3 lg:my-7 border-white/20" />
+                          <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                           {/* Action & Price Footer */}
                           <div className="flex items-center justify-between">
@@ -462,7 +462,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                       <MapPin className="w-4 h-4 lg:w-6 lg:h-6" strokeWidth={1} />
                       <span>{studio.location}</span>
                     </div>
-                    <hr className="border-t my-3 lg:my-7 border-white/20" />
+                    <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                     {/* Tags */}
                     <div className="flex flex-wrap items-center gap-2">
@@ -476,7 +476,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                       ))}
                     </div>
                   </div>
-                  <hr className="border-t my-3 lg:my-7 border-white/20" />
+                  <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -522,13 +522,13 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         )}
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      {/* Bottom Action Footer Bar */}
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -539,7 +539,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>

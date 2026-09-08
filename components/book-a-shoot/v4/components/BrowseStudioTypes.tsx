@@ -72,22 +72,22 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -98,17 +98,17 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         </div>
 
         {/* Section Heading */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title ? title : `Browse Studios for your ${occasionTitle}`}
           </h1>
-          <p className="text-white/30 text-sm md:text-xl font-light">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Category Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-5 mb-5 lg:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-5 mb-5 2xl:mb-8">
           {DEFAULT_STUDIO_CATEGORIES.map((category) => {
             const isSelected = selectedKey === category.key;
 
@@ -133,7 +133,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
 
                 {/* Content Overlay */}
                 <div className="relative z-10 max-w-[70%] space-y-2">
-                  <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                  <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                     {category.title}
                   </h3>
                   <p className="text-xs lg:text-base text-white/70 font-light">
@@ -168,11 +168,11 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         {
           showCrewInput &&
           <>
-            <hr className="border-t border-white/20 my-5 lg:my-10" />
+            <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
             {/* Crew Size Input Section */}
             <div className="space-y-4 lg:space-y-8">
-              <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              <h2 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
                 {
                   showShootType ? "How big will your crew be and what kind of shoot is it?" : "How big will your crew be?"
                 }
@@ -225,13 +225,13 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         }
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      {/* Bottom Action Footer Bar */}
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -242,7 +242,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

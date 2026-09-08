@@ -169,7 +169,7 @@ export default function StudioSelection({
                     )}
                   </div>
                   <div className="p-5 space-y-3">
-                    <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                    <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                       {studio.name}
                     </h3>
                     <p className="flex items-start gap-2 text-sm text-white/60">
@@ -253,7 +253,7 @@ export default function StudioSelection({
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -265,7 +265,7 @@ export default function StudioSelection({
           type="button"
           onClick={handleContinue}
           disabled={!selectedStudioPayload}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>
