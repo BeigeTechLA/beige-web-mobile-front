@@ -13,6 +13,8 @@ interface TeamSelectionStepProps {
   onBack?: () => void;
   initialOption?: "best-match" | "choose-own";
   packageTitle?: string;
+  packageInclusions?: string[];
+  showStudioCallout?: boolean;
   title?: string;
   subtitle?: string;
   step?: string;
@@ -31,6 +33,8 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   onBack,
   initialOption = "best-match",
   packageTitle = "Corporate - Photography",
+  packageInclusions = PLACEHOLDER_INCLUSIONS,
+  showStudioCallout = false,
   title = "Who shoots your event?",
   subtitle = "Let Beige find the right creative team for you, or choose your own.",
   step = "05",
@@ -43,16 +47,16 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
       {/* Top Content Stack */}
-        {/* Back Arrow */}
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
+      {/* Back Arrow */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
           className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
-          </button>
-        )}
+        >
+          <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+        </button>
+      )}
 
       {/* Progress Bar */}
       <div className="mb-5 2xl:mb-8">
@@ -219,27 +223,30 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         </div>
 
         {/* Dynamic Info Callout Box: studio journey 2 */}
-        {/* <div className="p-4 lg:p-5 2xl:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm lg:text-base text-[#E8D1AB] mt-4">
-          <Info className="w-6 h-6 flex-shrink-0" />
-          <span>
-            Your studio booking stays the same. Photography is an optional add-on and can be added to your package.
-          </span>
-        </div> */}
-      </div>
+        {showStudioCallout && (
+          <div className="p-4 lg:p-5 2xl:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] flex lg:items-center gap-3 text-sm lg:text-base text-[#E8D1AB] mt-4">
+            <Info className="w-6 h-6 flex-shrink-0" />
+            <span>
+              Your studio booking stays the same. Photography is an optional add-on and can be added to your package.
+            </span>
+          </div>
+        )}
+      </div >
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
-          >
-            Back
-          </button>
-        ) : (
-          <div />
-        )}
+      < div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3" >
+        {
+          onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            >
+              Back
+            </button>
+          ) : (
+            <div />
+          )}
 
         <button
           type="button"
@@ -248,8 +255,8 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         >
           Continue
         </button>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

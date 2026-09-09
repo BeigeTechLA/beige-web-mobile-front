@@ -221,10 +221,19 @@ export function PermissionMatrixTable({
         const children = row.children.map((child) => {
           if (child.id !== childId) return child;
           const access = { ...child.access, [key]: checked };
+          const actionsToCheck = child.allowedActions || ALL_PERMISSION_ACTIONS;
+
+          if (checked && key !== "view") access.view = true;
+          if (key === "view") {
+            actionsToCheck.forEach((action) => {
+              access[action] = checked;
+            });
+          }
+
           return {
             ...child,
             access,
-            selected: (child.allowedActions || ALL_PERMISSION_ACTIONS).every(
+            selected: actionsToCheck.every(
               (action) => access[action],
             ),
           };

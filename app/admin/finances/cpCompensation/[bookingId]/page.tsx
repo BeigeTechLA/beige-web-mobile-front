@@ -140,7 +140,7 @@ export default function CpCompensationHistoryPage() {
   const pathname = usePathname();
   const params = useParams<{ bookingId?: string | string[] }>();
   const { isDark } = useResolvedTheme();
-  const { canView, isLoading: isPermissionLoading } = usePermissions("finances");
+  const { canView, isLoading: isPermissionLoading } = usePermissions("admin_finances_cp_compensation");
   const permissions = useAppSelector((state) => state.auth.permissions);
 
   const bookingId = useMemo(() => {

@@ -1016,6 +1016,10 @@ export default function AffiliateFileManager() {
 
   const totalRootPages = Math.max(1, pagination.totalPages || 1);
   const pagedWorkspaces = filteredWorkspaces;
+  const serverFilteredRootTabs = ["All Files", "Common events", "Recent"];
+  const rootTotalCount = serverFilteredRootTabs.includes(selectedTab)
+    ? pagination.total
+    : filteredWorkspaces.length;
 
   useEffect(() => {
     const nextKey = `${selectedTab}__${searchTerm.trim()}__${status}`;
@@ -1991,7 +1995,7 @@ export default function AffiliateFileManager() {
               }`}>
               <span className="whitespace-nowrap">Projects:</span>
               <p className="font-medium">
-                <span className="text-[#E8D1AB]">{workspaces.length}</span>
+                <span className="text-[#E8D1AB]">{rootTotalCount}</span>
                 <span className={`mx-1 ${isDark ? "text-[#8F8F8F]" : "text-[#000000]"}`}>total</span>
               </p>
             </div>

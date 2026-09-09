@@ -110,7 +110,7 @@ export function RoleCard({ card, isDark = true, onEdit, editDisabled = false, on
           onClick={() => onEdit?.(card.id)}
           disabled={editDisabled}
           title={editDisabled ? "Edit permission not allowed" : "Edit role"}
-          className={`text-sm font-medium underline underline-offset-4 transition disabled:cursor-not-allowed disabled:opacity-35 ${isDark
+          className={`text-sm font-medium underline underline-offset-4 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-35 ${isDark
               ? "text-[#E8D1AB] decoration-[#E8D1AB]/35 hover:text-[#f1e3c7] hover:decoration-[#E8D1AB]"
               : "text-[#8E6A2A] decoration-[#8E6A2A]/30 hover:text-[#6f531f] hover:decoration-[#8E6A2A]"
             }`}

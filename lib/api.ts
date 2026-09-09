@@ -45,6 +45,7 @@ export type AdminRoleRecord = {
   role_id: number;
   name: string;
   description: string | null;
+  is_internal_member?: number;
   is_system: number;
   is_active: number;
   created_by: number | null;
@@ -127,6 +128,7 @@ export type UserRoleDetailsResponse = {
     email: string;
     user_type: number | null;
     user_type_name: string | null;
+    is_internal_member?: number;
     is_active: number;
     status_label: 'Active' | 'In-Active';
     created_at: string | null;
@@ -136,6 +138,7 @@ export type UserRoleDetailsResponse = {
     role_id: number | null;
     name: string | null;
     description?: string | null;
+    is_internal_member?: number;
     is_active?: number;
     created_at?: string | null;
     updated_at?: string | null;
@@ -143,6 +146,8 @@ export type UserRoleDetailsResponse = {
   display_role: string | null;
   archive_history?: ArchiveHistoryRecord[];
   permissions: Record<string, Record<string, boolean>>;
+  role_permissions?: Record<string, Record<string, boolean>>;
+  user_permissions?: Record<string, Record<string, boolean>>;
 };
 
 export type ShiftManagementApiResponse<T = unknown> = {
@@ -1821,9 +1826,14 @@ export const adminApi = {
       };
     }
   },
-  getCreditPointsUserById: async (userId: string | number) => {
+  getCreditPointsUserById: async (
+    userId: string | number,
+    params: { page?: number; limit?: number } = {}
+  ) => {
     try {
-      const response = await api.get(`finance/admin/credit-points/users/${userId}`);
+      const response = await api.get(`finance/admin/credit-points/users/${userId}`, {
+        params,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Credit Points User Error:', error.response?.data || error.message);
@@ -1834,10 +1844,13 @@ export const adminApi = {
       };
     }
   },
-  getCreditPointsUserByGuestEmail: async (guestEmail: string) => {
+  getCreditPointsUserByGuestEmail: async (
+    guestEmail: string,
+    params: { page?: number; limit?: number } = {}
+  ) => {
     try {
       const response = await api.get('finance/admin/credit-points/users', {
-        params: { guest_email: guestEmail },
+        params: { guest_email: guestEmail, ...params },
       });
       return response.data;
     } catch (error: any) {
@@ -4131,6 +4144,31 @@ export const salesApi = {
       };
     }
   },
+  updateShootType: async (
+    shootTypeId: number | string,
+    data: {
+      name?: string;
+      content_type?: number;
+      display_order?: number;
+      image_url?: string | null;
+      description?: string | null;
+      tags?: string | Record<string, unknown> | null;
+      edited_photos_note?: string | null;
+      is_active?: number | boolean;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/shoot-types/${shootTypeId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update shoot type',
+      };
+    }
+  },
   getShootTypes: async (id: number | string) => {
     try {
       const response = await api.get(`/sales/quotes/shoot-types/${id}`);
@@ -4167,6 +4205,29 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to create AI editing type',
+      };
+    }
+  },
+  updateAiEditingType: async (
+    id: number | string,
+    data: {
+      category?: "video" | "photo";
+      label?: string;
+      type_key?: string;
+      note?: string | null;
+      display_order?: number;
+      is_active?: number | boolean;
+    },
+  ) => {
+    try {
+      const response = await api.put(`/sales/quotes/ai-editing-types/${id}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update AI Editing Type Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update AI editing type',
       };
     }
   },

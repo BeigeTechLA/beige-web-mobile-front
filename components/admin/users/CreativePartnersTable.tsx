@@ -300,7 +300,7 @@ const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string
 
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
-  const { canEdit, canDelete } = usePermissions("users");
+  const { canEdit, canDelete } = usePermissions("admin_users_creative_partners");
   const [mounted, setMounted] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
@@ -1084,8 +1084,11 @@ export const CreativePartnersTable = () => {
                   </p>
                 </div>
 
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    Start Date
+                  </p>
                 <DatePicker
-                  label="Start Date"
+                  label=""
                   value={exportStartDate}
                   onChange={(date) => {
                     if (!date) {
@@ -1128,9 +1131,12 @@ export const CreativePartnersTable = () => {
                   format="MM/dd/yyyy"
                   sx={{ height: "42px" }}
                 />
-
+        
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    End Date
+                  </p>
                 <DatePicker
-                  label="End Date"
+                  label=""
                   value={exportEndDate}
                   onChange={(date) => {
                     if (!date) {
