@@ -172,7 +172,9 @@ export function RolesPermissionsPage({
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { canEdit, canDelete } = usePermissions("roles_permissions");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [roleSortOrder, setRoleSortOrder] = useState<"asc" | "desc">("asc");
+  const [userSortOrder, setUserSortOrder] = useState<"asc" | "desc">("desc");
+
   const [roles, setRoles] = useState<AdminRoleRecord[]>([]);
   const [users, setUsers] = useState<PermissionUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -209,35 +211,35 @@ export function RolesPermissionsPage({
     const response = await adminApi.getRoles({
       search: searchQuery,
       sort_by: "created_at",
-      order: sortOrder,
+      order: roleSortOrder,
     });
-
+    
     if (response?.success && Array.isArray(response.data)) {
       setRoles(response.data);
     } else {
       setRoles([]);
       setRolesError(response?.error || response?.message || "Failed to load roles");
     }
+    
+  }, [searchQuery, roleSortOrder]);
 
-  }, [searchQuery, sortOrder]);
+const loadUsers = useCallback(async () => {
+  setUsersError("");
 
-  const loadUsers = useCallback(async () => {
-    setUsersError("");
+  const response = await adminApi.getUsersWithRoles({
+    search: searchQuery,
+    sort_by: "created_at",
+    order: userSortOrder,
+  });
 
-    const response = await adminApi.getUsersWithRoles({
-      search: searchQuery,
-      sort_by: "created_at",
-      order: sortOrder,
-    });
+  if (response?.success && Array.isArray(response.data)) {
+    setUsers(response.data.map(mapUserToPermissionUser));
+  } else {
+    setUsers([]);
+    setUsersError(response?.error || response?.message || "Failed to load users");
+  }
 
-    if (response?.success && Array.isArray(response.data)) {
-      setUsers(response.data.map(mapUserToPermissionUser));
-    } else {
-      setUsers([]);
-      setUsersError(response?.error || response?.message || "Failed to load users");
-    }
-
-  }, [searchQuery, sortOrder]);
+}, [searchQuery, userSortOrder]);
 
 useEffect(() => {
   const loadPage = async () => {
@@ -387,15 +389,15 @@ useEffect(() => {
             <button
               type="button"
               onClick={() =>
-                setSortOrder((current) => (current === "desc" ? "asc" : "desc"))
+                setRoleSortOrder((current) => (current === "desc" ? "asc" : "desc"))
               }
               className={`w-fit inline-flex h-8 lg:h-12 items-center gap-2 lg:gap-3 rounded-full border px-3 cursor-pointer lg:px-6 text-xs lg:text-base transition-colors duration-300 ${isDark
                 ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4] hover:border-white/20 hover:bg-[#161616] hover:text-white"
                 : "border-[#D9D9D9] bg-white text-[#323232] hover:border-[#CFCFCF] hover:bg-[#F7F7F7] hover:text-[#101010]"
                 }`}
             >
-              <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
-              {sortOrder === "desc" ? (
+              <span>{roleSortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
+              {roleSortOrder === "desc" ? (
                 <ArrowDownNarrowWide size={18} className="w-3 h-3 lg:w-5 lg:h-5 " />
               ) : (
                 <ArrowUpNarrowWide size={18} className="w-3 h-3 lg:w-5 lg:h-5 " />
@@ -442,9 +444,9 @@ useEffect(() => {
             )}
           </div>
 
-          <PermissionUsersTable
+         <PermissionUsersTable
             users={users}
-            sortOrder={sortOrder}
+            sortOrder={userSortOrder}
             isDark={isDark}
             isLoading={isLoading}
             error={usersError}
