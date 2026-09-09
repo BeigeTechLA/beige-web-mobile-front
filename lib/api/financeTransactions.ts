@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import axios from "axios";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -319,6 +320,15 @@ export type FinanceTransactionListParams = {
   date_to?: string;
 };
 
+export type FinanceTransactionExportParams = {
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  status?: string;
+  payment_method?: string;
+  time_zone?: string;
+};
+
 export type FinanceShootListParams = {
   page?: number;
   limit?: number;
@@ -349,6 +359,38 @@ export const financeTransactionsApi = {
       "finance/transactions",
       cleanParams(params)
     );
+  },
+
+  async exportTransactionsCsv(params: FinanceTransactionExportParams = {}): Promise<Blob> {
+    try {
+      const response = await apiClient.getInstance().get<Blob>(
+        "finance/transactions/export",
+        {
+          params: cleanParams(params),
+          responseType: "blob",
+        }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export transactions.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+            // Keep fallback message.
+          }
+        }
+      }
+
+      console.error("Export Transactions CSV Error:", error);
+      throw new Error(message);
+    }
   },
 
   listShoots(params: FinanceShootListParams = {}) {
