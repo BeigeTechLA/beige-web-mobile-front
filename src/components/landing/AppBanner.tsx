@@ -38,7 +38,7 @@ export const AppBanner = () => {
             {/* App Store / Play Store Links */}
             <div className="flex gap-3 lg:gap-5">
               <Link
-                href="https://apps.apple.com/"
+                href="https://apps.apple.com/us/app/book-a-shoot-instantly/id6762329422"
                 target="_blank"
                 className="relative rounded-full h-12 w-40 lg:w-[220px] lg:h-[69px]"
               >
