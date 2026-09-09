@@ -1939,6 +1939,9 @@ export const BookAShootV4 = () => {
           return (
             <CreativeTeam
               initialCounts={creativeTeam}
+              selectedServices={bookingState.selectedServices}
+              stepNumber="06"
+              completionPercentage={82}
               onBack={() => setInternalStep(combinedMatchmakerStep)}
               onContinue={handleCreativeTeamSubmitted}
             />
@@ -2169,6 +2172,9 @@ export const BookAShootV4 = () => {
         ) : (
           <CreativeTeam
             initialCounts={creativeTeam}
+            selectedServices={bookingState.selectedServices}
+            stepNumber="06"
+            completionPercentage={75}
             onBack={() => setInternalStep(matchmakerStep)}
             onContinue={handleCreativeTeamSubmitted}
           />
