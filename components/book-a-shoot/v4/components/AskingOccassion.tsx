@@ -71,15 +71,23 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [screenType, setScreenType] = useState<"mobile" | "lg" | "2xl">("mobile");
 
   // Screen size detection for dynamic mobile carousel spacing
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 1536) {
+        setScreenType("2xl");
+      } else if (width >= 1024) {
+        setScreenType("lg");
+      } else {
+        setScreenType("mobile");
+      }
     };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Derive initial shoot types list directly from withStudioOption
@@ -144,8 +152,8 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
       <div
         onClick={() => setSelectedId(occasion.key)}
         className={`group relative rounded-2xl p-4 bg-[#101010] border transition-all duration-300 cursor-pointer flex flex-col justify-between ${isSelected
-            ? "border-[#E8D1AB]"
-            : "border-white/20 hover:border-white/50"
+          ? "border-[#E8D1AB]"
+          : "border-white/20 hover:border-white/50"
           }`}
       >
         <div className="space-y-4">
@@ -225,26 +233,22 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   const activeOccasion = occasions[activeCarouselIndex] || occasions[0];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
       <div>
-        {/* Top Header Row */}
-        <div className="flex items-center justify-between lg:mb-6">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
+        {/* Back Arrow */}
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+          </button>
+        )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -256,12 +260,12 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         </div>
 
         <div className="flex justify-between items-start">
-          <div>
+          <div className="mb-5 2xl:mb-8">
             {/* Section Heading */}
-            <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+            <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
               {title}
             </h1>
-            <p className="text-white/30 text-base md:text-xl font-light mb-8">
+            <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
               {subtitle}
             </p>
           </div>
@@ -272,8 +276,8 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
               type="button"
               onClick={() => setViewMode("carousel")}
               className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "carousel"
-                  ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                  : "text-white hover:text-white/80"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
                 }`}
               title="Arc Carousel View"
             >
@@ -286,8 +290,8 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
               type="button"
               onClick={() => setViewMode("grid")}
               className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
-                  ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                  : "text-white hover:text-white/80"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
                 }`}
               title="Grid View"
             >
@@ -307,7 +311,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex flex-col items-center my-6 w-full overflow-visible"
+              className="flex flex-col items-center 2xl:my-6 w-full overflow-visible"
             >
               {/* Draggable Semi-Circle Arc Container */}
               <motion.div
@@ -315,28 +319,34 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.2}
                 onDragEnd={handleDragEnd}
-                className="relative w-full h-[220px] md:h-[300px] lg:h-[360px] flex justify-center items-center overflow-visible my-4 cursor-grab active:cursor-grabbing touch-none"
+                className="relative w-full h-[200px] md:h-[240px] 2xl:h-[300px] flex justify-center items-center overflow-visible my-4 cursor-grab active:cursor-grabbing touch-none"
               >
                 {occasions.map((item, index) => {
                   const offset = index - activeCarouselIndex;
                   const absOffset = Math.abs(offset);
-
-                  // Responsive spacing logic: Compact spacing for mobile to ensure visible adjacent cards
-                  const baseSpacing = isMobile ? 240 : 440;
-                  const xOffset = offset * baseSpacing;
-
-                  // Semi-circle math parameters
                   const isCenter = offset === 0;
 
-                  // Spacing Calibration: 360px base step guarantees non-overlapping spacing (gap-10 feel)
-                  // 2. Tighter curve and scaling to prevent wide cards from touching
-                  const yOffset = Math.pow(absOffset, 1.8) * (isMobile ? 20 : 35);
-                  const rotate = offset * (isMobile ? 4 : 6);
-                  const scale = Math.max(0.7, 1 - absOffset * 0.15);
+                  // 1. Arc radius & minimum gap configuration per breakpoint
+                  const screenConfig = {
+                    mobile: { baseSpacing: 240, minGap: 30, radius: 950 },
+                    lg: { baseSpacing: 310, minGap: 40, radius: 1600 },
+                    "2xl": { baseSpacing: 420, minGap: 48, radius: 2000 },
+                  }[screenType];
+
+                  // 2. Trigonometric step angle based on fixed card width + minGap chord
+                  const chordDistance = screenConfig.baseSpacing + screenConfig.minGap;
+                  const angleStep = 2 * Math.asin(chordDistance / (2 * screenConfig.radius));
+                  const currentAngle = offset * angleStep;
+
+                  // 3. X/Y positions and rotation along the arc
+                  const xOffset = Math.sin(currentAngle) * screenConfig.radius;
+                  const yOffset = (1 - Math.cos(currentAngle)) * screenConfig.radius;
+                  const rotate = (currentAngle * 180) / Math.PI;
+
+                  const scale = 1;
                   const opacity = Math.max(0.15, 1 - absOffset * 0.35);
 
-                  // Render immediate adjacent cards
-                  if (absOffset > 3) return null;
+                  if (absOffset > 2) return null;
 
                   return (
                     <motion.div
@@ -360,12 +370,12 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                         stiffness: 260,
                         damping: 25,
                       }}
-                      className="absolute w-[240px] md:w-[320px] lg:w-[394px] h-[160px] md:h-[210px] lg:h-[280px] cursor-pointer select-none origin-center"
+                      className="absolute w-[240px] md:w-[300px] 2xl:w-[394px] h-[160px] md:h-[210px] 2xl:h-[280px] cursor-pointer select-none origin-center"
                     >
                       <div
                         className={`relative w-full h-full rounded-xl lg:rounded-2xl border transition-all duration-300 ${isCenter
-                            ? "border-[#E8D1AB]"
-                            : "border-white/10 hover:border-white/30"
+                          ? "border-[#E8D1AB]"
+                          : "border-white/10 hover:border-white/30"
                           }`}
                       >
                         <Image
@@ -392,11 +402,11 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
               </motion.div>
 
               {/* Active Info */}
-              <div className="text-center mt-2 mb-5 lg:mb-10 select-none">
-                <h3 className="text-xl lg:text-4xl font-bold font-['Roboto_Condensed'] text-[#E8D1AB] mb-2 lg:mb-6">
+              <div className="text-center mt-2 mb-5 lg:mb-6 2xl:mb-10 select-none">
+                <h3 className="text-xl lg:text-2xl 2xl:text-4xl font-bold font-['Roboto_Condensed'] text-[#E8D1AB] mb-2 2xl:mb-6">
                   {activeOccasion.title}
                 </h3>
-                <p className="text-base md:text-2xl text-white/70 font-light">
+                <p className="text-base 2xl:text-2xl text-white/70 font-light">
                   {activeOccasion.details}
                 </p>
               </div>
@@ -408,9 +418,9 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => setSampleImageIndex(idx)}
-                    className={`relative w-16 h-12 md:w-20 lg:w-34 md:h-14 lg:h-18 rounded-xl overflow-hidden border transition-all cursor-pointer ${sampleImageIndex === idx
-                        ? "border-white opacity-100"
-                        : "border-white/10 opacity-50 hover:opacity-100"
+                    className={`relative w-16 h-12 lg:w-20 2xl:w-34 2xl:h-18 rounded-lg 2xl:rounded-xl overflow-hidden border transition-all cursor-pointer ${sampleImageIndex === idx
+                      ? "border-white opacity-100"
+                      : "border-white/10 opacity-50 hover:opacity-100"
                       }`}
                   >
                     <Image
@@ -440,12 +450,12 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -456,7 +466,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
         <button
           type="button"
           onClick={() => onContinue(selectedId)}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

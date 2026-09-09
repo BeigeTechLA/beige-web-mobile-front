@@ -80,22 +80,22 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
       {/* Top Content Stack */}
       <div>
         {/* Back Arrow */}
         {onBack && (
           <button
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
         {/* Step Indicator Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -107,17 +107,17 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
         </div>
 
         {/* Header Titles */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
-          <p className="text-white/30 text-sm md:text-xl font-light">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Grid of Service Selection Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5 2xl:gap-6">
           {SERVICES.map((service) => {
             const isSelected = selectedIds.includes(service.id);
 
@@ -125,7 +125,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
               <div
                 key={service.id}
                 onClick={() => !service.disabled && toggleService(service.id)}
-                className={`relative rounded-xl lg:rounded-2xl p-4 lg:p-7 transition-all duration-300 flex justify-between items-center border overflow-hidden min-h-[140px]
+                className={`relative rounded-xl lg:rounded-2xl p-4 lg:p-5 2xl:p-7 transition-all duration-300 flex justify-between items-center border overflow-hidden lg:max-h-[122px] 2xl:max-h-unset 2xl:min-h-[170px]
                   ${service.disabled
                     ? "bg-[#141414]/60 text-white/5 border-white/50 cursor-not-allowed opacity-50"
                     : `cursor-pointer ${isSelected
@@ -135,20 +135,20 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
                   }`}
               >
                 {/* Left Card Details */}
-                <div className="flex flex-col justify-between h-full z-10 max-w-[65%]">
+                <div className="flex flex-col justify-between h-full z-10 max-w-[80%]">
                   <div>
-                    <h3 className={`text-base lg:text-[26px] font-bold mb-2 lg:mb-4 font-['Roboto_Condensed'] leading-none ${isSelected ? "text-black" : "text-[#E8D1AB]"}`}>
+                    <h3 className={`text-base lg:text-lg 2xl:text-[26px] font-bold mb-2 2xl:mb-4 font-['Roboto_Condensed'] leading-none ${isSelected ? "text-black" : "text-[#E8D1AB]"}`}>
                       {service.title}
                     </h3>
-                    <p className={`text-xs lg:text-base font-light leading-none ${isSelected ? "text-black/70" : "text-white/70"}`}>
+                    <p className={`text-xs 2xl:text-base font-light leading-none ${isSelected ? "text-black/70" : "text-white/70"}`}>
                       {service.description}
                     </p>
                   </div>
 
                   {/* Checkbox Indicator */}
-                  <div className="mt-7 lg:mt-9">
+                  <div className="mt-7 lg:mt-5 2xl:mt-9">
                     <div
-                      className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isSelected
+                      className={`w-5 h-5 2xl:w-6 2xl:h-6 rounded-md flex items-center justify-center transition-all ${isSelected
                         ? "bg-black text-white"
                         : "border border-white/30 bg-transparent"
                         }`}
@@ -160,7 +160,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
 
                 {/* Right 3D Visual Asset Container */}
                 {service.iconSrc && (
-                  <div className="absolute right-0 w-28 h-28 md:w-32 md:h-32 shrink-0 pointer-events-none -mr-2">
+                  <div className="absolute right-0 w-20 h-20 2xl:w-32 2xl:h-32 shrink-0 pointer-events-none -mr-2">
                     <Image
                       src={service.iconSrc}
                       alt={service.title}
@@ -176,13 +176,11 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
       </div>
 
       {/* Bottom Action Footer - Matches Exact Outer Bounds */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center lg:justify-between">
-        <div />
-
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         <button
           onClick={handleNext}
           disabled={selectedIds.length === 0}
-          className="w-full lg:w-auto px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="w-full lg:w-auto px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

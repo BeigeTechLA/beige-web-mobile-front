@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
-import { ArrowDownLeft, ArrowUpRight, Check, Plus, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Check, Plus, X, Share } from 'lucide-react';
 import type { Creator } from "@/lib/types";
 import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
 
@@ -161,8 +161,8 @@ const CreatorCarousel = ({
             prevEl: ".creator-prev-btn",
             nextEl: ".creator-next-btn",
           }}
-          className="w-full creator-swiper !py-10 lg:!py-5
-            [&_.swiper-slide]:opacity-0 [&_.swiper-slide]:transition-all [&_.swiper-slide]:duration-300
+          className="w-full creator-swiper !py-10 lg:!py-0 2xl:!py-5
+            [&_.swiper-slide]:opacity-0 [&_.swiper-slide]:pointer-events-none [&_.swiper-slide]:transition-all [&_.swiper-slide]:duration-300
             [&_.swiper-slide-active]:!opacity-100 [&_.swiper-slide-active]:!pointer-events-auto
             [&_.swiper-slide-prev]:!opacity-100 [&_.swiper-slide-prev]:!pointer-events-auto
             [&_.swiper-slide-next]:!opacity-100 [&_.swiper-slide-next]:!pointer-events-auto
@@ -186,10 +186,10 @@ const CreatorCarousel = ({
 
             return (
               <SwiperSlide key={creatorId} className="!flex justify-center">
-                <div className="w-[240px] sm:w-[280px] lg:w-[474px] h-[291px] lg:h-[567px]">
-                  <div className="relative w-[240px] sm:w-[280px] !h-[330px] lg:w-[474px] lg:!h-[550px] rounded-lg lg:rounded-2xl overflow-hidden bg-[#171717] border transition-all border-white/40">
+                <div className="w-[240px] sm:w-[280px] lg:w-[400px] 2xl:w-[474px] h-[291px] lg:h-[400px] 2xl:h-[567px]">
+                  <div className="relative w-[240px] sm:w-[280px] h-[330px] lg:w-[336px] 2xl:w-[474px] lg:h-[400px] 2xl:!h-[550px] rounded-lg lg:rounded-2xl overflow-hidden bg-[#171717] border transition-all border-white/40">
                     {/* Image Area */}
-                    <div className="relative w-full h-[230px] lg:h-[382px] overflow-hidden">
+                    <div className="relative w-full h-[230px] lg:h-[288px] 2xl:h-[382px] overflow-hidden">
                       <Image
                         src={imageUrl}
                         alt={creator.name || "Creator"}
@@ -201,9 +201,9 @@ const CreatorCarousel = ({
                       {/* Selected Badge */}
                       {isSelected && (
                         <div className="absolute top-2 left-2 lg:top-4 lg:left-4 z-10">
-                          <div className="flex items-center gap-1 bg-green-500/90 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-2 rounded-full">
-                            <Check className="w-3 h-3 lg:w-4 lg:h-4 text-white" />
-                            <span className="text-xs lg:text-sm text-white font-medium">In Crew</span>
+                          <div className="flex items-center gap-1 bg-green-500/90 backdrop-blur-md px-2 py-1 2xl:px-3 2xl:py-2 rounded-full">
+                            <Check className="w-3 h-3 2xl:w-4 2xl:h-4 text-white" />
+                            <span className="text-xs 2xl:text-sm text-white font-medium">In Crew</span>
                           </div>
                         </div>
                       )}
@@ -221,13 +221,13 @@ const CreatorCarousel = ({
                     </div>
 
                     {/* Info Footer */}
-                    <div className="p-3 lg:p-5.5 flex flex-col gap-3 lg:gap-4">
+                    <div className="p-3 lg:p-4 2xl:p-5.5 flex flex-col gap-3 2xl:gap-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-white text-xs lg:text-xl font-medium">{creator.name}</h3>
-                          <p className="text-white/60 text-[9px] lg:text-base">{creator.role_name || "Creator"}</p>
+                          <h3 className="text-white text-xs lg:text-base 2xl:text-xl font-medium leading-none 2xl:leading-[1.5]">{creator.name}</h3>
+                          <p className="text-white/60 text-[9px] lg:text-xs 2xl:text-base">{creator.role_name || "Creator"}</p>
                         </div>
-                        <p className="bg-[#EDF7EE] text-[#4CAF50] text-[9px] lg:text-base px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-[#4CAF50]">
+                        <p className="bg-[#EDF7EE] text-[#4CAF50] text-[9px] lg:text-xs 2xl:text-base px-2 py-1 lg:px-4 2xl:py-2 rounded-full border border-[#4CAF50]">
                           Available
                         </p>
                       </div>
@@ -242,7 +242,7 @@ const CreatorCarousel = ({
                             toggleSelection(creatorId);
                           }}
                           disabled={isSelectedInOtherRole}
-                          className={`relative z-30 flex-1 px-4 py-2 lg:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-base font-medium flex items-center justify-center gap-2 text-center transition-all ${isSelectedForActiveRole ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] shadow-[0_0_0_1px_rgba(255,201,201,0.15)]" : isSelectedInOtherRole ? "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed" : "bg-[#E8D1AB] text-black hover:bg-[#f0dbb7]"}`}
+                          className={`relative z-30 flex-1 px-4 py-2 2xl:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-xs 2xl:text-base font-medium flex items-center justify-center gap-2 text-center transition-all ${isSelectedForActiveRole ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] shadow-[0_0_0_1px_rgba(255,201,201,0.15)]" : isSelectedInOtherRole ? "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed" : "bg-[#E8D1AB] text-black hover:bg-[#f0dbb7]"}`}
                         >
                           {isSelectedForActiveRole ? (
                             <>
@@ -254,23 +254,23 @@ const CreatorCarousel = ({
                           ) : (
                             <>
                               <Plus className="w-2.5 h-2.5 lg:w-4 lg:h-4 shrink-0" />
-                              <span>Add</span>
+                              <span>Add to crew</span>
                             </>
                           )}
                         </button>
                         <Link
                           href={`/creatives/${creatorId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="relative z-30 text-center flex-1 bg-[#1D1D1D] border border-white/30 text-white py-2 lg:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-base font-medium transition-all hover:bg-white/10"
+                          className="relative z-30 text-center flex-1 bg-[#1D1D1D] border border-white/30 text-white py-2 2xl:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-xs 2xl:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
                         </Link>
                         <Link
                           href={`/creatives/${creatorId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="relative z-30 bg-white text-black p-2 lg:p-3.5 rounded-sm lg:rounded-md"
+                          className="relative z-30 bg-white text-black p-2 2xl:p-3.5 rounded-sm lg:rounded-md"
                         >
-                          <ArrowUpRight className="w-3 h-3 lg:w-5 lg:h-5 shrink-0" />
+                          <Share className="w-3 h-3 2xl:w-5 2xl:h-5 shrink-0" />
                         </Link>
                       </div>
                     </div>

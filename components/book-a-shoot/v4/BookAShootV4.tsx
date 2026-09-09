@@ -2191,7 +2191,7 @@ export const BookAShootV4 = () => {
         onCancel={() => setShowLeaveModal(false)}
       />
 
-      <main className="relative pt-24 lg:pt-32 pb-8 min-h-screen flex flex-col items-center justify-center w-full">
+      <main className="relative pt-24 lg:pt-30 2xl:pt-32 pb-8 min-h-screen flex flex-col items-center justify-center w-full">
         <div className="w-full relative mx-auto">{renderStep()}</div>
       </main>
 

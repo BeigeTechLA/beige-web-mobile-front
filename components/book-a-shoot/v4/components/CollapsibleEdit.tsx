@@ -43,9 +43,9 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="w-full py-5 px-3.5 lg:px-7 lg:py-9 flex items-center justify-between text-left cursor-pointer  transition-colors"
+            className="w-full py-5 px-3.5 lg:p-7 2xl:py-9 flex items-center justify-between text-left cursor-pointer  transition-colors"
           >
-            <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+            <h3 className="text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
               {title}
             </h3>
             <motion.div
@@ -101,7 +101,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
                   </div>
                 </div>
 
-                <hr className={`border-t my-3.5 lg:my-7 border-white/20`} />
+                <hr className={`border-t my-3.5 lg:my-5 2xl:my-7 border-white/20`} />
 
                 {/* Badges Stack */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -126,7 +126,7 @@ export const CollapsibleEdit: React.FC<CollapsibleEditProps> = ({
       </div>
 
       {/* Total Summary Badge */}
-      <div className="w-full lg:w-fit inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-3 lg:p-4 rounded-md lg:rounded-xl font-bold text-sm lg:text-xl shadow-lg">
+      <div className="w-full lg:w-fit inline-flex items-center gap-3 bg-[#E8D1AB] text-black p-3 lg:p-4 rounded-md lg:rounded-xl font-bold text-sm lg:text-lg 2xl:text-xl shadow-lg">
         <div className="bg-black rounded-full p-2">
           <Sparkles className="w-6 h-6 text-[#E8D1AB]" />
         </div>

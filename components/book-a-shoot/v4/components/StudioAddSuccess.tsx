@@ -38,9 +38,9 @@ export const StudioAddSuccess: React.FC<StudiosSuccessProps> = ({
         </h2>
         {
           !price ?
-            <p className="text-base lg:text-[26px] text-white/50 mb-8 lg:mb-12">{subtitle}</p>
+            <p className="text-base lg:text-lg 2xl:text-[26px] text-white/50 mb-8 lg:mb-12">{subtitle}</p>
             :
-            <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mt-2 lg:mt-5 mb-8 lg:mb-12">{formatCurrency(price)}</p>
+            <p className="text-[#E8D1AB] text-xl lg:text-3xl 2xl:text-[42px] font-bold mt-2 lg:mt-5 mb-8 lg:mb-12">{formatCurrency(price)}</p>
         }
 
         <div className="w-full max-w-lg mb-6">
