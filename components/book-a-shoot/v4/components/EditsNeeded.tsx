@@ -5,6 +5,7 @@ import { ArrowLeft, Info, Check, Minus, Plus, Video, ChevronDown } from "lucide-
 import { toast } from "sonner";
 import { CollapsibleEdit } from "./CollapsibleEdit";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image"
 
 export interface EditsConfig {
   needsEdits: boolean;
@@ -236,7 +237,12 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
             <span className="text-base lg:text-xl font-medium">Editing includes</span>
           </div>
           <div className="flex items-center gap-2 text-[#A9A9A9]">
-            <Check className="w-4 h-4 lg:w-6 lg:h-6 shrink-0 mt-0.5" />
+            <Image
+              src={"/images/misc/BookingFlow/Tick.svg"}
+              alt="Check mark icon"
+              width={18}
+              height={18}
+            />
             <span className="text-xs lg:text-sm">
               Professional color grading, sound mixing, selected video packages, and polished photo delivery.
             </span>
