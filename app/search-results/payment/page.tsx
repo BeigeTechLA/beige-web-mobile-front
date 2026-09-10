@@ -17,6 +17,15 @@ import {
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import {
+  AutoCheckout,
+  CheckoutProvider,
+  useCheckoutContext,
+  type CheckoutConfig,
+  type FormSubmissionErrorData,
+  type PaymentError,
+} from "@fanbasis/checkout-react";
+import type { CheckoutSuccessData } from "@fanbasis/checkout-core";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
@@ -80,6 +89,34 @@ const CARD_ELEMENT_OPTIONS = {
     },
   },
 };
+
+type PaymentSession =
+  | {
+      provider: "stripe";
+      clientSecret: string;
+      paymentIntentId?: string;
+      amount: number;
+      isFree: false;
+    }
+  | {
+      provider: "free";
+      clientSecret: string;
+      paymentIntentId?: string;
+      amount: 0;
+      isFree: true;
+    }
+  | {
+      provider: "commas";
+      checkoutMode: "hosted" | "embedded";
+      paymentLink?: string | null;
+      checkoutSessionId?: string | number | null;
+      creatorId?: string | null;
+      productId?: string | number | null;
+      checkoutSessionSecret?: string | null;
+      environment?: "sandbox" | "production" | string | null;
+      amount: number;
+      isFree: false;
+    };
 
 // Helper for currency formatting - UPDATED to handle string numbers safely
 const formatCurrency = (amount: any) => {
@@ -582,11 +619,143 @@ const mergeBookingSummaryPaymentData = (
   };
 };
 
+function CommasEmbeddedCheckout({
+  paymentSession,
+  amount,
+  booking,
+  onSuccess,
+  onError,
+}: {
+  paymentSession: Extract<PaymentSession, { provider: "commas" }>;
+  amount: number;
+  booking: any;
+  onSuccess: (transactionId?: string) => Promise<void> | void;
+  onError: (error: string) => void;
+}) {
+  const [checkoutError, setCheckoutError] = useState("");
+  const config = useMemo<CheckoutConfig | null>(() => {
+    const creatorId = String(paymentSession.creatorId || "").trim();
+    const productId = String(paymentSession.productId || "").trim();
+    const checkoutSessionSecret = String(paymentSession.checkoutSessionSecret || "").trim();
+    const environment = paymentSession.environment === "production" ? "production" : "sandbox";
+    const fullName = String(booking?.fullName || booking?.client_name || booking?.user?.name || "").trim();
+    const [firstName = "", ...lastNameParts] = fullName.split(/\s+/).filter(Boolean);
+
+    if (!creatorId || !productId || !checkoutSessionSecret) return null;
+
+    return {
+      creatorId,
+      productId,
+      checkoutSessionSecret,
+      environment,
+      collectPhone: true,
+      containerOptions: {
+        width: "100%",
+        height: "720px",
+      },
+      theme: {
+        theme: "light",
+        accent_color: "#E8D1AB",
+        show_product_info: true,
+        product_layout: "left",
+        show_coupon_row: false,
+        prefill: {
+          email: booking?.guest_email || booking?.guestEmail || booking?.client_email || booking?.user?.email || "",
+          first_name: firstName,
+          last_name: lastNameParts.join(" "),
+          phone: booking?.phone || booking?.phone_number || booking?.client_phone || "",
+        },
+      },
+    };
+  }, [
+    booking,
+    paymentSession.checkoutSessionSecret,
+    paymentSession.creatorId,
+    paymentSession.environment,
+    paymentSession.productId,
+  ]);
+
+  if (!config) {
+    return (
+      <div className="rounded-[12px] border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        Commas checkout is missing required embedded session details.
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative rounded-[12px] border border-white/15 bg-white p-2 lg:p-3 overflow-hidden">
+      {checkoutError && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {checkoutError}
+        </div>
+      )}
+      <CheckoutProvider config={config}>
+        <CommasGatewayErrors
+          onError={(message) => {
+            setCheckoutError(message);
+            onError(message);
+          }}
+        />
+        <AutoCheckout
+          autoInit
+          className="min-h-[620px] w-full"
+          style={{ minHeight: 620, width: "100%" }}
+          loadingComponent={
+            <div className="flex min-h-[360px] flex-col items-center justify-center bg-white text-[#212122]">
+              <Loader2 className="w-8 h-8 animate-spin mb-3 text-[#212122]" />
+              <p className="text-sm font-medium">Loading Commas checkout...</p>
+            </div>
+          }
+          errorComponent={
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Could not load Commas checkout.
+            </div>
+          }
+          onError={(error: PaymentError | Error | any) => {
+            const message = error?.message || "Could not load Commas checkout.";
+            setCheckoutError(message);
+            onError(message);
+          }}
+          onSuccess={(data: CheckoutSuccessData) => {
+            const transactionId = data?.transactionId || String(paymentSession.checkoutSessionId || "");
+            onSuccess(transactionId ? String(transactionId) : undefined);
+          }}
+        />
+      </CheckoutProvider>
+      <div className="px-2 pb-2 pt-3 text-xs text-[#626467]">
+        Secure payment powered by Commas. Total due: {formatCurrency(amount)}
+      </div>
+    </div>
+  );
+}
+
+function CommasGatewayErrors({
+  onError,
+}: {
+  onError: (message: string) => void;
+}) {
+  const { on, off } = useCheckoutContext();
+
+  useEffect(() => {
+    const handleSubmissionError = (data: FormSubmissionErrorData) => {
+      onError(data?.data?.errorMessage || "Payment failed. Please check your details and try again.");
+    };
+
+    on("form:submission_error", handleSubmissionError);
+    return () => off("form:submission_error", handleSubmissionError);
+  }, [off, on, onError]);
+
+  return null;
+}
+
 // Stripe Payment Form Component
 function StripePaymentFormMulti({
+  paymentSession,
   clientSecret,
   amount,
   onSuccess,
+  onCommasSuccess,
   onError,
   shootId,
   booking,
@@ -598,9 +767,11 @@ function StripePaymentFormMulti({
   setPaymentDetails,
   refreshPaymentIntent, // NEW PROP: used to update price in background
 }: {
+  paymentSession: PaymentSession;
   clientSecret: string;
   amount: number;
   onSuccess: (paymentIntentId: string, referralCode?: string) => Promise<void> | void;
+  onCommasSuccess: (transactionId?: string) => Promise<void> | void;
   onError: (error: string) => void;
   shootId: string | null;
   booking: any;
@@ -647,6 +818,11 @@ function StripePaymentFormMulti({
   const paymentTrackedRef = useRef(false);   //To check for card details fill up
 
   const isFree = amount === 0;
+  const isCommasHosted =
+    paymentSession.provider === "commas" && paymentSession.checkoutMode === "hosted";
+  const isCommasEmbedded =
+    paymentSession.provider === "commas" && paymentSession.checkoutMode === "embedded";
+  const isStripePayment = paymentSession.provider === "stripe";
   const availableCreditAmount = parseFloat(accountCredit?.available_credit_amount || 0);
   const canUseAccountCredit =
     Boolean(accountCredit?.can_use_credit) && availableCreditAmount > 0;
@@ -1211,6 +1387,38 @@ function StripePaymentFormMulti({
       return;
     }
 
+    if (isCommasHosted) {
+      const paymentLink = paymentSession.paymentLink;
+      if (!paymentLink) {
+        onError("Commas payment link is missing. Please refresh the page.");
+        return;
+      }
+
+      setIsProcessing(true);
+      try {
+        pushToDataLayer("add_payment_info", {
+          currency: "USD",
+          value: amount,
+          payment_type: "commas_hosted_checkout",
+          coupon: discountCode || undefined,
+          page_name: "Payment Page",
+          location_in_website: "book_a_shoot_payment_page",
+          user_id: isAuthenticated ? user?.id : "Guest",
+          booking_id: booking?.bookingId,
+          items: [{
+            item_name: booking?.shoot_name || "Shoot Booking",
+            price: amount,
+            quantity: 1
+          }]
+        });
+        window.location.assign(paymentLink);
+      } catch (err) {
+        setIsProcessing(false);
+        onError(err instanceof Error ? err.message : "Failed to open Commas checkout");
+      }
+      return;
+    }
+
     if (!stripe || !elements) {
       onError("Payment system not initialized");
       return;
@@ -1275,7 +1483,9 @@ function StripePaymentFormMulti({
           page_name: "Payment Page",
           location_in_website: "book_a_shoot_payment_page",
           user_id: isAuthenticated ? user?.id : "Unknown",
-          user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+          user_type: isAuthenticated
+            ? USER_TYPE[Number(user?.userTypeId || user?.user_type_id)] || "Unknown"
+            : "Unknown",
           booking_id: booking?.booking_id,
           items: [{
             item_name: booking?.shoot_name || "Shoot Booking",
@@ -1292,25 +1502,26 @@ function StripePaymentFormMulti({
       }
     } catch (err) {
       console.error("Unexpected payment error:", err);
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
       // add GA event when payment fails
       pushToDataLayer("payment_failed", {
         type: "Action Tracking",
         page_name: "Payment Page",
         location_in_website: "book_a_shoot_payment_page",
         booking_id: booking?.bookingId,
-        payment_status: `Fail: ${paymentError.message || "An unexpected error occurred"}`,
+        payment_status: `Fail: ${errorMessage}`,
         value: booking?.totalAmount,
         currency: "USD",
         user_id: isAuthenticated ? user?.id : "Unknown",
-        user_type: isAuthenticated ? USER_TYPE[user?.user_type_id] : "Unknown",
+        user_type: isAuthenticated
+          ? USER_TYPE[Number(user?.userTypeId || user?.user_type_id)] || "Unknown"
+          : "Unknown",
         email: isAuthenticated ? user?.email : booking.email,
         phone: isAuthenticated ? user?.phone_number : booking.phone,
       });
       console.log("after GA payment_failed after Unexpected payment error");
 
-      onError(
-        err instanceof Error ? err.message : "An unexpected error occurred",
-      );
+      onError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -1327,9 +1538,15 @@ function StripePaymentFormMulti({
           <div className="flex items-center gap-3 text-[#212122]">
             <CreditCard className="w-5 h-5 lg:w-9 lg:h-9" />
             <div className="flex flex-col">
-              <span className="text-base font-medium">Stripe Secure Payment</span>
+              <span className="text-base font-medium">
+                {paymentSession.provider === "commas" ? "Commas Secure Checkout" : "Stripe Secure Payment"}
+              </span>
               <span className="text-sm">
-                Your payment is protected with Stripe&apos;s secure encryption.
+                {paymentSession.provider === "commas"
+                  ? isCommasEmbedded
+                    ? "Complete payment securely below without leaving this page."
+                    : "You'll complete payment on Commas' secure hosted checkout."
+                  : "Your payment is protected with Stripe&apos;s secure encryption."}
               </span>
             </div>
           </div>
@@ -1341,7 +1558,13 @@ function StripePaymentFormMulti({
         className="bg-[#272626] rounded-[20px] p-4 lg:p-10 flex flex-col gap-5 lg:gap-9"
       >
         {/* Only show card fields if it's NOT a free booking */}
-        {!isFree && (
+        {isCommasHosted && (
+          <div className="rounded-[12px] border border-[#E8D1AB]/30 bg-[#E8D1AB]/10 p-4 text-sm lg:text-base text-white/80">
+            Commas will open in a secure checkout page. After payment, your booking is confirmed through the payment webhook and you&apos;ll return to Beige.
+          </div>
+        )}
+
+        {!isFree && isStripePayment && (
           <>
             {/* Card Element */}
             <div className="relative w-full">
@@ -1585,18 +1808,32 @@ function StripePaymentFormMulti({
           )}
         </div>
 
+        {isCommasEmbedded && (
+          <CommasEmbeddedCheckout
+            paymentSession={paymentSession}
+            amount={amount}
+            booking={booking}
+            onSuccess={onCommasSuccess}
+            onError={onError}
+          />
+        )}
+
         {/* Submit Button */}
-        <Button
-          type="submit"
-          disabled={isProcessing || (!isFree && !stripe)}
-          className="w-fit h-14 lg:h-[96px] px-5 lg:px-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[10px] lg:rounded-[20px] shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] disabled:opacity-50"
-        >
-          {isProcessing
-            ? "Processing..."
-            : isFree
-              ? "Confirm Booking (Free)"
-              : `Confirm & Pay ${formatCurrency(amount)}`}
-        </Button>
+        {!isCommasEmbedded && (
+          <Button
+            type="submit"
+            disabled={isProcessing || (!isFree && isStripePayment && !stripe)}
+            className="w-fit h-14 lg:h-[96px] px-5 lg:px-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[10px] lg:rounded-[20px] shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] disabled:opacity-50"
+          >
+            {isProcessing
+              ? "Processing..."
+              : isFree
+                ? "Confirm Booking (Free)"
+                : isCommasHosted
+                  ? `Continue to Pay ${formatCurrency(amount)}`
+                : `Confirm & Pay ${formatCurrency(amount)}`}
+          </Button>
+        )}
       </form>
 
       {/* <div className="flex gap-3 bg-[#2A2A2A] rounded-[10px] p-2 lg:p-4 items-center mt-2 lg:mt-5">
@@ -1659,7 +1896,7 @@ function MultiCreatorPaymentContent() {
   const [isUpdatingIntent, setIsUpdatingIntent] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string>("");
+  const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showBackDialog, setShowBackDialog] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
@@ -1667,6 +1904,10 @@ function MultiCreatorPaymentContent() {
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
   const paymentIntentRequestId = useRef(0);
+  const clientSecret =
+    paymentSession?.provider === "stripe" || paymentSession?.provider === "free"
+      ? paymentSession.clientSecret
+      : "";
   const bookingEmail = useMemo(() => {
     const value =
       paymentDetails?.booking?.guest_email ||
@@ -1878,7 +2119,7 @@ function MultiCreatorPaymentContent() {
     const requestId = ++paymentIntentRequestId.current;
     const completionState = getPaymentCompletionState(details);
     if (completionState.isSettled) {
-      setClientSecret("");
+      setPaymentSession(null);
       return;
     }
     const { booking } = details;
@@ -1914,22 +2155,69 @@ function MultiCreatorPaymentContent() {
       // the newest response may update the active payment session.
       if (requestId !== paymentIntentRequestId.current) return;
 
-      if (response.data.success && response.data.data.clientSecret) {
+      if (response.data.success && response.data.data) {
         const intentData = response.data.data;
         const returnedAmount = Number(intentData.amount || 0);
+        const provider = String(intentData.provider || "stripe").toLowerCase();
         const returnedFreeCheckout = Boolean(intentData.isFree) || isFreeCheckoutToken(intentData.clientSecret);
 
         if (payableAmount > 0 && (returnedFreeCheckout || returnedAmount <= 0)) {
-          setClientSecret("");
+          setPaymentSession(null);
           throw new Error("The server returned a free checkout for a booking with an outstanding balance.");
         }
 
-        if (!returnedFreeCheckout && !isStripeClientSecret(intentData.clientSecret)) {
-          setClientSecret("");
+        if (returnedFreeCheckout) {
+          setPaymentSession({
+            provider: "free",
+            clientSecret: intentData.clientSecret,
+            paymentIntentId: intentData.paymentIntentId,
+            amount: 0,
+            isFree: true,
+          });
+          return;
+        }
+
+        if (provider === "commas") {
+          const checkoutModeValue = String(intentData.checkout_mode || "hosted").toLowerCase();
+          const checkoutMode =
+            checkoutModeValue === "embedded" ? "embedded" : checkoutModeValue === "hosted" ? "hosted" : null;
+          if (checkoutMode === "hosted" && !intentData.payment_link) {
+            setPaymentSession(null);
+            throw new Error("The server returned a Commas hosted checkout without a payment link.");
+          }
+
+          if (!checkoutMode) {
+            setPaymentSession(null);
+            throw new Error("The server returned an unsupported Commas checkout mode.");
+          }
+
+          setPaymentSession({
+            provider: "commas",
+            checkoutMode,
+            paymentLink: intentData.payment_link || null,
+            checkoutSessionId: intentData.checkout_session_id || null,
+            creatorId: intentData.creator_id || null,
+            productId: intentData.product_id || null,
+            checkoutSessionSecret: intentData.checkout_session_secret || null,
+            environment: intentData.environment || null,
+            amount: returnedAmount,
+            isFree: false,
+          });
+          return;
+        }
+
+        if (!isStripeClientSecret(intentData.clientSecret)) {
+          setPaymentSession(null);
           throw new Error("The server returned an invalid Stripe payment session.");
         }
 
-        setClientSecret(intentData.clientSecret);
+        setPaymentSession({
+          provider: "stripe",
+          clientSecret: intentData.clientSecret,
+          paymentIntentId: intentData.paymentIntentId,
+          amount: returnedAmount,
+          isFree: false,
+        });
       }
     } catch (err) {
       if (requestId !== paymentIntentRequestId.current) return;
@@ -2063,6 +2351,57 @@ function MultiCreatorPaymentContent() {
     } catch (error) {
       console.error("Error confirming payment:", error);
       toast.error("Booking succeeded but failed to update status. Please contact support.");
+    }
+  };
+
+  const handleCommasPaymentSuccess = async (transactionId?: string) => {
+    const commasSessionId =
+      paymentSession?.provider === "commas" ? paymentSession.checkoutSessionId : null;
+    const paymentIntentId =
+      transactionId ? `commas:${transactionId}` : `commas_session:${commasSessionId || shootId}`;
+    const paymentContext = {
+      creditAppliedAmount,
+      cardPaidAmount: payableTotal,
+      totalBeforeCredit: basePayableAmount,
+      paymentIntentId,
+    };
+
+    try {
+      toast.success("Payment received. Confirming your booking...");
+      setSummaryData((currentSummary: unknown) =>
+        mergeBookingSummaryPaymentData(currentSummary, paymentContext),
+      );
+
+      const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          const response = await axios.get(
+            `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
+            {
+              headers: getAuthHeaders(),
+            }
+          );
+
+          if (response.data.success) {
+            const latestDetails = response.data.data;
+            setPaymentDetails(latestDetails);
+            if (getPaymentCompletionState(latestDetails).isSettled) break;
+          }
+        } catch (pollError) {
+          console.warn("Commas payment confirmation poll failed:", pollError);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      await fetchSummaryData(paymentContext);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("beige_payment_booking_email");
+      }
+      setStep("success");
+    } catch (error) {
+      console.error("Error finalizing Commas payment:", error);
+      toast.error("Payment succeeded, but we could not refresh the booking status. Please reload or contact support.");
     }
   };
 
@@ -2299,7 +2638,7 @@ function MultiCreatorPaymentContent() {
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
           <div className="xl:col-span-7 space-y-5">
-            {!clientSecret ? (
+            {!paymentSession ? (
               <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10 flex flex-col items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#E8D1AB] mb-4"></div>
                 <p className="text-white/60">Initializing payment details...</p>
@@ -2317,9 +2656,11 @@ function MultiCreatorPaymentContent() {
 
                 <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
+                    paymentSession={paymentSession}
                     clientSecret={clientSecret}
                     amount={payableTotal || 0}
                     onSuccess={handlePaymentSuccess}
+                    onCommasSuccess={handleCommasPaymentSuccess}
                     onError={handlePaymentError}
                     shootId={shootId}
                     booking={booking}
@@ -2396,7 +2737,11 @@ function MultiCreatorPaymentContent() {
                   </div>
                   {(() => {
                     const rawLocation = String(booking?.event_location || "").trim();
-                    const displayLocation = formatLocationForDisplay(rawLocation).trim();
+                    const parsedLocation = parseJsonValue(booking?.event_location);
+                    const displayLocation =
+                      parsedLocation && typeof parsedLocation === "object" && !Array.isArray(parsedLocation)
+                        ? formatLocationForDisplay(parsedLocation as Parameters<typeof formatLocationForDisplay>[0]).trim()
+                        : rawLocation;
                     const shouldShowLocation =
                       rawLocation.length > 0 &&
                       rawLocation.toLowerCase() !== "null" &&
