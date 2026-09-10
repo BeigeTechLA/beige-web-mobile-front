@@ -164,7 +164,8 @@ export default function ShootSummaryStep({
 }: ShootSummaryStepProps) {
   const [fullName, setFullName] = useState(initialContact?.fullName || "");
   const [phoneNumber, setPhoneNumber] = useState(initialContact?.phoneNumber || "");
-  const [errors, setErrors] = useState<string[]>([])
+  const [nameError, setNameError] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
 
   const creativesList = summaryData.creatives || DEFAULT_CREATIVES_DATA;
   const initialSlideIndex = Math.floor(creativesList.length / 2);
@@ -185,20 +186,45 @@ export default function ShootSummaryStep({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phoneNumber) {
-      toast.error("Please fill in your contact information");
-      setErrors((prev) => [...prev, "contactError"]);
+    const hasName = fullName.trim().length > 0;
+    const hasPhone = phoneNumber.trim().length > 0;
+
+    let isError = false;
+    setNameError(!hasName);
+
+    if (!hasPhone || !isValidPhoneNumber(phoneNumber)) {
+      setPhoneError(true);
+      isError = true;
+    } else {
+      setPhoneError(false);
+    }
+
+    if (!hasName) {
+      isError = true;
+    }
+
+    if (!hasName && !hasPhone) {
+      toast.error("Please enter your name and phone number");
+      return;
+    }
+
+    if (!hasName) {
+      toast.error("Please enter your full name");
+      return;
+    }
+
+    if (!hasPhone) {
+      toast.error("Please enter your phone number");
       return;
     }
 
     if (!isValidPhoneNumber(phoneNumber)) {
       toast.error("Please enter a valid phone number");
-      setErrors((prev) => [...prev, "contactError"]);
       return;
     }
 
-    if (onContinue) {
-      onContinue({ fullName, phoneNumber });
+    if (!isError && onContinue) {
+      onContinue({ fullName: fullName.trim(), phoneNumber: phoneNumber.trim() });
     }
   };
 
@@ -640,7 +666,9 @@ export default function ShootSummaryStep({
           <div className="relative space-y-2">
             <Label
               htmlFor="fullName"
-              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+              className={`absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base pointer-events-none transition-colors ${
+                nameError ? "text-red-500" : "text-white/60"
+              }`}
             >
               Full Name*
             </Label>
@@ -649,16 +677,27 @@ export default function ShootSummaryStep({
                 id="fullName"
                 type="text"
                 value={fullName}
-                required
-                onChange={(e) => setFullName(e.target.value)}
-                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                onFocus={() => {
+                  if (nameError) setNameError(false);
+                }}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (nameError) setNameError(false);
+                }}
+                className={`h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border px-4 text-white outline-none bg-[#101010] text-sm lg:text-base ${
+                  nameError
+                    ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+                    : "border-white/30 focus:border-white focus-visible:ring-white"
+                }`}
               />
             </div>
           </div>
           <div className="relative space-y-2">
             <Label
               htmlFor="phone"
-              className="absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base text-white/60 pointer-events-none"
+              className={`absolute -top-1.5 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-xs lg:text-base pointer-events-none transition-colors ${
+                phoneError ? "text-red-500" : "text-white/60"
+              }`}
             >
               Phone Number*
             </Label>
@@ -667,11 +706,20 @@ export default function ShootSummaryStep({
                 id="phone"
                 type="tel"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                required
+                onFocus={() => {
+                  if (phoneError) setPhoneError(false);
+                }}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  if (phoneError) setPhoneError(false);
+                }}
                 inputMode="tel"
                 autoComplete="tel"
-                className="h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
+                className={`h-14 lg:h-[82px] w-full rounded-lg lg:rounded-xl border px-4 text-white outline-none bg-[#101010] text-sm lg:text-base ${
+                  phoneError
+                    ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+                    : "border-white/30 focus:border-white focus-visible:ring-white"
+                }`}
               />
             </div>
           </div>
