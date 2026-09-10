@@ -1470,6 +1470,8 @@ function CreateQuotePageContent() {
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [quoteToEdit, setQuoteToEdit] =
     React.useState<SalesQuoteDetailData | null>(null);
+  const [quoteReviewBaseline, setQuoteReviewBaseline] =
+    React.useState<SalesQuoteDetailData | null>(null);
   const [quoteVersionNumber, setQuoteVersionNumber] = React.useState<number | null>(null);
   const [isReviewChangesModalOpen, setIsReviewChangesModalOpen] =
     React.useState(false);
@@ -1956,6 +1958,7 @@ function CreateQuotePageContent() {
   React.useEffect(() => {
     if (!editQuoteId) {
       setQuoteToEdit(null);
+      setQuoteReviewBaseline(null);
       setIsLoadingQuoteToEdit(false);
       hydratedQuoteIdRef.current = null;
       hydratingQuoteIdRef.current = null;
@@ -1967,6 +1970,7 @@ function CreateQuotePageContent() {
     hydratedQuoteIdRef.current = null;
     hydratingQuoteIdRef.current = null;
     setQuoteToEdit(cachedQuoteToEdit);
+    setQuoteReviewBaseline(cachedQuoteToEdit);
     setIsLoadingQuoteToEdit(!cachedQuoteToEdit);
 
     const fetchQuoteToEdit = async () => {
@@ -1993,6 +1997,7 @@ function CreateQuotePageContent() {
         }
 
         setQuoteToEdit(quoteDetail);
+        setQuoteReviewBaseline((currentBaseline) => currentBaseline ?? quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
 
@@ -2001,6 +2006,7 @@ function CreateQuotePageContent() {
         }
 
         setQuoteToEdit(null);
+        setQuoteReviewBaseline(null);
         toast.error(
           error instanceof Error
             ? error.message
@@ -2928,7 +2934,7 @@ function CreateQuotePageContent() {
               </div>
 
               <div className="mt-8 space-y-6">
-                <Button
+                {/* <Button
                   onClick={() =>
                     setActiveShootTypeForm(isFormOpen ? null : kind)
                   }
@@ -2939,7 +2945,7 @@ function CreateQuotePageContent() {
                 >
                   <Plus size={16} strokeWidth={3} />
                   {`Add ${sectionLabel}`}
-                </Button>
+                </Button> */}
 
                 <AnimatePresence>
                   {isFormOpen && (
@@ -3506,16 +3512,16 @@ function CreateQuotePageContent() {
     Number.isFinite(leadPricingTotal) && leadPricingTotal > 0 ? leadPricingTotal : undefined;
   const additionalPaymentDetails = React.useMemo(
     () =>
-      getQuoteAdditionalPaymentDetails(quoteToEdit ?? previewQuote, {
+      getQuoteAdditionalPaymentDetails(quoteReviewBaseline ?? quoteToEdit ?? previewQuote, {
         revisedTotalOverride: totalAfterTax,
         previouslyPaidOverride: safePreviouslyPaidOverride,
         previousTotalOverride: safePreviousTotalOverride,
       }),
-    [quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
+    [quoteReviewBaseline, quoteToEdit, previewQuote, totalAfterTax, safePreviouslyPaidOverride, safePreviousTotalOverride],
   );
   const showQuoteRevisionSummary = Boolean(
     isEditMode &&
-    quoteToEdit &&
+    (quoteReviewBaseline || quoteToEdit) &&
     additionalPaymentDetails
   );
   React.useEffect(() => {
@@ -3580,6 +3586,13 @@ function CreateQuotePageContent() {
     return String(bookingId);
   }, [convertedBookingIdOverride, previewQuote, quoteToEdit]);
   const isConvertedToBooking = isConvertedOverride || Boolean(convertedBookingId);
+  const handleViewBooking = React.useCallback(() => {
+    if (!convertedBookingId) {
+      return;
+    }
+
+    router.push(`/admin/shoots/${encodeURIComponent(convertedBookingId)}`);
+  }, [convertedBookingId, router]);
   const showInvoiceActions =
     view === "tax" && hasCurrentSavedQuoteState && Boolean(resolvedInvoiceQuoteId);
   const showPreviewAction = view === "tax";
@@ -3621,11 +3634,8 @@ function CreateQuotePageContent() {
     setPreProductionFile(null);
     setClearPreProductionFile(true);
   };
-  const convertBookingActionLabel = isConvertedToBooking
-    ? "Converted to Booking"
-    : "Convert to Booking";
   const isConvertBookingActionDisabled =
-    isConvertedToBooking || isViewingInvoice || isSendingInvoice || isConverting;
+    isViewingInvoice || isSendingInvoice || isConverting || (!isConvertedToBooking && !resolvedInvoiceQuoteId);
   const getQuoteDraftPayload = (maxStep?: typeof view) =>
     buildQuoteDraftPayload({
       selectedClient,
@@ -3855,7 +3865,7 @@ function CreateQuotePageContent() {
 
   const reviewChangesData = React.useMemo(() => {
     return buildQuoteReviewChangesData({
-      quote: quoteToEdit,
+      quote: quoteReviewBaseline ?? quoteToEdit,
       currentDraftLineItems,
       bookingSchedule: effectiveBookingSchedule,
       nextTotal: totalAfterTax,
@@ -3890,6 +3900,7 @@ function CreateQuotePageContent() {
     projectDescription,
     preProductionNotes,
     preProductionFile,
+    quoteReviewBaseline,
     storedShootTypeLabel,
     quoteToEdit,
     taxLabel,
@@ -3899,12 +3910,12 @@ function CreateQuotePageContent() {
 
   React.useEffect(() => {
     setHasUnsavedQuoteChanges(
-      Boolean(quoteToEdit) &&
+      Boolean(quoteReviewBaseline ?? quoteToEdit) &&
       (reviewChangesData.lineChanges.length > 0 ||
         reviewChangesData.fieldChanges.length > 0 ||
         Math.abs(reviewChangesData.delta) > 0.009),
     );
-  }, [quoteToEdit, reviewChangesData]);
+  }, [quoteReviewBaseline, quoteToEdit, reviewChangesData]);
 
   const delayAfterSuccessToast = () =>
     new Promise((resolve) => window.setTimeout(resolve, 450));
@@ -3996,8 +4007,12 @@ function CreateQuotePageContent() {
         setCreatedQuoteId(savedQuoteId);
       }
 
-      if (persistedQuote) {
+      const shouldPreserveEditBaseline =
+        isUpdatingExistingQuote && action === "draft";
+
+      if (persistedQuote && !shouldPreserveEditBaseline) {
         syncQuoteDetailState(persistedQuote);
+        setQuoteReviewBaseline(persistedQuote);
       }
 
       if (action === "save") {
@@ -4033,6 +4048,11 @@ function CreateQuotePageContent() {
             ? "Draft updated successfully"
             : "Draft saved successfully",
         );
+
+        if (isUpdatingExistingQuote) {
+          return true;
+        }
+
         const nextParams = new URLSearchParams(searchParams.toString());
         nextParams.set("view", view);
         if (!nextParams.get("quoteId") && savedQuoteId) {
@@ -4084,6 +4104,7 @@ function CreateQuotePageContent() {
       }
 
       syncQuoteDetailState(quoteDetail);
+      setQuoteReviewBaseline(quoteDetail);
 
       if (shouldOpenPreview) {
         setPreviewQuoteId(savedQuoteId);
@@ -4274,6 +4295,7 @@ function CreateQuotePageContent() {
 
       if (updatedQuote) {
         syncQuoteDetailState(updatedQuote);
+        setQuoteReviewBaseline(updatedQuote);
       }
 
       toast.success("Quote updated successfully");
@@ -4511,7 +4533,7 @@ function CreateQuotePageContent() {
     router.push(targetUrl);
   }, [effectiveQuoteId, previewQuoteId, router, shouldRedirectToSummaryAfterPreviewClose]);
 
-  const handleConvertToBooking = () => {
+  const handleConvertToBooking = async () => {
     if (!resolvedInvoiceQuoteId) {
       toast.error("Quote id is missing.");
       return;
@@ -4520,18 +4542,49 @@ function CreateQuotePageContent() {
       return;
     }
 
-    const directBookingData = buildConvertBookingModalInitialDataFromSchedule(
-      effectiveBookingSchedule,
-      address,
-    );
+    setIsConverting(true);
+    try {
+      const response = await salesApi.previewQuoteInvoice(resolvedInvoiceQuoteId);
 
-    if (directBookingData) {
-      void handleConvertBookingSubmit(directBookingData);
-      return;
+      if (response?.error || response?.success === false) {
+        throw new Error(
+          typeof response?.error === "string"
+            ? response.error
+            : "Failed to convert quote to booking",
+        );
+      }
+
+      const bookingId =
+        response.data?.booking_id !== undefined &&
+          response.data?.booking_id !== null &&
+          String(response.data.booking_id).trim()
+          ? String(response.data.booking_id)
+          : convertedBookingId;
+
+      if (bookingId) {
+        setConvertedBookingIdOverride(bookingId);
+      }
+      setIsConvertedOverride(true);
+      setQuoteToEdit((current) =>
+        current
+          ? {
+            ...current,
+            ...(bookingId ? { booking_id: bookingId } : {}),
+          }
+          : current,
+      );
+
+      toast.success(
+        `Converted to booking${bookingId ? ` #${bookingId}` : ""}`,
+      );
+    } catch (error) {
+      console.error("Failed to convert quote to booking", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to convert quote to booking",
+      );
+    } finally {
+      setIsConverting(false);
     }
-
-    setConvertIntent("convert_only");
-    setIsConvertModalOpen(true);
   };
 
   const handleConvertBookingSubmit = async (
@@ -5746,7 +5799,7 @@ function CreateQuotePageContent() {
                 <hr className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#D7D7D7]"}`} />
 
                 {/* Dynamic Custom Creation Form Component */}
-                <div className="p-4 lg:p-8 lg:pb-6">
+                {/* <div className="p-4 lg:p-8 lg:pb-6">
                   <h3 className={`lg:text-xl font-medium mb-6 ${isDark ? "text-white" : "text-black"}`}>
                     Add Custom Logistics Item
                   </h3>
@@ -5832,7 +5885,7 @@ function CreateQuotePageContent() {
                     <Plus size={16} strokeWidth={3} />
                     Add More Logistics
                   </Button>
-                </div>
+                </div> */}
 
                 {selectedLogistics.length > 0 && (
                   <>
@@ -6129,7 +6182,7 @@ function CreateQuotePageContent() {
                 </div>
 
                 <div className="space-y-6 p-4 lg:p-8 !pt-0">
-                  <Button
+                  {/* <Button
                     onClick={() => setShowAddAddonForm(!showAddAddonForm)}
                     className={`${isDark
                       ? "bg-[#F0DCB1] text-black hover:bg-[#e7d09e]"
@@ -6138,7 +6191,7 @@ function CreateQuotePageContent() {
                   >
                     <Plus size={16} strokeWidth={3} />
                     Add More Add-ons
-                  </Button>
+                  </Button> */}
 
                   <AnimatePresence>
                     {showAddAddonForm && (
@@ -6620,13 +6673,13 @@ function CreateQuotePageContent() {
                   </div>
 
                   <div className="mt-5 lg:mt-7 space-y-6">
-                    <Button
+                    {/* <Button
                       onClick={() => setShowAddServiceForm(!showAddServiceForm)}
                       className="bg-[#F0DCB1] text-black hover:bg-[#e7d09e] h-[42px] px-5 rounded-[8px] flex items-center gap-2 font-medium text-sm tracking-tight shadow-none w-full lg:w-fit"
                     >
                       <Plus size={16} strokeWidth={3} />
                       Add Services
-                    </Button>
+                    </Button> */}
 
                     <AnimatePresence>
                       {showAddServiceForm && (
@@ -6850,7 +6903,7 @@ function CreateQuotePageContent() {
                                   </div>
 
                                   <div className="mt-8 space-y-6">
-                                    <Button
+                                    {/* <Button
                                       onClick={() =>
                                         setShowAddEditingTypeForm(
                                           !showAddEditingTypeForm,
@@ -6863,7 +6916,7 @@ function CreateQuotePageContent() {
                                     >
                                       <Plus size={16} strokeWidth={3} />
                                       Add Editing Types
-                                    </Button>
+                                    </Button> */}
 
                                     <AnimatePresence>
                                       {showAddEditingTypeForm && (
@@ -8692,13 +8745,17 @@ function CreateQuotePageContent() {
               <>
                 <Button
                   type="button"
-                  onClick={handleConvertToBooking}
+                  onClick={isConvertedToBooking ? handleViewBooking : handleConvertToBooking}
                   disabled={isConvertBookingActionDisabled}
                   variant="outline"
                   className="border border-white/10 bg-[#1B1B1B] text-white hover:bg-[#232323] h-[62px] px-8 rounded-xl flex items-center gap-3 text-xl font-bold transition-all shadow-lg disabled:opacity-70"
                 >
                   {isConverting && !isConvertedToBooking ? <Loader2 size={20} className="animate-spin" /> : null}
-                  {isConverting ? "Converting..." : convertBookingActionLabel}
+                  {isConvertedToBooking
+                    ? "View Booking"
+                    : isConverting
+                      ? "Converting..."
+                      : "Convert to Booking"}
                 </Button>
                 <Button
                   type="button"
@@ -8766,11 +8823,15 @@ function CreateQuotePageContent() {
           <div className="grid grid-cols-1 gap-2">
             <Button
               type="button"
-              onClick={handleConvertToBooking}
+              onClick={isConvertedToBooking ? handleViewBooking : handleConvertToBooking}
               disabled={isConvertBookingActionDisabled}
               className="flex-1 bg-[#1B1B1B] text-white border border-white/10 hover:bg-[#232323] h-10 min-w-[166px] rounded-xl text-sm font-medium transition-all disabled:opacity-70"
             >
-              {isConverting ? "Converting..." : convertBookingActionLabel}
+              {isConvertedToBooking
+                ? "View Booking"
+                : isConverting
+                  ? "Converting..."
+                  : "Convert to Booking"}
             </Button>
             <div className="flex items-center justify-center gap-2">
               <Button

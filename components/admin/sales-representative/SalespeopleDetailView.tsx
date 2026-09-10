@@ -4,6 +4,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   ChevronRight,
@@ -23,7 +24,11 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { LeadsStatusBadge, type BookingStatus } from "@/components/sales/LeadsStatusBadge";
 import { useDebounce } from "@/hooks/use-debounce";
-import { salesApi, shiftManagementApi } from "@/lib/api";
+import { salesApi, shiftManagementApi, type QuotesListResponse, type SalesQuoteListItem } from "@/lib/api";
+import {
+  formatQuoteStatusLabel,
+  getPaymentAwareQuoteStatusKey,
+} from "@/lib/quoteStatus";
 import { toast } from "sonner";
 
 export type SalespeopleProfile = {
@@ -54,6 +59,52 @@ function firstText(...values: Array<unknown>) {
     if (text && !["n/a", "null", "undefined"].includes(text.toLowerCase())) return text;
   }
   return "";
+}
+
+function getRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getOptionalNumber(...values: Array<unknown>) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function extractQuoteRowsState(data: QuotesListResponse["data"]) {
+  if (Array.isArray(data)) {
+    return { rows: data, pagination: null };
+  }
+
+  const record = getRecord(data);
+  if (!record) {
+    return { rows: [], pagination: null };
+  }
+
+  const rowKeys = ["quotes", "items", "results", "rows", "list", "data"] as const;
+  const rows = rowKeys.reduce<SalesQuoteListItem[]>((foundRows, key) => {
+    if (foundRows.length) return foundRows;
+    return Array.isArray(record[key]) ? record[key] as SalesQuoteListItem[] : foundRows;
+  }, []);
+  const pagination = getRecord(record.pagination);
+
+  return {
+    rows,
+    pagination: pagination
+      ? {
+          page: getOptionalNumber(pagination.page) ?? 1,
+          limit: getOptionalNumber(pagination.limit) ?? rows.length,
+          total: getOptionalNumber(pagination.total) ?? rows.length,
+          pages: getOptionalNumber(pagination.pages, pagination.total_pages, pagination.totalPages) ?? 1,
+        }
+      : null,
+  };
 }
 
 function clientDisplayName(row: any) {
@@ -130,7 +181,7 @@ function Toggle({ enabled }: { enabled: boolean }) {
   );
 }
 
-function StatusBadge({ value }: { value: string }) {
+function StatusBadge({ value, isDark = true }: { value: string; isDark?: boolean }) {
   const styles: Record<string, string> = {
     Hot: "bg-[#4A1F0E] text-[#F26B2A]",
     Warm: "bg-[#4A3700] text-[#E7B320]",
@@ -150,7 +201,7 @@ function StatusBadge({ value }: { value: string }) {
     Rejected: "bg-[#FFD1D1] text-[#EB5757]",
     Expired: "bg-[#FFF6E9] text-[#D4A017]",
     Active: "bg-[#B9F8CF] text-[#0D542B]",
-    "In Active": "bg-[#2B2B2B] text-white/45",
+    "In Active": isDark ? "bg-[#2B2B2B] text-white/45" : "bg-[#F4F5F7] text-[#666] border border-[#E3E3E3]",
   };
 
   return <span className={`inline-flex rounded-full px-4 py-2 text-xs font-medium ${styles[value] || "bg-[#2B2B2B] text-white/60"}`}>{value}</span>;
@@ -166,6 +217,7 @@ function QuoteDetailsActionMenu({
   onEdit,
   onPaymentTransaction,
   onReject,
+  isDark,
 }: {
   open: boolean;
   anchor: { x: number; y: number };
@@ -176,6 +228,7 @@ function QuoteDetailsActionMenu({
   onEdit: () => void;
   onPaymentTransaction: () => void;
   onReject: () => void;
+  isDark: boolean;
 }) {
   if (!open) return null;
 
@@ -198,20 +251,20 @@ function QuoteDetailsActionMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 max-h-[calc(100vh-32px)] w-[220px] overflow-y-auto overscroll-contain rounded-[20px] border border-white/10 bg-[#0A0A0A] p-1.5 text-white shadow-2xl shadow-black/50"
+        className={`fixed z-50 max-h-[calc(100vh-32px)] w-[220px] overflow-y-auto overscroll-contain rounded-[20px] border p-1.5 shadow-2xl ${isDark ? "border-white/10 bg-[#0A0A0A] text-white shadow-black/50" : "border-[#E3E3E3] bg-white text-[#323232] shadow-black/10"}`}
         style={{ top: anchor.y, left: anchor.x }}
       >
         {menuItems.map(({ icon: Icon, label, onClick, danger }) => (
           <React.Fragment key={label}>
-            {label === "Reject Quote" ? <div className="my-1 h-px w-full bg-white/10" /> : null}
+            {label === "Reject Quote" ? <div className={`my-1 h-px w-full ${isDark ? "bg-white/10" : "bg-black/10"}`} /> : null}
             <button
               type="button"
               onClick={handleAction(onClick)}
               className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-[15px] font-medium transition ${
-                danger ? "text-[#F04438] hover:bg-[#F04438]/10" : "text-white hover:bg-white/5"
+                danger ? "text-[#F04438] hover:bg-[#F04438]/10" : isDark ? "text-white hover:bg-white/5" : "text-[#323232] hover:bg-black/5"
               }`}
             >
-              <Icon size={18} className={danger ? "text-[#F04438]" : "text-white/70"} />
+              <Icon size={18} className={danger ? "text-[#F04438]" : isDark ? "text-white/70" : "text-[#32323299]"} />
               {label}
             </button>
           </React.Fragment>
@@ -221,13 +274,13 @@ function QuoteDetailsActionMenu({
   );
 }
 
-function AvatarName({ initials, color, name, meta }: { initials: string; color: string; name: string; meta: string }) {
+function AvatarName({ initials, color, name, meta, isDark }: { initials: string; color: string; name: string; meta: string; isDark: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <span className="flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold text-black" style={{ backgroundColor: color }}>{initials}</span>
       <div>
-        <p className="text-sm text-white">{name}</p>
-        <p className="mt-0.5 text-xs text-white/45">{meta}</p>
+        <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>{name}</p>
+        <p className={`mt-0.5 text-xs ${isDark ? "text-white/45" : "text-[#32323266]"}`}>{meta}</p>
       </div>
     </div>
   );
@@ -308,7 +361,7 @@ const BOOKING_STATUS_OPTIONS: BookingStatus[] = [
 
 function Pagination() {
   return (
-    <div className="flex items-center justify-between px-5 py-4 text-sm text-white/70">
+    <div className={`flex items-center justify-between border-t px-5 py-4 text-sm ${isDark ? "border-[#242424] bg-[#101010] text-white/70" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#32323299]"}`}>
       <span>Page 1 to 10</span>
       <div className="flex items-center gap-3">
         <span className="text-white/30">‹</span>
@@ -347,9 +400,11 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
 function SalesPagination({
   pagination,
   onPageChange,
+  isDark,
 }: {
   pagination: PaginationState;
   onPageChange: (page: number) => void;
+  isDark: boolean;
 }) {
   const totalPages = Math.max(1, pagination.pages);
   const safePage = Math.min(Math.max(pagination.page || 1, 1), totalPages);
@@ -358,7 +413,7 @@ function SalesPagination({
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 text-sm text-white/70">
+    <div className={`flex items-center justify-between border-t px-5 py-4 text-sm ${isDark ? "border-[#242424] bg-[#101010] text-white/70" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#32323299]"}`}>
       <span>
         {pagination.total > 0
           ? `Showing ${showingFrom} to ${showingTo} of ${pagination.total} entries`
@@ -369,13 +424,13 @@ function SalesPagination({
           type="button"
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
           disabled={safePage === 1}
-          className="h-9 rounded-lg bg-[#171717] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/20"
+          className={`h-9 rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/5 bg-[#171717] text-white/65 hover:bg-white/5" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-zinc-50"}`}
         >
           Previous
         </button>
         {paginationItems.map((page, index) =>
           page === "..." ? (
-            <span key={`salesperson-page-gap-${index}`} className="px-2 text-white/45">...</span>
+            <span key={`salesperson-page-gap-${index}`} className={`px-2 ${isDark ? "text-white/45" : "text-[#999]"}`}>...</span>
           ) : (
             <button
               key={`salesperson-page-${page}`}
@@ -384,7 +439,7 @@ function SalesPagination({
               className={`h-9 min-w-9 rounded-lg px-3 text-sm font-semibold transition ${
                 page === safePage
                   ? "bg-[#E5D5B8] text-black"
-                  : "text-white/65 hover:bg-white/5 hover:text-white"
+                  : isDark ? "text-white/65 hover:bg-white/5 hover:text-white" : "text-[#323232] hover:bg-black/5"
               }`}
             >
               {page}
@@ -395,7 +450,7 @@ function SalesPagination({
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
           disabled={safePage === totalPages}
-          className="h-9 rounded-lg bg-[#171717] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/20"
+          className={`h-9 rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/5 bg-[#171717] text-white/65 hover:bg-white/5" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-zinc-50"}`}
         >
           Next
         </button>
@@ -416,11 +471,14 @@ export default function SalespeopleDetailView({
   onBack: () => void;
 }) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"booking" | "quotes">("booking");
-  const viewMode: "list" | "grid" = "list";
+  const viewMode = "list" as "list" | "grid";
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<Date | null>(getTodayDate);
   const debouncedSearch = useDebounce(search, 300);
+  const normalizedSearch = debouncedSearch.trim();
   const [leadRows, setLeadRows] = useState<any[]>([]);
   const [salesQuoteRows, setSalesQuoteRows] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -460,6 +518,33 @@ export default function SalespeopleDetailView({
     ? ["Booking Type", "Self-Serve", "Sales Assisted", "Manual"]
     : ["Booking Type", "Single Day", "Multi Day"];
   const salesRepId = profile.sales_rep_id || profile.id;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = !mounted || theme === "dark";
+  const handleTabChange = (tab: "booking" | "quotes") => {
+    if (tab === activeTab) return;
+
+    setFilters((current) => ({
+      ...current,
+      lead: "All Lead",
+      status: tab === "booking" ? "All" : "All Status",
+      booking: "Booking Type",
+      cp: "Creative Partners",
+    }));
+
+    if (tab === "booking") {
+      setLeadPage(1);
+    } else {
+      setQuotePage(1);
+    }
+
+    setActiveTab(tab);
+  };
+
+
   const bookingGridColumns = useMemo(() => {
     const baseStatuses = ["Booking In Progress", "Booked", "Signed Up - Lead Created", "Book a Shoot - Lead Created", "Manual - Lead Created", "Ready for Payment", "Closed - Lost"];
     const statuses = Array.from(new Set([...baseStatuses, ...leadRows.map((row) => row.status || "N/A")]));
@@ -578,22 +663,26 @@ export default function SalespeopleDetailView({
   };
 
   useEffect(() => {
+  let cancelled = false;
    const load = async () => {
   const repId = salesRepId;
   if (!repId) return;
 
   setIsLoading(true);
+  try {
       if (activeTab === "booking") {
         setSalesQuoteRows([]);
         const response = await shiftManagementApi.getSalesRepLeads(repId, cleanParams({
-          search: debouncedSearch || undefined,
+          search: normalizedSearch || undefined,
           lead_type: filters.booking === "Booking Type" ? undefined : leadTypeParam[filters.booking],
           intent: filters.lead === "All Lead" ? undefined : filters.lead,
-          status: filters.status === "All" ? undefined : filters.status,
+          status: filters.status === "All" || filters.status === "All Status" ? undefined : filters.status,
           date: formatApiDate(dateFilter),
           page: leadPage,
           limit: 10,
         }));
+      if (cancelled) return;
+
         const data = response?.data?.data || response?.data;
         const list = Array.isArray(data?.rows) ? data.rows : [];
         const activeList = list.filter((row: any) => isActiveRecord(row?.is_active ?? row?.user_status ?? row?.enabled ?? row?.is_enabled));
@@ -630,48 +719,60 @@ export default function SalespeopleDetailView({
           }));
       } else {
         setLeadRows([]);
-        const response = await shiftManagementApi.getSalesRepQuotes(repId, cleanParams({
-          search: debouncedSearch || undefined,
-          status: filters.status === "All Status" ? undefined : quoteStatusParam[filters.status],
+        const response = await salesApi.getQuotesList({
+          search: normalizedSearch || undefined,
+          assigned_sales_rep_id: repId,
+          status: filters.status === "All Status" || filters.status === "All" ? undefined : quoteStatusParam[filters.status],
           booking_type: filters.booking === "Booking Type" ? undefined : quoteBookingTypeParam[filters.booking],
-          date: formatApiDate(dateFilter),
+          range: dateFilter ? "custom" : undefined,
+          date_on: formatApiDate(dateFilter),
           page: quotePage,
           limit: 10,
-        }));
-        const data = response?.data?.data || response?.data;
-        const list = Array.isArray(data?.rows) ? data.rows : [];
-        const pagination = data?.pagination || {};
+        });
+      if (cancelled) return;
+        const { rows, pagination } = response?.success
+          ? extractQuoteRowsState(response.data)
+          : { rows: [], pagination: null };
+        const list = rows;
+        const quotePageLimit = Number(pagination?.limit || 10);
+        const quoteTotal = Number(pagination?.total || list.length || 0);
         setQuotePagination({
-          page: Number(pagination.page || quotePage || 1),
-          limit: Number(pagination.limit || 10),
-          total: Number(pagination.total || list.length || 0),
-          pages: Number(pagination.pages || pagination.total_pages || pagination.totalPages || 1),
+          page: Number(pagination?.page || quotePage || 1),
+          limit: quotePageLimit,
+          total: quoteTotal,
+          pages: Number(pagination?.pages || 1),
         });
         setSalesQuoteRows(list
-          .filter((row: any) => !(row?.lead_id && !row?.sales_quote_id && !row?.project && !row?.quote_status))
           .map((row: any) => {
             const displayName = clientDisplayName(row);
+            const statusKey = getPaymentAwareQuoteStatusKey(row);
             return {
-              sales_quote_id: row.sales_quote_id || row.id || row.project || row.client_name || row.guest_email,
+              sales_quote_id: row.sales_quote_id || row.quote_id || row.id || row.project || row.client_name || row.guest_email,
               lead_id: row.lead_id || row.booking_id || row.converted_booking_id || row.booking_lead_id,
-              quoteNumber: row.quote_number || row.sales_quote_id || row.id,
+              quoteNumber: row.quote_number || row.sales_quote_id || row.quote_id || row.id,
               name: displayName,
-              meta: formatLocation(row.client_location),
-              project: row.project || "Untitled project",
-              amount: row.amount || "0.00",
-              status: row.quote_status || "Draft",
-              valid: formatShortDate(row.valid_until),
+              meta: formatLocation(row.client_location || row.client_address || row.address || row.location),
+              project: row.project || row.project_name || row.project_description || row.video_shoot_type || "Untitled project",
+              amount: row.amount || row.total_amount || row.total || "0.00",
+              status: formatQuoteStatusLabel(statusKey),
+              valid: row.valid_until ? formatShortDate(row.valid_until) : row.valid || "N/A",
               initials: row.initials || getInitials(displayName),
               color: row.color || "#F5E9D5",
             };
           }));
       }
+    } finally {
+      if (!cancelled) {
+        setIsLoading(false);
+      }
+    }
+  };
 
-      setIsLoading(false);
-    };
-
-    void load();
-  }, [activeTab, salesRepId, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage]);
+  void load();
+  return () => {
+    cancelled = true;
+  };
+}, [ activeTab, salesRepId, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp, leadPage, quotePage,]);
 
   useEffect(() => {
     if (activeTab === "booking") {
@@ -679,21 +780,11 @@ export default function SalespeopleDetailView({
     } else {
       setQuotePage(1);
     }
-  }, [activeTab, debouncedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
-
-  useEffect(() => {
-    setFilters((current) => ({
-      ...current,
-      lead: "All Lead",
-      status: activeTab === "booking" ? "All" : "All Status",
-      booking: "Booking Type",
-      cp: "Creative Partners",
-    }));
-  }, [activeTab]);
+  }, [activeTab, normalizedSearch, dateFilter, filters.lead, filters.status, filters.booking, filters.cp]);
 
   return (
-    <div className="min-h-full bg-[#101010] px-4 py-6 font-[var(--font-geist-sans)] text-white lg:px-9 lg:py-8">
-      <button type="button" onClick={onBack} className="mb-7 flex items-center gap-2 text-sm text-white/85 transition hover:text-[#E5D5B8]">
+    <div className={`min-h-full px-4 py-6 font-[var(--font-geist-sans)] transition-colors duration-300 lg:px-9 lg:py-8 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#323232]"}`}>
+      <button type="button" onClick={onBack} className={`mb-7 flex items-center gap-2 text-sm transition hover:text-[#BFA780] ${isDark ? "text-white/85" : "text-[#323232]"}`}>
         <ArrowLeft size={18} />
         Back
       </button>
@@ -704,14 +795,14 @@ export default function SalespeopleDetailView({
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold">{profile.name}</h1>
-              <Toggle enabled={profile.enabled} />
+              {/* <Toggle enabled={profile.enabled} /> */}
             </div>
-            <p className="mt-3 text-sm text-white/60">Email ID : <span className="text-white/80">{profile.email}</span><span className="mx-4 text-white/30">|</span>Last Activity : <span className="text-white/80">{formatShortDate(profile.lastActivity)}</span></p>
+            <p className={`mt-3 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}>Email ID : <span className={isDark ? "text-white/80" : "text-[#323232]"}>{profile.email}</span><span className={isDark ? "mx-4 text-white/30" : "mx-4 text-[#32323233]"}>|</span>Last Activity : <span className={isDark ? "text-white/80" : "text-[#323232]"}>{formatShortDate(profile.lastActivity)}</span></p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-4">
           <div className="flex items-center gap-3">
-            <StatusBadge value={profile.status || (profile.enabled ? "Active" : "In Active")} />
+            <StatusBadge value={profile.status || (profile.enabled ? "Active" : "In Active")} isDark={isDark} />
             <button
               type="button"
               onClick={() => setIsDeleteModalOpen(true)}
@@ -725,21 +816,21 @@ export default function SalespeopleDetailView({
         </div>
       </div>
       
-      <div className="mt-5 inline-flex rounded-lg border border-[#2D2D2D] bg-[#171717] p-1">
-        <button onClick={() => setActiveTab("booking")} className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Booking Leads</button>
-        <button onClick={() => setActiveTab("quotes")} className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : "text-white/70"}`}>Quotes</button>
+      <div className={`mt-5 inline-flex rounded-lg border p-1 ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+        <button onClick={() => handleTabChange("booking")}className={`h-10 rounded-md px-6 text-sm ${activeTab === "booking" ? "bg-[#E5D5B8] text-black" : isDark ? "text-white/70" : "text-[#32323299]"}`}>Booking Leads</button>
+        <button onClick={() => handleTabChange("quotes")}className={`h-10 rounded-md px-8 text-sm ${activeTab === "quotes" ? "bg-[#E5D5B8] text-black" : isDark ? "text-white/70" : "text-[#32323299]"}`}>Quotes</button>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 lg:flex-row">
         <label className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/28" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-12 w-full rounded-lg border border-[#2D2D2D] bg-[#242424] pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/35" placeholder="Search" />
+          <Search className={`absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-white/28" : "text-[#999]"}`} />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm outline-none transition-colors ${isDark ? "border-[#2D2D2D] bg-[#242424] text-white placeholder:text-white/35" : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#999]"}`} placeholder="Search" />
         </label>
       </div>
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} />
+          {/* <BasicDropdown label="All" value={filters.all} options={["All", "Month", "Week"]} onChange={(value) => setFilters((current) => ({ ...current, all: value }))} /> */}
           {activeTab === "booking" ? (
             <BasicDropdown label="All Lead" value={filters.lead} options={["All Lead", "Hot", "Warm", "Cold"]} onChange={(value) => setFilters((current) => ({ ...current, lead: value }))} />
           ) : null}
@@ -751,7 +842,7 @@ export default function SalespeopleDetailView({
         </div>
       </div>
 
-      <section className={viewMode === "grid" ? "mt-5" : "mt-5 overflow-hidden rounded-2xl border border-[#2D2D2D] bg-[#111]"}>
+      <section className={viewMode === "grid" ? "mt-5" : `mt-5 overflow-hidden rounded-2xl border transition-colors ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
         <div className={viewMode === "grid" ? "" : "overflow-x-auto"}>
           {viewMode === "grid" ? (
             <div className="overflow-x-auto overflow-y-hidden no-scrollbar pb-2">
@@ -760,20 +851,20 @@ export default function SalespeopleDetailView({
                 <div
                   key={`grid-column-${column.status}`}
                   onDragOver={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                   }}
                   onDrop={(event) => {
-                    if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                    if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                     event.preventDefault();
                     reorderGridCards(column.status, draggedCard.id);
                     setDraggedCard(null);
                   }}
-                  className="h-fit w-[320px] shrink-0 rounded-3xl border border-[#FFFFFF33] bg-[#0A0A0A]"
+                  className={`h-fit w-[320px] shrink-0 rounded-3xl border ${isDark ? "border-[#FFFFFF33] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-white"}`}
                 >
-                  <div className="sticky top-[-1px] z-20 flex w-full items-center justify-between rounded-3xl rounded-b-xl border-b border-white/5 bg-[#202020] px-5 py-4">
-                    <h3 className="truncate text-sm font-medium text-[#E8D1AB]">{column.status}</h3>
-                    <span className="inline-flex h-6 min-w-6 items-center justify-center px-2 text-sm font-medium text-white/70">{column.items.length}</span>
+                  <div className={`sticky top-[-1px] z-20 flex w-full items-center justify-between rounded-3xl rounded-b-xl border-b px-5 py-4 ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E3E3E3] bg-[#FFFCF6]"}`}>
+                    <h3 className={`truncate text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>{column.status}</h3>
+                    <span className={`inline-flex h-6 min-w-6 items-center justify-center px-2 text-sm font-medium ${isDark ? "text-white/70" : "text-[#32323299]"}`}>{column.items.length}</span>
                   </div>
                   <div className="no-scrollbar max-h-[620px] space-y-3 overflow-y-auto px-4 py-4">
                     {column.items.length ? column.items.map((row: any) => (
@@ -788,11 +879,11 @@ export default function SalespeopleDetailView({
                         }}
                         onDragEnd={() => setDraggedCard(null)}
                         onDragOver={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                         }}
                         onDrop={(event) => {
-                          if (draggedCard?.status !== column.status || draggedCard.type !== activeTab) return;
+                          if (!draggedCard || draggedCard.status !== column.status || draggedCard.type !== activeTab) return;
                           event.preventDefault();
                           event.stopPropagation();
                           reorderGridCards(column.status, draggedCard.id, activeTab === "booking" ? row.lead_id : row.sales_quote_id);
@@ -802,7 +893,7 @@ export default function SalespeopleDetailView({
                           if (activeTab === "booking" && row.lead_id) router.push(`/admin/sales-representative/${row.lead_id}`);
                           if (activeTab === "quotes" && row.sales_quote_id) router.push(`/admin/quotes/${row.sales_quote_id}?from=shift-management`);
                         }}
-                        className={`group cursor-pointer rounded-2xl bg-[#202020] transition-all duration-200 hover:bg-[#1A1A1A] active:cursor-grabbing ${
+                        className={`group cursor-pointer rounded-2xl transition-all duration-200 active:cursor-grabbing ${isDark ? "bg-[#202020] hover:bg-[#1A1A1A]" : "bg-[#F4F5F7] hover:bg-[#ECEDEF]"} ${
                           String(draggedCard?.id || "") === String(activeTab === "booking" ? row.lead_id : row.sales_quote_id) ? "scale-95 opacity-50" : "opacity-100"
                         }`}
                       >
@@ -810,40 +901,40 @@ export default function SalespeopleDetailView({
                           <div className="flex min-w-0 flex-1 items-center gap-3">
                             <span className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-md text-xl font-bold text-black" style={{ backgroundColor: row.color }}>{row.initials}</span>
                             <div className="min-w-0">
-                              <h4 className="truncate text-base font-semibold leading-tight text-white" title={row.name}>{row.name}</h4>
-                              <p className="mt-1 whitespace-nowrap text-sm font-medium text-white/40">{row.meta}</p>
+                              <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#323232]"}`} title={row.name}>{row.name}</h4>
+                              <p className={`mt-1 whitespace-nowrap text-sm font-medium ${isDark ? "text-white/40" : "text-[#32323266]"}`}>{row.meta}</p>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={(event) => activeTab === "booking" ? openLeadActionMenu(event, row) : openQuoteActionMenu(event, row)}
-                            className="shrink-0 p-1 text-white transition-colors hover:text-white/60"
+                            className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-[#323232] hover:text-[#32323299]"}`}
                             aria-label={`Open actions for ${row.name}`}
                           >
                             <MoreVertical size={24} />
                           </button>
                         </div>
-                        <div className="h-[1px] w-full bg-white/50" />
+                        <div className={`h-[1px] w-full ${isDark ? "bg-white/20" : "bg-black/10"}`} />
                         <div className="space-y-4 p-5 text-sm">
                           {activeTab === "booking" ? (
                             <>
-                              <div className="flex items-center justify-between"><span className="text-sm font-medium text-[#E8D1AB]">Intent Type</span><StatusBadge value={row.intent} /></div>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Email ID</span><span className="max-w-[160px] truncate text-right text-sm font-medium text-white/90" title={row.email}>{row.email}</span></div>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Booking ID</span><span className="text-sm font-medium text-white/90">#{row.bookingId}</span></div>
-                              <div className="flex items-center justify-between"><span className="text-sm font-medium text-[#E8D1AB]">Lead Type</span><span className="text-sm font-medium text-white/90">{row.type}</span></div>
+                              <div className="flex items-center justify-between"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Intent Type</span><StatusBadge value={row.intent} /></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Email ID</span><span className={`max-w-[160px] truncate text-right text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`} title={row.email}>{row.email}</span></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Booking ID</span><span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>#{row.bookingId}</span></div>
+                              <div className="flex items-center justify-between"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Lead Type</span><span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>{row.type}</span></div>
                             </>
                           ) : (
                             <>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Project</span><span className="max-w-[160px] truncate text-right text-sm font-medium text-white/90" title={row.project}>{row.project}</span></div>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Amount</span><span className="text-sm font-medium text-white/90">{row.amount}</span></div>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Quote ID</span><span className="text-sm font-medium text-white/90">#{row.quoteNumber}</span></div>
-                              <div className="flex items-center justify-between gap-4"><span className="text-sm font-medium text-[#E8D1AB]">Valid Until</span><span className="text-sm font-medium text-white/90">{row.valid}</span></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Project</span><span className={`max-w-[160px] truncate text-right text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`} title={row.project}>{row.project}</span></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Amount</span><span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>{row.amount}</span></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Quote ID</span><span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>#{row.quoteNumber}</span></div>
+                              <div className="flex items-center justify-between gap-4"><span className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8B6F3D]"}`}>Valid Until</span><span className={`text-sm font-medium ${isDark ? "text-white/90" : "text-[#323232]"}`}>{row.valid}</span></div>
                             </>
                           )}
                         </div>
                       </div>
                     )) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-white/35">
+                      <div className={`rounded-2xl border border-dashed px-4 py-10 text-center text-sm ${isDark ? "border-white/10 text-white/35" : "border-[#E3E3E3] text-[#32323266]"}`}>
                         {activeTab === "booking" ? "No leads in this stage" : "No quotes in this stage"}
                       </div>
                     )}
@@ -854,20 +945,20 @@ export default function SalespeopleDetailView({
             </div>
           ) : activeTab === "booking" ? (
             <table className="w-full min-w-[920px] text-left">
-              <thead className="border-b border-[#242424] text-xs font-medium text-[#E5D5B8]">
+              <thead className={`border-b text-xs font-medium ${isDark ? "border-[#242424] bg-[#101010] text-[#E5D5B8]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#000000]"}`}>
                 <tr><th className="px-5 py-4">Client Name</th><th>Email ID</th><th>Lead Type</th><th>Intent</th><th>Booking Status</th><th>Last Activity</th><th className="pr-5 text-right">Action</th></tr>
               </thead>
               <tbody>{leadRows.length ? leadRows.map((row) => (
                 <tr
                   key={row.lead_id}
                   onClick={() => row.lead_id && router.push(`/admin/sales-representative/${row.lead_id}`)}
-                  className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/5"
+                  className={`cursor-pointer border-b text-sm transition ${isDark ? "border-[#242424] text-white/85 hover:bg-white/5" : "border-[#E3E3E3] text-[#323232] hover:bg-black/[0.02]"}`}
                 >
-                  <td className="px-5 py-3"><AvatarName {...row} /></td><td>{row.email}</td><td>{row.type}</td><td><StatusBadge value={row.intent} /></td><td><LeadsStatusBadge status={row.status} /></td><td>{row.activity}</td><td className="pr-5 text-right">
+                  <td className="px-5 py-3"><AvatarName {...row} isDark={isDark} /></td><td>{row.email}</td><td>{row.type}</td><td><StatusBadge value={row.intent} /></td><td><LeadsStatusBadge status={row.status} /></td><td>{row.activity}</td><td className="pr-5 text-right">
                     <button
                       type="button"
                       onClick={(event) => openLeadActionMenu(event, row)}
-                      className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#E5D5B8] transition hover:bg-white/5 hover:text-white"
+                      className={`ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#BFA780] transition ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-black/5 hover:text-[#323232]"}`}
                       aria-label={`Open actions for ${row.name}`}
                     >
                       <MoreVertical size={18} />
@@ -876,7 +967,7 @@ export default function SalespeopleDetailView({
                 </tr>
               )) : (
               <tr key="no-leads">
-                <td colSpan={7} className="px-5 py-8 text-center text-sm text-white/45">
+                <td colSpan={7} className={`px-5 py-8 text-center text-sm ${isDark ? "text-white/45" : "text-[#32323266]"}`}>
                   {isLoading ? (
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
@@ -891,20 +982,20 @@ export default function SalespeopleDetailView({
             </table>
           ) : (
             <table className="w-full min-w-[920px] text-left">
-              <thead className="border-b border-[#242424] text-xs font-medium text-[#E5D5B8]">
+              <thead className={`border-b text-xs font-medium ${isDark ? "border-[#242424] bg-[#101010] text-[#E5D5B8]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#000000]"}`}>
                 <tr><th className="px-5 py-4">Client Name</th><th>Project</th><th>Amount</th><th>Quote Status</th><th>Valid Until</th><th className="pr-5 text-right">Action</th></tr>
               </thead>
               <tbody>{salesQuoteRows.length ? salesQuoteRows.map((row) => (
                 <tr
                   key={row.sales_quote_id}
                   onClick={() => row.sales_quote_id && router.push(`/admin/quotes/${row.sales_quote_id}?from=shift-management`)}
-                  className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/5"
+                  className={`cursor-pointer border-b text-sm transition ${isDark ? "border-[#242424] text-white/85 hover:bg-white/5" : "border-[#E3E3E3] text-[#323232] hover:bg-black/[0.02]"}`}
                 >
-                  <td className="px-5 py-3"><AvatarName {...row} /></td><td>{row.project}</td><td>{row.amount}</td><td><StatusBadge value={row.status} /></td><td>{row.valid}</td><td className="pr-5 text-right">
+                  <td className="px-5 py-3"><AvatarName {...row} isDark={isDark} /></td><td>{row.project}</td><td>{row.amount}</td><td><StatusBadge value={row.status} /></td><td>{row.valid}</td><td className="pr-5 text-right">
                     <button
                       type="button"
                       onClick={(event) => openQuoteActionMenu(event, row)}
-                      className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#E5D5B8] transition hover:bg-white/5 hover:text-white"
+                      className={`ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#BFA780] transition ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-black/5 hover:text-[#323232]"}`}
                       aria-label={`Open actions for ${row.name}`}
                     >
                       <MoreVertical size={18} />
@@ -912,7 +1003,15 @@ export default function SalespeopleDetailView({
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">No quotes found</td></tr>
+                <tr><td colSpan={6} className={`px-5 py-8 text-center text-sm ${isDark ? "text-white/45" : "text-[#32323266]"}`}>
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                        <span>Loading quotes...</span>
+                      </div>
+                    ) : (
+                      "No quotes found"
+                    )}</td></tr>
               )}</tbody>
             </table>
           )}
@@ -920,6 +1019,7 @@ export default function SalespeopleDetailView({
         <SalesPagination
           pagination={activeTab === "booking" ? leadPagination : quotePagination}
           onPageChange={activeTab === "booking" ? setLeadPage : setQuotePage}
+          isDark={isDark}
         />
       </section>
       <ActionMenu
@@ -958,6 +1058,7 @@ export default function SalespeopleDetailView({
         onReject={() => {
           if (quoteActionMenu?.id) void rejectQuote(quoteActionMenu.id);
         }}
+        isDark={isDark}
       />
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}

@@ -12,15 +12,40 @@ import { toast } from "sonner";
 
 import type { Creator } from "@/lib/types";
 import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
+import {
+  useGetRandomCrewQuery,
+  useSearchCreatorsQuery,
+} from "@/lib/redux/features/creators/creatorsApi";
 import CreatorCarousel from "./CreatorsCarousel";
+import Image from "next/image";
 
 interface ChooseCreativePartnerProps {
   onBack: () => void;
   onContinue: (selectedCreatives: Creator[], letBeigeChoose: boolean) => void;
   requiredCount?: number;
+  contentTypes?: string[];
+  title?: string;
+  subtitle?: string;
+  stepNumber?: string;
+  completionPercentage?: number;
+  locationLatitude?: number;
+  locationLongitude?: number;
+  requiredRoles?: {
+    video?: number;
+    photo?: number;
+  };
+  initialSelectedCreatives?: Creator[];
+  initialLetBeigeChoose?: boolean;
 }
 
-const MOCK_CREATIVES: Creator[] = [
+type FlexibleCreator = Omit<Creator, "role_id"> & {
+  role_id?: number | string | Array<number | string>;
+  role?: {
+    role_name?: string;
+  };
+};
+
+const MOCK_CREATIVES = [
   {
     "crew_member_id": 527,
     "name": "Mridula S",
@@ -307,20 +332,31 @@ const MOCK_CREATIVES: Creator[] = [
     "distance": 6.2,
     "distanceText": "6.2 mi"
   }
-];
+] as unknown as Creator[];
 
 export default function ChooseCreativePartner({
   onBack,
   onContinue,
-  requiredCount = 5,
+  requiredCount = 1,
+  contentTypes = [],
+  locationLatitude,
+  locationLongitude,
+  requiredRoles,
+  initialSelectedCreatives = [],
+  initialLetBeigeChoose = false,
+  title = "Choose Your Creative Partner",
+  subtitle = "Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.",
+  stepNumber = "07",
+  completionPercentage = 80,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>(
+    initialSelectedCreatives.map((creator) => creator.crew_member_id)
+  );
+  const [letBeigeChoose, setLetBeigeChoose] = useState<boolean>(initialLetBeigeChoose);
   const [progress, setProgress] = useState(0);
-  const [activeRoleFilter, setActiveRoleFilter] = useState<"video" | "photo" | null>(null);
+  const [activeRoleFilter] = useState<"video" | "photo" | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<SelectedCrewRoles>({});
-  const [profileModalUrl, setProfileModalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const totalTimeMs = 5000;
@@ -341,25 +377,72 @@ export default function ChooseCreativePartner({
     return () => clearInterval(timer);
   }, []);
 
+  const searchableContentTypes = useMemo(
+    () =>
+      contentTypes.filter(
+        (type) => !["editing", "studio", "ai editing"].includes(type)
+      ),
+    [contentTypes]
+  );
 
-  useEffect(() => {
-    if (!profileModalUrl || typeof window === "undefined") return;
+  const normalizedRequiredRoles = useMemo(() => {
+    const requestedVideo =
+      requiredRoles?.video ??
+      (searchableContentTypes.some((type) =>
+        ["videographer", "cinematographer", "livestream"].includes(type)
+      )
+        ? 1
+        : 0);
+    const requestedPhoto =
+      requiredRoles?.photo ??
+      (searchableContentTypes.includes("photographer") ? 1 : 0);
 
-    const handleProfileReady = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "creator-profile-modal-ready") return;
-
-      // setIsProfileModalLoading(false);
+    return {
+      video: Math.max(0, Number(requestedVideo) || 0),
+      photo: Math.max(0, Number(requestedPhoto) || 0),
     };
+  }, [requiredRoles?.photo, requiredRoles?.video, searchableContentTypes]);
 
-    window.addEventListener("message", handleProfileReady);
+  const resolvedRequiredCount = Math.max(
+    1,
+    requiredCount,
+    normalizedRequiredRoles.video + normalizedRequiredRoles.photo
+  );
 
-    return () => {
-      window.removeEventListener("message", handleProfileReady);
-    };
-  }, [profileModalUrl]);
+  const {
+    data: creatorsResponse,
+    isFetching: isCreatorsFetching,
+  } = useSearchCreatorsQuery(
+    {
+      content_types: searchableContentTypes.join(","),
+      latitude: locationLatitude,
+      longitude: locationLongitude,
+      required_count: resolvedRequiredCount,
+      limit: 20,
+      page: 1,
+    },
+    { skip: searchableContentTypes.length === 0 }
+  );
 
-  const creators: Creator[] = MOCK_CREATIVES;
+  const { data: randomCrew = [], isFetching: isRandomCrewFetching } =
+    useGetRandomCrewQuery(undefined, {
+      skip: Boolean(creatorsResponse?.data?.length),
+    });
+
+  const creators: Creator[] = useMemo(() => {
+    const sourceCreators = creatorsResponse?.data?.length
+      ? creatorsResponse.data
+      : randomCrew.length
+        ? randomCrew
+        : MOCK_CREATIVES as unknown as Creator[];
+    const creatorById = new Map<number, Creator>();
+
+    [...initialSelectedCreatives, ...sourceCreators].forEach((creator) => {
+      creatorById.set(creator.crew_member_id, creator);
+    });
+
+    return Array.from(creatorById.values());
+  }, [creatorsResponse?.data, initialSelectedCreatives, randomCrew]);
 
   const handleLetBeigeChoose = () => {
     setLetBeigeChoose(!letBeigeChoose);
@@ -367,22 +450,45 @@ export default function ChooseCreativePartner({
 
   // Helper to determine capabilities
   const getCreatorCapabilities = (creator: Creator) => {
-    const roleName = creator.role_name?.toLowerCase() || creator.role?.role_name?.toLowerCase() || "";
-    const roleId = Number(creator.role_id);
+    const flexibleCreator = creator as FlexibleCreator;
+    const roleName =
+      creator.role_name?.toLowerCase() ||
+      flexibleCreator.role?.role_name?.toLowerCase() ||
+      "";
+    const rawRoleId = flexibleCreator.role_id;
+    const roleIds = (() => {
+      if (Array.isArray(rawRoleId)) return rawRoleId.map(Number).filter(Number.isFinite);
+      if (typeof rawRoleId === "string") {
+        try {
+          const parsed = JSON.parse(rawRoleId);
+          if (Array.isArray(parsed)) return parsed.map(Number).filter(Number.isFinite);
+        } catch {
+          // fall through to digit parsing
+        }
+
+        return rawRoleId
+          .split(/[^\d]+/)
+          .map(Number)
+          .filter(Number.isFinite);
+      }
+
+      const parsed = Number(rawRoleId);
+      return Number.isFinite(parsed) ? [parsed] : [];
+    })();
     const skills = creator.skills ? (typeof creator.skills === 'string' ? creator.skills.toLowerCase() : JSON.stringify(creator.skills).toLowerCase()) : "";
     const bio = creator.bio?.toLowerCase() || "";
 
-    const isVideo = roleName.includes("video") || roleId === 1 || roleId === 11 || roleId === 12 || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
-    const isPhoto = roleName.includes("photo") || roleId === 2 || roleId === 10 || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
+    const isVideo = roleName.includes("video") || roleIds.some((id) => [1, 11, 12].includes(id)) || skills.includes("video") || skills.includes("videographer") || bio.includes("videographer");
+    const isPhoto = roleName.includes("photo") || roleIds.some((id) => [2, 10].includes(id)) || skills.includes("photo") || skills.includes("photographer") || bio.includes("photographer");
 
     return { isVideo, isPhoto };
   };
 
   const requirements = useMemo(() => {
     return {
-      required: { video: requiredCount, photo: 0 },
+      required: normalizedRequiredRoles,
     };
-  }, [requiredCount]);
+  }, [normalizedRequiredRoles]);
 
   const filteredCreators = useMemo(() => {
     if (activeRoleFilter === "video") {
@@ -403,19 +509,17 @@ export default function ChooseCreativePartner({
     const selectedCreators = creators.filter(c => ids.includes(c.crew_member_id));
     let videoCount = 0;
     let photoCount = 0;
-    const both: Creator[] = [];
 
     selectedCreators.forEach(c => {
       const caps = getCreatorCapabilities(c);
       const assignedRole = roleAssignments[c.crew_member_id];
 
-      if (assignedRole === "video") videoCount++;
-      if (assignedRole === "photo") photoCount++;
+      if (assignedRole === "video" && caps.isVideo) videoCount++;
+      if (assignedRole === "photo" && caps.isPhoto) photoCount++;
 
-      if (!assignedRole && caps.isVideo && caps.isPhoto) {
-        both.push(c);
-      } else if (!assignedRole) {
-        const role = (c.role_name || c.role?.role_name || "").toLowerCase();
+      if (!assignedRole && !(caps.isVideo && caps.isPhoto)) {
+        const flexibleCreator = c as FlexibleCreator;
+        const role = (c.role_name || flexibleCreator.role?.role_name || "").toLowerCase();
         if (role.includes("video")) videoCount++;
         else if (role.includes("photo")) photoCount++;
       }
@@ -434,11 +538,24 @@ export default function ChooseCreativePartner({
     if (!caps.isVideo && caps.isPhoto) return "photo";
     if (!caps.isVideo && !caps.isPhoto) return null;
 
-    if (currentCounts.video < requirements.required.video) {
+    const needsVideo = currentCounts.video < requirements.required.video;
+    const needsPhoto = currentCounts.photo < requirements.required.photo;
+
+    if (needsVideo && !needsPhoto) {
       return "video";
     }
 
-    return currentCounts.video <= currentCounts.photo ? "video" : "photo";
+    if (needsPhoto && !needsVideo) {
+      return "photo";
+    }
+
+    if (needsVideo && needsPhoto) {
+      const remainingVideo = requirements.required.video - currentCounts.video;
+      const remainingPhoto = requirements.required.photo - currentCounts.photo;
+      return remainingVideo >= remainingPhoto ? "video" : "photo";
+    }
+
+    return null;
   };
 
   const toggleSelection = (id: number) => {
@@ -475,9 +592,15 @@ export default function ChooseCreativePartner({
 
         const nextCounts = calculateCounts(nextIds, nextRoles);
         const isVideoFull = nextCounts.video > requirements.required.video;
+        const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
         if (activeRole === "video" && isVideoFull) {
           toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
+          return prev;
+        }
+
+        if (activeRole === "photo" && isPhotoFull) {
+          toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
           return prev;
         }
 
@@ -508,15 +631,26 @@ export default function ChooseCreativePartner({
       const nextIds = [...prev, id];
       const nextCounts = calculateCounts(nextIds, nextRoles);
 
+      if (resolvedRequiredCount === 1 && prev.length >= resolvedRequiredCount) {
+        setSelectedRoles(desiredRole ? { [id]: desiredRole } : {});
+        return [id];
+      }
+
       const isVideoFull = nextCounts.video > requirements.required.video;
+      const isPhotoFull = nextCounts.photo > requirements.required.photo;
 
       if (isVideo && isVideoFull) {
         toast.error(`You have already selected the required ${requirements.required.video} Videographer(s).`);
         return prev;
       }
 
-      if (requiredCount > 0 && prev.length >= requiredCount) {
-        toast.error(`You have already selected the required ${requiredCount} team members.`);
+      if (isPhoto && isPhotoFull) {
+        toast.error(`You have already selected the required ${requirements.required.photo} Photographer(s).`);
+        return prev;
+      }
+
+      if (resolvedRequiredCount > 0 && prev.length >= resolvedRequiredCount) {
+        toast.error(`You have already selected the required ${resolvedRequiredCount} team members.`);
         return prev;
       }
 
@@ -525,49 +659,23 @@ export default function ChooseCreativePartner({
     });
   };
 
-  const handleViewProfile = (url: string) => {
-    setProfileModalUrl(url);
-  };
+  const selectedCounts = calculateCounts(selectedIds, selectedRoles);
+  const shouldShowLoading =
+    loading || ((isCreatorsFetching || isRandomCrewFetching) && creators.length === 0);
 
-  if (loading) {
+  if (shouldShowLoading) {
     return (
       <div className="w-full min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         {/* Glow & Sparkle Animation */}
-        <div className="relative w-32 h-32 mb-8">
-          {/* Animated Logo Ring */}
-          <svg className="w-full h-full" viewBox="0 0 100 100">
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#333"
-              strokeWidth="2"
-            />
-            <motion.circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#E8D1AB"
-              strokeWidth="2"
-              strokeLinecap="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: progress / 100 }}
-              transition={{ duration: 0.1 }}
-              style={{ rotate: -90, transformOrigin: "center" }}
-            />
-          </svg>
-
-          {/* Center Logo Icon */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 bg-[#E8D1AB] rounded-full flex items-center justify-center text-black font-bold text-xl">
-              B
-            </div>
-          </div>
+        <div className="relative w-60 h-60 lg:w-100 lg:h-100 mb-5 lg:mb-8 [mask-image:radial-gradient(circle,black_30%,transparent_100%)]">
+          <Image
+            src={"/images/misc/BookingFlow/sparkleLoader.gif"}
+            alt="Loader gif"
+            fill
+          />
         </div>
 
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white">
+        <h2 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white">
           Finding Creative Partners for Your Shoot
         </h2>
       </div>
@@ -583,35 +691,38 @@ export default function ChooseCreativePartner({
           <button
             type="button"
             onClick={onBack}
-            className="w-11 h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-5 lg:mb-8">
         <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP 07
+          STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div className="h-full w-5/6 bg-[#E8D1AB] transition-all duration-300" />
+          <div
+            className="h-full bg-[#E8D1AB] transition-all duration-300"
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-['Cormorant_Garamond'] text-white mb-3 tracking-tight">
-          Choose Your Creative Partner
+      <div className="mb-5 lg:mb-8">
+        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+          {title}
         </h1>
-        <p className="text-white/30 text-base md:text-xl font-light">
-          Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.
+        <p className="text-white/30 text-sm md:text-xl font-light">
+          {subtitle}
         </p>
       </div>
 
       {/* 3D Carousel Section */}
-      <div className="relative w-full flex items-center justify-center min-h-[460px]">
+      <div className="relative w-full flex items-center justify-center lg:min-h-[460px]">
         {filteredCreators.length > 0 ? (
           <CreatorCarousel
             creators={filteredCreators}
@@ -619,11 +730,10 @@ export default function ChooseCreativePartner({
             selectedRoles={selectedRoles}
             activeRoleFilter={activeRoleFilter}
             toggleSelection={toggleSelection}
-            onViewProfile={handleViewProfile}
           />
         ) : (
           <div className="text-center text-white/60 py-16">
-            No {activeRoleFilter === "photo" ? "photographers" : "videographers"} available right now.
+            No {activeRoleFilter === "photo" ? "photographers" : activeRoleFilter === "video" ? "videographers" : "creatives"} available right now.
           </div>
         )}
       </div>
@@ -632,28 +742,36 @@ export default function ChooseCreativePartner({
       <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
         <button
           onClick={handleLetBeigeChoose}
-          className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-2 transition bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]`}
+          className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-2 transition bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]`}
         >
-          <Sparkles className="w-4 h-4 lg:w-7 lg:h-7 text-black" strokeWidth={1} />
+          <Sparkles className="w-5 h-5 lg:w-7 lg:h-7 text-black" strokeWidth={1} />
           Let Beige Choose.
         </button>
 
-        <div className="px-5 py-2.5 lg:py-4 lg:px-10 rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-          <Camera className="w-4 h-4 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+          <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
           <span>
-            Photographers(s) : {String(selectedIds.length).padStart(2, "0")}/
-            {String(requiredCount).padStart(2, "0")}
+            Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
+            {String(requirements.required.photo).padStart(2, "0")}
+          </span>
+        </div>
+
+        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+          <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+          <span>
+            Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
+            {String(requirements.required.video).padStart(2, "0")}
           </span>
         </div>
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-10 mt-12 border-t border-white/10 flex flex-wrap items-center lg:justify-between gap-2.5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-6 lg:px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -669,7 +787,7 @@ export default function ChooseCreativePartner({
               letBeigeChoose
             )
           }
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-5 lg:px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue with {String(selectedIds.length).padStart(2, "0")} Creatives
         </button>

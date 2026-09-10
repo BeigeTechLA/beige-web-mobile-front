@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, cloneElement } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine, Instagram } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MapPin, Globe, User, Linkedin, Copy, Calendar as CalendarIcon, ChevronDown, Phone, Grid3X3, FolderOpen, Briefcase, Play, Search, LayoutGrid, List, Folder, MoreVertical, ArrowLeft, FileText, Clock, Video, Info, CheckCircle, Navigation, Link as LinkIcon, PencilLine, Instagram, Mail } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import { adminApi, getStatusCount, GetUpcomingShoots, getPendingProjects, getAvailabilityDetails } from "@/lib/api";
@@ -29,6 +29,7 @@ import {
   AvailabilitySlotsModal,
   type AvailabilitySlotsStatus,
 } from "@/components/admin/AvailabilitySlotsModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 interface ProfileProps {
   id: string;
@@ -99,6 +100,8 @@ function EventDot({ color, label }: any) {
 
 export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true, onboardingStatus }: ProfileProps) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { canEdit } = usePermissions("admin_users_creative_partners");
   const [activeTab, setActiveTab] = useState('Overview');
   const [openFolder, setOpenFolder] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -107,6 +110,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true,
   const [activeImages, setActiveImages] = useState<string[]>([]);
 const [isVerifying, setIsVerifying] = useState(false);
 const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+const [isSendingProfileReminder, setIsSendingProfileReminder] = useState(false);
 const [manualResetLink, setManualResetLink] = useState<string | null>(null);
 const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
@@ -121,6 +125,8 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
   const [availabilityDetails, setAvailabilityDetails] = useState<any>({});
   const [pastShoots, setPastShoots] = useState<any[]>([]);
   const [shootsLoading, setShootsLoading] = useState(true);
+  const SHOOTS_PER_PAGE = 10;
+  const [shootCurrentPage, setShootCurrentPage] = useState(1);
   const [hoveredProject, setHoveredProject] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [selectedDay, setSelectedDay] = useState<{ date: string; status: AvailabilitySlotsStatus | null } | null>(null);
@@ -156,6 +162,16 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
     if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
 
     return fullUrl;
+  };
+
+  const handleBack = () => {
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
+
+    router.push("/admin/users/creative-partners");
   };
 
   useEffect(() => {
@@ -328,6 +344,24 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
       calculateSummary();
     }
   }, [availabilityDetails]);
+
+  // Hooks must stay above the loading/partner early returns so their order is
+  // identical on every render.
+  useEffect(() => {
+    setShootCurrentPage(1);
+    setExpandedId(null);
+  }, [shootTab, shootSearchQuery]);
+
+  useEffect(() => {
+    const selectedShootCount =
+      shootTab === "current" ? upcomingShoots.length : pastShoots.length;
+    const availablePages = Math.max(
+      1,
+      Math.ceil(selectedShootCount / SHOOTS_PER_PAGE)
+    );
+
+    setShootCurrentPage((page) => Math.min(page, availablePages));
+  }, [shootTab, upcomingShoots.length, pastShoots.length]);
 
   if (loading) {
     return (
@@ -603,6 +637,27 @@ const convertLinksStringToArray = (jsonString: string | null) => {
     }
   };
 
+  const handleSendProfileReminder = async () => {
+    if (isSendingProfileReminder) return;
+
+    setIsSendingProfileReminder(true);
+    try {
+      const cleanId = id.startsWith("#") ? id.substring(1) : id;
+      const response = await adminApi.sendCreativePartnerProfileReminder(cleanId);
+
+      if (response?.success !== false) {
+        toast.success(response?.message || "Profile reminder email sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send profile reminder.");
+      }
+    } catch (error) {
+      console.error("Send Profile Reminder Error:", error);
+      toast.error("An unexpected error occurred while sending the reminder.");
+    } finally {
+      setIsSendingProfileReminder(false);
+    }
+  };
+
   const SECTION_TITLE_STYLE = `lg:text-xl font-medium p-5 lg:p-8 ${isDark ? "text-white" : "text-black"}`;
   const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
@@ -661,11 +716,64 @@ const convertLinksStringToArray = (jsonString: string | null) => {
     })
     : assignedProjects;
 
+  // Frontend-only pagination for the already-fetched assigned projects.
+  const shootTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAssignedProjects.length / SHOOTS_PER_PAGE)
+  );
+  const shootStartIndex = (shootCurrentPage - 1) * SHOOTS_PER_PAGE;
+  const paginatedAssignedProjects = filteredAssignedProjects.slice(
+    shootStartIndex,
+    shootStartIndex + SHOOTS_PER_PAGE
+  );
+  const shootStartItem =
+    filteredAssignedProjects.length === 0 ? 0 : shootStartIndex + 1;
+  const shootEndItem = Math.min(
+    shootStartIndex + SHOOTS_PER_PAGE,
+    filteredAssignedProjects.length
+  );
+
+  const getShootPaginationItems = () => {
+    const items: Array<number | "ellipsis-left" | "ellipsis-right"> = [];
+
+    if (shootTotalPages <= 5) {
+      return Array.from({ length: shootTotalPages }, (_, index) => index + 1);
+    }
+
+    items.push(1);
+
+    if (shootCurrentPage > 3) {
+      items.push("ellipsis-left");
+    }
+
+    const startPage = Math.max(2, shootCurrentPage - 1);
+    const endPage = Math.min(shootTotalPages - 1, shootCurrentPage + 1);
+
+    for (let page = startPage; page <= endPage; page += 1) {
+      items.push(page);
+    }
+
+    if (shootCurrentPage < shootTotalPages - 2) {
+      items.push("ellipsis-right");
+    }
+
+    items.push(shootTotalPages);
+    return items;
+  };
+
   const progressPercent = onboardingStatus?.progress_percent ?? 0;
   const completedCount = onboardingStatus?.completed_count ?? 0;
   const totalRequired = onboardingStatus?.total_required ?? 0;
   const missingCount = onboardingStatus?.missing_count ?? 0;
+  const missingFields = Array.isArray(onboardingStatus?.missing_fields)
+    ? onboardingStatus.missing_fields
+    : [];
   const showOnboardingBanner = onboardingStatus?.success !== false && missingCount > 0;
+  const isApprovedWithMissingFields = status === "Approved" && showOnboardingBanner;
+  const canSendProfileReminder = showOnboardingBanner && status === "Pending";
+  const bannerTitle = isApprovedWithMissingFields
+    ? "Approved CP Profile: Details Missing"
+    : "Onboarding Status: Incomplete";
 
 return (
     <div className="flex flex-col">
@@ -685,7 +793,7 @@ return (
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                 <p className="truncate text-xs lg:text-sm font-medium">
-                  Onboarding Status: Incomplete
+                  {bannerTitle}
                 </p>                
               </div>
                 <p className="shrink-0 text-[13px] font-bold">
@@ -701,10 +809,19 @@ return (
                 />
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
-                  Please provide the {missingCount} remaining details to verify your profile.
-                </p>
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 space-y-2">
+                  {isApprovedWithMissingFields && (
+                    <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                      This CP is already approved. Missing fields are shown for profile cleanup only.
+                    </p>
+                  )}
+                  <p className={`text-[10px] lg:text-[13px] font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+                    {missingFields.length > 0
+                      ? missingFields.join(", ")
+                      : `${missingCount} field${missingCount === 1 ? "" : "s"}`}
+                  </p>
+                </div>
                 <p className="text-[14px] font-medium tracking-tighter">
                   {Math.round(progressPercent)}%
                 </p>
@@ -720,7 +837,7 @@ return (
       {!hideActions && (
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
-            onClick={() => router.push("/admin/users/creative-partners")}
+            onClick={handleBack}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
@@ -728,6 +845,26 @@ return (
           </button>
 
           <div className="flex items-center gap-3">
+              {canSendProfileReminder && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSendProfileReminder();
+                  }}
+                  disabled={isSendingProfileReminder || !partnerEmail}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border disabled:cursor-not-allowed disabled:opacity-60 ${isDark
+                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB]/30 text-[#E8D1AB] hover:bg-[#E8D1AB]/15"
+                    : "bg-[#FFF9E5] border-[#D7BC8A] text-[#8A6500] hover:bg-[#F7ECD3]"
+                    }`}
+                >
+                  {isSendingProfileReminder ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Mail size={16} />
+                  )}
+                  <span>{isSendingProfileReminder ? "Sending..." : "Send Reminder"}</span>
+                </button>
+              )}
               {manualResetLink ? (
                 <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${isDark ? "bg-[#111] border-white/10" : "bg-white border-gray-200"}`}>
                   <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${isDark ? "border-white/10 bg-white/5 text-[#E8D1AB]" : "border-gray-200 bg-gray-50 text-[#B08A3C]"}`}>
@@ -772,13 +909,20 @@ return (
               )}
               <button
                 type="button"
-              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 border ${isDark
-                ? "bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
-                }`}
-            >
-              <span>Edit Profile</span>
-            </button>
+                onClick={() => router.push(`/admin/users/creative-partners/${id.replace("#", "")}/edit`)}
+                disabled={!canEdit}
+                title={!canEdit ? "You do not have permission to edit creative partners" : undefined}
+                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${!canEdit
+                  ? isDark
+                    ? "cursor-not-allowed border-white/10 bg-white/5 text-white/30"
+                    : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                  : isDark
+                    ? "active:scale-95 bg-[#1A1A1A] border-[#333] text-white hover:bg-[#222]"
+                    : "active:scale-95 bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm"
+                  }`}
+              >
+                <span>Edit Profile</span>
+              </button>
 
             <button
               onClick={() => {
@@ -1693,14 +1837,14 @@ return (
                       </thead>
 
                       <tbody>
-                        {filteredAssignedProjects.map((shoot, index) => {
+                        {paginatedAssignedProjects.map((shoot, index) => {
                           const projectId =
                             shoot.project_id ||
                             shoot.stream_project_booking_id;
 
                           return (
                             <tr
-                              key={shoot.assignment_id || projectId || index}
+                              key={shoot.assignment_id || projectId || `${shootTab}-${shootStartIndex + index}`}
                               onClick={(event) => {
                                 if (!projectId) return;
 
@@ -1808,9 +1952,9 @@ return (
                         No shoots found for the selected filters.
                       </div>
                     ) : (
-                      filteredAssignedProjects.map((shoot, index) => {
+                      paginatedAssignedProjects.map((shoot, index) => {
                         const projectId = shoot.project_id || shoot.stream_project_booking_id;
-                        const baseIdentifier = shoot.assignment_id || projectId || String(index);
+                        const baseIdentifier = shoot.assignment_id || projectId || String(shootStartIndex + index);
                         const rowKey = `${shootTab}-${baseIdentifier}`;
                         const isExpanded = expandedId === rowKey;
 
@@ -1942,6 +2086,102 @@ return (
                       })
                     )}
                   </div>
+
+                  {/* Frontend-only pagination */}
+                  {filteredAssignedProjects.length > 0 && (
+                    <div className={`flex flex-col gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/10 bg-[#101010]" : "border-gray-200 bg-white"}`}>
+                      <p className={`text-sm ${isDark ? "text-white/50" : "text-gray-500"}`}>
+                        Showing <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootStartItem}</span>{" "}
+                        to <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{shootEndItem}</span>{" "}
+                        of <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{filteredAssignedProjects.length}</span>{" "}
+                        shoots
+                      </p>
+
+                      {shootTotalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            aria-label="Go to previous shoots page"
+                            disabled={shootCurrentPage === 1}
+                            onClick={() => {
+                              setShootCurrentPage((page) => Math.max(1, page - 1));
+                              setExpandedId(null);
+                            }}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${shootCurrentPage === 1
+                              ? isDark
+                                ? "cursor-not-allowed border-white/5 text-white/20"
+                                : "cursor-not-allowed border-gray-200 text-gray-300"
+                              : isDark
+                                ? "border-white/10 text-white hover:border-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                                : "border-gray-200 text-black hover:border-black hover:bg-black hover:text-white"
+                              }`}
+                          >
+                            <ChevronLeft size={17} />
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {getShootPaginationItems().map((item) => {
+                              if (typeof item !== "number") {
+                                return (
+                                  <span
+                                    key={item}
+                                    className={`flex h-9 w-7 items-center justify-center text-sm ${isDark ? "text-white/40" : "text-gray-400"}`}
+                                  >
+                                    …
+                                  </span>
+                                );
+                              }
+
+                              const isActivePage = item === shootCurrentPage;
+
+                              return (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  aria-label={`Go to shoots page ${item}`}
+                                  aria-current={isActivePage ? "page" : undefined}
+                                  onClick={() => {
+                                    setShootCurrentPage(item);
+                                    setExpandedId(null);
+                                  }}
+                                  className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-all ${isActivePage
+                                    ? isDark
+                                      ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
+                                      : "border-black bg-black text-white"
+                                    : isDark
+                                      ? "border-white/10 text-white/70 hover:border-[#E8D1AB] hover:text-[#E8D1AB]"
+                                      : "border-gray-200 text-gray-600 hover:border-black hover:text-black"
+                                    }`}
+                                >
+                                  {item}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-label="Go to next shoots page"
+                            disabled={shootCurrentPage === shootTotalPages}
+                            onClick={() => {
+                              setShootCurrentPage((page) => Math.min(shootTotalPages, page + 1));
+                              setExpandedId(null);
+                            }}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-all ${shootCurrentPage === shootTotalPages
+                              ? isDark
+                                ? "cursor-not-allowed border-white/5 text-white/20"
+                                : "cursor-not-allowed border-gray-200 text-gray-300"
+                              : isDark
+                                ? "border-white/10 text-white hover:border-[#E8D1AB] hover:bg-[#E8D1AB] hover:text-black"
+                                : "border-gray-200 text-black hover:border-black hover:bg-black hover:text-white"
+                              }`}
+                          >
+                            <ChevronRight size={17} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>

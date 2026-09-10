@@ -10,15 +10,16 @@ import { FolderCard } from "@/components/admin/file-manager/FolderCard";
 import { Button } from "@/components/ui/button";
 import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
 import LinkToShootModal from "@/components/admin/file-manager/LinkToShootModal";
-import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import { MobileFolderRow } from "@/components/admin/file-manager/MobileFolderRow";
 import Topbar from "@/components/admin/Topbar";
 import {
   fileManagerApi,
+  getExternalWorkspaceDisplayName,
   getDisplayInitials,
   isCommonEventWorkspaceId,
   mapExternalFoldersToUi,
+  shouldShowCommonEventRootFolder,
   type UiFolderItem,
 } from "@/lib/fileManagerApi";
 import { toast } from "sonner";
@@ -51,8 +52,6 @@ export default function CreatorFolderDetailsPage() {
   const [status, setStatus] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingMyFolder, setIsCreatingMyFolder] = useState(false);
   const [hasCreatedCpFolders, setHasCreatedCpFolders] = useState<boolean | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -96,17 +95,20 @@ export default function CreatorFolderDetailsPage() {
         setHasCreatedCpFolders(null);
         return;
       }
-      setWorkspaceName(workspaceData.workspace.folderName);
+      setWorkspaceName(getExternalWorkspaceDisplayName(workspaceData.workspace));
       setWorkspaceCode(workspaceData.workspace.externalId);
       setWorkspaceConsoleUrl(workspaceData.workspace.consoleUrl || null);
-      setFolders(
-        mapExternalFoldersToUi(
+      const mappedFolders = mapExternalFoldersToUi(
           workspaceData.folders,
           (folder) =>
             `/creator/dashboard/file-manager/${projectId}/${folder.name.toLowerCase().replace(/\s+/g, "-")}?path=${encodeURIComponent(
               folder.name
             )}`
-        )
+        );
+      setFolders(
+        isCommonEventWorkspace
+          ? mappedFolders.filter(shouldShowCommonEventRootFolder)
+          : mappedFolders
       );
 
       if (isCommonEventWorkspace) {
@@ -197,28 +199,6 @@ export default function CreatorFolderDetailsPage() {
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download folder");
-    }
-  };
-
-  const handleDeleteSelectedFolder = async () => {
-    if (!selectedFolder?.resourcePath) return;
-    if (!isCommonEventWorkspace) {
-      toast.error("Folders can only be deleted in common events.");
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
-      toast.success("Folder deleted");
-      setIsDeleteModalOpen(false);
-      setMenuAnchor(null);
-      setSelectedFolder(null);
-      await loadWorkspace();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete folder");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -438,14 +418,7 @@ export default function CreatorFolderDetailsPage() {
                         });
                         setIsShareModalOpen(true);
                       }}
-                      onDelete={
-                        isCommonEventWorkspace
-                          ? () => {
-                            setSelectedFolder(folder);
-                            setIsDeleteModalOpen(true);
-                          }
-                          : undefined
-                      }
+                      onDelete={undefined}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
                   ))}
@@ -473,7 +446,7 @@ export default function CreatorFolderDetailsPage() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <div className="lg:hidden">
+                  <div className="lg:hidden flex flex-col gap-3">
                     {visibleFolders.map((folder) => (
                       <MobileFolderRow
                         key={folder.id}
@@ -482,8 +455,28 @@ export default function CreatorFolderDetailsPage() {
                         isDark={isDark}
                       />
                     ))}
-                  </div>
 
+                    {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                      <button
+                        onClick={handleCreateMyEventFolder}
+                        disabled={isCreatingMyFolder}
+                        className={`flex w-full items-center gap-4 p-4 border transition-all rounded-xl disabled:opacity-60 ${
+                          isDark
+                            ? "border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22]"
+                            : "border-[#e5e5e5] bg-white text-[#cbb38b] hover:border-[#cbb38b]/70 hover:bg-neutral-100/70"
+                        }`}
+                      >
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
+                          isDark ? "border-[#E5D5B8]/50 bg-[#E5D5B8]/10" : "border-[#e5e5e5] bg-[#cbb38b]/10"
+                        }`}>
+                          <Plus size={20} />
+                        </div>
+                        <span className="text-sm font-medium">
+                          {isCreatingMyFolder ? "Creating..." : "Create Your Folder"}
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
                   <div className={`border rounded-xl hidden overflow-x-auto lg:block transition-all ${isDark ? "bg-[#111] border-white/5" : "bg-white border-[#E5E5E5] shadow-sm"}`}>
                     <table className="w-full border-collapse text-left">
                       <thead>
@@ -505,8 +498,7 @@ export default function CreatorFolderDetailsPage() {
                             }}
                           >
                             <td className="flex items-center gap-2 px-6 py-5">
-                              <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"
-                                }`}>
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-black/5"}`}>
                                 <FolderOpen
                                   className={isDark ? "fill-[#E8D1AB]/20 text-[#E8D1AB]" : "fill-[#cbb38b]/20 text-[#cbb38b]"}
                                   size={24}
@@ -535,6 +527,31 @@ export default function CreatorFolderDetailsPage() {
                             </td>
                           </tr>
                         ))}
+
+                        {isCommonEventWorkspace && hasCreatedCpFolders === false ? (
+                          <tr>
+                            <td colSpan={4} className="p-4">
+                              <button
+                                onClick={handleCreateMyEventFolder}
+                                disabled={isCreatingMyFolder}
+                                className={`flex w-full items-center justify-center gap-3 py-5 border transition-all rounded-xl disabled:opacity-60 ${
+                                  isDark
+                                    ? "border-[#E5D5B8]/35 bg-[#18181b] text-[#E8D1AB] hover:border-[#E5D5B8]/60 hover:bg-[#1d1d22]"
+                                    : "border-[#e5e5e5] bg-white text-[#cbb38b] hover:border-[#cbb38b]/70 hover:bg-neutral-100/70"
+                                }`}
+                              >
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
+                                  isDark ? "border-[#E5D5B8]/50 bg-[#E5D5B8]/10" : "border-[#e5e5e5] bg-[#cbb38b]/10"
+                                }`}>
+                                  <Plus size={18} />
+                                </div>
+                                <span className="text-sm font-medium">
+                                  {isCreatingMyFolder ? "Creating your folder..." : "Create Your Folder"}
+                                </span>
+                              </button>
+                            </td>
+                          </tr>
+                        ) : null}
                       </tbody>
                     </table>
                   </div>
@@ -569,7 +586,7 @@ export default function CreatorFolderDetailsPage() {
               });
               setIsShareModalOpen(true);
             }}
-            onDelete={isCommonEventWorkspace ? () => setIsDeleteModalOpen(true) : undefined}
+            onDelete={undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
@@ -579,16 +596,6 @@ export default function CreatorFolderDetailsPage() {
           isOpen={isLinkModalOpen}
           onClose={() => setIsLinkModalOpen(false)}
           folderName={selectedFolder?.title || ""}
-          isDark={isDark}
-        />
-
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleDeleteSelectedFolder}
-          itemName={selectedFolder?.title || "this folder"}
-          itemType="folder"
-          isDeleting={isDeleting}
           isDark={isDark}
         />
 

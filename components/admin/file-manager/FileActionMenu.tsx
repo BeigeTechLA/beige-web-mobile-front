@@ -4,7 +4,9 @@ import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   CalendarClock,
+  History,
   FolderOpen,
+  Pencil,
   UserRoundPlus,
   Share2,
   Download,
@@ -24,6 +26,7 @@ interface FileActionMenuProps {
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
+  onActivity?: () => void;
   onEditVisibility?: () => void;
   downloadDisabled?: boolean;
   deleteDisabled?: boolean;
@@ -42,8 +45,10 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   onOpen,
   onDownload,
   onDelete,
+  onRename,
   onShare,
   onAccess,
+  onActivity,
   onEditVisibility,
   downloadDisabled = false,
   deleteDisabled = false,
@@ -102,11 +107,13 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
             onClick={handleOpenFolder}
             isDark={isDark}
           />
-          {/* Temporarily hidden actions: Rename / Link to Shoot */}
-          {/* <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
-            onRename?.();
-            onClose();
-          }} /> */}
+          {onRename ? (
+            <MenuButton icon={<Pencil size={18} />} label="Rename" onClick={() => {
+              onRename();
+              onClose();
+            }} isDark={isDark} />
+          ) : null}
+          {/* Temporarily hidden action: Link to Shoot */}
           {/* <MenuButton
             icon={<LinkIcon size={18} />}
             label="Link to Shoot"
@@ -171,6 +178,17 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
                 onClose();
               }}
               disabled={downloadDisabled}
+              isDark={isDark}
+            />
+          ) : null}
+          {onActivity ? (
+            <MenuButton
+              icon={<History size={18} />}
+              label="Activity"
+              onClick={() => {
+                onActivity();
+                onClose();
+              }}
               isDark={isDark}
             />
           ) : null}

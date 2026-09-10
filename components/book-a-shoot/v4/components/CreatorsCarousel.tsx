@@ -1,20 +1,19 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectCoverflow, Navigation } from 'swiper/modules';
-import { ArrowDownLeft, ArrowUpRight, Star, Check, Plus, X, Share } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Check, Plus, X } from 'lucide-react';
 import type { Creator } from "@/lib/types";
-import type { CrewRole, SelectedCrewRoles } from "../types";
+import type { CrewRole, SelectedCrewRoles } from "../../v3/types";
 
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/navigation';
-import { Button } from '@/components/ui/button';
 
 const S3_BASE_URL =
-   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
-
+  process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
 // Fallback images for creators without profile photos
 const FALLBACK_IMAGES = [
@@ -46,54 +45,62 @@ const getCreatorImage = (creator: Creator, index: number) => {
   return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 };
 
-
 const CreatorCarousel = ({
   creators,
   selectedIds,
   selectedRoles,
   activeRoleFilter,
   toggleSelection,
-  onViewProfile,
 }: {
-  creators: Creator[],
-  selectedIds: (string | number)[],
-  selectedRoles: SelectedCrewRoles,
-  activeRoleFilter: CrewRole | null,
+  creators: Creator[];
+  selectedIds: (string | number)[];
+  selectedRoles: SelectedCrewRoles;
+  activeRoleFilter: CrewRole | null;
   toggleSelection: (id: number) => void;
-  onViewProfile?: (url: string) => void;
 }) => {
   const count = creators.length;
 
   const dynamicSlides = {
     mobile: Math.min(count, 1.5),
     tablet: Math.min(count, 3),
-    desktop: Math.min(count, 5)
+    desktop: 5,
   };
 
-  // Loop requires at least (slidesPerView * 2) items to be smooth
-  const shouldLoop = count >= 10;
-
   return (
-    <div className="relative lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10">
+    <div className="relative w-full max-w-full lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10 px-2 lg:px-0">
+      <style>{`
+        .creator-swiper .swiper-slide,
+        .creator-swiper .swiper-slide * {
+          pointer-events: auto !important;
+        }
+      `}</style>
       {/* NAVIGATION BUTTONS */}
-      <button className="creator-next-btn absolute left-5 xl:-left-[100px] -top-5 md:top-2 xl:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+      {/* LEFT NAV */}
+      <button
+        type="button"
+        className="creator-next-btn absolute left-2 xl:-left-[100px] top-2 xl:top-1/2 xl:-translate-y-1/2 z-30 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
+      >
         <ArrowDownLeft className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
       </button>
 
       {/* RIGHT NAV */}
-      <button className="creator-prev-btn absolute right-5 xl:-right-[100px] -top-5 md:top-2 xl:top-1/2 -translate-y-1/2 z-10 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+      <button
+        type="button"
+        className="creator-prev-btn absolute right-2 xl:-right-[100px] top-2 xl:top-1/2 xl:-translate-y-1/2 z-30 w-9 h-9 lg:w-18 lg:h-18 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
+      >
         <ArrowUpRight className="text-white/60 w-4 h-4 lg:w-7 lg:h-7" />
       </button>
-      <div className='relative overflow-hidden'>
+
+      <div className="relative w-full overflow-hidden pt-10 xl:pt-0">
         <Swiper
           modules={[EffectCoverflow, Navigation]}
           effect="coverflow"
-          centeredSlides={count > 1}
-          grabCursor
+          centeredSlides={true}
+          grabCursor={true}
+          watchSlidesProgress={true}
           initialSlide={Math.floor(creators.length / 2)}
-          slidesPerView={dynamicSlides.tablet}
-          spaceBetween={30}
-          loop={shouldLoop}
+          slidesPerView={dynamicSlides.mobile}
+          spaceBetween={0}
           allowTouchMove={true}
           allowSlideNext={true}
           allowSlidePrev={true}
@@ -107,21 +114,60 @@ const CreatorCarousel = ({
           /* --- SAFARI FIXES END --- */
           coverflowEffect={{
             rotate: 15,
-            stretch: 0,
-            depth: 150,
-            modifier: 1.6,
+            stretch: 20,
+            depth: 160,
+            modifier: 1.2,
             slideShadows: false,
           }}
           breakpoints={{
-            0: { slidesPerView: dynamicSlides.mobile, centeredSlides: count > 1 , spaceBetween: 20 },
-            768: { slidesPerView: dynamicSlides.tablet, centeredSlides: count > 1 , spaceBetween: 20 },
-            1024: { slidesPerView: dynamicSlides.desktop, centeredSlides: true , spaceBetween: 30 },
+            0: {
+              slidesPerView: dynamicSlides.mobile,
+              centeredSlides: true,
+              spaceBetween: -20,
+              coverflowEffect: {
+                rotate: 15,
+                stretch: 0,
+                depth: 100,
+                modifier: 1,
+                slideShadows: false,
+              },
+            },
+            768: {
+              slidesPerView: dynamicSlides.tablet,
+              centeredSlides: true,
+              spaceBetween: 20,
+              coverflowEffect: {
+                rotate: 15,
+                stretch: 0,
+                depth: 150,
+                modifier: 1.6,
+                slideShadows: false,
+              },
+            },
+            1024: {
+              slidesPerView: 5,
+              centeredSlides: true,
+              spaceBetween: 0,
+              coverflowEffect: {
+                rotate: 15,
+                stretch: 30,
+                depth: 170,
+                modifier: 1.2,
+                slideShadows: false,
+              },
+            },
           }}
           navigation={{
             prevEl: ".creator-prev-btn",
             nextEl: ".creator-next-btn",
           }}
-          className="w-full creator-swiper !py-10 lg:!py-5"
+          className="w-full creator-swiper !py-10 lg:!py-5
+            [&_.swiper-slide]:opacity-0 [&_.swiper-slide]:transition-all [&_.swiper-slide]:duration-300
+            [&_.swiper-slide-active]:!opacity-100 [&_.swiper-slide-active]:!pointer-events-auto
+            [&_.swiper-slide-prev]:!opacity-100 [&_.swiper-slide-prev]:!pointer-events-auto
+            [&_.swiper-slide-next]:!opacity-100 [&_.swiper-slide-next]:!pointer-events-auto
+            [&_.swiper-slide-next+.swiper-slide]:!opacity-100 [&_.swiper-slide-next+.swiper-slide]:!pointer-events-auto
+            [&_.swiper-slide:has(+.swiper-slide-prev)]:!opacity-100 [&_.swiper-slide:has(+.swiper-slide-prev)]:!pointer-events-auto"
         >
           {creators.map((creator, index) => {
             const creatorId = creator.crew_member_id;
@@ -130,22 +176,25 @@ const CreatorCarousel = ({
             const isSelectedForActiveRole = activeRoleFilter
               ? assignedRole === activeRoleFilter
               : isSelected;
-            const isSelectedInOtherRole = Boolean(activeRoleFilter && isSelected && assignedRole && assignedRole !== activeRoleFilter);
-            const rating = creator.rating || 0;
+            const isSelectedInOtherRole = Boolean(
+              activeRoleFilter &&
+              isSelected &&
+              assignedRole &&
+              assignedRole !== activeRoleFilter
+            );
             const imageUrl = getCreatorImage(creator, index);
 
             return (
-              <SwiperSlide key={creatorId}
-                className="!flex justify-center">
-                <div className="w-[280px] lg:w-[474px] h-[330px] lg:h-[567px]">
-                  <div className={`relative w-[280px] !h-[330px] lg:w-[474px] lg:!h-[550px] rounded-lg lg:rounded-2xl overflow-hidden bg-[#171717] border transition-all border-white/40`}>
+              <SwiperSlide key={creatorId} className="!flex justify-center">
+                <div className="w-[240px] sm:w-[280px] lg:w-[474px] h-[291px] lg:h-[567px]">
+                  <div className="relative w-[240px] sm:w-[280px] !h-[330px] lg:w-[474px] lg:!h-[550px] rounded-lg lg:rounded-2xl overflow-hidden bg-[#171717] border transition-all border-white/40">
                     {/* Image Area */}
-                    <div className="relative w-full h-[200px] lg:h-[382px] overflow-hidden">
+                    <div className="relative w-full h-[230px] lg:h-[382px] overflow-hidden">
                       <Image
                         src={imageUrl}
                         alt={creator.name || "Creator"}
                         fill
-                        style={{ objectFit: 'cover', objectPosition: 'top' }}
+                        style={{ objectFit: "cover", objectPosition: "top" }}
                         className="transition-transform duration-700 hover:scale-105"
                       />
 
@@ -168,60 +217,61 @@ const CreatorCarousel = ({
                             </span>
                           </div>
                         )}
-
                       </div>
                     </div>
 
                     {/* Info Footer */}
-                    <div className="p-3 lg:p-5.5 flex flex-col gap-4">
+                    <div className="p-3 lg:p-5.5 flex flex-col gap-3 lg:gap-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-white text-base lg:text-xl font-medium">{creator.name}</h3>
-                          <p className="text-white/60 text-xs lg:text-base">{creator.role_name || 'Creator'}</p>
+                          <h3 className="text-white text-xs lg:text-xl font-medium">{creator.name}</h3>
+                          <p className="text-white/60 text-[9px] lg:text-base">{creator.role_name || "Creator"}</p>
                         </div>
-                        <p className="bg-[#EDF7EE] text-[#4CAF50] text-xs lg:text-base px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-[#4CAF50]">
+                        <p className="bg-[#EDF7EE] text-[#4CAF50] text-[9px] lg:text-base px-2 py-1 lg:px-4 lg:py-2 rounded-full border border-[#4CAF50]">
                           Available
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={(e) => {
-                            e.stopPropagation(); // Prevent Swiper from intercepting this as a drag/slide
+                            e.stopPropagation();
                             e.preventDefault();
                             if (isSelectedInOtherRole) return;
                             toggleSelection(creatorId);
                           }}
                           disabled={isSelectedInOtherRole}
-                          className={`flex-1 px-4 py-2 lg:py-3.5 rounded-md text-sm lg:text-base font-medium flex items-center justify-center gap-2 text-center transition-all ${isSelectedForActiveRole ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] shadow-[0_0_0_1px_rgba(255,201,201,0.15)]" : isSelectedInOtherRole ? "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed" : "bg-[#E8D1AB] text-black hover:bg-[#f0dbb7]"}`}
+                          className={`relative z-30 flex-1 px-4 py-2 lg:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-base font-medium flex items-center justify-center gap-2 text-center transition-all ${isSelectedForActiveRole ? "bg-[#FFC9C9] text-[#C31717] border border-[#C31717] shadow-[0_0_0_1px_rgba(255,201,201,0.15)]" : isSelectedInOtherRole ? "bg-white/5 text-white/40 border border-white/10 cursor-not-allowed" : "bg-[#E8D1AB] text-black hover:bg-[#f0dbb7]"}`}
                         >
                           {isSelectedForActiveRole ? (
                             <>
-                              <X size={16} className="shrink-0" />
+                              <X className="w-2.5 h-2.5 lg:w-4 lg:h-4 shrink-0" />
                               <span>Remove</span>
                             </>
                           ) : isSelectedInOtherRole ? (
                             <span>Already selected</span>
                           ) : (
                             <>
-                              <Plus size={16} className="shrink-0" />
+                              <Plus className="w-2.5 h-2.5 lg:w-4 lg:h-4 shrink-0" />
                               <span>Add</span>
                             </>
                           )}
                         </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onViewProfile?.(`/creatives/${creatorId}?from=booking_flow&modal=1`);
-                          }}
-                          className="text-center flex-1 bg-[#1D1D1D] border border-white/30 text-white py-2 lg:py-3.5 rounded-md text-sm lg:text-base font-medium transition-all hover:bg-white/10"
+                        <Link
+                          href={`/creatives/${creatorId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="relative z-30 text-center flex-1 bg-[#1D1D1D] border border-white/30 text-white py-2 lg:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
-                        </button>
-                        <button className="bg-white text-black p-2 lg:p-3.5 rounded-md">
-                          <Share size={22} />
-                        </button>
+                        </Link>
+                        <Link
+                          href={`/creatives/${creatorId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="relative z-30 bg-white text-black p-2 lg:p-3.5 rounded-sm lg:rounded-md"
+                        >
+                          <ArrowUpRight className="w-3 h-3 lg:w-5 lg:h-5 shrink-0" />
+                        </Link>
                       </div>
                     </div>
                   </div>

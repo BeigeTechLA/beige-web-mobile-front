@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import axios from "axios";
+import Cookies from "js-cookie";
 import {
   ChevronRight,
   Search,
@@ -13,6 +15,10 @@ import {
   Download,
   ArrowUpToLine,
   ChevronLeft,
+  Mail,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -55,14 +61,17 @@ import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import Link from "next/link";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
+type CreativePartnerTab = "submitted" | "details_pending";
 
 const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
 type PersistedCreativePartnersFilters = {
   currentPage: number;
   searchQuery: string;
   locationQuery: string;
   statusFilter: string;
+  activeTab?: CreativePartnerTab;
 };
 
 interface CreativePartner {
@@ -75,7 +84,17 @@ interface CreativePartner {
   joinDate: string;
   initials: string;
   imageUrl?: string | null;
+  onboardingProgress?: number;
+  onboardingMissingCount?: number;
+  onboardingMissingFields?: string[];
 }
+
+type CreativePartnerSortKey = "id" | "name" | "status";
+
+type CreativePartnerSortConfig = {
+  key: CreativePartnerSortKey;
+  direction: "asc" | "desc";
+} | null;
 
 const formatLocation = (locationInput?: unknown) => {
   const raw =
@@ -158,6 +177,99 @@ const StatusBadge = ({ status, mobile }: { status: UserStatus; mobile?: boolean 
   );
 };
 
+const ProgressBadge = ({ value, mobile }: { value: number; mobile?: boolean }) => {
+  const safeValue = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  const sizeClass = mobile
+    ? "px-3 py-1 text-xs"
+    : "min-w-[126px] px-4 py-2 text-sm";
+
+  return (
+    <span className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} rounded-full font-semibold border bg-[#FFF9E5] text-[#B18A00] border-[#B18A00]/20`}>
+      {safeValue}% completed
+    </span>
+  );
+};
+
+const parseMaybeJson = (value: unknown, fallback: unknown) => {
+  if (!value) return fallback;
+  if (Array.isArray(value) || typeof value === "object") return value;
+  if (typeof value !== "string") return fallback;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const hasRequiredValue = (value: unknown) => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim() !== "";
+  if (typeof value === "number") return !Number.isNaN(value);
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return Boolean(value);
+};
+
+const calculateOnboardingProgress = (member: any) => {
+  const files = Array.isArray(member?.crew_member_files) ? member.crew_member_files : [];
+  const roles = parseMaybeJson(member?.primary_role, []);
+  const skills = parseMaybeJson(member?.skills, []);
+  const equipment = parseMaybeJson(member?.equipment_ownership || member?.equipment, []);
+  const socialLinks = parseMaybeJson(member?.social_media_links, {});
+  const activeFiles = files.filter((file: any) => Number(file?.is_active ?? 1) === 1);
+  const fileType = (file: any) => String(file?.file_type || "").trim().toLowerCase();
+  const featuredWorkFiles = activeFiles.filter((file: any) =>
+    ["recent_work", "work_sample"].includes(fileType(file)) && hasRequiredValue(file?.file_path)
+  );
+
+  const checks = [
+    hasRequiredValue(member?.phone_number),
+    hasRequiredValue(member?.location),
+    hasRequiredValue(member?.working_distance),
+    activeFiles.some((file: any) => ["profile_photo", "profile_image"].includes(fileType(file)) && hasRequiredValue(file?.file_path)),
+    Array.isArray(roles) && roles.length > 0,
+    hasRequiredValue(member?.years_of_experience) && Number(member?.years_of_experience) > 0,
+    hasRequiredValue(member?.hourly_rate) && Number(member?.hourly_rate) > 0,
+    Array.isArray(skills) && skills.length > 0,
+    Array.isArray(equipment) && equipment.length > 0,
+    typeof socialLinks === "object" && socialLinks !== null && Object.values(socialLinks).some(hasRequiredValue),
+    featuredWorkFiles.length >= 5,
+  ];
+
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+};
+
+const getOnboardingProgress = (member: any) => {
+  const explicitProgress =
+    member?.onboarding_progress_percent ??
+    member?.onboarding_status?.progress_percent ??
+    member?.profile_onboarding_status?.progress_percent ??
+    member?.progress_percent;
+
+  if (explicitProgress !== undefined && explicitProgress !== null && explicitProgress !== "") {
+    return Number(explicitProgress) || 0;
+  }
+
+  const completedCount =
+    member?.onboarding_completed_count ??
+    member?.onboarding_status?.completed_count ??
+    member?.profile_onboarding_status?.completed_count ??
+    member?.completed_count;
+
+  const totalRequired =
+    member?.onboarding_total_required ??
+    member?.onboarding_status?.total_required ??
+    member?.profile_onboarding_status?.total_required ??
+    member?.total_required;
+
+  if (Number(totalRequired) > 0) {
+    return Math.round((Number(completedCount || 0) / Number(totalRequired)) * 100);
+  }
+
+  return calculateOnboardingProgress(member);
+};
+
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
 const normalizeSearchQuery = (value: string) => value.trim().replace(/\s+/g, " ");
@@ -188,7 +300,7 @@ const matchesCreativePartnerSearch = (user: CreativePartner, searchValue: string
 
 export const CreativePartnersTable = () => {
   const { theme } = useTheme();
-  const { canEdit, canDelete } = usePermissions("users");
+  const { canEdit, canDelete } = usePermissions("admin_users_creative_partners");
   const [mounted, setMounted] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
   const [users, setUsers] = useState<CreativePartner[]>([]);
@@ -201,6 +313,8 @@ export const CreativePartnersTable = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<CreativePartnerTab>("submitted");
+  const [sortConfig, setSortConfig] = useState<CreativePartnerSortConfig>(null);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const debouncedLocation = useDebounce(locationQuery, 500);
   const normalizedSearch = normalizeSearchQuery(debouncedSearch);
@@ -218,6 +332,8 @@ export const CreativePartnersTable = () => {
   const [deleteBlockedData, setDeleteBlockedData] = useState<any[]>([]);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDetailsPendingExporting, setIsDetailsPendingExporting] = useState(false);
+  const [reminderSendingIds, setReminderSendingIds] = useState<Set<string>>(new Set());
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -251,6 +367,10 @@ export const CreativePartnersTable = () => {
           setStatusFilter(parsedFilters.statusFilter);
         }
 
+        if (parsedFilters.activeTab === "submitted" || parsedFilters.activeTab === "details_pending") {
+          setActiveTab(parsedFilters.activeTab);
+        }
+
         if (typeof parsedFilters.currentPage === "number" && parsedFilters.currentPage > 0) {
           setCurrentPage(parsedFilters.currentPage);
         }
@@ -270,10 +390,11 @@ export const CreativePartnersTable = () => {
       searchQuery,
       locationQuery,
       statusFilter,
+      activeTab,
     };
 
     localStorage.setItem(CREATIVE_PARTNERS_FILTERS_STORAGE_KEY, JSON.stringify(filtersToPersist));
-  }, [currentPage, searchQuery, locationQuery, statusFilter, filtersInitialized]);
+  }, [currentPage, searchQuery, locationQuery, statusFilter, activeTab, filtersInitialized]);
 
   const handleDateSort = (date: Date | null) => {
     setSelectedDate(date);
@@ -284,28 +405,85 @@ export const CreativePartnersTable = () => {
     }
   };
 
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig) return users;
+
+    const statusRank: Record<UserStatus, number> = { Approved: 1, Pending: 2, Rejected: 3 };
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+
+    return users
+      .map((user, index) => ({ user, index }))
+      .sort((aItem, bItem) => {
+        let comparison = 0;
+        if (sortConfig.key === "id") {
+          comparison = Number(aItem.user.id.replace("#", "")) - Number(bItem.user.id.replace("#", ""));
+        } else if (sortConfig.key === "status") {
+          comparison = (statusRank[aItem.user.status] ?? 999) - (statusRank[bItem.user.status] ?? 999);
+        } else {
+          comparison = aItem.user.name.localeCompare(bItem.user.name, undefined, {
+            sensitivity: "base",
+            numeric: true,
+          });
+        }
+        return comparison === 0 ? aItem.index - bItem.index : comparison * direction;
+      })
+      .map(({ user }) => user);
+  }, [sortConfig, users]);
+
+  const displayedUsers = useMemo(() => {
+    if (!sortConfig) return sortedUsers;
+    const start = (currentPage - 1) * limit;
+    return sortedUsers.slice(start, start + limit);
+  }, [currentPage, limit, sortConfig, sortedUsers]);
+
+  const requestSort = (key: CreativePartnerSortKey) => {
+    const direction = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (key: CreativePartnerSortKey) => {
+    if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+    return sortConfig.direction === "asc"
+      ? <ArrowUp size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />
+      : <ArrowDown size={14} className={`ml-1 ${isDark ? "text-[#E8D1AB]" : "text-[#666]"}`} />;
+  };
+
   useEffect(() => {
     const fetchCreativePartners = async () => {
       setLoading(true);
       try {
         const params: any = {
-          page: hasMultiWordSearch ? 1 : currentPage,
+          page: hasMultiWordSearch || sortConfig ? 1 : currentPage,
           limit: hasMultiWordSearch ? 200 : limit,
+          fetch_all: Boolean(sortConfig),
         };
 
         if (crewSearchParam) params.search = crewSearchParam;
         if (normalizedLocation) params.location = normalizedLocation;
-        if (statusFilter !== "all") params.status = statusFilter;
+        if (activeTab === "submitted" && statusFilter !== "all") params.status = statusFilter;
 
-        const response = await adminApi.getCrewMembers(params);
+        const response = activeTab === "details_pending"
+          ? await adminApi.getPendingCP({
+            ...params,
+            onboarding_status: "incomplete",
+          })
+          : await adminApi.getCrewMembers(params);
         if (response && response.data) {
-          // Set pagination data
-          if (response.pagination) {
+          const rawData = Array.isArray(response.data) ? response.data : (response.data.items || []);
+          const hasServerPagination = Boolean(response.pagination);
+          const data = hasServerPagination || activeTab !== "details_pending" || hasMultiWordSearch
+            ? rawData
+            : rawData.slice((currentPage - 1) * limit, currentPage * limit);
+
+          if (hasServerPagination) {
             setTotalRecords(response.pagination.total_records || 0);
             setTotalPages(response.pagination.total_pages || 0);
+          } else if (activeTab === "details_pending") {
+            const total = Number(response.total_pending || rawData.length || 0);
+            setTotalRecords(total);
+            setTotalPages(hasMultiWordSearch ? 1 : Math.ceil(total / limit));
           }
-
-          const data = Array.isArray(response.data) ? response.data : (response.data.items || []);
 
           // Map API response to component data structure
           const mappedUsers = data.map((member: any) => {
@@ -334,6 +512,16 @@ export const CreativePartnersTable = () => {
             if (apiStatus === "approved") displayStatus = "Approved";
             else if (apiStatus === "rejected") displayStatus = "Rejected";
 
+            const onboardingMissingFields = Array.isArray(member.onboarding_missing_fields)
+              ? member.onboarding_missing_fields
+              : Array.isArray(member.onboarding_status?.missing_fields)
+                ? member.onboarding_status.missing_fields
+                : Array.isArray(member.profile_onboarding_status?.missing_fields)
+                  ? member.profile_onboarding_status.missing_fields
+                  : Array.isArray(member.missing_fields)
+                    ? member.missing_fields
+                    : [];
+
             return {
               id: `#${member.crew_member_id}`,
               name: fullName,
@@ -344,6 +532,15 @@ export const CreativePartnersTable = () => {
               joinDate: member.created_at ? new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "N/A",
               initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2),
               imageUrl,
+              onboardingProgress: getOnboardingProgress(member),
+              onboardingMissingCount: Number(
+                member.onboarding_missing_count ??
+                member.onboarding_status?.missing_count ??
+                member.profile_onboarding_status?.missing_count ??
+                member.missing_count ??
+                onboardingMissingFields.length
+              ),
+              onboardingMissingFields,
             };
           });
           const visibleUsers = normalizedSearch
@@ -351,7 +548,10 @@ export const CreativePartnersTable = () => {
             : mappedUsers;
 
           setUsers(visibleUsers);
-          if (hasMultiWordSearch) {
+          if (sortConfig) {
+            setTotalRecords(visibleUsers.length);
+            setTotalPages(Math.max(1, Math.ceil(visibleUsers.length / limit)));
+          } else if (hasMultiWordSearch) {
             setTotalRecords(visibleUsers.length);
             setTotalPages(1);
           }
@@ -368,6 +568,7 @@ export const CreativePartnersTable = () => {
       normalizedSearch,
       normalizedLocation,
       statusFilter,
+      activeTab,
     ].join("::");
 
     if (lastAppliedFilterKeyRef.current !== filterKey) {
@@ -379,7 +580,7 @@ export const CreativePartnersTable = () => {
     }
 
     fetchCreativePartners();
-  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, normalizedLocation, statusFilter, filtersInitialized]);
+  }, [currentPage, limit, normalizedSearch, hasMultiWordSearch, crewSearchParam, normalizedLocation, statusFilter, activeTab, filtersInitialized, sortConfig]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     // Prevent navigation if clicking on action buttons
@@ -426,6 +627,13 @@ export const CreativePartnersTable = () => {
         </button>
       </div>
     ));
+  };
+
+  const handleTabChange = (tab: CreativePartnerTab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    setSortConfig(null);
+    setExpandedRows(new Set());
   };
 
   const handleApprove = async (id: string, e: React.MouseEvent) => {
@@ -533,6 +741,33 @@ export const CreativePartnersTable = () => {
       setIsDeleting(false);
     }
   };
+
+  const handleSendProfileReminder = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cleanId = id.replace("#", "");
+    if (!cleanId || reminderSendingIds.has(cleanId)) return;
+
+    setReminderSendingIds((current) => new Set(current).add(cleanId));
+    try {
+      const response = await adminApi.sendCreativePartnerProfileReminder(cleanId);
+
+      if (response?.success !== false) {
+        toast.success(response?.message || "Profile reminder email sent successfully.");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to send profile reminder.");
+      }
+    } catch (error) {
+      console.error("Send Profile Reminder Error:", error);
+      toast.error("An unexpected error occurred while sending the reminder.");
+    } finally {
+      setReminderSendingIds((current) => {
+        const next = new Set(current);
+        next.delete(cleanId);
+        return next;
+      });
+    }
+  };
+
   const handleExportCreativePartners = async () => {
     if (isExporting) return;
 
@@ -648,14 +883,113 @@ export const CreativePartnersTable = () => {
     }
   };
 
+  const handleExportDetailsPending = async () => {
+    if (isDetailsPendingExporting) return;
+
+    setIsDetailsPendingExporting(true);
+
+    try {
+      const token = Cookies.get("revure_token");
+      const response = await axios.get<Blob>(
+        "admin/creative-partners/details-pending/export",
+        {
+          baseURL: API_BASE_URL,
+          params: {
+            search: normalizedSearch || undefined,
+            location: normalizedLocation || undefined,
+          },
+          responseType: "blob",
+          withCredentials: true,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      const blob = response.data;
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("Invalid or empty export response.");
+      }
+
+      const contentDispositionHeader = response.headers["content-disposition"];
+      const filenameHeader = typeof contentDispositionHeader === "string"
+        ? contentDispositionHeader
+        : "";
+      const utf8Match = filenameHeader.match(/filename\*=UTF-8''([^;]+)/i);
+      const filenameMatch = filenameHeader.match(/filename="?([^";]+)"?/i);
+      const fileName = utf8Match?.[1]
+        ? decodeURIComponent(utf8Match[1].replace(/['"]/g, ""))
+        : filenameMatch?.[1] || "details-pending-cps-export.xlsx";
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Details pending creative partners exported successfully.");
+    } catch (error) {
+      let message = "Failed to export creative partners.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+          }
+        }
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      console.error("Export Details Pending Creative Partners Error:", error);
+
+      toast.error(message);
+    } finally {
+      setIsDetailsPendingExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
       {/* Header */}
       <div>
         <h1 className={`text-lg lg:text-2xl font-bold mb-1 ${isDark ? "text-white" : "text-[#323232]"}`}>Creative Partners</h1>
         <p className={`${isDark ? "text-[#888]" : "text-[#666]"} text-xs lg:text-base leading-none`}>
-          Manage and review all onboarded creative professionals in one place.
+          Manage submitted and incomplete creative partner profiles in one place.
         </p>
+      </div>
+
+      <div className={`inline-flex rounded-lg border p-1 ${isDark ? "border-white/10 bg-[#111]" : "border-[#E3E3E3] bg-white"}`}>
+        {[
+          { value: "submitted" as const, label: "Submitted CPs" },
+          { value: "details_pending" as const, label: "Details Pending" },
+        ].map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => handleTabChange(tab.value)}
+            className={`h-10 rounded-md px-4 text-sm font-semibold transition-colors ${activeTab === tab.value
+              ? "bg-[#E8D1AB] text-black"
+              : isDark
+                ? "text-white/60 hover:text-white"
+                : "text-[#32323299] hover:text-[#323232]"
+              }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -675,6 +1009,7 @@ export const CreativePartnersTable = () => {
             />
           </div>
 
+          {activeTab === "submitted" && (
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className={`w-[180px] rounded-lg h-12 capitalize transition-colors ${isDark ? "border-white/20 bg-[#202020] text-[#C4C4C4] hover:bg-[#252525]" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"}`}>
               <SelectValue placeholder="All Status" />
@@ -686,8 +1021,9 @@ export const CreativePartnersTable = () => {
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
+          )}
 
-          {/* Move this to parent page */}
+          {activeTab === "submitted" && (
           <Popover
             open={isExportOpen}
             onOpenChange={(open) => {
@@ -748,8 +1084,11 @@ export const CreativePartnersTable = () => {
                   </p>
                 </div>
 
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    Start Date
+                  </p>
                 <DatePicker
-                  label="Start Date"
+                  label=""
                   value={exportStartDate}
                   onChange={(date) => {
                     if (!date) {
@@ -792,9 +1131,12 @@ export const CreativePartnersTable = () => {
                   format="MM/dd/yyyy"
                   sx={{ height: "42px" }}
                 />
-
+        
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    End Date
+                  </p>
                 <DatePicker
-                  label="End Date"
+                  label=""
                   value={exportEndDate}
                   onChange={(date) => {
                     if (!date) {
@@ -902,6 +1244,38 @@ export const CreativePartnersTable = () => {
               </div>
             </PopoverContent>
           </Popover>
+          )}
+
+          {activeTab === "details_pending" && (
+            <Button
+              type="button"
+              disabled={isDetailsPendingExporting}
+              aria-label="Export details pending creative partners"
+              title="Export details pending creative partners"
+              onClick={() => {
+                void handleExportDetailsPending();
+              }}
+              className={`h-12 px-4 rounded-lg flex items-center justify-center gap-2 ${isDark
+                ? "bg-[#111] border border-[#333] text-white hover:bg-[#1A1A1A]"
+                : "bg-white border border-[#E3E3E3] text-[#323232] hover:bg-[#F7F7F7]"
+                }`}
+            >
+              {isDetailsPendingExporting ? (
+                <Loader2
+                  size={18}
+                  className="animate-spin"
+                />
+              ) : (
+                <ArrowUpToLine size={18} />
+              )}
+
+              <span className="hidden lg:inline">
+                {isDetailsPendingExporting
+                  ? "Exporting..."
+                  : "Export"}
+              </span>
+            </Button>
+          )}
         </div>
 
         <div className="flex-1 flex flex-wrap items-center justify-end gap-3">
@@ -944,35 +1318,34 @@ export const CreativePartnersTable = () => {
         ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
         : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"}>
         {/* --- DESKTOP TABLE VIEW --- */}
-        <div className="hidden lg:block w-full overflow-x-auto no-scrollbar">
-          <div className="w-full overflow-x-auto no-scrollbar">
-            <table className="w-full border-collapse">
+        <div className="hidden lg:block w-full overflow-x-auto overflow-y-hidden">
+          <table className="w-full min-w-[1540px] border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="p-5 font-medium rounded-bl-xl">User ID</th>
-                  <th className="p-5 font-medium">Creative Name</th>
-                  <th className="p-5 font-medium">Email</th>
-                  <th className="p-5 font-medium">Roles</th>
-                  <th className="p-5 font-medium">Location</th>
-                  <th className="p-5 font-medium text-center">Status</th>
-                  <th className="p-5 font-medium text-right rounded-br-xl">Action</th>
+                  <th className="w-[110px] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
+                  <th className="w-[360px] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">Creative Name {getSortIcon("name")}</div></th>
+                  <th className="w-[320px] p-5 font-medium">Email</th>
+                  <th className="w-[220px] p-5 font-medium">Roles</th>
+                  <th className="w-[320px] p-5 font-medium">Location</th>
+                  <th className={`w-[200px] p-5 font-medium text-center ${activeTab === "submitted" ? "cursor-pointer" : ""}`} onClick={activeTab === "submitted" ? () => requestSort("status") : undefined}><div className="flex items-center justify-center gap-1">{activeTab === "details_pending" ? "Progress" : <>Status {getSortIcon("status")}</>}</div></th>
+                  <th className="w-[210px] p-5 font-medium text-right rounded-br-xl">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                    <td colSpan={7} className="py-10 text-center text-[#888]">
                       <Loader2 className="animate-spin mx-auto" size={24} />
                     </td>
                   </tr>
                 ) : (!loading && users.length === 0) ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-[#888]">
+                    <td colSpan={7} className="py-10 text-center text-[#888]">
                       No creative partners found.
                     </td>
                   </tr>
                 ) : (
-                  users.map((user, idx) => {
+                  displayedUsers.map((user, idx) => {
                     const partnerDetailHref = getCreativePartnerDetailHref(user.id);
                     return (
                     <tr
@@ -1026,15 +1399,46 @@ export const CreativePartnersTable = () => {
                         <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
                         <span className="relative z-10 pointer-events-none">{user.location}</span>
                       </td>
-                      <td className="relative py-3 px-6 text-center">
+                      <td className="relative py-3 px-6 text-center whitespace-nowrap">
                         <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
                         <div className="relative z-10 pointer-events-none inline-block">
-                          <StatusBadge status={user.status} />
+                          {activeTab === "details_pending" ? (
+                            <ProgressBadge value={user.onboardingProgress || 0} />
+                          ) : (
+                            <StatusBadge status={user.status} />
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                          {user.status === 'Approved' && (
+                          {activeTab === "details_pending" && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={!canEdit || user.email === "No Email" || reminderSendingIds.has(user.id.replace("#", ""))}
+                                onClick={(e) => handleSendProfileReminder(user.id, e)}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                                  ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB] hover:bg-[#E8D1AB]/15"
+                                  : "border-[#D7BC8A] bg-[#FFF9E5] text-[#8A6500] hover:bg-[#F7ECD3]"
+                                  }`}
+                              >
+                                {reminderSendingIds.has(user.id.replace("#", "")) ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Mail size={14} />
+                                )}
+                                <span>{reminderSendingIds.has(user.id.replace("#", "")) ? "Sending..." : "Send Reminder"}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleRowClick(user.id, e)}
+                                className={`${isDark ? "text-[#666] hover:text-white" : "text-[#888] hover:text-black"} transition-colors p-1`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                            </>
+                          )}
+                          {activeTab === "submitted" && user.status === 'Approved' && (
                             <>
                               <button
                                 type="button"
@@ -1053,7 +1457,7 @@ export const CreativePartnersTable = () => {
                               </button>
                             </>
                           )}
-                          {user.status === 'Pending' && (
+                          {activeTab === "submitted" && user.status === 'Pending' && (
                             <>
                               <button
                                 type="button"
@@ -1088,7 +1492,7 @@ export const CreativePartnersTable = () => {
                               </button>
                             </>
                           )}
-                          {user.status === 'Rejected' && (
+                          {activeTab === "submitted" && user.status === 'Rejected' && (
                             <>
                               <button
                                 type="button"
@@ -1115,13 +1519,12 @@ export const CreativePartnersTable = () => {
                 )}
               </tbody>
             </table>
-          </div>
         </div>
         {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
         <div className="block lg:hidden w-full">
           <div className={`flex justify-between p-5 rounded-b-xl border-y text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
             <p>Name</p>
-            <p>Status</p>
+            <p>{activeTab === "details_pending" ? "Progress" : "Status"}</p>
           </div>
           {loading ? (
             <div className="py-20 text-center">
@@ -1132,7 +1535,7 @@ export const CreativePartnersTable = () => {
               No users found for the selected filters.
             </div>
           ) : (
-            users.map((user) => {
+            displayedUsers.map((user) => {
               const isExpanded = expandedRows.has(user.id);
               // console.log(user);
 
@@ -1168,7 +1571,11 @@ export const CreativePartnersTable = () => {
                           </p>
                         </div>
                       </div>
-                      <StatusBadge status={user.status} mobile />
+                      {activeTab === "details_pending" ? (
+                        <ProgressBadge value={user.onboardingProgress || 0} mobile />
+                      ) : (
+                        <StatusBadge status={user.status} mobile />
+                      )}
                     </div>
                   </div>
 
@@ -1198,12 +1605,20 @@ export const CreativePartnersTable = () => {
                             <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Location</p>
                             <p className={`text-sm break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
                           </div>
+                          {activeTab === "details_pending" && (
+                            <div className="col-span-2">
+                              <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Missing Details</p>
+                              <p className={`text-sm break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>
+                                {user.onboardingMissingFields?.length ? user.onboardingMissingFields.join(", ") : "N/A"}
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex  gap-2">
-                            {user.status === 'Pending' && (
+                            {activeTab === "submitted" && user.status === 'Pending' && (
                               <>
                                 <button
                                   type="button"
@@ -1223,6 +1638,7 @@ export const CreativePartnersTable = () => {
                                 </button>
                               </>
                             )}
+                            {activeTab === "submitted" && (
                             <button
                               type="button"
                               disabled={!canDelete}
@@ -1231,6 +1647,25 @@ export const CreativePartnersTable = () => {
                             >
                               <Trash2 size={18} />
                             </button>
+                            )}
+                            {activeTab === "details_pending" && (
+                              <button
+                                type="button"
+                                disabled={!canEdit || user.email === "No Email" || reminderSendingIds.has(user.id.replace("#", ""))}
+                                onClick={(e) => handleSendProfileReminder(user.id, e)}
+                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                                  ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                                  : "border-[#D7BC8A] bg-[#FFF9E5] text-[#8A6500]"
+                                  }`}
+                              >
+                                {reminderSendingIds.has(user.id.replace("#", "")) ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : (
+                                  <Mail size={14} />
+                                )}
+                                <span>{reminderSendingIds.has(user.id.replace("#", "")) ? "Sending..." : "Reminder"}</span>
+                              </button>
+                            )}
 
                           </div>
                           <button

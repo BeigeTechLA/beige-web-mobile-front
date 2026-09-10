@@ -13,7 +13,7 @@ interface QuotesEmptyStateProps {
 
 export default function QuotesEmptyState({ createHref }: QuotesEmptyStateProps) {
   const { isDark } = useResolvedTheme();
-  const { canCreate } = usePermissions("quotes");
+  const { canCreate } = usePermissions("admin_quotes_all_quotes");
 
   return (
     <div

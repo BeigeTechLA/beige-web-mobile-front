@@ -269,7 +269,9 @@ const FeaturedWorkModal = ({ open, onClose, onAdd, editItem, isDark, onUploadFil
         .map((item) => item.fileId)
         .filter((fileId): fileId is string | number => Boolean(fileId));
 
-      if (currentFileIds.length < MIN_PROJECT_IMAGES) {
+      const uploadedOrPendingFileCount = finalRawFiles.filter((item) => item.fileId || item.file).length;
+
+      if (uploadedOrPendingFileCount < MIN_PROJECT_IMAGES) {
         toast.error("Upload failed", {
           description: "Please try again. At least 5 images must upload successfully."
         });

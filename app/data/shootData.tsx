@@ -216,7 +216,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "corporate", title: "Corporate Events", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate Event", details: "Conferences, summits, company offsites", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "People", value: "50-2K" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },
@@ -224,7 +224,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "private", title: "Private Events", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "People", value: "10-100" },
       { label: "Highlight Reel", value: "6-10 hrs" },
       { label: "Videographer", value: "6-10 hrs" },

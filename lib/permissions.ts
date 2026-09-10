@@ -1,5 +1,7 @@
 "use client";
 
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from "@/lib/permissions/menuHierarchy";
+
 export type PermissionAction = "view" | "create" | "edit" | "delete";
 
 export type PermissionActionsMap = Record<PermissionAction, boolean>;
@@ -16,7 +18,18 @@ const MODULE_ALIASES: Record<string, string[]> = {
   admin_dashboard: ["dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
   admin_availability: ["availability"],
   admin_file_manager: ["file_manager", "file-manager"],
-  admin_finances: ["finances", "payouts"],
+  admin_finances: [
+    "finances",
+    "payouts",
+    "admin_finances_transactions",
+    "admin_finances_disputes",
+    "admin_finances_beige_credit_points",
+    "admin_finances_cp_compensation",
+  ],
+  admin_finances_transactions: ["admin_finances", "finances", "payouts"],
+  admin_finances_disputes: ["admin_finances", "finances", "payouts"],
+  admin_finances_beige_credit_points: ["admin_finances", "finances", "payouts"],
+  admin_finances_cp_compensation: ["admin_finances", "finances", "payouts"],
   admin_invoices: ["invoices"],
   admin_meetings: ["meetings"],
   admin_messages: ["messages"],
@@ -43,7 +56,16 @@ const MODULE_ALIASES: Record<string, string[]> = {
   dashboard: ["admin_dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "sales_rep_sales", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
   file_manager: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "client_file_manager", "crew_file_manager", "production_manager_file_manager", "file-manager"],
   file_manager_view: ["admin_file_manager", "sales_admin_file_manager", "sales_rep_file_manager", "file-manager"],
-  finances: ["admin_finances", "payouts", "client_finances", "crew_payouts"],
+  finances: [
+    "admin_finances",
+    "payouts",
+    "admin_finances_transactions",
+    "admin_finances_disputes",
+    "admin_finances_beige_credit_points",
+    "admin_finances_cp_compensation",
+    "client_finances",
+    "crew_payouts",
+  ],
   invoices: ["admin_invoices", "sales_admin_invoices", "sales_rep_invoices", "client_finances"],
   meetings: ["admin_meetings", "sales_admin_meetings", "sales_rep_meetings", "client_meetings", "crew_meetings", "production_manager_meetings"],
   messages: ["admin_messages", "sales_admin_messages", "sales_rep_messages", "client_messages", "crew_messages", "production_manager_messages"],
@@ -51,7 +73,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   quotes: ["admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
   request_shoots: ["request_shoots", "request-shoots", "crew_request_shoots", "client_book_a_shoot"],
   affiliate: ["crew_affiliate", "client_affiliate_overview"],
-  roles_permissions: ["roles_permissions", "roles-permissions", "admin_users"],
+  roles_permissions: ["roles_permissions", "roles-permissions"],
   sales: ["sales", "sales_rep_sales"],
   sales_representative: ["admin_sales_representative", "sales_admin_sales_people", "sales_representative", "sales-representative", "users"],
   settings: ["settings", "crew_settings", "crew_profile", "client_profile"],
@@ -65,12 +87,87 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/meetings", permissionKeys: ["meetings"] },
   { prefix: "/admin/messages", permissionKeys: ["messages"] },
   { prefix: "/admin/availability", permissionKeys: ["availability"] },
-  { prefix: "/admin/sales-representative", permissionKeys: ["sales_representative"] },
+  {
+    prefix: "/admin/sales-representative/shift-management",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[1],
+    ],
+  },
+  {
+    prefix: "/admin/sales-representative",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_sales_representative.children[1],
+      "admin_sales_representative",
+    ],
+  },
   { prefix: "/admin/invoice", permissionKeys: ["invoices"] },
-  { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
-  { prefix: "/admin/users", permissionKeys: ["users"] },
-  { prefix: "/admin/quotes", permissionKeys: ["quotes"] },
+  {
+    prefix: "/admin/finances/transactions",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0]],
+  },
+  {
+    prefix: "/admin/finances/disputes",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1]],
+  },
+  {
+    prefix: "/admin/finances/creditPoints",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2]],
+  },
+  {
+    prefix: "/admin/finances/cpCompensation",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3]],
+  },
+  {
+    prefix: "/admin/finances",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3],
+      "admin_finances",
+    ],
+  },
+  {
+    prefix: "/admin/users/all",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0]],
+  },
+  {
+    prefix: "/admin/users/clients",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[1]],
+  },
+  {
+    prefix: "/admin/users/creative-partners",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[2]],
+  },
+  {
+    prefix: "/admin/users",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[2],
+      "admin_users",
+    ],
+  },
+  {
+    prefix: "/admin/quotes/change-requests",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1]],
+  },
+  {
+    prefix: "/admin/quotes/pricing",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2]],
+  },
+  {
+    prefix: "/admin/quotes",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[0],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2],
+      "admin_quotes",
+    ],
+  },
   { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
+  { prefix: "/admin/settings", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
 ];

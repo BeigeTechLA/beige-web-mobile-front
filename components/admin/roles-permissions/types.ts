@@ -56,4 +56,7 @@ export type PermissionMatrixRow = {
   selected: boolean;
   access: Record<PermissionColumnKey, boolean>;
   allowedActions?: PermissionColumnKey[];
+  children?: PermissionMatrixRow[];
+  checkState?: "checked" | "unchecked" | "indeterminate";
+  isExpanded?: boolean;
 };

@@ -194,7 +194,12 @@ export default function AdminFinancesPage() {
   const pathname = usePathname();
   const router = useRouter();
   const { isDark } = useResolvedTheme();
-  const { canView, canCreate, canEdit, isLoading: isPermissionLoading } = usePermissions("finances");
+  const {
+    canView,
+    canCreate,
+    canEdit,
+    isLoading: isPermissionLoading,
+  } = usePermissions("admin_finances_cp_compensation");
   const permissions = useAppSelector((state) => state.auth.permissions);
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);

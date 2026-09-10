@@ -3,6 +3,8 @@
 
 
 import React, { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import ReactDOM from "react-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -70,9 +72,11 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
 function TablePagination({
   pagination,
   onPageChange,
+  isDark,
 }: {
   pagination: PaginationState;
   onPageChange: (page: number) => void;
+  isDark: boolean;
 }) {
   const totalPages = Math.max(1, pagination.pages);
   const safePage = Math.min(Math.max(pagination.page || 1, 1), totalPages);
@@ -81,7 +85,7 @@ function TablePagination({
   const paginationItems = buildPaginationItems(safePage, totalPages);
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 text-sm text-white/70">
+    <div className={`flex items-center justify-between border-t px-5 py-4 text-sm ${isDark ? "border-[#242424] bg-[#101010] text-white/70" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#32323299]"}`}>
       <span>
         {pagination.total > 0
           ? `Showing ${showingFrom} to ${showingTo} of ${pagination.total} entries`
@@ -92,13 +96,13 @@ function TablePagination({
           type="button"
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
           disabled={safePage === 1}
-          className="h-9 rounded-lg bg-[#171717] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/20"
+          className={`h-9 rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/5 bg-[#171717] text-white/65 hover:bg-white/5" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-zinc-50"}`}
         >
           Previous
         </button>
         {paginationItems.map((page, index) =>
           page === "..." ? (
-            <span key={`manage-salespeople-page-gap-${index}`} className="px-2 text-white/45">...</span>
+            <span key={`manage-salespeople-page-gap-${index}`} className={`px-2 ${isDark ? "text-white/45" : "text-[#999]"}`}>...</span>
           ) : (
             <button
               key={`manage-salespeople-page-${page}`}
@@ -107,7 +111,7 @@ function TablePagination({
               className={`h-9 min-w-9 rounded-lg px-3 text-sm font-semibold transition ${
                 page === safePage
                   ? "bg-[#E5D5B8] text-black"
-                  : "text-white/65 hover:bg-white/5 hover:text-white"
+                  : isDark ? "text-white/65 hover:bg-white/5 hover:text-white" : "text-[#323232] hover:bg-black/5"
               }`}
             >
               {page}
@@ -118,12 +122,60 @@ function TablePagination({
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
           disabled={safePage === totalPages}
-          className="h-9 rounded-lg bg-[#171717] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:text-white/20"
+          className={`h-9 rounded-lg border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/5 bg-[#171717] text-white/65 hover:bg-white/5" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-zinc-50"}`}
         >
           Next
         </button>
       </div>
     </div>
+  );
+}
+
+function ShiftNameTooltip({
+  name,
+  className = "max-w-[160px]",
+}: {
+  name: string;
+  className?: string;
+}) {
+  const [tooltip, setTooltip] = useState<{
+    name: string;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const showTooltip = (
+    event: React.PointerEvent<HTMLSpanElement>,
+    name: string
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({name, left: rect.left + rect.width / 2, top: rect.top - 10});
+  };
+
+  return (
+    <>
+      {tooltip && typeof document !== "undefined"
+        ? ReactDOM.createPortal(
+            <div className="pointer-events-none fixed z-[9999]" style={{left: tooltip.left, top: tooltip.top}}>
+              <div className="relative max-w-[250px] -translate-x-1/2 -translate-y-full whitespace-normal break-words rounded-md bg-white px-3 py-2 text-left text-[11px] font-bold leading-[16px] text-black shadow-[0_8px_24px_rgba(0,0,0,0.22)]">
+                {tooltip.name}
+
+                <span className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white shadow-[2px_2px_6px_rgba(0,0,0,0.08)]" />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      <span
+        className={`block truncate capitalize ${className}`}
+        onPointerEnter={(event) => showTooltip(event, name)}
+        onPointerMove={(event) => showTooltip(event, name)}
+        onPointerLeave={() => setTooltip(null)}
+      >
+        {name}
+      </span>
+    </>
   );
 }
 
@@ -204,12 +256,13 @@ function StatusPill({ status }: { status: "active" | "inactive" }) {
   );
 }
 
-function MemberToggle({ enabled, onClick }: { enabled: boolean; onClick: React.MouseEventHandler<HTMLButtonElement> }) {
+function MemberToggle({ enabled, onClick, disabled = false }: { enabled: boolean; onClick: React.MouseEventHandler<HTMLButtonElement>; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative h-[24px] w-[38px] rounded-md p-1 transition ${enabled ? "bg-[#E5D5B8]" : "bg-[#454545]"}`}
+      disabled={disabled}
+      className={`relative h-[24px] w-[38px] rounded-md p-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${enabled ? "bg-[#E5D5B8]" : "bg-[#454545]"}`}
       aria-label={enabled ? "Disable user" : "Enable user"}
     >
       <span className={`absolute left-1 top-1 h-4 w-4 rounded bg-white transition-transform ${enabled ? "translate-x-[14px]" : "translate-x-0"}`} />
@@ -225,15 +278,21 @@ export default function ShiftDetailView({
   onRefresh,
   onEditShift,
   refreshKey,
+  canEdit = true,
+  canDelete = true,
 }: {
   shift: ShiftDetail;
   onBack: () => void;
   onConfigureChange?: (isConfiguring: boolean) => void;
-  onSalespersonChange?: (isOpen: boolean) => void;
+  onSalespersonChange?: (profile: SalespeopleProfile | null) => void;
   onRefresh?: () => void | Promise<void>;
   onEditShift?: (shift: ShiftDetail) => void;
   refreshKey?: number;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [statusFilter, setStatusFilter] = useState("User Status");
   const [isConfiguringOrder, setIsConfiguringOrder] = useState(false);
   const [selectedSalesperson, setSelectedSalesperson] = useState<SalespeopleProfile | null>(null);
@@ -247,17 +306,35 @@ export default function ShiftDetailView({
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const debouncedMemberSearch = useDebounce(memberSearch, 350);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = !mounted || theme === "dark";
+
   const handleConfigureChange = (nextValue: boolean) => {
+    if (onConfigureChange) {
+      onConfigureChange(nextValue);
+      return;
+    }
+
     setIsConfiguringOrder(nextValue);
-    onConfigureChange?.(nextValue);
   };
 
   const handleSalespersonChange = (profile: SalespeopleProfile | null) => {
+    if (onSalespersonChange) {
+      onSalespersonChange(profile);
+      return;
+    }
+    
     setSelectedSalesperson(profile);
-    onSalespersonChange?.(Boolean(profile));
   };
 
   const handleConfirmRemoveSalesperson = async () => {
+    if (!canDelete) {
+      toast.error("You do not have permission to remove salespeople");
+      return;
+    }
     if (!shift.id || !deleteMember?.sales_rep_id) return;
     setIsDeletingMember(true);
     const response = await shiftManagementApi.removeShiftSalesperson(shift.id, deleteMember.sales_rep_id);
@@ -350,7 +427,7 @@ export default function ShiftDetailView({
   }, [shift.id, debouncedMemberSearch, statusFilter]);
 
   if (isConfiguringOrder) {
-    return <RoundRobinConfigurationView shiftId={shift.id} shiftName={shift.name} onBack={() => handleConfigureChange(false)} />;
+    return <RoundRobinConfigurationView shiftId={shift.id} shiftName={shift.name} canEdit={canEdit} onBack={() => handleConfigureChange(false)} />;
   }
 
   if (selectedSalesperson) {
@@ -371,10 +448,10 @@ export default function ShiftDetailView({
   }
 
   return (
-    <div className="min-h-full bg-[#101010] font-[var(--font-geist-sans)] text-white">
+    <div className={`min-h-full font-[var(--font-geist-sans)] transition-colors duration-300 ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-[#323232]"}`}>
       {shiftDetail.shift_overlapping ? (
-        <div className="border-b border-[#E5D5B8]/30 bg-[#2A241B]/55 px-6 py-4 lg:px-9">
-          <p className="flex items-center gap-2 text-sm text-[#E5D5B8]">
+        <div className={`border-b px-6 py-4 lg:px-9 ${isDark ? "border-[#E5D5B8]/30 bg-[#2A241B]/55" : "border-[#E5D5B8] bg-[#FFFCE8]"}`}>
+          <p className={`flex items-center gap-2 text-sm ${isDark ? "text-[#E5D5B8]" : "text-[#8B6F3D]"}`}>
             <AlertTriangle size={15} />
             Overlapping shift conflict detected. One or more salespeople are assigned to concurrent shifts.
           </p>
@@ -385,22 +462,24 @@ export default function ShiftDetailView({
         <button
           type="button"
           onClick={onBack}
-          className="mb-7 flex items-center gap-2 text-sm text-white/85 transition hover:text-[#E5D5B8]"
+          className={`mb-7 flex items-center gap-2 text-sm transition hover:text-[#BFA780] ${isDark ? "text-white/85" : "text-[#323232]"}`}
         >
           <ArrowLeft size={18} />
           Back
         </button>
 
-        <section className="rounded-2xl border border-[#2D2D2D] bg-[#171717] px-6 py-7">
+        <section className={`rounded-2xl border px-6 py-7 transition-colors ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold capitalize">{shiftDetail.name}</h1>
+                <h1 className="min-w-0 text-2xl font-semibold">
+                  <ShiftNameTooltip name={shiftDetail.name} className="max-w-[220px] sm:max-w-[350px] lg:max-w-[500px]"/>
+                </h1>
               <StatusPill status={shiftDetail.status} />
               </div>
-              <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/60">
-                <span>Working Hours : <span className="text-white">{shiftDetail.hours}</span></span>
-                <span className="hidden h-5 w-px bg-white/30 sm:block" />
+              <div className={`mt-5 flex flex-wrap items-center gap-4 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
+                <span>Working Hours : <span className={isDark ? "text-white" : "text-[#323232]"}>{shiftDetail.hours}</span></span>
+                <span className={`hidden h-5 w-px sm:block ${isDark ? "bg-white/30" : "bg-black/15"}`} />
                 <div className="flex items-center gap-2">
                   <span>Active Days :</span>
                   <div className="flex gap-1">
@@ -416,7 +495,8 @@ export default function ShiftDetailView({
               <button
                 type="button"
                 onClick={() => handleConfigureChange(true)}
-                className="flex h-12 items-center gap-2 rounded-lg border border-[#2D2D2D] bg-[#202020] px-5 text-sm font-semibold text-white transition hover:border-[#E5D5B8]/40"
+                disabled={!canEdit}
+                className={`flex h-12 items-center gap-2 rounded-lg border px-5 text-sm font-semibold transition hover:border-[#E5D5B8]/60 disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "border-[#2D2D2D] bg-[#202020] text-white" : "border-[#E3E3E3] bg-[#F4F5F7] text-[#323232]"}`}
               >
                 <RefreshCw size={16} />
                 Configure RR Order
@@ -424,7 +504,8 @@ export default function ShiftDetailView({
               <button
                 type="button"
                 onClick={() => onEditShift?.(shiftDetail)}
-                className="flex h-12 items-center gap-2 rounded-lg bg-[#E5D5B8] px-6 text-sm font-semibold text-black transition hover:bg-[#D9C49E]"
+                disabled={!canEdit}
+                className="flex h-12 items-center gap-2 rounded-lg bg-[#E5D5B8] px-6 text-sm font-semibold text-black transition hover:bg-[#D9C49E] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Edit2 size={16} />
                 Edit Shift
@@ -433,27 +514,27 @@ export default function ShiftDetailView({
           </div>
         </section>
 
-        <section className="mt-6 overflow-hidden rounded-2xl border border-[#2D2D2D] bg-[#111]">
+        <section className={`mt-6 overflow-hidden rounded-2xl border transition-colors ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
           <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-2">
               <span className="h-[30px] w-[3px] bg-[#E5D5B8]" />
               <h2 className="text-lg font-medium">Manage Salespeople</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              <BasicDropdown label="User Status" value={statusFilter} options={["User Status", "Active", "In Active"]} onChange={setStatusFilter} roundedFull styles="text-white/70 text-xs" />
+              <BasicDropdown label="User Status" value={statusFilter} options={["User Status", "Active", "In Active"]} onChange={setStatusFilter} roundedFull styles={`${isDark ? "text-white/70" : "text-[#323232]"} text-xs`} />
             </div>
           </div>
 
           <div className="px-5 pb-5">
             <label className="relative block">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/28" />
-              <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} className="h-11 w-full rounded-lg border border-[#2D2D2D] bg-[#242424] pl-11 pr-4 text-sm text-white outline-none placeholder:text-white/35" placeholder="Search Members..." />
+              <Search className={`absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${isDark ? "text-white/28" : "text-[#999]"}`} />
+              <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} className={`h-11 w-full rounded-lg border pl-11 pr-4 text-sm outline-none transition-colors ${isDark ? "border-[#2D2D2D] bg-[#242424] text-white placeholder:text-white/35" : "border-[#E3E3E3] bg-white text-[#323232] placeholder:text-[#999]"}`} placeholder="Search Members..." />
             </label>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left">
-              <thead className="border-y border-[#242424] bg-[#101010] text-xs font-medium text-[#E5D5B8]">
+              <thead className={`border-y text-xs font-medium ${isDark ? "border-[#242424] bg-[#101010] text-[#E5D5B8]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#000000]"}`}>
                 <tr>
                   <th className="px-5 py-4">Sales People Name</th>
                   <th className="px-5 py-4">Email ID</th>
@@ -467,7 +548,7 @@ export default function ShiftDetailView({
               {isLoadingMembers ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-10">
-                    <div className="flex items-center justify-center gap-2 text-sm text-white/60">
+                    <div className={`flex items-center justify-center gap-2 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
                       <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
                       Loading salespeople...
                     </div>
@@ -477,7 +558,7 @@ export default function ShiftDetailView({
                   <tr
                     key={member.sales_rep_id || member.email}
                     onClick={() => handleSalespersonChange(member)}
-                    className="cursor-pointer border-b border-[#242424] text-sm text-white/85 transition hover:bg-white/[0.03]"
+                    className={`cursor-pointer border-b text-sm transition ${isDark ? "border-[#242424] text-white/85 hover:bg-white/[0.03]" : "border-[#E3E3E3] text-[#323232] hover:bg-black/[0.02]"}`}
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -500,8 +581,13 @@ export default function ShiftDetailView({
                     <td className="px-5 py-4">
                       <MemberToggle
                         enabled={member.enabled}
+                        disabled={!canEdit}
                         onClick={async (event) => {
                           event.stopPropagation();
+                          if (!canEdit) {
+                            toast.error("You do not have permission to edit shifts");
+                            return;
+                          }
                           if (!shift.id || !member.sales_rep_id) return;
                           const nextUserStatus = !member.enabled;
                           const response = await shiftManagementApi.toggleShiftSalesperson(shift.id, member.sales_rep_id, nextUserStatus);
@@ -523,14 +609,19 @@ export default function ShiftDetailView({
                     </td>
                     <td className="px-5 py-4">{member.lastActivity}</td>
                     <td className="px-5 py-4">
-                      <div className="flex justify-end gap-5 text-white/80">
+                      <div className={`flex justify-end gap-5 ${isDark ? "text-white/80" : "text-[#32323299]"}`}>
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
+                            if (!canDelete) {
+                              toast.error("You do not have permission to remove salespeople");
+                              return;
+                            }
                             setDeleteMember(member);
                           }}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition hover:bg-[#F05454]/15 hover:text-[#F05454]"
+                          disabled={!canDelete}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-[#F05454]/15 hover:text-[#F05454] disabled:cursor-not-allowed disabled:opacity-50 ${isDark ? "text-white/70" : "text-[#32323299]"}`}
                           aria-label={`Remove ${member.name}`}
                         >
                           <Trash2 size={19} />
@@ -550,14 +641,14 @@ export default function ShiftDetailView({
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-white/45">No salespeople found</td>
+                    <td colSpan={6} className={`px-5 py-8 text-center text-sm ${isDark ? "text-white/45" : "text-[#32323266]"}`}>No salespeople found</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          <TablePagination pagination={memberPagination} onPageChange={setMemberPage} />
+          <TablePagination pagination={memberPagination} onPageChange={setMemberPage} isDark={isDark} />
         </section>
       </div>
       <DeleteConfirmationModal

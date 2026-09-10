@@ -17,6 +17,7 @@ export interface User {
   profile_image?: string | null;
   userTypeId: number;
   userRole: string;
+  role?: string;
   role_id?: number | string;
   email_verified?: number;
   crew_member_id?: number | null;
@@ -30,6 +31,7 @@ export interface User {
     };
   };
   user_type_id?: number;
+  is_internal_member?: boolean | number;
   permissions_version?: number | string;
   has_password?: boolean;
 }
@@ -359,4 +361,6 @@ export interface RawCreator {
 export interface OnboardingStatusResponse {
   onboardingMissingDetail: boolean;
   is_registration_complete: number;
+  application_submitted_at?: string | null;
+  application_submission_email_sent_at?: string | null;
 }

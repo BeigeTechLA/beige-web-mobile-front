@@ -77,6 +77,10 @@ export type CpPaymentHistoryItem = {
   dispute_code?: string | null;
   dispute_original_compensation?: number | string | null;
   dispute_extra_amount?: number | string | null;
+  approved_by_user_id?: number | null;
+  approved_by_name?: string | null;
+  processed_by_user_id?: number | null;
+  processed_by_name?: string | null;
 };
 
 export type UploadedProof = {
@@ -109,6 +113,8 @@ export type CpCompensationDetails = {
     label?: string;
     notes?: string | null;
     created_at?: string | null;
+    performed_by_user_id?: number | null;
+    performed_by_name?: string | null;
     creator_count?: number;
     creators?: Array<{
       creator_earning_id?: number;

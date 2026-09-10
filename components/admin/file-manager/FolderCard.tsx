@@ -42,6 +42,7 @@ interface FolderCardProps {
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
+  onActivity?: () => void;
   onEditVisibility?: () => void;
   downloadDisabled?: boolean;
   deleteDisabled?: boolean;
@@ -67,6 +68,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   onRename,
   onShare,
   onAccess,
+  onActivity,
   onEditVisibility,
   downloadDisabled = false,
   deleteDisabled = false,
@@ -224,6 +226,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             onDownload={onDownload}
             onShare={onShare}
             onAccess={onAccess}
+            onActivity={onActivity}
             onDelete={onDelete}
             onRename={onRename}
             onEditVisibility={onEditVisibility}

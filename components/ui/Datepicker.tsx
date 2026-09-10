@@ -115,7 +115,7 @@ interface Props {
   labelSx?: SxProps<Theme>;
   isDark?: boolean;
   disablePortal?: boolean;
-  borderRadius?:string;
+  borderRadius?: string | number | object | (string | number)[];
 }
 
 export const DatePicker: React.FC<Props> = ({
@@ -133,7 +133,7 @@ export const DatePicker: React.FC<Props> = ({
   floating = false,
   isDark = true,
   disablePortal = false,
-  borderRadius
+  borderRadius,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
   const colors = { ...activeTheme, ...customColors };
@@ -205,7 +205,7 @@ export const DatePicker: React.FC<Props> = ({
         )}
 
         <MuiDatePicker
-          label={floating ? label : undefined}
+          label={label}
           value={value}
           onChange={onChange}
           format={format}
@@ -218,13 +218,17 @@ export const DatePicker: React.FC<Props> = ({
           slotProps={{
             textField: {
               fullWidth: true,
-              placeholder: floating ? "" : placeholder ?? format.toUpperCase(),
+              placeholder: placeholder ?? format.toUpperCase(),
               onClick: () => !disabled && setOpen(true),
               InputLabelProps: {
-                shrink: floating ? (open || !!value) : undefined,
+                shrink: true,
                 sx: {
                   color: colors.labelText,
                   fontSize: "14px",
+                  transform: "translate(16px, -10px) scale(1)",
+                  backgroundColor: colors.inputBackground,
+                  padding: "0 8px",
+                  zIndex: 1,
                   "&.Mui-focused": { color: colors.accent },
                   "&.MuiInputLabel-shrink": {
                     transform: "translate(16px, -10px) scale(1)",
@@ -241,7 +245,7 @@ export const DatePicker: React.FC<Props> = ({
                   height: "100%",
                   ...sx,
                   backgroundColor: colors.inputBackground,
-                  borderRadius: borderRadius ? borderRadius: "12px",
+                  borderRadius: borderRadius ? borderRadius : "12px",
                   "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
                   "&:hover fieldset": { borderColor: colors.inputBorder },
                   "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
@@ -250,7 +254,7 @@ export const DatePicker: React.FC<Props> = ({
                 "& .MuiInputBase-input": {
                   color: colors.inputText,
                   fontSize: "14px",
-                  padding: floating ? "16.5px 14px" : "16px 14px",
+                  padding: "16.5px 14px",
                   height: "100%",
                   "&.Mui-disabled": {
                     WebkitTextFillColor: colors.inputText,

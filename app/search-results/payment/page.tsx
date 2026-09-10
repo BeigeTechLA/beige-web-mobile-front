@@ -281,7 +281,7 @@ const getInitials = (value?: string | null) => {
 
 const getEditCounts = (items: any[]) => {
   const counts = new Map<string, number>();
-  (items || []).forEach((item) => {
+  (Array.isArray(items) ? items : []).forEach((item) => {
     const label = String(item || "").trim();
     if (!label) return;
     counts.set(label, (counts.get(label) || 0) + 1);
@@ -290,6 +290,60 @@ const getEditCounts = (items: any[]) => {
     label,
     count,
   }));
+};
+
+const parseJsonValue = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string") return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === "string" ? JSON.parse(parsed) : parsed;
+  } catch {
+    return null;
+  }
+};
+
+const asArray = <T,>(value: unknown): T[] => {
+  if (Array.isArray(value)) return value as T[];
+  const parsed = parseJsonValue(value);
+  return Array.isArray(parsed) ? parsed as T[] : [];
+};
+
+const getRecordValue = (value: unknown, key: string) => {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+};
+
+const getCrewCountForRole = (summaryData: unknown, booking: unknown, role: "videographer" | "photographer") => {
+  const roleText = role.toLowerCase();
+  const crewCounts = asArray<Record<string, unknown>>(getRecordValue(summaryData, "crew_counts"));
+  const summaryCount = crewCounts.reduce((total, item) => {
+    const itemRole = String(item?.role || "").toLowerCase();
+    return itemRole.includes(roleText) ? total + (Number(item?.count) || 0) : total;
+  }, 0);
+
+  if (summaryCount > 0) return summaryCount;
+
+  const parsedRoles = parseJsonValue(getRecordValue(booking, "crew_roles"));
+  if (parsedRoles && typeof parsedRoles === "object" && !Array.isArray(parsedRoles)) {
+    const matchingValue = Object.entries(parsedRoles as Record<string, unknown>).find(([key]) =>
+      key.toLowerCase().includes(roleText),
+    )?.[1];
+    const roleCount = Number(matchingValue);
+    if (Number.isFinite(roleCount) && roleCount > 0) return roleCount;
+  }
+
+  const bookingEventType = String(getRecordValue(booking, "event_type") || "").toLowerCase();
+  const otherRole = role === "videographer" ? "photographer" : "videographer";
+  const isSingleRoleBooking =
+    bookingEventType.includes(roleText) && !bookingEventType.includes(otherRole);
+  const crewSizeNeeded = Number(getRecordValue(booking, "crew_size_needed") || 0);
+
+  return isSingleRoleBooking && Number.isFinite(crewSizeNeeded) && crewSizeNeeded > 0
+    ? crewSizeNeeded
+    : 0;
 };
 
 const getAuthHeaders = () => {
@@ -1717,7 +1771,7 @@ function MultiCreatorPaymentContent() {
 
   // CATEGORIZED PRICING CALCULATION
   useEffect(() => {
-    const lineItems = paymentDetails?.quote?.lineItems || [];
+    const lineItems = asArray<Record<string, unknown>>(paymentDetails?.quote?.lineItems);
     let shootCostSum = 0;
     let addVideoCount = 0;
     let addPhotoCount = 0;
@@ -1726,15 +1780,17 @@ function MultiCreatorPaymentContent() {
     let studioCostSum = 0;
     const mandatoryAddonItems: Array<{ role: string; cost: number }> = [];
 
-    lineItems.forEach((item: any) => {
-      const name = item.item_name || "";
-      const quantity = parseInt(item.quantity || 1);
-      const total = parseFloat(item.line_total || 0);
+    lineItems.forEach((item) => {
+      const name = String(getRecordValue(item, "item_name") || "");
+      const quantity = parseInt(String(getRecordValue(item, "quantity") || 1));
+      const total = parseFloat(String(getRecordValue(item, "line_total") || 0));
       const unitPrice = total / quantity;
 
       // IMPROVED DETECTION: Check slug, category name, or keywords in item name
-      const categorySlug = item.pricing_item?.category?.slug?.toLowerCase();
-      const categoryName = item.pricing_item?.category?.name?.toLowerCase();
+      const pricingItem = getRecordValue(item, "pricing_item");
+      const category = getRecordValue(pricingItem, "category");
+      const categorySlug = String(getRecordValue(category, "slug") || "").toLowerCase();
+      const categoryName = String(getRecordValue(category, "name") || "").toLowerCase();
       const lowerName = name.toLowerCase();
       const isStudioItem =
         lowerName.includes("studio") ||
@@ -2135,7 +2191,7 @@ function MultiCreatorPaymentContent() {
               {isPartialPaymentLink ? "Payment Received" : "Booking Confirmed"}
             </h2>
             <p className="text-[#E8D1AB] text-xl lg:text-[42px] font-bold mb-8 lg:mb-12">{formatCurrency(paidAmount)}</p>
-            <div className="w-full max-w-2xl mb-6">
+            <div className="w-full max-w-2xl mb-3 lg:mb-6">
               <button
                 onClick={() => setIsDetailsFormOpen(true)}
                 className="w-full h-14 lg:h-20 rounded-xl lg:rounded-2xl bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium transition-colors flex items-center justify-center"
@@ -2145,7 +2201,7 @@ function MultiCreatorPaymentContent() {
             </div>
             <button
               onClick={handleViewSummary}
-              className="h-12 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-lg lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20"
+              className="w-full lg:w-fit h-14 lg:h-24 px-6 py-5 lg:px-20 lg:py-10 bg-white/10 hover:bg-white/20 text-white text-base lg:text-2xl font-medium rounded-xl inline-flex items-center justify-center border border-white/20"
             >
               View Booking Summary
             </button>
@@ -2216,6 +2272,9 @@ function MultiCreatorPaymentContent() {
 
   // Date Time info to manage Multiday shoot format
   const dateTimeInfo = getBookingDetails(booking)
+  const eventType = String(booking?.event_type || "").toLowerCase();
+  const videographerCount = getCrewCountForRole(summaryData, booking, "videographer");
+  const photographerCount = getCrewCountForRole(summaryData, booking, "photographer");
   const handleAccountCreditToggle = async (enabled: boolean) => {
     const nextValue = Boolean(enabled && canUseAccountCredit && isBookingOwner);
     setUseAccountCredit(nextValue);
@@ -2333,7 +2392,7 @@ function MultiCreatorPaymentContent() {
                   </div>
                   <div className="flex flex-col justify-between mb-4">
                     <span className="text-[#626467]">Shoot Type:</span>
-                    <span className="font-medium">{toTitleCase((summaryData.event_type || "").trim())}</span>
+                    <span className="font-medium">{toTitleCase((summaryData?.event_type || "").trim())}</span>
                   </div>
                   {(() => {
                     const rawLocation = String(booking?.event_location || "").trim();
@@ -2367,18 +2426,18 @@ function MultiCreatorPaymentContent() {
                       <div className="flex flex-col lg:text-lg">
                         <span className="text-[#626467]">Dedicated Team:</span>
                         {
-                          booking.event_type === "videographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) </span>
+                          eventType === "videographer" && (
+                            <span className="text-[#070707] font-medium">{videographerCount} Videographer(s) </span>
                           )
                         }
                         {
-                          booking.event_type === "photographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Photographer(s)</span>
+                          eventType === "photographer" && (
+                            <span className="text-[#070707] font-medium">{photographerCount} Photographer(s)</span>
                           )
                         }
                         {
-                          booking.event_type === "videographer,photographer" && (
-                            <span className="text-[#070707] font-medium">{summaryData?.crew_counts[0].count || 0} Videographer(s) & {summaryData?.crew_counts[1].count || 0} Photographer(s)</span>
+                          eventType === "videographer,photographer" && (
+                            <span className="text-[#070707] font-medium">{videographerCount} Videographer(s) & {photographerCount} Photographer(s)</span>
                           )
                         }
                       </div>

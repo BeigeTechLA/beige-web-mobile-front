@@ -17,6 +17,14 @@ type StudioQuoteItem = {
   pricing_mode: "hourly" | "weekend";
 };
 
+type CustomAddOnQuoteItem = {
+  key: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+};
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:5001/v1/";
 
@@ -102,12 +110,41 @@ export const pricingApi = createApi({
         shoot_start_date?: string;
         studio_total?: number;
         studio_items?: StudioQuoteItem[];
+        custom_add_on_items?: CustomAddOnQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
       }
     >({
       query: (body) => ({
         url: "/pricing/quotes",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: { success: boolean; data: SavedQuote }) =>
+        response.data,
+      invalidatesTags: ["Quote"],
+    }),
+
+    // Save quote through the book-a-shoot v4 API namespace.
+    saveQuoteV4: builder.mutation<
+      SavedQuote,
+      {
+        items: SelectedItem[];
+        shootHours: number;
+        eventType: string;
+        guestEmail?: string;
+        bookingId?: number;
+        notes?: string;
+        shoot_start_date?: string;
+        studio_total?: number;
+        studio_items?: StudioQuoteItem[];
+        custom_add_on_items?: CustomAddOnQuoteItem[];
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
+      }
+    >({
+      query: (body) => ({
+        url: "/book-a-shoot/v4/pricing/quotes",
         method: "POST",
         body,
       }),
@@ -160,7 +197,7 @@ export const pricingApi = createApi({
 
     // Calculate quote from selected creators
     calculateQuoteFromCreators: builder.mutation<
-      QuoteCalculation & { creators: any[] },
+      QuoteCalculation & { creators: unknown[] },
       {
         creator_ids: number[];
         shoot_hours?: number;
@@ -176,6 +213,7 @@ export const pricingApi = createApi({
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
         add_on_items?: SelectedItem[];
+        custom_add_on_items?: CustomAddOnQuoteItem[];
         studio_total?: number;
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
@@ -189,7 +227,42 @@ export const pricingApi = createApi({
       }),
       transformResponse: (response: {
         success: boolean;
-        data: { quote: QuoteCalculation & { creators: any[] } };
+        data: { quote: QuoteCalculation & { creators: unknown[] } };
+      }) => response.data.quote,
+    }),
+
+    calculateQuoteFromCreatorsV4: builder.mutation<
+      QuoteCalculation & { creators: unknown[] },
+      {
+        creator_ids: number[];
+        shoot_hours?: number;
+        content_type?: string;
+        role_counts?: {
+          videographer?: number;
+          photographer?: number;
+          cinematographer?: number;
+          editor?: number;
+        };
+        event_type?: string;
+        shoot_start_date?: string;
+        video_edit_types?: Array<{ slug: string; quantity: number }>;
+        photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        add_on_items?: SelectedItem[];
+        custom_add_on_items?: CustomAddOnQuoteItem[];
+        studio_total?: number;
+        studio_items?: StudioQuoteItem[];
+        skip_discount?: boolean;
+        skip_margin?: boolean;
+      }
+    >({
+      query: (body) => ({
+        url: "/book-a-shoot/v4/pricing/calculate-from-creators",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (response: {
+        success: boolean;
+        data: { quote: QuoteCalculation & { creators: unknown[] } };
       }) => response.data.quote,
     }),
   }),
@@ -200,8 +273,10 @@ export const {
   useGetDiscountTiersQuery,
   useCalculateQuoteMutation,
   useSaveQuoteMutation,
+  useSaveQuoteV4Mutation,
   useGetQuoteQuery,
   useGetAllItemsQuery,
   useGetItemQuery,
   useCalculateQuoteFromCreatorsMutation,
+  useCalculateQuoteFromCreatorsV4Mutation,
 } = pricingApi;

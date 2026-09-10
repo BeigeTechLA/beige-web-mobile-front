@@ -143,7 +143,7 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
 
       {/* Selected Items List: Now uses the 'names' array directly */}
       <div className="flex flex-col gap-3 mt-4">
-        {names.map((name, i) => (
+        {(names.length > 0 ? names : value).map((name, i) => (
           <div
             key={`${i}_${value[i]}`}
             className="border border-[#333333] bg-[#111111] rounded-md px-3 py-3 flex justify-between items-center text-sm text-white shadow-sm"

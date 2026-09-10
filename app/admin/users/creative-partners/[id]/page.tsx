@@ -24,6 +24,7 @@ export default function CreativePartnerDetailsPage({ params }: PageProps) {
     completed_count?: number;
     total_required?: number;
     missing_count?: number;
+    missing_fields?: string[];
   } | null>(null);
 
   useEffect(() => { setMounted(true) }, [])

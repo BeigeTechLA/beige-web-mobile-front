@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Sans, Antonio, Cormorant_Garamond} from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Sans, Antonio, Cormorant_Garamond, Roboto_Condensed} from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/lib/redux/ReduxProvider";
 import { PermissionsVersionWatcher } from "@/components/common/PermissionsVersionWatcher";
@@ -31,6 +31,11 @@ const antonio = Antonio({
 
 const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-cormorant-garamond",
+  subsets: ["latin"],
+});
+
+const robotoCondensed = Roboto_Condensed({
+  variable: "--font-roboto-condensed",
   subsets: ["latin"],
 });
 
@@ -126,7 +131,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${antonio.variable} ${cormorantGaramond.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${antonio.variable} ${cormorantGaramond.variable} ${robotoCondensed.variable} antialiased`}
       >
         {/* GTM NoScript Fallback */}
         <noscript>

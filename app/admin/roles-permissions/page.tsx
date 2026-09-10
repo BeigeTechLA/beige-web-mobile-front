@@ -25,6 +25,7 @@ export default function AdminRolesPermissionsRoute() {
 
   const activeTheme = resolvedTheme ?? theme;
   const isDark = !mounted || activeTheme === "dark";
+  const { canCreate } = usePermissions("roles_permissions");
 
   return (
     <PermissionGuard module="roles_permissions" action="view">
@@ -55,23 +56,23 @@ export default function AdminRolesPermissionsRoute() {
               />
             </div>
 
-            <ExportUsersButton isDark={isDark} />
+            <ExportUsersButton className="cursor-pointer" isDark={isDark} />
 
-            {/* <Button
+            <Button
               onClick={() => router.push("/admin/roles-permissions/add-new-role")}
               disabled={!canCreate}
               title={canCreate ? "Add New Role" : "Create permission not allowed"}
-              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+              className="h-12 shrink-0 cursor-pointer rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
             >
               <Plus size={18} />
               Add New Role
-            </Button> */}
+            </Button>
 
             <Button
               onClick={() => router.push("/admin/internal-credentials")}
               disabled={!canCreateUser}
               title={canCreateUser ? "Add New User" : "Create permission not allowed"}
-              className="h-12 shrink-0 rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
+              className="h-12 shrink-0 cursor-pointer rounded-xl bg-[#E5D5B8] px-5 text-black hover:bg-[#d8c6a4]"
             >
               <Plus size={18} />
               Add New User

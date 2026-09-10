@@ -58,6 +58,7 @@ type CreatorDisputeItem = {
   status: DisputeStatus;
   payoutStatus: string;
   createdAt: string;
+  createdAtRaw: string | null;
   payoutDate: string;
   totalEarnings: number;
   paidAmount: number;
@@ -124,6 +125,43 @@ const mapDisputeStatus = (status: string | null | undefined): DisputeStatus => {
   return "Open";
 };
 
+const isSameLocalDate = (value: string | null | undefined, selectedDate: Date | null) => {
+  if (!selectedDate) return true;
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return (
+    date.getFullYear() === selectedDate.getFullYear() &&
+    date.getMonth() === selectedDate.getMonth() &&
+    date.getDate() === selectedDate.getDate()
+  );
+};
+
+const isWithinRange = (value: string | null | undefined, range: string) => {
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  let start: Date;
+
+  if (range === "week") {
+    start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+  } else if (range === "year") {
+    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+  } else {
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  }
+
+  return date >= start && date <= end;
+};
+
 const getStatusBadge = (status: string) => {
   const direct = disputeStatusStyles[status as DisputeStatus];
   const className = direct || "bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20";
@@ -164,6 +202,7 @@ const mapDisputeRow = (dispute: AdminFinanceDisputeDetailsApiRow, fallback?: Cre
     status: mapDisputeStatus(dispute.status),
     payoutStatus: fallback?.status_label || titleize(fallback?.status) || "Compensation Added",
     createdAt: formatDate(dispute.created_at),
+    createdAtRaw: dispute.created_at || null,
     payoutDate: formatDate(fallback?.due_date || dispute.created_at),
     totalEarnings: compensationAmount,
     paidAmount,
@@ -306,22 +345,37 @@ export default function DisputesPage() {
 
   const filteredDisputes = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
+
     return disputeItems.filter((dispute) => {
-      const statusMatches = disputedStatus === "all" || dispute.status.toLowerCase().replace(/\s+/g, "_") === disputedStatus;
-      const closedMatches = disputedStat === "all" ||
+      const statusMatches =
+        disputedStatus === "all" ||
+        dispute.status.toLowerCase().replace(/\s+/g, "_") === disputedStatus;
+
+      const closedMatches =
+        disputedStat === "all" ||
         (disputedStat === "active" && !["Resolved", "Rejected"].includes(dispute.status)) ||
         (disputedStat === "resolved" && ["Resolved", "Rejected"].includes(dispute.status));
-      const searchMatches = !search || [
-        dispute.id,
-        dispute.bookingId,
-        dispute.title,
-        dispute.category,
-      ].join(" ").toLowerCase().includes(search);
-      return statusMatches && closedMatches && searchMatches;
+
+      const dateMatches = selectedDate
+        ? isSameLocalDate(dispute.createdAtRaw, selectedDate)
+        : isWithinRange(dispute.createdAtRaw, disputedRange);
+
+      const searchMatches =
+        !search ||
+        [dispute.id, dispute.bookingId, dispute.title, dispute.category]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+
+      return statusMatches && closedMatches && dateMatches && searchMatches;
     });
-  }, [disputeItems, disputedStat, disputedStatus, searchQuery]);
+  }, [disputeItems, disputedRange, disputedStat, disputedStatus, searchQuery, selectedDate]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDisputes.length / DISPUTES_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [disputedRange, disputedStat, disputedStatus, searchQuery, selectedDate]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -395,7 +449,7 @@ export default function DisputesPage() {
         remaining_balance: dispute.remainingBalance,
         extra_amount: dispute.extraAmount,
       },
-      created_at: dispute.createdAt,
+      created_at: dispute.createdAtRaw || dispute.createdAt,
       raised_by: { type: "creator", name: dispute.raisedBy },
     }, dispute));
 
@@ -518,19 +572,44 @@ export default function DisputesPage() {
             </div>
           </div>
 
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl mb-6">
-            <div className="rounded-2xl border-[0.5px] border-[#3D3D3D] bg-[#101010] p-6">
-              <div className="flex items-center justify-between gap-4 mb-5">
+          <div
+            className={`mb-6 overflow-hidden rounded-2xl border transition-colors duration-300 ${
+              isDark
+                ? "border-[#3D3D3D] bg-[#171717]"
+                : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <div
+              className={`border-b p-4 transition-colors duration-300 lg:p-6 ${
+                isDark
+                  ? "border-[#3D3D3D] bg-[#101010]"
+                  : "border-[#E5E5E5] bg-[#FAFAFA]"
+              }`}
+            >
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
-                  <p className="font-medium text-sm lg:text-base">Dispute History</p>
+                  <div className="h-6 w-[3px] rounded-full bg-[#E5D5B8]" />
+                  <p className="text-sm font-medium lg:text-base">Dispute History</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <Select value={disputedStatus} onValueChange={setDisputedStatus}>
-                    <SelectTrigger className="w-[86px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectTrigger
+                      className={`h-9 w-[94px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#D8D8D8] bg-white text-[#555555]"
+                      }`}
+                    >
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#E3E3E3] bg-white text-[#323232]"
+                      }
+                    >
                       <SelectItem value="all">Status</SelectItem>
                       <SelectItem value="open">Open</SelectItem>
                       <SelectItem value="in_review">In Review</SelectItem>
@@ -538,21 +617,47 @@ export default function DisputesPage() {
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
+
                   <Select value={disputedRange} onValueChange={setDisputedRange}>
-                    <SelectTrigger className="w-[86px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectTrigger
+                      className={`h-9 w-[94px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#D8D8D8] bg-white text-[#555555]"
+                      }`}
+                    >
                       <SelectValue placeholder="Range" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#E3E3E3] bg-white text-[#323232]"
+                      }
+                    >
                       <SelectItem value="month">Month</SelectItem>
                       <SelectItem value="week">Week</SelectItem>
                       <SelectItem value="year">Year</SelectItem>
                     </SelectContent>
                   </Select>
+
                   <Select value={disputedStat} onValueChange={setDisputedStat}>
-                    <SelectTrigger className="w-[64px] rounded-full h-9 text-[10px] lg:text-xs focus:ring-0 bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectTrigger
+                      className={`h-9 w-[78px] rounded-full text-[10px] focus:ring-0 lg:text-xs ${
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#D8D8D8] bg-white text-[#555555]"
+                      }`}
+                    >
                       <SelectValue placeholder="Stat" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#171717] border-[#807E7E] text-[#C4C4C4]">
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "border-[#807E7E] bg-[#171717] text-[#C4C4C4]"
+                          : "border-[#E3E3E3] bg-white text-[#323232]"
+                      }
+                    >
                       <SelectItem value="all">All</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="resolved">Closed</SelectItem>
@@ -562,170 +667,311 @@ export default function DisputesPage() {
               </div>
 
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <Search
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 ${
+                    isDark ? "text-gray-500" : "text-zinc-400"
+                  }`}
+                  size={18}
+                />
                 <input
                   type="text"
                   placeholder="Search by Dispute ID, Shoot ID, or Shoot Name..."
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  className="w-full bg-[#202020] border border-[#3D3D3D] rounded-lg py-3 pl-12 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#E5D5B8] transition-colors"
+                  className={`w-full rounded-lg border py-3 pl-12 pr-4 text-sm transition-colors focus:border-[#E5D5B8] focus:outline-none ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#202020] text-white placeholder:text-gray-500"
+                      : "border-[#DADADA] bg-white text-[#202020] placeholder:text-zinc-400"
+                  }`}
                 />
               </div>
             </div>
 
-            <div className="space-y-3 p-6">
+            <div
+              className={`space-y-3 p-4 transition-colors duration-300 lg:p-6 ${
+                isDark ? "bg-[#171717]" : "bg-white"
+              }`}
+            >
               {isLoading ? (
-                <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">Loading disputes...</div>
+                <div
+                  className={`rounded-2xl border p-8 text-center text-sm ${
+                    isDark
+                      ? "border-[#262626] bg-[#0D0D0D] text-white/55"
+                      : "border-[#E5E5E5] bg-[#FAFAFA] text-zinc-500"
+                  }`}
+                >
+                  Loading disputes...
+                </div>
               ) : filteredDisputes.length === 0 ? (
-                <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-8 text-center text-sm text-white/55">No CP disputes found.</div>
-              ) : paginatedDisputes.map((dispute) => (
-                <div key={dispute.id} className={`rounded-2xl overflow-hidden bg-[#0D0D0D] ${expandedId === dispute.id ? "border-[0.5px] border-[#E8D1AB]" : "border-[0.5px] border-[#262626]"}`}>
-                  <div
-                    onClick={() => setExpandedId(expandedId === dispute.id ? null : dispute.id)}
-                    className="flex items-center justify-between p-5 cursor-pointer hover:bg-[#1A1A1A] transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      {expandedId === dispute.id ? <ChevronUp size={20} className="text-[#E8D1AB]" /> : <ChevronDown size={20} className="text-gray-400" />}
-                      <div>
-                        <div className="flex items-center gap-3 text-lg mb-1">
-                          <h3 className="font-normal">{dispute.title}</h3>
-                          {getStatusBadge(dispute.status)}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
-                          <span>{dispute.bookingId}</span>
-                          <span>•</span>
-                          <AlertCircle size={14} className={dispute.status === "Resolved" ? "text-[#10B981]" : "text-[#EF4444]"} />
-                          <span className={dispute.status === "Resolved" ? "text-[#10B981]" : "text-[#EF4444]"}>{dispute.status === "Resolved" ? "Resolved" : "Dispute Active"}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-normal text-[#10B981]">{formatCurrency(dispute.finalPayout)}</p>
-                      <p className="text-sm text-[#A0A0A0]">CP Compensation</p>
-                    </div>
-                  </div>
+                <div
+                  className={`rounded-2xl border p-8 text-center text-sm ${
+                    isDark
+                      ? "border-[#262626] bg-[#0D0D0D] text-white/55"
+                      : "border-[#E5E5E5] bg-[#FAFAFA] text-zinc-500"
+                  }`}
+                >
+                  No CP disputes found.
+                </div>
+              ) : (
+                paginatedDisputes.map((dispute) => {
+                  const isExpanded = expandedId === dispute.id;
 
-                  {expandedId === dispute.id && (
-                    <div className="px-5 py-5 bg-[#0A0A0A]">
-                      <div className="grid grid-cols-1 gap-4 mb-4 lg:grid-cols-2">
-                        <div className="bg-[#141414] border border-[#262626] rounded-lg p-5">
-                          <h4 className="text-base font-normal mb-4">Compensation Breakdown</h4>
-                          <div className="space-y-3">
-                            <div className="flex justify-between text-base">
-                              <span className="text-[#A0A0A0]">Total Compensation</span>
-                              <span>{formatCurrency(dispute.totalEarnings)}</span>
-                            </div>
-                            <div className="flex justify-between text-base">
-                              <span className="text-[#A0A0A0]">Paid to You</span>
-                              <span className="text-[#10B981]">{formatCurrency(dispute.paidAmount)}</span>
-                            </div>
-                            {dispute.extraAmount > 0 ? (
-                              <div className="flex justify-between text-base">
-                                <span className="text-[#A0A0A0]">Extra Due to Dispute</span>
-                                <span className="text-[#7DB0FF]">{formatCurrency(dispute.extraAmount)}</span>
-                              </div>
-                            ) : null}
-                            <div className="border-t-[0.5px] border-[#262626] pt-3 mt-3">
-                              <div className="flex justify-between text-base">
-                                <span className="font-normal">Remaining Balance</span>
-                                <span className="font-normal text-xl text-[#E8D1AB]">{formatCurrency(dispute.remainingBalance)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  return (
+                    <div
+                      key={dispute.id}
+                      className={`overflow-hidden rounded-2xl border-[0.5px] transition-colors duration-300 ${
+                        isExpanded
+                          ? "border-[#E8D1AB]"
+                          : isDark
+                            ? "border-[#262626]"
+                            : "border-[#E2E2E2]"
+                      } ${isDark ? "bg-[#0D0D0D]" : "bg-white"}`}
+                    >
+                      <div
+                        onClick={() => setExpandedId(isExpanded ? null : dispute.id)}
+                        className={`flex cursor-pointer flex-col gap-4 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between lg:p-5 ${
+                          isDark ? "hover:bg-[#1A1A1A]" : "hover:bg-[#F7F7F7]"
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-4">
+                          {isExpanded ? (
+                            <ChevronUp size={20} className="shrink-0 text-[#E8D1AB]" />
+                          ) : (
+                            <ChevronDown
+                              size={20}
+                              className={`shrink-0 ${isDark ? "text-gray-400" : "text-zinc-500"}`}
+                            />
+                          )}
 
-                        <div className="bg-[#171717] border border-[#2A2A2A] rounded-xl p-5">
-                          <h4 className="text-base font-normal mb-4">Dispute Status</h4>
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <span className="text-base text-[#A0A0A0]">Status</span>
+                          <div className="min-w-0">
+                            <div className="mb-1 flex flex-wrap items-center gap-3 text-base lg:text-lg">
+                              <h3 className="truncate font-normal">{dispute.title}</h3>
                               {getStatusBadge(dispute.status)}
                             </div>
-                            <div className="flex justify-between text-base">
-                              <span className="text-[#A0A0A0]">Created</span>
-                              <span>{dispute.createdAt}</span>
-                            </div>
-                            <div className="flex justify-between text-base">
-                              <span className="text-[#A0A0A0]">Reason</span>
-                              <span>{dispute.category}</span>
+
+                            <div
+                              className={`flex flex-wrap items-center gap-2 text-sm ${
+                                isDark ? "text-[#A0A0A0]" : "text-zinc-500"
+                              }`}
+                            >
+                              <span>{dispute.bookingId}</span>
+                              <span>•</span>
+                              <AlertCircle
+                                size={14}
+                                className={
+                                  dispute.status === "Resolved"
+                                    ? "text-[#10B981]"
+                                    : "text-[#EF4444]"
+                                }
+                              />
+                              <span
+                                className={
+                                  dispute.status === "Resolved"
+                                    ? "text-[#10B981]"
+                                    : "text-[#EF4444]"
+                                }
+                              >
+                                {dispute.status === "Resolved" ? "Resolved" : "Dispute Active"}
+                              </span>
                             </div>
                           </div>
+                        </div>
+
+                        <div className="shrink-0 text-left sm:text-right">
+                          <p className="text-xl font-normal text-[#10B981] lg:text-2xl">
+                            {formatCurrency(dispute.finalPayout)}
+                          </p>
+                          <p className={`text-sm ${isDark ? "text-[#A0A0A0]" : "text-zinc-500"}`}>
+                            CP Compensation
+                          </p>
                         </div>
                       </div>
 
-                      <div className="bg-[#EF4444]/5 border-[0.5px] border-[#EF4444]/20 rounded-lg p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3">
-                            <AlertCircle className="text-[#EF4444] mt-0.5" size={20} />
-                            <div>
-                              <h4 className="font-normal mb-1">Dispute: {dispute.id}</h4>
-                              <p className="text-sm text-[#A0A0A0]">{dispute.description}</p>
+                      {isExpanded && (
+                        <div
+                          className={`border-t px-4 py-5 transition-colors lg:px-5 ${
+                            isDark
+                              ? "border-[#262626] bg-[#0A0A0A]"
+                              : "border-[#E5E5E5] bg-[#FAFAFA]"
+                          }`}
+                        >
+                          <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div
+                              className={`rounded-lg border p-5 ${
+                                isDark
+                                  ? "border-[#262626] bg-[#141414]"
+                                  : "border-[#E5E5E5] bg-white"
+                              }`}
+                            >
+                              <h4 className="mb-4 text-base font-normal">Compensation Breakdown</h4>
+                              <div className="space-y-3">
+                                <div className="flex justify-between gap-4 text-base">
+                                  <span className={isDark ? "text-[#A0A0A0]" : "text-zinc-500"}>
+                                    Total Compensation
+                                  </span>
+                                  <span>{formatCurrency(dispute.totalEarnings)}</span>
+                                </div>
+
+                                <div className="flex justify-between gap-4 text-base">
+                                  <span className={isDark ? "text-[#A0A0A0]" : "text-zinc-500"}>
+                                    Paid to You
+                                  </span>
+                                  <span className="text-[#10B981]">
+                                    {formatCurrency(dispute.paidAmount)}
+                                  </span>
+                                </div>
+
+                                {dispute.extraAmount > 0 ? (
+                                  <div className="flex justify-between gap-4 text-base">
+                                    <span className={isDark ? "text-[#A0A0A0]" : "text-zinc-500"}>
+                                      Extra Due to Dispute
+                                    </span>
+                                    <span className={isDark ? "text-[#7DB0FF]" : "text-[#3B75C7]"}>
+                                      {formatCurrency(dispute.extraAmount)}
+                                    </span>
+                                  </div>
+                                ) : null}
+
+                                <div
+                                  className={`mt-3 border-t-[0.5px] pt-3 ${
+                                    isDark ? "border-[#262626]" : "border-[#E5E5E5]"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-4 text-base">
+                                    <span className="font-normal">Remaining Balance</span>
+                                    <span
+                                      className={`text-xl font-normal ${
+                                        isDark ? "text-[#E8D1AB]" : "text-[#9C7A45]"
+                                      }`}
+                                    >
+                                      {formatCurrency(dispute.remainingBalance)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              className={`rounded-xl border p-5 ${
+                                isDark
+                                  ? "border-[#2A2A2A] bg-[#171717]"
+                                  : "border-[#E5E5E5] bg-white"
+                              }`}
+                            >
+                              <h4 className="mb-4 text-base font-normal">Dispute Status</h4>
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-4">
+                                  <span
+                                    className={`text-base ${
+                                      isDark ? "text-[#A0A0A0]" : "text-zinc-500"
+                                    }`}
+                                  >
+                                    Status
+                                  </span>
+                                  {getStatusBadge(dispute.status)}
+                                </div>
+
+                                <div className="flex justify-between gap-4 text-base">
+                                  <span className={isDark ? "text-[#A0A0A0]" : "text-zinc-500"}>
+                                    Created
+                                  </span>
+                                  <span>{dispute.createdAt}</span>
+                                </div>
+
+                                <div className="flex justify-between gap-4 text-base">
+                                  <span className={isDark ? "text-[#A0A0A0]" : "text-zinc-500"}>
+                                    Reason
+                                  </span>
+                                  <span className="text-right">{dispute.category}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <Button
-                            onClick={() => void handleViewDetails(dispute)}
-                            className="px-5 py-2.5 bg-[#E8D1AB] text-black rounded-lg font-medium text-sm hover:bg-[#F5EBD8] transition-colors"
-                          >
-                            View Details
-                          </Button>
+
+                          <div className="rounded-lg border-[0.5px] border-[#EF4444]/20 bg-[#EF4444]/5 p-5">
+                            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                              <div className="flex min-w-0 items-start gap-3">
+                                <AlertCircle className="mt-0.5 shrink-0 text-[#EF4444]" size={20} />
+                                <div className="min-w-0">
+                                  <h4 className="mb-1 font-normal">Dispute: {dispute.id}</h4>
+                                  <p
+                                    className={`break-words text-sm ${
+                                      isDark ? "text-[#A0A0A0]" : "text-zinc-600"
+                                    }`}
+                                  >
+                                    {dispute.description}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <Button
+                                onClick={() => void handleViewDetails(dispute)}
+                                className="shrink-0 rounded-lg bg-[#E8D1AB] px-5 py-2.5 text-sm font-medium text-black transition-colors hover:bg-[#F5EBD8]"
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
 
-            <div className="flex items-center justify-between px-3.5 py-5 border-t border-[#3D3D3D] border-b-0 bg-[#101010]">
-              <p className="text-sm text-gray-500">
-                Showing {(currentPage - 1) * DISPUTES_PER_PAGE + 1} to{" "}
-                {Math.min(currentPage * DISPUTES_PER_PAGE, filteredDisputes.length)} of{" "}
-                {filteredDisputes.length}
+            <div
+              className={`flex flex-col gap-4 border-t px-3.5 py-5 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+                isDark
+                  ? "border-[#3D3D3D] bg-[#101010]"
+                  : "border-[#E5E5E5] bg-[#FAFAFA]"
+              }`}
+            >
+              <p className={`text-sm ${isDark ? "text-gray-500" : "text-zinc-500"}`}>
+                {filteredDisputes.length === 0
+                  ? "Showing 0 to 0 of 0"
+                  : `Showing ${(currentPage - 1) * DISPUTES_PER_PAGE + 1} to ${Math.min(
+                      currentPage * DISPUTES_PER_PAGE,
+                      filteredDisputes.length,
+                    )} of ${filteredDisputes.length}`}
               </p>
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  className={`rounded-lg border p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    isDark
+                      ? "border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A]"
+                      : "border-[#D8D8D8] bg-white text-zinc-500 hover:bg-zinc-100"
+                  }`}
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <button className="w-9 h-9 rounded-lg bg-[#E5D5B8] text-black font-medium text-sm">
+
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded-lg bg-[#E5D5B8] text-sm font-medium text-black"
+                >
                   {currentPage}
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setCurrentPage((page) => Math.min(page + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  className={`rounded-lg border p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    isDark
+                      ? "border-[#3D3D3D] text-gray-400 hover:bg-[#1A1A1A]"
+                      : "border-[#D8D8D8] bg-white text-zinc-500 hover:bg-zinc-100"
+                  }`}
                 >
                   <ChevronRight size={16} />
                 </button>
               </div>
             </div>
           </div>
-{/* 
-          <div className="bg-[#171717] border border-[#3D3D3D] rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-5">
-              <TrendingUp size={20} className="text-[#10B981]" />
-              <h2 className="text-base font-normal">Payment Summary</h2>
-            </div>
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-              <div>
-                <p className="text-sm text-[#A0A0A0] mb-1">Paid Compensation Rows</p>
-                <p className="text-xl text-[#E8D1AB] font-normal">{String(completedBookings).padStart(2, "0")}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#A0A0A0] mb-1">Average Compensation</p>
-                <p className="text-xl text-[#E8D1AB] font-normal">{formatCurrency(averageEarnings)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-[#A0A0A0] mb-1">Eligible Shoots</p>
-                <p className="text-xl text-[#E8D1AB] font-normal">{String(shootOptions.length).padStart(2, "0")}</p>
-              </div>
-            </div>
-          </div> */}
         </div>
 
         <RaiseDisputeModal

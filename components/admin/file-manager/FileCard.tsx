@@ -2,11 +2,13 @@ import React from 'react';
 import {
   Check,
   Download,
+  Eye,
   FileArchive,
   FileImage,
   FileSpreadsheet,
   FileText,
   FileVideo,
+  Info,
   Share2,
   MoreVertical,
   Play,
@@ -110,6 +112,7 @@ export const FileCard = ({
   stage = "post-production",
   onMenuTrigger,
   onOpen,
+  onQuickView,
   onDownload,
   onDelete,
   onShare,
@@ -128,7 +131,8 @@ export const FileCard = ({
 }: {
   file: FileCardFile,
   onMenuTrigger?: (e: React.MouseEvent<HTMLButtonElement>) => void,
-  onOpen?: () => void
+  onOpen?: () => void,
+  onQuickView?: () => void,
   onDownload?: () => void,
   onDelete?: () => void,
   onShare?: () => void,
@@ -206,20 +210,24 @@ export const FileCard = ({
 
       {/* Media Preview Area */}
       <div className="px-5">
-        <div className={`aspect-23/18 rounded-lg flex items-center justify-center overflow-hidden ${isDark ? 'bg-[#202020]' : 'bg-[#F9F9F9] border border-[#EEEEEE]'}`}>
+        <div className={`aspect-23/18 rounded-lg flex items-center justify-center overflow-hidden relative group/preview ${isDark ? 'bg-[#202020]' : 'bg-[#F9F9F9] border border-[#EEEEEE]'}`}>
           {file.previewUrl && isImageFile(file.contentType, file.title) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={file.previewUrl} alt={file.title} className="h-full w-full object-cover" />
+            <img
+              src={file.previewUrl}
+              alt={file.title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover/preview:scale-105"
+            />
           ) : file.previewUrl && isVideoFile(file.contentType, file.title) ? (
             <div className="relative h-full w-full">
               <video
                 src={file.previewUrl}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover/preview:scale-105"
                 muted
                 playsInline
                 preload="metadata"
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover/preview:opacity-100">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white">
                   <Play size={16} className="ml-0.5" fill="currentColor" />
                 </div>
@@ -235,6 +243,38 @@ export const FileCard = ({
               </span>
             </div>
           )}
+
+          {/* Hover Overlay with Quick View (Eye) & View Details Action Buttons */}
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover/preview:opacity-100 transition-all duration-200 flex items-center justify-center gap-2 p-2 z-10">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onQuickView) {
+                  onQuickView();
+                } else if (onOpen) {
+                  onOpen();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white text-white hover:text-black font-semibold text-xs backdrop-blur-md border border-white/30 shadow-lg transition-all transform hover:scale-105 active:scale-95"
+              title="Quick Preview"
+            >
+              <Eye size={14} />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 hover:bg-[#E8D1AB] text-white hover:text-black font-semibold text-xs backdrop-blur-md border border-white/20 hover:border-[#E8D1AB] shadow-lg transition-all transform hover:scale-105 active:scale-95"
+              title="View Details"
+            >
+              <Info size={14} />
+              <span>Details</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -134,6 +134,48 @@ const mapPrimaryRoles = (primaryRole: unknown, roleName?: string | null) => {
   return [];
 };
 
+const normalizeEquipmentForEdit = (payload: any) => {
+  const ownership = parseMaybeJson<any[]>(payload?.equipment_ownership, []);
+  const details = Array.isArray(payload?.equipment_details) ? payload.equipment_details : [];
+  const names = Array.isArray(payload?.equipment_names) ? payload.equipment_names : [];
+
+  if (details.length > 0) {
+    return {
+      ids: details
+        .map((item: any) => item?.equipment_id || item?.id || item?.equipment_name || item?.name || "")
+        .map((item: any) => String(item))
+        .filter(Boolean),
+      names: details
+        .map((item: any) => item?.equipment_name || item?.name || item?.equipment_id || item?.id || "")
+        .map((item: any) => String(item))
+        .filter(Boolean),
+    };
+  }
+
+  if (ownership.length > 0) {
+    return {
+      ids: ownership
+        .map((item: any) => (typeof item === "string" || typeof item === "number" ? item : item?.equipment_id || item?.id || item?.equipment_name || item?.name || ""))
+        .map((item: any) => String(item))
+        .filter(Boolean),
+      names: ownership
+        .map((item: any, index: number) => {
+          if (typeof item === "object" && item !== null) {
+            return item.equipment_name || item.name || item.equipment_id || item.id || "";
+          }
+          return names[index] || item;
+        })
+        .map((item: any) => String(item))
+        .filter(Boolean),
+    };
+  }
+
+  return {
+    ids: names.map((item: any) => String(item)).filter(Boolean),
+    names: names.map((item: any) => String(item)).filter(Boolean),
+  };
+};
+
 export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,11 +322,15 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const handleSaveProfile = async () => {
     try {
       setIsSaving(true);
+      const equipmentPayload = data.equipments
+        .map((equipmentId) => String(equipmentId).trim())
+        .filter(Boolean);
+
       const payload = {
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
-        phone_number: data.phoneNumber,
+        phone_number: data.phoneNumber.trim() || null,
         location: data.location,
         lat: data.lat,
         lng: data.lng,
@@ -306,7 +352,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           }
           return acc;
         }, {}),
-        equipment_ownership: data.equipmentNames.length > 0 ? data.equipmentNames : data.equipments,
+        equipment_ownership: equipmentPayload,
         is_draft: 0,
       };
 
@@ -560,7 +606,11 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
             await Promise.all(removedFileIds.map((crewFilesId) => deleteCrewFile(crewFilesId, "recent_work")));
           }
 
-          const hasFreshFiles = currentFiles.some((file: any) => file instanceof File || file?.file instanceof File);
+          const hasFreshFiles = currentFiles.some(
+            (file: any) =>
+              file instanceof File ||
+              (file?.file instanceof File && !getRecentWorkCrewFilesId(file))
+          );
           if (hasFreshFiles) {
             await uploadRecentWorkProject(item);
           }
@@ -667,11 +717,12 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const uploadRecentWorkProject = async (item: FeaturedWorkItem) => {
     const filesToUpload = Array.isArray(item.files)
       ? item.files
+          .filter((file: any) => file instanceof File || (file?.file instanceof File && !getRecentWorkCrewFilesId(file)))
           .map((file: any) => (file instanceof File ? file : file?.file))
           .filter((file: any): file is File => file instanceof File)
       : [];
 
-    if (filesToUpload.length === 0) return item;
+    if (filesToUpload.length === 0) return [];
 
     const normalizedTags = normalizeFeaturedWorkTags(item.tags);
 
@@ -683,6 +734,8 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
     if (response?.success === false || response?.error) {
       throw new Error(response?.error || "Failed to upload featured work");
     }
+
+    return extractUploadedFiles(response);
   };
 
   const handlePortfolioLinksChange = async (nextLinks: LinkItem[]) => {
@@ -816,7 +869,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
                 url,
               }))
             : [];
-        const parsedEquipment = parseMaybeJson<any[]>(payload.equipment_ownership, []);
+        const normalizedEquipment = normalizeEquipmentForEdit(payload);
         const mappedSkills = Array.isArray(payload.skills)
           ? payload.skills.map((skill: any) => mapSkillToOptionValue(skill)).filter(Boolean)
           : [];
@@ -867,18 +920,8 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           bio: payload.bio || "",
           availability: Array.isArray(payload.availability) ? payload.availability.map((item: any) => String(item)) : prev.availability,
           skills: mappedSkills.length > 0 ? mappedSkills : prev.skills,
-          equipments: parsedEquipment
-            .map((item) => {
-              if (typeof item === "string") return item;
-              return item?.equipment_id || item?.id || item?.name || item?.equipment_name || "";
-            })
-            .filter(Boolean),
-          equipmentNames: parsedEquipment
-            .map((item) => {
-              if (typeof item === "string") return item;
-              return item?.equipment_name || item?.name || item?.equipment_id || item?.id || "";
-            })
-            .filter(Boolean),
+          equipments: normalizedEquipment.ids.length > 0 ? normalizedEquipment.ids : prev.equipments,
+          equipmentNames: normalizedEquipment.names.length > 0 ? normalizedEquipment.names : prev.equipmentNames,
           links: parsedSocialLinks.length
             ? parsedSocialLinks.map((link, index) => ({
                 id: `social-${index}`,
@@ -952,6 +995,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           <>
             <StepOne
               data={data}
+              onPhoneNumberChange={(phoneNumber) => setData((prev) => ({ ...prev, phoneNumber }))}
               isDark={isDark}
               fieldStyles={fieldStyles}
               mutedText={mutedText}
@@ -1095,6 +1139,7 @@ function AdminEditLayout({
 
 function StepOne({
   data,
+  onPhoneNumberChange,
   isDark,
   fieldStyles,
   mutedText,
@@ -1102,6 +1147,7 @@ function StepOne({
   onUploadProfile,
 }: {
   data: any;
+  onPhoneNumberChange: (phoneNumber: string) => void;
   isDark: boolean;
   fieldStyles: string;
   mutedText: string;
@@ -1124,7 +1170,14 @@ function StepOne({
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Field label="Phone Number" value={data.phoneNumber} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
+        <Field
+          label="Phone Number"
+          value={data.phoneNumber}
+          labelStyles={labelStyles}
+          fieldStyles={fieldStyles}
+          type="tel"
+          onChange={onPhoneNumberChange}
+        />
         <Field label="Location" value={data.location} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
         <Field label="Shoot Radius" value={data.workingDistance} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
       </div>
@@ -1465,20 +1518,30 @@ function LinkRow({
 function Field({
   label,
   value,
+  onChange,
   labelStyles,
   fieldStyles,
+  type = "text",
   readOnly = false,
 }: {
   label: string;
   value: string;
+  onChange?: (value: string) => void;
   labelStyles: string;
   fieldStyles: string;
+  type?: React.HTMLInputTypeAttribute;
   readOnly?: boolean;
 }) {
   return (
     <div>
       <Label className={labelStyles}>{label}</Label>
-      <Input className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`} value={value} readOnly={readOnly} />
+      <Input
+        type={type}
+        className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`}
+        value={value}
+        readOnly={readOnly}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
     </div>
   );
 }

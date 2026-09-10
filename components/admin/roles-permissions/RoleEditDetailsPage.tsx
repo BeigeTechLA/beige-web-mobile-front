@@ -19,7 +19,7 @@ type RoleEditDetailsPageProps = {
   isLoading?: boolean;
   description?: string;
   primaryActionLabel?: string;
-  onRowsChange?: (rows: PermissionMatrixRow[]) => void;
+  onRowsChange?: React.Dispatch<React.SetStateAction<PermissionMatrixRow[]>>;
   onOpenModal?: () => void;
   onPrimaryAction?: () => void;
   mode: string;

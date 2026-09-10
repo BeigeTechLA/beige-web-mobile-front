@@ -67,6 +67,8 @@ interface ProjectFilesResponse {
 interface ExternalWorkspaceSummary {
   externalId: string;
   folderName: string;
+  displayName?: string;
+  storageFolderName?: string;
   rootPath: string;
   fullPath?: string;
   consoleUrl?: string | null;
@@ -79,12 +81,31 @@ interface ExternalWorkspaceSummary {
   visibleUntil?: string | null;
 }
 
+type ExternalWorkspaceNameFields = {
+  folderName?: string;
+  displayName?: string;
+  storageFolderName?: string | null;
+  rootPath?: string | null;
+};
+
+export const getExternalWorkspaceDisplayName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(workspace?.displayName || workspace?.folderName || "").trim();
+
+export const getExternalWorkspaceStorageName = (workspace?: ExternalWorkspaceNameFields | null) =>
+  String(
+    workspace?.storageFolderName ||
+    workspace?.rootPath ||
+    workspace?.folderName ||
+    ""
+  ).trim();
+
 interface ExternalWorkspaceFolder {
   name: string;
   path: string;
   fullPath?: string;
   folderType?: string | null;
   fileCount?: number;
+  childFolderCount?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -135,6 +156,58 @@ interface ExternalShareAccessLogItem {
   createdAt?: string;
 }
 
+export interface ExternalFolderActivityLogItem {
+  id?: string;
+  _id?: string;
+  folderPath: string;
+  rootPath?: string;
+  action: "upload" | "delete";
+  actorUserId?: string | null;
+  actorName?: string;
+  actorEmail?: string | null;
+  fileCount: number;
+  totalSize: number;
+  targetPath?: string;
+  targetName?: string;
+  targetIsFolder?: boolean;
+  files?: Array<{
+    path?: string;
+    name?: string;
+    size?: number;
+    contentType?: string;
+    isFolder?: boolean;
+  }>;
+  createdAt?: string;
+}
+
+export interface ExternalFolderActivitySummaryItem {
+  userId?: string | null;
+  name: string;
+  fileCount: number;
+  totalSize: number;
+  events: number;
+}
+
+export interface ExternalFolderActivityResponse {
+  logs: ExternalFolderActivityLogItem[];
+  summary: {
+    uploads: ExternalFolderActivitySummaryItem[];
+    deletes: ExternalFolderActivitySummaryItem[];
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface FileManagerSettings {
+  cpDeleteLockDays: number;
+  cp_delete_lock_days?: number;
+  updatedAt?: string | null;
+}
+
 interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
@@ -183,10 +256,12 @@ interface ExternalWorkspaceCreateResponse {
 interface ExternalUploadPolicyResponse {
   success: boolean;
   data: {
-    url: string;
-    fields: Record<string, string>;
-    filePath: string;
-    success: boolean;
+    url?: string;
+    fields?: Record<string, string>;
+    filePath?: string;
+    filepath?: string;
+    skipped?: boolean;
+    success?: boolean;
   };
 }
 
@@ -332,10 +407,39 @@ interface ExternalBatchUploadPolicyResponse {
     failureCount: number;
     items: Array<{
       filepath: string;
+      resolvedFilepath?: string;
       success: boolean;
+      skipped?: boolean;
       data?: ExternalUploadPolicyResponse["data"];
       error?: string;
       code?: number;
+    }>;
+  };
+}
+
+interface ExternalUploadConflictsResponse {
+  success: boolean;
+  data: {
+    total: number;
+    conflictCount: number;
+    failureCount: number;
+    items: Array<{
+      filepath: string;
+      resolvedFilepath?: string;
+      fileName?: string;
+      success: boolean;
+      exists: boolean;
+      error?: string;
+      code?: number;
+      entry?: {
+        id?: string;
+        name?: string;
+        path?: string;
+        size?: number;
+        contentType?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      } | null;
     }>;
   };
 }
@@ -465,6 +569,24 @@ const downloadBlob = (blob: Blob, filename: string) => {
   }
 };
 
+const getCurrentFileManagerUser = () => {
+  if (typeof window === "undefined") {
+    return { userId: undefined, authorName: undefined, userEmail: undefined };
+  }
+
+  try {
+    const raw = window.localStorage.getItem("revure_user");
+    if (!raw) return { userId: undefined, authorName: undefined, userEmail: undefined };
+    const user = JSON.parse(raw) as Record<string, unknown>;
+    const userId = String(user.id || user._id || user.user_id || "").trim() || undefined;
+    const authorName = String(user.name || user.full_name || user.email || "").trim() || undefined;
+    const userEmail = String(user.email || "").trim() || undefined;
+    return { userId, authorName, userEmail };
+  } catch {
+    return { userId: undefined, authorName: undefined, userEmail: undefined };
+  }
+};
+
 export interface UiFolderItem {
   id: string;
   title: string;
@@ -476,6 +598,8 @@ export interface UiFolderItem {
   href?: string;
   type?: string;
   resourcePath?: string;
+  createdAt?: string;
+  childFolderCount?: number;
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
@@ -495,6 +619,9 @@ export interface UiFileItem {
   filepath?: string;
   contentType?: string;
   metadata?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedAtRaw?: string;
 }
 
 export interface FileCommentUser {
@@ -722,13 +849,15 @@ export const fileManagerApi = {
     page?: number;
     limit?: number;
     search?: string;
-    workspaceType?: "common-events" | "visibility-expired";
+    workspaceType?: "common-events" | "visibility-expired" | "recent";
+    recentDays?: number;
   }) {
     const params: Record<string, string | number> = {};
     if (options?.page) params.page = options.page;
     if (options?.limit) params.limit = options.limit;
     if (options?.search) params.search = options.search;
     if (options?.workspaceType) params.workspaceType = options.workspaceType;
+    if (options?.recentDays) params.recentDays = options.recentDays;
 
     const response = await apiClient.get<ExternalWorkspacesResponse>(
       "external-file-manager/workspaces",
@@ -765,6 +894,18 @@ export const fileManagerApi = {
     const response = await apiClient.patch<CreateCommonEventResponse>(
       `external-file-manager/common-events/${eventExternalId}`,
       { visibleUntil: visibleUntil || null }
+    );
+    return response.data;
+  },
+
+  async updateWorkspaceDisplayName(externalId: string | number, displayName: string) {
+    const response = await apiClient.patch<{
+      success: boolean;
+      message?: string;
+      data?: { externalId: string; displayName: string };
+    }>(
+      `external-file-manager/workspace/${externalId}/display-name`,
+      { displayName }
     );
     return response.data;
   },
@@ -968,16 +1109,16 @@ export const fileManagerApi = {
     return response.data;
   },
 
-  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number) {
+  async getExternalUploadPolicy(filepath: string, fileContentType: string, fileSize: number, conflictMode: "replace" | "skip" | "keep_both" = "replace") {
     const response = await apiClient.post<ExternalUploadPolicyResponse>(
       "external-file-manager/upload-policy",
-      { filepath, fileContentType, fileSize }
+      { filepath, fileContentType, fileSize, conflictMode }
     );
     return response.data;
   },
 
   async getExternalUploadPoliciesBatch(
-    items: Array<{ filepath: string; fileContentType: string; fileSize: number }>
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; conflictMode?: "replace" | "skip" | "keep_both" }>
   ) {
     const response = await apiClient.post<ExternalBatchUploadPolicyResponse>(
       "external-file-manager/upload-policies/batch",
@@ -986,21 +1127,34 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async detectExternalUploadConflicts(
+    items: Array<{ filepath: string; fileName?: string }>
+  ) {
+    const response = await apiClient.post<ExternalUploadConflictsResponse>(
+      "external-file-manager/upload-conflicts",
+      { items }
+    );
+    return response;
+  },
+
   async notifyExternalFileUploaded(filepath: string, file: File) {
+    const currentUser = getCurrentFileManagerUser();
     return apiClient.post("external-file-manager/file-uploaded", {
       filepath,
       fileContentType: file.type,
       fileSize: file.size,
       fileName: file.name,
+      ...currentUser,
     });
   },
 
   async notifyExternalFilesUploadedBatch(
     items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>
   ) {
+    const currentUser = getCurrentFileManagerUser();
     const response = await apiClient.post<ExternalBatchFileUploadedResponse>(
       "external-file-manager/files-uploaded/batch",
-      { items }
+      { items, ...currentUser }
     );
     return response.data;
   },
@@ -1111,7 +1265,36 @@ export const fileManagerApi = {
   },
 
   async deleteExternalEntry(filepath: string) {
-    return apiClient.post("external-file-manager/delete", { filepath });
+    return apiClient.post("external-file-manager/delete", { filepath, ...getCurrentFileManagerUser() });
+  },
+
+  async getExternalFolderActivityLogs(params: {
+    folderPath?: string;
+    rootPath?: string;
+    page?: number;
+    limit?: number;
+    action?: "upload" | "delete";
+  }) {
+    const response = await apiClient.get<{ success: boolean; data: ExternalFolderActivityResponse }>(
+      "external-file-manager/folder-activity-logs",
+      params as Record<string, unknown>
+    );
+    return response.data;
+  },
+
+  async getFileManagerSettings() {
+    const response = await apiClient.get<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings"
+    );
+    return response.data;
+  },
+
+  async updateFileManagerSettings(payload: { cpDeleteLockDays?: number; cp_delete_lock_days?: number }) {
+    const response = await apiClient.getInstance().patch<{ success: boolean; data: FileManagerSettings }>(
+      "external-file-manager/settings",
+      payload
+    );
+    return response.data;
   },
 
   async createExternalFolder(
@@ -1582,6 +1765,21 @@ export const slugToWorkspaceName = (slug?: string) => {
 export const isCommonEventWorkspaceId = (workspaceId?: string | number) =>
   String(workspaceId || "").toLowerCase().startsWith("event_");
 
+export const isWorkflowPhaseFolderName = (value?: string | number) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  return ["pre-production", "preproduction", "post-production", "postproduction"].includes(normalized);
+};
+
+export const shouldShowCommonEventRootFolder = (
+  folder?: Pick<UiFolderItem, "rawName" | "title" | "fileCount" | "childFolderCount">
+) =>
+  !isWorkflowPhaseFolderName(folder?.rawName || folder?.title) ||
+  Number(folder?.fileCount || 0) > 0 ||
+  Number(folder?.childFolderCount || 0) > 0;
+
 export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) => {
   if (!visibleUntil) return true;
 
@@ -1597,20 +1795,28 @@ export const isVisibleToNonAdminByVisibleUntil = (visibleUntil?: string | null) 
 export const mapExternalWorkspaceToFolderCard = (
   workspace: ExternalWorkspaceSummary,
   basePath: string
-): UiFolderItem => ({
-  id: workspace.externalId,
-  title: workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName),
-  fileCount: workspace.fileCount || 0,
-  category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
-  isLinked: true,
-  lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
-  userInitials: getDisplayInitials(workspace.isCommonEvent ? workspace.folderName : formatFileManagerWorkspaceName(workspace.folderName)),
-  href: `${basePath}/${workspace.externalId}`,
-  resourcePath: workspace.rootPath,
-  updatedAtRaw: workspace.updatedAt || workspace.createdAt,
-  visibleUntil: workspace.visibleUntil || null,
-  rawName: workspace.folderName,
-});
+): UiFolderItem => {
+  const displayName = getExternalWorkspaceDisplayName(workspace);
+  const title = workspace.isCommonEvent
+    ? displayName
+    : formatFileManagerWorkspaceName(displayName);
+
+  return {
+    id: workspace.externalId,
+    title,
+    fileCount: workspace.fileCount || 0,
+    category: workspace.isCommonEvent ? "Common Event" : inferWorkspaceCategory(workspace.folderName),
+    isLinked: true,
+    lastOpened: formatRelativeTime(workspace.updatedAt || workspace.createdAt),
+    userInitials: getDisplayInitials(title),
+    href: `${basePath}/${workspace.externalId}`,
+    resourcePath: workspace.rootPath,
+    createdAt: workspace.createdAt,
+    updatedAtRaw: workspace.updatedAt || workspace.createdAt,
+    visibleUntil: workspace.visibleUntil || null,
+    rawName: getExternalWorkspaceStorageName(workspace),
+  };
+};
 
 export const mapExternalFoldersToUi = (
   folders: ExternalWorkspaceFolder[],
@@ -1621,12 +1827,14 @@ export const mapExternalFoldersToUi = (
     title: prettifyExternalFolderName(folder.name),
     rawName: folder.name,
     fileCount: folder.fileCount || 0,
+    childFolderCount: folder.childFolderCount || 0,
     category: folder.folderType || "folder",
     isLinked: true,
     lastOpened: formatRelativeTime(folder.updatedAt || folder.createdAt),
   userInitials: getDisplayInitials(folder.name),
   href: buildHref(folder),
   resourcePath: folder.path,
+  createdAt: folder.createdAt,
   updatedAtRaw: folder.updatedAt || folder.createdAt,
 }));
 
@@ -1642,4 +1850,20 @@ export const mapExternalFilesToUi = (files: ExternalWorkspaceFile[]): UiFileItem
     filepath: file.path,
     contentType: file.contentType || "application/octet-stream",
     metadata: file.metadata || {},
+    createdAt: file.createdAt,
+    updatedAt: file.updatedAt,
+    updatedAtRaw: file.updatedAt || file.createdAt,
   }));
+
+export const canCreativePartnerDeleteFile = (
+  file: { createdAt?: string; updatedAtRaw?: string } | null | undefined,
+  lockDays = 7
+) => {
+  const normalizedLockDays = Math.max(0, Math.floor(Number(lockDays) || 0));
+  if (normalizedLockDays <= 0) return true;
+
+  const uploadedAt = new Date(file?.createdAt || file?.updatedAtRaw || "").getTime();
+  if (!Number.isFinite(uploadedAt)) return false;
+
+  return Date.now() - uploadedAt <= normalizedLockDays * 24 * 60 * 60 * 1000;
+};

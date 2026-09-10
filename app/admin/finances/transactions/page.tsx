@@ -2,12 +2,16 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ArrowUpToLine } from "lucide-react";
+import { ArrowUpToLine ,Loader2} from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import Topbar from "@/components/admin/Topbar";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import { Button } from "@/src/components/landing/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import DatePicker from "@/components/ui/Datepicker";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 import TransactionsTable, {
   type TransactionDetailRow,
   type TransactionRow,
@@ -230,6 +234,10 @@ export default function AdminTransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRow, setSelectedRow] = useState<TransactionRow | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState<Date | null>(null);
+  const [exportEndDate, setExportEndDate] = useState<Date | null>(null);
   const debouncedSearch = useDebounce(searchQuery, 400);
   const { isDark } = useResolvedTheme();
 
@@ -311,40 +319,283 @@ export default function AdminTransactionsPage() {
     setIsModalOpen(true);
   };
 
+  const handleExportTransactions = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    try {
+      if (Boolean(exportStartDate) !== Boolean(exportEndDate)) {
+        throw new Error("Select both dates or leave both blank to export all records.");
+      }
+
+      const exportParams: Record<string, string | undefined> = {
+        search: debouncedSearch.trim() || undefined,
+        status: STATUS_OPTIONS[statusFilter],
+        payment_method: paymentMethodFilter,
+        time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+      };
+
+      let fileName = "transactions-all-records.csv";
+
+      if (exportStartDate && exportEndDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(exportStartDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(exportEndDate);
+        end.setHours(0, 0, 0, 0);
+
+        if (start > today || end > today) {
+          throw new Error("Future dates are not allowed.");
+        }
+        if (start > end) {
+          throw new Error("Start date cannot be after end date.");
+        }
+
+        const formattedStart = formatApiDate(start)!;
+        const formattedEnd = formatApiDate(end)!;
+        exportParams.start_date = formattedStart;
+        exportParams.end_date = formattedEnd;
+        fileName = `transactions-${formattedStart}-to-${formattedEnd}.csv`;
+      }
+
+      const blob = await financeTransactionsApi.exportTransactionsCsv(exportParams);
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("Invalid or empty export response.");
+      }
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setIsExportOpen(false);
+      setExportStartDate(null);
+      setExportEndDate(null);
+      toast.success("Transactions exported successfully.");
+    } catch (error) {
+      console.error("Export Transactions Error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to export transactions.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <>
       <Topbar
         pathname={pathname}
-        actions={
-          <Button
-            variant="outline"
-            className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
-              ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
-              : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
-            }`}
-          >
-            <ArrowUpToLine /> Export
-          </Button>
-        }
       />
 
-      <div
-        className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
-        style={{ fontFamily: "var(--font-instrument-sans)" }}
+        <div
+          className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+          style={{ fontFamily: "var(--font-instrument-sans)" }}
+        >
+          <div className="flex justify-between items-start lg:items-end gap-4">
+    <div>
+      <h1
+        className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${
+          isDark ? "text-white" : "text-[#000]"
+        }`}
       >
-        <div className="flex justify-between items-start lg:items-end gap-4">
-          <div>
-            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>
-              Transactions
-            </h1>
-            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
-              Manage your transactions, and payment history
-            </p>
-          </div>
-          <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
-        </div>
+        Transactions
+      </h1>
 
-        <TransactionsTable
+      <p
+        className={`text-xs lg:text-sm transition-colors duration-100 ${
+          isDark ? "text-white/70" : "text-[#000000B2]"
+        }`}
+      >
+        Manage your transactions, and payment history
+      </p>
+    </div>
+
+    <div className="flex items-center gap-3">
+      <SortDateButton
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+      />
+
+    <Popover
+      open={isExportOpen}
+      onOpenChange={(open) => {
+        if (!isExporting) setIsExportOpen(open);
+      }}
+    >
+
+            <PopoverTrigger asChild>
+              <Button
+                  variant="outline"
+                  disabled={isExporting}
+                  className={`rounded-lg h-10 w-10 lg:h-12 lg:w-auto lg:px-7 p-0 lg:py-0 gap-2 transition-all ${
+                    isDark
+                      ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                      : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                  }`}
+                >
+                {isExporting ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <ArrowUpToLine size={18} />
+                )}
+
+                <span className="hidden lg:inline">
+                  {isExporting ? "Exporting..." : "Export"}
+                </span>
+              </Button>
+
+            </PopoverTrigger>
+
+            <PopoverContent
+              align="end"
+              sideOffset={10}
+              className={`w-[340px] rounded-2xl border p-5 ${
+                isDark
+                  ? "border-[#3D3D3D] bg-[#171717] text-white"
+                  : "border-[#E5E5E5] bg-white text-black"
+              }`}
+            >
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold">Export Transactions</h3>
+                  <p className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                    Leave both dates blank to download all records, or pick a range filtered by transaction date.
+                  </p>
+                </div>
+
+                <div>
+                  <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    Start Date
+                  </p>
+                  <DatePicker
+                  label=""
+                  value={exportStartDate}
+                  onChange={(date) => {
+                    if (!date) {
+                      setExportStartDate(null);
+                      return;
+                    }
+                    const normalizedDate = new Date(date);
+                    normalizedDate.setHours(0, 0, 0, 0);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    if (normalizedDate > today) return;
+                    setExportStartDate(normalizedDate);
+
+                    if (exportEndDate) {
+                      const endNormalized = new Date(exportEndDate);
+                      endNormalized.setHours(0, 0, 0, 0);
+                      if (normalizedDate > endNormalized) setExportEndDate(normalizedDate);
+                    }
+                  }}
+                  maxDate={exportEndDate || new Date()}
+                  disabled={isExporting}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                    sx={{ height: "42px" }}
+                  />
+                </div>
+
+                <div>
+                  <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    End Date
+                  </p>
+                  <DatePicker
+                  label=""
+                  value={exportEndDate}
+                  onChange={(date) => {
+                    if (!date) {
+                      setExportEndDate(null);
+                      return;
+                    }
+                    const normalizedDate = new Date(date);
+                    normalizedDate.setHours(0, 0, 0, 0);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    if (normalizedDate > today) return;
+
+                    if (exportStartDate) {
+                      const startNormalized = new Date(exportStartDate);
+                      startNormalized.setHours(0, 0, 0, 0);
+                      if (normalizedDate < startNormalized) return;
+                    }
+
+                    setExportEndDate(normalizedDate);
+                  }}
+                  minDate={exportStartDate || undefined}
+                  maxDate={new Date()}
+                  disabled={isExporting}
+                  isDark={isDark}
+                  disablePortal
+                  format="MM/dd/yyyy"
+                    sx={{ height: "42px" }}
+                  />
+                </div>
+
+                {(exportStartDate || exportEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportStartDate(null);
+                      setExportEndDate(null);
+                    }}
+                    disabled={isExporting}
+                    className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                      isDark ? "text-white/70 hover:text-white" : "text-black/60 hover:text-black"
+                    }`}
+                  >
+                    Reset dates
+                  </button>
+                )}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isExporting}
+                    onClick={() => setIsExportOpen(false)}
+                    className={
+                      isDark
+                        ? "border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                        : "border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                    }
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    type="button"
+                    disabled={isExporting}
+                    onClick={() => void handleExportTransactions()}
+                    className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={16} className="mr-2" />
+                        Download CSV
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <TransactionsTable
           rows={rows}
           loading={loading}
           searchValue={searchQuery}

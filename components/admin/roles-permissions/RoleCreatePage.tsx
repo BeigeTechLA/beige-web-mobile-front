@@ -2,14 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { adminApi } from "@/lib/api";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
+import { PermissionMatrixTable } from "@/components/admin/roles-permissions/PermissionMatrixTable";
+import { type PermissionMatrixRow } from "@/components/admin/roles-permissions/types";
+import {
+  buildPermissionRows,
+  extractPermissionsFromRows,
+  type PermissionModuleRecord,
+} from "@/components/admin/roles-permissions/utils";
 
 export function RoleCreatePage() {
   const router = useRouter();
   const [roleName, setRoleName] = useState("");
   const [description, setDescription] = useState("");
+  const [rows, setRows] = useState<PermissionMatrixRow[]>([]);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -22,6 +31,43 @@ export function RoleCreatePage() {
     description: "",
     tone: "default",
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPermissionRows = async () => {
+      try {
+        setIsLoadingPermissions(true);
+        const modulesResponse = await adminApi.getPermissionModules({ scope: "admin" });
+        const modules: PermissionModuleRecord[] = Array.isArray(modulesResponse?.data)
+          ? modulesResponse.data
+          : [];
+
+        if (mounted) {
+          setRows(buildPermissionRows(modules, "admin"));
+        }
+      } catch (error) {
+        console.error("Failed to load permission modules:", error);
+        if (mounted) {
+          setRows(buildPermissionRows([], "admin"));
+          setModalState({
+            isOpen: true,
+            title: "Permission Modules Unavailable",
+            description: "Role can still be created, but permission modules could not be loaded.",
+            tone: "danger",
+          });
+        }
+      } finally {
+        if (mounted) setIsLoadingPermissions(false);
+      }
+    };
+
+    loadPermissionRows();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const openModal = (title: string, description: string, tone: "default" | "danger" | "success" = "default") => {
     setModalState({
@@ -40,14 +86,31 @@ export function RoleCreatePage() {
 
     setIsSaving(true);
 
+    const permissions = extractPermissionsFromRows(rows);
     const payload = {
       name: roleName,
       description: description,
+      permissions,
     };
 
     try {
       const response = await adminApi.createRole(payload);
       if (response.success !== false) {
+        const roleId = response?.data?.role_id || response?.data?.id;
+
+        if (roleId) {
+          const permissionsResponse = await adminApi.updateRole(roleId, { permissions });
+
+          if (permissionsResponse.success === false) {
+            openModal(
+              "Role Created",
+              permissionsResponse.error || "The role was created, but permissions could not be saved.",
+              "danger",
+            );
+            return;
+          }
+        }
+
         router.push("/admin/roles-permissions");
       } else {
         openModal("Failed To Create Role", response.error || "Failed to create role.", "danger");
@@ -101,6 +164,25 @@ export function RoleCreatePage() {
               className="min-h-[200px] w-full rounded-[24px] border border-white/10 bg-[#111111] px-8 py-7 text-lg text-white outline-none transition focus:border-[#E5D5B8]/50 focus:bg-[#171717] placeholder:text-white/20"
             />
           </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-[22px] font-semibold text-white">Module Access</h2>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-[#171717]">
+              {isLoadingPermissions ? (
+                <div className="p-8 text-center text-white/50">Loading permission modules...</div>
+              ) : (
+                <PermissionMatrixTable
+                  rows={rows}
+                  onChange={setRows}
+                  showSelectionColumn
+                  className="border-none !bg-transparent"
+                />
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="mt-12 flex flex-col gap-4 sm:flex-row">
@@ -114,7 +196,7 @@ export function RoleCreatePage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isLoadingPermissions}
             className="h-[72px] w-full rounded-[24px] bg-[#E5D5B8] text-[20px] font-bold text-black transition-all hover:bg-[#d6c29b] hover:scale-[1.02] active:scale-[0.98] sm:max-w-[240px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? "Saving..." : "Save"}

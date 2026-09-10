@@ -153,6 +153,8 @@ export default function SalesFolderManagerPage() {
           page,
           limit: PAGE_SIZE,
           search: searchQuery,
+          workspaceType: selectedTab === "Recent" ? "recent" : undefined,
+          recentDays: selectedTab === "Recent" ? 5 : undefined,
         }),
         apiClient.get<SalesLeadsResponse>("sales/leads", { page: 1, limit: 500 }),
       ]);

@@ -26,7 +26,7 @@ import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -56,6 +56,27 @@ type ShootStatus =
   | "Completed"
   | "Assets Delivered"
   | "Unknown";
+
+// Helper to detect when user scrolls to the bottom of a column
+const KanbanLoadMoreTrigger = ({ onIntersect }: { onIntersect: () => void }) => {
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onIntersect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (triggerRef.current) observer.observe(triggerRef.current);
+    return () => observer.disconnect();
+  }, [onIntersect]);
+
+  return <div ref={triggerRef} className="h-4 w-full" />;
+};
 
 interface ShootRecord {
   id: string;
@@ -116,6 +137,32 @@ const FILTER_STATUS_OPTIONS = [
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+const parseApiDateForDisplay = (value?: string | null) => {
+  if (!value) return null;
+
+  const normalizedValue = String(value).trim();
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsedDate = new Date(normalizedValue);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const formatApiDateForDisplay = (value?: string | null) => {
+  const parsedDate = parseApiDateForDisplay(value);
+
+  return parsedDate
+    ? parsedDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "No Date";
+};
 
 const PRODUCTION_GAP_FILTER_SET = new Set([
   "pre_production_file_not_provided",
@@ -212,6 +259,24 @@ const extractPhoneNumber = (project: any) => {
   return phoneMatch ? phoneMatch[1].replace(/[^\d+]/g, "") : "";
 };
 
+type ProjectDisplaySource = Record<string, unknown> & {
+  project_name?: unknown;
+  lead_source?: unknown;
+  client_name?: unknown;
+};
+
+const getShootDisplayName = (project: ProjectDisplaySource) => {
+  const isQuoteConvertedBooking =
+    String(project.lead_source || "").trim().toLowerCase() === "converted bookings";
+  const clientName = typeof project.client_name === "string" ? project.client_name.trim() : "";
+
+  return isQuoteConvertedBooking && clientName
+    ? `Custom - ${clientName}`
+    : typeof project.project_name === "string" && project.project_name.trim()
+      ? project.project_name
+      : "Untitled Project";
+};
+
 interface ShootsTableProps {
   externalSelectedDate?: Date | null;
   customRangeStartDate?: Date | null;
@@ -300,6 +365,10 @@ export const ShootsTable = ({
   const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
+  const BOARD_PAGE_SIZE = 10;
+  const [boardVisibleCounts, setBoardVisibleCounts] = useState<Record<string, number>>({});
+  const [boardAllShoots, setBoardAllShoots] = useState<ShootRecord[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const hasInitializedSearchResetRef = React.useRef(false);
   const hasInitializedFilterResetRef = React.useRef(false);
@@ -474,6 +543,7 @@ export const ShootsTable = ({
       return;
     }
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [debouncedSearchQuery, filtersReady]);
 
   useEffect(() => {
@@ -483,6 +553,7 @@ export const ShootsTable = ({
       return;
     }
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [
     filtersReady,
     statusFilter,
@@ -497,6 +568,7 @@ export const ShootsTable = ({
 
   useEffect(() => {
     setCurrentPage(1);
+    setBoardVisibleCounts({});
   }, [activePaymentFilter]);
 
   useEffect(() => {
@@ -514,20 +586,29 @@ export const ShootsTable = ({
     const isCustomDateRange = fetchRangeMode === "custom";
 
     const fetchData = async () => {
+      const isBoardFetch = activeViewMode === "grid";
       const hasCustomRangeSelection = Boolean(customRangeStartDate || customRangeEndDate || externalSelectedDate);
       if (isCustomDateRange && !hasCustomRangeSelection) {
-        setShoots([]);
+        if (isBoardFetch) {
+          setBoardAllShoots([]);
+        } else {
+          setShoots([]);
+        }
         setTotalRecords(0);
         setLoading(false);
+        setBoardLoading(false);
         return;
       }
 
-      setLoading(true);
+      if (isBoardFetch) {
+        setBoardLoading(true);
+      } else {
+        setLoading(true);
+      }
       try {
         const params: Record<string, string | number> = {
           range: fetchRangeMode,
-          page: currentPage,
-          limit: itemsPerPage,
+          ...(isBoardFetch ? {} : { page: currentPage, limit: itemsPerPage }),
         };
         if (statusFilter !== "all") {
           params.status = statusFilter;
@@ -563,7 +644,9 @@ export const ShootsTable = ({
           params.cp_assignment = activeCpAssignmentFilter;
         }
 
-        const projectsResponse = await adminApi.getProjects(params);
+                const projectsResponse = isBoardFetch
+          ? await adminApi.getProjectsBoard(params)
+          : await adminApi.getProjects(params);
         const projectsList = projectsResponse?.data?.projects || [];
         const pagination = projectsResponse?.data?.pagination;
         const nextTotalRecords = Number(pagination?.totalRecords ?? projectsList.length);
@@ -572,7 +655,7 @@ export const ShootsTable = ({
           const project = item.project || item;
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
-          const customerName = project.project_name || "Untitled Project";
+          const customerName = getShootDisplayName(project);
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
           const extractedPhone = extractPhoneNumber(project);
           const resolvedLocation =
@@ -592,7 +675,7 @@ export const ShootsTable = ({
             : [];
 
           // Sorting Helpers
-          const dateObj = project.event_date ? parseISO(project.event_date) : new Date(0);
+          const dateObj = parseApiDateForDisplay(project.event_date) ?? new Date(0);
           const resolvedPriceSource = project.total_value_amount ?? project.total_paid_amount ?? project.budget;
           const rawPaid = parseFloat(project.paid_amount || 0);
           const rawPending = parseFloat(project.pending_amount || 0);
@@ -617,7 +700,7 @@ export const ShootsTable = ({
             email: project.guest_email || "",
             phone: extractedPhone,
             initials,
-            date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
+            date: formatApiDateForDisplay(project.event_date),
             location: resolvedLocation,
             rawDate: dateObj.getTime(),
             category: getShootCategoryLabel(project),
@@ -641,18 +724,31 @@ export const ShootsTable = ({
           };
         });
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
-          setShoots(mappedShoots);
+          if (isBoardFetch) {
+            setBoardAllShoots(mappedShoots);
+            setBoardVisibleCounts({});
+          } else {
+            setShoots(mappedShoots);
+          }
           setTotalRecords(Number.isFinite(nextTotalRecords) ? nextTotalRecords : mappedShoots.length);
         }
       } catch (error) {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
           console.error("Failed to fetch shoots:", error);
-          setShoots([]);
+          if (isBoardFetch) {
+            setBoardAllShoots([]);
+          } else {
+            setShoots([]);
+          }
           setTotalRecords(0);
         }
       } finally {
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
-          setLoading(false);
+          if (isBoardFetch) {
+            setBoardLoading(false);
+          } else {
+            setLoading(false);
+          }
         }
       }
     };
@@ -661,11 +757,11 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
 
   // --- CLIENT-SIDE PROCESSING (Sort only; filters/search run on the API) ---
   const processedShoots = useMemo(() => {
-    const result = [...shoots];
+    const result = activeViewMode === "grid" ? [...boardAllShoots] : [...shoots];
 
     if (sortConfig.direction !== null) {
       result.sort((a, b) => {
@@ -696,6 +792,8 @@ export const ShootsTable = ({
     return result;
   }, [
     shoots,
+    boardAllShoots,
+    activeViewMode,
     sortConfig,
   ]);
 
@@ -777,18 +875,36 @@ export const ShootsTable = ({
     return visibleKanbanStatuses.map((status) => {
       const items = grouped.get(status) || [];
       const itemMap = new Map(items.map((item) => [item.id, item]));
-      const orderedIds = kanbanOrder[status] || items.map((item) => item.id);
+      const savedOrderIds = kanbanOrder[status] || [];
+      const orderedIds = savedOrderIds.length === items.length
+        ? savedOrderIds
+        : items.map((item) => item.id);
       const orderedItems = orderedIds
         .map((id) => itemMap.get(id))
         .filter((item): item is ShootRecord => Boolean(item));
 
+      const visibleCount = activeViewMode === "grid"
+        ? (boardVisibleCounts[status] ?? BOARD_PAGE_SIZE)
+        : orderedItems.length;
+      const displayedItems = activeViewMode === "grid"
+        ? orderedItems.slice(0, visibleCount)
+        : orderedItems;
+
       return {
         status,
         totalItems: orderedItems.length,
-        items: orderedItems,
+        items: displayedItems,
+        hasMore: activeViewMode === "grid" && orderedItems.length > visibleCount,
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, activeViewMode, boardVisibleCounts]);
+
+  const loadMoreBoardRecordsForStatus = useCallback((status: ShootStatus) => {
+    setBoardVisibleCounts((prev) => ({
+      ...prev,
+      [status]: (prev[status] ?? BOARD_PAGE_SIZE) + BOARD_PAGE_SIZE,
+    }));
+  }, []);
 
   const totalPages = listTotalPages;
 
@@ -976,7 +1092,7 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full overflow-hidden transition-all duration-300 ${activeViewMode === "list"
+    <div className={`w-full overflow-visible transition-all duration-300 ${activeViewMode === "list"
       ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
       : "bg-transparent border-transparent"
       }`}>
@@ -1116,7 +1232,7 @@ export const ShootsTable = ({
         </div>
       )}
 
-      {loading ? (
+      {(activeViewMode === "grid" ? boardLoading : loading) ? (
         <div className="text-center py-20">
           <div className="flex justify-center items-center">
             <Loader2 className="animate-spin text-[#666]" size={32} />
@@ -1323,7 +1439,7 @@ export const ShootsTable = ({
                                     {shoot.initials}
                                   </div>
                                   <div className="min-w-0 pt-1">
-                                    <h4 className={`truncate text-base font-semibold leading-tight ${isDark ? "text-white" : "text-[#111111]"}`}>
+                                    <h4 className={`text-xs font-semibold leading-snug break-words whitespace-normal ${isDark ? "text-white" : "text-[#111111]"}`}>
                                       {shoot.customerName}
                                     </h4>
                                     <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
@@ -1524,6 +1640,17 @@ export const ShootsTable = ({
                             </div>
                           );
                         })}
+                        {column.hasMore && column.items.length > 0 && (
+                          <div className="flex flex-col items-center justify-center py-4">
+                            <div className={`flex items-center text-xs font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              <Loader2 className="animate-spin mr-2" size={14} />
+                              Loading more...
+                            </div>
+                            <KanbanLoadMoreTrigger 
+                              onIntersect={() => loadMoreBoardRecordsForStatus(column.status)} 
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1564,6 +1691,8 @@ export const ShootsTable = ({
                   {currentShoots.map((shoot, idx) => {
                     const missingFields = shoot.needsAttention?.missing_fields || [];
                     const hasMissingFields = missingFields.length > 0;
+                    const isMenuOpen = openCardActionId === shoot.id;
+                    const shouldOpenUpward = idx >= currentShoots.length - 2;
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
                     const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
 
@@ -1573,8 +1702,8 @@ export const ShootsTable = ({
 
                     return (
                       <tr
-                        key={idx}
-                        className={`group border-b transition-colors last:border-0 relative ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                        key={shoot.id}
+                        className={`group border-b transition-colors last:border-0 relative ${isMenuOpen ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
                         <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
                           <Link
@@ -1699,9 +1828,9 @@ export const ShootsTable = ({
                               <MoreVertical size={24} />
                             </button>
 
-                            {openCardActionId === shoot.id && (
+                            {isMenuOpen && (
                               <div
-                                className={`absolute right-0 top-9 z-20 min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+                                className={`absolute right-0 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${shouldOpenUpward ? "bottom-9" : "top-9"} ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <button
@@ -1796,7 +1925,7 @@ export const ShootsTable = ({
 
       {/* Pagination - Exact Logic Preserved */}
       {
-        !loading && processedShoots.length > 0 && (
+        activeViewMode !== "grid" && !loading && processedShoots.length > 0 && (
           <div className={`p-4 lg:p-6 border-t w-full overflow-hidden transition-colors duration-300 min-w-0 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"
             }`}>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:justify-between w-full overflow-hidden min-w-0">
