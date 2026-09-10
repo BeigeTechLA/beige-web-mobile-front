@@ -31,15 +31,27 @@ const getVimeoId = (u: string) => {
   } catch { return null; }
 };
 
+const getGoogleDriveId = (u: string) => {
+  try {
+    // Handles /file/d/ID/view, /file/d/ID/preview, and ?id=ID
+    const regExp = /\/file\/d\/([a-zA-Z0-9_-]+)|[?&]id=([a-zA-Z0-9_-]+)/;
+    const match = u.match(regExp);
+    return match ? (match[1] || match[2]) : null;
+  } catch { return null; }
+};
+
 function buildEmbedUrl(url: string, isPlaying: boolean): string | null {
   if (!isPlaying) return null;
-  
+
   const yt = getYouTubeId(url);
   if (yt) return `https://www.youtube.com/embed/${yt}?autoplay=1&rel=0&modestbranding=1`;
-  
+
   const vimeo = getVimeoId(url);
   if (vimeo) return `https://player.vimeo.com/video/${vimeo}?autoplay=1&badge=0&byline=0&portrait=0&title=0&dnt=1`;
-  
+
+  const driveId = getGoogleDriveId(url);
+  if (driveId) return `https://drive.google.com/file/d/${driveId}/preview`;
+
   return null;
 }
 
@@ -67,7 +79,7 @@ export default function StackedVideoScroll({ videos }: { videos: VideoItem[] }) 
   const getTrackHeight = () => {
     if (device === 'mobile') return `120vh`; // More runway for mobile
     if (device === 'tablet') return `150vh`;
-    return `${videos.length * 180}vh`; 
+    return `${videos.length * 180}vh`;
   };
 
   return (
@@ -106,16 +118,21 @@ function VideoCard({ video, index, total, progress, device }: {
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Auto-generate Thumbnail if not provided by API
+  // Auto-generate Thumbnail if not provided explicitly
   const displayThumbnail = useMemo(() => {
     if (video.thumbnail) return video.thumbnail;
-    
+
     // Auto-fetch YouTube Thumbnail
     const ytId = getYouTubeId(video.url);
     if (ytId) return `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`;
-    
+
     // For Vimeo, we can't get it via URL alone without API, 
     // but we return null to trigger the fallback gradient
+
+    // Google Drive Thumbnail
+    const driveId = getGoogleDriveId(video.url);
+    if (driveId) return `https://lh3.googleusercontent.com/d/${driveId}`;
+
     return null;
   }, [video.url, video.thumbnail]);
 
@@ -140,6 +157,13 @@ function VideoCard({ video, index, total, progress, device }: {
   const scale = useTransform(progress, [startAnim, endAnim], [1, 0.94]);
   const embedUrl = useMemo(() => buildEmbedUrl(video.url, isPlaying), [video.url, isPlaying]);
 
+  const getPlatformLabel = () => {
+    if (video.url.includes('youtube') || video.url.includes('youtu.be')) return 'YOUTUBE';
+    if (video.url.includes('vimeo')) return 'VIMEO';
+    if (video.url.includes('drive.google.com')) return 'GOOGLE DRIVE';
+    return 'VIDEO';
+  };
+
   return (
     <motion.div
       style={{
@@ -151,25 +175,25 @@ function VideoCard({ video, index, total, progress, device }: {
     >
       <div className="relative w-full h-full rounded-[24px] md:rounded-[32px] overflow-hidden border border-[#FFFFFF5C] bg-black">
         {isPlaying ? (
-          <iframe 
-            src={embedUrl!} 
-            className="absolute inset-0 w-full h-full border-0" 
-            allow="autoplay; fullscreen" 
+          <iframe
+            src={embedUrl!}
+            className="absolute inset-0 w-full h-full border-0"
+            allow="autoplay; fullscreen"
             allowFullScreen
           />
         ) : (
           <div className="absolute inset-0 w-full h-full flex items-center justify-center group cursor-pointer" onClick={() => setIsPlaying(true)}>
             {displayThumbnail ? (
-              <img 
-                src={displayThumbnail} 
-                alt="Video Thumbnail" 
-                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500" 
+              <img
+                src={displayThumbnail}
+                alt="Video Thumbnail"
+                className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
               />
             ) : (
               // Fallback if no thumbnail is found (especially for Vimeo)
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black" />
             )}
-            
+
             {/* Overlay to make the Play button pop */}
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
 
@@ -178,10 +202,10 @@ function VideoCard({ video, index, total, progress, device }: {
             >
               <Play className="text-black fill-black ml-1 w-6 h-6 md:w-10 md:h-10" />
             </button>
-            
-            {/* Optional: Video Link Hint */}
-            <div className="absolute bottom-6 left-6 text-white/40 text-xs font-mono group-hover:text-white/80 transition-colors">
-              {video.url.includes('youtube') ? 'YOUTUBE' : video.url.includes('vimeo') ? 'VIMEO' : 'VIDEO'}
+
+            {/* Video Link Hint */}
+            <div className="absolute bottom-6 left-6 text-white/40 text-xs font-mono group-hover:text-white/80 transition-colors uppercase">
+              {getPlatformLabel()}
             </div>
           </div>
         )}
