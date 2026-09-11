@@ -393,16 +393,16 @@ export default function ChooseCreativePartner({
   }, [contentTypes, requiredRoles?.hybrid]);
 
   const normalizedRequiredRoles = useMemo(() => {
-    const requestedVideo =
-      requiredRoles?.video ??
-      (searchableContentTypes.some((type) =>
-        ["videographer", "cinematographer", "livestream"].includes(type)
-      )
-        ? 1
-        : 0);
-    const requestedPhoto =
-      requiredRoles?.photo ??
-      (searchableContentTypes.includes("photographer") ? 1 : 0);
+  const requestedVideo =
+    requiredRoles?.video ??
+    (searchableContentTypes.some((type) =>
+      ["videography", "videographer", "cinematographer", "livestream"].includes(type.toLowerCase())
+    )
+      ? 1
+      : 0);
+      const requestedPhoto =
+        requiredRoles?.photo ??
+        (searchableContentTypes.some((type) =>["photography", "photographer"].includes(type.toLowerCase()))? 1: 0);
 
     return {
       video: Math.max(0, Number(requestedVideo) || 0),
@@ -564,24 +564,28 @@ export default function ChooseCreativePartner({
     const needsVideo = currentCounts.video < requirements.required.video;
     const needsPhoto = currentCounts.photo < requirements.required.photo;
 
-    if (needsHybrid) {
-      return "hybrid";
-    }
+  if (needsHybrid) {
+    return "hybrid";
+  }
 
-    if (needsVideo && !needsPhoto) {
-      return "video";
-    }
+  // If only video is required, assign hybrid-capable creators to video.
+  if (needsVideo && !needsPhoto) {
+    return "video";
+  }
 
-    if (needsPhoto && !needsVideo) {
-      return "photo";
-    }
+  // If only photo is required, assign hybrid-capable creators to photo.
+  if (needsPhoto && !needsVideo) {
+    return "photo";
+  }
 
-    if (needsVideo && needsPhoto) {
-      const remainingVideo = requirements.required.video - currentCounts.video;
-      const remainingPhoto = requirements.required.photo - currentCounts.photo;
-      return remainingVideo >= remainingPhoto ? "video" : "photo";
-    }
+  if (needsVideo && needsPhoto) {
+    const remainingVideo =
+      requirements.required.video - currentCounts.video;
+    const remainingPhoto =
+      requirements.required.photo - currentCounts.photo;
 
+    return remainingVideo >= remainingPhoto ? "video" : "photo";
+  }
     return null;
   };
 
@@ -654,6 +658,33 @@ export default function ChooseCreativePartner({
         return prev.filter((p) => p !== id);
       }
 
+      if (resolvedRequiredCount === 1 && prev.length >= resolvedRequiredCount) {
+        // When replacing the currently selected CP, evaluate the new CP
+        // against the requirements from scratch instead of using the old
+        // CP's counts.
+        let replacementRole: CrewRole | null = null;
+
+        if (requirements.required.hybrid > 0) {
+          replacementRole =
+            isVideo && isPhoto ? "hybrid" : null;
+        } else if (requirements.required.video > 0) {
+          replacementRole = isVideo ? "video" : null;
+        } else if (requirements.required.photo > 0) {
+          replacementRole = isPhoto ? "photo" : null;
+        }
+
+        if (!replacementRole) {
+          toast.error("This CP does not match the required role.");
+          return prev;
+        }
+
+        setSelectedRoles({
+          [id]: replacementRole,
+        });
+
+        return [id];
+      }
+
       const desiredRole = getDefaultRoleForCreator(creator, currentCounts);
       const nextRoles = { ...selectedRoles };
 
@@ -663,12 +694,6 @@ export default function ChooseCreativePartner({
 
       const nextIds = [...prev, id];
       const nextCounts = calculateCounts(nextIds, nextRoles);
-
-      if (resolvedRequiredCount === 1 && prev.length >= resolvedRequiredCount) {
-        setSelectedRoles(desiredRole ? { [id]: desiredRole } : {});
-        return [id];
-      }
-
       const isVideoFull = nextCounts.video > requirements.required.video;
       const isPhotoFull = nextCounts.photo > requirements.required.photo;
       const isHybridFull = nextCounts.hybrid > requirements.required.hybrid;
@@ -796,16 +821,44 @@ export default function ChooseCreativePartner({
         )}
       </div>
 
-      {/* Sub-controls */}
-      <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-        <button
-          onClick={handleLetBeigeChoose}
-          className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-2 transition bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]`}
+     {/* Sub-controls */}
+    <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
+      <button
+        type="button"
+        onClick={handleLetBeigeChoose}
+        aria-pressed={letBeigeChoose}
+        className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-3 transition-all duration-200 cursor-pointer ${
+          letBeigeChoose
+            ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+            : "border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)]"
+        }`}
+      >
+        {/* Checkbox */}
+        <span
+          className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+            letBeigeChoose
+              ? "bg-black border-black"
+              : "bg-transparent border-white/50"
+          }`}
         >
-          <Sparkles className="w-5 h-5 lg:w-7 lg:h-7 text-black" strokeWidth={1} />
-          Let Beige Choose.
-        </button>
+          {letBeigeChoose && (
+            <span className="text-[#E8D1AB] text-xs lg:text-sm font-bold">
+              ✓
+            </span>
+          )}
+        </span>
 
+        {/* Sparkles */}
+        <Sparkles
+          className={`w-5 h-5 lg:w-7 lg:h-7 ${
+            letBeigeChoose ? "text-black" : "text-[#E8D1AB]"
+          }`}
+          strokeWidth={1}
+        />
+        <span>Let Beige Choose.</span>
+      </button>
+
+      {requirements.required.photo > 0 && (
         <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
           <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
           <span>
@@ -813,25 +866,28 @@ export default function ChooseCreativePartner({
             {String(requirements.required.photo).padStart(2, "0")}
           </span>
         </div>
+      )}
 
-        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-          <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-          <span>
-            Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
-            {String(requirements.required.video).padStart(2, "0")}
-          </span>
-        </div>
-
-        {requirements.required.hybrid > 0 && (
-          <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-            <span>
-              Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
-              {String(requirements.required.hybrid).padStart(2, "0")}
-            </span>
-          </div>
-        )}
+      {requirements.required.video > 0 && (
+      <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+        <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+        <span>
+          Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
+          {String(requirements.required.video).padStart(2, "0")}
+        </span>
       </div>
+      )}
+
+            {requirements.required.hybrid > 0 && (
+              <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+                <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+                <span>
+                  Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
+                  {String(requirements.required.hybrid).padStart(2, "0")}
+                </span>
+              </div>
+            )}
+          </div>
 
       {/* Bottom Action Footer Bar */}
       <div className="pt-10 mt-12 border-t border-white/10 flex flex-wrap items-center lg:justify-between gap-2.5">
