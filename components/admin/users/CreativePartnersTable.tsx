@@ -1084,8 +1084,11 @@ export const CreativePartnersTable = () => {
                   </p>
                 </div>
 
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    Start Date
+                  </p>
                 <DatePicker
-                  label="Start Date"
+                  label=""
                   value={exportStartDate}
                   onChange={(date) => {
                     if (!date) {
@@ -1128,9 +1131,12 @@ export const CreativePartnersTable = () => {
                   format="MM/dd/yyyy"
                   sx={{ height: "42px" }}
                 />
-
+        
+                 <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-white/60" : "text-black/60"}`}>
+                    End Date
+                  </p>
                 <DatePicker
-                  label="End Date"
+                  label=""
                   value={exportEndDate}
                   onChange={(date) => {
                     if (!date) {
