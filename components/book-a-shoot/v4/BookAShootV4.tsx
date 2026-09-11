@@ -18,7 +18,7 @@ import ShootDetails, { ShootDetailsData } from "./components/ShootDetails";
 import MatchMakerStep, { TeamSelectionData } from "./components/MatchMaker";
 import CreativeTeam from "./components/CreativeTeam";
 import ChooseCreativePartner from "./components/ChooseCreativePartner";
-import AddOnsStep from "./components/AddOnsStep";
+import AddOnsStep, { ADD_ONS_DATA } from "./components/AddOnsStep";
 import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
@@ -30,7 +30,7 @@ import StudioShootDetails, {
 } from "./components/StudioShootDetails";
 
 import type { Creator } from "@/lib/types";
-import type { QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
+import type { PricingItem, QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
   useCreateGuestBookingV4Mutation,
@@ -38,6 +38,7 @@ import {
 } from "@/lib/redux/features/booking/guestBookingApi";
 import {
   useCalculateQuoteFromCreatorsV4Mutation,
+  useGetCatalogQuery,
   useSaveQuoteV4Mutation,
 } from "@/lib/redux/features/pricing/pricingApi";
 import { useTrackEarlyInterestV4Mutation } from "@/lib/redux/features/sales/salesApi";
@@ -160,30 +161,6 @@ const ITEM_IDS = {
 
 const ITEM_SLUGS = {
   photoVideoCreator: "photo-video-creator",
-};
-
-const ADD_ON_LABELS: Record<string, string> = {
-  additional_camera: "Additional Camera",
-  teleprompter: "Teleprompter",
-  drone: "Drone",
-  lavalier_mics: "Additional Lavalier Microphones",
-  green_screen: "Green Screen",
-  backdrop: "Backdrop",
-  additional_lights: "Additional Lights",
-  next_day_editing: "Next-Day Editing",
-  expedited_editing: "Expedited Editing",
-};
-
-const ADD_ON_PRICES: Record<string, number> = {
-  additional_camera: 350,
-  teleprompter: 250,
-  drone: 500,
-  lavalier_mics: 250,
-  green_screen: 500,
-  backdrop: 500,
-  additional_lights: 350,
-  next_day_editing: 750,
-  expedited_editing: 500,
 };
 
 const CREATIVE_PARTNER_HOURLY_RATE = 250;
@@ -505,6 +482,33 @@ export const BookAShootV4 = () => {
     bookingState.selectedOccasion,
     canShowVideoEdits,
     canShowPhotoEdits
+  );
+  const { data: pricingCatalog = [] } = useGetCatalogQuery({
+    eventType: bookingState.selectedOccasion || "general",
+  });
+  const v4AddOnByKey = useMemo(() => {
+    const itemsBySlug = new Map<string, PricingItem>();
+    pricingCatalog.forEach((category) => {
+      category.items?.forEach((item) => {
+        itemsBySlug.set(item.slug, item);
+      });
+    });
+
+    return new Map(
+      ADD_ONS_DATA.map((addOn) => [addOn.id, itemsBySlug.get(addOn.slug)])
+    );
+  }, [pricingCatalog]);
+  const addOnsForStep = useMemo(
+    () =>
+      ADD_ONS_DATA.map((addOn) => {
+        const catalogItem = v4AddOnByKey.get(addOn.id);
+        const catalogRate = Number(catalogItem?.rate);
+        return {
+          ...addOn,
+          price: Number.isFinite(catalogRate) ? catalogRate : addOn.price,
+        };
+      }),
+    [v4AddOnByKey]
   );
 
   const primaryStudio = selectedStudios[0];
@@ -1173,7 +1177,10 @@ export const BookAShootV4 = () => {
   const getSelectedAddOnLabels = () =>
     Object.entries(bookingState.addOnsQuantities)
       .filter(([, quantity]) => Number(quantity) > 0)
-      .map(([key, quantity]) => `${ADD_ON_LABELS[key] || titleize(key)} x${quantity}`);
+      .map(([key, quantity]) => {
+        const addOn = ADD_ONS_DATA.find((item) => item.id === key);
+        return `${addOn?.title || titleize(key)} x${quantity}`;
+      });
 
   const buildKnownAddOnItems = () => {
     const items: SelectedItem[] = [];
@@ -1195,22 +1202,14 @@ export const BookAShootV4 = () => {
     return items;
   };
 
-  const buildCustomAddOnItems = () =>
+  const buildSelectedCatalogAddOnItems = () =>
     Object.entries(bookingState.addOnsQuantities)
       .filter(([, quantity]) => Number(quantity) > 0)
       .map(([key, quantity]) => {
-        const qty = Number(quantity) || 0;
-        const unitPrice = ADD_ON_PRICES[key] || 0;
-
-        return {
-          key,
-          name: ADD_ON_LABELS[key] || titleize(key),
-          quantity: qty,
-          unit_price: unitPrice,
-          total: unitPrice * qty,
-        };
+        const addOn = ADD_ONS_DATA.find((item) => item.id === key);
+        return addOn ? { slug: addOn.slug, quantity: Number(quantity) || 0 } : null;
       })
-      .filter((item) => item.quantity > 0 && item.total > 0);
+      .filter((item): item is SelectedItem => !!item && item.quantity > 0);
 
   const buildPricingInputs = () => {
     const roleCounts = {
@@ -1242,8 +1241,10 @@ export const BookAShootV4 = () => {
       });
     }
 
-    const addOnItems = useStudioInclusivePricing ? [] : buildKnownAddOnItems();
-    const customAddOnItems = useStudioInclusivePricing ? [] : buildCustomAddOnItems();
+    const addOnItems = useStudioInclusivePricing
+      ? []
+      : [...buildKnownAddOnItems(), ...buildSelectedCatalogAddOnItems()];
+    const customAddOnItems = [];
     const firstBookingDate =
       bookingState.scheduleData?.bookingType === "multi_day" &&
       bookingState.scheduleData?.bookingDays?.length
@@ -1971,6 +1972,7 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedEditsStep)}
               onContinue={handleAddOnsSubmitted}
               initialAddOns={bookingState.addOnsQuantities}
+              addOns={addOnsForStep}
             />
           );
         case 13:
@@ -1979,6 +1981,7 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedChooseCreativesStep)}
               onContinue={handleAddOnsSubmitted}
               initialAddOns={bookingState.addOnsQuantities}
+              addOns={addOnsForStep}
             />
           ) : (
             <ShootSummaryStep
@@ -2204,6 +2207,7 @@ export const BookAShootV4 = () => {
             onBack={() => setInternalStep(editsStep)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
+            addOns={addOnsForStep}
           />
         );
       case 9:
@@ -2212,6 +2216,7 @@ export const BookAShootV4 = () => {
             onBack={() => setInternalStep(chooseCreativesStep)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
+            addOns={addOnsForStep}
           />
         ) : (
           <ShootSummaryStep

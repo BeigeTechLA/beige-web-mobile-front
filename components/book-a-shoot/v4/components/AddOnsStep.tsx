@@ -5,62 +5,72 @@ import { ArrowLeft, Plus, Minus } from "lucide-react";
 
 export interface AddOnItem {
   id: string;
+  slug: string;
   title: string;
   description: string;
   price: number;
 }
 
-const ADD_ONS_DATA: AddOnItem[] = [
+export const ADD_ONS_DATA: AddOnItem[] = [
   {
     id: "additional_camera",
+    slug: "v4-additional-camera",
     title: "Additional Camera",
     description: "A second angle for coverage.",
     price: 350,
   },
   {
     id: "teleprompter",
+    slug: "v4-teleprompter",
     title: "Teleprompter",
     description: "On-camera script delivery.",
     price: 250,
   },
   {
     id: "drone",
+    slug: "v4-drone",
     title: "Drone",
     description: "Licensed aerial cinematography.",
     price: 500,
   },
   {
     id: "lavalier_mics",
+    slug: "v4-lavalier-mics",
     title: "Additional Lavalier Microphones",
     description: "Capture every voice clearly with additional professional lavalier microphones.",
     price: 250,
   },
   {
     id: "green_screen",
+    slug: "v4-green-screen",
     title: "Green Screen",
     description: "Chroma set for compositing.",
     price: 500,
   },
   {
     id: "backdrop",
+    slug: "v4-backdrop",
     title: "Backdrop",
     description: "Set the scene with a professionally styled backdrop for your shoot.",
     price: 500,
   },
   {
     id: "additional_lights",
+    slug: "v4-additional-lights",
     title: "Additional Lights",
     description: "Expanded lighting package.",
     price: 350,
   },
   {
     id: "next_day_editing",
+    slug: "v4-next-day-editing",
     title: "Next-Day Editing (Per Video)",
     description: "First cut within 24 hours.",
     price: 750,
   },
   {
     id: "expedited_editing",
+    slug: "v4-expedited-editing",
     title: "Expedited Editing (1 Week)",
     description: "Prioritized one-week turnaround.",
     price: 500,
@@ -71,6 +81,7 @@ interface AddOnsStepProps {
   onBack?: () => void;
   onContinue?: (selectedAddOns: Record<string, number>, subtotal: number) => void;
   initialAddOns?: Record<string, number>;
+  addOns?: AddOnItem[];
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -81,6 +92,7 @@ export default function AddOnsStep({
   onBack,
   onContinue,
   initialAddOns = {},
+  addOns = ADD_ONS_DATA,
   title = "Want to add anything extra?",
   subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
   stepNumber = "08",
@@ -111,7 +123,7 @@ export default function AddOnsStep({
   };
 
   const calculateSubtotal = () => {
-    return ADD_ONS_DATA.reduce((total, item) => {
+    return addOns.reduce((total, item) => {
       const qty = quantities[item.id] || 0;
       return total + item.price * qty;
     }, 0);
@@ -169,7 +181,7 @@ export default function AddOnsStep({
 
       {/* Add-ons List */}
       <div className="flex flex-col gap-3 mb-6">
-        {ADD_ONS_DATA.map((item) => {
+        {addOns.map((item) => {
           const count = quantities[item.id] || 0;
           const isSelected = count > 0;
 
