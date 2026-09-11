@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { formatLocationForDisplay } from "@/lib/utils/locationHelpers";
 import { debounce, getBookingDetails } from "@/lib/utils";
 import { affiliateApi } from "@/lib/api";
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { pushToDataLayer } from "@/lib/gtm";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -426,6 +426,69 @@ const isStripeClientSecret = (value: unknown): value is string =>
 
 const isFreeCheckoutToken = (value: unknown): value is string =>
   typeof value === "string" && value.startsWith("free_checkout_intent_");
+
+type CreateIntentMultiPayload = {
+  booking_id: string;
+  amount: number;
+  guest_email?: string | null;
+  payment_source?: string;
+  use_credit: boolean;
+  credit_amount_used: number;
+  payment_link_token?: string;
+};
+
+type CreateIntentMultiResponse = AxiosResponse<any>;
+
+const CREATE_INTENT_MULTI_RECENT_TTL_MS = 5000;
+const createIntentMultiInFlight = new Map<string, Promise<CreateIntentMultiResponse>>();
+const createIntentMultiRecent = new Map<string, { expiresAt: number; response: CreateIntentMultiResponse }>();
+
+const buildCreateIntentMultiKey = (apiBaseUrl: string, payload: CreateIntentMultiPayload) => {
+  return JSON.stringify({
+    apiBaseUrl,
+    booking_id: payload.booking_id,
+    amount: payload.amount,
+    guest_email: payload.guest_email || null,
+    payment_source: payload.payment_source || null,
+    use_credit: payload.use_credit,
+    credit_amount_used: payload.credit_amount_used,
+    payment_link_token: payload.payment_link_token || null,
+  });
+};
+
+const postCreateIntentMultiOnce = (
+  apiBaseUrl: string,
+  payload: CreateIntentMultiPayload,
+  headers: ReturnType<typeof getAuthHeaders>,
+) => {
+  const key = buildCreateIntentMultiKey(apiBaseUrl, payload);
+  const now = Date.now();
+
+  for (const [cacheKey, cached] of createIntentMultiRecent) {
+    if (cached.expiresAt <= now) createIntentMultiRecent.delete(cacheKey);
+  }
+
+  const recent = createIntentMultiRecent.get(key);
+  if (recent) return Promise.resolve(recent.response);
+
+  const inFlight = createIntentMultiInFlight.get(key);
+  if (inFlight) return inFlight;
+
+  const request = axios.post(`${apiBaseUrl}payments/create-intent-multi`, payload, { headers })
+    .then((response) => {
+      createIntentMultiRecent.set(key, {
+        expiresAt: Date.now() + CREATE_INTENT_MULTI_RECENT_TTL_MS,
+        response,
+      });
+      return response;
+    })
+    .finally(() => {
+      createIntentMultiInFlight.delete(key);
+    });
+
+  createIntentMultiInFlight.set(key, request);
+  return request;
+};
 
 const resolveBasePayableAmount = (details: any) => {
   const quoteTotal = parseFloat(details?.quote?.total || 0);
@@ -2135,20 +2198,19 @@ function MultiCreatorPaymentContent() {
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      const response = await axios.post(
-        `${API_BASE_URL}payments/create-intent-multi`,
-        {
-          booking_id: shootId,
-          amount: payableAmount,
-          guest_email: resolveGuestEmail(booking, summaryData?.client_email),
-          payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
-          use_credit: useCreditOverride && canUseCredit,
-          credit_amount_used: creditToApply,
-          payment_link_token: paymentLinkToken || undefined,
-        },
-        {
-          headers: getAuthHeaders(),
-        }
+      const createIntentPayload: CreateIntentMultiPayload = {
+        booking_id: shootId,
+        amount: payableAmount,
+        guest_email: resolveGuestEmail(booking, summaryData?.client_email),
+        payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
+        use_credit: useCreditOverride && canUseCredit,
+        credit_amount_used: creditToApply,
+        payment_link_token: paymentLinkToken || undefined,
+      };
+      const response = await postCreateIntentMultiOnce(
+        API_BASE_URL,
+        createIntentPayload,
+        getAuthHeaders(),
       );
 
       // Pricing/credit changes can create overlapping intent requests. Only
