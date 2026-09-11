@@ -112,8 +112,8 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const sourceSelectedDates =
     sourceBookingDays.length > 0
       ? sourceBookingDays
-          .map((day) => parseDate(day.date))
-          .filter((date): date is Date => Boolean(date))
+        .map((day) => parseDate(day.date))
+        .filter((date): date is Date => Boolean(date))
       : sourceStartDate
         ? [parseDate(sourceStartDate)].filter((date): date is Date => Boolean(date))
         : [];
