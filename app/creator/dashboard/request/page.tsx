@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Pencil,
   Trash2,
-  Info
+  Info,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -38,7 +38,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
+import {
+  getStatusCount,
+  getPendingProjects,
+  GetUpcomingShoots,
+  acceptOrDeclineProject,
+} from "@/lib/api";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -86,13 +91,17 @@ export default function RequestsShootsPage() {
   /* ---------------- VIEW TOGGLE STATE ---------------- */
   const view = (searchParams.get("view") as "grid" | "list") || "grid";
   const [isOpen, setIsOpen] = useState(false);
-  const activeTab = (searchParams.get("tab") as "requests" | "shoots") || "requests";
+  const activeTab =
+    (searchParams.get("tab") as "requests" | "shoots") || "requests";
 
   // Modals & Data State
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
   const [projectDetailsData, setProjectDetailsData] = useState(null);
-  const [acceptShootEvent, setAcceptShootEvent] = useState<ProjectItem | null>(null);
-  const [declineShootEvent, setDeclineShootEvent] = useState<ProjectItem | null>(null);
+  const [acceptShootEvent, setAcceptShootEvent] = useState<ProjectItem | null>(
+    null,
+  );
+  const [declineShootEvent, setDeclineShootEvent] =
+    useState<ProjectItem | null>(null);
 
   // Filter States
   const [search, setSearch] = useState("");
@@ -102,13 +111,17 @@ export default function RequestsShootsPage() {
 
   // Business Logic States
   const [crewMemberId, setCrewMemberId] = useState<string | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+    null,
+  );
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [shoots, setShoots] = useState<ProjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [computedStats, setComputedStats] = useState<DashboardStats | null>(null);
+  const [computedStats, setComputedStats] = useState<DashboardStats | null>(
+    null,
+  );
 
-  const { isDark } = useResolvedTheme()
+  const { isDark } = useResolvedTheme();
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -116,7 +129,8 @@ export default function RequestsShootsPage() {
     if (userStr) {
       try {
         const revure_user = JSON.parse(userStr);
-        if (revure_user?.crew_member_id) setCrewMemberId(revure_user.crew_member_id);
+        if (revure_user?.crew_member_id)
+          setCrewMemberId(revure_user.crew_member_id);
       } catch (e) {
         console.error("User parse error", e);
       }
@@ -155,11 +169,13 @@ export default function RequestsShootsPage() {
     try {
       const statsPayload = {
         creator_id: crew_member_id,
-        crew_member_id: crew_member_id
+        crew_member_id: crew_member_id,
       };
       const statsResponse = await getStatusCount(statsPayload);
       const statsData =
-        statsResponse && statsResponse.error === false ? statsResponse.data : null;
+        statsResponse && statsResponse.error === false
+          ? statsResponse.data
+          : null;
       if (statsResponse && statsResponse.error === false) {
         setDashboardStats(statsResponse.data);
       }
@@ -171,7 +187,9 @@ export default function RequestsShootsPage() {
       ]);
 
       const pendingRequests: ProjectItem[] =
-        pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
+        pendingRes &&
+        pendingRes.error === false &&
+        Array.isArray(pendingRes.data)
           ? pendingRes.data.filter((p: ProjectItem) => isUpcomingShoot(p))
           : [];
       setProjects(
@@ -179,23 +197,29 @@ export default function RequestsShootsPage() {
           ...p,
           status: "Pending",
           project_id: p.project_id || p.id,
-        }))
+        })),
       );
 
       const acceptedSource =
-        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
-          ? upcomingRes.data as ProjectItem[]
+        upcomingRes &&
+        upcomingRes.error === false &&
+        Array.isArray(upcomingRes.data)
+          ? (upcomingRes.data as ProjectItem[])
           : [];
       const upcomingAccepted = acceptedSource;
 
       if (upcomingAccepted.length > 0) {
-        const acceptedProjects: ProjectItem[] = upcomingAccepted.map((p): ProjectItem => ({
-          ...p,
-          status: isCompletedFlag(p) ? "Completed" : "Confirmed",
-          project_id: p.project_id || p.id,
-        }));
+        const acceptedProjects: ProjectItem[] = upcomingAccepted.map(
+          (p): ProjectItem => ({
+            ...p,
+            status: isCompletedFlag(p) ? "Completed" : "Confirmed",
+            project_id: p.project_id || p.id,
+          }),
+        );
         setShoots(acceptedProjects);
-        const completedCount = acceptedProjects.filter((p) => isCompletedFlag(p)).length;
+        const completedCount = acceptedProjects.filter((p) =>
+          isCompletedFlag(p),
+        ).length;
         const confirmedCount = acceptedProjects.length;
         setComputedStats({
           pendingRequests: pendingRequests.length,
@@ -221,19 +245,23 @@ export default function RequestsShootsPage() {
   };
 
   const formatLocation = (locationInput) => {
-    if (!locationInput || locationInput === "Location TBD") return "Location TBD";
+    if (!locationInput || locationInput === "Location TBD")
+      return "Location TBD";
     let addressStr = locationInput;
     try {
-      const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
+      const parsed =
+        typeof locationInput === "string"
+          ? JSON.parse(locationInput)
+          : locationInput;
       if (parsed && parsed.address) addressStr = parsed.address;
-    } catch { }
+    } catch {}
 
-    const parts = addressStr.split(',').map(p => p.trim());
+    const parts = addressStr.split(",").map((p) => p.trim());
     if (parts.length >= 3) {
       const country = parts[parts.length - 1];
       const stateZip = parts[parts.length - 2];
       const city = parts[parts.length - 3];
-      const state = stateZip.replace(/\d+/g, '').trim();
+      const state = stateZip.replace(/\d+/g, "").trim();
       return `${city}, ${state}, ${country}`;
     }
     return addressStr;
@@ -243,30 +271,44 @@ export default function RequestsShootsPage() {
     if (!dateStr) return "TBD";
     const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
     const date = dateOnlyMatch
-      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      ? new Date(
+          Number(dateOnlyMatch[1]),
+          Number(dateOnlyMatch[2]) - 1,
+          Number(dateOnlyMatch[3]),
+        )
       : new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
 
-    return date.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+    return date
+      .toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+      .replace(/ /g, " ")
+      .replace(/(\w{3}) (\d{4})/, "$1, $2");
   };
-
 
   const isCompletedFlag = (item: ProjectItem) => {
     const flag = item?.is_completed ?? item?.project?.is_completed;
     if (flag === true || flag === 1 || flag === "1") return true;
 
-    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    const dateStr =
+      item?.event_date ||
+      item?.shoot_date ||
+      item?.project?.event_date ||
+      item?.project?.shoot_date;
     if (!dateStr) return false;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
     const shootDate = dateOnlyMatch
-      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      ? new Date(
+          Number(dateOnlyMatch[1]),
+          Number(dateOnlyMatch[2]) - 1,
+          Number(dateOnlyMatch[3]),
+        )
       : new Date(dateStr);
 
     if (Number.isNaN(shootDate.getTime())) return false;
@@ -275,14 +317,22 @@ export default function RequestsShootsPage() {
   };
 
   const isUpcomingShoot = (item: ProjectItem) => {
-    const dateStr = item?.event_date || item?.shoot_date || item?.project?.event_date || item?.project?.shoot_date;
+    const dateStr =
+      item?.event_date ||
+      item?.shoot_date ||
+      item?.project?.event_date ||
+      item?.project?.shoot_date;
     if (!dateStr) return true;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateOnlyMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
     const shootDate = dateOnlyMatch
-      ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      ? new Date(
+          Number(dateOnlyMatch[1]),
+          Number(dateOnlyMatch[2]) - 1,
+          Number(dateOnlyMatch[3]),
+        )
       : new Date(dateStr);
 
     if (Number.isNaN(shootDate.getTime())) return true;
@@ -306,21 +356,27 @@ export default function RequestsShootsPage() {
       });
 
       if (response && response.error === false) {
-        toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
+        toast.success(
+          accept ? "Shoot request accepted" : "Shoot request declined",
+        );
         const acceptedItem = acceptShootEvent;
         setAcceptShootEvent(null);
         setDeclineShootEvent(null);
         setDeclineReason("Schedule conflict");
         setDeclineComments("");
         if (accept && acceptedItem) {
-          setProjects((current) => current.filter((item) => item.project_id !== projectId));
+          setProjects((current) =>
+            current.filter((item) => item.project_id !== projectId),
+          );
           setShoots((current) => {
             const nextShoot = {
               ...acceptedItem,
               status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
               project_id: acceptedItem.project_id || acceptedItem.id,
             };
-            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
+            const withoutDuplicate = current.filter(
+              (item) => item.project_id !== projectId,
+            );
             return [nextShoot, ...withoutDuplicate];
           });
           handleTabChange("shoots");
@@ -351,7 +407,7 @@ export default function RequestsShootsPage() {
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
-  const handleViewChange = (mode: 'grid' | 'list') => {
+  const handleViewChange = (mode: "grid" | "list") => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("view", mode);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -364,13 +420,13 @@ export default function RequestsShootsPage() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-
   /* ---------------- FILTERING ---------------- */
   const visibleProjects = activeTab === "requests" ? projects : shoots;
   const filteredProjects = visibleProjects.filter((p) => {
     const title = (p.project_name || p.title || "").toLowerCase();
     const matchesSearch = title.includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" || p.status.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -396,56 +452,65 @@ export default function RequestsShootsPage() {
     );
   }
 
-
   return (
     <>
       <Topbar pathname={pathname} />
-      <div 
-        className={`mx-4 mb-20 mt-6 overflow-hidden rounded-2xl border transition-all duration-700 lg:mx-8 ${isDark
-          ? `bg-[#0A0A0A] text-white border-[#E8D1AB]/30
+      <div
+        className={`mx-4 mb-20 mt-6 overflow-hidden rounded-2xl border transition-all duration-700 lg:mx-8 ${
+          isDark
+            ? `bg-[#0A0A0A] text-white border-[#E8D1AB]/30
              shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]`
-          : "bg-white text-[#171717] border-zinc-200 shadow-sm"
+            : "bg-white text-[#323232] border-zinc-200 shadow-sm"
         }`}
       >
         <div className="p-8 lg:p-12 space-y-6 lg:space-y-10">
-            {/* 1. Simple Header: Title & Description */}
+          {/* 1. Simple Header: Title & Description */}
           <div>
-            <h1 className={`text-2xl font-bold transition-colors lg:text-3xl ${isDark ? "text-white" : "text-[#171717]"}`}>
+            <h1
+              className={`text-2xl font-bold transition-colors lg:text-3xl ${isDark ? "text-white" : "text-[#000000]"}`}
+            >
               Requests & Shoots
             </h1>
-            <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-[#171717B2]"}`}>Manage your production schedule and requests</p>
+            <p
+              className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/70" : "text-[#000000B2]"}`}
+            >
+              Manage your production schedule and requests
+            </p>
           </div>
 
           {/* 2. Tabs */}
           <div
-            className={`flex w-fit items-center gap-1 rounded-xl border p-1 transition-all duration-300 ${isDark
-              ? "border-[#333] bg-[#111]"
-              : "border-[#E5E5E5] bg-white"
+            className={`flex w-fit items-center gap-1 rounded-xl border p-1 transition-all duration-300 ${
+              isDark
+                ? "border-[#3D3D3D] bg-[#101010]"
+                : "border-[#E3E3E3] bg-[#F4F5F7]"
             }`}
           >
             <button
               onClick={() => handleTabChange("requests")}
-              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${activeTab === "requests"
-                ? (isDark
-                  ? "bg-[#E5D5B8] text-black shadow-lg"
-                  : "bg-[#E8D1AB] text-black shadow-sm")
-                : (isDark
-                  ? "text-[#777] hover:text-white"
-                  : "text-[#888] hover:text-black")
-                }`}
+              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${
+                activeTab === "requests"
+                  ? isDark
+                    ? "bg-[#E8D1AB] text-black shadow-lg"
+                    : "bg-[#E8D1AB] text-black shadow-sm"
+                  : isDark
+                    ? "text-white/60 hover:bg-white/10 hover:text-white"
+                    : "text-black/60 hover:bg-black/5 hover:text-black"
+              }`}
             >
               Requests
             </button>
             <button
               onClick={() => handleTabChange("shoots")}
-              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${activeTab === "shoots"
-                ? (isDark
-                  ? "bg-[#E5D5B8] text-black shadow-lg"
-                  : "bg-[#E8D1AB] text-black shadow-sm")
-                : (isDark
-                  ? "text-[#777] hover:text-white"
-                  : "text-[#888] hover:text-black")
-                }`}
+              className={`px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 ${
+                activeTab === "shoots"
+                  ? isDark
+                    ? "bg-[#E8D1AB] text-black shadow-lg"
+                    : "bg-[#E8D1AB] text-black shadow-sm"
+                  : isDark
+                    ? "text-white/60 hover:bg-white/10 hover:text-white"
+                    : "text-black/60 hover:bg-black/5 hover:text-black"
+              }`}
             >
               Shoots
             </button>
@@ -455,7 +520,11 @@ export default function RequestsShootsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               label="Pending Requests"
-              value={(computedStats?.pendingRequests ?? dashboardStats?.pendingRequests) || 0}
+              value={
+                (computedStats?.pendingRequests ??
+                  dashboardStats?.pendingRequests) ||
+                0
+              }
               icon={Clock}
               iconColor={isDark ? "text-yellow-400" : "text-yellow-600"}
               valueColor={isDark ? "text-yellow-400" : "text-yellow-600"}
@@ -464,7 +533,11 @@ export default function RequestsShootsPage() {
             />
             <StatCard
               label="Confirmed Shoots"
-              value={(computedStats?.confirmedRequests ?? dashboardStats?.confirmedRequests) || 0}
+              value={
+                (computedStats?.confirmedRequests ??
+                  dashboardStats?.confirmedRequests) ||
+                0
+              }
               icon={Camera}
               iconColor={isDark ? "text-[#E8D1AB]" : "text-[#9A7542]"}
               hoverBorder="hover:border-[#E8D1AB]/30"
@@ -472,7 +545,11 @@ export default function RequestsShootsPage() {
             />
             <StatCard
               label="Completed"
-              value={(computedStats?.completedShoots ?? dashboardStats?.completedShoots) || 0}
+              value={
+                (computedStats?.completedShoots ??
+                  dashboardStats?.completedShoots) ||
+                0
+              }
               icon={CheckCircle2}
               iconColor={isDark ? "text-green-400" : "text-green-600"}
               valueColor={isDark ? "text-green-400" : "text-green-600"}
@@ -481,7 +558,11 @@ export default function RequestsShootsPage() {
             />
             <StatCard
               label="Declined"
-              value={(computedStats?.declinedRequests ?? dashboardStats?.declinedRequests) || 0}
+              value={
+                (computedStats?.declinedRequests ??
+                  dashboardStats?.declinedRequests) ||
+                0
+              }
               icon={Ban}
               iconColor={isDark ? "text-red-400" : "text-red-600"}
               valueColor={isDark ? "text-red-400" : "text-red-600"}
@@ -492,44 +573,86 @@ export default function RequestsShootsPage() {
 
           {/* 3. Filter Bar: Search, Select, and View Toggle */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className={`relative flex w-full items-center gap-1 rounded-xl border p-1 transition-all duration-300 lg:max-w-xl ${isDark ? "border-[#333] bg-[#111]" : "border-[#E5E5E5] bg-white"}`}>
-              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+            <div
+              className={`relative flex w-full items-center gap-1 rounded-xl border p-1 transition-all duration-300 lg:max-w-xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-[#F4F5F7]"}`}
+            >
+              <Search
+                className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isDark ? "text-white/40" : "text-[#32323299]"}`}
+              />
               <input
                 type="text"
                 placeholder="Search projects..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
-                  ? "bg-[#18181b] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
-                  : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
-                  }`}
+                className={`h-9 w-full min-w-0 pl-10 pr-4 rounded-lg text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${
+                  isDark
+                    ? "bg-[#1A1A1A] text-white placeholder:text-white/30 focus:ring-[#E8D1AB]"
+                    : "bg-white text-[#323232] placeholder:text-[#32323266] focus:ring-[#E8D1AB]"
+                }`}
               />
             </div>
-
 
             {/* Filter Group - Grouped to stay on the Right */}
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger
-                  className={`min-w-[170px] rounded-xl transition-colors ${isDark
-                    ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50"
-                    : "border-[#E3E3E3] bg-white text-[#323232] data-[placeholder]:text-[#667085]"
+                  className={`min-w-[170px] rounded-xl transition-colors ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#1A1A1A] text-white data-[placeholder]:text-white/50 hover:border-white/20 hover:bg-[#202020]"
+                      : "border-[#E3E3E3] bg-white text-[#323232] data-[placeholder]:text-[#32323299] hover:border-[#D6D6D6] hover:bg-[#FFFCF6]"
                   }`}
                 >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent
-                  className={`border transition-colors ${isDark
-                    ? "border-white/10 bg-[#1A1A1A] text-white"
-                    : "border-[#E3E3E3] bg-white text-[#323232] shadow-lg"
+                  className={`border transition-colors ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#1A1A1A] text-white"
+                      : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232] shadow-lg"
                   }`}
                 >
-                  <SelectItem value="all" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>All Status</SelectItem>
-                  <SelectItem value="confirmed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Confirmed</SelectItem>
+                  <SelectItem
+                    value="all"
+                    className={
+                      isDark
+                        ? "focus:bg-white/10 focus:text-white"
+                        : "focus:bg-black/5 focus:text-black"
+                    }
+                  >
+                    All Status
+                  </SelectItem>
+                  <SelectItem
+                    value="confirmed"
+                    className={
+                      isDark
+                        ? "focus:bg-white/10 focus:text-white"
+                        : "focus:bg-black/5 focus:text-black"
+                    }
+                  >
+                    Confirmed
+                  </SelectItem>
                   {activeTab === "requests" ? (
-                    <SelectItem value="pending" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Pending</SelectItem>
+                    <SelectItem
+                      value="pending"
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
+                    >
+                      Pending
+                    </SelectItem>
                   ) : (
-                    <SelectItem value="completed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Completed</SelectItem>
+                    <SelectItem
+                      value="completed"
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
+                    >
+                      Completed
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -538,33 +661,46 @@ export default function RequestsShootsPage() {
               <div className="md:hidden relative">
                 <Button
                   onClick={toggleDropdown}
-                  className={`flex items-center gap-2 ${isDark ? "border-[#FFFFFF33] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"} border p-2 h-12 w-12 rounded-lg `}
+                  className={`flex items-center gap-2 border p-2 h-12 w-12 rounded-lg transition-colors ${isDark ? "border-[#3D3D3D] bg-[#1A1A1A] text-white hover:bg-[#242424] hover:border-white/20" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-black/5 hover:border-[#D6D6D6]"}`}
                 >
-                  {view === 'grid' ? <Grid3X3 size={20} /> : <List size={20} />}
+                  {view === "grid" ? <Grid3X3 size={20} /> : <List size={20} />}
                 </Button>
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                  <div className={`absolute right-0 top-full z-[50] mt-2 w-48 overflow-hidden rounded-xl border shadow-2xl transition-colors ${isDark
-                    ? "border-[#FFFFFF33] bg-[#171717] text-white"
-                    : "border-[#E5E5E5] bg-white text-[#171717]"
-                  }`}>
+                  <div
+                    className={`absolute right-0 top-full z-[50] mt-2 w-48 overflow-hidden rounded-xl border shadow-2xl transition-colors ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#171717] text-white"
+                        : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232]"
+                    }`}
+                  >
                     <button
-                      onClick={() => handleViewChange('grid')}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid'
-                        ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
-                        : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
-                        }`}
+                      onClick={() => handleViewChange("grid")}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                        view === "grid"
+                          ? isDark
+                            ? "bg-[#E8D1AB] font-medium text-black"
+                            : "bg-[#E8D1AB] font-medium text-black"
+                          : isDark
+                            ? "text-white/60 hover:bg-white/10 hover:text-white"
+                            : "text-black/60 hover:bg-black/5 hover:text-black"
+                      }`}
                     >
                       <Grid3X3 size={18} />
                       Grid View
                     </button>
                     <button
-                      onClick={() => handleViewChange('list')}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'list'
-                        ? (isDark ? "bg-white/10 text-white" : "bg-black/5 font-medium text-black")
-                        : (isDark ? "text-white/60 hover:bg-white/5" : "text-black/60 hover:bg-black/5")
-                        }`}
+                      onClick={() => handleViewChange("list")}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                        view === "list"
+                          ? isDark
+                            ? "bg-[#E8D1AB] font-medium text-black"
+                            : "bg-[#E8D1AB] font-medium text-black"
+                          : isDark
+                            ? "text-white/60 hover:bg-white/10 hover:text-white"
+                            : "text-black/60 hover:bg-black/5 hover:text-black"
+                      }`}
                     >
                       <List size={18} />
                       List View
@@ -574,26 +710,34 @@ export default function RequestsShootsPage() {
               </div>
 
               {/* DESKTOP VIEW: Original Toggle */}
-              <div className={`hidden lg:flex ${isDark ? "border-[#FFFFFF33] bg-[#202020]" : "border-[#E5E5E5] bg-white"} p-1 rounded-xl border w-fit`}>
+              <div
+                className={`hidden lg:flex ${isDark ? "border-[#3D3D3D] bg-[#1A1A1A]" : "border-[#E3E3E3] bg-[#F4F5F7]"} p-1 rounded-xl border w-fit`}
+              >
                 <button
                   onClick={() => handleViewChange("grid")}
-                  className={`relative z-10 inline-flex items-center justify-center rounded-lg  px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${view === "grid"
-                    ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
-                    : isDark
-                      ? "text-white/60 hover:text-white"
-                      : "text-[#666666] hover:text-black"
-                    }`}
+                  className={`relative z-10 inline-flex items-center justify-center rounded-lg  px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${
+                    view === "grid"
+                      ? isDark
+                        ? "bg-[#E8D1AB] text-black"
+                        : "bg-[#E8D1AB] text-black"
+                      : isDark
+                        ? "text-white/60 hover:bg-white/10 hover:text-white"
+                        : "text-black/60 hover:bg-black/5 hover:text-black"
+                  }`}
                 >
                   <Grid3X3 size={20} />
                 </button>
                 <button
                   onClick={() => handleViewChange("list")}
-                  className={`relative z-10 inline-flex items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${view === "list"
-                    ? isDark ? "bg-[#E5D5B8] text-black" : "bg-[#E8D1AB] text-black"
-                    : isDark
-                      ? "text-white/60 hover:text-white"
-                      : "text-[#666666] hover:text-black"
-                    }`}
+                  className={`relative z-10 inline-flex items-center justify-center rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-300 ${
+                    view === "list"
+                      ? isDark
+                        ? "bg-[#E8D1AB] text-black"
+                        : "bg-[#E8D1AB] text-black"
+                      : isDark
+                        ? "text-white/60 hover:bg-white/10 hover:text-white"
+                        : "text-black/60 hover:bg-black/5 hover:text-black"
+                  }`}
                 >
                   <List size={20} />
                 </button>
@@ -603,51 +747,65 @@ export default function RequestsShootsPage() {
         </div>
 
         {/* Main Content Area */}
-        <div>
+        <div className=" p-8 lg:p-12">
           {filteredProjects.length > 0 ? (
             view === "grid" ? (
               /* --- DYNAMIC GRID VIEW --- */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
-                  {filteredProjects.map((item) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
-                    className={`group rounded-2xl border p-4 transition-all duration-300 lg:p-6 ${isDark
-                      ? "bg-[#111] border-white/5 hover:border-[#E8D1AB]/40"
-                      : "bg-white border-[#E5E5E5] hover:border-[#E8D1AB]/60 shadow-sm"
-                      }`}
+                    className={`group rounded-2xl border p-4 transition-all duration-300 lg:p-6 ${
+                      isDark
+                        ? "bg-[#171717] border-[#3D3D3D] hover:border-[#E8D1AB]/40 hover:bg-[#1A1A1A]"
+                        : "bg-white border-[#E5E5E5] hover:border-[#D8C39F] hover:bg-[#FFFCF6] shadow-sm hover:shadow-md"
+                    }`}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <span
-                        className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${item.status === "Completed"
-                          ? isDark
-                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : item.status === "Confirmed"
+                        className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                          item.status === "Completed"
                             ? isDark
-                              ? "border-green-400/20 bg-green-400/10 text-green-300"
-                              : "border-green-200 bg-green-50 text-green-700"
-                            : isDark
-                              ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
+                              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : item.status === "Confirmed"
+                              ? isDark
+                                ? "border-green-400/20 bg-green-400/10 text-green-300"
+                                : "border-green-200 bg-green-50 text-green-700"
+                              : isDark
+                                ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
                         }`}
                       >
                         {item.status}
                       </span>
-                      <span className={`text-xs italic ${isDark ? "text-white/20" : "text-black/30"}`}>
+                      <span
+                        className={`text-xs italic ${isDark ? "text-white/20" : "text-[#32323266]"}`}
+                      >
                         {/* Recently updated */}
                       </span>
                     </div>
 
-                    <h3 className={`text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize ${isDark ? "text-white" : "text-black"}`}>
+                    <h3
+                      className={`text-xl font-bold mb-4 transition-colors capitalize ${isDark ? "text-white group-hover:text-[#E8D1AB]" : "text-[#323232] group-hover:text-[#9A7542]"}`}
+                    >
                       {item.project_name || item.title || "Untitled Project"}
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
-                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                      <div
+                        className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                      >
                         <CalendarIcon size={16} className="text-[#E8D1AB]" />
-                        <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
+                        <span>
+                          {formatDate(
+                            item.event_date || item.shoot_date || "TBD",
+                          )}
+                        </span>
                       </div>
-                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                      <div
+                        className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                      >
                         <MapPin size={16} className="text-[#E8D1AB]" />
                         <span className="truncate">
                           {formatLocation(item.event_location || item.location)}
@@ -655,13 +813,18 @@ export default function RequestsShootsPage() {
                       </div>
                     </div>
 
-                    <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+                    <div
+                      className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}
+                    >
                       <Button
-                        onClick={() => handleOpenProjectDetails(item.project_id)}
-                        className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
-                          ? "border-white/10 bg-transparent text-white hover:bg-white/5"
-                          : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"
-                          }`}
+                        onClick={() =>
+                          handleOpenProjectDetails(item.project_id)
+                        }
+                        className={`border px-6 transition-colors ${
+                          isDark
+                            ? "border-[#3D3D3D] bg-[#101010] text-white hover:border-[#E8D1AB]/60 hover:bg-white/5 hover:text-[#E8D1AB]"
+                            : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232] hover:border-[#CBB38B] hover:bg-[#FDF9F0] hover:text-[#8A7043]"
+                        }`}
                       >
                         View Details
                       </Button>
@@ -671,9 +834,10 @@ export default function RequestsShootsPage() {
                           <Button
                             size="icon"
                             onClick={() => setAcceptShootEvent(item)}
-                            className={`transition-colors ${isDark
-                              ? "bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white"
-                              : "bg-green-50 text-green-600 hover:bg-green-600 hover:text-white"
+                            className={`transition-colors ${
+                              isDark
+                                ? "border border-green-400/20 bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300"
+                                : "border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800"
                             }`}
                           >
                             <Check size={18} />
@@ -681,9 +845,10 @@ export default function RequestsShootsPage() {
                           <Button
                             size="icon"
                             onClick={() => setDeclineShootEvent(item)}
-                            className={`transition-colors ${isDark
-                              ? "bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white"
-                              : "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"
+                            className={`transition-colors ${
+                              isDark
+                                ? "border border-red-400/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                                : "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
                             }`}
                           >
                             <X size={18} />
@@ -696,22 +861,30 @@ export default function RequestsShootsPage() {
               </div>
             ) : (
               /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
-              <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${isDark ? "border-white/5 bg-[#111]" : "border-[#E5E5E5] bg-white shadow-sm"}`}>
+              <div
+                className={`overflow-hidden rounded-xl border transition-all duration-300  ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white shadow-sm"}`}
+              >
                 {/* DESKTOP TABLE VIEW */}
                 <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-white/[0.03] text-white/40 border-white/5" : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"}`}>
+                      <tr
+                        className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-[#101010] text-[#E8D1AB] border-[#3D3D3D]" : "bg-[#FFFCF6] text-[#323232] border-[#E3E3E3]"}`}
+                      >
                         <th className="px-6 py-4 font-semibold">Shoot ID</th>
                         <th className="px-6 py-4 font-semibold">Name</th>
                         <th className="px-6 py-4 font-semibold">Location</th>
                         <th className="px-6 py-4 font-semibold">Email</th>
                         <th className="px-6 py-4 font-semibold">Category</th>
                         <th className="px-6 py-4 font-semibold">Status</th>
-                        <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
+                        <th className="px-6 py-4 font-semibold text-right pr-12">
+                          Action
+                        </th>
                       </tr>
                     </thead>
-                    <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
+                    <tbody
+                      className={`divide-y ${isDark ? "divide-[#3D3D3D]" : "divide-[#E3E3E3]"}`}
+                    >
                       {filteredProjects.map((item) => {
                         // Status Logic Mapping
                         let statusClass = isDark
@@ -729,7 +902,10 @@ export default function RequestsShootsPage() {
                             ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
                             : "border-emerald-200 bg-[#D1FAE5] text-[#065F46]";
                           label = "Completed";
-                        } else if (item.status === "Rejected" || item.status === "Declined") {
+                        } else if (
+                          item.status === "Rejected" ||
+                          item.status === "Declined"
+                        ) {
                           statusClass = isDark
                             ? "border-red-400/20 bg-red-400/10 text-red-300"
                             : "border-red-200 bg-[#FEE2E2] text-[#991B1B]";
@@ -739,24 +915,37 @@ export default function RequestsShootsPage() {
                         return (
                           <tr
                             key={item.project_id}
-                            className={`transition-colors group ${isDark ? "hover:bg-white/[0.01]" : "hover:bg-[#FFFCF6]/50"}`}
+                            className={`transition-colors group ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
                           >
                             {/* Shoot ID Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                              #{item.project_id?.toString().slice(-6) || "123456"}
+                            <td
+                              className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                            >
+                              #
+                              {item.project_id?.toString().slice(-6) ||
+                                "123456"}
                             </td>
 
                             {/* Name/Project Details Column */}
                             <td className="px-6 py-5">
                               <div className="flex items-center gap-4">
                                 <div className="shrink-0 h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
-                                  {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                                  {(item.project_name || "PR")
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join("")
+                                    .toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className={`text-sm font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
+                                  <div
+                                    className={`text-sm font-bold leading-tight ${isDark ? "text-white" : "text-[#323232]"}`}
+                                  >
                                     {item.project_name || "Untitled"}
                                   </div>
-                                  <div className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                  <div
+                                    className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-[#32323299]"}`}
+                                  >
                                     Production Shoot
                                   </div>
                                 </div>
@@ -764,26 +953,36 @@ export default function RequestsShootsPage() {
                             </td>
 
                             {/* Location Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                            <td
+                              className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                            >
                               <div className="max-w-[180px] truncate">
-                                {formatLocation(item.event_location || item.location)}
+                                {formatLocation(
+                                  item.event_location || item.location,
+                                )}
                               </div>
                             </td>
 
                             {/* Email Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                            <td
+                              className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                            >
                               <div className="max-w-[200px] truncate">
                                 {item.guest_email || "N/A"}
                               </div>
                             </td>
 
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                            <td
+                              className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-[#32323299]"}`}
+                            >
                               Videographer
                             </td>
 
                             {/* Status Pill Column */}
                             <td className="px-6 py-5">
-                              <span className={`inline-flex min-w-[100px] items-center justify-center rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${statusClass}`}>
+                              <span
+                                className={`inline-flex min-w-[100px] items-center justify-center rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${statusClass}`}
+                              >
                                 {label}
                               </span>
                             </td>
@@ -796,9 +995,10 @@ export default function RequestsShootsPage() {
                                     {/* Pill Shape Approve Button */}
                                     <button
                                       onClick={() => setAcceptShootEvent(item)}
-                                      className={`rounded-full px-4 py-1 text-xs font-bold transition-colors ${isDark
-                                        ? "border border-green-400/20 bg-green-400/10 text-green-300 hover:bg-green-400/20"
-                                        : "bg-[#DCFCE7] text-[#166534] hover:bg-green-200"
+                                      className={`rounded-full px-4 py-1 text-xs font-bold transition-colors ${
+                                        isDark
+                                          ? "border border-green-400/20 bg-green-400/10 text-green-300 hover:bg-green-400/20 hover:text-green-200"
+                                          : "border border-green-200 bg-[#DCFCE7] text-[#166534] hover:bg-green-100 hover:text-[#14532D]"
                                       }`}
                                     >
                                       Approve
@@ -806,31 +1006,48 @@ export default function RequestsShootsPage() {
                                     {/* Red Underlined Decline Link */}
                                     <button
                                       onClick={() => setDeclineShootEvent(item)}
-                                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark ? "text-[#F87171] hover:text-red-400" : "text-[#EF4444] hover:text-red-600"
-                                        }`}
+                                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${
+                                        isDark
+                                          ? "text-[#F87171] hover:text-red-300"
+                                          : "text-[#DC2626] hover:text-red-700"
+                                      }`}
                                     >
                                       Decline
                                     </button>
                                   </div>
                                 ) : item.status === "Confirmed" ? (
-                                  <div className={`flex items-center gap-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                    <button className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}>
+                                  <div
+                                    className={`flex items-center gap-3 ${isDark ? "text-white/40" : "text-[#32323299]"}`}
+                                  >
+                                    <button
+                                      className={`transition-colors ${isDark ? "hover:text-[#E8D1AB]" : "hover:text-[#8A7043]"}`}
+                                    >
                                       <Pencil size={18} />
                                     </button>
-                                    <button className={`transition-colors ${isDark ? "hover:text-red-400" : "hover:text-red-600"}`}>
+                                    <button
+                                      className={`transition-colors ${isDark ? "hover:text-red-400" : "hover:text-red-600"}`}
+                                    >
                                       <Trash2 size={18} />
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className={isDark ? "text-white/20" : "text-black/20"}>
+                                  <div
+                                    className={
+                                      isDark
+                                        ? "text-white/20"
+                                        : "text-[#32323266]"
+                                    }
+                                  >
                                     <Info size={18} />
                                   </div>
                                 )}
 
                                 {/* Detail Chevron */}
                                 <button
-                                  onClick={() => handleOpenProjectDetails(item.project_id)}
-                                  className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                                  onClick={() =>
+                                    handleOpenProjectDetails(item.project_id)
+                                  }
+                                  className={`transition-colors ${isDark ? "text-white/40 hover:text-[#E8D1AB]" : "text-[#32323299] hover:text-[#8A7043]"}`}
                                 >
                                   <ChevronRight size={20} />
                                 </button>
@@ -844,14 +1061,18 @@ export default function RequestsShootsPage() {
                 </div>
 
                 {/* MOBILE COLLAPSIBLE VIEW */}
-                <div className={`lg:hidden flex flex-col divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
+                <div
+                  className={`lg:hidden flex flex-col divide-y ${isDark ? "divide-[#3D3D3D]" : "divide-[#E3E3E3]"}`}
+                >
                   {filteredProjects.map((item) => (
                     <MobileRow
                       key={item.project_id}
                       item={item}
                       onApprove={() => setAcceptShootEvent(item)}
                       onDecline={() => setDeclineShootEvent(item)}
-                      onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                      onViewDetails={() =>
+                        handleOpenProjectDetails(item.project_id)
+                      }
                       isDark={isDark}
                     />
                   ))}
@@ -860,9 +1081,10 @@ export default function RequestsShootsPage() {
             )
           ) : (
             <div
-              className={`col-span-full rounded-xl border p-12 text-center text-sm transition-colors ${isDark
-                ? "border-white/5 bg-[#111] text-white/40"
-                : "border-[#E5E5E5] bg-[#FAFAFA] text-[#667085]"
+              className={`col-span-full rounded-xl border p-12 text-center text-sm transition-colors ${
+                isDark
+                  ? "border-[#3D3D3D] bg-[#171717] text-white/45"
+                  : "border-[#E3E3E3] bg-white text-[#32323299]"
               }`}
             >
               No projects found matching your criteria.
@@ -871,43 +1093,59 @@ export default function RequestsShootsPage() {
         </div>
 
         {/* Modals */}
-        <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-          <DialogContent className={`max-w-xs lg:max-w-sm transition-all duration-300 border ${isDark
-            ? "bg-[#111] border-white/10 text-white"
-            : "bg-[#FFFDF9] border-[#E5E5E5] text-black shadow-xl"
-            }`}>
+        <Dialog
+          open={!!acceptShootEvent}
+          onOpenChange={() => setAcceptShootEvent(null)}
+        >
+          <DialogContent
+            className={`max-w-xs lg:max-w-sm transition-all duration-300 border ${
+              isDark
+                ? "bg-[#0A0A0A] border-white/10 text-white"
+                : "bg-[#FFFCF6] border-[#E5E5E5] text-black shadow-xl"
+            }`}
+          >
             <DialogHeader className="text-center">
-              <DialogTitle className={`lg:text-xl font-bold ${isDark ? "text-white" : "text-black"}`}>
+              <DialogTitle
+                className={`lg:text-xl font-bold ${isDark ? "text-white" : "text-[#323232]"}`}
+              >
                 Accept Shoot?
               </DialogTitle>
             </DialogHeader>
 
             <div className="text-center p-4">
               {/* Dynamic Status Icon */}
-              <CheckCircle2 className={`mx-auto h-12 w-12 mb-4 transition-colors text-[#E8D1AB]`} />
+              <CheckCircle2
+                className={`mx-auto h-12 w-12 mb-4 transition-colors text-[#E8D1AB]`}
+              />
 
               {/* Description Text */}
-              <p className={`text-xs lg:text-sm mb-6 transition-colors ${isDark ? "text-white/60" : "text-black/60"
-                }`}>
+              <p
+                className={`text-xs lg:text-sm mb-6 transition-colors ${
+                  isDark ? "text-white/60" : "text-[#32323299]"
+                }`}
+              >
                 Confirming will add this project to your active schedule.
               </p>
 
               {/* Actions */}
               <div className="flex gap-3">
                 <Button
-                  // variant="ghost" 
-                  className={`flex-1 transition-colors ${isDark
-                    ? "bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
-                    : "bg-black/5 text-black/60 hover:text-black hover:bg-black/10"
-                    }`}
+                  // variant="ghost"
+                  className={`flex-1 transition-colors ${
+                    isDark
+                      ? "bg-[#111111] text-white/70 hover:bg-white/10 hover:text-white"
+                      : "bg-[#F5F5F5] text-[#323232B2] hover:bg-black/5 hover:text-black"
+                  }`}
                   onClick={() => setAcceptShootEvent(null)}
                 >
                   Cancel
                 </Button>
 
                 <Button
-                  className={`flex-1 font-semibold transition-all bg-[#E8D1AB] text-black hover:bg-[#d4be9a]`}
-                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}
+                  className="flex-1 bg-[#E8D1AB] text-black font-semibold transition-colors hover:bg-[#D8C39D]"
+                  onClick={() =>
+                    handleAcceptProject(acceptShootEvent.project_id, true)
+                  }
                 >
                   Confirm
                 </Button>
@@ -916,13 +1154,21 @@ export default function RequestsShootsPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={!!declineShootEvent} onOpenChange={() => setDeclineShootEvent(null)}>
-          <DialogContent className={`transition-all duration-300 border ${isDark
-            ? "bg-[#111] border-white/10 text-white"
-            : "bg-[#FFFDF9] border-[#E5E5E5] text-black shadow-xl"
-            }`}>
+        <Dialog
+          open={!!declineShootEvent}
+          onOpenChange={() => setDeclineShootEvent(null)}
+        >
+          <DialogContent
+            className={`transition-all duration-300 border ${
+              isDark
+                ? "bg-[#0A0A0A] border-white/10 text-white"
+                : "bg-[#FFFCF6] border-[#E5E5E5] text-black shadow-xl"
+            }`}
+          >
             <DialogHeader>
-              <DialogTitle className={`text-xl font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
+              <DialogTitle
+                className={`text-xl font-bold flex items-center gap-2 ${isDark ? "text-white" : "text-[#323232]"}`}
+              >
                 <AlertTriangle className="text-red-500 shrink-0" />
                 Decline Request
               </DialogTitle>
@@ -931,42 +1177,67 @@ export default function RequestsShootsPage() {
             <div className="space-y-4">
               {/* 1. DROP-DOWN SELECT ELEMENT */}
               <div>
-                <Label className={`mb-2 block font-medium text-xs uppercase tracking-wider ${isDark ? "text-white/60" : "text-black/60"
-                  }`}>
+                <Label
+                  className={`mb-2 block font-medium text-xs uppercase tracking-wider ${
+                    isDark ? "text-white/60" : "text-[#32323299]"
+                  }`}
+                >
                   Reason for declining
                 </Label>
                 <Select value={declineReason} onValueChange={setDeclineReason}>
-                  <SelectTrigger className={`transition-colors ${isDark
-                    ? "border-white/5 bg-[#1A1A1A] text-white focus:ring-[#E8D1AB]/40"
-                    : "border-[#E5E5E5] bg-white text-black focus:ring-[#E8D1AB]/50"
-                    }`}>
+                  <SelectTrigger
+                    className={`transition-colors ${
+                      isDark
+                        ? "border-[#3D3D3D] bg-[#1A1A1A] text-white hover:border-white/20 hover:bg-[#202020] focus:ring-[#E8D1AB]/40"
+                        : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232] hover:border-[#D6D6D6] hover:bg-white focus:ring-[#E8D1AB]/50"
+                    }`}
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className={`border ${isDark
-                    ? "bg-[#1A1A1A] border-white/10 text-white"
-                    : "bg-[#FFFCF6] border-[#E5E5E5] text-black shadow-lg"
-                    }`}>
+                  <SelectContent
+                    className={`border ${
+                      isDark
+                        ? "bg-[#1A1A1A] border-[#3D3D3D] text-white"
+                        : "bg-[#FFFCF6] border-[#E3E3E3] text-[#323232] shadow-lg"
+                    }`}
+                  >
                     <SelectItem
                       value="Schedule conflict"
-                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
                     >
                       Schedule conflict
                     </SelectItem>
                     <SelectItem
                       value="Rate too low"
-                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
                     >
                       Rate too low
                     </SelectItem>
                     <SelectItem
                       value="Location too far"
-                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
                     >
                       Location too far
                     </SelectItem>
                     <SelectItem
                       value="Other"
-                      className={isDark ? "focus:bg-white/10 focus:text-white" : "focus:bg-[#F4EBDD] focus:text-black"}
+                      className={
+                        isDark
+                          ? "focus:bg-white/10 focus:text-white"
+                          : "focus:bg-black/5 focus:text-black"
+                      }
                     >
                       Other
                     </SelectItem>
@@ -976,15 +1247,19 @@ export default function RequestsShootsPage() {
 
               {/* 2. COMMENTS TEXTAREA FIELD */}
               <div>
-                <Label className={`mb-2 block font-medium text-xs uppercase tracking-wider ${isDark ? "text-white/60" : "text-black/60"
-                  }`}>
+                <Label
+                  className={`mb-2 block font-medium text-xs uppercase tracking-wider ${
+                    isDark ? "text-white/60" : "text-[#32323299]"
+                  }`}
+                >
                   Additional Comments (Optional)
                 </Label>
                 <Textarea
-                  className={`transition-colors ${isDark
-                    ? "border-white/5 bg-[#1A1A1A] text-white placeholder:text-white/30 focus-visible:ring-[#E8D1AB]/40"
-                    : "border-[#E5E5E5] bg-white text-black placeholder:text-black/35 focus-visible:ring-[#E8D1AB]/50"
-                    }`}
+                  className={`transition-colors ${
+                    isDark
+                      ? "border-[#3D3D3D] bg-[#1A1A1A] text-white placeholder:text-white/30 focus-visible:ring-[#E8D1AB]/40"
+                      : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232] placeholder:text-[#32323266] focus-visible:ring-[#E8D1AB]/50"
+                  }`}
                   placeholder="Let the team know why..."
                   value={declineComments}
                   onChange={(e) => setDeclineComments(e.target.value)}
@@ -995,17 +1270,20 @@ export default function RequestsShootsPage() {
               <div className="flex gap-3 pt-4">
                 <Button
                   variant="ghost"
-                  className={`flex-1 transition-colors ${isDark
-                    ? "bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
-                    : "bg-black/5 text-black/60 hover:text-black hover:bg-black/10"
-                    }`}
+                  className={`flex-1 transition-colors ${
+                    isDark
+                      ? "bg-[#111111] text-white/70 hover:bg-white/10 hover:text-white"
+                      : "bg-[#F5F5F5] text-[#323232B2] hover:bg-black/5 hover:text-black"
+                  }`}
                   onClick={() => setDeclineShootEvent(null)}
                 >
                   Cancel
                 </Button>
                 <Button
                   className="flex-1 bg-red-600 text-white hover:bg-red-700 font-semibold transition-colors shadow-sm"
-                  onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
+                  onClick={() =>
+                    handleAcceptProject(declineShootEvent.project_id, false)
+                  }
                 >
                   Decline Shoot
                 </Button>

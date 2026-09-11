@@ -19,6 +19,22 @@ interface TopbarProps {
   breadcrumbOverrides?: Record<string, string>;
 }
 
+const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
+
+const getProfileImageUrl = (profileImage?: string | null) => {
+  const image = String(profileImage || "").trim();
+
+  if (!image) {return "/images/avatar.png";}
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return image;
+  }
+
+  if (!S3_PREFIX) {return "/images/avatar.png";}
+
+  return `${S3_PREFIX.replace(/\/+$/, "")}/${image.replace(/^\/+/, "")}`;
+};
+
 export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
   const { theme } = useTheme();
   const router = useRouter();
@@ -46,8 +62,8 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
   const isShootsPage = pathname.includes("shoots");
 
   const isDark = !mounted || theme === "dark";
-  const profileImageSrc = !profileImageError && user?.profile_image
-    ? user.profile_image
+  const profileImageSrc = !profileImageError
+    ? getProfileImageUrl(user?.profile_image)
     : "/images/avatar.png";
 
   return (
