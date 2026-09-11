@@ -145,9 +145,17 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const initialHasDifferentTimes = initialBookingDays.length > 1 && initialBookingDays.some((day, idx, arr) => {
+    const dayStart = day.startTime || day.start_time;
+    const dayEnd = day.endTime || day.end_time;
+    const firstStart = arr[0]?.startTime || arr[0]?.start_time;
+    const firstEnd = arr[0]?.endTime || arr[0]?.end_time;
+    return dayStart !== firstStart || dayEnd !== firstEnd;
+  });
+
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>(initialMultiDayTimes);
   const [selectedDates, setSelectedDates] = useState<Date[]>(initialSelectedDates);
-  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(!initialHasDifferentTimes);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -655,14 +663,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       return;
     }
 
-    const startKey = getStartTimeKey();
-    const endKey = getEndTimeKey();
-    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+    setMultiDayTimes((prev) => {
+      const startKey = getStartTimeKey();
+      const endKey = getEndTimeKey();
+      return buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev);
+    });
 
     if (expandedDateKey && !selectedDates.some((date) => getDateKey(date) === expandedDateKey)) {
       setExpandedDateKey(null);
     }
-  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap]);
+  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, buildMultiDayTimeMap]);
 
   useEffect(() => {
     if ((data.bookingType || "single_day") !== bookingType) {

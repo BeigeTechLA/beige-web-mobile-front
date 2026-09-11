@@ -10,15 +10,27 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Trash2 } from "lucide-react";
 import { getEquipmentSuggestions } from "@/lib/api";
 
+type EquipmentOption = {
+  equipment_id: string | number;
+  equipment_name: string;
+  [key: string]: unknown;
+};
+
+type AddEquipmentsProps = {
+  value?: Array<string | number>;
+  names?: string[];
+  onChange: (ids: Array<string | number>, names: string[]) => void;
+};
+
 // Added 'names' to props
-export default function AddEquipments({ value = [], names = [], onChange }) {
+export default function AddEquipments({ value = [], names = [], onChange }: AddEquipmentsProps) {
   const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState<EquipmentOption[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef(null);
 
-  const getSuggestionList = (response) => {
+  const getSuggestionList = (response: any): EquipmentOption[] => {
     const payload = response?.data ?? response;
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload?.data)) return payload.data;
@@ -59,7 +71,7 @@ export default function AddEquipments({ value = [], names = [], onChange }) {
     return () => clearTimeout(debounceRef.current);
   }, [inputValue, value]);
 
-  const handleSelectSuggestion = (equipment) => {
+  const handleSelectSuggestion = (equipment: EquipmentOption) => {
     if (!value.includes(equipment.equipment_id)) {
       // Create new arrays for both IDs and Names
       const nextIds = [...value, equipment.equipment_id];

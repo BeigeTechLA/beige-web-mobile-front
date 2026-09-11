@@ -35,7 +35,8 @@ import AddSkills from "./addSkills";
 import AddEquipments from "./addEquipment";
 import FeaturedWork, { type FeaturedWorkItem } from "./FeaturedWork";
 import SocialLinksModal from "./SocialLinksModal";
-import { SOCIAL_ICONS } from "@/app/data/staticData";
+import PortfolioLinksModal from "./PortfolioLinksModal";
+import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -174,6 +175,21 @@ const normalizeSocialLinks = (value: unknown): SocialLinkItem[] => {
     });
 };
 
+const normalizePortfolioLinks = (profileData?: Record<string, any> | null): SocialLinkItem[] => {
+  const files = Array.isArray(profileData?.crew_member_files) ? profileData?.crew_member_files : [];
+  const linkFiles = files.filter((file) => String(file?.file_type || "").trim().toLowerCase() === "link" && file?.file_path);
+
+  return linkFiles.map((file, index) => {
+    const platformInfo = PORTFOLIO_ICONS.find((p) => p.id === file.tag);
+    return {
+      id: file?.crew_files_id ?? `${file?.tag || "portfolio"}-${index}`,
+      platform: file?.tag || "",
+      url: String(file.file_path),
+      name: platformInfo?.label || file?.title || file?.tag || "Link",
+    };
+  });
+};
+
 const getProfilePhotoPreview = (profileData?: Record<string, any> | null) => {
   const directPhoto = profileData?.profile_photo || profileData?.profilePhoto;
 
@@ -305,8 +321,10 @@ export function GoogleCreatorOnboardingModal({
   const [equipments, setEquipments] = useState<Array<string | number>>([]);
   const [equipmentNames, setEquipmentNames] = useState<string[]>([]);
   const [links, setLinks] = useState<SocialLinkItem[]>([]);
+  const [portfolioLinks, setPortfolioLinks] = useState<SocialLinkItem[]>([]);
   const [featuredWork, setFeaturedWork] = useState<FeaturedWorkItem[]>([]);
   const [socialModalOpen, setSocialModalOpen] = useState(false);
+  const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const [registerStep1, step1State] = useRegisterCreatorStep1Mutation();
@@ -321,8 +339,13 @@ export function GoogleCreatorOnboardingModal({
     uploadStep3State.isLoading ||
     isProcessingImage;
 
+  const allSkillOptions = useMemo(
+    () => mergeUniqueSkills(videographerSkills, photographerSkills, editorSkills),
+    []
+  );
+
   const skillOptions = useMemo(() => {
-    const listsToMerge = [];
+    const listsToMerge: Array<Array<{ value: string; label: string; description?: string }>> = [];
     if (roles.includes("1")) listsToMerge.push(videographerSkills);
     if (roles.includes("2")) listsToMerge.push(photographerSkills);
     if (roles.includes("3")) listsToMerge.push(editorSkills);
@@ -352,8 +375,10 @@ export function GoogleCreatorOnboardingModal({
     setEquipments(profileEquipment.map((item) => item.id).filter(Boolean) as Array<string | number>);
     setEquipmentNames(profileEquipment.map((item) => item.name || String(item.id)).filter(Boolean));
     setLinks(normalizeSocialLinks(source.social_media_links || source.socialMedia));
+    setPortfolioLinks(normalizePortfolioLinks(source));
     setFeaturedWork(normalizeFeaturedWork(source));
     setSocialModalOpen(false);
+    setPortfolioModalOpen(false);
     setIsProcessingImage(false);
   }, [open, initialData, profileData]);
 
@@ -438,9 +463,18 @@ export function GoogleCreatorOnboardingModal({
     }
   };
 
+  const isOnlyEditorRole = roles.length === 1 && roles[0] === "3";
+  const isOnlyVideographerRole = roles.length === 1 && roles[0] === "1";
+
   const submitProfessional = async () => {
-    if (!roles.length || !yoe || !hourlyRate || !skills.length || !equipments.length) {
-      toast.error("Please complete your role, rate, skills, and equipment.");
+    const isEquipmentRequired = !isOnlyEditorRole;
+
+    if (!roles.length || !yoe || !hourlyRate || !skills.length || (isEquipmentRequired && !equipments.length)) {
+      toast.error(
+        isEquipmentRequired
+          ? "Please complete your role, rate, skills, and equipment."
+          : "Please complete your role, rate, and skills."
+      );
       return;
     }
 
@@ -481,9 +515,16 @@ export function GoogleCreatorOnboardingModal({
       return;
     }
 
-    if (!featuredWork.length) {
-      toast.error("Please add at least one featured work project.");
-      return;
+    if (isOnlyVideographerRole) {
+      if (!portfolioLinks.length) {
+        toast.error("Please add at least one portfolio link.");
+        return;
+      }
+    } else {
+      if (!featuredWork.length) {
+        toast.error("Please add at least one featured work project.");
+        return;
+      }
     }
 
     const workMetadata = featuredWork.map((item) => {
@@ -511,10 +552,15 @@ export function GoogleCreatorOnboardingModal({
       }
     });
 
+    const portfolioLinksPayload = portfolioLinks
+      .filter((link) => link.platform && link.url)
+      .map((link) => ({ url: link.url, platform: link.platform }));
+
     try {
       await registerStep3({
         crew_member_id: initialData.crew_member_id,
         social_media_links: socialLinksPayload,
+        portfolio_links: portfolioLinksPayload,
         featured_work: workMetadata,
       }).unwrap();
       pushToDataLayer("sign_up", {
@@ -736,11 +782,18 @@ export function GoogleCreatorOnboardingModal({
 
               <div>
                 <Label className="mb-2 block text-sm text-white/60">Skills *</Label>
-                <AddSkills options={skillOptions} value={skills} onChange={setSkills} />
+                <AddSkills
+                  options={skillOptions}
+                  allOptions={allSkillOptions}
+                  value={skills}
+                  onChange={setSkills}
+                />
               </div>
 
               <div>
-                <Label className="mb-2 block text-sm text-white/60">Equipment *</Label>
+                <Label className="mb-2 block text-sm text-white/60">
+                  Equipment {isOnlyEditorRole ? "(optional)" : "*"}
+                </Label>
                 <AddEquipments
                   value={equipments}
                   names={equipmentNames}
@@ -825,6 +878,68 @@ export function GoogleCreatorOnboardingModal({
               </div>
 
               <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">
+                      Portfolio Links {isOnlyVideographerRole ? <span className="text-[#E8D1AB]">*</span> : "(Optional)"}
+                    </h3>
+                    <p className="text-sm text-white/50">
+                      Share links to your portfolio, showreel, or personal website.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioModalOpen(true)}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#E8D1AB]/30 px-4 py-2 text-sm font-medium text-[#E8D1AB] transition hover:bg-[#E8D1AB]/10"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {portfolioLinks.length ? "Manage" : "Add link"}
+                  </button>
+                </div>
+
+                {portfolioLinks.length ? (
+                  <div className="space-y-3">
+                    {portfolioLinks.map((link) => {
+                      const platform = PORTFOLIO_ICONS.find((item) => item.id === link.platform);
+                      return (
+                        <div
+                          key={link.id}
+                          className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#151515] px-4 py-3"
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            {platform?.icon ? (
+                              <platform.icon className="h-5 w-5 text-[#E8D1AB]" />
+                            ) : (
+                              <Globe className="h-5 w-5 text-[#E8D1AB]" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white">{link.name}</p>
+                              <p className="truncate text-xs text-white/40">{link.url}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPortfolioLinks((current) => current.filter((item) => item.id !== link.id))}
+                            className="rounded-lg p-2 text-white/40 transition hover:bg-red-500/10 hover:text-red-400"
+                            aria-label="Remove link"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : isOnlyVideographerRole ? (
+                  <p className="text-sm text-white/40">At least one portfolio link is required to proceed.</p>
+                ) : null}
+              </div>
+
+              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+                {isOnlyVideographerRole && (
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/40">
+                    Featured work (optional)
+                  </p>
+                )}
                 <FeaturedWork
                   value={featuredWork}
                   onChange={setFeaturedWork}
@@ -838,6 +953,14 @@ export function GoogleCreatorOnboardingModal({
                 onClose={() => setSocialModalOpen(false)}
                 links={links}
                 onChange={setLinks}
+                isDark
+              />
+
+              <PortfolioLinksModal
+                open={portfolioModalOpen}
+                onClose={() => setPortfolioModalOpen(false)}
+                links={portfolioLinks}
+                onChange={setPortfolioLinks}
                 isDark
               />
             </div>

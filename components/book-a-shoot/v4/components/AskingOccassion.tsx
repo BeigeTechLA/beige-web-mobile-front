@@ -43,22 +43,24 @@ interface AskingOccasionProps {
   completionPercentage?: number;
 }
 
-const STUDIO_SHOOT_TYPE_KEY = "studio";
-const STUDIO_SHOOT_TYPE_OPTION: ShootTypeOption = {
-  key: STUDIO_SHOOT_TYPE_KEY,
-  title: "Studio",
-  details: "Book a Beige studio by date and time",
-  image:
-    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
-  stats: [],
-};
-
-const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
-  const nonStudioTypes = types.filter(
-    (type) => type.key !== STUDIO_SHOOT_TYPE_KEY && type.key !== "coachella"
-  );
-  return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
-};
+// Studio was previously injected as a shoot type. The client pricing doc
+// keeps Studio as a service, so the old option stays commented for rollback.
+// const STUDIO_SHOOT_TYPE_KEY = "studio";
+// const STUDIO_SHOOT_TYPE_OPTION: ShootTypeOption = {
+//   key: STUDIO_SHOOT_TYPE_KEY,
+//   title: "Studio",
+//   details: "Book a Beige studio by date and time",
+//   image:
+//     "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+//   stats: [],
+// };
+//
+// const withStudioOption = (types: ShootTypeOption[]): ShootTypeOption[] => {
+//   const nonStudioTypes = types.filter(
+//     (type) => type.key !== STUDIO_SHOOT_TYPE_KEY && type.key !== "coachella"
+//   );
+//   return [STUDIO_SHOOT_TYPE_OPTION, ...nonStudioTypes];
+// };
 
 export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onContinue,
@@ -82,9 +84,9 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Derive initial shoot types list directly from withStudioOption
+  // Derive initial shoot types list from the fixed client catalog.
   const [availableShootTypes] = useState<ShootTypeOption[]>(() =>
-    withStudioOption(newshootTypes)
+    newshootTypes.filter((type) => type.key !== "coachella")
   );
 
   // Transform options so every item has an `images` array with 4 duplicate copies of `image`

@@ -46,7 +46,7 @@ export default function LandingPageV2() {
       <Process />
       <Separator />
 
-      <TopCreatives subtext={"Some of our top creative partners, handpicked for quality and reliability"} />
+      {/* <TopCreatives subtext={"Some of our top creative partners, handpicked for quality and reliability"} /> */}
       <Separator />
 
       <Projects />
