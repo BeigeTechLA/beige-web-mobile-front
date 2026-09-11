@@ -20,6 +20,7 @@ import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import {
   AutoCheckout,
   CheckoutProvider,
+  SubmitButton,
   useCheckoutContext,
   type CheckoutConfig,
   type FormSubmissionErrorData,
@@ -688,12 +689,14 @@ function CommasEmbeddedCheckout({
   booking,
   onSuccess,
   onError,
+  onSubmitControllerChange,
 }: {
   paymentSession: Extract<PaymentSession, { provider: "commas" }>;
   amount: number;
   booking: any;
   onSuccess: (transactionId?: string) => Promise<void> | void;
   onError: (error: string) => void;
+  onSubmitControllerChange?: (controller: CommasSubmitController | null) => void;
 }) {
   const [checkoutError, setCheckoutError] = useState("");
   const config = useMemo<CheckoutConfig | null>(() => {
@@ -712,16 +715,28 @@ function CommasEmbeddedCheckout({
       checkoutSessionSecret,
       environment,
       collectPhone: true,
+      showSubmitButton: false,
       containerOptions: {
         width: "100%",
-        height: "720px",
+        height: "650px",
       },
       theme: {
-        theme: "light",
+        theme: "dark",
         accent_color: "#E8D1AB",
-        show_product_info: true,
-        product_layout: "left",
+        background_color: "#272626",
+        surface_color: "#171717",
+        input_background_color: "#272626",
+        label_color: "#E8E8E8",
+        product_text_color: "#F8F2E8",
+        heading_color: "#FFFFFF",
+        secondary_color: "#B8B8B8",
+        border_color: "#595959",
+        show_product_info: false,
+        product_layout: "above",
         show_coupon_row: false,
+        billing_form_placement: "above",
+        show_headings: true,
+        show_powered_by: false,
         prefill: {
           email: booking?.guest_email || booking?.guestEmail || booking?.client_email || booking?.user?.email || "",
           first_name: firstName,
@@ -747,9 +762,9 @@ function CommasEmbeddedCheckout({
   }
 
   return (
-    <div className="relative rounded-[12px] border border-white/15 bg-white p-2 lg:p-3 overflow-hidden">
+    <div className="relative rounded-[12px] border border-white/20 bg-[#272626] p-2 lg:p-3 overflow-hidden shadow-[0_18px_60px_rgba(0,0,0,0.25)]">
       {checkoutError && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="mb-3 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
           {checkoutError}
         </div>
       )}
@@ -762,16 +777,16 @@ function CommasEmbeddedCheckout({
         />
         <AutoCheckout
           autoInit
-          className="min-h-[620px] w-full"
-          style={{ minHeight: 620, width: "100%" }}
+          className="commas-checkout-frame min-h-[640px] w-full bg-[#272626]"
+          style={{ minHeight: 640, width: "100%" }}
           loadingComponent={
-            <div className="flex min-h-[360px] flex-col items-center justify-center bg-white text-[#212122]">
-              <Loader2 className="w-8 h-8 animate-spin mb-3 text-[#212122]" />
+            <div className="flex min-h-[360px] flex-col items-center justify-center bg-[#272626] text-white">
+              <Loader2 className="w-8 h-8 animate-spin mb-3 text-[#E8D1AB]" />
               <p className="text-sm font-medium">Loading Commas checkout...</p>
             </div>
           }
           errorComponent={
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
               Could not load Commas checkout.
             </div>
           }
@@ -780,17 +795,82 @@ function CommasEmbeddedCheckout({
             setCheckoutError(message);
             onError(message);
           }}
-          onSuccess={(data: CheckoutSuccessData) => {
+        />
+        <SubmitButton
+          onFormSubmitting={() => {
+            setCheckoutError("");
+          }}
+          onFormSubmissionError={(error) => {
+            const message = error?.data?.errorMessage || "Payment failed. Please check your details and try again.";
+            setCheckoutError(message);
+            onError(message);
+          }}
+          onPaymentError={(error: unknown) => {
+            const message = error instanceof Error ? error.message : "Payment failed. Please check your details and try again.";
+            setCheckoutError(message);
+            onError(message);
+          }}
+          onPaymentSuccess={(data: CheckoutSuccessData) => {
             const transactionId = data?.transactionId || String(paymentSession.checkoutSessionId || "");
             onSuccess(transactionId ? String(transactionId) : undefined);
           }}
-        />
+        >
+          {({ submit, isSubmitting }) => (
+            <CommasSubmitBridge
+              submit={submit}
+              isSubmitting={isSubmitting}
+              onControllerChange={onSubmitControllerChange}
+            />
+          )}
+        </SubmitButton>
       </CheckoutProvider>
-      <div className="px-2 pb-2 pt-3 text-xs text-[#626467]">
+      <div className="px-2 pb-2 pt-3 text-xs text-white/50">
         Secure payment powered by Commas. Total due: {formatCurrency(amount)}
       </div>
+      <style jsx global>{`
+        .commas-checkout-frame {
+          overflow: hidden !important;
+        }
+
+        .commas-checkout-frame iframe {
+          width: calc(100% + 18px) !important;
+          max-width: none !important;
+        }
+      `}</style>
     </div>
   );
+}
+
+type CommasSubmitController = {
+  submit: () => void;
+  isSubmitting: boolean;
+};
+
+function CommasSubmitBridge({
+  submit,
+  isSubmitting,
+  onControllerChange,
+}: {
+  submit: () => void;
+  isSubmitting: boolean;
+  onControllerChange?: (controller: CommasSubmitController | null) => void;
+}) {
+  const submitRef = useRef(submit);
+  const stableSubmit = useCallback(() => {
+    submitRef.current();
+  }, []);
+
+  useEffect(() => {
+    submitRef.current = submit;
+  }, [submit]);
+
+  useEffect(() => {
+    if (!onControllerChange) return;
+    onControllerChange({ submit: stableSubmit, isSubmitting });
+    return () => onControllerChange(null);
+  }, [isSubmitting, onControllerChange, stableSubmit]);
+
+  return null;
 }
 
 function CommasGatewayErrors({
@@ -870,6 +950,7 @@ function StripePaymentFormMulti({
   const [discountData, setDiscountData] = useState<any>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
+  const [commasSubmitController, setCommasSubmitController] = useState<CommasSubmitController | null>(null);
 
   // Terms&Condn accept
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -1590,6 +1671,65 @@ function StripePaymentFormMulti({
     }
   };
 
+  const handleCommasEmbeddedSubmit = async (submit: () => void) => {
+    if (!acceptTerms) {
+      onError("Please accept Terms & Conditions to continue.");
+      return;
+    }
+
+    if (!acceptServiceAgreement) {
+      onError("Please accept the Service Agreement to continue.");
+      return;
+    }
+
+    if (referralCode.length > 0) {
+      const isValid = await validateReferralCodeNow(referralCode);
+      if (!isValid) {
+        onError("Please enter a valid referral code or remove it.");
+        return;
+      }
+    }
+
+    if (discountCode.length > 0) {
+      const isValid = await validateDiscountCodeNow(discountCode);
+      if (!isValid) {
+        onError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
+        return;
+      }
+    }
+
+    pushToDataLayer("booking_payment_initiated ", {
+      type: "Action Tracking",
+      page_name: "Payment Page",
+      location_in_website: "book_a_shoot_payment_page",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      user_type: isAuthenticated && user?.userTypeId ? USER_TYPE[user.userTypeId] : "Guest",
+      email: isAuthenticated ? user?.email : booking.email,
+      phone: isAuthenticated ? user?.phone_number : booking.phone,
+      duration_on_page: performance.now() / 1000,
+      booking_id: booking?.bookingId,
+      full_name: booking.fullName,
+    });
+
+    pushToDataLayer("add_payment_info", {
+      currency: "USD",
+      value: amount,
+      payment_type: "commas_embedded_checkout",
+      coupon: discountCode || undefined,
+      page_name: "Payment Page",
+      location_in_website: "book_a_shoot_payment_page",
+      user_id: isAuthenticated ? user?.id : "Guest",
+      booking_id: booking?.bookingId,
+      items: [{
+        item_name: booking?.shoot_name || "Shoot Booking",
+        price: amount,
+        quantity: 1
+      }]
+    });
+
+    submit();
+  };
+
   return (
     <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10">
       <h3 className="font-bold mb-7 text-base lg:text-2xl">
@@ -1597,14 +1737,20 @@ function StripePaymentFormMulti({
       </h3>
 
       {!isFree && (
-        <div className="bg-white rounded-[10px] p-4 lg:p-5 flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3 text-[#212122]">
+        <div
+          className={`rounded-[10px] p-4 lg:p-5 flex items-center justify-between mb-6 ${
+            paymentSession.provider === "commas"
+              ? "border border-white/15 bg-[#272626] text-white"
+              : "bg-white text-[#212122]"
+          }`}
+        >
+          <div className="flex items-center gap-3">
             <CreditCard className="w-5 h-5 lg:w-9 lg:h-9" />
             <div className="flex flex-col">
               <span className="text-base font-medium">
                 {paymentSession.provider === "commas" ? "Commas Secure Checkout" : "Stripe Secure Payment"}
               </span>
-              <span className="text-sm">
+              <span className={`text-sm ${paymentSession.provider === "commas" ? "text-white/70" : ""}`}>
                 {paymentSession.provider === "commas"
                   ? isCommasEmbedded
                     ? "Complete payment securely below without leaving this page."
@@ -1666,6 +1812,17 @@ function StripePaymentFormMulti({
               />
             </div>
           </>
+        )}
+
+        {isCommasEmbedded && (
+          <CommasEmbeddedCheckout
+            paymentSession={paymentSession}
+            amount={amount}
+            booking={booking}
+            onSuccess={onCommasSuccess}
+            onError={onError}
+            onSubmitControllerChange={setCommasSubmitController}
+          />
         )}
 
         {/* Referral Code */}
@@ -1871,18 +2028,25 @@ function StripePaymentFormMulti({
           )}
         </div>
 
-        {isCommasEmbedded && (
-          <CommasEmbeddedCheckout
-            paymentSession={paymentSession}
-            amount={amount}
-            booking={booking}
-            onSuccess={onCommasSuccess}
-            onError={onError}
-          />
-        )}
-
         {/* Submit Button */}
-        {!isCommasEmbedded && (
+        {isCommasEmbedded ? (
+          <Button
+            type="button"
+            disabled={!commasSubmitController || commasSubmitController.isSubmitting}
+            onClick={() => {
+              if (!commasSubmitController) {
+                onError("Payment system not initialized");
+                return;
+              }
+              void handleCommasEmbeddedSubmit(commasSubmitController.submit);
+            }}
+            className="w-fit h-14 lg:h-[96px] px-5 lg:px-12 bg-[#E8D1AB] hover:bg-[#dcb98a] text-black text-base lg:text-2xl font-medium rounded-[10px] lg:rounded-[20px] shadow-[0_0_20px_-5px_rgba(232,209,171,0.3)] disabled:opacity-50"
+          >
+            {commasSubmitController?.isSubmitting
+              ? "Processing..."
+              : `Confirm & Pay ${formatCurrency(amount)}`}
+          </Button>
+        ) : (
           <Button
             type="submit"
             disabled={isProcessing || (!isFree && isStripePayment && !stripe)}
