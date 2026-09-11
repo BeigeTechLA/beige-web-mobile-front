@@ -158,21 +158,44 @@ const normalizeLocationValue = (value: unknown): LocationValue => {
 const normalizeSocialLinks = (value: unknown): SocialLinkItem[] => {
   const parsed = parseMaybeJson(value);
 
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+  if (!parsed) {
     return [];
   }
 
-  return Object.entries(parsed as Record<string, unknown>)
-    .filter(([, url]) => Boolean(url && String(url).trim()))
-    .map(([platform, url], index) => {
-      const platformInfo = SOCIAL_ICONS.find((item) => item.id === platform.toLowerCase());
-      return {
-        id: `${platform}-${index}`,
-        platform,
-        url: String(url),
-        name: platformInfo?.label || platform,
-      };
-    });
+  if (Array.isArray(parsed)) {
+    return parsed
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item && typeof item === "object" && (item as any).platform && String((item as any).url || "").trim())
+      )
+      .map((item, index) => {
+        const platform = String(item.platform || "").trim().toLowerCase();
+        const platformInfo = SOCIAL_ICONS.find((icon) => icon.id === platform);
+        return {
+          id: (item.id as string | number) ?? index,
+          platform,
+          url: String(item.url),
+          name: String(item.name || platformInfo?.label || platform),
+        };
+      });
+  }
+
+  // Legacy fallback: a platform-keyed object, e.g. { facebook: "url" }.
+  if (typeof parsed === "object") {
+    return Object.entries(parsed as Record<string, unknown>)
+      .filter(([, url]) => Boolean(url && String(url).trim()))
+      .map(([platform, url], index) => {
+        const platformInfo = SOCIAL_ICONS.find((item) => item.id === platform.toLowerCase());
+        return {
+          id: `${platform}-${index}`,
+          platform,
+          url: String(url),
+          name: platformInfo?.label || platform,
+        };
+      });
+  }
+
+  return [];
 };
 
 const normalizePortfolioLinks = (profileData?: Record<string, any> | null): SocialLinkItem[] => {
@@ -545,12 +568,14 @@ export function GoogleCreatorOnboardingModal({
       };
     });
 
-    const socialLinksPayload: Record<string, string> = {};
-    links.forEach((link) => {
-      if (link.platform && link.url) {
-        socialLinksPayload[link.platform] = link.url;
-      }
-    });
+    const socialLinksPayload = links
+      .filter((link) => link.platform && link.url)
+      .map((link, index) => ({
+        id: typeof link.id === "number" || typeof link.id === "string" ? link.id : index,
+        platform: link.platform,
+        url: link.url,
+        name: link.name || link.platform,
+      }));
 
     const portfolioLinksPayload = portfolioLinks
       .filter((link) => link.platform && link.url)
