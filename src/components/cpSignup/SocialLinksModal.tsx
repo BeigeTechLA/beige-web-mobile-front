@@ -12,16 +12,25 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
   const [linkUrl, setLinkUrl] = useState("");
   const [linkName, setLinkName] = useState("");
   const [editId, setEditId] = useState(null);
+  const [draftLinks, setDraftLinks] = useState(links);
 
   useEffect(() => {
-    if (!open) {
-      setScreen("list");
-      setSelectedPlatform(null);
-      setLinkUrl("");
-      setLinkName("");
-      setEditId(null);
-    }
+  if (!open) {
+  setScreen("list");
+  setSelectedPlatform(null);
+  setLinkUrl("");
+  setLinkName("");
+  setEditId(null);
+}
+
   }, [open]);
+
+    useEffect(() => {
+    if (open) {
+      setDraftLinks(links);
+    }
+  }, [open, links]);
+
 
   const handlePlatformSelect = (platformId) => {
     setSelectedPlatform(platformId);
@@ -49,21 +58,45 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
 
   const saveLink = () => {
     if (!selectedPlatform || !linkUrl.trim()) return;
-    const platformData = SOCIAL_ICONS.find((p) => p.id === selectedPlatform);
-    const autoName = selectedPlatform !== "custom" ? platformData.label : linkName.trim();
+    const platformData = SOCIAL_ICONS.find(
+      (p) => p.id === selectedPlatform
+    );
+    const autoName =
+      selectedPlatform !== "custom"
+        ? platformData?.label || "Custom Link"
+        : linkName.trim();
+    if (selectedPlatform === "custom" && !linkName.trim()) return;
 
-    let updated = [...links];
+    let updated = [...draftLinks];
     if (screen === "edit") {
-      updated = updated.map((i) => i.id === editId ? { ...i, platform: selectedPlatform, url: linkUrl, name: autoName } : i);
-    } else {
-      updated.push({ id: Date.now(), platform: selectedPlatform, url: linkUrl.trim(), name: autoName });
-    }
-    onChange(updated);
-    setScreen("list");
-  };
+      updated = updated.map((item) =>
+        item.id === editId
+          ? {
+              ...item,
+              platform: selectedPlatform,
+              url: linkUrl.trim(),
+              name: autoName,
+            }
+          : item
+      );
+   } else {
+    updated.push({
+      id: Date.now(),
+      platform: selectedPlatform,
+      url: linkUrl.trim(),
+      name: autoName,
+    });
+  }
+      setDraftLinks(updated);
+      setScreen("list");
+      setSelectedPlatform(null);
+      setLinkUrl("");
+      setLinkName("");
+      setEditId(null);
+    };
 
   const deleteLink = (id) => {
-    onChange(links.filter((l) => l.id !== id));
+    setDraftLinks((prev) => prev.filter((link) => link.id !== id));
   };
 
   return (
@@ -145,7 +178,13 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
               <div className="flex justify-end mt-6 gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => setScreen("list")}
+                  onClick={() => {
+                    setScreen("list");
+                    setSelectedPlatform(null);
+                    setLinkUrl("");
+                    setLinkName("");
+                    setEditId(null);
+                  }}
                   className={`rounded-full px-6 border ${isDark
                       ? "border-white/20 text-white hover:bg-white/5"
                       : "border-black/10 text-black hover:bg-black/5"
@@ -168,14 +207,14 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
 
           {screen === "list" && (
             <>
-              {links.length > 0 && (
+             {draftLinks.length > 0 && (
                 <p className={`text-sm mb-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                  {links.length}/7
+                  {draftLinks.length}/7
                 </p>
               )}
 
               <div className="space-y-3 max-h-[260px] overflow-auto pr-2">
-                {links.map((item) => {
+                {draftLinks.map((item) => {
                   const platform = SOCIAL_ICONS.find((i) => i.id === item.platform);
                   return (
                     <div
@@ -220,11 +259,19 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
                 })}
               </div>
 
-              <button
-                onClick={startAdd}
-                className={`flex items-center gap-2 mt-4 text-sm hover:underline ${isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"}`}
-              >
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center ${isDark ? "border-[#E8D1AB]/30" : "border-[#cbb38b]/30"}`}>
+          <button
+            onClick={startAdd}
+            className={`flex items-center gap-2 mt-4 text-sm hover:underline cursor-pointer ${
+              isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"
+            }`}
+          >
+                <div
+                  className={`w-8 h-8 rounded-full border flex items-center justify-center ${
+                    isDark
+                      ? "border-[#E8D1AB]/30"
+                      : "border-[#cbb38b]/30"
+                  }`}
+                >
                   <Plus size={16} />
                 </div>
                 Add another link
@@ -242,7 +289,10 @@ export default function SocialLinksModal({ open, onClose, links, onChange, isDar
                   Close
                 </Button>
                 <Button
-                  onClick={() => { onChange(links); onClose(); }}
+                  onClick={() => {
+                    onChange(draftLinks);
+                    onClose();
+                  }}
                   className={`rounded-full px-6 font-bold ${isDark
                       ? "bg-[#E8D1AB] text-black hover:bg-[#DCD1BE]"
                       : "bg-[#cbb38b] text-white hover:bg-[#bfa57c]"

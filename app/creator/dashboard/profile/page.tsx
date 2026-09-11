@@ -677,24 +677,26 @@ export default function ProfilePage() {
 
     if (!crewMemberId) return;
 
-    // Convert Array [{platform: 'linkedin', url: '...'}] back to Object {linkedin: '...'}
-    const linksObject: Record<string, string> = {};
-    updatedLinksArray.forEach(item => {
-      linksObject[item.platform] = item.url;
-    });
+    
+    const sanitizedLinks = updatedLinksArray.map((item, index) => ({
+      id: item.id ?? index,
+      platform: item.platform,
+      url: item.url,
+      name: item.name,
+    }));
 
     const payload = {
       crew_member_id: parseInt(crewMemberId),
-      social_media_links: JSON.stringify(linksObject)
+      social_media_links: JSON.stringify(sanitizedLinks)
     };
 
     try {
       const response: any = await EditMyProfile(payload);
       if (response.data && response.data.error === false) {
-        setSocialLinks(updatedLinksArray);
+        setSocialLinks(sanitizedLinks);
         setIsSocialLinksModalOpen(false);
         // Optional: Update local profile state as well
-        setProfile((prev: any) => ({ ...prev, social_media_links: JSON.stringify(linksObject) }));
+        setProfile((prev: any) => ({ ...prev, social_media_links: JSON.stringify(sanitizedLinks) }));
       }
     } catch (err) {
       console.error("Failed to update social links:", err);
