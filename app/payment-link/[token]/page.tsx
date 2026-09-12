@@ -44,13 +44,15 @@ export default function PaymentLinkPage() {
 
   const handleProceedToPayment = useCallback(() => {
     if (bookingId) {
-      let url = `/search-results/payment?shootId=${bookingId}&paymentLink=${encodeURIComponent(token)}`;
-      if (paymentDetails?.discount_code) {
-        url += `&discount=${paymentDetails.discount_code}`;
-      }
-      if (requestedAmount) {
-        url += `&amount=${encodeURIComponent(String(requestedAmount))}`;
-      }
+      // Stripe checkout is intentionally disabled while offline payments are in use.
+      // const url = `/search-results/payment?shootId=${bookingId}&paymentLink=${encodeURIComponent(token)}`;
+      // if (paymentDetails?.discount_code) {
+      //   url += `&discount=${paymentDetails.discount_code}`;
+      // }
+      // if (requestedAmount) {
+      //   url += `&amount=${encodeURIComponent(String(requestedAmount))}`;
+      // }
+      const url = `/payment-link/${encodeURIComponent(token)}/offline-payment`;
       console.log("Redirecting to:", url);
       router.push(url);
     }

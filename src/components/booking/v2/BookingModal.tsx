@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
+import { persistGuestBookingAccess } from "@/lib/guestBookingAccess";
 import { Step1ProjectNeeds } from "./steps/Step1_ProjectNeeds";
 import { Step2ShootType } from "./steps/Step2_ShootType";
 import { Step3InfoBudget } from "./steps/Step3_InfoBudget";
@@ -205,6 +206,7 @@ export const BookingModal = ({ isOpen, onClose }: BookingModalProps) => {
 
       // Call the guest booking API
       const result = await createGuestBooking(orderData).unwrap();
+      persistGuestBookingAccess(result);
       const realBookingId = result.booking_id;
 
       console.log("Guest booking created successfully:", result);

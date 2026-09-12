@@ -17,6 +17,7 @@ import { Step4Review } from "@/components/book-a-shoot/Step4Review";
 
 import { ArrowLeft } from "lucide-react";
 import { useCreateGuestBookingMutation } from "@/lib/redux/features/booking/guestBookingApi";
+import { persistGuestBookingAccess } from "@/lib/guestBookingAccess";
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
 import {
   selectQuote,
@@ -240,6 +241,7 @@ export const BookAShootV2 = () => {
       };
 
       const bookingResult = await createGuestBooking(bookingData).unwrap();
+      persistGuestBookingAccess(bookingResult);
 
       toast.success("Booking Created!", {
         description: "We're now finding the best creators for your project.",

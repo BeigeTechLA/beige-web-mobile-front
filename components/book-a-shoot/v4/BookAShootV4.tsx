@@ -30,6 +30,7 @@ import StudioScheduleSync from "./components/StudioScheduleSync";
 import type { Creator } from "@/lib/types";
 import type { QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { persistGuestBookingAccess } from "@/lib/guestBookingAccess";
 import {
   useCreateGuestBookingV4Mutation,
   useUpdateGuestBookingV4Mutation,
@@ -484,6 +485,7 @@ export const BookAShootV4 = () => {
         ...payload,
       }).unwrap();
 
+      persistGuestBookingAccess(result.data || {});
       if (result?.data?.booking_id) setDraftBookingId(result.data.booking_id);
     } catch (error) {
       console.error("BookAShootV4 lead tracking failed:", error);
@@ -989,6 +991,8 @@ export const BookAShootV4 = () => {
             data: finalBookingData,
           }).unwrap()
         : await createGuestBooking(finalBookingData).unwrap();
+
+      persistGuestBookingAccess(submissionResult, finalBookingData.guest_email);
 
       toast.success("Booking secured", {
         description: "Redirecting to secure payment.",

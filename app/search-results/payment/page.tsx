@@ -33,6 +33,8 @@ import { BookingSummaryModal } from "@/src/components/landing/BookingSummaryModa
 import { AffiliateShootDetailsForm } from "@/components/affiliate/AffiliateShootDetailsForm";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 import { getDashboardPathForUser } from "@/lib/auth-routing";
+import apiClient from "@/lib/apiClient";
+import { getGuestBookingAccess } from "@/lib/guestBookingAccess";
 
 const USER_TYPE: Record<number, string> = {
   1: "Admin",
@@ -1597,7 +1599,12 @@ function MultiCreatorPaymentContent() {
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
   }, [paymentLinkAmountParam]);
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    token: authenticatedToken,
+  } = useAuth();
 
   // State
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
@@ -1613,6 +1620,7 @@ function MultiCreatorPaymentContent() {
   const [isDetailsFormOpen, setIsDetailsFormOpen] = useState(false);
   const [useAccountCredit, setUseAccountCredit] = useState(false);
   const paymentIntentRequestId = useRef(0);
+  const offlineRedirectStarted = useRef(false);
   const bookingEmail = useMemo(() => {
     const value =
       paymentDetails?.booking?.guest_email ||
@@ -1882,6 +1890,56 @@ function MultiCreatorPaymentContent() {
     }
   };
 
+  const redirectToOfflinePayment = async () => {
+    if (!shootId || offlineRedirectStarted.current) return;
+
+    const guestAccess = authenticatedToken ? null : getGuestBookingAccess(shootId);
+    if (!authenticatedToken && !guestAccess) {
+      setError("We couldn't verify this booking. Please start over from your booking confirmation email or link.");
+      setIsLoading(false);
+      return;
+    }
+
+    offlineRedirectStarted.current = true;
+    try {
+      const response = await apiClient.getInstance().post<{
+        success: boolean;
+        message?: string;
+        data?: { link_token?: string };
+      }>(
+        `payments/offline/bookings/${encodeURIComponent(shootId)}/payment-link`,
+        guestAccess ? { guest_email: guestAccess.guestEmail } : undefined,
+        {
+          headers: authenticatedToken
+            ? { Authorization: `Bearer ${authenticatedToken}` }
+            : { "X-Guest-Booking-Token": guestAccess!.token },
+        },
+      );
+      const payload = response.data;
+      const token = payload.data?.link_token;
+
+      if (!payload.success || !token) {
+        throw new Error(payload.message || "Unable to prepare offline payment instructions.");
+      }
+
+      router.replace(`/payment-link/${encodeURIComponent(token)}/offline-payment`);
+    } catch (redirectError) {
+      offlineRedirectStarted.current = false;
+      const apiError = redirectError as Error & { status?: number };
+      const message = apiError.status === 403
+        ? guestAccess
+          ? "We couldn't verify this booking for the email used to create it."
+          : "This booking does not belong to your account."
+        : apiError.status === 404
+          ? "This booking could not be found."
+          : apiError.status === 409
+            ? "This booking is already fully paid and has no remaining balance."
+            : apiError.message || "Unable to prepare offline payment instructions.";
+      setError(message);
+      setIsLoading(false);
+    }
+  };
+
   const refreshPaymentIntent = async (updatedDetails: any, useCreditOverride?: boolean) => {
     setIsUpdatingIntent(true);
     await fetchIntent(updatedDetails, useCreditOverride ?? useAccountCredit);
@@ -1915,6 +1973,8 @@ function MultiCreatorPaymentContent() {
 
   useEffect(() => {
     const fetchPaymentDetails = async () => {
+      if (isAuthLoading) return;
+
       if (!shootId) {
         setError("No booking ID provided");
         setIsLoading(false);
@@ -1935,11 +1995,12 @@ function MultiCreatorPaymentContent() {
           throw new Error(response.data.message || "Failed to load payment details");
         }
 
-        const data = response.data.data;
-        setPaymentDetails(data);
-        await fetchIntent(data);
-        setStep("payment");
-        setIsLoading(false);
+        // Stripe checkout is intentionally disabled while offline payments are in use.
+        // setPaymentDetails(data);
+        // await fetchIntent(data);
+        // setStep("payment");
+        // setIsLoading(false);
+        await redirectToOfflinePayment();
       } catch (err: any) {
         console.error("Error fetching payment details:", err);
         setError(err.message || "Failed to load payment information");
@@ -1952,7 +2013,7 @@ function MultiCreatorPaymentContent() {
     }
 
     fetchPaymentDetails();
-  }, [shootId]);
+  }, [shootId, isAuthLoading]);
 
   useEffect(() => {
     const availableCredit = parseFloat(paymentDetails?.account_credit?.available_credit_amount || 0);
@@ -2018,7 +2079,7 @@ function MultiCreatorPaymentContent() {
     return crewImages[parseInt(creatorId) % 10];
   };
 
-  if (isLoading || step === "loading") {
+  if (!error && (isLoading || step === "loading")) {
     return (
       <div className="pt-32 pb-20 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -2256,6 +2317,7 @@ function MultiCreatorPaymentContent() {
                   )}
                 </AnimatePresence>
 
+                {/* Stripe card checkout is retained for restoration after the Stripe feature flag is re-enabled.
                 <Elements stripe={stripePromise}>
                   <StripePaymentFormMulti
                     clientSecret={clientSecret}
@@ -2272,7 +2334,7 @@ function MultiCreatorPaymentContent() {
                     setPaymentDetails={setPaymentDetails}
                     refreshPaymentIntent={refreshPaymentIntent}
                   />
-                </Elements>
+                </Elements> */}
 
                 {/* Beige Gaurantee */}
                 <div className="rounded-2xl border transition-all relative overflow-hidden bg-[#E8D1AB] text-[#1B1B1B] p-4 mt-2 lg:mt-4 flex items-start gap-4 ">

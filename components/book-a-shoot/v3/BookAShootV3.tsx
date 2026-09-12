@@ -14,6 +14,7 @@ import {
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
 import { useTrackEarlyInterestMutation } from "@/lib/redux/features/sales/salesApi";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { persistGuestBookingAccess } from "@/lib/guestBookingAccess";
 
 import {
   BookingDataV3,
@@ -228,6 +229,7 @@ export const BookAShootV3 = () => {
 
         const result = await trackEarlyInterest(earlyInterestPayload).unwrap();
 
+        persistGuestBookingAccess(result?.data || {}, formData.email);
         setDraftBookingId(result?.data?.booking_id);
         updateData({ bookingId: result?.data?.booking_id });
 
@@ -640,6 +642,8 @@ export const BookAShootV3 = () => {
         // Fallback: Create fresh booking
         submissionResult = await createGuestBooking(finalBookingData).unwrap();
       }
+
+      persistGuestBookingAccess(submissionResult, finalBookingData.guest_email);
 
       // add GA event on payment submit in step4
       // pushToDataLayer("booking_payment_confirm_submit", {

@@ -63,6 +63,7 @@ import {
 import { buildEditTypeCounts } from "@/components/book-a-shoot/v3/utils";
 import { socialContentEditTypes, socialContentPhotoEditTypes } from "@/app/data/shootData";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { persistGuestBookingAccess } from "@/lib/guestBookingAccess";
 import { getBrowserTimeZone, getLocalDatePart, getLocalTimePart } from "@/lib/timezone";
 import { useTrackEarlyInterestMutation, useUpdateBookingCrewMutation } from "@/lib/redux/features/sales/salesApi";
 import { useSaveQuoteMutation } from "@/lib/redux/features/pricing/pricingApi";
@@ -1766,6 +1767,7 @@ export const BookAStudio = () => {
 
     try {
       const response = await trackEarlyInterest(payload).unwrap();
+      persistGuestBookingAccess(response.data || {});
       const bookingId = response.data?.booking_id || draftBookingId;
       setDraftBookingId(bookingId || null);
       updateData({ bookingId: bookingId || undefined });
@@ -1993,6 +1995,8 @@ export const BookAStudio = () => {
       const submissionResult = draftBookingId
         ? await updateGuestBooking({ id: draftBookingId, data: finalBookingData }).unwrap()
         : await createGuestBooking(finalBookingData).unwrap();
+
+      persistGuestBookingAccess(submissionResult);
 
       // --- NATIVE GA4 BEGIN_CHECKOUT FOR DIRECT BOOKING FLOW ---
       pushToDataLayer("begin_checkout", {

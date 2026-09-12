@@ -59,6 +59,7 @@ export interface LocationObject {
 
 export interface GuestBookingResponse {
   booking_id: number;
+  guest_booking_access_token?: string;
   project_name: string;
   guest_email: string;
   event_date: string;
