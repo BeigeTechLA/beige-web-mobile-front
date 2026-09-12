@@ -18,6 +18,7 @@ import {
   Settings,
   LogOut,
   X,
+  Package,
   type LucideIcon
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -209,6 +210,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
         { label: 'Disputes', href: '/creator/dashboard/finances/disputes', isPublic: false },
       ],
     },
+    { href: "/creator/dashboard/equipment", icon: Package, label: "Equipment", isPublic: false },
     { href: "/creator/dashboard/profile", icon: User, label: "Profile", isPublic: true },
   ];
 

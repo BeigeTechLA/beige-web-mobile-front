@@ -301,6 +301,67 @@ export const equipmentApi = {
   },
 };
 
+export type CreatorEquipmentPayload = {
+  crew_equipment_id?: number;
+  crew_member_id: number;
+  equipment_name: string;
+  category_id: number;
+  manufacturer: string;
+  model: string;
+  model_number: string;
+  serial_number: string;
+  description: string;
+  market_price: number;
+  rental_price: number;
+  rental_price_type: number;
+  is_available_for_rent: boolean;
+  storage_location: string;
+};
+
+const getCurrentCrewMemberId = () => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const user = JSON.parse(window.localStorage.getItem("revure_user") || "{}");
+    return user?.crew_member_id ? Number(user.crew_member_id) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const creatorEquipmentApi = {
+  getCategories: async () => {
+    const response = await api.get("/equipment/categories");
+    return response.data?.data?.categories ?? [];
+  },
+  getMine: async () => {
+    const response = await api.get("/creator/equipment", { params: { crew_member_id: getCurrentCrewMemberId() } });
+    return response.data?.data ?? [];
+  },
+  getById: async (equipmentId: number) => {
+    const response = await api.get(`/creator/equipment/${equipmentId}`, { params: { crew_member_id: getCurrentCrewMemberId() } });
+    return response.data?.data;
+  },
+  create: async (payload: CreatorEquipmentPayload) => {
+    const response = await api.post("/creator/equipment", payload);
+    return response.data?.data;
+  },
+  uploadPhotos: async (equipmentId: number, photos: File[]) => {
+    const body = new FormData();
+    const crewMemberId = getCurrentCrewMemberId();
+    if (crewMemberId) body.append("crew_member_id", String(crewMemberId));
+    photos.forEach((photo) => body.append("photos[]", photo));
+    await api.post(`/creator/equipment/${equipmentId}/photos`, body, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  remove: async (equipmentId: number) => {
+    await api.delete(`/creator/equipment/${equipmentId}`, { params: { crew_member_id: getCurrentCrewMemberId() } });
+  },
+  deletePhoto: async (crewEquipmentPhotoId: number) => {
+    await api.post("/creator/equipment/delete-photo", { crew_equipment_photo_id: crewEquipmentPhotoId, crew_member_id: getCurrentCrewMemberId() });
+  },
+};
+
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
