@@ -19,14 +19,15 @@ import {
   User,
   CalendarRange,
   Save,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission } from '@/lib/permissions';
-import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from "@/lib/permissions/menuHierarchy";
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = "/images/misc/Quotes.svg";
@@ -71,12 +72,42 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
+  {
+    name: "Dashboard",
+    icon: LayoutDashboard,
+    link: "/admin/dashboard",
+    permissionKeys: ["dashboard"],
+  },
+  {
+    name: "Shoots",
+    icon: Camera,
+    link: "/admin/shoots",
+    permissionKeys: ["shoots"],
+  },
+  {
+    name: "File Manager",
+    icon: FolderOpen,
+    link: "/admin/file-manager",
+    permissionKeys: ["file_manager"],
+  },
+  {
+    name: "Meetings",
+    icon: CalendarClock,
+    link: "/admin/meetings",
+    permissionKeys: ["meetings"],
+  },
+  {
+    name: "Messages",
+    icon: MessageCircle,
+    link: "/admin/messages",
+    permissionKeys: ["messages"],
+  },
+  {
+    name: "Availability",
+    icon: CalendarClock,
+    link: "/admin/availability",
+    permissionKeys: ["availability"],
+  },
   {
     name: "Sales Representative",
     icon: CircleDollarSign,
@@ -144,6 +175,7 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["finances"],
   },
   { name: "Profile", icon: User, link: "/admin/profile" },
+  { name: "Agreements", icon: ClipboardList, link: "/admin/agreements" },
 ];
 
 const SHOOTS_CURRENT_PAGE_KEY = "admin-shoots-current-page-v1";
