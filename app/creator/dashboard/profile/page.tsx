@@ -129,7 +129,7 @@ const getEmbedUrl = (url: string) => {
   }
 
   // YouTube
-  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w-]{11})/);
+  const ytMatch = fullUrl.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/shorts\/|\/v\/|\/watch\?(?:[^#]*&)?v=|\/ytscreeningroom\?(?:[^#]*&)?v=))([\w-]{11})/i);
   if (ytMatch) {
     // Standard embed with controls enabled
     return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=1&rel=0`;
