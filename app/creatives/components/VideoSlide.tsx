@@ -14,10 +14,11 @@ const getYouTubeId = (u: string) => {
   try {
     const urlObj = new URL(u);
     if (urlObj.hostname.includes("youtu.be")) return urlObj.pathname.slice(1);
-    return urlObj.searchParams.get("v");
+    const pathMatch = urlObj.pathname.match(/^\/(?:embed|shorts|v)\/([\w-]{11})(?:\/|$)/i);
+    return urlObj.searchParams.get("v") || pathMatch?.[1] || null;
   } catch {
     // Fallback for non-standard URLs
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu\.be\/|v\/|shorts\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/i;
     const match = u.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
   }
