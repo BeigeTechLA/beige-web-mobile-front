@@ -18,7 +18,7 @@ import ShootDetails, { ShootDetailsData } from "./components/ShootDetails";
 import MatchMakerStep, { TeamSelectionData } from "./components/MatchMaker";
 import CreativeTeam from "./components/CreativeTeam";
 import ChooseCreativePartner from "./components/ChooseCreativePartner";
-import AddOnsStep from "./components/AddOnsStep";
+import AddOnsStep, { type AddOnItem } from "./components/AddOnsStep";
 import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
@@ -30,7 +30,7 @@ import StudioShootDetails, {
 } from "./components/StudioShootDetails";
 
 import type { Creator } from "@/lib/types";
-import type { QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
+import type { PricingItem, QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
   useCreateGuestBookingV4Mutation,
@@ -38,6 +38,7 @@ import {
 } from "@/lib/redux/features/booking/guestBookingApi";
 import {
   useCalculateQuoteFromCreatorsV4Mutation,
+  useGetCatalogQuery,
   useSaveQuoteV4Mutation,
 } from "@/lib/redux/features/pricing/pricingApi";
 import { useTrackEarlyInterestV4Mutation } from "@/lib/redux/features/sales/salesApi";
@@ -158,31 +159,36 @@ const ITEM_IDS = {
   gaffer: 48,
 };
 
-const ADD_ON_LABELS: Record<string, string> = {
-  additional_camera: "Additional Camera",
-  teleprompter: "Teleprompter",
-  drone: "Drone",
-  lavalier_mics: "Additional Lavalier Microphones",
-  green_screen: "Green Screen",
-  backdrop: "Backdrop",
-  additional_lights: "Additional Lights",
-  next_day_editing: "Next-Day Editing",
-  expedited_editing: "Expedited Editing",
-};
-
-const ADD_ON_PRICES: Record<string, number> = {
-  additional_camera: 350,
-  teleprompter: 250,
-  drone: 500,
-  lavalier_mics: 250,
-  green_screen: 500,
-  backdrop: 500,
-  additional_lights: 350,
-  next_day_editing: 750,
-  expedited_editing: 500,
+const ITEM_SLUGS = {
+  photoVideoCreator: "photo-video-creator",
 };
 
 const CREATIVE_PARTNER_HOURLY_RATE = 250;
+const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 375;
+
+const V4_ADD_ON_SLUGS = [
+  "v4-additional-camera",
+  "v4-teleprompter",
+  "v4-drone",
+  "v4-lavalier-mics",
+  "v4-green-screen",
+  "v4-backdrop",
+  "v4-additional-lights",
+  "v4-next-day-editing",
+  "v4-expedited-editing",
+];
+
+const V4_ADD_ON_SLUG_SET = new Set(V4_ADD_ON_SLUGS);
+
+const EDITING_SERVICE_PRICES: Record<string, number> = {
+  highlight_video_4_7: 350,
+  feature_video_10_20: 500,
+  full_feature_video_30_40: 500,
+  reel_10_60: 250,
+  interview_video_1_5: 350,
+  music_video_edit: 500,
+  edited_photos: 250,
+};
 
 const titleize = (value?: string) =>
   String(value || "")
@@ -294,8 +300,69 @@ const getPackageDisplayName = (occasion: string, services: string[]) => {
 };
 
 const getPrimaryCreativeServiceLabel = (services: string[]) => {
-  const service = services.find((item) => item !== "studios") || "photography";
-  return titleize(service);
+  const serviceLabels = services
+    .filter((item) => item !== "studios")
+    .map((item) => titleize(item));
+
+  if (serviceLabels.length === 0) return "Photography";
+  if (serviceLabels.length === 1) return serviceLabels[0];
+  if (serviceLabels.length === 2) return serviceLabels.join(" & ");
+
+  return `${serviceLabels.slice(0, -1).join(", ")} & ${serviceLabels[serviceLabels.length - 1]}`;
+};
+
+const getIncludedPackageOffers = ({
+  hasPhoto,
+  hasVideo,
+}: {
+  hasPhoto: boolean;
+  hasVideo: boolean;
+}) => {
+  if (hasPhoto && hasVideo) {
+    return [
+      "All Raw Files, Images, Audio, Lighting & Insurance Provided",
+      "Up to 45 Minutes Setup Time",
+      "2x Complimentary Revision Rounds",
+      "Digital Delivery",
+    ];
+  }
+
+  if (hasVideo) {
+    return [
+      "All Raw Files, Audio, Lighting & Insurance Provided",
+      "Up to 45 Minutes Setup Time",
+      "2x Complimentary Revision Rounds",
+      "Digital Delivery",
+    ];
+  }
+
+  return [
+    "All Raw Images, Lighting & Insurance Provided",
+    "Up to 45 Minutes Setup Time",
+    "Digital Delivery",
+  ];
+};
+
+const isCatalogAddOnItem = (item: PricingItem) => {
+  if (!V4_ADD_ON_SLUG_SET.has(item.slug)) return false;
+  if (!Number(item.is_active)) return false;
+  if (!Number.isFinite(Number(item.rate)) || Number(item.rate) <= 0) return false;
+  return true;
+};
+
+const cleanCatalogAddOnTitle = (name: string) =>
+  name
+    .replace(/\s*\((flat rate|per video|per mic|per revision|full day)\)\s*/gi, "")
+    .replace(/\s*[-\u2013]\s*/g, " - ")
+    .trim();
+
+const getCatalogAddOnDescription = (item: PricingItem, categoryName: string) => {
+  if (item.description) return item.description;
+  if (item.rate_unit) return item.rate_unit;
+  if (item.rate_type === "per_unit") return "Priced per item.";
+  if (item.rate_type === "per_day") return "Priced per day.";
+  if (item.rate_type === "per_hour") return "Priced per hour.";
+  return categoryName;
 };
 
 const getStudioListItems = () =>
@@ -406,8 +473,8 @@ export const BookAShootV4 = () => {
     scheduleData: null,
     shootDetailsData: null,
     teamSelectionData: null,
-    addOnsQuantities: { additional_camera: 1 },
-    addOnsSubtotal: 350,
+    addOnsQuantities: {},
+    addOnsSubtotal: 0,
     contactInformation: null,
     studioCategory: null,
   });
@@ -443,14 +510,58 @@ export const BookAShootV4 = () => {
   const contentTypes = isStudioBooking
     ? [...new Set([...baseContentTypes, "studio"])]
     : baseContentTypes;
+  const selectedHybridCreators = Number(creativeTeam.photoVideoCreator || 0);
+  const hasPhotoCoverage =
+    contentTypes.includes("photographer") ||
+    selectedHybridCreators > 0;
+  const hasVideoCoverage =
+    contentTypes.includes("videographer") ||
+    selectedHybridCreators > 0;
   const canShowVideoEdits =
-    contentTypes.includes("videographer") || contentTypes.includes("editing");
+    hasVideoCoverage || contentTypes.includes("editing");
   const canShowPhotoEdits =
-    contentTypes.includes("photographer") || contentTypes.includes("editing");
+    hasPhotoCoverage || contentTypes.includes("editing");
   const editOptions = getEditOptionsForShootType(
     bookingState.selectedOccasion,
     canShowVideoEdits,
     canShowPhotoEdits
+  );
+  const { data: pricingCatalog = [] } = useGetCatalogQuery({
+    eventType: bookingState.selectedOccasion || "general",
+  });
+  const addOnsForStep = useMemo<AddOnItem[]>(() => {
+    const catalogItemsBySlug = new Map<
+      string,
+      { item: PricingItem; categoryName: string }
+    >();
+
+    pricingCatalog.forEach((category) => {
+      (category.items || []).forEach((item) => {
+        if (isCatalogAddOnItem(item)) {
+          catalogItemsBySlug.set(item.slug, {
+            item,
+            categoryName: category.name,
+          });
+        }
+      });
+    });
+
+    return V4_ADD_ON_SLUGS.map((slug) => catalogItemsBySlug.get(slug))
+      .filter(
+        (entry): entry is { item: PricingItem; categoryName: string } =>
+          Boolean(entry)
+      )
+      .map(({ item, categoryName }) => ({
+        id: String(item.item_id || item.slug),
+        slug: item.slug,
+        title: cleanCatalogAddOnTitle(item.name),
+        description: getCatalogAddOnDescription(item, categoryName),
+        price: Number(item.rate) || 0,
+      }));
+  }, [pricingCatalog]);
+  const addOnById = useMemo(
+    () => new Map(addOnsForStep.map((addOn) => [addOn.id, addOn])),
+    [addOnsForStep]
   );
 
   const primaryStudio = selectedStudios[0];
@@ -489,6 +600,10 @@ export const BookAShootV4 = () => {
     shootType: bookingState.selectedOccasion,
     durationHours: safeDurationHours,
     selectedAddOnSets: photoEditSetCount,
+    includedPerHourOverride:
+      selectedHybridCreators > 0
+        ? 25 * Number(creativeTeam.photographer || 0) + 10 * selectedHybridCreators
+        : undefined,
   });
   const roundedPhotoEditSummary = {
     includedPerHour: Math.round(photoEditSummary.includedPerHour),
@@ -575,6 +690,61 @@ export const BookAShootV4 = () => {
     : shouldChooseOwn
       ? 11
       : 10;
+  const creativeJourneySteps = [
+    1,
+    2,
+    bookingDetailsStep,
+    detailsStep,
+    matchmakerStep,
+    creativeTeamStep,
+    editsStep,
+    ...(shouldChooseOwn ? [chooseCreativesStep] : []),
+    addOnsStep,
+    summaryStep,
+    confirmStep,
+  ];
+  const studioOnlyJourneySteps = [
+    1,
+    studioOnlyDetailsStep,
+    studioOnlyTypeStep,
+    studioOnlyScheduleStep,
+    studioOnlySelectionStep,
+    studioOnlySummaryStep,
+    studioOnlyConfirmStep,
+  ];
+  const combinedJourneySteps = [
+    1,
+    combinedStudioTypeStep,
+    combinedShootScheduleStep,
+    combinedStudioSelectionStep,
+    combinedOccasionStep,
+    combinedDetailsStep,
+    combinedStudioScheduleStep,
+    combinedMatchmakerStep,
+    combinedCreativeTeamStep,
+    combinedEditsStep,
+    ...(shouldChooseOwn ? [combinedChooseCreativesStep] : []),
+    combinedAddOnsStep,
+    combinedSummaryStep,
+    combinedConfirmStep,
+  ];
+  const currentJourneySteps = isCombinedStudioBooking
+    ? combinedJourneySteps
+    : isStudioOnlyBooking
+      ? studioOnlyJourneySteps
+      : creativeJourneySteps;
+  const getStepMeta = (step: number) => {
+    const stepIndex = currentJourneySteps.indexOf(step);
+    const visibleStep = stepIndex >= 0 ? stepIndex + 1 : 1;
+    const totalSteps = currentJourneySteps.length || 1;
+    const stepNumber = String(visibleStep).padStart(2, "0");
+
+    return {
+      stepNumber,
+      stepLabel: `STEP ${stepNumber}`,
+      completionPercentage: Math.round((visibleStep / totalSteps) * 100),
+    };
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -761,7 +931,7 @@ export const BookAShootV4 = () => {
     const coords = getCoordinates(scheduleData.locationDetails);
 
     setBookingState((prev) => ({ ...prev, scheduleData }));
-    setInternalStep(editsStep);
+    setInternalStep(detailsStep);
     void saveLeadProgress({
       content_type: contentTypes.join(","),
       shoot_type: bookingState.selectedOccasion,
@@ -871,10 +1041,24 @@ export const BookAShootV4 = () => {
     }));
 
     setSelectedStudios(normalizedStudios);
+    setBookingState((prev) => ({
+      ...prev,
+      scheduleData:
+        prev.scheduleData && normalizedStudios[0]?.location
+          ? {
+              ...prev.scheduleData,
+              location: normalizedStudios[0].location,
+              locationDetails: null,
+            }
+          : prev.scheduleData,
+    }));
     setInternalStep(studioOnlySummaryStep);
     void saveLeadProgress({
       content_type: "studio",
       shoot_type: "studio",
+      location: normalizedStudios[0]?.location,
+      location_latitude: null,
+      location_longitude: null,
       studio_total: getSelectedStudiosTotal(normalizedStudios),
       studio_items: normalizedStudios.map((item) => ({
         studio_id: item.studioId,
@@ -971,11 +1155,26 @@ export const BookAShootV4 = () => {
       normalizeSelectedStudios({ selectedStudioIds: studioIds }),
       bookingState.scheduleData
     );
+    const primarySelectedStudio = normalizedStudios[0];
 
     setSelectedStudios(normalizedStudios);
+    setBookingState((prev) => ({
+      ...prev,
+      scheduleData:
+        prev.scheduleData && primarySelectedStudio?.location
+          ? {
+              ...prev.scheduleData,
+              location: primarySelectedStudio.location,
+              locationDetails: null,
+            }
+          : prev.scheduleData,
+    }));
     setInternalStep(combinedOccasionStep);
     void saveLeadProgress({
       content_type: contentTypes.join(","),
+      location: primarySelectedStudio?.location,
+      location_latitude: null,
+      location_longitude: null,
       studio_total: getSelectedStudiosTotal(normalizedStudios),
       studio_items: normalizedStudios.map((item) => ({
         studio_id: item.studioId,
@@ -1030,7 +1229,7 @@ export const BookAShootV4 = () => {
     );
 
     setSelectedStudios(scheduledStudios);
-    setInternalStep(combinedEditsStep);
+    setInternalStep(combinedMatchmakerStep);
     void saveLeadProgress({
       content_type: contentTypes.join(","),
       shoot_type: bookingState.selectedOccasion,
@@ -1048,7 +1247,9 @@ export const BookAShootV4 = () => {
 
   const handleCombinedEditsSubmitted = (editsConfig: EditsConfig) => {
     setBookingState((prev) => ({ ...prev, editsConfig }));
-    setInternalStep(combinedMatchmakerStep);
+    setInternalStep(
+      shouldChooseOwn ? combinedChooseCreativesStep : combinedAddOnsStep
+    );
     void saveLeadProgress({
       edits_needed: editsConfig.needsEdits,
       video_edit_types: editsConfig.videoEditTypes,
@@ -1058,7 +1259,7 @@ export const BookAShootV4 = () => {
 
   const handleEditsSubmitted = (editsConfig: EditsConfig) => {
     setBookingState((prev) => ({ ...prev, editsConfig }));
-    setInternalStep(detailsStep);
+    setInternalStep(shouldChooseOwn ? chooseCreativesStep : addOnsStep);
     void saveLeadProgress({
       edits_needed: editsConfig.needsEdits,
       video_edit_types: editsConfig.videoEditTypes,
@@ -1085,16 +1286,8 @@ export const BookAShootV4 = () => {
   const handleCreativeTeamSubmitted = (updatedTeam: { [key: string]: number }) => {
     setCreativeTeam(updatedTeam);
 
-    if (bookingState.teamSelectionData?.teamOption === "choose-own") {
-      setInternalStep(
-        isCombinedStudioBooking ? combinedChooseCreativesStep : chooseCreativesStep
-      );
-      return;
-    }
-
-    setLetBeigeChoose(true);
-    setSelectedCreatives([]);
-    setInternalStep(isCombinedStudioBooking ? combinedAddOnsStep : 8);
+    setInternalStep(isCombinedStudioBooking ? combinedEditsStep : editsStep);
+    setPricingPreview(null);
   };
 
   const handleChooseCreativePartnerSubmitted = (
@@ -1121,7 +1314,10 @@ export const BookAShootV4 = () => {
   const getSelectedAddOnLabels = () =>
     Object.entries(bookingState.addOnsQuantities)
       .filter(([, quantity]) => Number(quantity) > 0)
-      .map(([key, quantity]) => `${ADD_ON_LABELS[key] || titleize(key)} x${quantity}`);
+      .map(([key, quantity]) => {
+        const addOn = addOnById.get(key);
+        return `${addOn?.title || titleize(key)} x${quantity}`;
+      });
 
   const buildKnownAddOnItems = () => {
     const items: SelectedItem[] = [];
@@ -1143,28 +1339,21 @@ export const BookAShootV4 = () => {
     return items;
   };
 
-  const buildCustomAddOnItems = () =>
+  const buildSelectedCatalogAddOnItems = () =>
     Object.entries(bookingState.addOnsQuantities)
       .filter(([, quantity]) => Number(quantity) > 0)
       .map(([key, quantity]) => {
-        const qty = Number(quantity) || 0;
-        const unitPrice = ADD_ON_PRICES[key] || 0;
-
-        return {
-          key,
-          name: ADD_ON_LABELS[key] || titleize(key),
-          quantity: qty,
-          unit_price: unitPrice,
-          total: unitPrice * qty,
-        };
+        const addOn = addOnById.get(key);
+        return addOn ? { slug: addOn.slug, quantity: Number(quantity) || 0 } : null;
       })
-      .filter((item) => item.quantity > 0 && item.total > 0);
+      .filter((item): item is SelectedItem => !!item && item.quantity > 0);
 
   const buildPricingInputs = () => {
     const roleCounts = {
       videographer: Number(creativeTeam.videographer || 0),
       photographer: Number(creativeTeam.photographer || 0),
       cinematographer: Number(creativeTeam.cinematographer || 0),
+      photoVideoCreator: Number(creativeTeam.photoVideoCreator || 0),
     };
     const totalRoleCount = Object.values(roleCounts).reduce(
       (sum, count) => sum + count,
@@ -1179,12 +1368,20 @@ export const BookAShootV4 = () => {
         const itemId = ITEM_IDS[role as keyof typeof ITEM_IDS];
         if (itemId && count > 0) {
           roleItems.push({ item_id: itemId, quantity: count });
+          return;
+        }
+
+        const slug = ITEM_SLUGS[role as keyof typeof ITEM_SLUGS];
+        if (slug && count > 0) {
+          roleItems.push({ slug, quantity: count });
         }
       });
     }
 
-    const addOnItems = useStudioInclusivePricing ? [] : buildKnownAddOnItems();
-    const customAddOnItems = useStudioInclusivePricing ? [] : buildCustomAddOnItems();
+    const addOnItems = useStudioInclusivePricing
+      ? []
+      : [...buildKnownAddOnItems(), ...buildSelectedCatalogAddOnItems()];
+    const customAddOnItems = [];
     const firstBookingDate =
       bookingState.scheduleData?.bookingType === "multi_day" &&
       bookingState.scheduleData?.bookingDays?.length
@@ -1461,7 +1658,11 @@ export const BookAShootV4 = () => {
         break;
       case "schedule":
         setInternalStep(
-          isCombinedStudioBooking ? combinedShootScheduleStep : bookingDetailsStep
+          isCombinedStudioBooking
+            ? combinedShootScheduleStep
+            : isStudioOnlyBooking
+              ? studioOnlyScheduleStep
+              : bookingDetailsStep
         );
         break;
       case "editing":
@@ -1535,11 +1736,18 @@ export const BookAShootV4 = () => {
       .filter(Boolean)
       .join(", ");
     const roleCost =
-      pricingInputs.totalRoleCount *
-      CREATIVE_PARTNER_HOURLY_RATE *
-      Math.max(1, pricingInputs.shootHours || 1);
+      (
+        Number(creativeTeam.photographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.videographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.cinematographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
+        Number(creativeTeam.photoVideoCreator || 0) * PHOTO_VIDEO_CREATOR_HOURLY_RATE
+      ) * Math.max(1, pricingInputs.shootHours || 1);
+    const videoEditCount = bookingState.editsConfig.videoEditTypes.length;
     const fallbackEditingServiceCost = bookingState.editsConfig.needsEdits
-      ? videoEditCount * 500 + photoEditSetCount * 125
+      ? bookingState.editsConfig.videoEditTypes.reduce(
+          (sum, slug) => sum + (EDITING_SERVICE_PRICES[slug] || 0),
+          0
+        ) + photoEditSetCount * EDITING_SERVICE_PRICES.edited_photos
       : 0;
     const editingServiceCost =
       bookingState.editsConfig.needsEdits && previewLineItems.length > 0
@@ -1615,7 +1823,14 @@ export const BookAShootV4 = () => {
     const roleTitleParts = [
       creativeTeam.photographer ? `Photographer x${creativeTeam.photographer}` : "",
       creativeTeam.videographer ? `Videographer x${creativeTeam.videographer}` : "",
+      creativeTeam.photoVideoCreator
+        ? `Photographer + Videographer (1 person) x${creativeTeam.photoVideoCreator}`
+        : "",
     ].filter(Boolean);
+    const packageOffers = getIncludedPackageOffers({
+      hasPhoto: hasPhotoCoverage,
+      hasVideo: hasVideoCoverage,
+    });
 
     return {
       serviceName:
@@ -1627,11 +1842,7 @@ export const BookAShootV4 = () => {
             ),
       baseServiceCost: selectedStudios.length > 0 ? studioCost : displayedRoleCost,
       showBaseServiceCost: selectedStudios.length > 0,
-      packageOffers: [
-        "All Raw Images, Lighting & Insurance Provided",
-        "Up to 45 Minutes Setup Time",
-        "Digital Delivery",
-      ],
+      packageOffers,
       photosIncluded: roundedPhotoEditSummary.includedCount,
       extraPhotoUnitsText: `Extra Photo Units x${photoEditSetCount}`,
       extraPhotosCount: roundedPhotoEditSummary.extraCount,
@@ -1724,11 +1935,10 @@ export const BookAShootV4 = () => {
         [...formattedAddOns, ...studioAddOns].length > 0
           ? [...formattedAddOns, ...studioAddOns]
           : ["No add-ons selected"],
-      includedServices: [
-        "All Raw Images, Lighting & Insurance Provided",
-        "Up to 45 Minutes Setup Time",
-        "Digital Delivery",
-      ],
+      includedServices: getIncludedPackageOffers({
+        hasPhoto: hasPhotoCoverage,
+        hasVideo: hasVideoCoverage,
+      }),
     };
   };
 
@@ -1760,8 +1970,8 @@ export const BookAShootV4 = () => {
               initialSelectedKey={bookingState.studioCategory || "production"}
               title="What kind of space do you need?"
               subtitle="Choose the setup that best fits your project."
-              stepNumber="02"
-              completionPercentage={25}
+              stepNumber={getStepMeta(combinedStudioTypeStep).stepNumber}
+              completionPercentage={getStepMeta(combinedStudioTypeStep).completionPercentage}
               showCrewInput
               showShootType
             />
@@ -1773,8 +1983,10 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedStudioTypeStep)}
               onBrowseStudios={() => toast.info("Choose your studio after setting the shoot schedule.")}
               initialData={bookingState.scheduleData}
-              stepNumber="02"
-              completionPercentage={35}
+              isStudioFlow
+              showStudioCreatorBanner={false}
+              stepNumber={getStepMeta(combinedShootScheduleStep).stepNumber}
+              completionPercentage={getStepMeta(combinedShootScheduleStep).completionPercentage}
             />
           );
         case combinedStudioSelectionStep:
@@ -1784,8 +1996,8 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedShootScheduleStep)}
               studios={studioCards}
               initialSelectedStudioIds={selectedStudioIds}
-              stepNumber="03"
-              completionPercentage={45}
+              stepNumber={getStepMeta(combinedStudioSelectionStep).stepNumber}
+              completionPercentage={getStepMeta(combinedStudioSelectionStep).completionPercentage}
             />
           );
         case combinedOccasionStep:
@@ -1796,8 +2008,8 @@ export const BookAShootV4 = () => {
               initialSelected={bookingState.selectedOccasion}
               title="What are you shooting in the studio?"
               subtitle="Select what you need the studio for and we'll tailor the rest of your booking accordingly."
-              stepNumber="04"
-              completionPercentage={55}
+              stepNumber={getStepMeta(combinedOccasionStep).stepNumber}
+              completionPercentage={getStepMeta(combinedOccasionStep).completionPercentage}
             />
           );
         case combinedDetailsStep:
@@ -1807,8 +2019,8 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedOccasionStep)}
               initialNotes={bookingState.shootDetailsData?.notes || ""}
               initialLinks={bookingState.shootDetailsData?.links || []}
-              stepNumber="05"
-              completionPercentage={62}
+              stepNumber={getStepMeta(combinedDetailsStep).stepNumber}
+              completionPercentage={getStepMeta(combinedDetailsStep).completionPercentage}
             />
           );
         case combinedStudioScheduleStep:
@@ -1833,15 +2045,15 @@ export const BookAShootV4 = () => {
                     }
                   : undefined
               }
-              stepNumber="03"
-              completionPercentage={68}
+              stepNumber={getStepMeta(combinedStudioScheduleStep).stepNumber}
+              completionPercentage={getStepMeta(combinedStudioScheduleStep).completionPercentage}
             />
           );
         case combinedEditsStep:
           return (
             <EditsNeeded
               onContinue={handleCombinedEditsSubmitted}
-              onBack={() => setInternalStep(combinedStudioScheduleStep)}
+              onBack={() => setInternalStep(combinedCreativeTeamStep)}
               initialConfig={bookingState.editsConfig}
               baseFreePhotos={roundedPhotoEditSummary.includedCount}
               photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
@@ -1850,27 +2062,30 @@ export const BookAShootV4 = () => {
               photoEditOptions={editOptions.photoEditOptions}
               showVideoEdits={canShowVideoEdits}
               showPhotoEdits={canShowPhotoEdits}
-              stepLabel="STEP 04"
-              progressPercent={72}
+              stepLabel={getStepMeta(combinedEditsStep).stepLabel}
+              progressPercent={getStepMeta(combinedEditsStep).completionPercentage}
             />
           );
         case combinedMatchmakerStep:
           return (
             <MatchMakerStep
               onContinue={handleTeamSelected}
-              onBack={() => setInternalStep(combinedEditsStep)}
+              onBack={() => setInternalStep(combinedStudioScheduleStep)}
               initialOption={
                 bookingState.teamSelectionData?.teamOption || "best-match"
               }
               packageTitle={`${titleize(bookingState.selectedOccasion)} - ${primaryService}`}
-              step="05"
-              completionPercentage={78}
+              step={getStepMeta(combinedMatchmakerStep).stepNumber}
+              completionPercentage={getStepMeta(combinedMatchmakerStep).completionPercentage}
             />
           );
         case combinedCreativeTeamStep:
           return (
             <CreativeTeam
               initialCounts={creativeTeam}
+              selectedServices={bookingState.selectedServices}
+              stepNumber={getStepMeta(combinedCreativeTeamStep).stepNumber}
+              completionPercentage={getStepMeta(combinedCreativeTeamStep).completionPercentage}
               onBack={() => setInternalStep(combinedMatchmakerStep)}
               onContinue={handleCreativeTeamSubmitted}
             />
@@ -1878,7 +2093,7 @@ export const BookAShootV4 = () => {
         case combinedChooseCreativesStep:
           return shouldChooseOwn ? (
             <ChooseCreativePartner
-              onBack={() => setInternalStep(combinedCreativeTeamStep)}
+              onBack={() => setInternalStep(combinedEditsStep)}
               onContinue={handleChooseCreativePartnerSubmitted}
               requiredCount={Object.values(creativeTeam).reduce(
                 (sum, count) => sum + Number(count || 0),
@@ -1890,15 +2105,21 @@ export const BookAShootV4 = () => {
               requiredRoles={{
                 video: Number(creativeTeam.videographer || 0),
                 photo: Number(creativeTeam.photographer || 0),
+                hybrid: Number(creativeTeam.photoVideoCreator || 0),
               }}
               initialSelectedCreatives={selectedCreatives}
               initialLetBeigeChoose={letBeigeChoose}
+              stepNumber={getStepMeta(combinedChooseCreativesStep).stepNumber}
+              completionPercentage={getStepMeta(combinedChooseCreativesStep).completionPercentage}
             />
           ) : (
             <AddOnsStep
-              onBack={() => setInternalStep(combinedCreativeTeamStep)}
+              onBack={() => setInternalStep(combinedEditsStep)}
               onContinue={handleAddOnsSubmitted}
               initialAddOns={bookingState.addOnsQuantities}
+              addOns={addOnsForStep}
+              stepNumber={getStepMeta(combinedAddOnsStep).stepNumber}
+              completionPercentage={getStepMeta(combinedAddOnsStep).completionPercentage}
             />
           );
         case 13:
@@ -1907,6 +2128,9 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedChooseCreativesStep)}
               onContinue={handleAddOnsSubmitted}
               initialAddOns={bookingState.addOnsQuantities}
+              addOns={addOnsForStep}
+              stepNumber={getStepMeta(combinedAddOnsStep).stepNumber}
+              completionPercentage={getStepMeta(combinedAddOnsStep).completionPercentage}
             />
           ) : (
             <ShootSummaryStep
@@ -1915,6 +2139,8 @@ export const BookAShootV4 = () => {
               onEditStep={handleEditStepByName}
               summaryData={getSummaryData()}
               initialContact={bookingState.contactInformation}
+              stepNumber={getStepMeta(combinedSummaryStep).stepNumber}
+              completionPercentage={getStepMeta(combinedSummaryStep).completionPercentage}
             />
           );
         case 14:
@@ -1925,6 +2151,8 @@ export const BookAShootV4 = () => {
               onEditStep={handleEditStepByName}
               summaryData={getSummaryData()}
               initialContact={bookingState.contactInformation}
+              stepNumber={getStepMeta(combinedSummaryStep).stepNumber}
+              completionPercentage={getStepMeta(combinedSummaryStep).completionPercentage}
             />
           ) : (
             <ConfirmAndPay
@@ -1932,6 +2160,8 @@ export const BookAShootV4 = () => {
               onConfirmAndPay={handleConfirmAndPay}
               onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
               pricingData={getPricingData()}
+              stepNumber={getStepMeta(combinedConfirmStep).stepNumber}
+              completionPercentage={getStepMeta(combinedConfirmStep).completionPercentage}
             />
           );
         case 15:
@@ -1941,6 +2171,8 @@ export const BookAShootV4 = () => {
               onConfirmAndPay={handleConfirmAndPay}
               onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
               pricingData={getPricingData()}
+              stepNumber={getStepMeta(combinedConfirmStep).stepNumber}
+              completionPercentage={getStepMeta(combinedConfirmStep).completionPercentage}
             />
           ) : (
             <BookingConfirmed />
@@ -1964,6 +2196,8 @@ export const BookAShootV4 = () => {
             onContinue={handleServicesSelected}
             onBack={() => setInternalStep(0)}
             initialSelected={bookingState.selectedServices}
+            stepNumber={getStepMeta(1).stepNumber}
+            completionPercentage={getStepMeta(1).completionPercentage}
           />
         );
       case 2:
@@ -1975,14 +2209,16 @@ export const BookAShootV4 = () => {
             initialDescription={bookingState.shootDetailsData?.notes || ""}
             initialFullName={bookingState.contactInformation?.fullName || ""}
             initialPhoneNumber={bookingState.contactInformation?.phoneNumber || ""}
-            stepNumber="01"
-            completionPercentage={35}
+            stepNumber={getStepMeta(studioOnlyDetailsStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlyDetailsStep).completionPercentage}
           />
         ) : (
           <AskingOccasion
             onContinue={handleOccasionSelected}
             onBack={() => setInternalStep(1)}
             initialSelected={bookingState.selectedOccasion}
+            stepNumber={getStepMeta(2).stepNumber}
+            completionPercentage={getStepMeta(2).completionPercentage}
           />
         );
       case bookingDetailsStep:
@@ -1993,8 +2229,8 @@ export const BookAShootV4 = () => {
             initialSelectedKey={bookingState.studioCategory || "production"}
             title="What kind of space do you need?"
             subtitle="Choose the setup that best fits your project."
-            stepNumber="02"
-            completionPercentage={50}
+            stepNumber={getStepMeta(studioOnlyTypeStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlyTypeStep).completionPercentage}
             showCrewInput
           />
         ) : isStudioBooking ? (
@@ -2002,6 +2238,8 @@ export const BookAShootV4 = () => {
             onContinue={handleStudioSubmitted}
             onBack={() => setInternalStep(2)}
             initialSelectedStudios={selectedStudios}
+            stepNumber={getStepMeta(bookingDetailsStep).stepNumber}
+            completionPercentage={getStepMeta(bookingDetailsStep).completionPercentage}
           />
         ) : (
           <ScheduleShoot
@@ -2009,6 +2247,8 @@ export const BookAShootV4 = () => {
             onBack={() => setInternalStep(2)}
             onBrowseStudios={handleBrowseStudios}
             initialData={bookingState.scheduleData}
+            stepNumber={getStepMeta(bookingDetailsStep).stepNumber}
+            completionPercentage={getStepMeta(bookingDetailsStep).completionPercentage}
           />
         );
       case editsStep:
@@ -2019,13 +2259,13 @@ export const BookAShootV4 = () => {
             onBrowseStudios={() => toast.info("You can add creators after selecting a studio.")}
             isStudioFlow
             initialData={bookingState.scheduleData}
-            stepNumber="03"
-            completionPercentage={70}
+            stepNumber={getStepMeta(studioOnlyScheduleStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlyScheduleStep).completionPercentage}
           />
         ) : (
           <EditsNeeded
             onContinue={handleEditsSubmitted}
-            onBack={() => setInternalStep(bookingDetailsStep)}
+            onBack={() => setInternalStep(creativeTeamStep)}
             initialConfig={bookingState.editsConfig}
             baseFreePhotos={roundedPhotoEditSummary.includedCount}
             photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
@@ -2034,6 +2274,8 @@ export const BookAShootV4 = () => {
             photoEditOptions={editOptions.photoEditOptions}
             showVideoEdits={canShowVideoEdits}
             showPhotoEdits={canShowPhotoEdits}
+            stepLabel={getStepMeta(editsStep).stepLabel}
+            progressPercent={getStepMeta(editsStep).completionPercentage}
           />
         );
       case detailsStep:
@@ -2054,15 +2296,17 @@ export const BookAShootV4 = () => {
               image: studio.image,
               link: `/studios/${studio.id}`,
             }))}
-            stepNumber="04"
-            completionPercentage={85}
+            stepNumber={getStepMeta(studioOnlySelectionStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlySelectionStep).completionPercentage}
           />
         ) : (
           <ShootDetails
             onContinue={handleDetailsSubmitted}
-            onBack={() => setInternalStep(editsStep)}
+            onBack={() => setInternalStep(bookingDetailsStep)}
             initialNotes={bookingState.shootDetailsData?.notes || ""}
             initialLinks={bookingState.shootDetailsData?.links || []}
+            stepNumber={getStepMeta(detailsStep).stepNumber}
+            completionPercentage={getStepMeta(detailsStep).completionPercentage}
           />
         );
       case matchmakerStep:
@@ -2073,6 +2317,8 @@ export const BookAShootV4 = () => {
             onEditStep={handleEditStepByName}
             summaryData={getSummaryData()}
             initialContact={bookingState.contactInformation}
+            stepNumber={getStepMeta(studioOnlySummaryStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlySummaryStep).completionPercentage}
           />
         ) : (
           <MatchMakerStep
@@ -2087,6 +2333,8 @@ export const BookAShootV4 = () => {
             )}
             packageInclusions={packageInclusions}
             showStudioCallout={selectedStudios.length > 0}
+            step={getStepMeta(matchmakerStep).stepNumber}
+            completionPercentage={getStepMeta(matchmakerStep).completionPercentage}
           />
         );
       case creativeTeamStep:
@@ -2096,10 +2344,15 @@ export const BookAShootV4 = () => {
             onConfirmAndPay={handleConfirmAndPay}
             onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
             pricingData={getPricingData()}
+            stepNumber={getStepMeta(studioOnlyConfirmStep).stepNumber}
+            completionPercentage={getStepMeta(studioOnlyConfirmStep).completionPercentage}
           />
         ) : (
           <CreativeTeam
             initialCounts={creativeTeam}
+            selectedServices={bookingState.selectedServices}
+            stepNumber={getStepMeta(creativeTeamStep).stepNumber}
+            completionPercentage={getStepMeta(creativeTeamStep).completionPercentage}
             onBack={() => setInternalStep(matchmakerStep)}
             onContinue={handleCreativeTeamSubmitted}
           />
@@ -2107,7 +2360,7 @@ export const BookAShootV4 = () => {
       case chooseCreativesStep:
         return shouldChooseOwn ? (
           <ChooseCreativePartner
-            onBack={() => setInternalStep(creativeTeamStep)}
+            onBack={() => setInternalStep(editsStep)}
             onContinue={handleChooseCreativePartnerSubmitted}
             requiredCount={Object.values(creativeTeam).reduce(
               (sum, count) => sum + Number(count || 0),
@@ -2119,15 +2372,21 @@ export const BookAShootV4 = () => {
             requiredRoles={{
               video: Number(creativeTeam.videographer || 0),
               photo: Number(creativeTeam.photographer || 0),
+              hybrid: Number(creativeTeam.photoVideoCreator || 0),
             }}
             initialSelectedCreatives={selectedCreatives}
             initialLetBeigeChoose={letBeigeChoose}
+            stepNumber={getStepMeta(chooseCreativesStep).stepNumber}
+            completionPercentage={getStepMeta(chooseCreativesStep).completionPercentage}
           />
         ) : (
           <AddOnsStep
-            onBack={() => setInternalStep(creativeTeamStep)}
+            onBack={() => setInternalStep(editsStep)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
+            addOns={addOnsForStep}
+            stepNumber={getStepMeta(addOnsStep).stepNumber}
+            completionPercentage={getStepMeta(addOnsStep).completionPercentage}
           />
         );
       case 9:
@@ -2136,6 +2395,9 @@ export const BookAShootV4 = () => {
             onBack={() => setInternalStep(chooseCreativesStep)}
             onContinue={handleAddOnsSubmitted}
             initialAddOns={bookingState.addOnsQuantities}
+            addOns={addOnsForStep}
+            stepNumber={getStepMeta(addOnsStep).stepNumber}
+            completionPercentage={getStepMeta(addOnsStep).completionPercentage}
           />
         ) : (
           <ShootSummaryStep
@@ -2144,6 +2406,8 @@ export const BookAShootV4 = () => {
             onEditStep={handleEditStepByName}
             summaryData={getSummaryData()}
             initialContact={bookingState.contactInformation}
+            stepNumber={getStepMeta(summaryStep).stepNumber}
+            completionPercentage={getStepMeta(summaryStep).completionPercentage}
           />
         );
       case 10:
@@ -2154,6 +2418,8 @@ export const BookAShootV4 = () => {
             onEditStep={handleEditStepByName}
             summaryData={getSummaryData()}
             initialContact={bookingState.contactInformation}
+            stepNumber={getStepMeta(summaryStep).stepNumber}
+            completionPercentage={getStepMeta(summaryStep).completionPercentage}
           />
         ) : (
           <ConfirmAndPay
@@ -2161,6 +2427,8 @@ export const BookAShootV4 = () => {
             onConfirmAndPay={handleConfirmAndPay}
             onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
             pricingData={getPricingData()}
+            stepNumber={getStepMeta(confirmStep).stepNumber}
+            completionPercentage={getStepMeta(confirmStep).completionPercentage}
           />
         );
       case 11:
@@ -2170,6 +2438,8 @@ export const BookAShootV4 = () => {
             onConfirmAndPay={handleConfirmAndPay}
             onConnectTeam={() => toast.info("The Beige team will reach out shortly.")}
             pricingData={getPricingData()}
+            stepNumber={getStepMeta(confirmStep).stepNumber}
+            completionPercentage={getStepMeta(confirmStep).completionPercentage}
           />
         ) : (
           <BookingConfirmed />

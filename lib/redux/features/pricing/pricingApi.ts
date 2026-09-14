@@ -207,6 +207,7 @@ export const pricingApi = createApi({
           photographer?: number;
           cinematographer?: number;
           editor?: number;
+          photoVideoCreator?: number;
         };
         event_type?: string;
         shoot_start_date?: string;
@@ -242,6 +243,7 @@ export const pricingApi = createApi({
           photographer?: number;
           cinematographer?: number;
           editor?: number;
+          photoVideoCreator?: number;
         };
         event_type?: string;
         shoot_start_date?: string;

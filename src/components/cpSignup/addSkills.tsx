@@ -18,6 +18,7 @@ type AddSkillsProps = {
   value?: string[];
   onChange: (val: string[]) => void;
   options: SkillOption[];
+  allOptions?: SkillOption[];
   isDark?: boolean;
 };
 
@@ -25,6 +26,7 @@ const AddSkills = ({
   value = [],
   onChange,
   options,
+  allOptions,
   isDark = true
 }: AddSkillsProps) => {
   const [tempSelected, setTempSelected] = useState<string[]>([]);
@@ -59,7 +61,9 @@ const AddSkills = ({
   };
 
   const getLabel = (id: string) => {
-    const found = options.find((opt) => opt.value === id);
+    const found =
+      options.find((opt) => opt.value === id) ||
+      (allOptions || []).find((opt) => opt.value === id);
     return found ? found.label : id;
   };
 
