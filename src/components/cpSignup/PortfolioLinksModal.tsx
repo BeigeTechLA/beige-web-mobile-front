@@ -101,14 +101,19 @@ export default function PortfolioLinksModal({
             Add YouTube, Vimeo, or Google Drive links to showcase your portfolio.
           </p>
 
-          <div className="flex gap-1.5 lg:gap-3 mb-5 overflow-x-auto pb-2">
+          <div className="flex gap-2 lg:gap-3 mb-5 overflow-x-auto pb-2">
             {PORTFOLIO_ICONS.map((s) => {
               const isSelected = selectedPlatform === s.id;
+
               return (
                 <button
                   key={s.id}
                   onClick={() => handlePlatformSelect(s.id)}
-                  className={`flex flex-col items-center gap-1 border rounded-xl p-1 lg:p-3 transition-colors ${isSelected
+                  className={`flex flex-col items-center justify-center gap-1.5
+                    w-[90px] h-[72px] min-w-[90px]
+                    border rounded-xl p-2
+                    transition-colors
+                    ${isSelected
                       ? isDark
                         ? "bg-[#E8D1AB] border-[#E8D1AB] text-black"
                         : "bg-[#cbb38b] border-[#cbb38b] text-white"
@@ -117,12 +122,15 @@ export default function PortfolioLinksModal({
                         : "bg-black/5 border-black/5 text-black/60 hover:text-black"
                     }`}
                 >
-                  {s.icon && <s.icon className="w-5 h-5" />}
+                  {s.icon && <s.icon className="w-5 h-5 shrink-0" />}
+
+                  <span className="text-xs font-medium truncate w-full text-center">
+                    {s.label}
+                  </span>
                 </button>
               );
             })}
           </div>
-
           {(screen === "add" || screen === "edit") && (
             <div className="space-y-3">
               <Input
