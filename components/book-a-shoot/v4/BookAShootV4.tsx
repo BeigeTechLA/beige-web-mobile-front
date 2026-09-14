@@ -30,7 +30,7 @@ import StudioShootDetails, {
 } from "./components/StudioShootDetails";
 
 import type { Creator } from "@/lib/types";
-import type { PricingItem, QuoteCalculation, SelectedItem } from "@/lib/api/pricing";
+import type { PricingItem, QuoteCalculation, QuoteLineItem, SelectedItem } from "@/lib/api/pricing";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
   useCreateGuestBookingV4Mutation,
@@ -109,6 +109,7 @@ type StudioLeadItem = {
 type LeadProgressPayload = {
   booking_id?: number | null;
   guest_email?: string;
+  client_name?: string;
   content_type?: string;
   shoot_type?: string;
   start_date?: string | null;
@@ -127,6 +128,10 @@ type LeadProgressPayload = {
   location_longitude?: number | null;
   studio_total?: number;
   studio_items?: StudioLeadItem[];
+  role_counts?: Record<string, number>;
+  estimated_total?: number;
+  pricing_subtotal?: number;
+  pricing_line_items?: QuoteLineItem[];
 };
 
 type PreviewLineItem = QuoteCalculation["lineItems"][number] & {
@@ -754,6 +759,13 @@ export const BookAShootV4 = () => {
     setShowLeaveModal(false);
   };
 
+  const getLeadRoleCounts = () => ({
+    videographer: Number(creativeTeam.videographer || 0),
+    photographer: Number(creativeTeam.photographer || 0),
+    cinematographer: Number(creativeTeam.cinematographer || 0),
+    photoVideoCreator: Number(creativeTeam.photoVideoCreator || 0),
+  });
+
   const saveLeadProgress = async (payload: LeadProgressPayload) => {
     const guestEmail = payload.guest_email || bookingState.email;
     if (!guestEmail) return;
@@ -765,6 +777,7 @@ export const BookAShootV4 = () => {
         user_id: user?.id,
         client_name:
           user?.name || bookingState.contactInformation?.fullName || undefined,
+        role_counts: getLeadRoleCounts(),
         ...payload,
       }).unwrap();
 
@@ -1288,6 +1301,16 @@ export const BookAShootV4 = () => {
 
     setInternalStep(isCombinedStudioBooking ? combinedEditsStep : editsStep);
     setPricingPreview(null);
+    void saveLeadProgress({
+      content_type: contentTypes.join(","),
+      shoot_type: bookingState.selectedOccasion,
+      role_counts: {
+        videographer: Number(updatedTeam.videographer || 0),
+        photographer: Number(updatedTeam.photographer || 0),
+        cinematographer: Number(updatedTeam.cinematographer || 0),
+        photoVideoCreator: Number(updatedTeam.photoVideoCreator || 0),
+      },
+    });
   };
 
   const handleChooseCreativePartnerSubmitted = (
@@ -1426,6 +1449,7 @@ export const BookAShootV4 = () => {
     const pricingInputs = buildPricingInputs();
     const canPreview =
       pricingInputs.quoteItems.length > 0 ||
+      selectedStudiosTotal > 0 ||
       bookingState.editsConfig.videoEditTypes.length > 0 ||
       bookingState.editsConfig.photoEditTypes.length > 0;
 
@@ -1454,10 +1478,44 @@ export const BookAShootV4 = () => {
           skip_margin: true,
         }).unwrap();
         setPricingPreview(preview);
+        void saveLeadProgress({
+          client_name: contactData.fullName,
+          content_type: contentTypes.join(","),
+          shoot_type: bookingState.selectedOccasion,
+          role_counts: pricingInputs.roleCounts,
+          estimated_total: Number(preview.total || 0),
+          pricing_subtotal: Number(preview.subtotal || preview.total || 0),
+          pricing_line_items: preview.lineItems || [],
+          studio_total: selectedStudiosTotal,
+          studio_items: pricingInputs.studioItems,
+        });
       } catch (error) {
         console.error("BookAShootV4 pricing preview failed:", error);
         setPricingPreview(null);
+        const fallbackPricing = getPricingData();
+        void saveLeadProgress({
+          client_name: contactData.fullName,
+          content_type: contentTypes.join(","),
+          shoot_type: bookingState.selectedOccasion,
+          role_counts: pricingInputs.roleCounts,
+          estimated_total: Number(fallbackPricing.totalAmount || 0),
+          pricing_subtotal: Number(fallbackPricing.totalAmount || 0),
+          studio_total: selectedStudiosTotal,
+          studio_items: pricingInputs.studioItems,
+        });
       }
+    } else {
+      const fallbackPricing = getPricingData();
+      void saveLeadProgress({
+        client_name: contactData.fullName,
+        content_type: contentTypes.join(","),
+        shoot_type: bookingState.selectedOccasion,
+        role_counts: pricingInputs.roleCounts,
+        estimated_total: Number(fallbackPricing.totalAmount || 0),
+        pricing_subtotal: Number(fallbackPricing.totalAmount || 0),
+        studio_total: selectedStudiosTotal,
+        studio_items: pricingInputs.studioItems,
+      });
     }
 
     setInternalStep(isCombinedStudioBooking ? combinedConfirmStep : confirmStep);
