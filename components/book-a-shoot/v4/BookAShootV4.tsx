@@ -624,20 +624,20 @@ export const BookAShootV4 = () => {
         ? user?.role
         : "Guest",
       booking_id: draftBookingId,
-      email: email,
+      // email: email,
     });
 
     // add GA event on initial load
     pushToDataLayer("guided_booking_email_registered", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Guided Booking-Email Card",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: email,
-      phone: user?.phone_number || "Unknown",
+      // email: email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
     });
 
@@ -691,15 +691,15 @@ export const BookAShootV4 = () => {
     );
 
     pushToDataLayer("booking_services_selected", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Select Services",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
       content_type: mapServicesToContentTypes(services).join(",")
     });
@@ -721,18 +721,18 @@ export const BookAShootV4 = () => {
     }));
     setInternalStep(bookingDetailsStep);
 
-    pushToDataLayer("booking_occassion_selected", {
-      type: "Action Tracking",
+    pushToDataLayer("booking_occasion_selected", {
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Select Occasion",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
-      occassion_type: selectedOccasion
+      occasion_type: selectedOccasion
     });
 
     void saveLeadProgress({
@@ -827,32 +827,31 @@ export const BookAShootV4 = () => {
     setBookingState((prev) => ({ ...prev, scheduleData }));
     setInternalStep(editsStep);
 
+    console.log(scheduleData.bookingDays)
+
     const customProperties = {
       time_zone: browserTimeZone,
-      startDate: toUtcIsoIfValid(scheduleData.startDate),
-      endDate: toUtcIsoIfValid(scheduleData.endDate),
+      start_date: toUtcIsoIfValid(scheduleData.startDate),
+      end_date: toUtcIsoIfValid(scheduleData.endDate),
       start_time: scheduleData.startTime,
       end_time: scheduleData.endTime,
-      booking_days: scheduleData.bookingDays.map((day) => ({
-        ...day,
-        time_zone: day.time_zone || day.timeZone || browserTimeZone,
-      })),
+      booking_days: scheduleData.bookingDays.map((day) => `${day.date}; ${day.startTime}-${day.endTime}`).join(", "),
     }
 
     pushToDataLayer("booking_schedule_submitted", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Shoot Schedule",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
       shoot_location: scheduleData.location,
       booking_type: scheduleData.bookingType,
-      dateOption: scheduleData.dateOption,
+      date_option: scheduleData.dateOption,
       ...(scheduleData.dateOption === "have-date" && customProperties),
     });
 
@@ -1155,15 +1154,15 @@ export const BookAShootV4 = () => {
     setInternalStep(detailsStep);
 
     pushToDataLayer("booking_edits_selected", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Edits Needed",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
       edits_needed: editsConfig.needsEdits,
       video_edit_types: editsConfig.videoEditTypes,
@@ -1181,15 +1180,15 @@ export const BookAShootV4 = () => {
     setBookingState((prev) => ({ ...prev, shootDetailsData }));
 
     pushToDataLayer("booking_shoot_details_submitted", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Shoot Details",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
       supporting_links: shootDetailsData.links.join(","),
       notes: shootDetailsData.notes,
@@ -1206,17 +1205,17 @@ export const BookAShootV4 = () => {
     setBookingState((prev) => ({ ...prev, teamSelectionData }));
 
     pushToDataLayer("booking_matchmaker_submitted", {
-      type: "Action Tracking",
+      // type: "Action Tracking",
       page_name: "Book-a-shoot Page",
       location_in_website: "Matchmaker selection",
       user_id: user?.id || "Guest",
       user_type: user?.role !== undefined
         ? user?.role
         : "Guest",
-      email: bookingState.email,
-      phone: user?.phone_number || "Unknown",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
-      teamSelectionType: teamSelectionData.teamOption
+      team_selection_type: teamSelectionData.teamOption
     });
 
     setInternalStep(
@@ -1226,30 +1225,28 @@ export const BookAShootV4 = () => {
 
   const handleCreativeTeamSubmitted = (updatedTeam: { [key: string]: number }) => {
     setCreativeTeam(updatedTeam);
-    console.log(updatedTeam)
 
     if (bookingState.teamSelectionData?.teamOption === "choose-own") {
       setInternalStep(
         isCombinedStudioBooking ? combinedChooseCreativesStep : chooseCreativesStep
       );
       pushToDataLayer("booking_team_size_submitted", {
-        type: "Action Tracking",
+        // type: "Action Tracking",
         page_name: "Book-a-shoot Page",
         location_in_website: "Creative Team",
         user_id: user?.id || "Guest",
         user_type: user?.role !== undefined
           ? user?.role
           : "Guest",
-        email: bookingState.email,
-        phone: user?.phone_number || "Unknown",
+        // email: bookingState.email,
+        // phone: user?.phone_number || "Unknown",
         duration_on_page: getDurationOnPage(),
-        team_size: Object.entries(updatedTeam).join(",")
-        // teamSelectionType: teamSelectionData.teamOption
+        team_size: Object.entries(updatedTeam).map(([key, value]) => `${key}: ${value}`)
+          .join(", ")
       });
 
       return;
     }
-
 
     setLetBeigeChoose(true);
     setSelectedCreatives([]);
@@ -1262,6 +1259,22 @@ export const BookAShootV4 = () => {
   ) => {
     setSelectedCreatives(creatives);
     setLetBeigeChoose(beigeChoice);
+
+    pushToDataLayer("booking_team_selected", {
+      // type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "Choose Creative Team",
+      user_id: user?.id || "Guest",
+      user_type: user?.role !== undefined
+        ? user?.role
+        : "Guest",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
+      duration_on_page: getDurationOnPage(),
+      beige_choice: beigeChoice,
+      creative_ids: creatives.map((c: any) => c.crew_member_id).join(","),
+    });
+
     setInternalStep(isCombinedStudioBooking ? combinedAddOnsStep : addOnsStep);
   };
 
@@ -1274,6 +1287,23 @@ export const BookAShootV4 = () => {
       addOnsQuantities: selectedAddOns,
       addOnsSubtotal: subtotal,
     }));
+
+    pushToDataLayer("booking_addons_selected", {
+      // type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "Add-on Selection",
+      user_id: user?.id || "Guest",
+      user_type: user?.role !== undefined
+        ? user?.role
+        : "Guest",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
+      duration_on_page: getDurationOnPage(),
+      add_ons_quantities: Object.entries(selectedAddOns).map(([key, value]) => `${key}: ${value}`)
+        .join(", "),
+      add_ons_subtotal: subtotal,
+    });
+
     setInternalStep(isCombinedStudioBooking ? combinedSummaryStep : summaryStep);
   };
 
@@ -1421,6 +1451,20 @@ export const BookAShootV4 = () => {
         setPricingPreview(null);
       }
     }
+
+    pushToDataLayer("booking_summary_proceed", {
+      // type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "Shoot Summary",
+      user_id: user?.id || "Guest",
+      user_type: user?.role !== undefined
+        ? user?.role
+        : "Guest",
+      // email: bookingState.email,
+      // phone: contactData.phoneNumber || user?.phone_number || "Unknown",
+      duration_on_page: getDurationOnPage(),
+      // full_name: contactData.fullName,
+    });
 
     setInternalStep(isCombinedStudioBooking ? combinedConfirmStep : confirmStep);
   };
@@ -1595,6 +1639,21 @@ export const BookAShootV4 = () => {
       if (paymentAmount && paymentAmount > 0) {
         paymentParams.set("amount", String(paymentAmount));
       }
+
+      pushToDataLayer("booking_payment_proceed", {
+        type: "Action Tracking",
+        page_name: "Book-a-shoot Page",
+        location_in_website: "Shoot Summary",
+        user_id: user?.id || "Guest",
+        user_type: user?.role !== undefined
+          ? user?.role
+          : "Guest",
+        // email: bookingState.email,
+        // phone: user?.phone_number || "Unknown",
+        duration_on_page: getDurationOnPage(),
+        payment_amount: paymentAmount,
+      });
+
       router.replace(`/search-results/payment?${paymentParams.toString()}`);
     } catch (error: unknown) {
       const message =
@@ -1613,6 +1672,20 @@ export const BookAShootV4 = () => {
   };
 
   const handleEditStepByName = (stepName: string) => {
+    pushToDataLayer("booking_summary_edit", {
+      type: "Action Tracking",
+      page_name: "Book-a-shoot Page",
+      location_in_website: "Shoot Summary - Edit",
+      user_id: user?.id || "Guest",
+      user_type: user?.role !== undefined
+        ? user?.role
+        : "Guest",
+      // email: bookingState.email,
+      // phone: user?.phone_number || "Unknown",
+      duration_on_page: getDurationOnPage(),
+      edit_step: stepName,
+    });
+
     switch (stepName) {
       case "project":
         setInternalStep(1);
