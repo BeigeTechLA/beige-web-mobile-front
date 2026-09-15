@@ -393,16 +393,16 @@ export default function ChooseCreativePartner({
   }, [contentTypes, requiredRoles?.hybrid]);
 
   const normalizedRequiredRoles = useMemo(() => {
-  const requestedVideo =
-    requiredRoles?.video ??
-    (searchableContentTypes.some((type) =>
-      ["videography", "videographer", "cinematographer", "livestream"].includes(type.toLowerCase())
-    )
-      ? 1
-      : 0);
-      const requestedPhoto =
-        requiredRoles?.photo ??
-        (searchableContentTypes.some((type) =>["photography", "photographer"].includes(type.toLowerCase()))? 1: 0);
+    const requestedVideo =
+      requiredRoles?.video ??
+      (searchableContentTypes.some((type) =>
+        ["videography", "videographer", "cinematographer", "livestream"].includes(type.toLowerCase())
+      )
+        ? 1
+        : 0);
+    const requestedPhoto =
+      requiredRoles?.photo ??
+      (searchableContentTypes.some((type) => ["photography", "photographer"].includes(type.toLowerCase())) ? 1 : 0);
 
     return {
       video: Math.max(0, Number(requestedVideo) || 0),
@@ -564,28 +564,28 @@ export default function ChooseCreativePartner({
     const needsVideo = currentCounts.video < requirements.required.video;
     const needsPhoto = currentCounts.photo < requirements.required.photo;
 
-  if (needsHybrid) {
-    return "hybrid";
-  }
+    if (needsHybrid) {
+      return "hybrid";
+    }
 
-  // If only video is required, assign hybrid-capable creators to video.
-  if (needsVideo && !needsPhoto) {
-    return "video";
-  }
+    // If only video is required, assign hybrid-capable creators to video.
+    if (needsVideo && !needsPhoto) {
+      return "video";
+    }
 
-  // If only photo is required, assign hybrid-capable creators to photo.
-  if (needsPhoto && !needsVideo) {
-    return "photo";
-  }
+    // If only photo is required, assign hybrid-capable creators to photo.
+    if (needsPhoto && !needsVideo) {
+      return "photo";
+    }
 
-  if (needsVideo && needsPhoto) {
-    const remainingVideo =
-      requirements.required.video - currentCounts.video;
-    const remainingPhoto =
-      requirements.required.photo - currentCounts.photo;
+    if (needsVideo && needsPhoto) {
+      const remainingVideo =
+        requirements.required.video - currentCounts.video;
+      const remainingPhoto =
+        requirements.required.photo - currentCounts.photo;
 
-    return remainingVideo >= remainingPhoto ? "video" : "photo";
-  }
+      return remainingVideo >= remainingPhoto ? "video" : "photo";
+    }
     return null;
   };
 
@@ -766,24 +766,21 @@ export default function ChooseCreativePartner({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
       {/* Top Content Stack */}
-      <div>
-        {/* Back Arrow */}
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
-          </button>
-        )}
-      </div>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
+        </button>
+      )}
 
-      {/* Progress Bar */}
-      <div className="mb-5 lg:mb-8">
-        <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+      {/* Step Indicator Bar */}
+      <div className="mb-5 2xl:mb-8">
+        <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -794,18 +791,18 @@ export default function ChooseCreativePartner({
         </div>
       </div>
 
-      {/* Header */}
-      <div className="mb-5 lg:mb-8">
-        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      {/* Header Titles */}
+      <div className="mb-5 2xl:mb-8">
+        <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-sm md:text-xl font-light">
+        <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
           {subtitle}
         </p>
       </div>
 
       {/* 3D Carousel Section */}
-      <div className="relative w-full flex items-center justify-center lg:min-h-[460px]">
+      <div className="relative w-full flex items-center justify-center 2xl:min-h-[460px]">
         {filteredCreators.length > 0 ? (
           <CreatorCarousel
             creators={filteredCreators}
@@ -821,81 +818,78 @@ export default function ChooseCreativePartner({
         )}
       </div>
 
-     {/* Sub-controls */}
-    <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-      <button
-        type="button"
-        onClick={handleLetBeigeChoose}
-        aria-pressed={letBeigeChoose}
-        className={`px-5 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-3 transition-all duration-200 cursor-pointer ${
-          letBeigeChoose
-            ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
-            : "border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)]"
-        }`}
-      >
-        {/* Checkbox */}
-        <span
-          className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${
-            letBeigeChoose
-              ? "bg-black border-black"
-              : "bg-transparent border-white/50"
-          }`}
+      {/* Sub-controls */}
+      <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
+        <button
+          type="button"
+          onClick={handleLetBeigeChoose}
+          aria-pressed={letBeigeChoose}
+          className={`px-5 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-3 transition-all duration-200 cursor-pointer ${letBeigeChoose
+              ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+              : "border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)]"
+            }`}
         >
-          {letBeigeChoose && (
-            <span className="text-[#E8D1AB] text-xs lg:text-sm font-bold">
-              ✓
-            </span>
-          )}
-        </span>
-
-        {/* Sparkles */}
-        <Sparkles
-          className={`w-5 h-5 lg:w-7 lg:h-7 ${
-            letBeigeChoose ? "text-black" : "text-[#E8D1AB]"
-          }`}
-          strokeWidth={1}
-        />
-        <span>Let Beige Choose.</span>
-      </button>
-
-      {requirements.required.photo > 0 && (
-        <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-          <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-          <span>
-            Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
-            {String(requirements.required.photo).padStart(2, "0")}
-          </span>
-        </div>
-      )}
-
-      {requirements.required.video > 0 && (
-      <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-        <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-        <span>
-          Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
-          {String(requirements.required.video).padStart(2, "0")}
-        </span>
-      </div>
-      )}
-
-            {requirements.required.hybrid > 0 && (
-              <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-                <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-                <span>
-                  Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
-                  {String(requirements.required.hybrid).padStart(2, "0")}
-                </span>
-              </div>
+          {/* Checkbox */}
+          <span
+            className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${letBeigeChoose
+                ? "bg-black border-black"
+                : "bg-transparent border-white/50"
+              }`}
+          >
+            {letBeigeChoose && (
+              <span className="text-[#E8D1AB] text-xs lg:text-sm font-bold">
+                ✓
+              </span>
             )}
+          </span>
+
+          {/* Sparkles */}
+          <Sparkles
+            className={`w-5 h-5 lg:w-7 lg:h-7 ${letBeigeChoose ? "text-black" : "text-[#E8D1AB]"
+              }`}
+            strokeWidth={1}
+          />
+          <span>Let Beige Choose.</span>
+        </button>
+
+        {requirements.required.photo > 0 && (
+          <div className="px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+            <span>
+              Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
+              {String(requirements.required.photo).padStart(2, "0")}
+            </span>
           </div>
+        )}
+
+        {requirements.required.video > 0 && (
+          <div className="px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+            <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+            <span>
+              Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
+              {String(requirements.required.video).padStart(2, "0")}
+            </span>
+          </div>
+        )}
+
+        {requirements.required.hybrid > 0 && (
+          <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
+            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+            <span>
+              Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
+              {String(requirements.required.hybrid).padStart(2, "0")}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex flex-wrap items-center lg:justify-between gap-2.5">
+      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-6 lg:px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-6 lg:px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -907,7 +901,7 @@ export default function ChooseCreativePartner({
           type="button"
           onClick={handleContinue}
           disabled={!canContinue}
-          className="px-5 lg:px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-5 lg:px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue with {String(selectedIds.length).padStart(2, "0")} Creatives
         </button>
