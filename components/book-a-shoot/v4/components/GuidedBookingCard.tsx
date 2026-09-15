@@ -26,7 +26,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
     <div className="w-full max-w-6xl mx-auto p-4 md:p-8">
       {/* Outer Dark Container Card */}
       <div
-        className="relative w-full rounded-3xl lg:rounded-[50px] p-5 md:p-14 lg:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
+        className="relative w-full rounded-3xl lg:rounded-[50px] p-5 lg:p-10 2xl:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
       >
         {/* Left Column: Form Content */}
         <div className="lg:col-span-7 flex flex-col justify-center pr-0 lg:pr-4">
@@ -36,19 +36,19 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
           </span>
 
           {/* Heading */}
-          <h2 className="text-3xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white leading-[1.08] mb-4 lg:mb-6">
+          <h1 className="text-3xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white leading-[1.08] mb-4 lg:mb-6">
             Let’s get your <br />
             project started.
-          </h2>
+          </h1>
 
           {/* Subtext */}
-          <p className="text-sm md:text-xl text-white/40 font-normal leading-relaxed mb-6 lg:mb-10 max-w-md">
+          <p className="text-sm lg:text-base 2xl:text-xl text-white/40 font-normal leading-relaxed mb-6 lg:mb-10 max-w-md">
             We’ll use your email to save your booking and keep you updated.
           </p>
 
           {/* Interactive Form */}
           <form onSubmit={handleSubmit} className="w-full max-w-md">
-            <div className="flex flex-col gap-2 mb-5 lg:mb-8">
+            <div className="flex flex-col gap-2 mb-5 2xl:mb-8">
               <label
                 htmlFor="email"
                 className="text-xs lg:text-sm tracking-[0.2em] text-white uppercase mb-2 lg:mb-4"
@@ -99,7 +99,6 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
             sizes="(max-width: 1024px) 100vw, 40vw"
           />
         </div>
-
       </div>
     </div>
   );
