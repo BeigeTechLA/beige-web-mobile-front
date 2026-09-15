@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ArrowLeft, Check, Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 
 export interface StudioCategoryOption {
   key: string;
@@ -182,14 +181,14 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                 {/* Styled Floating-label Input */}
                 <div className="flex-1 relative space-y-2">
                   <Label
-                    htmlFor="crewSize"
+                    htmlFor="studioCrewCount"
                     className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
                   >
                     Enter no Cast & Crew for your studio
                   </Label>
                   <div className="relative">
                     <Input
-                      id="crewSize"
+                      id="studioCrewCount"
                       type={"text"}
                       value={crewCount}
                       onChange={(e) => setCrewCount(e.target.value)}
@@ -202,17 +201,17 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                   <>
                     <div className="flex-1 relative space-y-2">
                       <Label
-                        htmlFor="crewSize"
+                        htmlFor="studioShootType"
                         className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
                       >
                         Shoot Type
                       </Label>
                       <div className="relative">
                         <Input
-                          id="crewSize"
+                          id="studioShootType"
                           type={"text"}
-                          value={crewCount}
-                          onChange={(e) => setCrewCount(e.target.value)}
+                          value={shootType}
+                          onChange={(e) => setShootType(e.target.value)}
                           className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                         />
                       </div>

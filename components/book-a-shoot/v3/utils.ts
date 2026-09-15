@@ -6,7 +6,7 @@ export type EditTypeCount = {
 export const PHOTO_EDIT_ADDON_SET_SIZE = 25;
 
 export const getPhotoEditsIncludedPerHour = (shootType?: string) => {
-  return shootType === "wedding" ? 50 : 25;
+  return 25;
 };
 
 export const getTotalDurationHours = (
@@ -50,12 +50,14 @@ export const getPhotoEditSummary = ({
   shootType,
   durationHours,
   selectedAddOnSets,
+  includedPerHourOverride,
 }: {
   shootType?: string;
   durationHours: number;
   selectedAddOnSets: number;
+  includedPerHourOverride?: number;
 }) => {
-  const includedPerHour = getPhotoEditsIncludedPerHour(shootType);
+  const includedPerHour = includedPerHourOverride ?? getPhotoEditsIncludedPerHour(shootType);
   const includedCount = durationHours > 0 ? includedPerHour * durationHours : 0;
   const extraCount = Math.max(0, selectedAddOnSets) * PHOTO_EDIT_ADDON_SET_SIZE;
 

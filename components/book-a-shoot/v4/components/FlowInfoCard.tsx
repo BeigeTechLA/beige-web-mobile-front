@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import { CheckCircle2, Sparkles } from "lucide-react";
 
@@ -38,7 +38,7 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
 
           {/* Subtext */}
           <p className="text-sm lg:text-base 2xl:text-xl text-white/40 font-normal leading-relaxed mb-6 lg:mb-10 max-w-md">
-            We’ll help you choose your studio now. You can set up your videography service in the next step.
+            We will help you choose your studio now. You can set up your {service.toLowerCase()} service in the next step.
           </p>
 
           {/* Interactive Form */}
@@ -97,10 +97,10 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
             </svg>
             <div className="text-white mt-5 space-y-2">
               <p className="text-xs lg:text-sm">
-                {service} Service in the next step
+                {service} service in the next step
               </p>
               <p className="text-[10px] lg:text-xs font-light">
-                After selecting your studio, you’ll be able to add {service} and customize your shoot.
+                After selecting your studio, you will be able to add {service.toLowerCase()} and customize your shoot.
               </p>
             </div>
 

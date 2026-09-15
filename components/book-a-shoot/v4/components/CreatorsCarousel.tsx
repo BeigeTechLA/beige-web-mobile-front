@@ -68,12 +68,6 @@ const CreatorCarousel = ({
 
   return (
     <div className="relative w-full max-w-full lg:max-w-4xl xl:max-w-5xl 2xl:max-w-[1500px] mx-auto z-10 px-2 lg:px-0">
-      <style>{`
-        .creator-swiper .swiper-slide,
-        .creator-swiper .swiper-slide * {
-          pointer-events: auto !important;
-        }
-      `}</style>
       {/* NAVIGATION BUTTONS */}
       {/* LEFT NAV */}
       <button
@@ -109,8 +103,8 @@ const CreatorCarousel = ({
           // touchStartPreventDefault={false}  // Allows touch start to reach the button
           // touchMoveStopPropagation={true}   // Prevents drag from eating the click
           // simulateTouch={true}              // Better event simulation for mobile
-          preventClicks={false}             // Ensure clicks aren't intercepted
-          preventClicksPropagation={false}  // Allow event to bubble to your button
+          preventClicks={true}
+          preventClicksPropagation={true}
           /* --- SAFARI FIXES END --- */
           coverflowEffect={{
             rotate: 15,
@@ -232,12 +226,11 @@ const CreatorCarousel = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 relative z-30">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             if (isSelectedInOtherRole) return;
                             toggleSelection(creatorId);
                           }}
@@ -260,13 +253,18 @@ const CreatorCarousel = ({
                         </button>
                         <Link
                           href={`/creatives/${creatorId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="relative z-30 text-center flex-1 bg-[#1D1D1D] border border-white/30 text-white py-2 2xl:py-3.5 rounded-sm lg:rounded-md text-[9px] lg:text-xs 2xl:text-base font-medium transition-all hover:bg-white/10"
                         >
                           View Profile
                         </Link>
+
                         <Link
                           href={`/creatives/${creatorId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className="relative z-30 bg-white text-black p-2 2xl:p-3.5 rounded-sm lg:rounded-md"
                         >

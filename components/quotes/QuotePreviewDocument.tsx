@@ -671,9 +671,9 @@ export default function QuotePreviewDocument({
             </div>
 
             <div className={`space-y-1 text-[10px] leading-none lg:leading-7 lg:text-base ${isDark ? "text-white/75" : "text-[#606060]"}`}>
-              {COMPANY_PROFILE.addressLines.map((line) => (
+              {/* {COMPANY_PROFILE.addressLines.map((line) => (
                 <p key={line}>{line}</p>
-              ))}
+              ))} */}
               <p>{COMPANY_PROFILE.email}</p>
               <p>{COMPANY_PROFILE.phone}</p>
             </div>

@@ -56,6 +56,7 @@ interface ScheduleShootStepProps {
   onBrowseStudios?: () => void;
   onBrowseCreators?: (data: any) => void;
   isStudioFlow?: boolean;
+  showStudioCreatorBanner?: boolean;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -83,12 +84,24 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBrowseStudios,
   onBrowseCreators,
   isStudioFlow = false,
-  title = " When & Where are you planning to shoot?",
-  subtitle = "We can always refine the exact dates together later.",
+  showStudioCreatorBanner = true,
+  title,
+  subtitle,
   stepNumber = "03",
   completionPercentage = 40,
   initialData,
 }) => {
+  const displayTitle =
+    title ||
+    (isStudioFlow
+      ? "When are you planning to use the studio?"
+      : "When & Where are you planning to shoot?");
+  const displaySubtitle =
+    subtitle ||
+    (isStudioFlow
+      ? "The studio location will be confirmed from your selected BEIGE studio."
+      : "We can always refine the exact dates together later.");
+
   // Don't fabricate a "now" default — an unpicked date/time should stay empty,
   // otherwise validate() will immediately flag the un-chosen default as
   // violating the 4-hour lead time.
@@ -145,9 +158,17 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState<Date>(new Date());
+  const initialHasDifferentTimes = initialBookingDays.length > 1 && initialBookingDays.some((day, idx, arr) => {
+    const dayStart = day.startTime || day.start_time;
+    const dayEnd = day.endTime || day.end_time;
+    const firstStart = arr[0]?.startTime || arr[0]?.start_time;
+    const firstEnd = arr[0]?.endTime || arr[0]?.end_time;
+    return dayStart !== firstStart || dayEnd !== firstEnd;
+  });
+
   const [multiDayTimes, setMultiDayTimes] = useState<Record<string, { startKey?: string; endKey?: string }>>(initialMultiDayTimes);
   const [selectedDates, setSelectedDates] = useState<Date[]>(initialSelectedDates);
-  const [sameTimingsMulti, setSameTimingsMulti] = useState(true);
+  const [sameTimingsMulti, setSameTimingsMulti] = useState(!initialHasDifferentTimes);
   const [expandedDateKey, setExpandedDateKey] = useState<string | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -655,14 +676,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       return;
     }
 
-    const startKey = getStartTimeKey();
-    const endKey = getEndTimeKey();
-    setMultiDayTimes((prev) => buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev));
+    setMultiDayTimes((prev) => {
+      const startKey = getStartTimeKey();
+      const endKey = getEndTimeKey();
+      return buildMultiDayTimeMap(selectedDates, { startKey, endKey }, prev);
+    });
 
     if (expandedDateKey && !selectedDates.some((date) => getDateKey(date) === expandedDateKey)) {
       setExpandedDateKey(null);
     }
-  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, data.startDate, data.endDate, buildMultiDayTimeMap]);
+  }, [bookingType, sameTimingsMulti, selectedDates, expandedDateKey, buildMultiDayTimeMap]);
 
   useEffect(() => {
     if ((data.bookingType || "single_day") !== bookingType) {
@@ -765,13 +788,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       </div>
 
-      {/* Header Titles */}
+      {/* Header */}
       <div className="mb-5 2xl:mb-8">
         <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          {title}
+          {displayTitle}
         </h1>
         <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
-          {subtitle}
+          {displaySubtitle}
         </p>
       </div>
 
@@ -1341,7 +1364,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               Browse Studios
             </button>
           </div>
-        </> : <>
+        </> : showStudioCreatorBanner ? <>
           <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Creator Banner */}
@@ -1369,7 +1392,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               Browse Creators
             </button>
           </div>
-        </>
+        </> : null
       }
 
       {/* Bottom Action Footer Bar */}

@@ -17,6 +17,8 @@ interface StudioSelectionProps {
   onBack?: () => void;
   onContinue: (studios: SelectedStudio[]) => void;
   initialSelectedStudios?: SelectedStudio[];
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const buildTimeOptions = () => {
@@ -47,6 +49,8 @@ export default function StudioSelection({
   onBack,
   onContinue,
   initialSelectedStudios = [],
+  stepNumber = "03",
+  completionPercentage = 40,
 }: StudioSelectionProps) {
   const timeOptions = useMemo(() => buildTimeOptions(), []);
   const firstStudio = HOURLY_STUDIO_LIST[0];
@@ -122,10 +126,13 @@ export default function StudioSelection({
 
          <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 03
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
