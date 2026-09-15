@@ -13,6 +13,7 @@ interface CreativeTeamProps {
   onBack: () => void;
   onContinue: (team: { [key: string]: number }) => void;
   initialCounts?: { [key: string]: number };
+  selectedServices?: string[];
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -22,17 +23,29 @@ interface CreativeTeamProps {
 const DEFAULT_ROLES: TeamMember[] = [
   { id: "photographer", name: "Photographer", price: 250.00 },
   { id: "videographer", name: "Videographer", price: 250.00 },
+  { id: "photoVideoCreator", name: "Photographer + Videographer (1 person)", price: 375.00 },
 ];
 
 export default function CreativeTeam({
   onBack,
   onContinue,
   initialCounts = { photographer: 0 },
+  selectedServices = ["photography"],
   title = "Your Creative Team",
   subtitle = "We recommend 1–2 Creative Partners based on your project. You can add more if needed.",
   stepNumber = "06",
   completionPercentage = 30
 }: CreativeTeamProps) {
+  const hasPhotoService = selectedServices.includes("photography");
+  const hasVideoService =
+    selectedServices.includes("videography") || selectedServices.includes("livestream");
+  const availableRoles = DEFAULT_ROLES.filter((role) => {
+    if (role.id === "photographer") return hasPhotoService;
+    if (role.id === "videographer") return hasVideoService;
+    if (role.id === "photoVideoCreator") return hasPhotoService && hasVideoService;
+    return true;
+  });
+
   const [counts, setCounts] = useState<{ [key: string]: number }>(initialCounts);
 
   const handleIncrement = (id: string) => {
@@ -56,7 +69,11 @@ export default function CreativeTeam({
     }));
   };
 
-  const totalSelected = Object.values(counts).reduce((acc, curr) => acc + curr, 0);
+  const visibleCounts = availableRoles.reduce<{ [key: string]: number }>((acc, role) => {
+    acc[role.id] = counts[role.id] || 0;
+    return acc;
+  }, {});
+  const totalSelected = Object.values(visibleCounts).reduce((acc, curr) => acc + curr, 0);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
@@ -95,7 +112,7 @@ export default function CreativeTeam({
 
       {/* Roles List */}
       <div className="space-y-4 mb-6 p-3.5 lg:px-5 lg:py-7 rounded-lg lg:rounded-2xl border transition-all bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border-white/20">
-        {DEFAULT_ROLES.map((role) => {
+        {availableRoles.map((role) => {
           const count = counts[role.id] || 0;
           const isSelected = count > 0;
 
@@ -175,7 +192,7 @@ export default function CreativeTeam({
         </button>
         <button
           type="button"
-          onClick={() => onContinue(counts)}
+          onClick={() => onContinue(visibleCounts)}
           className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
