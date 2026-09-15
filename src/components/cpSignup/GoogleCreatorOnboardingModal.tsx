@@ -935,16 +935,12 @@ export function GoogleCreatorOnboardingModal({
               </div>
 
               <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
-                {isOnlyVideographerRole && (
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/40">
-                    Featured work (optional)
-                  </p>
-                )}
                 <FeaturedWork
                   value={featuredWork}
                   onChange={setFeaturedWork}
                   darkTheme
                   onUploadFiles={handleFeaturedWorkUpload}
+                  requiredLabel={!isOnlyVideographerRole}
                 />
               </div>
 

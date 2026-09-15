@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { File, Trash2, UploadCloud, X } from "lucide-react";
 import { fileManagerApi } from "@/lib/fileManagerApi";
+import { getUploadContentType } from "@/lib/fileMimeType";
 
 interface SharedUploadFilesModalProps {
   isOpen: boolean;
@@ -248,7 +249,7 @@ export default function SharedUploadFilesModal({
         id: item.id,
         fileName: item.file.name,
         filepath: getUploadFilepath(item.file.name),
-        fileContentType: item.file.type || "application/octet-stream",
+        fileContentType: getUploadContentType(item.file),
         fileSize: item.file.size,
         phase,
         path,
@@ -310,7 +311,7 @@ export default function SharedUploadFilesModal({
           pendingMetadataItems.push({
             id: item.id,
             filepath,
-            fileContentType: item.file.type || "application/octet-stream",
+            fileContentType: getUploadContentType(item.file),
             fileSize: item.file.size,
             fileName: item.file.name,
           });
