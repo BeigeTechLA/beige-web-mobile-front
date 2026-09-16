@@ -838,7 +838,7 @@ export default function ChooseCreativePartner({
               type="button"
               onClick={handleLetBeigeChoose}
               aria-pressed={letBeigeChoose}
-              className={`w-full px-5 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer ${letBeigeChoose
+              className={`px-5 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer ${isFourItems ? "w-full":""} ${letBeigeChoose
                 ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
                 : "border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-white"
                 }`}
@@ -868,7 +868,7 @@ export default function ChooseCreativePartner({
 
             {/* Photographer Count Badge */}
             {requirements.required.photo > 0 && (
-              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+              <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
                   Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
@@ -879,7 +879,7 @@ export default function ChooseCreativePartner({
 
             {/* Videographer Count Badge */}
             {requirements.required.video > 0 && (
-              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+              <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
                   Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
@@ -890,7 +890,7 @@ export default function ChooseCreativePartner({
 
             {/* Hybrid Count Badge */}
             {requirements.required.hybrid > 0 && (
-              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+              <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
                   Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
