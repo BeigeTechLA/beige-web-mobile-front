@@ -38,6 +38,7 @@ type FeaturedWorkProps = {
   isOptional?: boolean;
   onDeleteItem?: (item: FeaturedWorkItem) => Promise<void> | void;
   onUploadFiles?: (files: File[]) => Promise<Array<Record<string, unknown>>>;
+  requiredLabel?: boolean;
 };
 
 const MAX_PROJECTS = 5;
@@ -47,7 +48,8 @@ const FeaturedWork = ({
   onChange,
   onDeleteItem,
   onUploadFiles,
-  darkTheme = true,
+  darkTheme = true, 
+  requiredLabel = true,
   isOptional = false,
 }: FeaturedWorkProps) => {
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
@@ -131,8 +133,8 @@ const FeaturedWork = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-semibold text-white">
-            Showcase Your Work {isOptional ? "(Optional)" : "*"}
-          </h4>
+  Showcase Your Work {isRequired ? "*" : "(Optional)"}
+</h4>
           <p className="text-sm text-white/50">
             Add up to {MAX_PROJECTS} projects. Each project must have at least 5 images.
           </p>
