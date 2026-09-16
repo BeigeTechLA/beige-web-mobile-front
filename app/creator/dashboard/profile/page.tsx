@@ -33,7 +33,8 @@ import {
   Loader2,
   EyeOff,
   Pause, Volume2, VolumeX,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, Del
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
+import CreativePartnerAgreementModal from "@/components/creator-profile/agreements/CreativePartnerAgreementModal";
 import Topbar from "@/components/admin/Topbar";
 import { formatCreatorRoles, normalizeCreatorRoleIds } from "@/lib/creatorRoles";
 import { Button } from "@/components/ui/button";
@@ -346,6 +348,7 @@ export default function ProfilePage() {
   const [editingFeaturedWork, setEditingFeaturedWork] = useState<any | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [isGoogleOnboardingOpen, setIsGoogleOnboardingOpen] = useState(false);
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(true);
   const [googleOnboardingData, setGoogleOnboardingData] = useState<GoogleOnboardingData | null>(null);
 
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
@@ -401,7 +404,69 @@ export default function ProfilePage() {
     crew_member_files: []
   });
 
-  const tabs = ["Overview", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
+  const tabs = ["Overview", "Documents & Agreements", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
+
+  // TODO: Replace with real data from the API once agreements endpoints are available
+  const generalAgreement = {
+    title: "Beige Creative Partner Agreement",
+    version: "v1.0",
+    status: "Accepted",
+    acceptedDate: "1 Jan 2026",
+  };
+
+  const shootAgreements = [
+    {
+      id: 1,
+      title: "ABC Corporate Shoot",
+      role: "Videographer",
+      version: "v1.0",
+      status: "Accepted",
+      amount: "$2000",
+      date: "15 Sep 2026, 10:32 AM",
+    },
+  ];
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (
+      requestedTab &&
+      [
+        "Overview",
+        "Documents & Agreements",
+        "Featured Work",
+        "Certificates",
+        "Resume",
+        "Portfolio Links",
+      ].includes(requestedTab)
+    ) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams]);
+
+  const viewShootAgreement = (agreement: (typeof shootAgreements)[number]) => {
+    try {
+      window.sessionStorage.setItem(
+        "beige_selected_agreement",
+        JSON.stringify({
+          id: agreement.id,
+          cpName:
+            [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+            "Creative Partner",
+          projectName: agreement.title,
+          projectId: "ASN-2012",
+          role: agreement.role,
+          version: agreement.version,
+          status: agreement.status,
+          agreementType: "shoot",
+          sendDate: agreement.date,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to save selected agreement:", error);
+    }
+
+    router.push(`/creator/dashboard/profile/agreement/${agreement.id}`);
+  };
 
   const loadProfile = async () => {
     const userStr = localStorage.getItem("revure_user");
@@ -1578,6 +1643,110 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* DOCUMENTS & AGREEMENTS TAB */}
+            {activeTab === "Documents & Agreements" && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* GENERAL AGREEMENT */}
+                <div>
+                  <h3 className={`text-sm font-bold mb-4 ${isDark ? "text-white" : "text-black"}`}>
+                    General Agreement
+                  </h3>
+                  <div className={`flex items-center justify-between p-4 lg:p-5 border rounded-lg lg:rounded-2xl ${isDark ? "bg-[#1F1F1F] border-white/5" : "bg-white border-[#E5E5E5]"
+                    }`}>
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-500">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          {generalAgreement.title}
+                        </p>
+                        <p className="text-xs text-emerald-500 mt-0.5">
+                          {generalAgreement.version} — {generalAgreement.status} · {generalAgreement.acceptedDate}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/creator/dashboard/profile/agreement")}
+                        className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${isDark
+                          ? "bg-black text-white hover:bg-white/10"
+                          : "bg-black/5 text-black hover:bg-black/10"
+                          }`}
+                      >
+                        View
+                      </button>
+                      <button className="px-4 py-2 rounded-lg text-xs font-medium bg-[#E8D1AB] text-black hover:bg-[#dcb98a] transition-colors flex items-center gap-1.5">
+                        <Download size={14} />
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SHOOT AGREEMENTS */}
+                <div>
+                  <h3 className={`text-sm font-bold mb-4 ${isDark ? "text-white" : "text-black"}`}>
+                    Shoot Agreements
+                  </h3>
+
+                  {shootAgreements.length === 0 ? (
+                    <p className={`text-sm italic ${isDark ? "text-white/20" : "text-black/20"}`}>
+                      No shoot agreements yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {shootAgreements.map((agreement) => (
+                        <div
+                          key={agreement.id}
+                          className={`p-4 lg:p-5 border rounded-lg lg:rounded-2xl ${isDark ? "bg-[#1F1F1F] border-white/5" : "bg-white border-[#E5E5E5]"
+                            }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
+                                {agreement.title}
+                              </p>
+                              <p className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                {agreement.role} · {agreement.version}
+                              </p>
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${agreement.status === "Accepted"
+                                ? "bg-[#D6FFE6] text-emerald-500"
+                                : isDark
+                                  ? "bg-white/10 text-white/60"
+                                  : "bg-black/5 text-black/60"
+                                }`}
+                            >
+                              {agreement.status}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-4">
+                            <p className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              {agreement.amount} · {agreement.date}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => viewShootAgreement(agreement)}
+                              className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${isDark
+                                ? "bg-black text-white hover:bg-white/10"
+                                : "bg-black/5 text-black hover:bg-black/10"
+                                }`}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* FEATURED WORK TAB */}
             {activeTab === "Featured Work" && (
               <div className="animate-in fade-in duration-500">
@@ -2232,6 +2401,11 @@ export default function ProfilePage() {
             await loadProfile();
             await refetchOnboardingStatus();
           }}
+        />
+        <CreativePartnerAgreementModal
+          open={isAgreementModalOpen}
+          onOpenChange={setIsAgreementModalOpen}
+          onAccept={() => setIsAgreementModalOpen(false)}
         />
       </div>
     </>

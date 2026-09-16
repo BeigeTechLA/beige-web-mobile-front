@@ -15,6 +15,7 @@ import {
   Grid3X3,
   List,
   ChevronRight,
+  ArrowRight,
   Pencil,
   Trash2,
   Info
@@ -374,6 +375,43 @@ export default function RequestsShootsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const staticAgreementRequest = {
+    id: 1,
+    title: "PRIVATE Shoot - Punyashree@Revurge.Com",
+    date: "13 Sept, 2026",
+    compensation: "$2000.00",
+    location: "Los Angeles, California, United States",
+    role: "Videographer",
+    version: "v1.0",
+  };
+  const showStaticAgreementRequest =
+    activeTab === "requests" &&
+    (statusFilter === "all" || statusFilter === "pending") &&
+    staticAgreementRequest.title.toLowerCase().includes(search.toLowerCase());
+
+  const handleReviewAgreement = () => {
+    try {
+      window.sessionStorage.setItem(
+        "beige_selected_agreement",
+        JSON.stringify({
+          id: staticAgreementRequest.id,
+          cpName: "Creative Partner",
+          projectName: "ABC Corporate Shoot",
+          projectId: "ASN-2012",
+          role: staticAgreementRequest.role,
+          version: staticAgreementRequest.version,
+          status: "Pending",
+          agreementType: "shoot",
+          sendDate: staticAgreementRequest.date,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to save selected agreement:", error);
+    }
+
+    router.push(`/creator/dashboard/request/review-agreement/${staticAgreementRequest.id}`);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -455,7 +493,7 @@ export default function RequestsShootsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               label="Pending Requests"
-              value={(computedStats?.pendingRequests ?? dashboardStats?.pendingRequests) || 0}
+              value={((computedStats?.pendingRequests ?? dashboardStats?.pendingRequests) || 0) + 1}
               icon={Clock}
               iconColor={isDark ? "text-yellow-400" : "text-yellow-600"}
               valueColor={isDark ? "text-yellow-400" : "text-yellow-600"}
@@ -604,10 +642,82 @@ export default function RequestsShootsPage() {
 
         {/* Main Content Area */}
         <div>
-          {filteredProjects.length > 0 ? (
+          {filteredProjects.length > 0 || showStaticAgreementRequest ? (
             view === "grid" ? (
               /* --- DYNAMIC GRID VIEW --- */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
+                  {showStaticAgreementRequest && (
+                    <div
+                      className={`group rounded-2xl border p-4 transition-all duration-300 lg:p-6 ${isDark
+                        ? "border-white/5 bg-[#111] hover:border-[#E8D1AB]/40"
+                        : "border-[#E5E5E5] bg-white shadow-sm hover:border-[#E8D1AB]/60"
+                      }`}
+                    >
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isDark
+                        ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
+                        : "border-amber-200 bg-amber-50 text-amber-700"
+                      }`}>
+                        Pending
+                      </span>
+
+                      <h3 className={`mb-4 mt-4 text-xl font-bold transition-colors group-hover:text-[#E8D1AB] ${isDark ? "text-white" : "text-black"}`}>
+                        {staticAgreementRequest.title}
+                      </h3>
+
+                      <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        <span className="inline-flex items-center gap-3">
+                          <CalendarIcon size={16} className="text-[#E8D1AB]" />
+                          {staticAgreementRequest.date}
+                        </span>
+                        <span className={`hidden h-5 w-px sm:block ${isDark ? "bg-white/15" : "bg-black/15"}`} />
+                        <span>
+                          Compensation : <strong className={isDark ? "font-medium text-white/85" : "font-medium text-black/80"}>{staticAgreementRequest.compensation}</strong>
+                        </span>
+                      </div>
+
+                      <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        <span className="inline-flex items-center gap-3">
+                          <MapPin size={16} className="shrink-0 text-[#E8D1AB]" />
+                          {staticAgreementRequest.location}
+                        </span>
+                        <span className={`hidden h-5 w-px sm:block ${isDark ? "bg-white/15" : "bg-black/15"}`} />
+                        <span className="inline-flex items-center gap-2">
+                          Agreement
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF8E8] px-2 py-1 text-[11px] font-medium text-[#D58A00]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#F5A623]" />
+                            Pending Acceptance
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className={`mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button
+                            variant="outline"
+                            onClick={() => toast.info("Static project details preview")}
+                            className={isDark ? "border-white/10 bg-transparent text-white hover:bg-white/5 hover:text-white" : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"}
+                          >
+                            View Details
+                          </Button>
+                          <Button
+                            onClick={handleReviewAgreement}
+                            className="bg-[#E8D1AB] px-6 text-black hover:bg-[#DCC294]"
+                          >
+                            Review Agreement <ArrowRight size={17} />
+                          </Button>
+                        </div>
+
+                        <div className="flex gap-2 self-end sm:self-auto">
+                          <Button size="icon" onClick={() => toast.success("Agreement request accepted")} className={isDark ? "bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white" : "bg-green-50 text-green-600 hover:bg-green-600 hover:text-white"}>
+                            <Check size={18} />
+                          </Button>
+                          <Button size="icon" onClick={() => toast.info("Agreement request declined")} className={isDark ? "bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"}>
+                            <X size={18} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
