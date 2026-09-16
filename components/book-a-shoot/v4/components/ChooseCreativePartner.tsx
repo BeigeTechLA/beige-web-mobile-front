@@ -819,69 +819,88 @@ export default function ChooseCreativePartner({
       </div>
 
       {/* Sub-controls */}
-      <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
-        <button
-          type="button"
-          onClick={handleLetBeigeChoose}
-          aria-pressed={letBeigeChoose}
-          className={`px-5 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center gap-3 transition-all duration-200 cursor-pointer ${letBeigeChoose
-              ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
-              : "border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)]"
-            }`}
-        >
-          {/* Checkbox */}
-          <span
-            className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${letBeigeChoose
-                ? "bg-black border-black"
-                : "bg-transparent border-white/50"
-              }`}
+      {/* Calculate total visible items */}
+      {(() => {
+        const visibleCount =
+          1 + // "Let Beige Choose" button
+          (requirements.required.photo > 0 ? 1 : 0) +
+          (requirements.required.video > 0 ? 1 : 0) +
+          (requirements.required.hybrid > 0 ? 1 : 0);
+
+        const isFourItems = visibleCount === 4;
+
+        return (
+          <div
+            className={`mt-6 gap-4 ${isFourItems ? "grid grid-cols-1 sm:grid-cols-2 mx-auto" : "flex flex-wrap items-center justify-center"}`}
           >
-            {letBeigeChoose && (
-              <span className="text-[#E8D1AB] text-xs lg:text-sm font-bold">
-                ✓
+            {/* "Let Beige Choose" Button */}
+            <button
+              type="button"
+              onClick={handleLetBeigeChoose}
+              aria-pressed={letBeigeChoose}
+              className={`w-full px-5 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border text-sm lg:text-lg font-medium flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer ${letBeigeChoose
+                ? "bg-[#E8D1AB] text-black border-[#E8D1AB]"
+                : "border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-white"
+                }`}
+            >
+              {/* Checkbox */}
+              <span
+                className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md border flex items-center justify-center shrink-0 transition-all ${letBeigeChoose
+                  ? "bg-black border-black"
+                  : "bg-transparent border-white/50"
+                  }`}
+              >
+                {letBeigeChoose && (
+                  <span className="text-[#E8D1AB] text-xs lg:text-sm font-bold">
+                    ✓
+                  </span>
+                )}
               </span>
+
+              {/* Sparkles */}
+              <Sparkles
+                className={`w-5 h-5 lg:w-7 lg:h-7 ${letBeigeChoose ? "text-black" : "text-[#E8D1AB]"
+                  }`}
+                strokeWidth={1}
+              />
+              <span>Let Beige Choose.</span>
+            </button>
+
+            {/* Photographer Count Badge */}
+            {requirements.required.photo > 0 && (
+              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+                <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+                <span>
+                  Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
+                  {String(requirements.required.photo).padStart(2, "0")}
+                </span>
+              </div>
             )}
-          </span>
 
-          {/* Sparkles */}
-          <Sparkles
-            className={`w-5 h-5 lg:w-7 lg:h-7 ${letBeigeChoose ? "text-black" : "text-[#E8D1AB]"
-              }`}
-            strokeWidth={1}
-          />
-          <span>Let Beige Choose.</span>
-        </button>
+            {/* Videographer Count Badge */}
+            {requirements.required.video > 0 && (
+              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+                <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+                <span>
+                  Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
+                  {String(requirements.required.video).padStart(2, "0")}
+                </span>
+              </div>
+            )}
 
-        {requirements.required.photo > 0 && (
-          <div className="px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-            <span>
-              Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
-              {String(requirements.required.photo).padStart(2, "0")}
-            </span>
+            {/* Hybrid Count Badge */}
+            {requirements.required.hybrid > 0 && (
+              <div className="w-full px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2">
+                <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
+                <span>
+                  Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
+                  {String(requirements.required.hybrid).padStart(2, "0")}
+                </span>
+              </div>
+            )}
           </div>
-        )}
-
-        {requirements.required.video > 0 && (
-          <div className="px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-            <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-            <span>
-              Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
-              {String(requirements.required.video).padStart(2, "0")}
-            </span>
-          </div>
-        )}
-
-        {requirements.required.hybrid > 0 && (
-          <div className="px-4 py-2.5 lg:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg, #191919 0%, rgba(16, 16, 16, 0.00) 100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center gap-2">
-            <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
-            <span>
-              Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
-              {String(requirements.required.hybrid).padStart(2, "0")}
-            </span>
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Bottom Action Footer Bar */}
       <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
