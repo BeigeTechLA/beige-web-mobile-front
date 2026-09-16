@@ -67,7 +67,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onBack,
   initialSelected = "corporate",
   title = "What's the Occasion?",
-  subtitle = "Help us frame the right approach for your shoot.",
+  subtitle = "This helps us frame the right approach for your shoot.",
   stepNumber = "02",
   completionPercentage = 30,
 }) => {
