@@ -639,7 +639,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 : [];
 
             batchItems.forEach((item, itemIndex) => {
-              const requestedFilepath = chunk[itemIndex]?.filepath || item.filepath;
+              const responsePathKeys = [
+                item.filepath,
+                item.resolvedFilepath,
+                item.data?.filepath,
+                item.data?.filePath,
+              ]
+                .map(normalizeUploadPathKey)
+                .filter(Boolean);
+              const matchingRequest = chunk.find((request) =>
+                responsePathKeys.includes(normalizeUploadPathKey(request.filepath))
+              ) || chunk.find((request) =>
+                responsePathKeys.some(
+                  (responsePath) =>
+                    getFileNameFromPath(responsePath).toLowerCase() ===
+                    getFileNameFromPath(request.filepath).toLowerCase()
+                )
+              );
+              const requestedFilepath = matchingRequest?.filepath || chunk[itemIndex]?.filepath || item.filepath;
               const pathKeys = getPolicyPathKeys(item, requestedFilepath);
               const policyFilepath = item.data?.filepath || item.data?.filePath || item.resolvedFilepath || item.filepath || requestedFilepath;
 

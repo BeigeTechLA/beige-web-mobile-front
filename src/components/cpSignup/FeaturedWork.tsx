@@ -52,6 +52,7 @@ const FeaturedWork = ({
   requiredLabel = true,
   isOptional = false,
 }: FeaturedWorkProps) => {
+  const isRequired = requiredLabel && !isOptional;
   const [items, setItems] = useState<FeaturedWorkItem[]>(Array.isArray(value) ? value : []);
   const [openModal, setOpenModal] = useState(false);
   const [editingItem, setEditingItem] = useState<FeaturedWorkItem | null>(null);
@@ -133,8 +134,8 @@ const FeaturedWork = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-base font-semibold text-white">
-  Showcase Your Work {isRequired ? "*" : "(Optional)"}
-</h4>
+            Showcase Your Work {isRequired ? "*" : "(Optional)"}
+          </h4>
           <p className="text-sm text-white/50">
             Add up to {MAX_PROJECTS} projects. Each project must have at least 5 images.
           </p>

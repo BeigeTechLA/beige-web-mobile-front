@@ -245,6 +245,15 @@ export default function SharedUploadFilesModal({
       const policyByFilePath = new Map<string, { url: string; fields: Record<string, string> }>();
       const policyFailedPaths = new Set<string>();
       const policyPathById = new Map<string, string>();
+      const normalizePath = (value?: string) => {
+        const normalized = String(value || "").trim().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+        try {
+          return decodeURIComponent(normalized);
+        } catch {
+          return normalized;
+        }
+      };
+      const getFileName = (value?: string) => normalizePath(value).split("/").filter(Boolean).pop()?.toLowerCase() || "";
       const policyRequests = filesToUpload.map((item) => ({
         id: item.id,
         fileName: item.file.name,
@@ -276,8 +285,10 @@ export default function SharedUploadFilesModal({
         const batchItems = Array.isArray(response?.data?.items) ? response.data.items : [];
         batchItems.forEach((item: { success?: boolean; filepath?: string; data?: { url?: string; fields?: Record<string, string>; filepath?: string } }) => {
           const filepath = item.data?.filepath || item.filepath || "";
-          const request = chunk.find((entry) => entry.filepath === filepath) ||
-            chunk.find((entry) => entry.fileName === String(filepath).split("/").pop());
+          const normalizedFilepath = normalizePath(filepath);
+          const responseFileName = getFileName(filepath);
+          const request = chunk.find((entry) => normalizePath(entry.filepath) === normalizedFilepath) ||
+            chunk.find((entry) => getFileName(entry.filepath || entry.fileName) === responseFileName);
           if (!request || !filepath) return;
           policyPathById.set(request.id, filepath);
           if (item.success && item.data?.url && item.data?.fields) {
