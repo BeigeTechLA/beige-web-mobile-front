@@ -76,7 +76,7 @@ const formatShootLabel = (value: number | string | null | undefined) => {
 const getShootOption = (row: ClientFinancePaymentApiRow): ShootOption | null => {
   const bookingId = normalizeShootId(row.booking_id || row.shoot_id);
   if (!bookingId) return null;
-  const shootName = row.project_name || row.shoot_type || "Shoot";
+  const shootName = (row.project_name || row.shoot_type || "Shoot").replace(/^CUSTOM\s+Shoot\b/i, "CUSTOM");
   return {
     bookingId,
     label: formatShootLabel(bookingId),
