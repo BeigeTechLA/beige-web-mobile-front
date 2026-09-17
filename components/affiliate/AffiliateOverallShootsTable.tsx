@@ -132,7 +132,7 @@ export const AffiliateOverallShootsTable = ({ externalSelectedDate }: { external
 
           return {
             id: `#${project.stream_project_booking_id}`,
-            customerName: project.project_name || "Untitled Project",
+            customerName: (project.project_name || "Untitled Project").replace(/^CUSTOM\s+Shoot\b/i, "CUSTOM"),
             customerImage: project.user_image || "/images/avatar.png",
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             category: category,

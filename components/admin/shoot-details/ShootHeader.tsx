@@ -453,7 +453,8 @@ export default function ShootHeader({
     workspaceFileCount != null
       ? `${workspaceFileCount} File${workspaceFileCount === 1 ? "" : "s"}`
       : getShootFilesText(project);
-  const projectName = toDisplayText(project?.project_name) || "Untitled Project";
+  const rawProjectName = toDisplayText(project?.project_name) || "Untitled Project";
+  const projectName = rawProjectName.replace(/^CUSTOM Shoot\b/i, "CUSTOM");
   const skillsText = Array.isArray(project?.skills_needed)
     ? project.skills_needed.map(toDisplayText).filter(Boolean).join(", ")
     : toDisplayText(project?.skills_needed);

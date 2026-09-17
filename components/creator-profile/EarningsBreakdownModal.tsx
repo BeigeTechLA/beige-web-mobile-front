@@ -126,7 +126,7 @@ export default function EarningsBreakdownModal({
                   <div>
                     <p className={`text-xs lg:text-sm ${isDark ? "text-[#6B6864]" : "text-black/40"}`}>Shoot Name</p>
                     <p className={`text-sm lg:text-base font-semibold mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                      {data.shootName}
+                      {(data.shootName || "").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
                     </p>
                   </div>
                   <div>
