@@ -75,11 +75,7 @@ const formatLocation = (locationInput) => {
 const formatDate = (dateString) => {
   if (!dateString) return "";
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return format(date, "MMM d, yyyy");
 };
 
 const getDefaultFormData = () => ({
@@ -343,7 +339,7 @@ const getRuleTimeSummary = (rules: WeeklyRule[]) => {
 
 const formatDayHeading = (dateString: string) => {
   const date = parseLocalDate(dateString);
-  return date ? format(date, "EEEE, MMM d, yyyy") : dateString;
+  return date ? format(date, "MMM d, yyyy") : dateString;
 };
 
 const formatDateTimeInTimeZone = (value?: string, timeZone = DEFAULT_CREATOR_TIMEZONE) => {
@@ -1980,7 +1976,7 @@ export default function AvailabilityPage() {
                 <div className={`flex flex-wrap gap-4 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
                   <span className="flex items-center gap-2">
                     <Calendar size={14} className={isDark ? "text-[#E8D1AB]" : "text-[#cbb38b]"} />
-                    {hoveredProject.date}
+                    {formatDate(hoveredProject.date)}
                   </span>
 
                   <span className="flex items-center gap-2">
