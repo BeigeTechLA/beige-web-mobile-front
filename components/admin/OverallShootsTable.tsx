@@ -207,7 +207,8 @@ export const OverallShootsTable = () => {
           const project = item.project || item;
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as Status;
-          const customerName = project.project_name || "Untitled Project";
+          const rawName = project.project_name || "Untitled Project";
+          const customerName = typeof rawName === "string" ? rawName.replace(/^CUSTOM Shoot\b/i, "CUSTOM") : rawName;
           const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
 
           return {

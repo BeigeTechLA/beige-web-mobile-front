@@ -261,20 +261,13 @@ const extractPhoneNumber = (project: any) => {
 
 type ProjectDisplaySource = Record<string, unknown> & {
   project_name?: unknown;
-  lead_source?: unknown;
-  client_name?: unknown;
 };
 
 const getShootDisplayName = (project: ProjectDisplaySource) => {
-  const isQuoteConvertedBooking =
-    String(project.lead_source || "").trim().toLowerCase() === "converted bookings";
-  const clientName = typeof project.client_name === "string" ? project.client_name.trim() : "";
-
-  return isQuoteConvertedBooking && clientName
-    ? `Custom - ${clientName}`
-    : typeof project.project_name === "string" && project.project_name.trim()
-      ? project.project_name
-      : "Untitled Project";
+  if (typeof project.project_name === "string" && project.project_name.trim()) {
+    return project.project_name.replace(/^CUSTOM Shoot\b/i, "CUSTOM");
+  }
+  return "Untitled Project";
 };
 
 interface ShootsTableProps {

@@ -50,7 +50,7 @@ export default function EarningsCard({
           </div>
           <div className="flex-1 min-w-0">
             <p className={`lg:text-lg font-medium truncate ${isDark ? "text-white" : "text-[#101010]"}`}>
-              {data.name}
+              {(data.name || "").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
             </p>
             <p className={`text-xs lg:text-sm truncate ${isDark ? "text-white/40" : "text-[#000000]/50"}`}>
               {data.company}

@@ -83,8 +83,13 @@ const getAmountDisplayValue = (rawValue: string, calculatedValue: number) => {
   return String(calculatedValue);
 };
 
+const normalizeCustomShootName = (name?: string | null) => {
+  if (!name) return name || "";
+  return name.replace(/^custom shoot\b/i, "CUSTOM");
+};
+
 const formatShootOptionLabel = (shoot: PendingCompensationShoot) =>
-  `#${shoot.booking_id} - ${shoot.shoot_name}`;
+  `#${shoot.booking_id} - ${normalizeCustomShootName(shoot.shoot_name)}`;
 
 const LONG_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
@@ -728,7 +733,7 @@ export default function AddCompensationModal({
                     className="w-full px-4 py-3 text-left text-sm cursor-pointer transition-colors hover:bg-[#3D3D3D]"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <span className="truncate">{shoot.shoot_name}</span>
+                      <span className="truncate">{normalizeCustomShootName(shoot.shoot_name)}</span>
                       <span className="shrink-0 text-xs text-white/50">Booking #{shoot.booking_id}</span>
                     </div>
                   </button>
