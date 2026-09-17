@@ -24,6 +24,7 @@ import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import DottedDivider from "@/components/admin/DottedDivider";
 import { useTheme } from "next-themes";
+import { AvailabilitySlotsModal } from "@/components/admin/AvailabilitySlotsModal";
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 
@@ -115,6 +116,12 @@ interface AvailabilityStatus {
   available?: boolean;
   projectAssigned?: boolean;
   projectDetails?: ProjectDetails;
+  calendarBusy?: boolean;
+  calendarBusyBlocks?: Array<{ start_at?: string; end_at?: string; source?: string }>;
+  weeklyRules?: Array<{ start_time?: string; end_time?: string; timezone?: string }>;
+  start_time?: string;
+  end_time?: string;
+  customAvailabilityStatus?: number | string | null;
 }
 
 export default function AvailabilityDetailsPage() {
@@ -138,9 +145,7 @@ export default function AvailabilityDetailsPage() {
 
   const [mounted, setMounted] = useState(false);
 
-  // --- NEW SIDEBAR STATE ---
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarDate, setSidebarDate] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<{ date: string; status: AvailabilityStatus | null } | null>(null);
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -265,6 +270,7 @@ export default function AvailabilityDetailsPage() {
       const isNotAvailable = availabilityValue === false;
 
       const isAssigned = availabilityStatus?.projectAssigned;
+      const hasCalendarBusy = availabilityStatus?.calendarBusy === true;
       const startTimeDisplay = availabilityStatus?.start_time || availabilityStatus?.projectDetails?.start_time;
       const endTimeDisplay = availabilityStatus?.end_time || availabilityStatus?.projectDetails?.end_time;
       const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
@@ -290,12 +296,9 @@ export default function AvailabilityDetailsPage() {
         <div
           key={i}
           onClick={() => {
-            if (isAssigned) {
-              setSidebarDate(dateString);
-              setIsSidebarOpen(true);
-            }
+            setSelectedDay({ date: dateString, status: availabilityStatus || null });
           }}
-          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} ${isAssigned ? "cursor-pointer" : "cursor-default"} ${isDark
+          className={`h-28 p-3 border text-xs transition-all duration-200 ${cardBackground} ${textColor} ${borderColor} cursor-pointer ${isDark
             ? "hover:border-[#E8D1AB]/30 hover:bg-[#1A1A1A]"
             : "hover:border-black/20 hover:bg-black/[0.02]"
             } group`}
@@ -323,6 +326,13 @@ export default function AvailabilityDetailsPage() {
                 <div className="flex items-center gap-1 text-green-500/70">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                   <span className="hidden lg:block">Available</span>
+                </div>
+              )}
+
+              {hasCalendarBusy && !isAssigned && (
+                <div className="flex items-center gap-1 text-amber-500/80">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span className="hidden lg:block">Calendar Busy</span>
                 </div>
               )}
 
@@ -566,6 +576,7 @@ export default function AvailabilityDetailsPage() {
                     <Legend color={isDark ? "bg-[#444]" : "bg-[#ECE7E2]"} label="Disabled" desc="Time off or blocked" isDark={isDark} />
                     <Legend color="bg-[#A8A29E]" label="Today's" desc="Time off or blocked" isDark={isDark} />
                     <Legend color="bg-blue-500" label="Shoots" desc="Confirmed shoots" isDark={isDark} />
+                    <Legend color="bg-amber-500" label="Calendar Busy" desc="Google busy slots" isDark={isDark} />
                     <Legend color="bg-[#EF4444]" label="Booked" desc="Scheduling conflicts" isDark={isDark} />
                   </div>
                 </div>
@@ -606,90 +617,14 @@ export default function AvailabilityDetailsPage() {
           </div>
         </div>
 
-        {/* --- SIDEBAR MODAL (Same as Screenshot UI) --- */}
-        {isSidebarOpen && sidebarDate && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
-              onClick={() => setIsSidebarOpen(false)}
-            />
-
-            {/* Panel */}
-            <div className="relative w-full max-w-md bg-[#080808] border-l border-white/10 shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
-              {/* Header */}
-              <div className="p-8 pb-4 flex items-center justify-between">
-                <h2 className="text-3xl font-bold text-white tracking-tight">
-                  {format(parseISO(sidebarDate), "MMMM d, yyyy")}
-                </h2>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6">
-                {availability[sidebarDate]?.projectDetails ? (
-                  <div className="bg-[#111] border border-white/5 rounded-[24px] p-6 space-y-6 ring-1 ring-white/5">
-                    <div className="flex justify-between items-start">
-                      <span className="px-3 py-1 bg-[#22C55E] text-white text-[10px] font-bold uppercase tracking-widest rounded-md">
-                        Initiated
-                      </span>
-                      {/* Avatars Placeholder */}
-                      <div className="flex -space-x-2">
-                        <div className="w-6 h-6 rounded-full bg-blue-500 border-2 border-[#111]" />
-                        <div className="w-6 h-6 rounded-full bg-purple-500 border-2 border-[#111]" />
-                        <div className="w-6 h-6 rounded-full bg-pink-500 border-2 border-[#111]" />
-                        <div className="w-6 h-6 rounded-full bg-[#E8D1AB] text-black text-[8px] flex items-center justify-center border-2 border-[#111] font-bold">+3</div>
-                      </div>
-                    </div>
-
-                    <h3 className="text-xl font-bold text-white leading-tight">
-                      {availability[sidebarDate].projectDetails?.project_name}
-                    </h3>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-white/50 text-sm">
-                        <Calendar size={16} />
-                        <span>{format(parseISO(sidebarDate), "MMM d, yyyy")}</span>
-                      </div>
-                      <div className="flex items-start gap-3 text-white/50 text-sm">
-                        <MapPin size={16} className="mt-0.5" />
-                        <span className="leading-snug">
-                          {formatLocation(availability[sidebarDate].projectDetails?.event_location || "")}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-white/50 text-sm">
-                        <Clock size={16} />
-                        <span>
-                          {formatTimeRange(
-                            availability[sidebarDate].projectDetails?.start_time,
-                            availability[sidebarDate].projectDetails?.end_time
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
-                        Updated recently
-                      </span>
-                      <Button
-                        className="bg-[#E8D1AB] hover:bg-[#d4be9a] text-black font-bold h-10 px-6 rounded-xl"
-                        onClick={() => router.push(`/admin/shoots/${availability[sidebarDate].projectDetails?.project_id}`)}
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-white/20 italic">No project details available.</p>
-                )}
-              </div>
-            </div>
-          </div>
+        {selectedDay && (
+          <AvailabilitySlotsModal
+            date={selectedDay.date}
+            status={selectedDay.status}
+            isDark={isDark}
+            onClose={() => setSelectedDay(null)}
+            onViewShoot={(projectId) => router.push(`/admin/shoots/${projectId}`)}
+          />
         )}
       </div>
     </>

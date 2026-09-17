@@ -87,7 +87,7 @@ export const Hero = () => {
               >
                 Start Your Shoot
               </Button>
-              <Button
+              {/* <Button
                 className="h-7 rounded-full bg-[#ECE1CE] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"
                 onClick={() => {
                   pushToDataLayer("book_studio_started", {
@@ -103,7 +103,7 @@ export const Hero = () => {
                 }}
               >
                 Book Your Studio
-              </Button>
+              </Button> */}
               {!isAuthenticated && (
                 <Button
                   className="h-7 rounded-full bg-[#ECE1CE] px-5 text-sm text-black hover:bg-[#dcb98a] lg:h-15 lg:px-8 lg:text-xl"

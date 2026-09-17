@@ -1,5 +1,6 @@
 import axios from "axios";
 import apiClient from "@/lib/apiClient";
+import { getUploadContentType } from "@/lib/fileMimeType";
 
 export interface ProjectUserRef {
   user_id: number;
@@ -1141,7 +1142,7 @@ export const fileManagerApi = {
     const currentUser = getCurrentFileManagerUser();
     return apiClient.post("external-file-manager/file-uploaded", {
       filepath,
-      fileContentType: file.type,
+      fileContentType: getUploadContentType(file),
       fileSize: file.size,
       fileName: file.name,
       ...currentUser,
