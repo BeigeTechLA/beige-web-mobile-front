@@ -24,14 +24,14 @@ export default function ConversionPerformanceWidget({
   const [activeTab, setActiveTab] = useState<MetricTab | null>("winRate");
   const [hoveredBar, setHoveredBar] = useState<HoveredBar>(null);
 
-  // 1. General View Concentric Data
+  // 1. General View Concentric Data (Inner to Outer)
   const generalRadialData = [
     {
-      name: "Quote-to-Cash",
-      value: 35.5,
-      fill: "#FFF099",
-      tooltipLabel: "Quote-to-cash",
-      tooltipValue: "35.5%",
+      name: "Win Rate",
+      value: 75,
+      fill: "#38BDF8",
+      tooltipLabel: "Deal won",
+      tooltipValue: "25%",
     },
     {
       name: "Avg Deal Value",
@@ -41,32 +41,29 @@ export default function ConversionPerformanceWidget({
       tooltipValue: "$27,188",
     },
     {
-      name: "Win Rate",
-      value: 75,
-      fill: "#38BDF8",
-      tooltipLabel: "Deal won",
-      tooltipValue: "25%",
+      name: "Quote-to-Cash",
+      value: 35.5,
+      fill: "#FFF099",
+      tooltipLabel: "Quote-to-cash",
+      tooltipValue: "35.5%",
     },
   ];
 
-  // 2. Win Rate View (Exact 3 concentric rings structure from reference design)
-  // Inner ring: Full 100% solid cyan ring (#06B6D4)
-  // Middle ring: 65% Green (#22C55E)
-  // Outer ring: 75% Purple (#D982F7)
+  // 2. Win Rate View Data (Inner to Outer)
   const winRateRadialData = [
     { name: "Inner Cyan Ring", value: 100, fill: "#55D5E3" },
     { name: "Deals Won", value: 65, fill: "#22C55E" },
-    { name: "Quotes Sent", value: 75, fill: "#D982F7" },
+    { name: "Quotes Sent", value: 75, fill: "#DA8BED" },
   ];
 
-  // 3. Avg Deal Value View
+  // 3. Avg Deal Value View (Inner to Outer)
   const avgDealRadialData = [
     { name: "Inner Accent Ring", value: 100, fill: "#55D5E3" },
     { name: "Avg Value", value: 70, fill: "#51DB6B" },
     { name: "Target Threshold", value: 85, fill: "#DA8BED" },
   ];
 
-  // 4. Quote-To-Cash View
+  // 4. Quote-To-Cash View (Inner to Outer)
   const quoteToCashRadialData = [
     { name: "Base Accent Ring", value: 100, fill: "#55D5E3" },
     { name: "Pending Settlement", value: 55, fill: "#51DB6B" },
@@ -75,15 +72,14 @@ export default function ConversionPerformanceWidget({
 
   return (
     <div
-      className={`flex-1 relative overflow-hidden w-full h-full rounded-lg lg:rounded-2xl  border p-6 transition-all duration-300 ${
-        isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
-      }`}
+      className={`flex-1 relative overflow-hidden w-full h-full rounded-lg lg:rounded-2xl border p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
+        }`}
     >
       {/* Header Title */}
       <div className="flex items-center justify-between mb-3 relative z-10">
         <div className="flex items-center gap-2.5">
           <span className="h-7 w-[3px] bg-[#E8D1AB] rounded-full inline-block" />
-        <span className={`text-base ${isDark ? "text-white":"text-black"}`}>
+          <span className={`text-base ${isDark ? "text-white" : "text-black"}`}>
             Conversion Performance
           </span>
         </div>
@@ -105,7 +101,7 @@ export default function ConversionPerformanceWidget({
         )}
 
         {activeTab === "avgDealValue" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base  tracking-wider uppercase">
+          <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
               <span>$27.1K AVG VALUE</span>
@@ -132,7 +128,7 @@ export default function ConversionPerformanceWidget({
       </div>
 
       {/* Recharts Circular Radial Chart Area */}
-      <div className="relative w-full h-[250px] flex items-center justify-center my-2 z-10">
+      <div className="relative w-full h-[250px] flex items-center justify-center my-2 z-10 [&_*]:outline-none [&_*]:focus:outline-none">
         {/* Background Vertical Lines Masked to Bottom Half of Chart Area */}
         {/* <div
           className="absolute inset-x-0 bottom-0 h-[140px] pointer-events-none"
@@ -157,30 +153,29 @@ export default function ConversionPerformanceWidget({
               <RadialBarChart
                 cx="50%"
                 cy="50%"
-                innerRadius="30%"
+                innerRadius="35%"
                 outerRadius="95%"
-                barSize={18}
+                barSize={16}
                 data={winRateRadialData}
-                startAngle={135}
-                endAngle={-225}
+                startAngle={90}
+                endAngle={-270}
               >
                 <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
                 <RadialBar
                   background={{
                     fill: isDark
-                      ? "rgba(255,255,255,0.04)"
-                      : "rgba(0,0,0,0.04)",
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.06)",
                   }}
                   dataKey="value"
-                  cornerRadius={14}
+                  cornerRadius={12}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <span
-                className={`text-3xl font-extrabold tracking-tight ${
-                  isDark ? "text-white" : "text-black"
-                }`}
+                className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
+                  }`}
               >
                 25%
               </span>
@@ -195,30 +190,29 @@ export default function ConversionPerformanceWidget({
               <RadialBarChart
                 cx="50%"
                 cy="50%"
-                innerRadius="30%"
+                innerRadius="35%"
                 outerRadius="95%"
-                barSize={18}
+                barSize={16}
                 data={avgDealRadialData}
-                startAngle={135}
-                endAngle={-225}
+                startAngle={90}
+                endAngle={-270}
               >
                 <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
                 <RadialBar
                   background={{
                     fill: isDark
-                      ? "rgba(255,255,255,0.04)"
-                      : "rgba(0,0,0,0.04)",
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.06)",
                   }}
                   dataKey="value"
-                  cornerRadius={14}
+                  cornerRadius={12}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <span
-                className={`text-2xl font-extrabold tracking-tight ${
-                  isDark ? "text-white" : "text-black"
-                }`}
+                className={`text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
+                  }`}
               >
                 $27,188
               </span>
@@ -233,30 +227,29 @@ export default function ConversionPerformanceWidget({
               <RadialBarChart
                 cx="50%"
                 cy="50%"
-                innerRadius="30%"
+                innerRadius="35%"
                 outerRadius="95%"
-                barSize={18}
+                barSize={16}
                 data={quoteToCashRadialData}
-                startAngle={135}
-                endAngle={-225}
+                startAngle={90}
+                endAngle={-270}
               >
                 <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
                 <RadialBar
                   background={{
                     fill: isDark
-                      ? "rgba(255,255,255,0.04)"
-                      : "rgba(0,0,0,0.04)",
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.06)",
                   }}
                   dataKey="value"
-                  cornerRadius={14}
+                  cornerRadius={12}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <span
-                className={`text-3xl font-extrabold tracking-tight ${
-                  isDark ? "text-white" : "text-black"
-                }`}
+                className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
+                  }`}
               >
                 35.5%
               </span>
@@ -271,8 +264,8 @@ export default function ConversionPerformanceWidget({
               <RadialBarChart
                 cx="50%"
                 cy="50%"
-                innerRadius="30%"
-                outerRadius="90%"
+                innerRadius="35%"
+                outerRadius="95%"
                 barSize={16}
                 data={generalRadialData}
                 startAngle={90}
@@ -282,8 +275,8 @@ export default function ConversionPerformanceWidget({
                 <RadialBar
                   background={{
                     fill: isDark
-                      ? "rgba(255,255,255,0.04)"
-                      : "rgba(0,0,0,0.04)",
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.06)",
                   }}
                   dataKey="value"
                   cornerRadius={12}
@@ -319,22 +312,24 @@ export default function ConversionPerformanceWidget({
           onClick={() =>
             setActiveTab(activeTab === "winRate" ? null : "winRate")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-            activeTab === "winRate"
-              ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
-              : isDark
-                ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
-                : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
-          }`}
+          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
+            ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
+            : isDark
+              ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
+              : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
+            }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`lg:text-2xl font-bold ${
-                activeTab === "avgDealValue" ? "text-black" : "text-[#EDE598]"
-              }`}>25%</span>
+            <span className={`lg:text-2xl font-bold ${activeTab === "winRate" ? "text-black" : "text-[#EDE598]"}`}>
+              25%
+            </span>
             <Info
-              size={16}
+              size={24}
+              strokeWidth={1.5}
               className={
-                activeTab === "winRate" ? "opacity-60 text-black" : "opacity-40"
+                activeTab === "winRate"
+                  ? "fill-black text-[#E8D1AB]"
+                  : "text-black fill-[#E8D1AB]"
               }
             />
           </div>
@@ -360,28 +355,27 @@ export default function ConversionPerformanceWidget({
           onClick={() =>
             setActiveTab(activeTab === "avgDealValue" ? null : "avgDealValue")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
-            activeTab === "avgDealValue"
-              ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
-              : isDark
-                ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
-                : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
-          }`}
+          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
+            ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
+            : isDark
+              ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
+              : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
+            }`}
         >
           <div className="flex items-center justify-between">
             <span
-              className={`lg:text-2xl font-bold ${
-                activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"
-              }`}
+              className={`lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"
+                }`}
             >
               $27,188
             </span>
             <Info
-              size={16}
+              size={24}
+              strokeWidth={1.5}
               className={
                 activeTab === "avgDealValue"
-                  ? "opacity-60 text-black"
-                  : "opacity-40"
+                  ? "fill-black text-[#E8D1AB]"
+                  : "text-black fill-[#E8D1AB]"
               }
             />
           </div>
@@ -408,28 +402,27 @@ export default function ConversionPerformanceWidget({
         onClick={() =>
           setActiveTab(activeTab === "quoteToCash" ? null : "quoteToCash")
         }
-        className={`w-full mt-3 p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer relative z-10 ${
-          activeTab === "quoteToCash"
-            ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
-            : isDark
-              ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
-              : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
-        }`}
+        className={`w-full mt-3 p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
+          ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
+          : isDark
+            ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
+            : "bg-zinc-50 border-black/5 text-black hover:bg-black/5"
+          }`}
       >
         <div className="flex items-center justify-between">
           <span
-            className={`lg:text-2xl font-bold ${
-              activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"
-            }`}
+            className={`lg:text-2xl font-bold ${activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"
+              }`}
           >
             35.5%
           </span>
           <Info
-            size={16}
+            size={24}
+            strokeWidth={1.5}
             className={
               activeTab === "quoteToCash"
-                ? "opacity-60 text-black"
-                : "opacity-40"
+                ? "fill-black text-[#E8D1AB]"
+                : "text-black fill-[#E8D1AB]"
             }
           />
         </div>

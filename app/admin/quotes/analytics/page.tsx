@@ -64,7 +64,7 @@ export default function QuotePricingPage() {
   const { isDark } = useResolvedTheme();
 
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [isDateOpen, setIsDateOpen] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -420,12 +420,10 @@ export default function QuotePricingPage() {
           </div>
         </div>
 
-
-
         {/* --- FLOATING MOBILE BUTTON PANEL --- */}
-        <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
+        {/* <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
 
-        </div>
+        </div> */}
       </div>
     </>
   );

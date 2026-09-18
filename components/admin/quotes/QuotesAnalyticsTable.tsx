@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 type QuoteAnalyticsItem = {
@@ -117,39 +118,42 @@ const TableRow = ({
   onToggle: () => void;
   isDark: boolean;
 }) => {
+  const router = useRouter();
+
+  const handleRowClick = () => {
+      router.push(`/admin/quotes/analytics/${item.id}`);
+  };
+
   return (
     <React.Fragment>
       <tr
-        onClick={() => {
-          if (typeof window !== "undefined" && window.innerWidth < 1024) {
-            onToggle();
-          }
-        }}
-        className={`transition-colors lg:cursor-default ${
-          typeof window !== "undefined" && window.innerWidth < 1024
-            ? "cursor-pointer"
-            : ""
-        } ${
+        onClick={handleRowClick}
+        className={`transition-colors cursor-pointer ${
           isDark
             ? isExpanded
               ? "bg-[#202020]"
               : "border-white/[0.05] hover:bg-white/[0.02]"
-          : "hover:bg-black/[0.02]"
+            : "hover:bg-black/[0.02]"
           }`}
       >
         {/* Rep Column (Mobile Accordion Lead) */}
         <td className="p-4">
           <div className="flex items-center gap-3">
-            {/* Mobile Chevron */}
-            <div
+            {/* Mobile Chevron Toggle */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+              }}
               className={`lg:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors shrink-0 ${
                 isExpanded
-                ? isDark
-                  ? "border-[#E8D1AB] text-[#E8D1AB]"
-                  : "border-black text-black"
-                : isDark
-                  ? "border-[#4B4B4B] text-[#777674]"
-                  : "border-[#E3E3E3] text-black/40"
+                  ? isDark
+                    ? "border-[#E8D1AB] text-[#E8D1AB]"
+                    : "border-black text-black"
+                  : isDark
+                    ? "border-[#4B4B4B] text-[#777674]"
+                    : "border-[#E3E3E3] text-black/40"
                 }`}
             >
               {isExpanded ? (
@@ -157,12 +161,11 @@ const TableRow = ({
               ) : (
                 <ChevronDown size={14} strokeWidth={2.5} />
               )}
-            </div>
+            </button>
 
             <span
-              className={`text-sm lg:text-base font-medium ${
-                isDark ? "text-white" : "text-black"
-              }`}
+              className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"
+                }`}
             >
               {item.rep}
             </span>
@@ -171,57 +174,50 @@ const TableRow = ({
 
         {/* Desktop Data Columns */}
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
         >
           {item.quoteSent}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
         >
           {item.quoteValue}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
-              >
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
+        >
           {item.dealWon}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
         >
           {item.winRate}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
-          >
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
+        >
           {item.wonRevenue}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
         >
           {item.avgDealSizeOpen}
         </td>
 
         <td
-          className={`p-4 hidden lg:table-cell ${
-            isDark ? "text-white" : "text-black"
-          }`}
+          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
+            }`}
         >
           {item.openPipeline}
         </td>
@@ -237,127 +233,111 @@ const TableRow = ({
       {/* Mobile Expanded Details Section */}
       {isExpanded && (
         <tr
-          className={`lg:hidden transition-colors ${
-            isDark ? "bg-[#202020]" : "bg-black/[0.02]"
-          }`}
+          className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"
+            }`}
         >
           <td
             colSpan={2}
-            className={`px-4 py-6 border-t ${
-              isDark ? "border-white/[0.05]" : "border-black/[0.05]"
+            className={`px-4 py-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
               }`}
           >
             <div className="pl-9 space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Quote Sent
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.quoteSent}
                   </p>
                 </div>
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Quote Value
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.quoteValue}
                   </p>
                 </div>
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Deal Won
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.dealWon}
                   </p>
-                  </div>
+                </div>
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Win Rate
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.winRate}
                   </p>
                 </div>
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Won Revenue
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.wonRevenue}
                   </p>
                 </div>
                 <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Avg. Deal Size Open
                   </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
                   >
                     {item.avgDealSizeOpen}
                   </p>
-              </div>
-              <div>
+                </div>
+                <div>
                   <p
-                    className={`text-xs mb-1 ${
-                      isDark ? "text-[#F5F5F5]" : "text-black/50"
-                    }`}
+                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
+                      }`}
                   >
                     Open Pipeline
-                </p>
+                  </p>
                   <p
-                    className={`text-sm ${
-                      isDark ? "text-[#A1A1A1]" : "text-black"
-                    }`}
-                >
+                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
+                      }`}
+                  >
                     {item.openPipeline}
                   </p>
                 </div>
@@ -370,7 +350,9 @@ const TableRow = ({
   );
 };
 
-export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps) => {
+export const QuotesAnalyticsTable = ({
+  isDark = true,
+}: QuoteAnalyticsTableProps) => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(
@@ -383,18 +365,16 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
 
   return (
     <div
-      className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${
-        isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
-      }`}
+      className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
+        }`}
     >
       <table className="w-full text-left border-collapse">
         <thead>
           {/* Desktop Headers */}
           <tr
-            className={`hidden lg:table-row border-b rounded-b-lg lg:rounded-b-2xl text-left text-sm transition-colors ${
-              isDark
-              ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
-              : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+            className={`hidden lg:table-row border-b rounded-b-lg lg:rounded-b-2xl text-left text-sm transition-colors ${isDark
+                ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
               }`}
           >
             {[
@@ -415,10 +395,9 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
           </tr>
           {/* Mobile Headers */}
           <tr
-            className={`lg:hidden border-b text-sm transition-colors ${
-              isDark
-              ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
-              : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+            className={`lg:hidden border-b text-sm transition-colors ${isDark
+                ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
               }`}
           >
             <th className="p-4 font-medium">Rep</th>
@@ -468,16 +447,14 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
         {!loading && DUMMY_ANALYTICS_DATA.length > 0 && (
           <tfoot>
             <tr
-              className={`border-t transition-colors ${
-                isDark ? "border-[#333333] bg-[#101010]" : "border-[#E5E5E5] bg-white"
-              }`}
+              className={`border-t transition-colors ${isDark ? "border-[#333333] bg-[#101010]" : "border-[#E5E5E5] bg-white"
+                }`}
             >
               <td colSpan={9} className="p-4">
                 <div className="flex gap-4 items-center justify-center lg:justify-between">
                   <div
-                    className={`hidden lg:block text-sm ${
-                      isDark ? "text-white" : "text-black"
-                    }`}
+                    className={`hidden lg:block text-sm ${isDark ? "text-white" : "text-black"
+                      }`}
                   >
                     {`Page ${safeCurrentPage} to ${totalPages}`}
                   </div>
@@ -488,10 +465,9 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
                         setPage((currentValue) => Math.max(1, currentValue - 1))
                       }
                       disabled={safeCurrentPage === 1}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
-                        isDark
-                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronLeft size={24} />
@@ -501,9 +477,8 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
                       item === "..." ? (
                         <span
                           key={`ellipsis-${index}`}
-                          className={`px-2 text-sm ${
-                            isDark ? "text-white/60" : "text-[#666]"
-                          }`}
+                          className={`px-2 text-sm ${isDark ? "text-white/60" : "text-[#666]"
+                            }`}
                         >
                           ...
                         </span>
@@ -512,12 +487,11 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
                           key={item}
                           type="button"
                           onClick={() => setPage(item)}
-                          className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${
-                            safeCurrentPage === item
-                            ? "bg-[#E5D5B8] text-black"
-                            : isDark
-                              ? "text-white/60 hover:bg-white/5"
-                              : "text-[#666] hover:bg-black/5"
+                          className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safeCurrentPage === item
+                              ? "bg-[#E5D5B8] text-black"
+                              : isDark
+                                ? "text-white/60 hover:bg-white/5"
+                                : "text-[#666] hover:bg-black/5"
                             }`}
                         >
                           {item}
@@ -533,10 +507,9 @@ export const QuotesAnalyticsTable = ({ isDark = true }: QuoteAnalyticsTableProps
                         )
                       }
                       disabled={safeCurrentPage === totalPages}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${
-                        isDark
-                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronRight size={24} />
