@@ -209,6 +209,36 @@ export interface FileManagerSettings {
   updatedAt?: string | null;
 }
 
+export interface FileManagerSettingsHistoryRow {
+  id: number;
+  cp_delete_lock_days: number;
+  changed_at: string;
+  change_reason: string | null;
+  changed_by_user_id?: number | null;
+  changed_by: {
+    id: number;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | null;
+  before: { cp_delete_lock_days: number } | null;
+  after: { cp_delete_lock_days: number } | null;
+  changes: Array<{ field: string; before: unknown; after: unknown }>;
+}
+
+interface FileManagerSettingsHistoryResponse {
+  success: boolean;
+  data: {
+    rows: FileManagerSettingsHistoryRow[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+  };
+}
+
 interface ExternalWorkspacesResponse {
   success: boolean;
   data: {
@@ -1294,6 +1324,14 @@ export const fileManagerApi = {
     const response = await apiClient.getInstance().patch<{ success: boolean; data: FileManagerSettings }>(
       "external-file-manager/settings",
       payload
+    );
+    return response.data;
+  },
+
+  async getFileManagerSettingsHistory(params?: { page?: number; limit?: number }) {
+    const response = await apiClient.get<FileManagerSettingsHistoryResponse>(
+      "external-file-manager/settings/history",
+      (params as Record<string, unknown>) || {}
     );
     return response.data;
   },
