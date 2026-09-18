@@ -432,6 +432,7 @@ type CreateIntentMultiPayload = {
   booking_id: string;
   amount: number;
   guest_email?: string | null;
+  referral_code?: string | null;
   payment_source?: string;
   use_credit: boolean;
   credit_amount_used: number;
@@ -450,6 +451,7 @@ const buildCreateIntentMultiKey = (apiBaseUrl: string, payload: CreateIntentMult
     booking_id: payload.booking_id,
     amount: payload.amount,
     guest_email: payload.guest_email || null,
+    referral_code: payload.referral_code || null,
     payment_source: payload.payment_source || null,
     use_credit: payload.use_credit,
     credit_amount_used: payload.credit_amount_used,
@@ -830,11 +832,15 @@ function CommasEmbeddedCheckout({
       <style jsx global>{`
         .commas-checkout-frame {
           overflow: hidden !important;
+          background-color: #272626 !important;
+          color-scheme: dark;
         }
 
         .commas-checkout-frame iframe {
           width: calc(100% + 18px) !important;
           max-width: none !important;
+          background-color: #272626 !important;
+          color-scheme: dark;
         }
       `}</style>
     </div>
@@ -951,6 +957,10 @@ function StripePaymentFormMulti({
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [referralErrorMessage, setReferralErrorMessage] = useState("");
   const [commasSubmitController, setCommasSubmitController] = useState<CommasSubmitController | null>(null);
+  const [paymentErrorMessage, setPaymentErrorMessage] = useState("");
+  const [isCommasPreparing, setIsCommasPreparing] = useState(false);
+  const paymentErrorRef = useRef<HTMLDivElement | null>(null);
+  const appliedReferralCodeRef = useRef("");
 
   // Terms&Condn accept
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -993,6 +1003,14 @@ function StripePaymentFormMulti({
   const activeDiscountCode = normalizeDiscountCodeValue(
     quote?.applied_discount_code || quote?.discount_code
   );
+  const showPaymentError = useCallback((message: string) => {
+    setIsCommasPreparing(false);
+    setPaymentErrorMessage(message);
+    onError(message);
+    window.requestAnimationFrame(() => {
+      paymentErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [onError]);
 
   useEffect(() => {
     if (!isReferralLocked) return;
@@ -1025,7 +1043,10 @@ function StripePaymentFormMulti({
         setReferralCodeValid(null);
         setReferralAffiliateName("");
         setReferralErrorMessage("");
-        await refreshPricingWithReferral();
+        if (appliedReferralCodeRef.current) {
+          appliedReferralCodeRef.current = "";
+          await refreshPricingWithReferral();
+        }
         return;
       }
 
@@ -1049,11 +1070,15 @@ function StripePaymentFormMulti({
           setReferralAffiliateName(response.affiliate_name || "");
           setReferralErrorMessage("");
           await refreshPricingWithReferral(code);
+          appliedReferralCodeRef.current = code;
         } else {
           setReferralCodeValid(false);
           setReferralAffiliateName("");
           setReferralErrorMessage(response.message || "Invalid referral code");
-          await refreshPricingWithReferral();
+          if (appliedReferralCodeRef.current) {
+            appliedReferralCodeRef.current = "";
+            await refreshPricingWithReferral();
+          }
         }
 
       } catch (error) {
@@ -1264,11 +1289,15 @@ function StripePaymentFormMulti({
   }
 
   const clearReferralCode = async () => {
+    const hadAppliedReferral = Boolean(appliedReferralCodeRef.current || quote?.applied_referral_code);
+    appliedReferralCodeRef.current = "";
     setReferralCode("");
     setReferralCodeValid(null);
     setReferralAffiliateName("");
     setReferralErrorMessage("");
-    await refreshPricingWithReferral();
+    if (hadAppliedReferral) {
+      await refreshPricingWithReferral();
+    }
   };
 
   const handleDiscountCodeChange = (value: string) => {
@@ -1449,22 +1478,27 @@ function StripePaymentFormMulti({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPaymentErrorMessage("");
 
     if (!acceptTerms) {
-      onError("Please accept Terms & Conditions to continue.");
+      showPaymentError("Please accept Terms & Conditions to continue.");
       return;
     }
 
     if (!acceptServiceAgreement) {
-      onError("Please accept the Service Agreement to continue.");
+      showPaymentError("Please accept the Service Agreement to continue.");
       return;
     }
 
     // Validate referral code on confirm before payment APIs
     if (referralCode.length > 0) {
-      const isValid = await validateReferralCodeNow(referralCode);
+      const isValid =
+        referralCodeValid === true &&
+        normalizeDiscountCodeValue(quote?.applied_referral_code) === referralCode
+          ? true
+          : await validateReferralCodeNow(referralCode);
       if (!isValid) {
-        onError("Please enter a valid referral code or remove it.");
+        showPaymentError("Please enter a valid referral code or remove it.");
         return;
       }
     }
@@ -1473,7 +1507,7 @@ function StripePaymentFormMulti({
     if (discountCode.length > 0) {
       const isValid = await validateDiscountCodeNow(discountCode);
       if (!isValid) {
-        onError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
+        showPaymentError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
         return;
       }
     }
@@ -1524,7 +1558,7 @@ function StripePaymentFormMulti({
         console.log("after GA purchase after 100% DISCOUNT CASE: Bypass Stripe");
 
       } catch (err) {
-        onError("Failed to process free booking");
+        showPaymentError("Failed to process free booking");
       } finally {
         setIsProcessing(false);
       }
@@ -1534,7 +1568,7 @@ function StripePaymentFormMulti({
     if (isCommasHosted) {
       const paymentLink = paymentSession.paymentLink;
       if (!paymentLink) {
-        onError("Commas payment link is missing. Please refresh the page.");
+        showPaymentError("Commas payment link is missing. Please refresh the page.");
         return;
       }
 
@@ -1558,29 +1592,29 @@ function StripePaymentFormMulti({
         window.location.assign(paymentLink);
       } catch (err) {
         setIsProcessing(false);
-        onError(err instanceof Error ? err.message : "Failed to open Commas checkout");
+        showPaymentError(err instanceof Error ? err.message : "Failed to open Commas checkout");
       }
       return;
     }
 
     if (!stripe || !elements) {
-      onError("Payment system not initialized");
+      showPaymentError("Payment system not initialized");
       return;
     }
 
     if (!clientSecret) {
-      onError("Payment not initialized. Please refresh the page.");
+      showPaymentError("Payment not initialized. Please refresh the page.");
       return;
     }
 
     if (!isStripeClientSecret(clientSecret)) {
-      onError("Invalid payment session. Please refresh the page before trying again.");
+      showPaymentError("Invalid payment session. Please refresh the page before trying again.");
       return;
     }
 
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) {
-      onError("Card information not found");
+      showPaymentError("Card information not found");
       return;
     }
 
@@ -1615,7 +1649,7 @@ function StripePaymentFormMulti({
         });
         console.log("after GA payment_failed in paymentError section");
 
-        onError(paymentError.message || "Payment failed");
+        showPaymentError(paymentError.message || "Payment failed");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         // add GA event when payment succeeds
         pushToDataLayer("purchase", {
@@ -1665,27 +1699,33 @@ function StripePaymentFormMulti({
       });
       console.log("after GA payment_failed after Unexpected payment error");
 
-      onError(errorMessage);
+      showPaymentError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleCommasEmbeddedSubmit = async (submit: () => void) => {
+    setPaymentErrorMessage("");
+    setIsCommasPreparing(true);
     if (!acceptTerms) {
-      onError("Please accept Terms & Conditions to continue.");
+      showPaymentError("Please accept Terms & Conditions to continue.");
       return;
     }
 
     if (!acceptServiceAgreement) {
-      onError("Please accept the Service Agreement to continue.");
+      showPaymentError("Please accept the Service Agreement to continue.");
       return;
     }
 
     if (referralCode.length > 0) {
-      const isValid = await validateReferralCodeNow(referralCode);
+      const isValid =
+        referralCodeValid === true &&
+        normalizeDiscountCodeValue(quote?.applied_referral_code) === referralCode
+          ? true
+          : await validateReferralCodeNow(referralCode);
       if (!isValid) {
-        onError("Please enter a valid referral code or remove it.");
+        showPaymentError("Please enter a valid referral code or remove it.");
         return;
       }
     }
@@ -1693,7 +1733,7 @@ function StripePaymentFormMulti({
     if (discountCode.length > 0) {
       const isValid = await validateDiscountCodeNow(discountCode);
       if (!isValid) {
-        onError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
+        showPaymentError("This discount code is no longer active or is incorrect. Please enter a valid code or remove it to continue.");
         return;
       }
     }
@@ -1728,10 +1768,27 @@ function StripePaymentFormMulti({
     });
 
     submit();
+    window.requestAnimationFrame(() => setIsCommasPreparing(false));
   };
 
   return (
     <div className="bg-[#171717] rounded-[20px] p-6 lg:p-10">
+      <AnimatePresence>
+        {(isCommasPreparing || commasSubmitController?.isSubmitting) && !paymentErrorMessage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#111111]/95 px-6 text-center backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-[#E8D1AB]" />
+            <p className="text-xl font-semibold text-white">Processing your payment...</p>
+            <p className="mt-2 text-sm text-white/60">Please keep this page open. This can take a few moments.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <h3 className="font-bold mb-7 text-base lg:text-2xl">
         {isFree ? "Confirm Free Booking" : "Add Payment Method"}
       </h3>
@@ -1820,7 +1877,7 @@ function StripePaymentFormMulti({
             amount={amount}
             booking={booking}
             onSuccess={onCommasSuccess}
-            onError={onError}
+            onError={showPaymentError}
             onSubmitControllerChange={setCommasSubmitController}
           />
         )}
@@ -2029,13 +2086,23 @@ function StripePaymentFormMulti({
         </div>
 
         {/* Submit Button */}
+        {paymentErrorMessage && (
+          <div
+            ref={paymentErrorRef}
+            role="alert"
+            aria-live="assertive"
+            className="w-full rounded-xl border border-red-400/50 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-100 shadow-[0_8px_24px_rgba(239,68,68,0.12)]"
+          >
+            {paymentErrorMessage}
+          </div>
+        )}
         {isCommasEmbedded ? (
           <Button
             type="button"
             disabled={!commasSubmitController || commasSubmitController.isSubmitting}
             onClick={() => {
               if (!commasSubmitController) {
-                onError("Payment system not initialized");
+                showPaymentError("Payment system not initialized");
                 return;
               }
               void handleCommasEmbeddedSubmit(commasSubmitController.submit);
@@ -2121,6 +2188,7 @@ function MultiCreatorPaymentContent() {
   const [step, setStep] = useState<"loading" | "payment" | "success">("loading");
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingIntent, setIsUpdatingIntent] = useState(false);
+  const [isFinalizingCommasPayment, setIsFinalizingCommasPayment] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
@@ -2366,6 +2434,7 @@ function MultiCreatorPaymentContent() {
         booking_id: shootId,
         amount: payableAmount,
         guest_email: resolveGuestEmail(booking, summaryData?.client_email),
+        referral_code: details?.quote?.applied_referral_code || null,
         payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
         use_credit: useCreditOverride && canUseCredit,
         credit_amount_used: creditToApply,
@@ -2593,13 +2662,19 @@ function MultiCreatorPaymentContent() {
     };
 
     try {
+      setIsFinalizingCommasPayment(true);
       toast.success("Payment received. Confirming your booking...");
       setSummaryData((currentSummary: unknown) =>
         mergeBookingSummaryPaymentData(currentSummary, paymentContext),
       );
 
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
-      for (let attempt = 0; attempt < 6; attempt += 1) {
+      // The webhook normally lands before the SDK success callback. Keep this
+      // bounded so a successful payment never floods the full details endpoint.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
         try {
           const response = await axios.get(
             `${API_BASE_URL}guest-bookings/${shootId}/payment-details`,
@@ -2617,7 +2692,6 @@ function MultiCreatorPaymentContent() {
           console.warn("Commas payment confirmation poll failed:", pollError);
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       await fetchSummaryData(paymentContext);
@@ -2628,6 +2702,8 @@ function MultiCreatorPaymentContent() {
     } catch (error) {
       console.error("Error finalizing Commas payment:", error);
       toast.error("Payment succeeded, but we could not refresh the booking status. Please reload or contact support.");
+    } finally {
+      setIsFinalizingCommasPayment(false);
     }
   };
 
@@ -2848,6 +2924,22 @@ function MultiCreatorPaymentContent() {
 
   return (
     <div className="pt-20 md:pt-32 pb-20 min-h-screen">
+      <AnimatePresence>
+        {isFinalizingCommasPayment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#111111]/95 px-6 text-center backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-[#E8D1AB]" />
+            <p className="text-xl font-semibold text-white">Confirming your booking...</p>
+            <p className="mt-2 text-sm text-white/60">Your payment was received. Please keep this page open.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="container mx-auto px-4 xl:px-0">
         <LeaveConfirmationModal isOpen={showLeaveModal} onConfirm={() => router.push("/book-a-shoot")} onCancel={() => setShowLeaveModal(false)} />
 
