@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 export const WelcomeSection = () => {
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // const containerRef = useRef<HTMLDivElement>(null);
   const [joinUsUrl, setJoinUsUrl] = useState("/creative-partner-signup")
 
   useEffect(() => {
@@ -39,38 +39,38 @@ export const WelcomeSection = () => {
   }
 
   // Track if video is in focus
-  const isInView = useInView(containerRef, { amount: 0.6 });
+  // const isInView = useInView(containerRef, { amount: 0.6 });
 
   // Handle Vimeo Play/Pause via the postMessage API
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) return;
+  // useEffect(() => {
+  //   const iframe = iframeRef.current;
+  //   if (!iframe || !iframe.contentWindow) return;
 
-    const message = JSON.stringify({
-      method: isInView ? "play" : "pause",
-    });
+  //   const message = JSON.stringify({
+  //     method: isInView ? "play" : "pause",
+  //   });
 
-    iframe.contentWindow.postMessage(message, "*");
-  }, [isInView]);
+  //   iframe.contentWindow.postMessage(message, "*");
+  // }, [isInView]);
 
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"],
-  });
+  // const { scrollYProgress } = useScroll({
+  //   target: containerRef,
+  //   offset: ["start end", "end start"],
+  // });
 
   // Smooth out the scroll progress
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
+  // const smoothProgress = useSpring(scrollYProgress, {
+  //   stiffness: 100,
+  //   damping: 30,
+  //   restDelta: 0.001
+  // });
 
   // Transform logic: Starts tilted (20deg), scales up (0.8 -> 1), and straightens to (0deg)
-  const rotateX = useTransform(smoothProgress, [0, 0.4], [20, 0]);
-  const scale = useTransform(smoothProgress, [0, 0.4], [0.8, 1]);
-  const translateZ = useTransform(smoothProgress, [0, 0.4], [-100, 0]);
+  // const rotateX = useTransform(smoothProgress, [0, 0.4], [20, 0]);
+  // const scale = useTransform(smoothProgress, [0, 0.4], [0.8, 1]);
+  // const translateZ = useTransform(smoothProgress, [0, 0.4], [-100, 0]);
 
-  const vimeoUrl = `https://player.vimeo.com/video/1060256619?api=1&autoplay=1&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
+  // const vimeoUrl = `https://player.vimeo.com/video/1060256619?api=1&autoplay=1&muted=1&loop=1&controls=1&title=0&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`;
 
   const handleScroll = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
     e.preventDefault();
@@ -127,7 +127,7 @@ export const WelcomeSection = () => {
         </div>
 
         {/* Animation Perspective Wrapper */}
-        <div
+        {/* <div
           ref={containerRef}
           className="w-full relative"
           style={{ perspective: "1200px" }}
@@ -140,19 +140,19 @@ export const WelcomeSection = () => {
               transformStyle: "preserve-3d",
             }}
             className="w-full h-[320px] lg:h-[700px] overflow-hidden relative rounded-[10px] lg:rounded-[24px] border border-white/20 bg-black shadow-2xl"
-          >
+          > */}
             {/* Screen Reflective Overlay */}
-            <div className="absolute inset-0 z-0 pointer-events-none bg-gradient-to-tr from-white/5 to-transparent opacity-30" />
+            {/* <div className="absolute inset-0 z-0 pointer-events-none bg-gradient-to-tr from-white/5 to-transparent opacity-30" /> */}
 
             {/* Vimeo Iframe Implementation */}
-            <iframe
+            {/* <iframe
               ref={iframeRef}
               src={vimeoUrl}
               className="absolute inset-0 w-full h-full z-10"
               allow="autoplay; fullscreen"
-            />
-          </motion.div>
-        </div>
+            /> */}
+          {/* </motion.div>
+        </div> */}
       </Container>
     </section>
   );
