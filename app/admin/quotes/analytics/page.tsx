@@ -52,6 +52,8 @@ import QuotesOverdueWidget from "@/components/admin/quotes/QuotesOverdue";
 import OpenPipelineWidget from "@/components/admin/quotes/OpenPipeline";
 import ConversionPerformanceWidget from "@/components/admin/quotes/ConversionPerformance";
 import QuotePerformanceWidget from "@/components/admin/quotes/QuotePerformance";
+import { shootTypes } from "@/app/data/shootData";
+import DateFilter from "@/components/admin/quotes/DateFilter";
 
 type SalesRepOption = {
   id: string;
@@ -67,9 +69,14 @@ export default function QuotePricingPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [isDateOpen, setIsDateOpen] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null | string>(null);
   const [selectedSalesperson, setSelectedSalesperson] = useState("");
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
+  const [selectedShootType, setSelectedShootType] = useState("");
+  const [selectedQuoteStatus, setSelectedQuoteStatus] = useState("");
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("");
+  const [selectedLeadSource, setSelectedLeadSource] = useState("");
+  const [selectedCustomerType, setSelectedCustomerType] = useState("");
 
 
   useEffect(() => {
@@ -93,8 +100,6 @@ export default function QuotePricingPage() {
 
     void fetchSalesReps();
   }, []);
-
-
 
   return (
     <>
@@ -130,82 +135,21 @@ export default function QuotePricingPage() {
             <span>Filters</span>
           </Button>
         </div>
-        
+
         {
           showFilters &&
           <div className={`flex gap-4 rounded-lg lg:rounded-xl p-3.5 ${isDark ? "bg-[#171717]" : "bg-[#E8E8E8]"}`}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <Box sx={{ position: "relative" }}>
-                <div className="flex items-center gap-2">
-                  {/* Styled Trigger Button */}
-                  <button
-                    onClick={() => setIsDateOpen(true)}
-                    className={`h-12 shrink-0 flex items-center justify-between gap-1 lg:gap-3 p-4 transition-all text-xs lg:text-base lg:font-medium shadow-sm whitespace-nowrap rounded-lg lg:rounded-xl border  ${isDark
-                      ? "bg-[#202020] border-white/20 text-white hover:text-[#C4C4C4] hover:border-white/30"
-                      : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:opacity-80"
-                      }`}
-                  >
-                    <span className="whitespace-nowrap text-sm medium">
-                      {selectedDate ? format(selectedDate, "MMM dd, yyyy") : "Date"}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 lg:w-6 lg:h-6 shrink-0 ${isDark ? "text-white" : "text-[#323232]"}`} />
-                  </button>
+            {/* Date */}
+            <DateFilter
+              isDark={isDark}
+              onChange={(preset, dateRange, customDate) => {
+                setSelectedDate(preset)
+                console.log("Preset selected:", preset);
+                console.log("Start & End dates:", dateRange.startDate, dateRange.endDate);
+              }}
+            />
 
-                  {selectedDate && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate(null);
-                        setIsDateOpen(false);
-                      }}
-                      className={`h-8 w-8 lg:h-10 lg:w-10 rounded-full border transition-all flex items-center justify-center ${isDark ? "border-white/10 bg-[#1A1A1A] text-[#C4C4C4] hover:text-white hover:border-white/30" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:opacity-80"}`}
-                      aria-label="Clear date filter"
-                    >
-                      <X className="w-4 h-4 lg:w-5 lg:h-5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Hidden MUI DatePicker */}
-                <div className="invisible absolute top-0 left-0 h-0 w-0">
-                  <DesktopDatePicker
-                    open={isDateOpen}
-                    onOpen={() => setIsDateOpen(true)}
-                    onClose={() => setIsDateOpen(false)}
-                    value={selectedDate}
-                    onChange={(newValue) => {
-                      setSelectedDate(newValue);
-                      setIsDateOpen(false);
-                    }}
-                    slotProps={{
-                      desktopPaper: {
-                        sx: {
-                          backgroundColor: isDark ? "#171717" : "#E8E8E8",
-                          border: isDark ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid #E3E3E3",
-                          borderRadius: "16px",
-                          color: isDark ? "#fff" : "#323232",
-                          "& .MuiPickersDay-root": {
-                            color: isDark ? "#fff" : "#323232",
-                            "&.Mui-selected": {
-                              backgroundColor: "#E8D1AB",
-                              color: "#000",
-                              "&:hover": { backgroundColor: "#D4C3A3" },
-                            },
-                          },
-                          "& .MuiTypography-root": {
-                            color: isDark ? "rgba(255,255,255,0.6)" : "#323232CC"
-                          },
-                          "& .MuiSvgIcon-root": {
-                            color: isDark ? "#E8D1AB" : "#323232CC"
-                          },
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              </Box>
-            </LocalizationProvider>
-
+            {/* Sales Rep */}
             <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
@@ -238,7 +182,8 @@ export default function QuotePricingPage() {
               </SelectContent>
             </Select>
 
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            {/* Shoot Type */}
+            <Select value={selectedShootType} onValueChange={setSelectedShootType}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -254,23 +199,19 @@ export default function QuotePricingPage() {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
-                {salespersonOptions.map((salesperson) => (
-                  <SelectItem key={salesperson.id} value={salesperson.id}>
+                <SelectItem value="all">All Shoots</SelectItem>
+                {shootTypes.map((shoot) => (
+                  <SelectItem key={shoot.key} value={shoot.key}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
-                      {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {salesperson.role}
-                        </span>
-                      ) : null}
+                      <span>{shoot.value}</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            {/* Quote Status: Optiosn to be updated as per availability */}
+            <Select value={selectedQuoteStatus} onValueChange={setSelectedQuoteStatus}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -286,23 +227,19 @@ export default function QuotePricingPage() {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
                       <span>{salesperson.name}</span>
-                      {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {salesperson.role}
-                        </span>
-                      ) : null}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            {/* Payment Status: Options to be updated as per availability */}
+            <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -318,23 +255,19 @@ export default function QuotePricingPage() {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
                       <span>{salesperson.name}</span>
-                      {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {salesperson.role}
-                        </span>
-                      ) : null}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            {/* Lead Source: Options to be updated as per availability */}
+            <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -350,23 +283,19 @@ export default function QuotePricingPage() {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
+                <SelectItem value="all">All LEad Sources</SelectItem>
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
                       <span>{salesperson.name}</span>
-                      {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {salesperson.role}
-                        </span>
-                      ) : null}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            {/* Customer Type: Options to be updated as per availability */}
+            <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -375,37 +304,29 @@ export default function QuotePricingPage() {
               >
                 <SelectValue placeholder="Customer Type" className="text-sm medium" />
               </SelectTrigger>
-              <SelectContent
-                className={
-                  isDark
-                    ? "border-white/20 bg-[#161616] text-white text-sm medium"
-                    : "border-[#E3E3E3] bg-white text-black text-sm medium"
-                }
+              <SelectContent className={isDark ? "border-white/20 bg-[#161616] text-white text-sm medium"
+                : "border-[#E3E3E3] bg-white text-black text-sm medium"
+              }
               >
                 <SelectItem value="all">All Salesperson</SelectItem>
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
                       <span>{salesperson.name}</span>
-                      {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                          {salesperson.role}
-                        </span>
-                      ) : null}
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div >
         }
 
         <div className="space-y-3 lg:space-y-6">
-          <div className="w-full flex flex-col lg:flex-row gap-5">
-            <div className="w-full lg:w-3/5 h-full">
+          <div className="w-full flex flex-col lg:flex-row items-stretch gap-5">
+            <div className="w-full lg:w-3/5 flex flex-col">
               <QuotePerformanceWidget />
             </div>
-            <div className="w-full lg:w-2/5 h-full">
+            <div className="w-full lg:w-2/5 flex flex-col">
               <ConversionPerformanceWidget />
             </div>
           </div>
@@ -424,7 +345,7 @@ export default function QuotePricingPage() {
         {/* <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
 
         </div> */}
-      </div>
+      </div >
     </>
   );
 }

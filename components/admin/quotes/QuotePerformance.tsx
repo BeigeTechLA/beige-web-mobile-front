@@ -19,9 +19,10 @@ interface MetricCardData {
   label: string;
   value: string;
   growth: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<{ className?: string }>;
   data: { month: string; value: number }[];
   formattedTooltip: string;
+  infoTooltip: string;
 }
 
 const metricsData: Record<MetricKey, MetricCardData> = {
@@ -30,8 +31,9 @@ const metricsData: Record<MetricKey, MetricCardData> = {
     label: "Quote Value",
     value: "$24.5M",
     growth: "+3%",
-    icon: <CircleDollarSign size={14} />,
+    icon: CircleDollarSign,
     formattedTooltip: "$24.5M",
+    infoTooltip: "Total amount of the proposals sent in the selected period",
     data: [
       { month: "Jan", value: 30 },
       { month: "Feb", value: 20 },
@@ -47,8 +49,9 @@ const metricsData: Record<MetricKey, MetricCardData> = {
     label: "Quotes Sent",
     value: "128",
     growth: "+3%",
-    icon: <Clock4 size={14} />,
+    icon: Clock4,
     formattedTooltip: "128 Quotes",
+    infoTooltip: "Total Number of quotes sent.",
     data: [
       { month: "Jan", value: 40 },
       { month: "Feb", value: 45 },
@@ -64,8 +67,9 @@ const metricsData: Record<MetricKey, MetricCardData> = {
     label: "Deals Won",
     value: "32",
     growth: "+3%",
-    icon: <BadgeCheck size={14} />,
+    icon: BadgeCheck,
     formattedTooltip: "32 Deals",
+    infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
     data: [
       { month: "Jan", value: 15 },
       { month: "Feb", value: 18 },
@@ -81,8 +85,9 @@ const metricsData: Record<MetricKey, MetricCardData> = {
     label: "Won Revenue",
     value: "$8.7M",
     growth: "+3%",
-    icon: <CircleDollarSign size={14} />,
+    icon: CircleDollarSign,
     formattedTooltip: "$8.7M",
+    infoTooltip: "Total amount of deals won",
     data: [
       { month: "Jan", value: 25 },
       { month: "Feb", value: 22 },
@@ -115,7 +120,8 @@ export default function QuotePerformanceWidget() {
   const currentMetric = metricsData[activeMetricKey];
 
   return (
-    <div className="w-full rounded-lg lg:rounded-2xl border border-white/10 bg-[#171717] p-3 lg:p-5 text-white transition-all duration-300">
+    <div className={`w-full rounded-lg lg:rounded-2xl border p-3 lg:p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"
+      }`}>
       {/* Header Title */}
       <div className="flex items-center gap-2.5 mb-5">
         <span className="h-7 w-[3px] bg-[#E8D1AB] rounded-full inline-block" />
@@ -125,10 +131,12 @@ export default function QuotePerformanceWidget() {
       </div>
 
       {/* Top 2x2 Metric Cards Grid Area */}
-      <div className="grid grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl bg-[#101010] mb-4">
+      <div className={`grid grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl mb-4 ${isDark ? "bg-[#101010]" : "bg-zinc-100"
+        }`}>
         {(Object.keys(metricsData) as MetricKey[]).map((key) => {
           const item = metricsData[key];
           const isActive = activeMetricKey === key;
+          const IconComponent = item.icon;
 
           return (
             <button
@@ -137,26 +145,70 @@ export default function QuotePerformanceWidget() {
               onClick={() => setActiveMetricKey(key)}
               className={`relative p-4 rounded-lg text-left transition-all duration-200 cursor-pointer flex flex-col justify-between ${isActive
                 ? "bg-[#ECD7B4] text-black"
-                : "bg-transparent text-white hover:bg-white/5"
+                : isDark
+                  ? "bg-transparent text-white hover:bg-white/5"
+                  : "bg-transparent text-black hover:bg-black/5"
                 }`}
             >
               {/* Card Header Row */}
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-1.5 text-xs lg:text-sm font-medium">
-                  <span
-                    className={isActive ? "text-black" : "text-white"}
-                  >
+                  <span className={isActive ? "text-black" : isDark ? "text-white" : "text-black"}>
                     {item.label}
                   </span>
-                  <Info
-                    size={13}
-                    className={`text-[#ECD7B4] ${isActive ? "fill-black " : "fill-white/40"}`}
-                  />
+
+                  {/* Info Icon with Hover Tooltip */}
+                  <div
+                    className="relative flex items-center group"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Info
+                      size={13}
+                      className={`cursor-pointer transition-colors ${isActive
+                          ? "text-[#ECD7B4] fill-black"
+                          : isDark
+                            ? "text-black fill-[#ECD7B4]"
+                            : "text-[#ECD7B4] fill-black/40"
+                        }`}
+                    />
+
+                    {/* Hover Tooltip Card */}
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
+                      <div
+                        className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
+                            ? "bg-[#252525] text-white border-white/10"
+                            : "bg-white text-black border-black/10"
+                          }`}
+                      >
+                        {item.infoTooltip}
+                      </div>
+                      {/* Caret Arrow */}
+                      <div
+                        className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
+                            ? "bg-[#252525] border-white/10"
+                            : "bg-white border-black/10"
+                          }`}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className={`w-8 h-8 p-2 rounded-full flex items-center justify-center ${isActive ? "bg-black" : "bg-[#2C2C2C]"}`}>
-                  {React.cloneElement(item.icon as React.ReactElement, {
-                    className: "fill-[#ECD7B4] w-5 h-5 text-black",
-                  })}
+
+                {/* Fixed Icon Container */}
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                    isActive
+                      ? "bg-black"
+                      : isDark
+                        ? "bg-[#2C2C2C]"
+                        : "bg-zinc-200"
+                    }`}
+                >
+                  <div className="relative w-5 h-5 flex items-center justify-center">
+                    {/* Layer 1: Background fill shape */}
+                    <IconComponent className="w-5 h-5 absolute inset-0 fill-[#E8D1AB] text-[#E8D1AB]" />
+                    {/* Layer 2: Black stroke outline & detail overlay */}
+                    <IconComponent className="w-5 h-5 absolute inset-0 fill-none text-black stroke-[1.75]" />
+                  </div>
                 </div>
               </div>
 
@@ -166,9 +218,17 @@ export default function QuotePerformanceWidget() {
                   {item.value}
                 </div>
                 <div
-                  className={`text-xs mt-2 text-[##101010]/70`}
+                  className={`text-xs mt-2 ${isActive
+                      ? "text-black/70"
+                      : isDark
+                        ? "text-white/70"
+                        : "text-black/60"
+                    }`}
                 >
-                  <span className="text-sm font-medium text-[#0DAE3D]">{item.growth}</span> from last month
+                  <span className="text-sm font-medium text-[#0DAE3D]">
+                    {item.growth}
+                  </span>{" "}
+                  from last month
                 </div>
               </div>
             </button>
@@ -195,14 +255,14 @@ export default function QuotePerformanceWidget() {
               ticks={[0, 20, 40, 60, 80]}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#666666", fontSize: 12 }}
+              tick={{ fill: isDark ? "#666666" : "#888888", fontSize: 12 }}
             />
 
             <XAxis
               dataKey="month"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#888888", fontSize: 12 }}
+              tick={{ fill: isDark ? "#888888" : "#666666", fontSize: 12 }}
               dy={10}
             />
 
@@ -221,7 +281,7 @@ export default function QuotePerformanceWidget() {
               fill="url(#chartGradient)"
               activeDot={{
                 r: 6,
-                fill: "#141415",
+                fill: isDark ? "#141415" : "#FFFFFF",
                 stroke: "#E8D1AB",
                 strokeWidth: 3,
               }}
