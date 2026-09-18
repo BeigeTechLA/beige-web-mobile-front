@@ -483,10 +483,10 @@ export default function ShootsPage() {
           {/* Filters Group */}
           {
             showFilters && (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-col gap-1">
+              <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-[minmax(150px,1fr)_minmax(130px,1fr)_minmax(110px,1fr)_minmax(190px,2fr)_minmax(125px,1fr)_minmax(175px,1fr)_48px_112px]">
+                <div className="min-w-0">
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
@@ -499,9 +499,9 @@ export default function ShootsPage() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="min-w-0">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
@@ -512,14 +512,14 @@ export default function ShootsPage() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="min-w-0">
                   <Select
                     value={paymentFilter}
                     onValueChange={(value) => {
                       if (isPaymentFilter(value)) setPaymentFilter(value);
                     }}
                   >
-                    <SelectTrigger className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Payment" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
@@ -530,9 +530,9 @@ export default function ShootsPage() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="min-w-0">
                   <Select value={productionFilter} onValueChange={setProductionFilter}>
-                    <SelectTrigger className={`w-[260px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Production Filter" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
@@ -551,9 +551,9 @@ export default function ShootsPage() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="min-w-0">
                   <Select value={range} onValueChange={handleRangeChange}>
-                    <SelectTrigger className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="Shoot Date" />
                     </SelectTrigger>
                     <SelectContent
@@ -588,9 +588,9 @@ export default function ShootsPage() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
+                <div className="min-w-0">
                   <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
-                    <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                    <SelectTrigger className={`w-full min-w-0 rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
                       <SelectValue placeholder="CP Assignment" />
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
@@ -605,7 +605,7 @@ export default function ShootsPage() {
                   onClick={resetAllFilters}
                   aria-label="Reset filters"
                   title="Reset filters"
-                  className={`h-8 lg:h-12 w-8 lg:w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
+                  className={`h-8 lg:h-12 w-8 lg:w-12 2xl:w-full justify-self-start 2xl:justify-self-stretch p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
                 >
                   <RotateCcw size={18} />
                 </Button>
@@ -623,7 +623,7 @@ export default function ShootsPage() {
                       disabled={isExporting}
                       aria-label="Export shoots"
                       title="Export shoots"
-                      className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${
+                      className={`h-8 lg:h-12 min-w-[104px] w-auto 2xl:w-full justify-self-start 2xl:justify-self-stretch px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 whitespace-nowrap ${
                         isDark
                           ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
                           : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
