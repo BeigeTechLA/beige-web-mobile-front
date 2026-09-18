@@ -1297,6 +1297,28 @@ export const getEquipmentSuggestions = async (queryParams = {}) => {
   }
 };
 
+export const getEquipmentById = async (
+  equipmentId: string | number
+) => {
+  try {
+    const response = await api.get(
+      `admin/get-equipment-by-id/${encodeURIComponent(
+        String(equipmentId)
+      )}`
+    );
+
+    return response;
+  } catch (error) {
+    console.error("Get Equipment By ID Error:", error);
+
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch equipment",
+    };
+  }
+};
+
 export const getStatusCount = async (payload: { crew_member_id: number, creator_id: number }) => {
   try {
     const response = await api.post(

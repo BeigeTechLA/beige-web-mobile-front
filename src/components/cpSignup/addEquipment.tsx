@@ -28,8 +28,7 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
   const [suggestions, setSuggestions] = useState<EquipmentOption[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const debounceRef = useRef(null);
-
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getSuggestionList = (response: any): EquipmentOption[] => {
     const payload = response?.data ?? response;
     if (Array.isArray(payload)) return payload;
@@ -41,54 +40,83 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
 
   useEffect(() => {
     const trimmed = inputValue.trim();
+
     if (!trimmed) {
       setSuggestions([]);
       setOpen(false);
       setIsSearching(false);
+
       return;
     }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     setOpen(true);
     setIsSearching(true);
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await getEquipmentSuggestions({ query: trimmed });
+        const res = await getEquipmentSuggestions({
+          query: trimmed,
+        });
+
         const list = getSuggestionList(res);
+
+        const selectedIds = value.map((id) => String(id));
+
         const uniqueSuggestions = list.filter(
-          (item) => item?.equipment_id && !value.map(String).includes(String(item.equipment_id))
+          (item) =>
+            item?.equipment_id !== undefined &&
+            item?.equipment_id !== null &&
+            !selectedIds.includes(String(item.equipment_id)),
         );
+
         setSuggestions(uniqueSuggestions);
       } catch (err) {
         console.error(err);
+
         setSuggestions([]);
       } finally {
         setIsSearching(false);
       }
     }, 300);
 
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, [inputValue, value]);
 
   const handleSelectSuggestion = (equipment: EquipmentOption) => {
-    if (!value.includes(equipment.equipment_id)) {
-      // Create new arrays for both IDs and Names
+    const alreadySelected = value.some(
+      (id) => String(id) === String(equipment.equipment_id),
+    );
+
+    if (!alreadySelected) {
       const nextIds = [...value, equipment.equipment_id];
-      const nextNames = [...names, equipment.equipment_name];
-      
-      // Pass both to parent
+
+      const currentNames = value.map((_, index) => names[index] || "");
+
+      const nextNames = [...currentNames, equipment.equipment_name];
+
       onChange(nextIds, nextNames);
     }
+
     setInputValue("");
     setSuggestions([]);
     setOpen(false);
   };
 
-  const removeEquipment = (index) => {
-    // Filter both arrays by index to keep them in sync
+  const removeEquipment = (index: number) => {
     const nextIds = value.filter((_, i) => i !== index);
-    const nextNames = names.filter((_, i) => i !== index);
+
+    const nextNames = value
+      .map((_, i) => names[i] || "")
+      .filter((_, i) => i !== index);
+
     onChange(nextIds, nextNames);
   };
 
@@ -97,7 +125,10 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
       <Popover
         open={open}
         onOpenChange={(next) => {
-          if (!inputValue.trim()) return;
+          if (!inputValue.trim()) {
+            return;
+          }
+
           setOpen(next);
         }}
       >
@@ -107,14 +138,25 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
             placeholder="Please type the equipment name to search"
             value={inputValue}
             onFocus={() => {
-              if (inputValue.trim()) setOpen(true);
+              if (inputValue.trim()) {
+                setOpen(true);
+              }
             }}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              if (e.target.value.trim()) setOpen(true);
+            onChange={(event) => {
+              const nextValue = event.target.value;
+
+              setInputValue(nextValue);
+
+              if (nextValue.trim()) {
+                setOpen(true);
+              }
             }}
-            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-            className="h-12 w-full bg-[#111111] border-[#333333] text-white placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
+            className="h-12 w-full border-[#333333] bg-[#111111] text-white placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0"
           />
         </PopoverTrigger>
 
@@ -122,9 +164,9 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
           align="start"
           side="bottom"
           sideOffset={6}
-          className="z-[130] p-0 w-[var(--radix-popover-trigger-width)] bg-[#111111] border-[#333333] text-white shadow-xl overflow-hidden"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onCloseAutoFocus={(e) => e.preventDefault()}
+          className="z-[130] w-[var(--radix-popover-trigger-width)] overflow-hidden border-[#333333] bg-[#111111] p-0 text-white shadow-xl"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
         >
           <Command className="bg-transparent text-white">
             <CommandList className="max-h-64 border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -142,7 +184,7 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
                     key={equipment.equipment_id}
                     value={equipment.equipment_name}
                     onSelect={() => handleSelectSuggestion(equipment)}
-                    className="px-3 py-2 cursor-pointer text-white aria-selected:bg-neutral-800 aria-selected:text-white"
+                    className="cursor-pointer px-3 py-2 text-white aria-selected:bg-neutral-800 aria-selected:text-white"
                   >
                     {equipment.equipment_name}
                   </CommandItem>
@@ -153,20 +195,28 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
         </PopoverContent>
       </Popover>
 
-      {/* Selected Items List: Now uses the 'names' array directly */}
-      <div className="flex flex-col gap-3 mt-4">
-        {(names.length > 0 ? names : value).map((name, i) => (
-          <div
-            key={`${i}_${value[i]}`}
-            className="border border-[#333333] bg-[#111111] rounded-md px-3 py-3 flex justify-between items-center text-sm text-white shadow-sm"
-          >
-            <span>{name}</span>
-            <Trash2
-              className="cursor-pointer text-red-500 hover:text-red-400 w-4 h-4 transition-colors"
-              onClick={() => removeEquipment(i)}
-            />
-          </div>
-        ))}
+      <div className="mt-4 flex flex-col gap-3">
+        {value.map((equipmentId, index) => {
+          const name = String(names[index] || "").trim();
+
+          if (!name) {
+            return null;
+          }
+
+          return (
+            <div
+              key={String(equipmentId)}
+              className="flex items-center justify-between rounded-md border border-[#333333] bg-[#111111] px-3 py-3 text-sm text-white shadow-sm"
+            >
+              <span>{name}</span>
+
+              <Trash2
+                className="h-4 w-4 cursor-pointer text-red-500 transition-colors hover:text-red-400"
+                onClick={() => removeEquipment(index)}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
