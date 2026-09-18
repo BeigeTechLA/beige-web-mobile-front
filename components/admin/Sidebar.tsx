@@ -13,12 +13,9 @@ import {
   CircleDollarSign,
   DollarSign,
   X,
-  type LucideIcon,
   Receipt,
   Settings,
   User,
-  CalendarRange,
-  Save,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
