@@ -206,7 +206,20 @@ export interface ExternalFolderActivityResponse {
 export interface FileManagerSettings {
   cpDeleteLockDays: number;
   cp_delete_lock_days?: number;
+  cpSharingEnabled: boolean;
+  cp_sharing_enabled?: boolean;
+  clientAccessTransferEnabled: boolean;
+  client_access_transfer_enabled?: boolean;
   updatedAt?: string | null;
+}
+
+export interface UpdateFileManagerSettingsPayload {
+  cpDeleteLockDays?: number;
+  cp_delete_lock_days?: number;
+  cpSharingEnabled?: boolean;
+  cp_sharing_enabled?: boolean;
+  clientAccessTransferEnabled?: boolean;
+  client_access_transfer_enabled?: boolean;
 }
 
 interface ExternalWorkspacesResponse {
@@ -1290,7 +1303,7 @@ export const fileManagerApi = {
     return response.data;
   },
 
-  async updateFileManagerSettings(payload: { cpDeleteLockDays?: number; cp_delete_lock_days?: number }) {
+  async updateFileManagerSettings(payload: UpdateFileManagerSettingsPayload) {
     const response = await apiClient.getInstance().patch<{ success: boolean; data: FileManagerSettings }>(
       "external-file-manager/settings",
       payload
