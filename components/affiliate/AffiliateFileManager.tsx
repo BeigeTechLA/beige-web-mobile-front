@@ -179,6 +179,7 @@ export default function AffiliateFileManager() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceCard | null>(null);
   const [accessWorkspace, setAccessWorkspace] = useState<WorkspaceCard | null>(null);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [clientAccessTransferEnabled, setClientAccessTransferEnabled] = useState(false);
   const [workspaceFolders, setWorkspaceFolders] = useState<BrowserFolder[]>([]);
   const [selectedPhase, setSelectedPhase] = useState<"pre" | "post" | null>(null);
   const [selectedPath, setSelectedPath] = useState("");
@@ -222,6 +223,42 @@ export default function AffiliateFileManager() {
   });
 
   const { isDark } = useResolvedTheme()
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const settings = await fileManagerApi.getFileManagerSettings();
+        if (!mounted) return;
+
+        setClientAccessTransferEnabled(
+          Boolean(
+            settings?.clientAccessTransferEnabled ??
+              settings?.client_access_transfer_enabled ??
+              false
+          )
+        );
+      } catch {
+        if (mounted) {
+          setClientAccessTransferEnabled(false);
+        }
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!clientAccessTransferEnabled) {
+      setIsAccessModalOpen(false);
+      setAccessWorkspace(null);
+    }
+  }, [clientAccessTransferEnabled]);
 
   const loadRoot = useCallback(async (page: number, searchQuery: string, tab: string) => {
     try {
@@ -983,6 +1020,8 @@ export default function AffiliateFileManager() {
   };
 
   const handleOpenAccessModal = (workspace: WorkspaceCard) => {
+    if (!clientAccessTransferEnabled) return;
+    
     setAccessWorkspace(workspace);
     setIsAccessModalOpen(true);
   };
@@ -1184,19 +1223,21 @@ export default function AffiliateFileManager() {
                       Updated {formatRelativeTime(workspace.lastOpened)}
                     </td>
                     <td className="py-5 px-6 text-right">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleOpenAccessModal(workspace);
-                        }}
-                        className={`mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
-                          isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
-                        }`}
-                        title="Manage access"
-                      >
-                        <UserRoundPlus size={16} />
-                      </button>
+                      {clientAccessTransferEnabled ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenAccessModal(workspace);
+                          }}
+                          className={`mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${
+                            isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
+                          }`}
+                          title="Manage access"
+                        >
+                          <UserRoundPlus size={16} />
+                        </button>
+                      ) : null}
                       <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                     </td>
                   </tr>
@@ -1212,7 +1253,11 @@ export default function AffiliateFileManager() {
                 workspace={workspace}
                 isDark={isDark}
                 openWorkspace={(ws) => openWorkspace(ws as WorkspaceCard)}
-                onAccess={(ws) => handleOpenAccessModal(ws as WorkspaceCard)}
+                onAccess={
+                  clientAccessTransferEnabled
+                    ? (ws) => handleOpenAccessModal(ws as WorkspaceCard)
+                    : undefined
+                }
                 formatRelativeTime={formatRelativeTime}
               />
             ))}
@@ -1263,19 +1308,21 @@ export default function AffiliateFileManager() {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleOpenAccessModal(workspace);
-                  }}
-                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-                    isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
-                  }`}
-                  title="Manage access"
-                >
-                  <UserRoundPlus size={16} />
-                </button>
+                {clientAccessTransferEnabled ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenAccessModal(workspace);
+                    }}
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                      isDark ? "border-white/10 text-white/60 hover:bg-white/10 hover:text-white" : "border-black/10 text-black/55 hover:bg-black/5 hover:text-black"
+                    }`}
+                    title="Manage access"
+                  >
+                    <UserRoundPlus size={16} />
+                  </button>
+                ) : null}
               </div>
 
               <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">
@@ -2439,19 +2486,21 @@ export default function AffiliateFileManager() {
         isDark={isDark}
       />
 
-      <WorkspaceAccessModal
-        isOpen={isAccessModalOpen}
-        onClose={() => setIsAccessModalOpen(false)}
-        mode="email"
-        resource={
-          accessWorkspace
-            ? {
-                externalId: accessWorkspace.externalId,
-                label: accessWorkspace.title || "Workspace",
-              }
-            : null
-        }
-      />
+      {clientAccessTransferEnabled ? (
+        <WorkspaceAccessModal
+          isOpen={isAccessModalOpen}
+          onClose={() => setIsAccessModalOpen(false)}
+          mode="email"
+          resource={
+            accessWorkspace
+              ? {
+                  externalId: accessWorkspace.externalId,
+                  label: accessWorkspace.title || "Workspace",
+                }
+              : null
+          }
+        />
+      ) : null}
 
       <FileViewerModal
         isOpen={viewerOpen}

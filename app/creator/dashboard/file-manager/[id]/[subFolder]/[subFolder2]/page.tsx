@@ -36,6 +36,7 @@ import { CreateFolderModal } from "@/components/admin/file-manager/CreateFolderM
 import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
 import FileViewerModal from "@/components/admin/file-manager/FileViewerModal";
 import MediaLightboxModal from "@/components/admin/file-manager/MediaLightboxModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
 import Topbar from "@/components/admin/Topbar";
 import {
@@ -132,6 +133,16 @@ export default function CreatorSubFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<Record<string, unknown> | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
   const [cpDeleteLockDays, setCpDeleteLockDays] = useState(7);
+  const [cpSharingEnabled, setCpSharingEnabled] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "workspace" | "folder" | "file";
+    externalId: string;
+    phase?: string;
+    path?: string;
+    filepath?: string;
+    label?: string;
+  } | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -241,9 +252,19 @@ export default function CreatorSubFolderDetailsPage() {
         const settings = await fileManagerApi.getFileManagerSettings();
         if (mounted) {
           setCpDeleteLockDays(Number(settings?.cpDeleteLockDays ?? settings?.cp_delete_lock_days ?? 7));
+          setCpSharingEnabled(
+            Boolean(
+              settings?.cpSharingEnabled ??
+                settings?.cp_sharing_enabled ??
+                false
+            )
+          );
         }
       } catch {
-        if (mounted) setCpDeleteLockDays(7);
+        if (mounted) {
+          setCpDeleteLockDays(7);
+          setCpSharingEnabled(false);
+        }
       }
     };
 
@@ -253,6 +274,13 @@ export default function CreatorSubFolderDetailsPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!cpSharingEnabled) {
+      setIsShareModalOpen(false);
+      setShareResource(null);
+    }
+  }, [cpSharingEnabled]);
 
   const folderTitle = useMemo(() => {
     const safePath = String(currentFolderPath || "").trim();
@@ -1258,7 +1286,7 @@ export default function CreatorSubFolderDetailsPage() {
                       userInitials={folder.userInitials}
                       onOpenLinkModal={() => undefined}
                       href={folder.href}
-                      onShare={() => {
+                      onShare={cpSharingEnabled ? () => {
                         setShareResource({
                           resourceType: "folder",
                           externalId: String(projectId || ""),
@@ -1267,7 +1295,7 @@ export default function CreatorSubFolderDetailsPage() {
                           label: folder.title,
                         });
                         setIsShareModalOpen(true);
-                      }}
+                      } : undefined}
                       onDelete={
                         canDeleteFolderWithinWindow(folder)
                           ? () => {
@@ -1503,6 +1531,17 @@ export default function CreatorSubFolderDetailsPage() {
           fileMetaId={typeof lightboxFile?.filepath === "string" ? lightboxFile.filepath : null}
           isDark={isDark}
         />
+
+        {cpSharingEnabled ? (
+          <ShareResourceModal
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setShareResource(null);
+            }}
+            resource={shareResource}
+          />
+        ) : null}
 
         {selectedFilePaths.length > 0 && (
           <div className="fixed bottom-4 left-1/2 z-[100] w-fit -translate-x-1/2 lg:bottom-10">

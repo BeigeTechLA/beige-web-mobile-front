@@ -145,6 +145,7 @@ export default function CreatorFileManagerPhasePage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [shootDate, setShootDate] = useState<string | null>(null);
   const [cpDeleteLockDays, setCpDeleteLockDays] = useState(7);
+  const [cpSharingEnabled, setCpSharingEnabled] = useState(false);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -239,9 +240,19 @@ export default function CreatorFileManagerPhasePage() {
         const settings = await fileManagerApi.getFileManagerSettings();
         if (mounted) {
           setCpDeleteLockDays(Number(settings?.cpDeleteLockDays ?? settings?.cp_delete_lock_days ?? 7));
+          setCpSharingEnabled(
+            Boolean(
+              settings?.cpSharingEnabled ??
+                settings?.cp_sharing_enabled ??
+                false
+            )
+          );
         }
       } catch {
-        if (mounted) setCpDeleteLockDays(7);
+        if (mounted) {
+          setCpDeleteLockDays(7);
+          setCpSharingEnabled(false);
+        }
       }
     };
 
@@ -251,6 +262,13 @@ export default function CreatorFileManagerPhasePage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!cpSharingEnabled) {
+      setIsShareModalOpen(false);
+      setShareResource(null);
+    }
+  }, [cpSharingEnabled]);
 
   const viewState = useMemo(() => {
     if (!workspaceName) {
@@ -1073,7 +1091,7 @@ export default function CreatorFileManagerPhasePage() {
                             }
                             : undefined
                         }
-                        onShare={() => {
+                        onShare={cpSharingEnabled ? () => {
                           setShareResource({
                             resourceType: "folder",
                             externalId: String(projectId || ""),
@@ -1082,7 +1100,7 @@ export default function CreatorFileManagerPhasePage() {
                             label: folder.title,
                           });
                           setIsShareModalOpen(true);
-                        }}
+                        } : undefined}
                         onRename={() => toast.info("Folder rename is the next safe step.")}
                       />
                     ))}
@@ -1182,7 +1200,7 @@ export default function CreatorFileManagerPhasePage() {
                                 }
                                 : undefined
                             }
-                            onShare={() => {
+                            onShare={cpSharingEnabled ? () => {
                               setShareResource({
                                 resourceType: "folder",
                                 externalId: String(projectId || ""),
@@ -1191,7 +1209,7 @@ export default function CreatorFileManagerPhasePage() {
                                 label: folder.title,
                               });
                               setIsShareModalOpen(true);
-                            }}
+                            } : undefined}
                           />
                         ))}
                       </div>
@@ -1224,7 +1242,7 @@ export default function CreatorFileManagerPhasePage() {
                                     }
                                     : undefined
                                 }
-                                onShare={selectionLockActive ? undefined : () => {
+                                onShare={selectionLockActive || !cpSharingEnabled ? undefined : () => {
                                   setShareResource({
                                     resourceType: "file",
                                     externalId: String(projectId || ""),
@@ -1283,7 +1301,7 @@ export default function CreatorFileManagerPhasePage() {
                               }
                               : undefined
                           }
-                          onShare={selectionLockActive ? undefined : () => {
+                          onShare={selectionLockActive || !cpSharingEnabled ? undefined : () => {
                             setShareResource({
                               resourceType: "file",
                               externalId: String(projectId || ""),
@@ -1383,7 +1401,7 @@ export default function CreatorFileManagerPhasePage() {
                 }
                 : undefined
             }
-            onShare={() => {
+            onShare={cpSharingEnabled ? () => {
               setShareResource({
                 resourceType: "folder",
                 externalId: String(projectId || ""),
@@ -1392,7 +1410,7 @@ export default function CreatorFileManagerPhasePage() {
                 label: selectedFolder.title,
               });
               setIsShareModalOpen(true);
-            }}
+            } : undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
@@ -1426,14 +1444,16 @@ export default function CreatorFileManagerPhasePage() {
           fileMetaId={typeof lightboxFile?.filepath === "string" ? lightboxFile.filepath : null}
           isDark={isDark}
         />
-        <ShareResourceModal
-          isOpen={isShareModalOpen}
-          onClose={() => {
-            setIsShareModalOpen(false);
-            setShareResource(null);
-          }}
-          resource={shareResource}
-        />
+        {cpSharingEnabled ? (
+          <ShareResourceModal
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setShareResource(null);
+            }}
+            resource={shareResource}
+          />
+        ) : null}
 
         {selectedFilePaths.length > 0 && (
           <div className="fixed bottom-4 left-1/2 z-[100] w-fit -translate-x-1/2 lg:bottom-10">

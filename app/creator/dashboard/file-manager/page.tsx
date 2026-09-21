@@ -69,6 +69,7 @@ export default function CreatorFileManagerPage() {
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [cpSharingEnabled, setCpSharingEnabled] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -85,6 +86,42 @@ export default function CreatorFileManagerPage() {
   const [isAccessAllowed, setIsAccessAllowed] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const hasSkippedInitialFilterResetRef = React.useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const settings = await fileManagerApi.getFileManagerSettings();
+        if (!mounted) return;
+
+        setCpSharingEnabled(
+          Boolean(
+            settings?.cpSharingEnabled ??
+              settings?.cp_sharing_enabled ??
+              false
+          )
+        );
+      } catch {
+        if (mounted) {
+          setCpSharingEnabled(false);
+        }
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cpSharingEnabled) {
+      setIsShareModalOpen(false);
+      setShareResource(null);
+    }
+  }, [cpSharingEnabled]);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -469,7 +506,7 @@ export default function CreatorFileManagerPage() {
                   href={folder.href}
                   onDelete={undefined}
                   onDownload={() => handleDownloadSelectedFolder(folder)}
-                  onShare={() => {
+                  onShare={cpSharingEnabled ? () => {
                     void (async () => {
                       try {
                         const workspaceId = await ensureAssignedWorkspace(folder);
@@ -483,7 +520,7 @@ export default function CreatorFileManagerPage() {
                         toast.error(err instanceof Error ? err.message : "Failed to share workspace");
                       }
                     })();
-                  }}
+                  } : undefined}
                   onRename={() => toast.info("Folder rename is the next safe step.")}
                 />
               ))}
@@ -575,7 +612,7 @@ export default function CreatorFileManagerPage() {
               }
             }}
             onDownload={handleDownloadSelectedFolder}
-            onShare={() => {
+            onShare={cpSharingEnabled ? () => {
               if (!selectedFolder) return;
               void (async () => {
                 try {
@@ -590,7 +627,7 @@ export default function CreatorFileManagerPage() {
                   toast.error(err instanceof Error ? err.message : "Failed to share workspace");
                 }
               })();
-            }}
+            } : undefined}
             onDelete={undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
@@ -604,14 +641,16 @@ export default function CreatorFileManagerPage() {
           isDark={isDark}
         />
 
-        <ShareResourceModal
-          isOpen={isShareModalOpen}
-          onClose={() => {
-            setIsShareModalOpen(false);
-            setShareResource(null);
-          }}
-          resource={shareResource}
-        />
+        {cpSharingEnabled ? (
+          <ShareResourceModal
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setShareResource(null);
+            }}
+            resource={shareResource}
+          />
+        ) : null}
       </div>
     </>
   );

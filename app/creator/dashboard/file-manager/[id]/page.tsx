@@ -58,6 +58,7 @@ export default function CreatorFolderDetailsPage() {
   const [selectedFolder, setSelectedFolder] = useState<UiFolderItem | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [cpSharingEnabled, setCpSharingEnabled] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
     externalId: string;
@@ -66,6 +67,42 @@ export default function CreatorFolderDetailsPage() {
     filepath?: string;
     label?: string;
   } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const settings = await fileManagerApi.getFileManagerSettings();
+        if (!mounted) return;
+
+        setCpSharingEnabled(
+          Boolean(
+            settings?.cpSharingEnabled ??
+              settings?.cp_sharing_enabled ??
+              false
+          )
+        );
+      } catch {
+        if (mounted) {
+          setCpSharingEnabled(false);
+        }
+      }
+    };
+
+    void loadSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cpSharingEnabled) {
+      setIsShareModalOpen(false);
+      setShareResource(null);
+    }
+  }, [cpSharingEnabled]);
 
   useEffect(() => {
     const savedState = getFileManagerRouteState(routeStateKey);
@@ -408,7 +445,7 @@ export default function CreatorFolderDetailsPage() {
                       onDownload={async () => {
                         await handleDownloadSelectedFolder(folder);
                       }}
-                      onShare={() => {
+                      onShare={cpSharingEnabled ? () => {
                         setShareResource({
                           resourceType: "folder",
                           externalId: String(projectId || ""),
@@ -417,7 +454,7 @@ export default function CreatorFolderDetailsPage() {
                           label: folder.title,
                         });
                         setIsShareModalOpen(true);
-                      }}
+                      } : undefined}
                       onDelete={undefined}
                       onRename={() => toast.info("Folder rename is the next safe step.")}
                     />
@@ -575,7 +612,7 @@ export default function CreatorFolderDetailsPage() {
               }
             }}
             onDownload={handleDownloadSelectedFolder}
-            onShare={() => {
+            onShare={cpSharingEnabled ? () => {
               if (!selectedFolder) return;
               setShareResource({
                 resourceType: "folder",
@@ -585,7 +622,7 @@ export default function CreatorFolderDetailsPage() {
                 label: selectedFolder.title,
               });
               setIsShareModalOpen(true);
-            }}
+            } : undefined}
             onDelete={undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
@@ -599,14 +636,16 @@ export default function CreatorFolderDetailsPage() {
           isDark={isDark}
         />
 
-        <ShareResourceModal
-          isOpen={isShareModalOpen}
-          onClose={() => {
-            setIsShareModalOpen(false);
-            setShareResource(null);
-          }}
-          resource={shareResource}
-        />
+        {cpSharingEnabled ? (
+          <ShareResourceModal
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false);
+              setShareResource(null);
+            }}
+            resource={shareResource}
+          />
+        ) : null}
       </div>
     </>
   );
