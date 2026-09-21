@@ -120,8 +120,7 @@ export default function QuotePerformanceWidget() {
   const currentMetric = metricsData[activeMetricKey];
 
   return (
-    <div className={`w-full rounded-lg lg:rounded-2xl border p-3 lg:p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"
-      }`}>
+    <div className={`w-full rounded-2xl border p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"}`}>
       {/* Header Title */}
       <div className="flex items-center gap-2.5 mb-5">
         <span className="h-7 w-[3px] bg-[#E8D1AB] rounded-full inline-block" />
@@ -131,8 +130,7 @@ export default function QuotePerformanceWidget() {
       </div>
 
       {/* Top 2x2 Metric Cards Grid Area */}
-      <div className={`grid grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl mb-4 ${isDark ? "bg-[#101010]" : "bg-zinc-100"
-        }`}>
+      <div className={`grid lg:grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl mb-4 ${isDark ? "bg-[#101010]" : "bg-zinc-100"}`}>
         {(Object.keys(metricsData) as MetricKey[]).map((key) => {
           const item = metricsData[key];
           const isActive = activeMetricKey === key;
@@ -152,7 +150,7 @@ export default function QuotePerformanceWidget() {
             >
               {/* Card Header Row */}
               <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1.5 text-xs lg:text-sm font-medium">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
                   <span className={isActive ? "text-black" : isDark ? "text-white" : "text-black"}>
                     {item.label}
                   </span>
@@ -214,7 +212,7 @@ export default function QuotePerformanceWidget() {
 
               {/* Metric Value & Growth Rate */}
               <div className="mt-2.5">
-                <div className="text-lg lg:text-2xl font-semibold">
+                <div className="text-2xl font-semibold">
                   {item.value}
                 </div>
                 <div
