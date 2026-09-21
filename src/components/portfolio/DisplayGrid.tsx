@@ -20,7 +20,7 @@ import {
   COMMERCIAL_VIDEOS,
   PRIVATE_VIDEOS,
   SHORT_FILMS_VIDEO,
-  KEYNOTE_VIDEOS,
+  // KEYNOTE_VIDEOS,
   REAL_ESTATE_VIDEOS,
   REAL_ESTATE_IMAGES
 } from "@/app/data/useCaseData";
@@ -49,12 +49,41 @@ const VIDEO_MAP: Record<string, { title: string; video: string }[]> = {
   "private-events": PRIVATE_VIDEOS,
   "music-videos": MUSIC_VIDEOS,
   "social-content": SOCIAL_CONTENT_VIDEOS,
-  "podcast": PODCAST_VIDEOS, // Note: your config uses 'podcast' (singular)
+  "podcast": PODCAST_VIDEOS,
   "short-films-narratives": SHORT_FILMS_VIDEO,
   "commercial-advertising": COMMERCIAL_VIDEOS,
   "weddings": WEDDING_VIDEOS,
-  "keynote": KEYNOTE_VIDEOS,
+  // "keynote": KEYNOTE_VIDEOS,
   "real-estate": REAL_ESTATE_VIDEOS,
+};
+
+// Helper function to handle Vimeo and YouTube embed formats (including Shorts)
+const getVideoEmbedUrl = (videoSource: string): string => {
+  if (!videoSource) return "";
+
+  const str = String(videoSource).trim();
+
+  // 1. YouTube Regex Match (supports watch, embed, v, shorts, youtu.be, and query parameters)
+  const ytMatch = str.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([\w-]{11})/
+  );
+
+  if (ytMatch && ytMatch[1]) {
+    const youtubeId = ytMatch[1];
+    return `https://www.youtube.com/embed/${youtubeId}?controls=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0&modestbranding=1`;
+  }
+
+  // 2. Direct 11-character YouTube Video ID check
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return `https://www.youtube.com/embed/${str}?controls=1&loop=1&playlist=${str}&playsinline=1&rel=0&modestbranding=1`;
+  }
+
+  // 3. Fallback / Default: Vimeo
+  // Extracts digits if full Vimeo URL is passed, or uses the string as numeric ID
+  const vimeoIdMatch = str.match(/vimeo\.com\/(\d+)/);
+  const vimeoId = vimeoIdMatch ? vimeoIdMatch[1] : str;
+
+  return `https://player.vimeo.com/video/${vimeoId}?badge=0&autopause=0&muted=0&loop=1&controls=1&title=1&byline=0&portrait=0&playsinline=1&transparent=0&vimeo_logo=0`;
 };
 
 export const DisplayGrid = ({ type, category }: PortfolioHeroProps) => {
@@ -81,15 +110,20 @@ export const DisplayGrid = ({ type, category }: PortfolioHeroProps) => {
         {itemsToDisplay.map((item, index) => (
           <div
             key={`${activeCategoryKey}-${index}`}
-            className={`relative rounded-xl overflow-hidden group bg-white/5  h-[300px] ${isVideo ? "aspect-video lg:h-[350px] border border-white/10" : "aspect-retro lg:h-[500px] 2xl:h-[600px]"  } w-full`}
+            className={`relative rounded-xl overflow-hidden group bg-white/5 h-[300px] ${
+              isVideo
+                ? "aspect-video lg:h-[350px] border border-white/10"
+                : "aspect-retro lg:h-[500px] 2xl:h-[600px]"
+            } w-full`}
           >
             {isVideo ? (
               /* --- VIDEO RENDERER --- */
               <iframe
-                src={`https://player.vimeo.com/video/${(item as any).video}?badge=0&autopause=0&muted=0&loop=1&controls=1&title=1&byline=0&portrait=0&badge=0&autopause=0&playsinline=1&transparent=0&vimeo_logo=0`}
+                src={getVideoEmbedUrl((item as any).video)}
                 className="absolute inset-0 w-full h-full"
-                allow="autoplay; fullscreen; picture-in-picture"
-                title={(item as any).title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allowFullScreen
+                title={(item as any).title || `${activeCategoryKey}-video-${index}`}
               />
             ) : (
               /* --- PHOTO RENDERER --- */
