@@ -81,12 +81,8 @@ const getVideoEmbedUrl = (videoSource: string): string => {
 
   const youtubeId = ytMatch ? ytMatch[1] : /^[a-zA-Z0-9_-]{11}$/.test(str) ? str : null;
 
-  // if (youtubeId) {
-  //   return `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0`;
-  // }
   if (youtubeId) {
-    // Switch to youtube-nocookie.com to avoid third-party cookie initialization blocks
-    return `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&controls=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0`;
+    return `https://www.youtube.com/embed/${youtubeId}?autoplay=0&controls=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0`;
   }
 
   // 2. Fallback / Default: Vimeo
