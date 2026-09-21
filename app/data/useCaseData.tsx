@@ -634,65 +634,65 @@ export const SHORT_FILMS_VIDEO = [
   {
     title: "The Relatives: A Safe Place for Runaway Youth - Providing Hope and Protection",
     description: "",
-    video: "1067901829",
+    video: "https://youtu.be/rtcKHqFylbA",
   },
-  {
-    title: "Keys To The Kingdom of Heaven Short Film",
-    description: "",
-    video: "460720521",
-  },
-  {
-    title:"Party Animals Short Film",
-    description: "",
-    video:"952121987"
-  },
+  // {
+  //   title: "Keys To The Kingdom of Heaven Short Film",
+  //   description: "",
+  //   video: "460720521",
+  // },
+  // {
+  //   title:"Party Animals Short Film",
+  //   description: "",
+  //   video:"952121987"
+  // },
   // {
   //   title: "",
   //   description: "",
   //   video: "1041294031",
   // },
-  {
-    title: "People, Like Us: A P&G Story",
-    description: "",
-    video: "1056604264",
-  },
-  {
-    title: "Kayla’s Surrogate Journey | A Heartwarming Story of Love & Giving",
-    description: "",
-    video: "1056043823",
-  },
+  // {
+  //   title: "People, Like Us: A P&G Story",
+  //   description: "",
+  //   video: "1056604264",
+  // },
+  // {
+  //   title: "Kayla’s Surrogate Journey | A Heartwarming Story of Love & Giving",
+  //   description: "",
+  //   video: "https://youtu.be/ZiT5ElJNtQQ",
+  // },
   {
     title: "Thomas Degnan's Ultra Marathon Journey: Pushing Limits & Overcoming Challenges",
     description: "",
-    video: "1067856067",
+    video: "https://youtube.com/shorts/YADxq_pjh8o",
   },
 ];
 
 export const PRIVATE_VIDEOS = [
-  {
-    title: "Zach’s Epic Surprise Birthday Party | Priceless Reaction Caught on Camera!",
-    description: "",
-    video: "1070483307",
-  },
+  // {
+  //   title: "Zach’s Epic Surprise Birthday Party | Priceless Reaction Caught on Camera!",
+  //   description: "",
+  //   video: "1070483307",
+  // },
   {
     title: "Viktorya's Birthday Videography | Captured by Beige Media",
     description: "",
-    video: "1139377337",
+    video: "https://youtu.be/1ddE-ZEUdhg",
   },
   {
     title: "Mayor Garcetti's Birthday Celebration 2022",
     description: "",
-    video: "829192435",
+    video: "https://youtu.be/1UxSTGH_BJ4",
   },
-  {
-    title: "Regina Agyemang Family Reunion | Celebrating Family Bonds and Memories",
-    description: "",
-    video: "997804593",
-  },
+  // {
+  //   title: "Regina Agyemang Family Reunion | Celebrating Family Bonds and Memories",
+  //   description: "",
+  //   video: "https://youtu.be/oYNNaIRlSw8",
+  // },
   {
     title: "Srivani & Dheeraj's Maternity Shoot",
     description: "",
-    video: "922773779",
+    video: "https://youtu.be/zizRTzYTbK4",
   },
 ];
 
@@ -700,302 +700,307 @@ export const COMMERCIAL_VIDEOS = [
   {
     title: "The #1 Dad Book Commercial Shoot",
     description: "",
-    video: "1081922454",
+    video: "https://youtu.be/XG7wUJxUjjg",
   },
   {
     title: "iExotic Commercial",
     description: "",
-    video: "1112001864",
+    video: "https://youtube.com/shorts/-B0xSbIEQqY",
   },
-  {
-    title: "Remento.co Commercial: Capture Your Memories with Innovation",
-    description: "",
-    video: "1070122872",
-  },
-  {
-    title: "Suri Product Commercial",
-    description: "",
-    video: "991377492",
-  },
-  {
-    title: "AutoMax Exotics Commercial",
-    description: "",
-    video: "460735203",
-  },
+  // {
+  //   title: "Remento.co Commercial: Capture Your Memories with Innovation",
+  //   description: "",
+  //   video: "1070122872",
+  // },
+  // {
+  //   title: "Suri Product Commercial",
+  //   description: "",
+  //   video: "991377492",
+  // },
+  // {
+  //   title: "AutoMax Exotics Commercial",
+  //   description: "",
+  //   video: "460735203",
+  // },
   {
     title: "GetVergo Commercial",
     description: "",
-    video: "799606940",
+    video: "https://youtu.be/NgDK3Gsxqe8",
   },
-  {
-    title: "Alive Print Shop",
-    description: "",
-    video: "980204771",
-  },
+  // {
+  //   title: "Alive Print Shop",
+  //   description: "",
+  //   video: "https://youtu.be/zuR1ZLwYmyY",
+  // },
   {
     title: "Ambius - Enhancing Interior Landscapes | Commercial Videography by Beige Media",
     description: "",
-    video: "1131352341",
+    video: "https://youtu.be/3hd-Fgzm1ac",
   },
   {
     title: "Bear Robotics Short Promo",
     description: "",
-    video: "931278698",
+    video: "https://youtu.be/-QjItSX4Vf4",
   },
-  {
-    title: "Tractor Beverage Co. Corporate Event Highlights",
-    description: "",
-    video: "991375361",
-  },
-  {
-    title: "Paradise Valley Real Estate Guide: Luxury Homes",
-    description: "",
-    video: "1067518801",
-  },
-  {
-    title: "Wander | Washington House Tour",
-    description: "",
-    video: "922574985",
-  },
+  // {
+  //   title: "Tractor Beverage Co. Corporate Event Highlights",
+  //   description: "",
+  //   video: "991375361",
+  // },
+  // {
+  //   title: "Paradise Valley Real Estate Guide: Luxury Homes",
+  //   description: "",
+  //   video: "1067518801",
+  // },
+  // {
+  //   title: "Wander | Washington House Tour",
+  //   description: "",
+  //   video: "https://youtu.be/TEk8zC6BEeM",
+  // },
 ];
 
 export const CORPORATE_VIDEOS = [
   {
     title: "Walmart Corporate Event",
     description: "",
-    video: "990745402",
+    video: "https://youtu.be/v6YhVgjVFTQ",
   },
-  {
-    title: "Natasha Graziano's Book Launch Party",
-    description: "",
-    video: "810765519",
-  },
+  // {
+  //   title: "Natasha Graziano's Book Launch Party",
+  //   description: "",
+  //   video: "810765519",
+  // },
   {
     title: "Digital Social Hour Networking Event: Salt Lake City",
     description: "",
-    video: "982932403",
+    video: "https://youtube.com/shorts/P9q4-jAnFXE",
   },
-  {
-    title: "COLLABricon 2025: Ultimate Team Synergy Summit Highlights",
-    description: "",
-    video: "1071123620",
-  },
+  // {
+  //   title: "COLLABricon 2025: Ultimate Team Synergy Summit Highlights",
+  //   description: "",
+  //   video: "1071123620",
+  // },
   {
     title: "Indigo Tech Corporate | Innovation, Growth & Future Vision",
     description: "",
-    video: "1055653305",
+    video: "https://youtu.be/v9BsPo0ds_I",
   },
   {
     title: "Flybridge 2024 Annual Meeting Highlights",
     description: "",
-    video: "1055637977",
+    video: "https://youtu.be/iwv-fQGy-sQ",
   },
-  {
-    title: "Raptive Retreat 2024",
-    description: "",
-    video: "1053936098",
-  },
-  {
-    title: "Milhouse Engineering 20th Anniversary Film",
-    description: "",
-    video: "687987703",
-  },
-  {
-    title: "Nike By You Event | Custom Sneakers & Creativity Unleashed",
-    description: "",
-    video: "1011209312",
-  },
+  // {
+  //   title: "Raptive Retreat 2024",
+  //   description: "",
+  //   video: "1053936098",
+  // },
+  // {
+  //   title: "Milhouse Engineering 20th Anniversary Film",
+  //   description: "",
+  //   video: "687987703",
+  // },
+  // {
+  //   title: "Nike By You Event | Custom Sneakers & Creativity Unleashed",
+  //   description: "",
+  //   video: "https://youtube.com/shorts/jag1nW51yw8",
+  // },
   {
     title: "FrenchBee",
     description: "",
-    video: "990750789",
+    video: "https://youtube.com/shorts/B-DRr0Ceq1w",
   },
-  {
-    title: "Alameda Mortgage 70's Party",
-    description: "",
-    video: "1006822942",
-  },
+  // {
+  //   title: "Alameda Mortgage 70's Party",
+  //   description: "",
+  //   video: "https://youtu.be/aSk8nysjb3Q",
+  // },
   {
     title: "Abu Dhabi for IMEX America | Day 1 Highlights",
     description: "",
-    video: "925102749",
+    video: "https://youtu.be/yVAqrrsEFhE",
+  },
+  {
+    title: "ZINC Income Fund – Smart Investing for Stable Returns",
+    description: "",
+    video: "https://youtu.be/ELrG25wQK40",
   },
 ];
 
 export const MUSIC_VIDEOS = [
-  {
-    title: "The Prophecy - Kawser (Official Music Video)",
-    description: "",
-    video: "460434318",
-  },
+  // {
+  //   title: "The Prophecy - Kawser (Official Music Video)",
+  //   description: "",
+  //   video: "460434318",
+  // },
   {
     title: "5K For The Draco - Pressa Official Music Video",
     description: "",
-    video: "1150926593",
+    video: "https://youtu.be/ckodxM-tNWE",
   },
-  {
-    title: "Full Circle - Melody Marshai",
-    description: "",
-    video: "980378158",
-  },
-  {
-    title: "Gee Kazz - Blessings (Official Music Video)",
-    description: "",
-    video: "460430336",
-  },
-  {
-    title: "Messy - Hold On To You (Official Music Video)",
-    description: "",
-    video: "641314253",
-  },
-  {
-    title: "Theo King - Built To Last (Official Music Video)",
-    description: "",
-    video: "765140616",
-  },
-  {
-    title: "Ju$to - California Girl (Official Music Video)",
-    description: "",
-    video: "460425101",
-  },
-  {
-    title: "Steve Medea - Gimme That Nana (Official Music Video)",
-    description: "",
-    video: "460430197",
-  },
-  {
-    title: "Goddess Moon - Crystalize You (Official Music Video)",
-    description: "",
-    video: "687981564",
-  },
-  {
-    title: "Think Too Much (Official Music Video)",
-    description: "",
-    video: "528474827",
-  },
-  {
-    title: "Siddzartha - Car/Gaari (Official Music Video)",
-    description: "",
-    video: "639413022",
-  },
-  {
-    title: "David Fait - Count the Stars | Official Music Video",
-    description: "",
-    video: "1001667460",
-  },
+  // {
+  //   title: "Full Circle - Melody Marshai",
+  //   description: "",
+  //   video: "https://youtu.be/TJkaxAzHi8k",
+  // },
+  // {
+  //   title: "Gee Kazz - Blessings (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/y9mn_QYIcr8",
+  // },
+  // {
+  //   title: "Messy - Hold On To You (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/MpRtaibiQWo",
+  // },
+  // {
+  //   title: "Theo King - Built To Last (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/O9GT4uyA6XY",
+  // },
+  // {
+  //   title: "Ju$to - California Girl (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/NtwrzDhe2Hw",
+  // },
+  // {
+  //   title: "Steve Medea - Gimme That Nana (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/yi11u3lp42o",
+  // },
+  // {
+  //   title: "Goddess Moon - Crystalize You (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/5YAOgWLcPeg",
+  // },
+  // {
+  //   title: "Think Too Much (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/A3WDVA-y9yE",
+  // },
+  // {
+  //   title: "Siddzartha - Car/Gaari (Official Music Video)",
+  //   description: "",
+  //   video: "https://youtu.be/HQPXgRnsTCk",
+  // },
+  // {
+  //   title: "David Fait - Count the Stars | Official Music Video",
+  //   description: "",
+  //   video: "https://youtu.be/taCVIvr39JI",
+  // },
 ];
 
 export const PODCAST_VIDEOS = [
   {
     title: "Natasha Graziano Podcast w/ Tim Storey | Full Episode on Mindset & Transformation",
     description: "",
-    video: "734890419",
+    video: "https://youtu.be/_td6jWjLUNY",
+  },
+  {
+    title: "Karat’s Podcast | Live from Anaheim Convention Center",
+    description: "",
+    video: "https://youtu.be/dAwe8NKj3TI",
   },
   // {
-  //   title: "Karat’s Podcast | Live from Anaheim Convention Center",
+  //   title: "Las Vegas Digital Social Hour Networking Event",
   //   description: "",
-  //   video: "1011327301",
+  //   video: "982611117",
   // },
-  {
-    title: "Las Vegas Digital Social Hour Networking Event",
-    description: "",
-    video: "982611117",
-  },
   {
     title: "Cole Podcast w/ Natasha Graziano | Mindset & Motivation for Personal Growth",
     description: "",
-    video: "769949595",
+    video: "https://youtu.be/btwpBRc4Eh4",
   },
-  {
-    title: "Princess Martha & Shaman Durek Interview",
-    description: "",
-    video: "862157422",
-  },
-  {
-    title: "Gridiron Griots Podcast S2 E3 | Stories of Football, Culture & Legacy",
-    description: "",
-    video: "734869561",
-  },
-  {
-    title: "Ryan Read - Thrive Specialized Training Mental Health Podcast | Empowering Mental Wellness",
-    description: "",
-    video: "766641091",
-  },
+  // {
+  //   title: "Princess Martha & Shaman Durek Interview",
+  //   description: "",
+  //   video: "862157422",
+  // },
+  // {
+  //   title: "Gridiron Griots Podcast S2 E3 | Stories of Football, Culture & Legacy",
+  //   description: "",
+  //   video: "734869561",
+  // },
+  // {
+  //   title: "Ryan Read - Thrive Specialized Training Mental Health Podcast | Empowering Mental Wellness",
+  //   description: "",
+  //   video: "https://youtu.be/QPDvrI0x6ww",
+  // },
   {
     title: "Reverve Agency Podcast: CEO of GumGum Interview | Beige Video",
     description: "",
-    video: "1115246854",
+    video: "https://youtu.be/6chRyBJFgHk",
   },
-  {
-    title: "The Meredith Show - Amy Whoa Exclusive Interview | Career Highlights & Personal Insights",
-    description: "",
-    video: "1069269293",
-  },
+  // {
+  //   title: "The Meredith Show - Amy Whoa Exclusive Interview | Career Highlights & Personal Insights",
+  //   description: "",
+  //   video: "1069269293",
+  // },
   {
     title: "Natasha Graziano Limitless Conference",
     description: "",
-    video: "1006817131",
+    video: "https://youtu.be/c6Q3zLNILRU",
   },
   {
     title: "Daniel R. Fox Podcast",
     description: "",
-    video: "1006816267",
+    video: "https://youtu.be/490HdMoBWwY",
   },
 ];
 
 export const WEDDING_VIDEOS = [
-  {
-    title: "Kiel & Tyler Wedding Highlight Video",
-    description: "",
-    video: "765796267",
-  },
-  {
-    title: "Mariah Johnson’s Wedding Highlights",
-    description: "",
-    video: "1052012575",
-  },
+  // {
+  //   title: "Kiel & Tyler Wedding Highlight Video",
+  //   description: "",
+  //   video: "765796267",
+  // },
+  // {
+  //   title: "Mariah Johnson’s Wedding Highlights",
+  //   description: "",
+  //   video: "https://youtu.be/j5Hmi8Ng2eo",
+  // },
   {
     title: "Rocelyn & Andrew's Wedding Highlights",
     description: "",
-    video: "939787295",
+    video: "https://youtu.be/gMmQOaIYLxE",
   },
   {
     title: "Shelby & Connor's Wedding Highlights",
     description: "",
-    video: "931257298",
+    video: "https://youtu.be/VvoLosx0EYs",
   },
   {
     title: "Ashleigh & Etienne's Wedding Highlights",
     description: "",
-    video: "945122119",
+    video: "https://youtu.be/F67rfKnRhIE",
   },
   {
     title: "Paige & Joseph's Wedding Highlights",
     description: "",
-    video: "932593283",
+    video: "https://youtu.be/6gH6a7upLBE",
   },
 ];
 
 export const SOCIAL_CONTENT_VIDEOS = [
-  {
-    title: "Delta Gamma Recruitment Video | Join the Sisterhood!",
-    description: "",
-    video: "1055655081",
-  },
+  // {
+  //   title: "Delta Gamma Recruitment Video | Join the Sisterhood!",
+  //   description: "",
+  //   video: "1055655081",
+  // },
   {
     title: "iExotic Commercial",
     description: "",
-    video: "1112001864",
+    video: "https://youtube.com/shorts/-B0xSbIEQqY",
   },
   {
     title: "Docyt University Promotional Video",
     description: "",
-    video: "981679066",
+    video: "https://youtu.be/ydWx_VTM9-g",
   },
   {
     title: "College of Coastal Georgia Promotional Videography | Captured by Beige Media",
     description: "",
-    video: "1140878593",
+    video: "11https://youtu.be/SlCIBZwDGfk40878593",
   },
 ];
 
@@ -1033,39 +1038,49 @@ export const KEYNOTE_VIDEOS = [
 ];
 
 export const REAL_ESTATE_VIDEOS = [
+  // {
+  //   title: "Residential & Mixed-Use Development - Grand Opening & Showcase",
+  //   description: "",
+  //   video: "862211287",
+  // },
   {
-    title: "Residential & Mixed-Use Development - Grand Opening & Showcase",
+    title: "Paradise Valley Real Estate Feature | Luxury Homes & Property Tour",
     description: "",
-    video: "862211287",
+    video: "https://youtu.be/1Q-ixQshieE",
+  },
+  // {
+  //   title: "Destination Property - Location-Driven Storytelling",
+  //   description: "",
+  //   video: "1009533355",
+  // },
+  {
+    title: "Donald Washington - Real Estate Rental Video",
+    description: "",
+    video: "https://youtu.be/fyYjMgCLjcM",
   },
   {
-    title: "Luxury Residential Property - Cinematic Feature",
+    title: "Vincent Guarino | Real Estate Web Banner",
     description: "",
-    video: "815620318",
+    video: "https://youtu.be/-AjEjC7bGPY",
+  },
+  // {
+  //   title: "Real Estate Brand Content - Web & Digital Highlights - 2",
+  //   description: "",
+  //   video: "923895623",
+  // },
+  {
+    title: "Loosine Boghosian | Real Estate Video",
+    description: "",
+    video: "https://youtu.be/fyYjMgCLjcM",
   },
   {
-    title: "Destination Property - Location-Driven Storytelling",
+    title: "Real Estate Video Montage",
     description: "",
-    video: "1009533355",
+    video: "https://youtu.be/dZLpRQLjJDk",
   },
   {
-    title: "Residential Rental Property - Walkthrough Video",
+    title: "Tony Moreno Real Estate | Expert Guidance for Buying & Selling Homes",
     description: "",
-    video: "1011381677",
-  },
-  {
-    title: "Real Estate Brand Content - Web & Digital Highlights - 1",
-    description: "",
-    video: "923892622",
-  },
-  {
-    title: "Real Estate Brand Content - Web & Digital Highlights - 2",
-    description: "",
-    video: "923895623",
-  },
-  {
-    title: "Agent & Property Branding - Editorial-Style Video",
-    description: "",
-    video: "1009532673",
+    video: "https://youtu.be/ipppeFS0NZo",
   },
 ];
