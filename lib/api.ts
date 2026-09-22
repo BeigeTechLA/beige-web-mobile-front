@@ -2692,6 +2692,32 @@ export const adminApi = {
     }
   },
 
+  getAllCrewMembers: async (params: { page?: number; limit?: number; search?: string; location?: string; status?: string; range?: string; start_date?: string; end_date?: string; fetch_all?: boolean } = {}) => {
+    try {
+      const response = await api.get('admin/all-crew-members', {
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 20,
+          search: params.search,
+          location: params.location,
+          status: params.status,
+          range: params.range,
+          start_date: params.start_date,
+          end_date: params.end_date,
+          fetch_all: params.fetch_all,
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get All Crew Members Error:', error.response?.data || error);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || error.message || 'Failed to fetch all crew members',
+      };
+    }
+  },
+
   exportCrewMembersCsv: async (
   params: {
     start_date?: string;

@@ -61,7 +61,7 @@ import { getLatestProfilePhoto } from "@/lib/crewFiles";
 import Link from "next/link";
 
 type UserStatus = "Approved" | "Pending" | "Rejected";
-type CreativePartnerTab = "submitted" | "details_pending";
+type CreativePartnerTab = "all" | "submitted" | "details_pending";
 
 const CREATIVE_PARTNERS_FILTERS_STORAGE_KEY = "admin-users-creative-partners-filters";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
@@ -87,6 +87,7 @@ interface CreativePartner {
   onboardingProgress?: number;
   onboardingMissingCount?: number;
   onboardingMissingFields?: string[];
+  isDetailsPending?: boolean;
 }
 
 type CreativePartnerSortKey = "id" | "name" | "status";
@@ -313,7 +314,7 @@ export const CreativePartnersTable = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<CreativePartnerTab>("submitted");
+  const [activeTab, setActiveTab] = useState<CreativePartnerTab>("all");
   const [sortConfig, setSortConfig] = useState<CreativePartnerSortConfig>(null);
   const debouncedSearch = useDebounce(searchQuery, 500);
   const debouncedLocation = useDebounce(locationQuery, 500);
@@ -367,7 +368,11 @@ export const CreativePartnersTable = () => {
           setStatusFilter(parsedFilters.statusFilter);
         }
 
-        if (parsedFilters.activeTab === "submitted" || parsedFilters.activeTab === "details_pending") {
+       if (
+          parsedFilters.activeTab === "all" ||
+          parsedFilters.activeTab === "submitted" ||
+          parsedFilters.activeTab === "details_pending"
+        ) {
           setActiveTab(parsedFilters.activeTab);
         }
 
@@ -461,20 +466,31 @@ export const CreativePartnersTable = () => {
 
         if (crewSearchParam) params.search = crewSearchParam;
         if (normalizedLocation) params.location = normalizedLocation;
-        if (activeTab === "submitted" && statusFilter !== "all") params.status = statusFilter;
+        if (
+          (activeTab === "submitted" || activeTab === "all") &&
+          statusFilter !== "all"
+        ) {
+          params.status = statusFilter;
+        }
 
-        const response = activeTab === "details_pending"
-          ? await adminApi.getPendingCP({
-            ...params,
-            onboarding_status: "incomplete",
-          })
-          : await adminApi.getCrewMembers(params);
+        const response =
+          activeTab === "all"
+            ? await adminApi.getAllCrewMembers(params)
+    : activeTab === "details_pending"
+      ? await adminApi.getPendingCP({
+          ...params,
+          onboarding_status: "incomplete",
+        })
+      : await adminApi.getCrewMembers(params);
         if (response && response.data) {
           const rawData = Array.isArray(response.data) ? response.data : (response.data.items || []);
           const hasServerPagination = Boolean(response.pagination);
-          const data = hasServerPagination || activeTab !== "details_pending" || hasMultiWordSearch
-            ? rawData
-            : rawData.slice((currentPage - 1) * limit, currentPage * limit);
+          const data =
+          hasServerPagination ||
+          activeTab !== "details_pending" ||
+          hasMultiWordSearch
+          ? rawData
+          : rawData.slice((currentPage - 1) * limit, currentPage * limit);
 
           if (hasServerPagination) {
             setTotalRecords(response.pagination.total_records || 0);
@@ -507,10 +523,18 @@ export const CreativePartnersTable = () => {
             );
 
             // Normalize status
-            const apiStatus = member.status?.toLowerCase() || "";
-            let displayStatus: UserStatus = "Pending";
-            if (apiStatus === "approved") displayStatus = "Approved";
-            else if (apiStatus === "rejected") displayStatus = "Rejected";
+    const apiStatus = member.status?.toLowerCase() || "";
+let displayStatus: UserStatus = "Pending";
+
+if (apiStatus === "approved") {
+  displayStatus = "Approved";
+} else if (apiStatus === "rejected") {
+  displayStatus = "Rejected";
+}
+
+const isDetailsPending =
+  !member.application_submitted_at &&
+  Number(member.is_crew_verified || 0) !== 1;
 
             const onboardingMissingFields = Array.isArray(member.onboarding_missing_fields)
               ? member.onboarding_missing_fields
@@ -541,8 +565,9 @@ export const CreativePartnersTable = () => {
                 onboardingMissingFields.length
               ),
               onboardingMissingFields,
-            };
-          });
+isDetailsPending,
+};
+             });
           const visibleUsers = normalizedSearch
             ? mappedUsers.filter((user: CreativePartner) => matchesCreativePartnerSearch(user, normalizedSearch))
             : mappedUsers;
@@ -973,6 +998,7 @@ export const CreativePartnersTable = () => {
 
       <div className={`inline-flex rounded-lg border p-1 ${isDark ? "border-white/10 bg-[#111]" : "border-[#E3E3E3] bg-white"}`}>
         {[
+          { value: "all" as const, label: "All" },
           { value: "submitted" as const, label: "Submitted CPs" },
           { value: "details_pending" as const, label: "Details Pending" },
         ].map((tab) => (
@@ -1009,8 +1035,8 @@ export const CreativePartnersTable = () => {
             />
           </div>
 
-          {activeTab === "submitted" && (
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+         {(activeTab === "all" || activeTab === "submitted") && (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className={`w-[180px] rounded-lg h-12 capitalize transition-colors ${isDark ? "border-white/20 bg-[#202020] text-[#C4C4C4] hover:bg-[#252525]" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"}`}>
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
@@ -1320,17 +1346,72 @@ export const CreativePartnersTable = () => {
         {/* --- DESKTOP TABLE VIEW --- */}
         <div className="hidden lg:block w-full overflow-x-auto overflow-y-hidden">
           <table className="w-full min-w-[1540px] border-collapse">
-              <thead>
-                <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="w-[110px] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
-                  <th className="w-[360px] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">Creative Name {getSortIcon("name")}</div></th>
-                  <th className="w-[320px] p-5 font-medium">Email</th>
-                  <th className="w-[220px] p-5 font-medium">Roles</th>
-                  <th className="w-[320px] p-5 font-medium">Location</th>
-                  <th className={`w-[200px] p-5 font-medium text-center ${activeTab === "submitted" ? "cursor-pointer" : ""}`} onClick={activeTab === "submitted" ? () => requestSort("status") : undefined}><div className="flex items-center justify-center gap-1">{activeTab === "details_pending" ? "Progress" : <>Status {getSortIcon("status")}</>}</div></th>
-                  <th className="w-[210px] p-5 font-medium text-right rounded-br-xl">Action</th>
-                </tr>
-              </thead>
+        <thead>
+              <tr
+                className={`border-b text-left text-sm font-medium ${
+                  isDark
+                    ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                    : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"
+                }`}
+              >
+                <th
+                  className="w-[110px] p-5 font-medium cursor-pointer rounded-bl-xl"
+                  onClick={() => requestSort("id")}
+                >
+                  <div className="flex items-center gap-1">
+                    User ID {getSortIcon("id")}
+                  </div>
+                </th>
+
+                <th
+                  className="w-[360px] p-5 font-medium cursor-pointer"
+                  onClick={() => requestSort("name")}
+                >
+                  <div className="flex items-center gap-1">
+                    Creative Name {getSortIcon("name")}
+                  </div>
+                </th>
+
+                <th className="w-[320px] p-5 font-medium">
+                  Email
+                </th>
+
+                <th className="w-[220px] p-5 font-medium">
+                  Roles
+                </th>
+
+                <th className="w-[320px] p-5 font-medium">
+                  Location
+                </th>
+
+            <th
+              className={`w-[200px] p-5 font-medium text-center ${
+                activeTab === "submitted" ? "cursor-pointer" : ""
+              }`}
+              onClick={
+                activeTab === "submitted"
+                  ? () => requestSort("status")
+                  : undefined
+              }
+            >
+              <div className="flex items-center justify-center gap-1">
+                {activeTab === "details_pending" ? (
+                  "Progress"
+                ) : activeTab === "all" ? (
+                  "Status / Progress"
+                ) : (
+                  <>
+                    Status {getSortIcon("status")}
+                  </>
+                )}
+              </div>
+            </th>
+
+                <th className="w-[210px] p-5 font-medium text-right rounded-br-xl">
+                  Action
+                </th>
+              </tr>
+            </thead>
               <tbody>
                 {loading ? (
                   <tr>
@@ -1402,16 +1483,16 @@ export const CreativePartnersTable = () => {
                       <td className="relative py-3 px-6 text-center whitespace-nowrap">
                         <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
                         <div className="relative z-10 pointer-events-none inline-block">
-                          {activeTab === "details_pending" ? (
-                            <ProgressBadge value={user.onboardingProgress || 0} />
-                          ) : (
-                            <StatusBadge status={user.status} />
-                          )}
+                        {user.isDetailsPending ? (
+                          <ProgressBadge value={user.onboardingProgress || 0} />
+                        ) : (
+                          <StatusBadge status={user.status} />
+                        )}
                         </div>
                       </td>
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                          {activeTab === "details_pending" && (
+                          {user.isDetailsPending && (
                             <>
                               <button
                                 type="button"
@@ -1438,7 +1519,7 @@ export const CreativePartnersTable = () => {
                               </button>
                             </>
                           )}
-                          {activeTab === "submitted" && user.status === 'Approved' && (
+                          {!user.isDetailsPending && user.status === 'Approved' && (
                             <>
                               <button
                                 type="button"
@@ -1457,7 +1538,7 @@ export const CreativePartnersTable = () => {
                               </button>
                             </>
                           )}
-                          {activeTab === "submitted" && user.status === 'Pending' && (
+                          {!user.isDetailsPending && user.status === 'Pending' && (
                             <>
                               <button
                                 type="button"
@@ -1492,7 +1573,7 @@ export const CreativePartnersTable = () => {
                               </button>
                             </>
                           )}
-                          {activeTab === "submitted" && user.status === 'Rejected' && (
+                          {!user.isDetailsPending && user.status === 'Rejected' && (
                             <>
                               <button
                                 type="button"
@@ -1571,7 +1652,7 @@ export const CreativePartnersTable = () => {
                           </p>
                         </div>
                       </div>
-                      {activeTab === "details_pending" ? (
+                            {user.isDetailsPending ? (
                         <ProgressBadge value={user.onboardingProgress || 0} mobile />
                       ) : (
                         <StatusBadge status={user.status} mobile />
@@ -1605,8 +1686,8 @@ export const CreativePartnersTable = () => {
                             <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Location</p>
                             <p className={`text-sm break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>{user.location}</p>
                           </div>
-                          {activeTab === "details_pending" && (
-                            <div className="col-span-2">
+                                          {user.isDetailsPending && (
+                              <div className="col-span-2">
                               <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Missing Details</p>
                               <p className={`text-sm break-words ${isDark ? "text-[#A1A1A1]" : "text-gray-700"}`}>
                                 {user.onboardingMissingFields?.length ? user.onboardingMissingFields.join(", ") : "N/A"}
@@ -1618,7 +1699,7 @@ export const CreativePartnersTable = () => {
                         {/* Action Buttons */}
                         <div className="flex items-end justify-between gap-3">
                           <div className="flex  gap-2">
-                            {activeTab === "submitted" && user.status === 'Pending' && (
+                            {!user.isDetailsPending && user.status === 'Pending' && (
                               <>
                                 <button
                                   type="button"
@@ -1638,7 +1719,7 @@ export const CreativePartnersTable = () => {
                                 </button>
                               </>
                             )}
-                            {activeTab === "submitted" && (
+                            {!user.isDetailsPending && (
                             <button
                               type="button"
                               disabled={!canDelete}
@@ -1648,7 +1729,7 @@ export const CreativePartnersTable = () => {
                               <Trash2 size={18} />
                             </button>
                             )}
-                            {activeTab === "details_pending" && (
+                            {user.isDetailsPending && (
                               <button
                                 type="button"
                                 disabled={!canEdit || user.email === "No Email" || reminderSendingIds.has(user.id.replace("#", ""))}
