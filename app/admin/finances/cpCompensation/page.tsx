@@ -190,6 +190,11 @@ const formatDateForApi = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const normalizeCustomShootName = (name?: string | null) => {
+  if (!name) return name || "";
+  return name.replace(/^custom shoot\b/i, "CUSTOM");
+};
+
 export default function AdminFinancesPage() {
   const pathname = usePathname();
   const router = useRouter();
@@ -281,14 +286,25 @@ export default function AdminFinancesPage() {
     setLoading(true);
     try {
       if (view === "shoots") {
-        const shoots = await cpCompensationApi.list("shoots");
+        const shoots = (await cpCompensationApi.list("shoots")).map((row) => ({
+          ...row,
+          shootName: normalizeCustomShootName(row.shootName),
+        }));
         setTableData(shoots);
         setOverviewRows(shoots);
       } else if (view === "creators") {
-        const [creators, shoots] = await Promise.all([
+        const [creatorsRaw, shootsRaw] = await Promise.all([
           cpCompensationApi.list("creators"),
           cpCompensationApi.list("shoots"),
         ]);
+        const creators = creatorsRaw.map((row) => ({
+          ...row,
+          shootName: normalizeCustomShootName(row.shootName),
+        }));
+        const shoots = shootsRaw.map((row) => ({
+          ...row,
+          shootName: normalizeCustomShootName(row.shootName),
+        }));
         setTableData(creators);
         setOverviewRows(shoots);
       }
@@ -315,7 +331,7 @@ export default function AdminFinancesPage() {
         (item) => ({
           id: String(item.booking_id),
           bookingId: item.booking_id,
-          shootName: item.shoot_name,
+          shootName: normalizeCustomShootName(item.shoot_name),
           totalCP: item.creators?.length || 0,
           customerName: item.customer?.name || "Unknown Customer",
           customerEmail: item.customer?.email || "",

@@ -23,9 +23,14 @@ const isImage = (contentType?: string, fileName?: string) => {
   return /\.(png|jpe?g|gif|webp|svg)$/i.test(fileName || "");
 };
 
+const isAudio = (contentType?: string, fileName?: string) => {
+  if (contentType?.startsWith("audio/")) return true;
+  return /\.(mp3|wav|ogg|m4a|aac)$/i.test(fileName || "");
+};
+
 const isVideo = (contentType?: string, fileName?: string) => {
   if (contentType?.startsWith("video/")) return true;
-  return /\.(mp4|mov|avi|mkv|webm)$/i.test(fileName || "");
+  return /\.(mp4|mov|avi|mkv|webm|mxf)$/i.test(fileName || "");
 };
 
 const isPdf = (contentType?: string, fileName?: string) => {
@@ -36,6 +41,7 @@ const isPdf = (contentType?: string, fileName?: string) => {
 const getFileTypeLabel = (contentType?: string, fileName?: string) => {
   if (isImage(contentType, fileName)) return "Image";
   if (isVideo(contentType, fileName)) return "Video";
+if (isAudio(contentType, fileName)) return "Audio";
   if (isPdf(contentType, fileName)) return "PDF";
   const extension = String(fileName || "").split(".").pop();
   return extension && extension !== fileName ? extension.toUpperCase() : "File";
@@ -448,6 +454,14 @@ export default function FileViewerModal({
                       src={fileUrl}
                       controls
                       className="max-h-[380px] w-full rounded-xl bg-black object-contain shadow-lg"
+                    /> 
+                  </div>
+                  ) : isAudio(contentType, fileName) ? (
+                  <div className="w-full flex items-center justify-center p-6">
+                    <audio
+                      src={fileUrl}
+                      controls
+                      className="w-full max-w-xl"
                     />
                   </div>
                 ) : isPdf(contentType, fileName) ? (

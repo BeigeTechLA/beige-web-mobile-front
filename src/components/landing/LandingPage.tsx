@@ -47,10 +47,10 @@ export default function LandingPageV2() {
       <Separator />
 
       {/* <TopCreatives subtext={"Some of our top creative partners, handpicked for quality and reliability"} /> */}
-      <Separator />
+      {/* <Separator /> */}
 
-      <Projects />
-      <Separator />
+      {/* <Projects />
+      <Separator /> */}
 
       <Gallery />
       <Separator />

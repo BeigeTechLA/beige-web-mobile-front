@@ -122,6 +122,11 @@ export default function AffiliateFinancesPage() {
     });
   };
 
+  const formatSourceOrBooking = (value?: string | null) => {
+    if (!value) return "-";
+    return value.replace(/^CUSTOM Shoot\b/i, "CUSTOM");
+  };
+
   const transactionLabel = (entry: ClientCreditHistoryEntry) => {
     if (entry.credit_type === "signup_bonus") return "Signup Credit";
     if (entry.title) return entry.title;
@@ -439,7 +444,7 @@ export default function AffiliateFinancesPage() {
                               Booking Name
                             </p>
                             <p className={`text-xs wrap-normal ${isDark ? "text-white/" : "text-[#323232]"}`}>
-                              {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
+                              {formatSourceOrBooking(entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source))}
                             </p>
                           </div>
                           <div className="text-right">
@@ -543,7 +548,7 @@ export default function AffiliateFinancesPage() {
                           {transactionLabel(entry)}
                         </td>
                         <td className={`px-6 py-5 text-[15px] ${isDark ? "text-[#D1D1D1]" : "text-[#3B3B3B]"}`}>
-                          {entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source || "-")}
+                          {formatSourceOrBooking(entry.booking_name || (entry.booking_id ? `Booking #${entry.booking_id}` : entry.source))}
                         </td>
                         <td className="px-6 py-5 text-[15px]">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${entry.status === "approved"

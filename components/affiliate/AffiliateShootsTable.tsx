@@ -178,11 +178,12 @@ export const AffiliateShootsTable: React.FC<AffiliateShootsTableProps> = ({ onSh
 
           // Categorization: Use labels if available, otherwise event_type mapping
           const category = project.event_type_labels || project.event_type || "Uncategorized";
+          const resolvedCustomerName = customerName.replace(/^CUSTOM\s+Shoot\b/i, "CUSTOM");
 
           return {
             id: `#${project.stream_project_booking_id}`,
             bookingId: String(project.stream_project_booking_id),
-            customerName,
+            customerName: resolvedCustomerName,
             initials,
             date: project.event_date ? new Date(project.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "No Date",
             rawDate: dateObj.getTime(),

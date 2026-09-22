@@ -373,6 +373,7 @@ export default function CPPayoutTable({
   if (!mounted) return null;
 
   const renderDueDate = (row: ShootCPRow, className = "text-xs") => {
+    if (row.status === "Fully Paid") return null;
     const dueDate = getRowDueDate(row);
     const meta = getDueDateMeta(dueDate);
     return (

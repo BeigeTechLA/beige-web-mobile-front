@@ -480,7 +480,7 @@ export default function RaiseDisputeModal({
                             : "focus:bg-[#F4E9D6] focus:text-black"
                         }`}
                       >
-                        {shoot.label}
+                        {(shoot.label || "").replace(/\bCUSTOM Shoot\b/gi, "CUSTOM")}
                         {shoot.amountLabel
                           ? ` - ${shoot.amountLabel}`
                           : ""}

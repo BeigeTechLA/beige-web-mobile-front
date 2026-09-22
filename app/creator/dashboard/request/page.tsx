@@ -749,7 +749,7 @@ export default function RequestsShootsPage() {
                     </div>
 
                     <h3 className={`text-xl font-bold mb-4 group-hover:text-[#E8D1AB] transition-colors capitalize ${isDark ? "text-white" : "text-black"}`}>
-                      {item.project_name || item.title || "Untitled Project"}
+                      {(item.project_name || item.title || "Untitled Project").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
@@ -864,7 +864,7 @@ export default function RequestsShootsPage() {
                                 </div>
                                 <div>
                                   <div className={`text-sm font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
-                                    {item.project_name || "Untitled"}
+                                    {(item.project_name || "Untitled").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
                                   </div>
                                   <div className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
                                     Production Shoot

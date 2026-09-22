@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, UploadCloud, Trash2, File } from "lucide-react";
 import { fileManagerApi } from "@/lib/fileManagerApi";
+import { getUploadContentType } from "@/lib/fileMimeType";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -607,7 +608,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
       const policyRequests = filesToUpload.map((item) => ({
         id: item.id,
         filepath: getUploadFilepath(item.file.name),
-        fileContentType: item.file.type,
+        fileContentType: getUploadContentType(item.file),
         fileSize: item.file.size,
         conflictMode: shouldDetectConflicts ? "skip" as UploadConflictMode : conflictResolutions[item.id] || "replace" as UploadConflictMode,
       }));
@@ -638,7 +639,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 : [];
 
             batchItems.forEach((item, itemIndex) => {
-              const requestedFilepath = chunk[itemIndex]?.filepath || item.filepath;
+              const responsePathKeys = [
+                item.filepath,
+                item.resolvedFilepath,
+                item.data?.filepath,
+                item.data?.filePath,
+              ]
+                .map(normalizeUploadPathKey)
+                .filter(Boolean);
+              const matchingRequest = chunk.find((request) =>
+                responsePathKeys.includes(normalizeUploadPathKey(request.filepath))
+              ) || chunk.find((request) =>
+                responsePathKeys.some(
+                  (responsePath) =>
+                    getFileNameFromPath(responsePath).toLowerCase() ===
+                    getFileNameFromPath(request.filepath).toLowerCase()
+                )
+              );
+              const requestedFilepath = matchingRequest?.filepath || chunk[itemIndex]?.filepath || item.filepath;
               const pathKeys = getPolicyPathKeys(item, requestedFilepath);
               const policyFilepath = item.data?.filepath || item.data?.filePath || item.resolvedFilepath || item.filepath || requestedFilepath;
 
@@ -785,7 +803,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           pendingMetadataItems.push({
             id: item.id,
             filepath: uploadPolicy.filepath,
-            fileContentType: selectedFile.type,
+            fileContentType: getUploadContentType(selectedFile),
             fileSize: selectedFile.size,
             fileName: selectedFile.name,
             file: selectedFile,

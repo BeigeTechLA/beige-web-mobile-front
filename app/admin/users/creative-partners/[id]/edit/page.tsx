@@ -1,9 +1,10 @@
 import { CreativePartnerProfileEdit } from "@/components/admin/users/CreativePartnerProfileEdit";
 
-export default function CreativePartnerEditPage({
+export default async function CreativePartnerEditPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <CreativePartnerProfileEdit id={params.id} />;
+  const { id } = await params;
+  return <CreativePartnerProfileEdit id={id} />;
 }

@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { EffectCoverflow, Navigation, Pagination } from 'swiper/modules';
 import {
   ArrowLeft, CalendarDays, ChevronRight, Home, Images,
   MapPin, Star, X, Check, Clock, Shield, Share2, Heart, Loader2,
@@ -15,8 +17,15 @@ import {
   LayoutGrid,
   Clapperboard,
   PartyPopper,
-  DoorClosed
+  DoorClosed,
+  MessageCircleMore
 } from "lucide-react";
+
+// Import Swiper styles
+import 'swiper/css';
+import 'swiper/css/effect-coverflow';
+import 'swiper/css/navigation';
+
 
 import { Navbar } from "@/src/components/landing/Navbar";
 import { Footer } from "@/src/components/landing/Footer";
@@ -52,11 +61,11 @@ const DEFAULT_DUMMY_STUDIO: StudioCatalogItem & {
   poolType: "Apartment",
   image: "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
   images: [
-    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
-    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
+    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/weho-gym/MWC+Weho+Studio-2.jpg",
+    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/weho-content/Weho+Studio-3.jpg",
     "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/kitchen.png",
-    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/kitchen.png",
-    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/kitchen.png",
+    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/weho-gym/MWC+Weho+Studio-11.jpg",
+    "https://d2jhn32fsulyac.cloudfront.net/assets/studio/weho-content/Weho+Studio-43.jpg",
   ],
   amenities: [
     "Garden view", "Kitchen", "Wifi", "Pets allowed",
@@ -175,11 +184,11 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
   ];
 
   return (
-    <div className="relative pt-24 lg:pt-32 pb-24 text-white">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="relative pt-20 md:pt-24 lg:pt-32 pb-10 lg:pb-24 text-white">
+      <div className="max-w-[1400px] mx-auto md:px-6 lg:px-8">
 
         {/* Navigation Bar */}
-        <div className="mb-6">
+        <div className="hidden lg:block lg:mb-6">
           <button
             type="button"
             onClick={() => router.back()}
@@ -190,7 +199,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
         </div>
 
         {/* Header (Restored Data Labels) */}
-        <div className="mb-10">
+        <div className="hidden lg:block lg:mb-10">
           <h1 className="text-lg lg:text-[32px] font-medium text-white mb-2">
             {studio.name}
           </h1>
@@ -208,54 +217,168 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
         </div>
 
         {/* Gallery Section */}
-        <div className="mb-10 grid h-[320px] md:h-[500px] grid-cols-1 md:grid-cols-12 gap-2 overflow-hidden rounded-3xl">
-          {/* Main Large Image */}
-          <div
-            className="relative md:col-span-6 h-full w-full cursor-pointer bg-white group overflow-hidden rounded-xl"
-            onClick={() => setActiveImageIndex(0)}
-          >
-            <Image
-              src={galleryImages[0]}
-              alt="Main Studio Photo"
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              priority
-            />
+        <div className="mb-5 lg:mb-10">
+          {/* MOBILE CAROUSEL (< md) */}
+          <div className="block md:hidden relative w-full h-[320px] overflow-hidden group">
+            {/* Floating Back Button */}
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="absolute top-4 left-4 z-20 w-8 h-8 rounded-full bg-[#1D1D1D] backdrop-blur-md border border-[#9C9C9C] flex items-center justify-center text-white cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+
+            {/* Mobile Image Swiper */}
+            <Swiper
+              modules={[Pagination]}
+              slidesPerView={1}
+              spaceBetween={0}
+              pagination={{
+                clickable: true,
+                el: ".custom-swiper-pagination",
+              }}
+              className="w-full h-full"
+            >
+              {galleryImages.map((img, idx) => (
+                <SwiperSlide key={idx} onClick={() => setActiveImageIndex(idx)}>
+                  <div className="relative w-full h-full cursor-pointer">
+                    <Image
+                      src={img}
+                      alt={`Studio slide ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                      priority={idx === 0}
+                    />
+                    {/* Top Fade to #101010 */}
+                    <div className="absolute top-0 inset-x-0 h-12 z-10 pointer-events-none bg-gradient-to-b from-[#0F0F0F] to-transparent" />
+
+                    {/* Bottom Fade to #101010 */}
+                    <div className="absolute bottom-0 inset-x-0 h-16 z-10 pointer-events-none bg-gradient-to-t from-[#0F0F0F] to-transparent" />
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+
+            {/* Bottom Gradient Overlay & Controls */}
+            <div className="absolute inset-x-0 bottom-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none flex flex-col gap-3">
+              {/* Custom Horizontal Bar Indicators */}
+              <div className="max-w-30 custom-swiper-pagination flex items-center gap-[1px] pointer-events-auto [&_.swiper-pagination-bullet]:h-[2px] [&_.swiper-pagination-bullet]:flex-1 [&_.swiper-pagination-bullet]:bg-[#626262] [&_.swiper-pagination-bullet]:rounded-full [&_.swiper-pagination-bullet-active]:bg-[#E8D1AB] [&_.swiper-pagination-bullet]:transition-all" />
+            </div>
           </div>
 
-          {/* 4 Small Images Layout */}
-          <div className="hidden md:col-span-6 md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
-            {[1, 2, 3, 4].map((idx) => (
-              <div
-                key={idx}
-                className="relative cursor-pointer bg-white overflow-hidden group rounded-xl"
-                onClick={() => setActiveImageIndex(Math.min(idx, galleryImages.length - 1))}
-              >
-                <Image
-                  src={galleryImages[idx] || galleryImages[0]}
-                  alt={`Studio Grid image ${idx}`}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {idx === 4 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setActiveImageIndex(0); }}
-                    className="absolute bottom-4 right-4 bg-white/95 text-black hover:bg-white px-4 py-2 rounded-lg font-medium text-xs lg:text-sm flex items-center gap-2 shadow-xl backdrop-blur-sm transition-all"
-                  >
-                    <LayoutGrid size={20} /> Show all photos
-                  </button>
-                )}
-              </div>
-            ))}
+          {/* DESKTOP & TABLET GRID (>= md) */}
+          <div className="hidden md:grid h-[500px] grid-cols-12 gap-2 overflow-hidden rounded-3xl">
+            {/* Main Large Image */}
+            <div
+              className="relative col-span-6 h-full w-full cursor-pointer bg-white group overflow-hidden rounded-xl"
+              onClick={() => setActiveImageIndex(0)}
+            >
+              <Image
+                src={galleryImages[0]}
+                alt="Main Studio Photo"
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                priority
+              />
+            </div>
+
+            {/* 4 Small Images Layout */}
+            <div className="hidden md:col-span-6 md:grid grid-cols-2 grid-rows-2 gap-2 h-full">
+              {[1, 2, 3, 4].map((idx) => (
+                <div
+                  key={idx}
+                  className="relative cursor-pointer bg-white overflow-hidden group rounded-xl"
+                  onClick={() => setActiveImageIndex(Math.min(idx, galleryImages.length - 1))}
+                >
+                  <Image
+                    src={galleryImages[idx] || galleryImages[0]}
+                    alt={`Studio Grid image ${idx}`}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {idx === 4 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setActiveImageIndex(0); }}
+                      className="absolute bottom-4 right-4 bg-white/95 text-black hover:bg-white px-4 py-2 rounded-lg font-medium text-xs lg:text-sm flex items-center gap-2 shadow-xl backdrop-blur-sm transition-all"
+                    >
+                      <LayoutGrid size={20} /> Show all photos
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
+
         </div>
 
         {/* Main Content & Sidebar Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-30">
+        <div className="px-4 lg:px-0 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-30">
           {/* Left Column Content */}
-          <div className="lg:col-span-8 space-y-12">
+          <div className="lg:col-span-8 space-y-5 lg:space-y-12">
+            {/* Mobile Top Info block */}
+            <div className="md:hidden">
+              {/* Available Status Badge */}
+              <div className="flex items-center gap-2 bg-[#1DAA23] border border-[#14C573] text-white px-3 py-1 rounded-full w-max text-[10px] font-medium mb-4">
+                <span className="absolute w-2 h-2 rounded-full bg-white animate-ping" />
+                <span className="relative w-2 h-2 rounded-full bg-white" />
+                Available
+              </div>
+
+              <div className="space-y-2 mb-6">
+                <div className="flex justify-between items-start">
+                  <h1 className="text-base font-bold text-white max-w-2/3">
+                    {studio.name}
+                  </h1>
+                  <div className="flex items-center gap-2 mb-6">
+                    <Star size={14} className="fill-[#E8D1AB] text-[#E8D1AB]" />
+                    <h3 className="text-sm font-medium text-white/70">
+                      {studio.rating || "5.0"} ({studio.reviews || 117})
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm ">{DEFAULT_DISPLAY_ADDRESS}</p>
+                <div className="flex gap-1 items-center">
+                  <span className="text-[#E8D1AB] text-sm font-extrabold">From $59/Hr</span>
+                  <span className="text-white text-xs">(Minimum 3hr)</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 ">
+                <button
+                  type="button"
+                  className="shrink-0 w-14 h-14 rounded-lg text-black bg-[linear-gradient(90deg,#E8D1AB_0%,#FDEFD9_100%),linear-gradient(97deg,#E8D1AB_4.35%,#D4A14D_111.36%)] p-3"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <path d="M13.3337 29.3333C19.2247 29.3333 24.0003 24.5577 24.0003 18.6667C24.0003 12.7756 19.2247 8 13.3337 8C7.44262 8 2.66699 12.7756 2.66699 18.6667C2.66699 20.314 3.04043 21.8741 3.70726 23.267C3.93645 23.7457 4.01692 24.2881 3.87973 24.8008L3.44234 26.4355C3.0976 27.724 4.27635 28.9027 5.56479 28.558L7.19951 28.1206C7.71224 27.9834 8.2546 28.0639 8.73333 28.2931C10.1262 28.9599 11.6863 29.3333 13.3337 29.3333Z" stroke="black" />
+                    <path d="M24.0003 19.3371C24.089 19.3001 24.1768 19.2617 24.264 19.2219C24.7467 19.0014 25.2884 18.9189 25.8011 19.0561L26.4359 19.226C27.7243 19.5707 28.9031 18.3919 28.5583 17.1035L28.3885 16.4688C28.2513 15.9561 28.3338 15.4144 28.5543 14.9316C29.0548 13.836 29.3337 12.6179 29.3337 11.3346C29.3337 6.54817 25.4535 2.66797 20.667 2.66797C17.064 2.66797 13.9745 4.86662 12.667 7.99544" stroke="black" />
+                    <path d="M8.69071 18.668H8.70271M13.345 18.668H13.357M17.9997 18.668H18.0117" stroke="black" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="w-full rounded-lg text-black bg-[linear-gradient(90deg,#E8D1AB_0%,#FDEFD9_100%),linear-gradient(97deg,#E8D1AB_4.35%,#D4A14D_111.36%)] p-2.5 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+
+                    {hostAvatar && (
+                      <div className="relative w-9 h-9 rounded-full overflow-hidden shrink-0">
+                        <Image src={hostAvatar} alt={hostName} fill className="object-cover" />
+                      </div>
+                    )}
+                    <div className="flex flex-col items-start">
+                      <p className="text-sm">Hosted by {hostName}</p>
+                      <p className="text-[10px]">Response time: Within an hour</p>
+                    </div>
+                  </div>
+                  <ChevronRight />
+                </button>
+              </div>
+
+            </div>
+
             {/* Title Header & Host Info */}
-            <div className="text-white flex justify-between items-start">
+            <div className="hidden text-white md:flex justify-between items-start">
               <div>
                 <h1 className="text-lg lg:text-2xl font-medium mb-1">
                   Entire rental unit hosted by {hostName}
@@ -274,49 +397,70 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Booking For Type Selector */}
             <section className="space-y-4">
-              <h3 className="text-lg lg:text-2xl font-medium text-white">Booking For</h3>
-              <div className="flex p-1.5 bg-[#171717] border border-white/40 border-[0.5px] rounded-2xl w-full">
+              <h3 className="text-sm lg:text-2xl font-medium text-white">Booking For</h3>
+              <div className="flex p-1.5 bg-[#282828] lg:bg-[#171717] lg:border lg:border-white/40 lg:border-[0.5px] rounded-lg lg:rounded-2xl w-full">
                 <button
                   onClick={() => setBookingType("production")}
-                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg transition-all ${bookingType === "production"
+                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg font-medium lg:font-normal transition-all ${bookingType === "production"
                     ? "bg-[#E8D1AB] text-black"
                     : "text-[#8B8B8B] hover:text-white"
                     }`}
                 >
-                  <Clapperboard size={30} strokeWidth={1} /> Production
+                  <Clapperboard className="w-4 h-4 lg:w-7 lg:h-7" strokeWidth={1.5} /> Production
                 </button>
                 <button
                   onClick={() => setBookingType("audio")}
-                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg transition-all ${bookingType === "audio"
+                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg font-medium lg:font-normal transition-all ${bookingType === "audio"
                     ? "bg-[#E8D1AB] text-black"
                     : "text-[#8B8B8B] hover:text-white"
                     }`}
                 >
-                  <Mic size={30} strokeWidth={1} /> Audio
+                  <Mic className="w-4 h-4 lg:w-7 lg:h-7" strokeWidth={1.5} /> Audio
                 </button>
                 <button
                   onClick={() => setBookingType("events")}
-                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg transition-all ${bookingType === "events"
+                  className={`lg:min-w-[220px] flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm lg:text-lg font-medium lg:font-normal transition-all ${bookingType === "events"
                     ? "bg-[#E8D1AB] text-black"
                     : "text-[#8B8B8B] hover:text-white"
                     }`}
                 >
-                  <PartyPopper size={30} strokeWidth={1} /> Events
+                  <PartyPopper className="w-4 h-4 lg:w-7 lg:h-7" strokeWidth={1.5} /> Events
                 </button>
               </div>
 
               {/* Includes checklist based on selection */}
               <div className="pt-2">
-                <p className="text-base lg:text-xl text-[#E8D1AB] font-medium mb-3">Production Includes</p>
+                <p className="text-sm lg:text-xl text-[#E8D1AB] font-medium mb-3">Production Includes</p>
                 <div className="flex flex-wrap gap-6 text-xs lg:text-sm text-[#A9A9A9]">
                   <div className="flex items-center gap-2">
-                    <Check size={24} className="text-white" /> Photo shoots
+                    <Image
+                      src={"/images/misc/BookingFlow/Tick.svg"}
+                      alt="Check mark icon"
+                      width={18}
+                      height={18}
+                      className="w-4 h-4 lg:h-5 lg:w-5"
+                    />
+                    <span>Photo shoots</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={24} className="text-white" /> Video shoots
+                    <Image
+                      src={"/images/misc/BookingFlow/Tick.svg"}
+                      alt="Check mark icon"
+                      width={18}
+                      height={18}
+                      className="w-4 h-4 lg:h-5 lg:w-5"
+                    />
+                    <span> Video shoots</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={24} className="text-white" /> Product shoots
+                    <Image
+                      src={"/images/misc/BookingFlow/Tick.svg"}
+                      alt="Check mark icon"
+                      width={18}
+                      height={18}
+                      className="w-4 h-4 lg:h-5 lg:w-5"
+                    />
+                    <span>Product shoots</span>
                   </div>
                 </div>
               </div>
@@ -363,7 +507,8 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Description Section */}
             <section className="space-y-3">
-              <p className={`text-white text-sm lg:text-base ${!showFullDescription ? "line-clamp-3" : ""}`}>
+              <h3 className="text-sm lg:hidden font-medium text-white">About Studio</h3>
+              <p className={`text-white text-sm lg:text-base ${!showFullDescription ? "line-clamp-5 lg:line-clamp-3" : ""}`}>
                 {studio.description}
               </p>
               <button
@@ -377,7 +522,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* What this place offers (Amenities) */}
             <section>
-              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">What this place offers</h3>
+              <h3 className="text-sm lg:text-2xl font-medium text-white mb-4 lg:mb-6">What this place offers</h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
                 {amenities.slice(0, 10).map((item, idx) => (
@@ -390,7 +535,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
               <button
                 onClick={() => setShowAllAmenitiesModal(true)}
-                className="px-4 py-2 rounded-lg bg-[#E8D1AB] hover:bg-[#E8D1AB]/80 text-black font-medium text-sm transition-colors"
+                className="px-4 py-2 rounded-lg bg-[#E8D1AB] hover:bg-[#E8D1AB]/80 text-black font-medium text-xs lg:text-sm transition-colors"
               >
                 Show all {amenities.length} amenities
               </button>
@@ -399,7 +544,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Operating Hours */}
             <section>
-              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">Operating Hours</h3>
+              <h3 className="text-sm lg:text-2xl font-medium text-white mb-4 lg:mb-6">Operating Hours</h3>
               <div className="bg-[#171717] rounded-xl p-4 lg:p-8 max-w-md space-y-4">
                 {operatingDays.map((item) => (
                   <div key={item.day} className="flex items-center justify-between text-sm lg:text-lg">
@@ -416,7 +561,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Where you'll be (Location & Map) */}
             <section>
-              <h3 className="text-lg lg:text-2xl font-medium text-white mb-6">Where you’ll be</h3>
+              <h3 className="text-sm lg:text-2xl font-medium text-white mb-4 lg:mb-6">Where you’ll be</h3>
 
               {/* MAp component will go here */}
               <div className="relative w-full h-[360px] rounded-2xl overflow-hidden bg-white mb-4">
@@ -452,9 +597,9 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Reviews Section */}
             <section>
-              <div className="flex items-center gap-2 mb-6">
-                <Star size={32} className="fill-[#E8D1AB] text-[#E8D1AB]" />
-                <h3 className="text-lg lg:text-2xl font-medium text-white">
+              <div className="flex items-center gap-2 mb-4 lg:mb-6">
+                <Star className="w-6 h-6 lg:h-8 lg:w-8 fill-[#E8D1AB] text-[#E8D1AB]" />
+                <h3 className="text-sm lg:text-2xl font-medium text-white">
                   {studio.rating || "5.0"} • {studio.reviews || 7} reviews
                 </h3>
               </div>
@@ -462,7 +607,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
               {/* Specific Rating Metrics */}
               <div className="flex flex-col gap-4 mb-8 max-w-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-white">Cleanliness</span>
+                  <span className="text-xs lg:text-base text-white">Cleanliness</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 h-1 bg-[#454545] rounded-full overflow-hidden">
                       <div className="h-full bg-[#E8D1AB] w-4/5 rounded-full" />
@@ -471,7 +616,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-white">Communication</span>
+                  <span className="text-xs lg:text-base text-white">Communication</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 h-1 bg-[#454545] rounded-full overflow-hidden">
                       <div className="h-full bg-[#E8D1AB] w-4/5 rounded-full" />
@@ -480,7 +625,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-white">Check-in</span>
+                  <span className="text-xs lg:text-base text-white">Check-in</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 h-1 bg-[#454545] rounded-full overflow-hidden">
                       <div className="h-full bg-[#E8D1AB] w-4/5 rounded-full" />
@@ -503,7 +648,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
                         <p className="text-xs lg:text-sm text-[#6B7280]">{rev.date}</p>
                       </div>
                     </div>
-                    <p className="text-white text-sm lg:text-base">{rev.comment}</p>
+                    <p className="text-white text-xs lg:text-base">{rev.comment}</p>
                   </div>
                 ))}
               </div>
@@ -516,7 +661,7 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
 
             {/* Rules & Health Safety Measures */}
             <section className="space-y-6">
-              <h3 className="text-lg lg:text-2xl font-medium text-white">Rules & Health Safety Measures</h3>
+              <h3 className="text-sm lg:text-2xl font-medium text-white">Rules & Health Safety Measures</h3>
 
               <div className="bg-[#171717] rounded-2xl overflow-hidden p-5">
                 {safetyRules.map((rule, idx) => (
@@ -547,11 +692,10 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
                 ))}
               </div>
             </section>
-
           </div>
 
           {/* Right Sticky Sidebar */}
-          <div className="lg:col-span-4">
+          <div className="hidden lg:block lg:col-span-4">
             <aside className="sticky top-32 bg-[#171717] border border-[#E8D1AB] rounded-2xl p-4 lg:px-8 lg:py-10">
 
               {/* Header Price & Rating */}
@@ -614,6 +758,28 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
             </aside>
           </div>
         </div>
+      </div>
+
+      {/* Bottom Action Footer Bar */}
+      <div
+        className={`lg:hidden fixed flex gap-2 border-t border-white/10 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] bg-[#101010]`}
+      // className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3"
+      >
+
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="py-3.5 w-full rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base hover:bg-white/5 transition-all cursor-pointer"
+        >
+          Back
+        </button>
+
+        <button
+          onClick={() => { console.log("Add this studio") }}
+          className="py-3.5 w-full rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+        >
+          Add this Studio
+        </button>
       </div>
 
       {/* Fullscreen Gallery View Modal */}

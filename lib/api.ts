@@ -1297,6 +1297,28 @@ export const getEquipmentSuggestions = async (queryParams = {}) => {
   }
 };
 
+export const getEquipmentById = async (
+  equipmentId: string | number
+) => {
+  try {
+    const response = await api.get(
+      `admin/get-equipment-by-id/${encodeURIComponent(
+        String(equipmentId)
+      )}`
+    );
+
+    return response;
+  } catch (error) {
+    console.error("Get Equipment By ID Error:", error);
+
+    return {
+      success: false,
+      data: null,
+      error: "Failed to fetch equipment",
+    };
+  }
+};
+
 export const getStatusCount = async (payload: { crew_member_id: number, creator_id: number }) => {
   try {
     const response = await api.post(
@@ -1515,6 +1537,85 @@ export const AddAvailability = async (payload: any) => {
     return response;
   } catch (error) {
     console.error('Add Availability Error:', error);
+    throw error;
+  }
+};
+
+type CreatorCalendarRequest = Record<string, unknown>;
+
+export const getCreatorCalendarStatus = async (params?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.get("creator/calendar/google/status", { params });
+    return response;
+  } catch (error) {
+    console.error('Get Creator Calendar Status Error:', error);
+    throw error;
+  }
+};
+
+export const connectCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.post("creator/calendar/google/connect", payload || {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Connect Creator Google Calendar Error:', error);
+    throw error;
+  }
+};
+
+export const syncCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.post("creator/calendar/google/sync", payload || {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Sync Creator Google Calendar Error:', error);
+    throw error;
+  }
+};
+
+export const disconnectCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.delete("creator/calendar/google", {
+      data: payload || {},
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Disconnect Creator Google Calendar Error:', error);
+    throw error;
+  }
+};
+
+export const getCreatorAvailabilityRules = async (params?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.get("creator/availability-rules", { params });
+    return response;
+  } catch (error) {
+    console.error('Get Creator Availability Rules Error:', error);
+    throw error;
+  }
+};
+
+export const saveCreatorAvailabilityRules = async (payload?: CreatorCalendarRequest) => {
+  try {
+    const response = await api.put("creator/availability-rules", payload || {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Save Creator Availability Rules Error:', error);
     throw error;
   }
 };

@@ -41,7 +41,7 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails, isDark }:
           <div className="flex flex-col">
             <span className={`text-lg capitalize font-bold truncate max-w-[140px] ${isDark ? "text-white" : "text-black"
               }`}>
-              {item.project_name || "Untitled"}
+              {(item.project_name || "Untitled").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
             </span>
             <span className={`text-xs uppercase tracking-tight ${isDark ? "text-white/40" : "text-black/40"
               }`}>

@@ -22,8 +22,8 @@ export default function AboutUsPage() {
 
       <Hero />
 
-      <Separator />
-      <CeoMessageBlock />
+      {/* <Separator />
+      <CeoMessageBlock /> */}
 
       <Separator />
       <ContentAndMarquee />

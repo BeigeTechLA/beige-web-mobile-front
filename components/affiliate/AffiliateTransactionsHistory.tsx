@@ -246,7 +246,7 @@ const mapClientPaymentRow = (row: ClientFinancePaymentApiRow): PaymentRow => {
   return {
     id: String(row.booking_id || row.shoot_id || bookingId),
     bookingId,
-    shootType: row.project_name || row.shoot_type || "N/A",
+    shootType: (row.project_name || row.shoot_type || "N/A").replace(/^CUSTOM\s+Shoot\b/i, "CUSTOM"),
     totalAmount: formatCurrency(row.total_amount || row.cost_breakdown?.total_amount, currency),
     breakdown: {
       baseCost: formatCurrency(row.cost_breakdown?.base_cost, currency),

@@ -152,7 +152,7 @@ export default function AffiliateShootHeader({ activeTab = "Overview", project, 
             <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className={`lg:text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {project?.project_name || "Untitled Project"}
+                  {(project?.project_name || "Untitled Project").replace(/^CUSTOM\s+Shoot\b/i, "CUSTOM")}
                 </h1>
                 <span className="bg-[#FFF9E5] text-[#B18A00] text-xs font-semibold px-3 py-1 rounded-full border border-[#B18A00]/20">
                   {resolvedStatusLabel || "Pending"}

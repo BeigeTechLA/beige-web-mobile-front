@@ -13,12 +13,9 @@ import {
   CircleDollarSign,
   DollarSign,
   X,
-  type LucideIcon,
   Receipt,
   Settings,
   User,
-  CalendarRange,
-  Save,
   ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
@@ -160,6 +157,7 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
+      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
   {
