@@ -430,13 +430,16 @@ export const UserManagementTabbed = () => {
   }, [fetchUsers, filtersInitialized]);
 
   const handleRowClick = (user: UserData) => {
-    const cleanId = user.id.replace('#', '');
-    router.push(`/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`);
+    router.push(getUserDetailHref(user));
   };
 
   const getUserDetailHref = (user: UserData) => {
     const cleanId = user.id.replace('#', '');
-    return `/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`;
+    const detailPath = `/admin/users/${user.type === "Client" ? "clients" : "creative-partners"}/${cleanId}`;
+
+    // A profile may be opened from several user lists. Preserve this list as
+    // the explicit return destination instead of relying on a profile default.
+    return `${detailPath}?returnTo=${encodeURIComponent("/admin/users/all")}`;
   };
 
   return (
