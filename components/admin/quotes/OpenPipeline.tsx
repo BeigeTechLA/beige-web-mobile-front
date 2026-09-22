@@ -365,7 +365,7 @@ export default function OpenPipelineWidget({
                             setExpandedRowId(isExpanded ? null : item.id);
                           }
                         }}
-                        className={`transition-colors cursor-pointer border-b ${isDark
+                        className={`transition-colors cursor-pointer ${isDark
                           ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
                           : "bg-black/10 hover:bg-black/[0.02] text-black border-black/10"
                           } ${isExpanded
