@@ -22,6 +22,13 @@ interface QuotePerformanceData {
   won_revenue: number;
 }
 
+interface QuotePerformanceOverview {
+  quote_value: number;
+  quotes_sent: number;
+  deals_won: number;
+  won_revenue: number;
+}
+
 interface MetricCardData {
   key: MetricKey;
   label: string;
@@ -122,26 +129,38 @@ const CustomTooltip = ({ active, payload, activeMetric }: any) => {
 
 interface QuotePerformanceWidgetProps {
   data?: QuotePerformanceData[];
+  overview?: QuotePerformanceOverview;
 }
 
 export default function QuotePerformanceWidget({
   data = [],
+  overview,
 }: QuotePerformanceWidgetProps) {
   const { isDark } = useResolvedTheme();
   const [activeMetricKey, setActiveMetricKey] =
     useState<MetricKey>("quoteValue");
+  const chartTotals = {
+    quote_value: data.reduce((sum, item) => sum + item.quote_value, 0),
+    quotes_sent: data.reduce((sum, item) => sum + item.quotes_sent, 0),
+    deals_won: data.reduce((sum, item) => sum + item.deals_won, 0),
+    won_revenue: data.reduce((sum, item) => sum + item.won_revenue, 0),
+  };
+  const totals = overview ?? chartTotals;
+  const monthLabel = (date: string) => new Intl.DateTimeFormat("en-US", {
+    month: "short",
+  }).format(new Date(`${date}T00:00:00`));
 
   const metricsData: Record<MetricKey, MetricCardData> = {
   quoteValue: {
     key: "quoteValue",
     label: "Quote Value",
-    value: `$${(data.reduce((sum, item) => sum + item.quote_value, 0) / 1000000).toFixed(1)}M`,
+    value: `$${(totals.quote_value / 1000000).toFixed(1)}M`,
     growth: "0%",
     icon: CircleDollarSign,
-    formattedTooltip: `$${data.reduce((sum, item) => sum + item.quote_value, 0).toLocaleString()}`,
+    formattedTooltip: `$${totals.quote_value.toLocaleString()}`,
     infoTooltip: "Total amount of the proposals sent in the selected period",
     data: data.map((item) => ({
-      month: item.date,
+      month: monthLabel(item.date),
       value: item.quote_value,
     })),
   },
@@ -149,13 +168,13 @@ export default function QuotePerformanceWidget({
   quotesSent: {
     key: "quotesSent",
     label: "Quotes Sent",
-    value: String(data.reduce((sum, item) => sum + item.quotes_sent, 0)),
+    value: String(totals.quotes_sent),
     growth: "0%",
     icon: Clock4,
-    formattedTooltip: `${data.reduce((sum, item) => sum + item.quotes_sent, 0)} Quotes`,
+    formattedTooltip: `${totals.quotes_sent} Quotes`,
     infoTooltip: "Total Number of quotes sent.",
     data: data.map((item) => ({
-      month: item.date,
+      month: monthLabel(item.date),
       value: item.quotes_sent,
     })),
   },
@@ -163,13 +182,13 @@ export default function QuotePerformanceWidget({
   dealsWon: {
     key: "dealsWon",
     label: "Deals Won",
-    value: String(data.reduce((sum, item) => sum + item.deals_won, 0)),
+    value: String(totals.deals_won),
     growth: "0%",
     icon: BadgeCheck,
-    formattedTooltip: `${data.reduce((sum, item) => sum + item.deals_won, 0)} Deals`,
+    formattedTooltip: `${totals.deals_won} Deals`,
     infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
     data: data.map((item) => ({
-      month: item.date,
+      month: monthLabel(item.date),
       value: item.deals_won,
     })),
   },
@@ -177,13 +196,13 @@ export default function QuotePerformanceWidget({
   wonRevenue: {
     key: "wonRevenue",
     label: "Won Revenue",
-    value: `$${(data.reduce((sum, item) => sum + item.won_revenue, 0) / 1000000).toFixed(1)}M`,
+    value: `$${(totals.won_revenue / 1000000).toFixed(1)}M`,
     growth: "0%",
     icon: CircleDollarSign,
-    formattedTooltip: `$${data.reduce((sum, item) => sum + item.won_revenue, 0).toLocaleString()}`,
+    formattedTooltip: `$${totals.won_revenue.toLocaleString()}`,
     infoTooltip: "Total amount of deals won",
     data: data.map((item) => ({
-      month: item.date,
+      month: monthLabel(item.date),
       value: item.won_revenue,
     })),
   },

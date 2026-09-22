@@ -101,10 +101,12 @@ export default function QuotePricingPage() {
     if (selectedLeadSource && selectedLeadSource !== "all") params.lead_source = selectedLeadSource;
     if (selectedCustomerType && selectedCustomerType !== "all") params.customer_type = selectedCustomerType;
 
-    if (selectedDate === "custom") {
+    if (selectedDate === "all") {
+      params.date_preset = "all_time";
+    } else if (selectedDate === "custom") {
       if (selectedStartDate) params.start_date = format(selectedStartDate, "yyyy-MM-dd");
       if (selectedEndDate) params.end_date = format(selectedEndDate, "yyyy-MM-dd");
-    } else if (selectedDate !== "all") {
+    } else {
       const datePresetMap: Record<string, string> = {
         today: "today", yesterday: "yesterday", last7Days: "last_7_days",
         last30Days: "last_30_days", thisMonth: "this_month", lastMonth: "last_month",
@@ -429,40 +431,52 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
           </div >
         }
 
-        <div className="space-y-3 lg:space-y-6">
-          <div className="w-full flex flex-col lg:flex-row items-stretch gap-5">
-            <div className="w-full lg:w-3/5 flex flex-col">
-            <QuotePerformanceWidget
-              data={quoteAnalyticsData?.performance_chart ?? []}
-            />            
+        {loading ? (
+          <div
+            className={`flex min-h-[480px] flex-col items-center justify-center gap-3 rounded-lg border lg:rounded-2xl ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-[#E8D1AB]" />
+            <span className="text-sm">Loading quote analytics…</span>
+          </div>
+        ) : (
+          <div className="space-y-3 lg:space-y-6">
+            <div className="w-full flex flex-col lg:flex-row items-stretch gap-5">
+              <div className="w-full lg:w-3/5 flex flex-col">
+              <QuotePerformanceWidget
+                data={quoteAnalyticsData?.performance_chart ?? []}
+                overview={quoteAnalyticsData?.overview}
+              />
+              </div>
+              <div className="w-full lg:w-2/5 flex flex-col">
+                <ConversionPerformanceWidget
+                  data={quoteAnalyticsData?.overview ?? undefined}
+                />
+              </div>
             </div>
-            <div className="w-full lg:w-2/5 flex flex-col">
-              <ConversionPerformanceWidget 
-                data={quoteAnalyticsData?.overview ?? undefined}
+            <div>
+              <OpenPipelineWidget
+                data={quoteAnalyticsData?.overview?.open_pipeline ?? undefined}
+                filters={analyticsParams}
+                />
+            </div>
+            <div>
+              <QuotesOverdueWidget
+                data={quoteAnalyticsData?.overview?.overdue_follow_ups ?? undefined}
+                loading={overdueLoading}
+                quotesData={overdueQuotes}
+                onPageChange={setOverduePage}
+              />
+            </div>
+            <div>
+              <QuotesAnalyticsTable isDark={isDark}
+              loading={loading}
+              data={quoteAnalyticsData?.rep_performance ?? []}
               />
             </div>
           </div>
-          <div>
-            <OpenPipelineWidget 
-              data={quoteAnalyticsData?.overview?.open_pipeline ?? undefined}
-              filters={analyticsParams}
-              />
-          </div>
-          <div>
-            <QuotesOverdueWidget
-              data={quoteAnalyticsData?.overview?.overdue_follow_ups ?? undefined}
-              loading={overdueLoading}
-              quotesData={overdueQuotes}
-              onPageChange={setOverduePage}
-            />
-          </div>
-          <div>
-            <QuotesAnalyticsTable isDark={isDark} 
-            loading={loading}
-            data={quoteAnalyticsData?.rep_performance ?? []}
-            />
-          </div>
-        </div>
+        )}
 
         {/* --- FLOATING MOBILE BUTTON PANEL --- */}
         {/* <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>
