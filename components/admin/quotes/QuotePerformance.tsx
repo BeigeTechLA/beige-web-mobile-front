@@ -14,6 +14,14 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type MetricKey = "quoteValue" | "quotesSent" | "dealsWon" | "wonRevenue";
 
+interface QuotePerformanceData {
+  date: string;
+  quote_value: number;
+  quotes_sent: number;
+  deals_won: number;
+  won_revenue: number;
+}
+
 interface MetricCardData {
   key: MetricKey;
   label: string;
@@ -25,80 +33,80 @@ interface MetricCardData {
   infoTooltip: string;
 }
 
-const metricsData: Record<MetricKey, MetricCardData> = {
-  quoteValue: {
-    key: "quoteValue",
-    label: "Quote Value",
-    value: "$24.5M",
-    growth: "+3%",
-    icon: CircleDollarSign,
-    formattedTooltip: "$24.5M",
-    infoTooltip: "Total amount of the proposals sent in the selected period",
-    data: [
-      { month: "Jan", value: 30 },
-      { month: "Feb", value: 20 },
-      { month: "Mar", value: 35 },
-      { month: "Apr", value: 65 },
-      { month: "May", value: 60 },
-      { month: "Jun", value: 45 },
-      { month: "Jul", value: 50 },
-    ],
-  },
-  quotesSent: {
-    key: "quotesSent",
-    label: "Quotes Sent",
-    value: "128",
-    growth: "+3%",
-    icon: Clock4,
-    formattedTooltip: "128 Quotes",
-    infoTooltip: "Total Number of quotes sent.",
-    data: [
-      { month: "Jan", value: 40 },
-      { month: "Feb", value: 45 },
-      { month: "Mar", value: 52 },
-      { month: "Apr", value: 70 },
-      { month: "May", value: 68 },
-      { month: "Jun", value: 75 },
-      { month: "Jul", value: 80 },
-    ],
-  },
-  dealsWon: {
-    key: "dealsWon",
-    label: "Deals Won",
-    value: "32",
-    growth: "+3%",
-    icon: BadgeCheck,
-    formattedTooltip: "32 Deals",
-    infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
-    data: [
-      { month: "Jan", value: 15 },
-      { month: "Feb", value: 18 },
-      { month: "Mar", value: 24 },
-      { month: "Apr", value: 40 },
-      { month: "May", value: 38 },
-      { month: "Jun", value: 42 },
-      { month: "Jul", value: 55 },
-    ],
-  },
-  wonRevenue: {
-    key: "wonRevenue",
-    label: "Won Revenue",
-    value: "$8.7M",
-    growth: "+3%",
-    icon: CircleDollarSign,
-    formattedTooltip: "$8.7M",
-    infoTooltip: "Total amount of deals won",
-    data: [
-      { month: "Jan", value: 25 },
-      { month: "Feb", value: 22 },
-      { month: "Mar", value: 30 },
-      { month: "Apr", value: 58 },
-      { month: "May", value: 52 },
-      { month: "Jun", value: 48 },
-      { month: "Jul", value: 62 },
-    ],
-  },
-};
+// const metricsData: Record<MetricKey, MetricCardData> = {
+//   quoteValue: {
+//     key: "quoteValue",
+//     label: "Quote Value",
+//     value: "$24.5M",
+//     growth: "+3%",
+//     icon: CircleDollarSign,
+//     formattedTooltip: "$24.5M",
+//     infoTooltip: "Total amount of the proposals sent in the selected period",
+//     data: [
+//       { month: "Jan", value: 30 },
+//       { month: "Feb", value: 20 },
+//       { month: "Mar", value: 35 },
+//       { month: "Apr", value: 65 },
+//       { month: "May", value: 60 },
+//       { month: "Jun", value: 45 },
+//       { month: "Jul", value: 50 },
+//     ],
+//   },
+//   quotesSent: {
+//     key: "quotesSent",
+//     label: "Quotes Sent",
+//     value: "128",
+//     growth: "+3%",
+//     icon: Clock4,
+//     formattedTooltip: "128 Quotes",
+//     infoTooltip: "Total Number of quotes sent.",
+//     data: [
+//       { month: "Jan", value: 40 },
+//       { month: "Feb", value: 45 },
+//       { month: "Mar", value: 52 },
+//       { month: "Apr", value: 70 },
+//       { month: "May", value: 68 },
+//       { month: "Jun", value: 75 },
+//       { month: "Jul", value: 80 },
+//     ],
+//   },
+//   dealsWon: {
+//     key: "dealsWon",
+//     label: "Deals Won",
+//     value: "32",
+//     growth: "+3%",
+//     icon: BadgeCheck,
+//     formattedTooltip: "32 Deals",
+//     infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
+//     data: [
+//       { month: "Jan", value: 15 },
+//       { month: "Feb", value: 18 },
+//       { month: "Mar", value: 24 },
+//       { month: "Apr", value: 40 },
+//       { month: "May", value: 38 },
+//       { month: "Jun", value: 42 },
+//       { month: "Jul", value: 55 },
+//     ],
+//   },
+//   wonRevenue: {
+//     key: "wonRevenue",
+//     label: "Won Revenue",
+//     value: "$8.7M",
+//     growth: "+3%",
+//     icon: CircleDollarSign,
+//     formattedTooltip: "$8.7M",
+//     infoTooltip: "Total amount of deals won",
+//     data: [
+//       { month: "Jan", value: 25 },
+//       { month: "Feb", value: 22 },
+//       { month: "Mar", value: 30 },
+//       { month: "Apr", value: 58 },
+//       { month: "May", value: 52 },
+//       { month: "Jun", value: 48 },
+//       { month: "Jul", value: 62 },
+//     ],
+//   },
+// };
 
 // Custom Active Tooltip Pill hovering over the Apr peak
 const CustomTooltip = ({ active, payload, activeMetric }: any) => {
@@ -112,12 +120,76 @@ const CustomTooltip = ({ active, payload, activeMetric }: any) => {
   return null;
 };
 
-export default function QuotePerformanceWidget() {
+interface QuotePerformanceWidgetProps {
+  data?: QuotePerformanceData[];
+}
+
+export default function QuotePerformanceWidget({
+  data = [],
+}: QuotePerformanceWidgetProps) {
   const { isDark } = useResolvedTheme();
   const [activeMetricKey, setActiveMetricKey] =
     useState<MetricKey>("quoteValue");
 
-  const currentMetric = metricsData[activeMetricKey];
+  const metricsData: Record<MetricKey, MetricCardData> = {
+  quoteValue: {
+    key: "quoteValue",
+    label: "Quote Value",
+    value: `$${(data.reduce((sum, item) => sum + item.quote_value, 0) / 1000000).toFixed(1)}M`,
+    growth: "0%",
+    icon: CircleDollarSign,
+    formattedTooltip: `$${data.reduce((sum, item) => sum + item.quote_value, 0).toLocaleString()}`,
+    infoTooltip: "Total amount of the proposals sent in the selected period",
+    data: data.map((item) => ({
+      month: item.date,
+      value: item.quote_value,
+    })),
+  },
+
+  quotesSent: {
+    key: "quotesSent",
+    label: "Quotes Sent",
+    value: String(data.reduce((sum, item) => sum + item.quotes_sent, 0)),
+    growth: "0%",
+    icon: Clock4,
+    formattedTooltip: `${data.reduce((sum, item) => sum + item.quotes_sent, 0)} Quotes`,
+    infoTooltip: "Total Number of quotes sent.",
+    data: data.map((item) => ({
+      month: item.date,
+      value: item.quotes_sent,
+    })),
+  },
+
+  dealsWon: {
+    key: "dealsWon",
+    label: "Deals Won",
+    value: String(data.reduce((sum, item) => sum + item.deals_won, 0)),
+    growth: "0%",
+    icon: BadgeCheck,
+    formattedTooltip: `${data.reduce((sum, item) => sum + item.deals_won, 0)} Deals`,
+    infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
+    data: data.map((item) => ({
+      month: item.date,
+      value: item.deals_won,
+    })),
+  },
+
+  wonRevenue: {
+    key: "wonRevenue",
+    label: "Won Revenue",
+    value: `$${(data.reduce((sum, item) => sum + item.won_revenue, 0) / 1000000).toFixed(1)}M`,
+    growth: "0%",
+    icon: CircleDollarSign,
+    formattedTooltip: `$${data.reduce((sum, item) => sum + item.won_revenue, 0).toLocaleString()}`,
+    infoTooltip: "Total amount of deals won",
+    data: data.map((item) => ({
+      month: item.date,
+      value: item.won_revenue,
+    })),
+  },
+};
+
+const currentMetric = metricsData[activeMetricKey];
 
   return (
     <div className={`w-full rounded-lg lg:rounded-2xl border p-3 lg:p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"
@@ -251,11 +323,9 @@ export default function QuotePerformanceWidget() {
             </defs>
 
             <YAxis
-              domain={[0, 80]}
-              ticks={[0, 20, 40, 60, 80]}
-              axisLine={false}
               tickLine={false}
               tick={{ fill: isDark ? "#666666" : "#888888", fontSize: 12 }}
+              axisLine={false}
             />
 
             <XAxis

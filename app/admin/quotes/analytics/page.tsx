@@ -52,8 +52,10 @@ import QuotesOverdueWidget from "@/components/admin/quotes/QuotesOverdue";
 import OpenPipelineWidget from "@/components/admin/quotes/OpenPipeline";
 import ConversionPerformanceWidget from "@/components/admin/quotes/ConversionPerformance";
 import QuotePerformanceWidget from "@/components/admin/quotes/QuotePerformance";
-import { shootTypes } from "@/app/data/shootData";
-import DateFilter from "@/components/admin/quotes/DateFilter";
+// import { shootTypes } from "@/app/data/shootData";
+import DateFilter, {
+  type DatePreset,
+} from "@/components/admin/quotes/DateFilter";
 
 type SalesRepOption = {
   id: string;
@@ -66,17 +68,105 @@ export default function QuotePricingPage() {
   const { isDark } = useResolvedTheme();
 
   const [loading, setLoading] = useState(true);
+  const [quoteAnalyticsData, setQuoteAnalyticsData] = useState<any>(null);
+  const [overdueQuotes, setOverdueQuotes] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(true);
   const [isDateOpen, setIsDateOpen] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null | string>(null);
+  const [selectedDate, setSelectedDate] = useState<DatePreset>("all");
+  const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [selectedSalesperson, setSelectedSalesperson] = useState("");
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
+  const [quoteStatusOptions, setQuoteStatusOptions] = useState<any[]>([]);
+  const [paymentStatusOptions, setPaymentStatusOptions] = useState<any[]>([]);
+  const [leadSourceOptions, setLeadSourceOptions] = useState<any[]>([]);
+  const [shootTypeOptions, setShootTypeOptions] = useState<any[]>([]);
+  const [customerTypeOptions, setCustomerTypeOptions] = useState<any[]>([]);
   const [selectedShootType, setSelectedShootType] = useState("");
   const [selectedQuoteStatus, setSelectedQuoteStatus] = useState("");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("");
   const [selectedLeadSource, setSelectedLeadSource] = useState("");
   const [selectedCustomerType, setSelectedCustomerType] = useState("");
+  const [overduePage, setOverduePage] = useState(1);
+  const [overdueLoading, setOverdueLoading] = useState(false);
+
+  const analyticsParams = useMemo<Record<string, string>>(() => {
+    const params: Record<string, string> = {};
+
+    if (selectedSalesperson && selectedSalesperson !== "all") params.sales_rep_id = selectedSalesperson;
+    if (selectedShootType && selectedShootType !== "all") params.shoot_type = selectedShootType;
+    if (selectedQuoteStatus && selectedQuoteStatus !== "all") params.quote_status = selectedQuoteStatus;
+    if (selectedPaymentStatus && selectedPaymentStatus !== "all") params.payment_status = selectedPaymentStatus;
+    if (selectedLeadSource && selectedLeadSource !== "all") params.lead_source = selectedLeadSource;
+    if (selectedCustomerType && selectedCustomerType !== "all") params.customer_type = selectedCustomerType;
+
+    if (selectedDate === "custom") {
+      if (selectedStartDate) params.start_date = format(selectedStartDate, "yyyy-MM-dd");
+      if (selectedEndDate) params.end_date = format(selectedEndDate, "yyyy-MM-dd");
+    } else if (selectedDate !== "all") {
+      const datePresetMap: Record<string, string> = {
+        today: "today", yesterday: "yesterday", last7Days: "last_7_days",
+        last30Days: "last_30_days", thisMonth: "this_month", lastMonth: "last_month",
+        thisQuarter: "this_quarter", lastQuarter: "last_quarter", yearToDate: "year_to_date",
+      };
+      params.date_preset = datePresetMap[selectedDate];
+    }
+
+    return params;
+  }, [selectedDate, selectedStartDate, selectedEndDate, selectedSalesperson, selectedShootType, selectedQuoteStatus, selectedPaymentStatus, selectedLeadSource, selectedCustomerType]);
+
+const fetchQuoteAnalytics = useCallback(async () => {
+  try {
+    setLoading(true);
+    const response = await salesApi.getQuoteAnalytics(analyticsParams);
+
+    if (!response?.success) {
+      toast.error(response?.error || "Failed to fetch quote analytics");
+      return;
+    }
+
+    setQuoteAnalyticsData(response.data);
+    console.log("Quote Analytics Response:", response.data);
+  } catch (error) {
+    console.error("Quote Analytics Error:", error);
+    toast.error("Failed to fetch quote analytics");
+  } finally {
+    setLoading(false);
+  }
+}, [
+  analyticsParams,
+]);
+
+const fetchQuoteAnalyticsQuotes = useCallback(async () => {
+  try {
+    setOverdueLoading(true);
+    const [overdueResponse] = await Promise.all([
+      salesApi.getQuoteAnalyticsQuotes({
+        bucket: "overdue_follow_ups",
+        page: overduePage,
+        limit: 10,
+        ...analyticsParams,
+      }),
+    ]);
+
+    if (overdueResponse?.success) {
+      setOverdueQuotes(overdueResponse.data);
+    }
+  } catch (error) {
+    console.error("Quote Analytics Quotes Error:", error);
+  } finally {
+    setOverdueLoading(false);
+  }
+}, [analyticsParams, overduePage]);
+
+  useEffect(() => {
+  void fetchQuoteAnalytics();
+}, [fetchQuoteAnalytics]);
+
+  useEffect(() => {
+  void fetchQuoteAnalyticsQuotes();
+}, [fetchQuoteAnalyticsQuotes]);
 
 
   useEffect(() => {
@@ -100,6 +190,24 @@ export default function QuotePricingPage() {
 
     void fetchSalesReps();
   }, []);
+
+  useEffect(() => {
+  const fetchQuoteAnalyticsFilters = async () => {
+    const response = await salesApi.getQuoteAnalyticsFilters();
+
+    if (!response?.success || !response.data) {
+      return;
+    }
+
+    setQuoteStatusOptions(response.data.quote_statuses ?? []);
+    setPaymentStatusOptions(response.data.payment_statuses ?? []);
+    setLeadSourceOptions(response.data.lead_sources ?? []);
+    setCustomerTypeOptions(response.data.customer_types ?? []);
+    setShootTypeOptions(response.data.shoot_types ?? []);
+  };
+
+  void fetchQuoteAnalyticsFilters();
+}, []);
 
   return (
     <>
@@ -140,14 +248,14 @@ export default function QuotePricingPage() {
           showFilters &&
           <div className={`flex gap-4 rounded-lg lg:rounded-xl p-3.5 ${isDark ? "bg-[#171717]" : "bg-[#E8E8E8]"}`}>
             {/* Date */}
-            <DateFilter
-              isDark={isDark}
-              onChange={(preset, dateRange, customDate) => {
-                setSelectedDate(preset)
-                console.log("Preset selected:", preset);
-                console.log("Start & End dates:", dateRange.startDate, dateRange.endDate);
-              }}
-            />
+           <DateFilter
+            isDark={isDark}
+            onChange={(preset, dateRange) => {
+              setSelectedDate(preset);
+              setSelectedStartDate(dateRange.startDate);
+              setSelectedEndDate(dateRange.endDate);
+            }}
+          />
 
             {/* Sales Rep */}
             <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
@@ -200,10 +308,10 @@ export default function QuotePricingPage() {
                 }
               >
                 <SelectItem value="all">All Shoots</SelectItem>
-                {shootTypes.map((shoot) => (
-                  <SelectItem key={shoot.key} value={shoot.key}>
+                {shootTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{shoot.value}</span>
+                      <span>{option.label ?? option.value}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -228,10 +336,10 @@ export default function QuotePricingPage() {
                 }
               >
                 <SelectItem value="all">All Statuses</SelectItem>
-                {salespersonOptions.map((salesperson) => (
-                  <SelectItem key={salesperson.id} value={salesperson.id}>
+                {quoteStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
+                      <span>{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -256,10 +364,10 @@ export default function QuotePricingPage() {
                 }
               >
                 <SelectItem value="all">All Statuses</SelectItem>
-                {salespersonOptions.map((salesperson) => (
-                  <SelectItem key={salesperson.id} value={salesperson.id}>
+                {paymentStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
+                      <span>{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -284,10 +392,10 @@ export default function QuotePricingPage() {
                 }
               >
                 <SelectItem value="all">All LEad Sources</SelectItem>
-                {salespersonOptions.map((salesperson) => (
-                  <SelectItem key={salesperson.id} value={salesperson.id}>
+                {leadSourceOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
+                      <span>{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -308,11 +416,11 @@ export default function QuotePricingPage() {
                 : "border-[#E3E3E3] bg-white text-black text-sm medium"
               }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
-                {salespersonOptions.map((salesperson) => (
-                  <SelectItem key={salesperson.id} value={salesperson.id}>
+                <SelectItem value="all">All Customer Types</SelectItem>
+                {customerTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
+                      <span>{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -324,20 +432,35 @@ export default function QuotePricingPage() {
         <div className="space-y-3 lg:space-y-6">
           <div className="w-full flex flex-col lg:flex-row items-stretch gap-5">
             <div className="w-full lg:w-3/5 flex flex-col">
-              <QuotePerformanceWidget />
+            <QuotePerformanceWidget
+              data={quoteAnalyticsData?.performance_chart ?? []}
+            />            
             </div>
             <div className="w-full lg:w-2/5 flex flex-col">
-              <ConversionPerformanceWidget />
+              <ConversionPerformanceWidget 
+                data={quoteAnalyticsData?.overview ?? undefined}
+              />
             </div>
           </div>
           <div>
-            <OpenPipelineWidget />
+            <OpenPipelineWidget 
+              data={quoteAnalyticsData?.overview?.open_pipeline ?? undefined}
+              filters={analyticsParams}
+              />
           </div>
           <div>
-            <QuotesOverdueWidget />
+            <QuotesOverdueWidget
+              data={quoteAnalyticsData?.overview?.overdue_follow_ups ?? undefined}
+              loading={overdueLoading}
+              quotesData={overdueQuotes}
+              onPageChange={setOverduePage}
+            />
           </div>
           <div>
-            <QuotesAnalyticsTable isDark={isDark} />
+            <QuotesAnalyticsTable isDark={isDark} 
+            loading={loading}
+            data={quoteAnalyticsData?.rep_performance ?? []}
+            />
           </div>
         </div>
 
