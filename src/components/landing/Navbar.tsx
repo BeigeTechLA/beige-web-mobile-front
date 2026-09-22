@@ -126,12 +126,12 @@ const portfolioConfig = {
         icon: <Gem size={24} />,
         subSectors: []
       },
-      {
-        id: "keynote",
-        label: "Keynotes",
-        icon: <MicVocal size={24} />,
-        subSectors: []
-      },
+      // {
+      //   id: "keynote",
+      //   label: "Keynotes",
+      //   icon: <MicVocal size={24} />,
+      //   subSectors: []
+      // },
       {
         id: "real-estate",
         label: "Real Estate",
@@ -146,7 +146,7 @@ const navLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
   { label: "Find Creative Work", href: "/find-creative-work" },
-  // { label: "Use Cases", href: "#usecases", hasDropdown: true },
+  { label: "Use Cases", href: "#usecases", hasDropdown: true },
   { label: "Press & Blogs", href: "/press-blogs" },
 ];
 
