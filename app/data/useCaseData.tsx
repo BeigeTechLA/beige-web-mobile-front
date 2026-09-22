@@ -656,11 +656,11 @@ export const SHORT_FILMS_VIDEO = [
   //   description: "",
   //   video: "1056604264",
   // },
-  // {
-  //   title: "Kayla’s Surrogate Journey | A Heartwarming Story of Love & Giving",
-  //   description: "",
-  //   video: "https://youtu.be/ZiT5ElJNtQQ",
-  // },
+  {
+    title: "Kayla’s Surrogate Journey | A Heartwarming Story of Love & Giving",
+    description: "",
+    video: "https://youtu.be/ZiT5ElJNtQQ",
+  },
   {
     title: "Thomas Degnan's Ultra Marathon Journey: Pushing Limits & Overcoming Challenges",
     description: "",
@@ -684,11 +684,11 @@ export const PRIVATE_VIDEOS = [
     description: "",
     video: "https://youtu.be/1UxSTGH_BJ4",
   },
-  // {
-  //   title: "Regina Agyemang Family Reunion | Celebrating Family Bonds and Memories",
-  //   description: "",
-  //   video: "https://youtu.be/oYNNaIRlSw8",
-  // },
+  {
+    title: "Regina Agyemang Family Reunion | Celebrating Family Bonds and Memories",
+    description: "",
+    video: "https://youtu.be/oYNNaIRlSw8",
+  },
   {
     title: "Srivani & Dheeraj's Maternity Shoot",
     description: "",
@@ -727,11 +727,11 @@ export const COMMERCIAL_VIDEOS = [
     description: "",
     video: "https://youtu.be/NgDK3Gsxqe8",
   },
-  // {
-  //   title: "Alive Print Shop",
-  //   description: "",
-  //   video: "https://youtu.be/zuR1ZLwYmyY",
-  // },
+  {
+    title: "Alive Print Shop",
+    description: "",
+    video: "https://youtu.be/zuR1ZLwYmyY",
+  },
   {
     title: "Ambius - Enhancing Interior Landscapes | Commercial Videography by Beige Media",
     description: "",
@@ -752,11 +752,11 @@ export const COMMERCIAL_VIDEOS = [
   //   description: "",
   //   video: "1067518801",
   // },
-  // {
-  //   title: "Wander | Washington House Tour",
-  //   description: "",
-  //   video: "https://youtu.be/TEk8zC6BEeM",
-  // },
+  {
+    title: "Wander | Washington House Tour",
+    description: "",
+    video: "https://youtu.be/TEk8zC6BEeM",
+  },
 ];
 
 export const CORPORATE_VIDEOS = [
@@ -810,11 +810,11 @@ export const CORPORATE_VIDEOS = [
     description: "",
     video: "https://youtube.com/shorts/B-DRr0Ceq1w",
   },
-  // {
-  //   title: "Alameda Mortgage 70's Party",
-  //   description: "",
-  //   video: "https://youtu.be/aSk8nysjb3Q",
-  // },
+  {
+    title: "Alameda Mortgage 70's Party",
+    description: "",
+    video: "https://youtu.be/aSk8nysjb3Q",
+  },
   {
     title: "Abu Dhabi for IMEX America | Day 1 Highlights",
     description: "",
@@ -838,56 +838,56 @@ export const MUSIC_VIDEOS = [
     description: "",
     video: "https://youtu.be/ckodxM-tNWE",
   },
-  // {
-  //   title: "Full Circle - Melody Marshai",
-  //   description: "",
-  //   video: "https://youtu.be/TJkaxAzHi8k",
-  // },
-  // {
-  //   title: "Gee Kazz - Blessings (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/y9mn_QYIcr8",
-  // },
-  // {
-  //   title: "Messy - Hold On To You (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/MpRtaibiQWo",
-  // },
-  // {
-  //   title: "Theo King - Built To Last (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/O9GT4uyA6XY",
-  // },
-  // {
-  //   title: "Ju$to - California Girl (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/NtwrzDhe2Hw",
-  // },
-  // {
-  //   title: "Steve Medea - Gimme That Nana (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/yi11u3lp42o",
-  // },
-  // {
-  //   title: "Goddess Moon - Crystalize You (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/5YAOgWLcPeg",
-  // },
-  // {
-  //   title: "Think Too Much (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/A3WDVA-y9yE",
-  // },
-  // {
-  //   title: "Siddzartha - Car/Gaari (Official Music Video)",
-  //   description: "",
-  //   video: "https://youtu.be/HQPXgRnsTCk",
-  // },
-  // {
-  //   title: "David Fait - Count the Stars | Official Music Video",
-  //   description: "",
-  //   video: "https://youtu.be/taCVIvr39JI",
-  // },
+  {
+    title: "Full Circle - Melody Marshai",
+    description: "",
+    video: "https://youtu.be/TJkaxAzHi8k",
+  },
+  {
+    title: "Gee Kazz - Blessings (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/y9mn_QYIcr8",
+  },
+  {
+    title: "Messy - Hold On To You (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/MpRtaibiQWo",
+  },
+  {
+    title: "Theo King - Built To Last (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/O9GT4uyA6XY",
+  },
+  {
+    title: "Ju$to - California Girl (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/NtwrzDhe2Hw",
+  },
+  {
+    title: "Steve Medea - Gimme That Nana (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/yi11u3lp42o",
+  },
+  {
+    title: "Goddess Moon - Crystalize You (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/5YAOgWLcPeg",
+  },
+  {
+    title: "Think Too Much (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/A3WDVA-y9yE",
+  },
+  {
+    title: "Siddzartha - Car/Gaari (Official Music Video)",
+    description: "",
+    video: "https://youtu.be/HQPXgRnsTCk",
+  },
+  {
+    title: "David Fait - Count the Stars | Official Music Video",
+    description: "",
+    video: "https://youtu.be/taCVIvr39JI",
+  },
 ];
 
 export const PODCAST_VIDEOS = [
@@ -921,11 +921,11 @@ export const PODCAST_VIDEOS = [
   //   description: "",
   //   video: "734869561",
   // },
-  // {
-  //   title: "Ryan Read - Thrive Specialized Training Mental Health Podcast | Empowering Mental Wellness",
-  //   description: "",
-  //   video: "https://youtu.be/QPDvrI0x6ww",
-  // },
+  {
+    title: "Ryan Read - Thrive Specialized Training Mental Health Podcast | Empowering Mental Wellness",
+    description: "",
+    video: "https://youtu.be/QPDvrI0x6ww",
+  },
   {
     title: "Reverve Agency Podcast: CEO of GumGum Interview | Beige Video",
     description: "",
@@ -954,11 +954,11 @@ export const WEDDING_VIDEOS = [
   //   description: "",
   //   video: "765796267",
   // },
-  // {
-  //   title: "Mariah Johnson’s Wedding Highlights",
-  //   description: "",
-  //   video: "https://youtu.be/j5Hmi8Ng2eo",
-  // },
+  {
+    title: "Mariah Johnson’s Wedding Highlights",
+    description: "",
+    video: "https://youtu.be/eSMy0FLR9aU ",
+  },
   {
     title: "Rocelyn & Andrew's Wedding Highlights",
     description: "",
