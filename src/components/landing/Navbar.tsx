@@ -126,12 +126,12 @@ const portfolioConfig = {
         icon: <Gem size={24} />,
         subSectors: []
       },
-      {
-        id: "keynote",
-        label: "Keynotes",
-        icon: <MicVocal size={24} />,
-        subSectors: []
-      },
+      // {
+      //   id: "keynote",
+      //   label: "Keynotes",
+      //   icon: <MicVocal size={24} />,
+      //   subSectors: []
+      // },
       {
         id: "real-estate",
         label: "Real Estate",

@@ -53,7 +53,7 @@ const LA_STUDIO_LOCATION = "Los Angeles, CA";
 interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
-  onBrowseStudios?: () => void;
+  onBrowseStudios?: (data: any) => void;
   onBrowseCreators?: (data: any) => void;
   isStudioFlow?: boolean;
   showStudioCreatorBanner?: boolean;
@@ -95,12 +95,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     title ||
     (isStudioFlow
       ? "When are you planning to use the studio?"
-      : "When & Where are you planning to shoot?");
+      : "When and where do you want to Beige?");
   const displaySubtitle =
     subtitle ||
     (isStudioFlow
       ? "The studio location will be confirmed from your selected BEIGE studio."
-      : "We can always refine the exact dates together later.");
+      : "Choose a date now, or reserve your spot and confirm the details later.");
 
   // Don't fabricate a "now" default — an unpicked date/time should stay empty,
   // otherwise validate() will immediately flag the un-chosen default as
@@ -302,6 +302,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const handleBrowseCreators = () => {
     if (!validate()) return;
     onBrowseCreators?.(getSchedulePayload());
+  };
+
+  const handleBrowseStudios = () => {
+    if (!validate()) return;
+    onBrowseStudios?.(getSchedulePayload());
   };
 
   // Generate time options
@@ -813,7 +818,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               I have a date
             </h3>
             <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
-              Specific shoot day and time
+              Choose your shoot date and time.
             </p>
           </div>
           {dateOption === "have-date" && (
@@ -833,10 +838,10 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         >
           <div>
             <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
-              I'll confirm later
+              I&apos;ll choose later
             </h3>
             <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
-              Hold my spot for 30 days
+              Reserve your production and confirm details later.
             </p>
           </div>
           {dateOption === "confirm-later" && (
@@ -1358,7 +1363,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
             <button
               type="button"
-              onClick={onBrowseStudios}
+              onClick={handleBrowseStudios}
               className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Studios

@@ -642,69 +642,169 @@ export default function EditMeetingModal({
                   </div>
 
                   <div className="space-y-2 lg:space-y-3">
-                    {participants.map((participant) => {
-                      const response = getParticipantResponse(meetingData, {
-                        id: participant?.id || "",
-                        email: participant?.email || "",
-                      });
-                      const statusClass = STATUS_CLASS[response] || STATUS_CLASS.pending;
-                      const removable = canManageParticipants && !isCompleted && !isCancelled;
-                      const isCurrentUserParticipant =
-                        !!currentUserId && String(participant?.id || "") === String(currentUserId);
+                  {participants.map((participant) => {
+                    const response = getParticipantResponse(meetingData, {
+                      id: participant?.id || "",
+                      email: participant?.email || "",
+                    });
 
-                      return (
-                        <div
-                          key={String(participant?.id || participant?.email || participant?.name)}
-                          className={`flex items-center justify-between gap-3 rounded-lg lg:rounded-xl border p-4 ${isDark ? "border-[#505050] bg-black" : "border-[#e3e3e3] bg-white"}`}
-                        >
-                          <div className="flex gap-4">
-                            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-medium text-lg shrink-0 uppercase ${isDark ? "bg-[#332E28] text-[#E8D1AB]" : "bg-zinc-200 text-black"}`}>
-                              {getInitials(participant?.name || participant?.email || "Member")}
-                            </div>
+                    const statusClass =
+                      STATUS_CLASS[response] || STATUS_CLASS.pending;
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className={`truncate text-sm lg:text-base font-semibold ${isDark ? "text-[#CECECE]" : "text-black"}`}>{participant?.name}</p>
-                                {isCurrentUserParticipant ? (
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] border ${isDark ? "border-[#E8D1AB]/25 bg-[#1B1812] text-[#E8D1AB]" : "border-[#E8D1AB]/40 bg-[#FFFDF9] text-[#8A7656]"}`}>
-                                    You
-                                  </span>
-                                ) : null}
-                                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] capitalize", statusClass)}>
-                                  {response}
-                                </span>
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-1 text-xs lg:text-sm">
-                                <span className={`capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#766A6A]"}`}>
-                                  {String(participant?.role || "participant").replace(/_/g, " ")}
-                                </span>
-                                {participant?.email ? (
-                                  <p className={`truncate ${isDark ? "text-[#737373]" : "text-[#171717B2]"}`}>- {participant.email}</p>
-                                ) : null}
-                              </div>
-                            </div>
+                    const removable =
+                      canManageParticipants &&
+                      !isCompleted &&
+                      !isCancelled;
+
+                    const isCurrentUserParticipant =
+                      !!currentUserId &&
+                      String(participant?.id || "") ===
+                        String(currentUserId);
+
+                    // Only Admin gets Organiser badge
+                    const isOrganizer =
+                      String(participant?.role || "")
+                        .trim()
+                        .toLowerCase() === "admin";
+
+                    return (
+                      <div
+                        key={String(
+                          participant?.id ||
+                            participant?.email ||
+                            participant?.name
+                        )}
+                        className={`flex items-center justify-between gap-3 rounded-lg lg:rounded-xl border p-4 ${
+                          isDark
+                            ? "border-[#505050] bg-black"
+                            : "border-[#e3e3e3] bg-white"
+                        }`}
+                      >
+                        <div className="flex min-w-0 gap-4">
+                          {/* Avatar */}
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center font-medium text-lg shrink-0 uppercase ${
+                              isDark
+                                ? "bg-[#332E28] text-[#E8D1AB]"
+                                : "bg-zinc-200 text-black"
+                            }`}
+                          >
+                            {getInitials(
+                              participant?.name ||
+                                participant?.email ||
+                                "Member"
+                            )}
                           </div>
 
-                          <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={!removable || submitting}
-                              onClick={() => {
-                                if (!removable || submitting) return;
-                                handleRemoveParticipant(
-                                  String(participant?.id || ""),
-                                  String(participant?.role || "participant")
-                                );
-                              }}
-                              className={`rounded-md border p-2 text-[#BD1010] transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${isDark ? "border-[#F5EBDA]/20 bg-[#171717]" : "border-[#F0F0F0] bg-[#F0F0F0]"}`}
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          {/* Participant Information */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* Name */}
+                              <p
+                                className={`truncate text-sm lg:text-base font-semibold ${
+                                  isDark
+                                    ? "text-[#CECECE]"
+                                    : "text-black"
+                                }`}
+                              >
+                                {participant?.name}
+                              </p>
+
+                              {/* YOU badge */}
+                              {isCurrentUserParticipant ? (
+                                <span
+                                  className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] ${
+                                    isDark
+                                      ? "border-[#E8D1AB]/25 bg-[#1B1812] text-[#E8D1AB]"
+                                      : "border-[#E8D1AB]/40 bg-[#FFFDF9] text-[#8A7656]"
+                                  }`}
+                                >
+                                  You
+                                </span>
+                              ) : null}
+
+                              {/* Admin = Organiser, others = invitation status */}
+                              {isOrganizer ? (
+                                <span
+                                  className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
+                                    isDark
+                                      ? "border-[#60A5FA]/35 bg-[#2563EB]/20 text-[#93C5FD]"
+                                      : "border-[#60A5FA]/40 bg-[#DBEAFE] text-[#1D4ED8]"
+                                  }`}
+                                >
+                                  Organiser
+                                </span>
+                              ) : (
+                                <span
+                                  className={cn(
+                                    "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                                    statusClass
+                                  )}
+                                >
+                                  {formatInvitationResponse(response)}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Role + Email */}
+                            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1 text-xs lg:text-sm">
+                              <span
+                                className={`capitalize ${
+                                  isDark
+                                    ? "text-[#E8D1AB]"
+                                    : "text-[#766A6A]"
+                                }`}
+                              >
+                                {String(
+                                  participant?.role || "participant"
+                                ).replace(/_/g, " ")}
+                              </span>
+
+                              {participant?.email ? (
+                                <p
+                                  className={`min-w-0 truncate ${
+                                    isDark
+                                      ? "text-[#737373]"
+                                      : "text-[#171717B2]"
+                                  }`}
+                                >
+                                  - {participant.email}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {/* Remove Participant */}
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={!removable || submitting}
+                            onClick={() => {
+                              if (!removable || submitting) {
+                                return;
+                              }
+
+                              handleRemoveParticipant(
+                                String(participant?.id || ""),
+                                String(
+                                  participant?.role || "participant"
+                                )
+                              );
+                            }}
+                            className={`rounded-md border p-2 text-[#BD1010] transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center ${
+                              isDark
+                                ? "border-[#F5EBDA]/20 bg-[#171717]"
+                                : "border-[#F0F0F0] bg-[#F0F0F0]"
+                            }`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 </div>
                 <hr className={`border-t my-4 lg:my-7 ${isDark ? "border-[#CACACA]" : "border-[#E3E3E3]"}`} />
 

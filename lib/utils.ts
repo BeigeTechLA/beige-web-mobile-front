@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import imageCompression from "browser-image-compression";
 import { PDFDocument } from 'pdf-lib';
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { useRef, useCallback } from "react";
 
 export function cn(...inputs: ClassValue[]) {
@@ -485,4 +485,13 @@ export const usePageTimer = () => {
   }, []);
 
   return { getDurationOnPage };
+};
+
+export const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "Not available";
+
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
+  return format(parsed, "d MMM, yyyy h:mm a");
 };

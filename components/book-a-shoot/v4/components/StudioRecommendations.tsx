@@ -87,6 +87,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
               src={studioImage}
               alt={recommendedStudioType}
               fill
+              unoptimized
               className="object-cover"
             />
           </div>
@@ -110,7 +111,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
               {/* Recommendation Note Box */}
               <div className="w-full rounded-md lg:rounded-2xl bg-[#211F1C] p-2.5 lg:px-6">
                 <p className="text-[10px] lg:text-sm text-[#E8D1AB] font-medium leading-relaxed">
-                  Note : Based on your {occasionTitle}, we recommend an Event Studio. Prefer something else? Choose a different studio type based on your requirements.
+                  Note: Based on your {occasionTitle}, we recommend an Event Studio. Prefer something else? Choose a different studio type based on your requirements.
                 </p>
               </div>
             </div>

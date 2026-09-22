@@ -37,6 +37,7 @@ import FeaturedWork, { type FeaturedWorkItem } from "./FeaturedWork";
 import SocialLinksModal from "./SocialLinksModal";
 import PortfolioLinksModal from "./PortfolioLinksModal";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
+import { getEquipmentById } from "@/lib/api";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -278,24 +279,59 @@ const normalizeSkillIds = (value: unknown) => {
 const normalizeEquipment = (value: unknown) => {
   const parsed = parseMaybeJson(value);
 
-  if (Array.isArray(parsed)) {
-    return parsed.map((item) => {
-      if (item && typeof item === "object") {
-        const equipment = item as Record<string, unknown>;
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed
+    .map((item) => {
+      if (
+        item &&
+        typeof item === "object" &&
+        !Array.isArray(item)
+      ) {
+        const equipment =
+          item as Record<string, unknown>;
+
+        const nestedEquipment =
+          equipment.equipment &&
+          typeof equipment.equipment === "object" &&
+          !Array.isArray(equipment.equipment)
+            ? (equipment.equipment as Record<string, unknown>)
+            : null;
+
         return {
-          id: equipment.equipment_id ?? equipment.id ?? equipment.value ?? "",
-          name: String(equipment.equipment_name ?? equipment.name ?? "").trim(),
+          id:
+            equipment.equipment_id ??
+            equipment.id ??
+            equipment.value ??
+            nestedEquipment?.equipment_id ??
+            nestedEquipment?.id ??
+            "",
+
+          name: String(
+            equipment.equipment_name ??
+              equipment.name ??
+              equipment.label ??
+              nestedEquipment?.equipment_name ??
+              nestedEquipment?.name ??
+              nestedEquipment?.label ??
+              ""
+          ).trim(),
         };
       }
 
       return {
-        id: item,
-        name: String(item).trim(),
+        id: item as string | number,
+        name: "",
       };
-    });
-  }
-
-  return [];
+    })
+    .filter(
+      (item) =>
+        item.id !== "" &&
+        item.id !== null &&
+        item.id !== undefined
+    );
 };
 
 export function GoogleCreatorOnboardingModal({
@@ -353,13 +389,16 @@ export function GoogleCreatorOnboardingModal({
   }, [roles]);
 
   useEffect(() => {
-    if (!open || !initialData) return;
+    if (!open || !initialData) {
+      return;
+    }
 
+    let cancelled = false;
     const source = profileData || {};
     const profileSkills = normalizeSkillIds(source.skills);
     const profileEquipment = normalizeEquipment(source.equipment || source.equipment_ownership);
     const profilePhotoPreview = getProfilePhotoPreview(source);
-
+    
     setStep(1);
     setPhoneNumber(String(source.phone || source.phone_number || initialData.phoneNumber || "").trim());
     setLocation(normalizeLocationValue(source.location));
@@ -372,15 +411,64 @@ export function GoogleCreatorOnboardingModal({
     setHourlyRate(String(source.price || source.hourly_rate || "").trim());
     setBio(String(source.bio || "").trim());
     setSkills(profileSkills);
-    setEquipments(profileEquipment.map((item) => item.id).filter(Boolean) as Array<string | number>);
-    setEquipmentNames(profileEquipment.map((item) => item.name || String(item.id)).filter(Boolean));
     setLinks(normalizeSocialLinks(source.social_media_links || source.socialMedia));
     setPortfolioLinks(normalizePortfolioLinks(source));
     setFeaturedWork(normalizeFeaturedWork(source));
     setSocialModalOpen(false);
     setPortfolioModalOpen(false);
     setIsProcessingImage(false);
-  }, [open, initialData, profileData]);
+
+    const loadEquipmentNames =
+      async () => {
+        const equipmentIds = profileEquipment.map((item) => item.id);
+
+        const resolvedNames =
+          await Promise.all(
+            profileEquipment.map(
+              async (item) => {
+                if (item.name) {
+                  return item.name;
+                }
+
+                try {
+                  const response =
+                    await getEquipmentById(
+                      item.id
+                    );
+
+                  return getEquipmentNameFromResponse(
+                    response
+                  );
+                } catch (error) {
+                  console.error(
+                    `Failed to load equipment ${item.id}:`,
+                    error
+                  );
+
+                  return "";
+                }
+              }
+            )
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        setEquipments(equipmentIds);
+        setEquipmentNames(resolvedNames);
+      };
+
+    void loadEquipmentNames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    initialData,
+    profileData,
+  ]);
 
   if (!open || !initialData) {
     return null;
@@ -392,6 +480,23 @@ export function GoogleCreatorOnboardingModal({
         ? currentRoles.filter((role) => role !== roleValue)
         : [...currentRoles, roleValue]
     );
+  };
+
+  const getEquipmentNameFromResponse = (response: any): string => {
+    const payload =
+      response?.data?.data ??
+      response?.data ??
+      response;
+
+    const equipment = Array.isArray(payload)
+      ? payload[0]
+      : payload;
+
+    return String(
+      equipment?.equipment_name ??
+        equipment?.name ??
+        ""
+    ).trim();
   };
 
   const handleProfileImage = async (file?: File) => {

@@ -1656,11 +1656,49 @@ export default function QuoteDetailsPage({
     );
   const canViewInvoiceFromDetails = canSendInvoiceFromDetails;
   const shouldUseReceiptActions = hasFullPayment;
-  const conversionMessage = isConvertedToBooking
-    ? hasFullPayment
-      ? `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads.`
-      : `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads and continue with payments there.`
-    : null;
+  // const conversionMessage = isConvertedToBooking
+  //   ? hasFullPayment
+  //     ? `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads.`
+  //     : `Your quote has been converted into booking${convertedBookingId ? ` #${convertedBookingId}` : ""}. You can view it from Leads and continue with payments there.`
+  //   : null;
+  const handleConvertedBookingClick = () => {
+    if (!quoteLeadId) {
+      toast.error("Lead is not linked with this quote.");
+      return;
+    }
+
+    router.push(`/admin/sales-representative/${quoteLeadId}`);
+  };
+
+  const conversionMessage = isConvertedToBooking ? (
+    <>
+      Your quote has been converted into booking
+      {convertedBookingId ? (
+        <>
+          {" "}
+          <button
+            type="button"
+            onClick={handleConvertedBookingClick}
+            className="
+              font-bold
+              text-[#166534]
+              underline
+              underline-offset-2
+              cursor-pointer
+              transition-colors
+              hover:text-[#0d4a25]
+            "
+          >
+            #{convertedBookingId}
+          </button>
+        </>
+      ) : null}
+
+      {hasFullPayment
+        ? ". You can view it from Leads."
+        : ". You can view it from Leads and continue with payments there."}
+    </>
+  ) : null;
 
   const ensureBookingForPayment = useCallback(async () => {
     if (resolvedBookingId) {
