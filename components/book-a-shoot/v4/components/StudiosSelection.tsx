@@ -50,6 +50,8 @@ export interface StudiosSelectionProps {
   onBack?: () => void;
   studios?: StudioItem[];
   initialSelectedStudioIds?: string[];
+  initialViewMode?: "stack" | "grid";
+  onViewModeChange?: (viewMode: "stack" | "grid") => void;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -168,6 +170,8 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   onBack,
   studios = DEFAULT_STUDIOS,
   initialSelectedStudioIds = [],
+  initialViewMode = "stack",
+  onViewModeChange,
   title = "Studios That Fit Your Project",
   subtitle = "Browse available studios and find the right space for your shoot.",
   stepNumber = "03",
@@ -175,7 +179,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
 }) => {
   const [selectedStudioIds, setSelectedStudioIds] = useState<string[]>(initialSelectedStudioIds);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"stack" | "grid">("stack");
+  const [viewMode, setViewMode] = useState<"stack" | "grid">(initialViewMode);
   const [swiperRef, setSwiperRef] = useState<SwiperClass | null>(null);
   const [sortBy, setSortBy] = useState("");
   const stackActionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -186,6 +190,11 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
       setSelectedStudioIds(initialSelectedStudioIds);
     }
   }, [initialSelectedStudioIds]);
+
+  const handleViewModeChange = (nextViewMode: "stack" | "grid") => {
+    setViewMode(nextViewMode);
+    onViewModeChange?.(nextViewMode);
+  };
 
   const filteredStudios = useMemo(() => {
     if (!searchQuery.trim()) return studios;
@@ -338,7 +347,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-xl lg:rounded-2xl p-1 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => setViewMode("stack")}
+              onClick={() => handleViewModeChange("stack")}
               className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
@@ -348,7 +357,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewModeChange("grid")}
               className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
@@ -442,6 +451,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                             src={studio.image}
                             alt={studio.name}
                             fill
+                            unoptimized
                             className="object-cover"
                           />
                           <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
@@ -622,6 +632,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                         src={studio.image}
                         alt={studio.name}
                         fill
+                        unoptimized
                         className="object-cover"
                       />
                       <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">

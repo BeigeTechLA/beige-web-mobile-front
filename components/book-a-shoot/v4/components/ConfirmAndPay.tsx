@@ -39,6 +39,7 @@ export interface PricingBreakdown {
   studioText: string;
   mandatoryFeeCost: number;
   mandatoryFeeText: string;
+  mandatoryFees: Array<{ name: string; amount: number }>;
   pricingBalanceCost: number;
   pricingBalanceText: string;
   totalAmount: number;
@@ -92,6 +93,7 @@ const DEFAULT_PRICING: PricingBreakdown = {
   studioText: "",
   mandatoryFeeCost: 0,
   mandatoryFeeText: "",
+  mandatoryFees: [],
   pricingBalanceCost: 0,
   pricingBalanceText: "",
   totalAmount: 4125,
@@ -119,6 +121,11 @@ export default function ConfirmAndPay({
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const data = { ...DEFAULT_PRICING, ...pricingData };
+  const mandatoryFees = data.mandatoryFees.length > 0
+    ? data.mandatoryFees
+    : data.mandatoryFeeCost > 0
+      ? [{ name: data.mandatoryFeeText || "Mandatory Fee", amount: data.mandatoryFeeCost }]
+      : [];
 
   const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
   const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
@@ -341,16 +348,14 @@ export default function ConfirmAndPay({
                   </span>
                 </div>
               )}
-              {data.mandatoryFeeCost > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-[#A9A9A9] text-sm ">
-                    {data.mandatoryFeeText || "Mandatory Fee"}
-                  </span>
+              {mandatoryFees.map((fee) => (
+                <div key={fee.name} className="flex justify-between">
+                  <span className="text-[#A9A9A9] text-sm ">{fee.name}</span>
                   <span className="text-white text-base font-bold">
-                    {formatCurrency(data.mandatoryFeeCost)}
+                    {formatCurrency(fee.amount)}
                   </span>
                 </div>
-              )}
+              ))}
               {data.pricingBalanceCost > 0 && (
                 <div className="flex justify-between">
                   <span className="text-[#A9A9A9] text-sm ">

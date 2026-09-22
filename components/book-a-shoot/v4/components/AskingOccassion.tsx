@@ -41,6 +41,8 @@ interface AskingOccasionProps {
   subtitle?: string;
   stepNumber?: string;
   completionPercentage?: number;
+  initialViewMode?: "carousel" | "grid";
+  onViewModeChange?: (viewMode: "carousel" | "grid") => void;
 }
 
 // Studio was previously injected as a shoot type. The client pricing doc
@@ -66,14 +68,21 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onContinue,
   onBack,
   initialSelected = "corporate",
-  title = "What's the Occasion?",
-  subtitle = "This helps us frame the right approach for your shoot.",
+  title = "What are you shooting?",
+  subtitle = "Choose the type of shoot and we’ll tailor production around it.",
   stepNumber = "02",
   completionPercentage = 30,
+  initialViewMode = "carousel",
+  onViewModeChange,
 }) => {
-  const [viewMode, setViewMode] = useState<"carousel" | "grid">("carousel");
+  const [viewMode, setViewMode] = useState<"carousel" | "grid">(initialViewMode);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [screenType, setScreenType] = useState<"mobile" | "lg" | "2xl">("mobile");
+
+  const handleViewModeChange = (nextViewMode: "carousel" | "grid") => {
+    setViewMode(nextViewMode);
+    onViewModeChange?.(nextViewMode);
+  };
 
   // Screen size detection for dynamic mobile carousel spacing
   useEffect(() => {
@@ -276,7 +285,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-1.5 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => setViewMode("carousel")}
+              onClick={() => handleViewModeChange("carousel")}
               className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "carousel"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
@@ -290,7 +299,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewModeChange("grid")}
               className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"

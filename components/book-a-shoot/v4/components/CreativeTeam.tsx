@@ -23,7 +23,7 @@ interface CreativeTeamProps {
 const DEFAULT_ROLES: TeamMember[] = [
   { id: "photographer", name: "Photographer", price: 250.00 },
   { id: "videographer", name: "Videographer", price: 250.00 },
-  { id: "photoVideoCreator", name: "Photographer + Videographer (1 person)", price: 375.00 },
+  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 350.00 },
 ];
 
 export default function CreativeTeam({
@@ -136,7 +136,7 @@ export default function CreativeTeam({
                     {role.name}
                   </div>
                   <div className="text-xs lg:text-lg 2xl:text-xl font-medium text-[#E8D1AB]">
-                    ${role.price.toFixed(2)}
+                    ${role.price.toFixed(2)}/hr
                   </div>
                 </label>
               </div>
