@@ -89,10 +89,7 @@ const quoteToCashRadialData = [
   { name: "Conversion Rate", value: 100, fill: "#DA8BED" },
 ];
   return (
-    <div
-      className={`flex-1 relative overflow-hidden w-full h-full rounded-lg lg:rounded-2xl border p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
-        }`}
-    >
+    <div className={`flex-1 relative overflow-hidden w-full h-full rounded-2xl border p-5 lg:p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Header Title */}
       <div className="flex items-center justify-between mb-3 relative z-10">
         <div className="flex items-center gap-2.5">
@@ -132,7 +129,7 @@ const quoteToCashRadialData = [
         )}
 
         {activeTab === "quoteToCash" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
+          <div className="flex items-center gap-5 text-sm lg:text-base lg:tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
               <span>{quoteToCashConversion}% CASH CONVERTED</span>
@@ -188,10 +185,7 @@ const quoteToCashRadialData = [
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
-                >
+                <span className={`text-xl lg:text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   {winRate}%
                 </span>
               </div>
@@ -225,10 +219,7 @@ const quoteToCashRadialData = [
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
-                >
+                <span className={`text-xl lg:text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                   ${averageDealValue.toLocaleString()}
                 </span>
               </div>
@@ -262,9 +253,7 @@ const quoteToCashRadialData = [
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
+                <span className={`text-xl lg:text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}
                 >
                   {quoteToCashConversion}%
                 </span>
@@ -328,7 +317,7 @@ const quoteToCashRadialData = [
           onClick={() =>
             setActiveTab(activeTab === "winRate" ? null : "winRate")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
+          className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
               ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -336,7 +325,7 @@ const quoteToCashRadialData = [
             }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`lg:text-2xl font-bold ${activeTab === "winRate" ? "text-black" : "text-[#EDE598]"}`}>
+            <span className={`text-xl lg:text-2xl font-bold ${activeTab === "winRate" ? "text-black" : "text-[#EDE598]"}`}>
               {winRate}%
             </span>
 
@@ -357,7 +346,7 @@ const quoteToCashRadialData = [
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  Deal won/Quotes sent
+                  Percentage of sent proposals that converted into paid bookings (Calculated as Deals Won ÷ Quotes Sent × 100)
                 </div>
                 <div
                   className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
@@ -390,7 +379,7 @@ const quoteToCashRadialData = [
           onClick={() =>
             setActiveTab(activeTab === "avgDealValue" ? null : "avgDealValue")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
+          className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
               ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -398,10 +387,7 @@ const quoteToCashRadialData = [
             }`}
         >
           <div className="flex items-center justify-between">
-            <span
-              className={`lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"
-                }`}
-            >
+            <span className={`text-xl lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"}`}>
               ${averageDealValue.toLocaleString()}
             </span>
 
@@ -423,7 +409,7 @@ const quoteToCashRadialData = [
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  won revenue/deals won
+                  Average revenue generated from each won deal (Calculated as Won Revenue ÷ Deals Won)
                 </div>
                 {/* Tooltip Arrow */}
                 <div
@@ -458,7 +444,7 @@ const quoteToCashRadialData = [
         onClick={() =>
           setActiveTab(activeTab === "quoteToCash" ? null : "quoteToCash")
         }
-        className={`w-full mt-3 p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
+        className={`w-full mt-3 p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
           ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
           : isDark
             ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -466,7 +452,7 @@ const quoteToCashRadialData = [
           }`}
       >
         <div className="flex items-center justify-between">
-          <span className={`lg:text-2xl font-bold ${activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"}`}>
+          <span className={`text-xl lg:text-2xl font-bold ${activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"}`}>
             {quoteToCashConversion}%
           </span>
 
@@ -489,7 +475,7 @@ const quoteToCashRadialData = [
                   : "bg-white text-black border-black/10"
                   }`}
               >
-                Won Revenue/Quote value
+                Percentage of the total proposal value that converted into paid revenue (Calculated as Won Revenue ÷ Quote Value × 100)
               </div>
               {/* Tooltip Arrow */}
               <div

@@ -6,9 +6,13 @@ import {
   MoreVertical,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Loader2,
+  Info,
 } from "lucide-react";
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
+import Link from "next/link";
 
 type OpenPipelineData = {
   count: number;
@@ -21,6 +25,28 @@ type OpenPipelineData = {
 };
 
 type PaginationItem = number | "...";
+
+export const QUOTE_STATUS_PILL_STYLES: Record<string, string> = {
+  accepted: "bg-[#D4FFE4] text-[#16A34A]",
+  confirmed: "bg-[#D4FFE4] text-[#16A34A]",
+  paid: "bg-[#D4FFE4] text-[#16A34A]",
+  pending: "bg-[#FFF0CF] text-[#C06D24]",
+  sent: "bg-[#AAD0FF] text-[#0C52A8]",
+  viewed: "bg-[#AAD0FF] text-[#0C52A8]",
+  partially_paid: "bg-[#FFF4C2] text-[#B8860B]",
+  draft: "bg-[#E5E5E5] text-[#525252]",
+  rejected: "bg-[#FFD6D6] text-[#DC2626]",
+  cancelled: "bg-[#FFD6D6] text-[#DC2626]",
+  expired: "bg-[#E5E5E5] text-[#525252]",
+};
+
+export const getQuoteStatusPillClasses = (status?: string | null) =>
+  QUOTE_STATUS_PILL_STYLES[(status || "").toLowerCase()] ?? "bg-[#AAD0FF] text-[#0C52A8]";
+
+export const formatQuoteStatusText = (status?: string | null) => {
+  const normalized = String(status || "-").replace(/_/g, " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
 
 const buildPaginationItems = (
   currentPage: number,
@@ -53,6 +79,10 @@ export default function OpenPipelineWidget({
   const [activeSection, setActiveSection] = useState<
     "sent" | "accepted" | "partiallyPaid" | null
   >(null);
+  // const [page, setPage] = useState(1);
+  const [expandedRowId, setExpandedRowId] = useState<number | null>();
+  // const [isExpanded, setIsExpanded] = useState(false);
+
   const pipelineCount = data?.count ?? 0;
   const pipelineValue = data?.value ?? 0;
 
@@ -140,20 +170,45 @@ export default function OpenPipelineWidget({
   };
 
   return (
-    <div
-      className={`w-full overflow-hidden rounded-lg lg:rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
-    >
+    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Top Main Section */}
       <div className="p-5 lg:p-6">
         {/* Header Row */}
-        <div className="flex items-start justify-between gap-4 mb-3 lg:mb-5">
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-4 mb-3 lg:mb-5">
           <div>
             <div className="flex items-center gap-2">
               <span className="h-7 w-[3px] bg-[#E8D1AB] rounded-full inline-block" />
               <span className={`text-base ${isDark ? "text-white" : "text-black"}`}>
                 Open Pipeline
               </span>
+              <div className="relative flex items-center group">
+                <Info
+                  size={16}
+                  strokeWidth={1.5}
+                  className={`cursor-pointer transition-colors text-black fill-[#E8D1AB]`}
+                />
+
+                {/* Tooltip Popup */}
+                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
+                  <div
+                    className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
+                      ? "bg-[#252525] text-white border-white/10"
+                      : "bg-white text-black border-black/10"
+                      }`}
+                  >
+                    The proposals that have not yet been paid, lost, or expired
+                  </div>
+                  {/* Tooltip Arrow */}
+                  <div
+                    className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
+                      ? "bg-[#252525] border-white/10"
+                      : "bg-white border-black/10"
+                      }`}
+                  />
+                </div>
+              </div>
             </div>
+
             <div className={`text-2xl lg:text-4xl font-bold mt-2 capitalize ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
               ${(pipelineValue / 1000000).toFixed(1)}M
             </div>
@@ -164,38 +219,32 @@ export default function OpenPipelineWidget({
 
           {/* Active Quotes Badge Box */}
           <div
-            className={`px-5 py-4 rouned-lg lg:rounded-2xl border text-center min-w-[120px] ${isDark
+            className={`w-full lg:w-fit p-4 lg:px-5 flex flex-row-reverse lg:flex-col items-center justify-between rounded-2xl border text-center min-w-[120px] ${isDark
               ? "text-white bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/5"
               : "bg-zinc-50 border-black/5 text-black"
               }`}
           >
             <div
-              className={`text-xl lg:text-[32px] font-semibold`}
+              className={`text-[32px] font-semibold`}
             >
               {pipelineCount}
             </div>
             <div
-              className={`text-base lg:text-xl mt-0.5`}
+              className={`text-xl mt-0.5`}
             >
               Active Quotes
             </div>
-          </div>
-        </div>
+          </div >
+        </div >
 
         {/* Pipeline Breakdown Bar Cards */}
-        <div
-          className={`p-3 lg:p-5 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 ${isDark
-            ? "bg-[#101010]"
-            : "bg-zinc-50 border border-black/5"
-            }`}
+        < div className={`p-2 lg:p-5 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 ${isDark ? "bg-[#101010]" : "bg-zinc-50 border border-black/5"}`}
         >
           {/* Sent Card */}
-          <div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl`}>
             <div className="flex items-center justify-between mb-2">
               <div>
-                <span
-                  className={`text-base lg:text-xl  ${isDark ? "text-white/70" : "text-black/70"}}`}
-                >
+                <span className={`text-base lg:text-xl ${isDark ? "text-white/70" : "text-black/70"}`}>
                   Sent
                 </span>
                 <p className="text-sm lg:text-base font-semibold text-[#8B85FF] mt-0.5">
@@ -212,27 +261,26 @@ export default function OpenPipelineWidget({
               >
                 <ArrowUpRight
                   size={18}
-                  className={`transition-transform duration-300 ${
-                    activeSection === "sent" ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform duration-300 ${activeSection === "sent" ? "rotate-180" : ""
+                    }`}
                 />
               </button>
             </div>
-            <div className="h-10 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
+            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
                 className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(213,210,255,0.50)_39%,#7E72FF_100%)] transition-all duration-500"
                 style={{ width: `${sentPercentage}%` }}
               />
             </div>
-          </div>
+          </div >
 
           {/* Accepted Card */}
-         <div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span
-                  className={`text-base lg:text-xl ${isDark ? "text-white/70" : "text-black/70"}}`}
+                  className={`text-base lg:text-xl ${isDark ? "text-white/70" : "text-black/70"}`}
                 >
                   Accepted
                 </span>
@@ -250,27 +298,26 @@ export default function OpenPipelineWidget({
               >
                 <ArrowUpRight
                   size={18}
-                  className={`transition-transform duration-300 ${
-                    activeSection === "accepted" ? "rotate-180" : ""
-                  }`}
-                  />
+                  className={`transition-transform duration-300 ${activeSection === "accepted" ? "rotate-180" : ""
+                    }`}
+                />
               </button>
             </div>
-            <div className="h-10 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
+            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
                 className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(130,245,154,0.50)_39%,#35C653_100%)] transition-all duration-500"
                 style={{ width: `${acceptedPercentage}%` }}
               />
             </div>
-          </div>
+          </div >
 
           {/* Partially Paid Card */}
-          <div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span
-                  className={`text-base lg:text-xl  ${isDark ? "text-white/70" : "text-black/70"}}`}
+                  className={`text-base lg:text-xl ${isDark ? "text-white/70" : "text-black/70"}`}
                 >
                   Partially Paid
                 </span>
@@ -288,254 +335,380 @@ export default function OpenPipelineWidget({
               >
                 <ArrowUpRight
                   size={18}
-                  className={`transition-transform duration-300 ${
-                    activeSection === "partiallyPaid" ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform duration-300 ${activeSection === "partiallyPaid" ? "rotate-180" : ""
+                    }`}
                 />
               </button>
             </div>
-            <div className="h-10 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
+            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
                 className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(255,237,135,0.50)_39%,#DBC548_100%)] transition-all duration-500"
                 style={{ width: `${partiallyPaidPercentage}%` }}
               />
             </div>
-          </div>
-        </div>
-      </div>
+          </div >
+        </div >
+      </div >
 
-      {/* Expandable Table Section */}
-      {activeSection !== null && (
-        <div
-          className={`border-t transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr
-                  className={`border-b text-xs lg:text-sm font-medium ${isDark
-                    ? "border-white/10 bg-[#101010] text-[#E8D1AB]"
-                    : "border-black/10 bg-zinc-100 text-black/70"
-                    }`}
-                >
-                  <th className="px-5 py-4">Client Name & Quote No</th>
-                  <th className="p-4">Project</th>
-                  <th className="p-4">Booking Status</th>
-                  <th className="p-4">Amount</th>
-                  <th className="p-4">Quote Status</th>
-                  <th className="p-4">Validity</th>
-                  <th className="p-4">Sales Rep</th>
-                  <th className="p-4 text-center">Action</th>
-                </tr>
-              </thead>
-
-              <tbody className="text-sm lg:text-base">
-                {isLoadingQuotes ? (
-                  <tr>
-                    <td colSpan={8} className="p-0">
-                      <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
-                        <Loader2
-                          size={28}
-                          strokeWidth={2.5}
-                          className={`animate-spin ${
-                            isDark ? "text-[#E8D1AB]" : "text-black/60"
-                          }`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className={`px-6 py-20 text-center ${
-                        isDark ? "text-white" : "text-black"
+      {/* Expandable Section */}
+      {
+        activeSection !== null && (
+          <div
+            className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
+          >
+            <div className="overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
+              <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
+                <thead>
+                  {/* Desktop Headers */}
+                  <tr
+                    className={`hidden rounded-b-lg border-b text-sm font-medium capitalize md:table-row ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                       }`}
-                    >
-                      No quotes available
-                    </td>
+                  >
+                    <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
+                    {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
+                    <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
+                    <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
+                    <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
+                    <th className="w-[5%] whitespace-nowrap p-4 text-center">Action</th>
                   </tr>
-                ) : (
-                  rows.map((item: QuoteAnalyticsQuoteRow) => (
-                    <tr
-                      key={item.sales_quote_id}
-                      className={`transition-colors ${
-                        isDark
-                          ? "bg-[#171717] hover:bg-white/[0.02] text-white"
-                          : "bg-black/10 hover:bg-black/[0.02] text-black"
+
+                  {/* Mobile Headers */}
+                  <tr
+                    className={`border-b text-sm font-medium md:hidden w-full ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                       }`}
-                    >
-                      {/* Client Name & Avatar */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-sm lg:text-xl shrink-0 bg-[#E8D1AB] text-black"
-                          >
-                            {getInitials(item.client?.name || "Client")}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                                {item.client?.name || "-"}
-                              </span>
-                              <span className={`text-[10px] lg:text-xs ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}>
-                                ({item.quote_number || "-"})
-                              </span>
-                            </div>
-                            <div className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                {item.client?.email || "-"}
-                            </div>
-                          </div>
+                  >
+                    <th className="px-4 py-3 text-left">Client Name</th>
+                    <th className="px-4 py-3 text-right whitespace-nowrap w-auto">
+                      Quote Status
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="text-sm lg:text-base">
+                  {isLoadingQuotes ? (
+                    <tr>
+                      <td colSpan={8} className="p-0">
+                        <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+                          <Loader2
+                            size={28}
+                            strokeWidth={2.5}
+                            className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"
+                              }`}
+                          />
                         </div>
-                      </td>
-
-                      {/* Project */}
-                      <td className={`p-4 truncate max-w-[150px]`}>
-                        {item.project || "-"}
-                      </td>
-
-                      {/* Booking Status Badge */}
-                      <td className="p-4">
-                        {item.lead_source ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A]">
-                            {item.lead_source}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Amount */}
-                      <td className="p-4">
-                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}
-                        >
-                          ${Number(item.quote_value || 0).toLocaleString()}
-                        </div>
-                        {item.collected_amount > 0 && (
-                          <div className="text-[10px] lg:text-xs text-[#14BC52]">
-                            PAID - ${Number(item.collected_amount).toLocaleString()}
-                          </div>
-                        )}
-                        {item.outstanding_amount > 0 && (
-                          <div className="text-[10px] lg:text-xs text-[#F29831]">
-                            PENDING - ${Number(item.outstanding_amount).toLocaleString()}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Quote Status Badge */}
-                      <td className="p-4">
-                        <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#AAD0FF] text-[#0C52A8]">
-                          {String(item.quote_status || "-").replace(/_/g, " ")}
-                        </span>
-                      </td>
-
-                      {/* Validity */}
-                      <td className={`p-4 whitespace-nowrap`}>
-                        {item.validity?.valid_until
-                      ? new Date(item.validity.valid_until).toLocaleDateString("en-US", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "-"}
-                      </td>
-
-                      {/* Sales Rep */}
-                      <td className={`p-4 whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
-                        {item.sales_rep?.name || "-"}
-                      </td>
-
-                      {/* Action Menu */}
-                      <td className="p-4 text-center">
-                        <button
-                          type="button"
-                          className={`p-1.5 rounded-lg transition-colors ${isDark
-                            ? "hover:text-white/80"
-                            : "hover:text-black/80"
-                            }`}
-                        >
-                          <MoreVertical size={30} />
-                        </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className={`px-6 py-20 text-center ${isDark ? "text-white" : "text-black"
+                          }`}
+                      >
+                        No quotes available
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((item: QuoteAnalyticsQuoteRow) => {
+                      const isExpanded = expandedRowId === item.sales_quote_id;
+                      return (
+                        <React.Fragment key={item.sales_quote_id}>
+                          {/* Main Row */}
+                          <tr
+                            onClick={() => {
+                              if (window.innerWidth < 768) {
+                                setExpandedRowId(isExpanded ? null : item.sales_quote_id);
+                              }
+                            }}
+                            className={`transition-colors cursor-pointer ${isDark
+                              ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
+                              : "bg-black/10 hover:bg-black/[0.02] text-black border-black/10"
+                              } ${isExpanded
+                                ? isDark
+                                  ? "bg-[#202020] border-none"
+                                  : "bg-[#F9F9F9] border-none"
+                                : ""
+                              }`}
+                          >
+                            {/* Client Name & Avatar + Chevron on Mobile */}
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                {/* Mobile Chevron */}
+                                <div
+                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors pointer-events-auto ${isExpanded
+                                    ? isDark
+                                      ? "border-[#E8D1AB] text-[#E8D1AB]"
+                                      : "border-black text-black"
+                                    : isDark
+                                      ? "border-white/20 text-white/60"
+                                      : "border-black/20 text-black/60"
+                                    }`}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp size={16} />
+                                  ) : (
+                                    <ChevronDown size={16} />
+                                  )}
+                                </div>
 
-{/* Table Pagination Footer */}
-{!isLoadingQuotes && rows.length > 0 && (
-  <div
-    className={`p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
-              ? "border-white/10 bg-[#101010]"
-              : "border-black/10 bg-zinc-50"
-              }`}
-          >
-            <div className={`text-sm lg:text-base ${isDark ? "text-white" : "text-black" }`}>
-              Page {safeCurrentPage} of {totalPages}
+                                {/* Avatar */}
+                                <div
+                                  className={`w-8 h-8 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-sm lg:text-xl shrink-0 bg-[#E8D1AB] text-black`}
+                                >
+                                  {getInitials(item.client?.name || "Client")}
+                                </div>
+
+                                {/* Client Text Info */}
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate">
+                                    <span className={`font-medium mr-1 ${isDark ? "text-white" : "text-black"}`}>
+                                      {item.client?.name || "-"}
+                                    </span>
+                                    <Link
+                                      href={`/admin/quotes/${item.sales_quote_id}`}
+                                      onClick={(event) => event.stopPropagation()}
+                                      className={`text-[10px] lg:text-xs hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}
+                                    >
+                                      ({item.quote_number || "-"})
+                                    </Link>
+                                  </div>
+                                  <div className={`truncate text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                    {item.client?.email || "-"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Desktop Specific Cells */}
+                            {/* <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
+                              {item.project || "-"}
+                            </td> */}
+
+                            <td className="hidden p-4 md:table-cell align-middle">
+                              {item.lead_source ? (
+                                <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full bg-[#D4FFE4] px-3 py-1.5 text-xs font-medium text-[#16A34A] lg:text-sm">
+                                  Converted to Booking
+                                </span>
+                              ) : (
+                                <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full bg-[#FFF0CF] px-3 py-1.5 text-xs font-medium text-[#C06D24] lg:text-sm">
+                                  Pending Booking
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="hidden p-4 md:table-cell">
+                              <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                ${Number(item.quote_value || 0).toLocaleString()}
+                              </div>
+                              {item.collected_amount > 0 && (
+                                <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
+                                  PAID - ${Number(item.collected_amount).toLocaleString()}
+                                </div>
+                              )}
+                              {item.outstanding_amount > 0 && (
+                                <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
+                                  PENDING - ${Number(item.outstanding_amount).toLocaleString()}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Quote Status Badge */}
+                            <td className="hidden p-4 md:table-cell">
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                                {formatQuoteStatusText(item.quote_status)}
+                              </span>
+                            </td>
+
+                            {/* Mobile Booking Status Right Alignment */}
+                            <td className="p-4 text-right md:hidden">
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                                {formatQuoteStatusText(item.quote_status)}
+                              </span>
+                            </td>
+
+                            <td className="hidden p-4 md:table-cell whitespace-nowrap">
+                              {item.validity?.valid_until
+                                ? new Date(item.validity.valid_until).toLocaleDateString("en-US", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                                : "-"}
+                            </td>
+
+                            <td className={`hidden p-4 md:table-cell whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
+                              {item.sales_rep?.name || "-"}
+                            </td>
+
+                            {/* Action Menu */}
+                            <td className="hidden p-4 text-center md:table-cell">
+                              <button
+                                type="button"
+                                className={`p-1.5 rounded-lg transition-colors ${isDark
+                                  ? "hover:text-white/80"
+                                  : "hover:text-black/80"
+                                  }`}
+                              >
+                                <MoreVertical size={30} />
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Mobile Expanded Sub-row View */}
+                          {isExpanded && (
+                            <tr className={`md:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
+                              <td
+                                colSpan={2}
+                                className="relative overflow-visible pl-6 pr-4 pb-4 pt-2"
+                              >
+                                <div className="space-y-4 text-xs">
+                                  <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                                    {/* <div>
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Project</p>
+                                      <p className="font-medium text-sm truncate">{item.project}</p>
+                                    </div> */}
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Booking Status</p>
+                                      {item.lead_source ? (
+                                        <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#D4FFE4] text-[#16A34A]">
+                                          Converted to Booking
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF0CF] text-[#C06D24]">
+                                          Pending Booking
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Amount</p>
+                                      <p className="font-semibold text-sm">${Number(item.quote_value || 0).toLocaleString()}</p>
+
+                                      {item.collected_amount > 0 && (
+                                        <div className="text-[10px] text-[#14BC52]">
+                                          PAID - ${Number(item.collected_amount).toLocaleString()}
+                                        </div>
+                                      )}
+                                      {item.outstanding_amount > 0 && (
+                                        <div className="text-[10px] text-[#F29831]">
+                                          PENDING - ${Number(item.outstanding_amount).toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Sales Rep</p>
+                                      <p className="font-medium text-sm">{item.sales_rep?.name || "-"}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                                    <div>
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Validity</p>
+                                      <p className="font-medium text-sm">{item.validity?.valid_until
+                                        ? new Date(item.validity.valid_until).toLocaleDateString("en-US", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                        })
+                                        : "-"}</p>
+                                    </div>
+                                    <div className="flex flex-col items-end justify-end" onClick={(e) => e.stopPropagation()}>
+                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Action</p>
+                                      <button
+                                        type="button"
+                                        className={`p-1 rounded-lg transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}
+                                      >
+                                        <MoreVertical size={24} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={safeCurrentPage === 1}
-                className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
-                  ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
-                  : "bg-white text-black/60 border-black/10 hover:bg-black/5"
+            {/* Table Pagination Footer */}
+            {!isLoadingQuotes && rows.length > 0 && (
+              <div
+                className={`p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-4 rounded-b-2xl ${isDark
+                  ? "border-white/10 bg-[#101010]"
+                  : "border-black/10 bg-zinc-50"
                   }`}
               >
-                <ChevronLeft size={20} />
-              </button>
+                <div className={`hidden lg:block lg:text-base ${isDark ? "text-white" : "text-black"}`}>
+                  Page {safeCurrentPage} of {totalPages}
+                </div>
 
-              {paginationItems.map((item, index) =>
-                item === "..." ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className={`px-2 text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}
-                  >
-                    ...
-                  </span>
-                ) : (
+                <div className="flex items-center gap-1.5">
                   <button
-                    key={item}
                     type="button"
-                    onClick={() => setPage(item)}
-                    className={`w-8 h-8 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all ${safeCurrentPage === item
-                      ? "bg-[#E5D5B8] text-black font-bold"
-                      : isDark
-                        ? "text-white/60 hover:bg-white/5"
-                        : "text-black/60 hover:bg-black/5"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
+                      ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
+                      : "bg-white text-black/60 border-black/10 hover:bg-black/5"
                       }`}
                   >
-                    {item}
+                    <ChevronLeft size={20} />
                   </button>
-                )
-              )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  setPage((prev) => Math.min(totalPages, prev + 1))
-                }
-                disabled={safeCurrentPage === totalPages}
-                className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
-                  ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
-                  : "bg-white text-black/60 border-black/10 hover:bg-black/5"
-                  }`}
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
+                  {paginationItems.map((item, index) =>
+                    item === "..." ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className={`px-2 text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setPage(item)}
+                        className={`w-8 h-8 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all ${safeCurrentPage === item
+                          ? "bg-[#E5D5B8] text-black font-bold"
+                          : isDark
+                            ? "text-white/60 hover:bg-white/5"
+                            : "text-black/60 hover:bg-black/5"
+                          }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                    disabled={safeCurrentPage === totalPages}
+                    className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
+                      ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
+                      : "bg-white text-black/60 border-black/10 hover:bg-black/5"
+                      }`}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          )}
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

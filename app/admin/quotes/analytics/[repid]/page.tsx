@@ -50,26 +50,36 @@ export default function QuoteSalesRepDetailsPage() {
   const [analytics, setAnalytics] = useState<RepAnalyticsData | null>(null);
   const [dealsWon, setDealsWon] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overdueQuotes, setOverdueQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
+  const [overdueAllQuotes, setOverdueAllQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overduePage, setOverduePage] = useState(1);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!salesRepId) return;
+    setOverduePage(1);
     const load = async () => {
-      const [analyticsResponse, dealsWonResponse, overdueResponse] = await Promise.all([
+      const [analyticsResponse, dealsWonResponse, overdueAllResponse] = await Promise.all([        
         salesApi.getQuoteAnalyticsByRep(salesRepId),
-        salesApi.getQuoteAnalyticsQuotes({ bucket: "deals_won", sales_rep_id: salesRepId, limit: 20 }),
-        salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 20 }),
+        salesApi.getQuoteAnalyticsQuotes({ bucket: "deals_won", sales_rep_id: salesRepId, limit: "all" }),
+        salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, limit: "all" }),
       ]);
       if (analyticsResponse.success) setAnalytics(analyticsResponse.data as RepAnalyticsData);
       if (dealsWonResponse.success) setDealsWon(dealsWonResponse.data);
-      if (overdueResponse.success) setOverdueQuotes(overdueResponse.data);
+      if (overdueAllResponse.success) setOverdueAllQuotes(overdueAllResponse.data);
     };
     void load();
+  }, [salesRepId]);
+
+  useEffect(() => {
+    if (!salesRepId) return;
+    const loadOverdueTable = async () => {
+      const overdueResponse = await salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 20 });
+      if (overdueResponse.success) setOverdueQuotes(overdueResponse.data);
+    };
+    void loadOverdueTable();
   }, [overduePage, salesRepId]);
 
   const dealWonColumn = useMemo(() => toDealColumn("Deal Won", dealsWon), [dealsWon]);
-  const overdueColumn = useMemo(() => toDealColumn("Overdue Follow-ups", overdueQuotes), [overdueQuotes]);
-  const conversionData = {
+  const overdueColumn = useMemo(() => toDealColumn("Overdue Follow-ups", overdueAllQuotes), [overdueAllQuotes]);  const conversionData = {
     deals_won: analytics?.overview?.deals_won ?? 0,
     quotes_sent: analytics?.overview?.quotes_sent ?? 0,
     win_rate: analytics?.overview?.win_rate ?? 0,
@@ -91,14 +101,14 @@ export default function QuoteSalesRepDetailsPage() {
         <div className="flex items-start lg:items-center gap-4 min-w-0">
           <button
             onClick={() => router.back()}
-            className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-[#E0E0E0]" : "text-black hover:text-black/70"}`}
+            className={`transition-colors flex items-center gap-2 text-sm lg:text-base ${isDark ? "text-white hover:text-[#E0E0E0]" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
 
         </div>
-        <div className={`flex items-center gap-4 p-3 lg:p-5 border rounded-lg lg:rounded-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-black/5 border-black/20"}`}>
+        <div className={`flex items-center gap-4 p-5 border rounded-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-black/5 border-black/20"}`}>
           <div className="relative h-15 w-15 lg:h-21 lg:w-21 rounded-lg">
             <Image
               src="/images/crew/CREW(5).png"
@@ -125,9 +135,13 @@ export default function QuoteSalesRepDetailsPage() {
           <div>
             <QuotesOverdueWidget data={analytics?.overview?.overdue_follow_ups ?? undefined} quotesData={overdueQuotes as never} onPageChange={setOverduePage} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-6">
-            <DealColumn data={dealWonColumn} isDark={isDark} />
-            <DealColumn data={overdueColumn} isDark={isDark} />
+          <div className="flex lg:grid lg:grid-cols-2 gap-3 lg:gap-6 overflow-x-auto lg:overflow-x-hidden snap-x snap-mandatory no-scrollbar pb-2 lg:pb-0 ">
+            <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
+              <DealColumn data={dealWonColumn} isDark={isDark} />
+            </div>
+            <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
+              <DealColumn data={overdueColumn} isDark={isDark} />
+            </div>
           </div>
         </div>
 
