@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 type QuoteAnalyticsItem = {
   id: string | number;
@@ -19,59 +19,31 @@ type QuoteAnalyticsItem = {
 
 type QuoteAnalyticsTableProps = {
   isDark?: boolean;
+  loading?: boolean;
+  data?: {
+    rep_id: number;
+    rep_name: string;
+    rep_email: string;
+    quote_value: number;
+    quotes_sent: number;
+    deals_won: number;
+    won_revenue: number;
+    collected_revenue: number;
+    win_rate: number;
+    quote_to_cash_conversion: number;
+    average_deal_size: number;
+    open_pipeline: {
+      count: number;
+      value: number;
+    };
+    overdue_follow_ups: {
+      count: number;
+      value: number;
+    };
+  }[];
 };
 
-// Dummy Data matching screenshot specifications
-const DUMMY_ANALYTICS_DATA: QuoteAnalyticsItem[] = [
-  {
-    id: 1,
-    rep: "John Smith",
-    quoteSent: 42,
-    quoteValue: "$8.4L",
-    dealWon: 12,
-    winRate: "28.6%",
-    wonRevenue: "$3.2L",
-    avgDealSizeOpen: "$26.7K",
-    openPipeline: "$4.1M",
-    followUpsOverdue: 1,
-  },
-  {
-    id: 2,
-    rep: "Michael Chen",
-    quoteSent: 36,
-    quoteValue: "$6.8L",
-    dealWon: 9,
-    winRate: "25.0%",
-    wonRevenue: "$2.4L",
-    avgDealSizeOpen: "$26.7K",
-    openPipeline: "$3.6M",
-    followUpsOverdue: 3,
-  },
-  {
-    id: 3,
-    rep: "Olivia Brown",
-    quoteSent: 28,
-    quoteValue: "$5.2L",
-    dealWon: 7,
-    winRate: "25.0%",
-    wonRevenue: "$1.8L",
-    avgDealSizeOpen: "$25.7K",
-    openPipeline: "$2.7M",
-    followUpsOverdue: 5,
-  },
-  {
-    id: 4,
-    rep: "Lisa Smith",
-    quoteSent: 22,
-    quoteValue: "$4.1L",
-    dealWon: 4,
-    winRate: "18.2%",
-    wonRevenue: "$1.3L",
-    avgDealSizeOpen: "$32.5K",
-    openPipeline: "$2.0M",
-    followUpsOverdue: 2,
-  },
-];
+const PAGE_SIZE = 10;
 
 type PaginationItem = number | "...";
 
@@ -290,15 +262,39 @@ const TableRow = ({
 
 export const QuotesAnalyticsTable = ({
   isDark = true,
+  loading = false,
+  data = [],
 }: QuoteAnalyticsTableProps) => {
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(
     null
   );
 
-  const totalPages = 10;
-  const safeCurrentPage = page;
+  useEffect(() => {
+    setPage(1);
+  }, [data]);
+
+  const analyticsData: QuoteAnalyticsItem[] = data.map((item) => ({
+    id: item.rep_id,
+    rep: item.rep_name,
+    quoteSent: item.quotes_sent,
+    quoteValue: `$${item.quote_value.toLocaleString()}`,
+    dealWon: item.deals_won,
+    winRate: `${item.win_rate}%`,
+    wonRevenue: `$${item.won_revenue.toLocaleString()}`,
+    avgDealSizeOpen: `$${item.average_deal_size.toLocaleString()}`,
+    openPipeline: `$${item.open_pipeline.value.toLocaleString()}`,
+    followUpsOverdue: item.overdue_follow_ups.count,
+  }));
+
+  const totalPages = Math.max(1, Math.ceil(analyticsData.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(page, totalPages);
+
+  const paginatedData = analyticsData.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
+  );
+
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
 
   return (
@@ -345,19 +341,19 @@ export const QuotesAnalyticsTable = ({
 
         <tbody className="text-sm lg:text-base">
           {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <tr
-                key={index}
-                className={`border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"}`}
-              >
-                <td colSpan={9} className="p-4">
-                  <div
-                    className={`h-5 lg:h-10 animate-pulse rounded ${isDark ? "bg-white/5" : "bg-black/5"}`}
+            <tr>
+              <td colSpan={9} className="p-0">
+                <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+                  <Loader2
+                    size={28}
+                    strokeWidth={2.5}
+                    className={`animate-spin ${isDark ? "text-[#E7D2AB]" : "text-black/60"
+                      }`}
                   />
-                </td>
-              </tr>
-            ))
-          ) : DUMMY_ANALYTICS_DATA.length === 0 ? (
+                </div>
+              </td>
+            </tr>
+          ) : paginatedData.length === 0 ? (
             <tr>
               <td
                 colSpan={9}
@@ -367,7 +363,7 @@ export const QuotesAnalyticsTable = ({
               </td>
             </tr>
           ) : (
-            DUMMY_ANALYTICS_DATA.map((item) => (
+            paginatedData.map((item) => (
               <TableRow
                 key={String(item.id)}
                 item={item}
@@ -382,7 +378,7 @@ export const QuotesAnalyticsTable = ({
         </tbody>
 
         {/* Integrated Pagination Footer */}
-        {!loading && DUMMY_ANALYTICS_DATA.length > 0 && (
+        {!loading && analyticsData.length > 0 && (
           <tfoot>
             <tr
               className={`border-t transition-colors ${isDark ? "border-[#333333] bg-[#101010]" : "border-[#E5E5E5] bg-white"
@@ -394,7 +390,7 @@ export const QuotesAnalyticsTable = ({
                     className={`hidden lg:block text-sm ${isDark ? "text-white" : "text-black"
                       }`}
                   >
-                    {`Page ${safeCurrentPage} to ${totalPages}`}
+                    {`Page ${safeCurrentPage} of ${totalPages}`}
                   </div>
                   <div className="flex items-center gap-2 self-auto">
                     <button

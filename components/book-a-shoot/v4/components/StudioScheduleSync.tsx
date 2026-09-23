@@ -133,6 +133,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const selectedStudio = {
     ...PLACEHOLDER_STUDIO,
     ...selectedStudioProp,
+    image: selectedStudioProp?.image || PLACEHOLDER_STUDIO.image,
     tags: selectedStudioProp?.tags || PLACEHOLDER_STUDIO.tags,
     isAdded: true,
   };
@@ -1393,11 +1394,12 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
               <div className="border border-white/20 bg-[#101010] rounded-lg lg:rounded-2xl">
                 <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                   {/* Studio Image + Rating Badge */}
-                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-t-lg md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
+                  <div className="relative w-full md:w-[42%] h-[180px] md:min-h-[220px] lg:h-full rounded-t-lg md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                     <Image
                       src={selectedStudio.image}
                       alt={selectedStudio.name}
                       fill
+                      unoptimized
                       className="object-cover"
                     />
                     <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-lg font-medium flex items-center gap-1.5 border border-white/20">

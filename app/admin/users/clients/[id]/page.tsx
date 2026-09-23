@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useRouter, usePathname } from "next/navigation";
+import { useParams, useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import {
   ChevronLeft,
@@ -122,6 +122,7 @@ export default function ClientDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
 
   const [mounted, setMounted] = useState(false);
@@ -156,6 +157,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
   }, [id]);
 
   const isDark = !mounted || theme === "dark";
+  const returnTo = searchParams.get("returnTo") || "/admin/users/clients";
 
   const handleCopyAffiliateCode = (code: string) => {
     if (!code || code === "N/A") return;
@@ -211,7 +213,7 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-start lg:items-center gap-4 min-w-0">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push(returnTo)}
               className={`p-2.5 border rounded-xl transition-colors ${isDark ? "bg-[#111] border-[#333] text-white hover:bg-[#222]" : "bg-gray-50 border-gray-200 text-black hover:bg-gray-100"}`}
             >
               <ChevronLeft size={20} />

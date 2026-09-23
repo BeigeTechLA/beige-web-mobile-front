@@ -14,7 +14,6 @@ import AskingServices from "./components/AskingServices";
 import EditsNeeded, { EditsConfig } from "./components/EditsNeeded";
 import AskingOccasion from "./components/AskingOccassion";
 import ScheduleShoot from "./components/ScheduleShoot";
-import StudioSelection from "./components/StudioSelection";
 import ShootDetails, { ShootDetailsData } from "./components/ShootDetails";
 import MatchMakerStep, { TeamSelectionData } from "./components/MatchMaker";
 import CreativeTeam from "./components/CreativeTeam";
@@ -24,6 +23,7 @@ import ShootSummaryStep, { ShootSummaryData } from "./components/ShootSummary";
 import ConfirmAndPay, { PricingBreakdown } from "./components/ConfirmAndPay";
 import BookingConfirmed from "./components/BookingConfirmed";
 import BrowseStudioTypes from "./components/BrowseStudioTypes";
+import StudioRecommendation from "./components/StudioRecommendations";
 import StudiosSelection from "./components/StudiosSelection";
 import StudioScheduleSync from "./components/StudioScheduleSync";
 import StudioShootDetails, {
@@ -171,7 +171,7 @@ const ITEM_SLUGS = {
 };
 
 const CREATIVE_PARTNER_HOURLY_RATE = 250;
-const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 375;
+const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 350;
 
 const V4_ADD_ON_SLUGS = [
   "v4-additional-camera",
@@ -318,6 +318,35 @@ const getPrimaryCreativeServiceLabel = (services: string[]) => {
   return `${serviceLabels.slice(0, -1).join(", ")} & ${serviceLabels[serviceLabels.length - 1]}`;
 };
 
+const getRecommendedStudioCategory = (occasion: string) => {
+  if (["podcast", "music"].includes(occasion)) return "audio_recording";
+  if (["corporate", "private", "wedding"].includes(occasion)) return "events";
+  return "production";
+};
+
+const getRecommendedStudioCopy = (occasion: string) => {
+  const category = getRecommendedStudioCategory(occasion);
+  if (category === "audio_recording") {
+    return {
+      category,
+      title: "Audio & Recording",
+      description: "Podcasts, music, voiceovers, and other audio projects",
+    };
+  }
+  if (category === "events") {
+    return {
+      category,
+      title: `${titleize(occasion)} Event`,
+      description: "Conferences, gatherings, launches, and private events",
+    };
+  }
+  return {
+    category,
+    title: "Production",
+    description: "Shoots, campaigns, interviews, and content creation",
+  };
+};
+
 const getIncludedPackageOffers = ({
   hasPhoto,
   hasVideo,
@@ -452,6 +481,18 @@ export const BookAShootV4 = () => {
   const { getDurationOnPage } = usePageTimer();
 
   const [internalStep, setInternalStep] = useState<number>(0);
+  // The first service choice owns the journey.  Adding a studio later is an
+  // add-on to that journey; it must never silently turn journey 1 into journey 3.
+  const [journey, setJourney] = useState<"creative" | "studio-only" | "combined">(
+    "creative"
+  );
+  const [hasChangedStudioType, setHasChangedStudioType] = useState(false);
+  const [occasionViewMode, setOccasionViewMode] = useState<"carousel" | "grid">(
+    "carousel"
+  );
+  const [studioViewMode, setStudioViewMode] = useState<"stack" | "grid">(
+    "stack"
+  );
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
   const [pricingPreview, setPricingPreview] =
@@ -507,14 +548,12 @@ export const BookAShootV4 = () => {
   const isSubmitting =
     isBookingLoading || isUpdatingBooking || isQuoteLoading || isPreviewLoading;
 
+  const isStudioOnlyBooking = journey === "studio-only";
+  const isCombinedStudioBooking = journey === "combined";
   const isStudioBooking =
-    bookingState.selectedOccasion === "studio" ||
+    isStudioOnlyBooking ||
+    isCombinedStudioBooking ||
     bookingState.selectedServices.includes("studios");
-  const isStudioOnlyBooking =
-    bookingState.selectedServices.length === 1 &&
-    bookingState.selectedServices.includes("studios");
-  const isCombinedStudioBooking =
-    bookingState.selectedServices.includes("studios") && !isStudioOnlyBooking;
   const baseContentTypes = mapServicesToContentTypes(bookingState.selectedServices);
   const contentTypes = isStudioBooking
     ? [...new Set([...baseContentTypes, "studio"])]
@@ -585,7 +624,7 @@ export const BookAShootV4 = () => {
       );
     }
 
-    if (primaryStudio?.quantity) return primaryStudio.quantity;
+    if (isStudioOnlyBooking && primaryStudio?.quantity) return primaryStudio.quantity;
     return getTotalDurationHours(
       bookingState.scheduleData?.bookingType || undefined,
       bookingState.scheduleData?.startDate || undefined,
@@ -598,6 +637,7 @@ export const BookAShootV4 = () => {
     bookingState.scheduleData?.endDate,
     bookingState.scheduleData?.startDate,
     isCombinedStudioBooking,
+    isStudioOnlyBooking,
     primaryStudio?.quantity,
   ]);
   const safeDurationHours = Math.max(1, durationHours || 0);
@@ -688,6 +728,12 @@ export const BookAShootV4 = () => {
   const combinedAddOnsStep = shouldChooseOwn ? 13 : 12;
   const combinedSummaryStep = shouldChooseOwn ? 14 : 13;
   const combinedConfirmStep = shouldChooseOwn ? 15 : 14;
+  // Journey 1 can add a studio after its shoot schedule. These steps are kept
+  // outside the normal journey-1 sequence so Back always returns to journey 1.
+  const creativeStudioRecommendationStep = 12;
+  const creativeStudioTypeStep = 13;
+  const creativeStudioSelectionStep = 14;
+  const creativeStudioScheduleStep = 15;
   const addOnsStep = shouldChooseOwn ? 9 : 8;
   const summaryStep = isStudioOnlyBooking
     ? studioOnlySummaryStep
@@ -703,6 +749,14 @@ export const BookAShootV4 = () => {
     1,
     2,
     bookingDetailsStep,
+    ...(bookingState.selectedServices.includes("studios")
+      ? [
+        creativeStudioRecommendationStep,
+        ...(hasChangedStudioType ? [creativeStudioTypeStep] : []),
+        creativeStudioSelectionStep,
+        creativeStudioScheduleStep,
+      ]
+      : []),
     detailsStep,
     matchmakerStep,
     creativeTeamStep,
@@ -832,6 +886,10 @@ export const BookAShootV4 = () => {
     const includesStudio = services.includes("studios");
     const isOnlyStudio = services.length === 1 && includesStudio;
     const isCombinedStudio = includesStudio && !isOnlyStudio;
+    setJourney(
+      isOnlyStudio ? "studio-only" : isCombinedStudio ? "combined" : "creative"
+    );
+    setHasChangedStudioType(false);
     setCreativeTeam(recommendedTeam);
     setSelectedCreatives([]);
     setLetBeigeChoose(false);
@@ -893,6 +951,62 @@ export const BookAShootV4 = () => {
     });
   };
 
+  const handleCreativeJourneyStudiosSelected = (studioIds: string[]) => {
+    const normalizedStudios = applyScheduleToStudios(
+      normalizeSelectedStudios({ selectedStudioIds: studioIds }),
+      bookingState.scheduleData
+    );
+
+    setSelectedStudios(normalizedStudios);
+    setBookingState((prev) => ({
+      ...prev,
+      // Preserve the customer's creative occasion and their locked journey.
+      selectedServices: prev.selectedServices.includes("studios")
+        ? prev.selectedServices
+        : [...prev.selectedServices, "studios"],
+    }));
+    setInternalStep(creativeStudioScheduleStep);
+  };
+
+  const handleCreativeJourneyStudioRecommendation = () => {
+    setBookingState((prev) => ({
+      ...prev,
+      studioCategory:
+        prev.studioCategory || getRecommendedStudioCategory(prev.selectedOccasion),
+    }));
+    setInternalStep(creativeStudioSelectionStep);
+  };
+
+  const handleCreativeJourneyStudioTypeSelected = (studioCategory: string) => {
+    setHasChangedStudioType(true);
+    setBookingState((prev) => ({ ...prev, studioCategory }));
+    setInternalStep(creativeStudioSelectionStep);
+  };
+
+  const handleCreativeJourneyStudioScheduleSubmitted = (data: {
+    useSameSchedule: boolean;
+    bookingType: "single_day" | "multi_day";
+    startDate: string | null;
+    endDate: string | null;
+    bookingDays: Array<{ date: string; startTime?: string; endTime?: string }>;
+  }) => {
+    const scheduledStudios = applyScheduleToStudios(
+      selectedStudios,
+      bookingState.scheduleData,
+      data.useSameSchedule
+        ? undefined
+        : {
+          bookingType: data.bookingType,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          bookingDays: data.bookingDays,
+        }
+    );
+
+    setSelectedStudios(scheduledStudios);
+    setInternalStep(detailsStep);
+  };
+
   const handleOccasionSelected = (selectedOccasion: string) => {
     setBookingState((prev) => ({
       ...prev,
@@ -925,82 +1039,6 @@ export const BookAShootV4 = () => {
           ? [...new Set([...contentTypes, "studio"])].join(",")
           : contentTypes.join(","),
     });
-  };
-
-  const handleStudioSubmitted = (studios: SelectedStudio[]) => {
-    const normalizedStudios = normalizeSelectedStudios({ selectedStudios: studios });
-    const studio = normalizedStudios[0];
-    const browserTimeZone = getBrowserTimeZone();
-    const nextScheduleData: ScheduleData | null = studio
-      ? {
-        dateOption: "have-date",
-        bookingType: "single_day",
-        date:
-          studio.selectedDate && studio.startTime
-            ? `${studio.selectedDate}T${studio.startTime}:00`
-            : null,
-        startDate:
-          studio.selectedDate && studio.startTime
-            ? `${studio.selectedDate}T${studio.startTime}:00`
-            : null,
-        endDate:
-          studio.selectedDate && studio.endTime
-            ? `${studio.selectedDate}T${studio.endTime}:00`
-            : null,
-        startTime: studio.startTime || null,
-        endTime: studio.endTime || null,
-        bookingDays: [
-          {
-            date: studio.selectedDate || "",
-            startTime: studio.startTime,
-            endTime: studio.endTime,
-            duration_hours: studio.quantity,
-            time_zone: browserTimeZone,
-          },
-        ].filter((day) => day.date),
-        location: studio.location,
-      }
-      : null;
-
-    setSelectedStudios(normalizedStudios);
-    setBookingState((prev) => ({
-      ...prev,
-      selectedOccasion: "studio",
-      selectedServices: prev.selectedServices.includes("studios")
-        ? prev.selectedServices
-        : [...prev.selectedServices, "studios"],
-      scheduleData: nextScheduleData,
-    }));
-    setInternalStep(editsStep);
-
-    if (studio) {
-      void saveLeadProgress({
-        content_type: [...new Set([...contentTypes, "studio"])].join(","),
-        shoot_type: "studio",
-        start_date: studio.selectedDate,
-        start_time: studio.startTime,
-        end_time: studio.endTime,
-        time_zone: browserTimeZone,
-        startDate: nextScheduleData?.startDate
-          ? toUtcIsoIfValid(nextScheduleData.startDate)
-          : undefined,
-        endDate: nextScheduleData?.endDate
-          ? toUtcIsoIfValid(nextScheduleData.endDate)
-          : undefined,
-        booking_type: "single_day",
-        booking_days: nextScheduleData?.bookingDays || [],
-        location: studio.location,
-        studio_total: getSelectedStudiosTotal(normalizedStudios),
-        studio_items: normalizedStudios.map((item) => ({
-          studio_id: item.studioId,
-          name: item.name,
-          quantity: item.quantity,
-          unit_price: item.unitPrice,
-          total: item.totalPrice,
-          pricing_mode: item.pricingMode,
-        })),
-      });
-    }
   };
 
   const handleScheduleSubmitted = (scheduleData: ScheduleData) => {
@@ -1486,7 +1524,7 @@ export const BookAShootV4 = () => {
       // phone: user?.phone_number || "Unknown",
       duration_on_page: getDurationOnPage(),
       beige_choice: beigeChoice,
-      creative_ids: creatives.map((c: any) => c.crew_member_id).join(","),
+      creative_ids: creatives.map((creator) => creator.crew_member_id).join(","),
     });
 
     setInternalStep(isCombinedStudioBooking ? combinedAddOnsStep : addOnsStep);
@@ -1607,8 +1645,10 @@ export const BookAShootV4 = () => {
       quoteItems: [...roleItems, ...addOnItems],
       addOnItems,
       customAddOnItems,
-      shootHours: useStudioInclusivePricing ? 0 : safeDurationHours,
-      shootStartDate: !isCombinedStudioBooking && primaryStudio?.selectedDate
+      // The pricing API requires a positive duration even when a studio is the
+      // only selected item. The selected studio's booked duration is used here.
+      shootHours: safeDurationHours,
+      shootStartDate: isStudioOnlyBooking && primaryStudio?.selectedDate
         ? `${primaryStudio.selectedDate}T00:00:00.000Z`
         : firstBookingDate
           ? `${firstBookingDate}T00:00:00.000Z`
@@ -1661,6 +1701,7 @@ export const BookAShootV4 = () => {
           custom_add_on_items: pricingInputs.customAddOnItems,
           studio_total: selectedStudiosTotal,
           studio_items: pricingInputs.studioItems,
+          apply_self_serve_coverage_pricing: true,
           skip_discount: true,
           skip_margin: true,
         }).unwrap();
@@ -1737,7 +1778,7 @@ export const BookAShootV4 = () => {
       .filter((entry) => String(entry || "").trim())
       .join("\n\n");
     const bookingDays =
-      !isCombinedStudioBooking && primaryStudio && primaryStudio.selectedDate
+      isStudioOnlyBooking && primaryStudio && primaryStudio.selectedDate
         ? [
           {
             date: primaryStudio.selectedDate,
@@ -1763,23 +1804,23 @@ export const BookAShootV4 = () => {
         });
 
     const startDate =
-      !isCombinedStudioBooking && primaryStudio?.selectedDate
+      isStudioOnlyBooking && primaryStudio?.selectedDate
         ? primaryStudio.selectedDate
         : getLocalDatePart(schedule?.startDate);
     const startTime =
-      !isCombinedStudioBooking && primaryStudio?.startTime
+      isStudioOnlyBooking && primaryStudio?.startTime
         ? primaryStudio.startTime
         : schedule?.startTime || getLocalTimePart(schedule?.startDate);
     const endTime =
-      !isCombinedStudioBooking && primaryStudio?.endTime
+      isStudioOnlyBooking && primaryStudio?.endTime
         ? primaryStudio.endTime
         : schedule?.endTime || getLocalTimePart(schedule?.endDate);
     const startDateTime =
-      !isCombinedStudioBooking && primaryStudio?.selectedDate && primaryStudio?.startTime
+      isStudioOnlyBooking && primaryStudio?.selectedDate && primaryStudio?.startTime
         ? `${primaryStudio.selectedDate}T${primaryStudio.startTime}:00`
         : schedule?.startDate || undefined;
     const endDateTime =
-      !isCombinedStudioBooking && primaryStudio?.selectedDate && primaryStudio?.endTime
+      isStudioOnlyBooking && primaryStudio?.selectedDate && primaryStudio?.endTime
         ? `${primaryStudio.selectedDate}T${primaryStudio.endTime}:00`
         : schedule?.endDate || undefined;
     const crewSize = Object.values(creativeTeam).reduce(
@@ -1801,15 +1842,15 @@ export const BookAShootV4 = () => {
       time_zone: browserTimeZone,
       duration_hours: durationHours || null,
       location:
-        !isCombinedStudioBooking && primaryStudio?.location
+        isStudioOnlyBooking && primaryStudio?.location
           ? primaryStudio.location
           : schedule?.location || "",
       location_latitude:
-        !isCombinedStudioBooking && primaryStudio?.lat != null
+        isStudioOnlyBooking && primaryStudio?.lat != null
           ? primaryStudio.lat
           : coords.lat,
       location_longitude:
-        !isCombinedStudioBooking && primaryStudio?.lng != null
+        isStudioOnlyBooking && primaryStudio?.lng != null
           ? primaryStudio.lng
           : coords.lng,
       quote_id: quoteId || undefined,
@@ -1862,6 +1903,7 @@ export const BookAShootV4 = () => {
             ? buildEditTypeCounts(bookingState.editsConfig.photoEditTypes)
             : [],
           custom_add_on_items: pricingInputs.customAddOnItems,
+          apply_self_serve_coverage_pricing: true,
         }).unwrap();
 
         savedQuoteId = savedQuote.quote_id;
@@ -1963,15 +2005,15 @@ export const BookAShootV4 = () => {
     }
   };
 
-  const handleBrowseStudios = () => {
+  const handleBrowseStudios = (scheduleData?: ScheduleData) => {
     setBookingState((prev) => ({
       ...prev,
-      selectedOccasion: "studio",
+      scheduleData: scheduleData || prev.scheduleData,
       selectedServices: prev.selectedServices.includes("studios")
         ? prev.selectedServices
         : [...prev.selectedServices, "studios"],
     }));
-    setInternalStep(bookingDetailsStep);
+    setInternalStep(creativeStudioRecommendationStep);
   };
 
   const getPricingData = (): Partial<PricingBreakdown> => {
@@ -2014,14 +2056,35 @@ export const BookAShootV4 = () => {
         "crew-labor",
       ].includes(category);
     });
-    const mandatoryFeeCost = visibleMandatoryFees.reduce(
-      (sum, item) => sum + Number(item.line_total || 0),
+    const previewMandatoryFees = visibleMandatoryFees
+      .map((item) => ({
+        name: String(item.item_name || "Mandatory Fee"),
+        amount: Number(item.line_total || 0),
+      }))
+      .filter((fee) => fee.amount > 0);
+    const hasFallbackPhotoCoverage =
+      Number(creativeTeam.photographer || 0) > 0 ||
+      Number(creativeTeam.photoVideoCreator || 0) > 0;
+    const hasFallbackVideoCoverage =
+      Number(creativeTeam.videographer || 0) > 0 ||
+      Number(creativeTeam.photoVideoCreator || 0) > 0;
+    const fallbackMandatoryFees =
+      hasFallbackPhotoCoverage || hasFallbackVideoCoverage
+        ? [
+          { name: "Pre-Production Fee", amount: 250 },
+          ...(hasFallbackVideoCoverage
+            ? [{ name: "Setup Time (up to 45 minutes)", amount: 250 }]
+            : []),
+        ]
+        : [];
+    const mandatoryFees = previewMandatoryFees.length > 0
+      ? previewMandatoryFees
+      : fallbackMandatoryFees;
+    const mandatoryFeeCost = mandatoryFees.reduce(
+      (sum, fee) => sum + fee.amount,
       0
     );
-    const mandatoryFeeText = visibleMandatoryFees
-      .map((item) => item.item_name)
-      .filter(Boolean)
-      .join(", ");
+    const mandatoryFeeText = mandatoryFees.map((fee) => fee.name).join(", ");
     const roleCost =
       (
         Number(creativeTeam.photographer || 0) * CREATIVE_PARTNER_HOURLY_RATE +
@@ -2111,7 +2174,7 @@ export const BookAShootV4 = () => {
       creativeTeam.photographer ? `Photographer x${creativeTeam.photographer}` : "",
       creativeTeam.videographer ? `Videographer x${creativeTeam.videographer}` : "",
       creativeTeam.photoVideoCreator
-        ? `Photographer + Videographer (1 person) x${creativeTeam.photoVideoCreator}`
+        ? `Hybrid Shooter (Photo + Video) x${creativeTeam.photoVideoCreator}`
         : "",
     ].filter(Boolean);
     const packageOffers = getIncludedPackageOffers({
@@ -2156,6 +2219,7 @@ export const BookAShootV4 = () => {
           : "",
       mandatoryFeeCost,
       mandatoryFeeText,
+      mandatoryFees,
       pricingBalanceCost,
       pricingBalanceText,
       totalAmount,
@@ -2181,14 +2245,19 @@ export const BookAShootV4 = () => {
             .map((day) => formatDisplayDate(day.date))
             .join(", ")}`
           : `Single Day - ${formatDisplayDate(
-            primaryStudio?.selectedDate || schedule?.startDate
+            (isStudioOnlyBooking ? primaryStudio?.selectedDate : undefined) ||
+              schedule?.startDate
           )}`;
     const durationLabel = `${durationHours || 0} Hour Duration`;
     const timeStr =
       schedule?.dateOption === "confirm-later"
         ? "Confirm later"
-        : `${formatDisplayTime(primaryStudio?.startTime || schedule?.startTime)} - ${formatDisplayTime(
-          primaryStudio?.endTime || schedule?.endTime
+        : `${formatDisplayTime(
+          (isStudioOnlyBooking ? primaryStudio?.startTime : undefined) ||
+            schedule?.startTime
+        )} - ${formatDisplayTime(
+          (isStudioOnlyBooking ? primaryStudio?.endTime : undefined) ||
+            schedule?.endTime
         )} (${durationLabel})`;
     const formattedAddOns = getSelectedAddOnLabels();
     const studioAddOns = selectedStudios.map(
@@ -2241,6 +2310,23 @@ export const BookAShootV4 = () => {
       );
 
       switch (internalStep) {
+        case 0:
+          return (
+            <GuidedBookingCard
+              onContinue={handleEmailSubmitted}
+              imageSrc="/images/misc/BookingFlow/GuidedBookingImg.png"
+            />
+          );
+        case 1:
+          return (
+            <AskingServices
+              onContinue={handleServicesSelected}
+              onBack={() => setInternalStep(0)}
+              initialSelected={bookingState.selectedServices}
+              stepNumber={getStepMeta(1).stepNumber}
+              completionPercentage={getStepMeta(1).completionPercentage}
+            />
+          );
         case combinedIntroStep:
           return (
             <FlowInfoCard
@@ -2283,6 +2369,8 @@ export const BookAShootV4 = () => {
               onBack={() => setInternalStep(combinedShootScheduleStep)}
               studios={studioCards}
               initialSelectedStudioIds={selectedStudioIds}
+              initialViewMode={studioViewMode}
+              onViewModeChange={setStudioViewMode}
               stepNumber={getStepMeta(combinedStudioSelectionStep).stepNumber}
               completionPercentage={getStepMeta(combinedStudioSelectionStep).completionPercentage}
             />
@@ -2293,6 +2381,8 @@ export const BookAShootV4 = () => {
               onContinue={handleCombinedOccasionSelected}
               onBack={() => setInternalStep(combinedStudioSelectionStep)}
               initialSelected={bookingState.selectedOccasion}
+              initialViewMode={occasionViewMode}
+              onViewModeChange={setOccasionViewMode}
               title="What are you shooting in the studio?"
               subtitle="Select what you need the studio for and we'll tailor the rest of your booking accordingly."
               stepNumber={getStepMeta(combinedOccasionStep).stepNumber}
@@ -2504,6 +2594,8 @@ export const BookAShootV4 = () => {
             onContinue={handleOccasionSelected}
             onBack={() => setInternalStep(1)}
             initialSelected={bookingState.selectedOccasion}
+            initialViewMode={occasionViewMode}
+            onViewModeChange={setOccasionViewMode}
             stepNumber={getStepMeta(2).stepNumber}
             completionPercentage={getStepMeta(2).completionPercentage}
           />
@@ -2520,14 +2612,6 @@ export const BookAShootV4 = () => {
             completionPercentage={getStepMeta(studioOnlyTypeStep).completionPercentage}
             showCrewInput
           />
-        ) : isStudioBooking ? (
-          <StudioSelection
-            onContinue={handleStudioSubmitted}
-            onBack={() => setInternalStep(2)}
-            initialSelectedStudios={selectedStudios}
-            stepNumber={getStepMeta(bookingDetailsStep).stepNumber}
-            completionPercentage={getStepMeta(bookingDetailsStep).completionPercentage}
-          />
         ) : (
           <ScheduleShoot
             onContinue={handleScheduleSubmitted}
@@ -2538,6 +2622,83 @@ export const BookAShootV4 = () => {
             completionPercentage={getStepMeta(bookingDetailsStep).completionPercentage}
           />
         );
+      case creativeStudioRecommendationStep: {
+        const recommendation = getRecommendedStudioCopy(
+          bookingState.selectedOccasion
+        );
+
+        return (
+          <StudioRecommendation
+            onContinue={handleCreativeJourneyStudioRecommendation}
+            onChangeStudioType={() => {
+              setHasChangedStudioType(true);
+              setInternalStep(creativeStudioTypeStep);
+            }}
+            onBack={() => setInternalStep(bookingDetailsStep)}
+            occasionTitle={`${titleize(bookingState.selectedOccasion)} Event`}
+            recommendedStudioType={recommendation.title}
+            recommendedStudioDescription={recommendation.description}
+            stepNumber={getStepMeta(creativeStudioRecommendationStep).stepNumber}
+            completionPercentage={getStepMeta(creativeStudioRecommendationStep).completionPercentage}
+          />
+        );
+      }
+      case creativeStudioTypeStep:
+        return (
+          <BrowseStudioTypes
+            onContinue={handleCreativeJourneyStudioTypeSelected}
+            onBack={() => setInternalStep(creativeStudioRecommendationStep)}
+            initialSelectedKey={
+              bookingState.studioCategory ||
+              getRecommendedStudioCategory(bookingState.selectedOccasion)
+            }
+            occasionTitle={`${titleize(bookingState.selectedOccasion)} Shoots`}
+            stepNumber={getStepMeta(creativeStudioTypeStep).stepNumber}
+            completionPercentage={getStepMeta(creativeStudioTypeStep).completionPercentage}
+          />
+        );
+      case creativeStudioSelectionStep:
+        return (
+          <StudiosSelection
+            onContinue={handleCreativeJourneyStudiosSelected}
+            onBack={() =>
+              setInternalStep(
+                hasChangedStudioType
+                  ? creativeStudioTypeStep
+                  : creativeStudioRecommendationStep
+              )
+            }
+            studios={getStudioListItems()}
+            initialSelectedStudioIds={selectedStudios.map((studio) => studio.studioId)}
+            initialViewMode={studioViewMode}
+            onViewModeChange={setStudioViewMode}
+            stepNumber={getStepMeta(creativeStudioSelectionStep).stepNumber}
+            completionPercentage={getStepMeta(creativeStudioSelectionStep).completionPercentage}
+          />
+        );
+      case creativeStudioScheduleStep: {
+        const selectedStudioCard = getStudioListItems().find(
+          (studio) => studio.id === selectedStudios[0]?.studioId
+        );
+
+        return (
+          <StudioScheduleSync
+            onContinue={handleCreativeJourneyStudioScheduleSubmitted}
+            onBack={() => setInternalStep(creativeStudioSelectionStep)}
+            initialScheduleData={bookingState.scheduleData}
+            selectedStudio={
+              selectedStudioCard
+                ? {
+                  ...selectedStudioCard,
+                  image: selectedStudios[0]?.image || selectedStudioCard.image,
+                }
+                : undefined
+            }
+            stepNumber={getStepMeta(creativeStudioScheduleStep).stepNumber}
+            completionPercentage={getStepMeta(creativeStudioScheduleStep).completionPercentage}
+          />
+        );
+      }
       case editsStep:
         return isStudioOnlyBooking ? (
           <ScheduleShoot
@@ -2583,13 +2744,21 @@ export const BookAShootV4 = () => {
               image: studio.image,
               link: `/studios/${studio.id}`,
             }))}
+            initialViewMode={studioViewMode}
+            onViewModeChange={setStudioViewMode}
             stepNumber={getStepMeta(studioOnlySelectionStep).stepNumber}
             completionPercentage={getStepMeta(studioOnlySelectionStep).completionPercentage}
           />
         ) : (
           <ShootDetails
             onContinue={handleDetailsSubmitted}
-            onBack={() => setInternalStep(bookingDetailsStep)}
+            onBack={() =>
+              setInternalStep(
+                bookingState.selectedServices.includes("studios")
+                  ? creativeStudioScheduleStep
+                  : bookingDetailsStep
+              )
+            }
             initialNotes={bookingState.shootDetailsData?.notes || ""}
             initialLinks={bookingState.shootDetailsData?.links || []}
             stepNumber={getStepMeta(detailsStep).stepNumber}

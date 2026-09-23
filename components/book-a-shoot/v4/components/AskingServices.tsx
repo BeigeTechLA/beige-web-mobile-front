@@ -16,7 +16,7 @@ const SERVICES: ServiceOption[] = [
   {
     id: "photography",
     title: "Photography",
-    description: "Headshots, events, portraits, products",
+    description: "Events, concerts, portraits, products",
     iconSrc: "/images/misc/BookingFlow/Camera.png",
   },
   {
@@ -60,8 +60,8 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
   onContinue,
   onBack,
   initialSelected = ["photography"],
-  title = "What do you need?",
-  subtitle = "Pick everything that applies — we can combine them into one production.",
+  title = "How do you want to Beige?",
+  subtitle = "Select everything you need to bring your vision to life in one seamless production.",
   stepNumber = "01",
   completionPercentage = 20,
 }) => {
