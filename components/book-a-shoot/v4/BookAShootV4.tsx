@@ -30,6 +30,8 @@ import StudioShootDetails, {
   StudioShootDetailsData,
 } from "./components/StudioShootDetails";
 
+import { isLosAngelesLocation, getV4PhotoEditsPerHour, V4_PACKAGE_INCLUSIONS } from "./bookingRules";
+
 import type { Creator } from "@/lib/types";
 import type { PricingItem, QuoteCalculation, QuoteLineItem, SelectedItem } from "@/lib/api/pricing";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -299,11 +301,11 @@ const getPackageDisplayName = (occasion: string, services: string[]) => {
   const hasPhoto = services.includes("photography");
   const hasVideo = services.includes("videography") || services.includes("livestream");
 
-  if (hasPhoto && hasVideo) return `${occasionName} - Photo + Video`;
-  if (hasPhoto) return `${occasionName} - Photography`;
-  if (hasVideo) return `${occasionName} - Videography`;
+  if (hasPhoto && hasVideo) return `${occasionName}: Photo + Video`;
+  if (hasPhoto) return `${occasionName}: Photography`;
+  if (hasVideo) return `${occasionName}: Videography`;
 
-  return `${occasionName} - ${titleize(services[0] || "Service")}`;
+  return `${occasionName}: ${titleize(services[0] || "Service")}`;
 };
 
 const getPrimaryCreativeServiceLabel = (services: string[]) => {
@@ -347,37 +349,7 @@ const getRecommendedStudioCopy = (occasion: string) => {
   };
 };
 
-const getIncludedPackageOffers = ({
-  hasPhoto,
-  hasVideo,
-}: {
-  hasPhoto: boolean;
-  hasVideo: boolean;
-}) => {
-  if (hasPhoto && hasVideo) {
-    return [
-      "All Raw Files, Images, Audio, Lighting & Insurance Provided",
-      "Up to 45 Minutes Setup Time",
-      "2x Complimentary Revision Rounds",
-      "Digital Delivery",
-    ];
-  }
-
-  if (hasVideo) {
-    return [
-      "All Raw Files, Audio, Lighting & Insurance Provided",
-      "Up to 45 Minutes Setup Time",
-      "2x Complimentary Revision Rounds",
-      "Digital Delivery",
-    ];
-  }
-
-  return [
-    "All Raw Images, Lighting & Insurance Provided",
-    "Up to 45 Minutes Setup Time",
-    "Digital Delivery",
-  ];
-};
+const getIncludedPackageOffers = () => V4_PACKAGE_INCLUSIONS;
 
 const isCatalogAddOnItem = (item: PricingItem) => {
   if (!V4_ADD_ON_SLUG_SET.has(item.slug)) return false;
@@ -488,10 +460,10 @@ export const BookAShootV4 = () => {
   );
   const [hasChangedStudioType, setHasChangedStudioType] = useState(false);
   const [occasionViewMode, setOccasionViewMode] = useState<"carousel" | "grid">(
-    "carousel"
+    "grid"
   );
   const [studioViewMode, setStudioViewMode] = useState<"stack" | "grid">(
-    "stack"
+    "grid"
   );
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
@@ -649,10 +621,9 @@ export const BookAShootV4 = () => {
     shootType: bookingState.selectedOccasion,
     durationHours: safeDurationHours,
     selectedAddOnSets: photoEditSetCount,
-    includedPerHourOverride:
-      selectedHybridCreators > 0
-        ? 25 * Number(creativeTeam.photographer || 0) + 10 * selectedHybridCreators
-        : undefined,
+    includedPerHourOverride: canShowPhotoEdits
+      ? getV4PhotoEditsPerHour(bookingState.selectedOccasion, safeDurationHours)
+      : 0,
   });
   const roundedPhotoEditSummary = {
     includedPerHour: Math.round(photoEditSummary.includedPerHour),
@@ -691,17 +662,7 @@ export const BookAShootV4 = () => {
 
   const shouldChooseOwn =
     bookingState.teamSelectionData?.teamOption === "choose-own";
-  const packageInclusions = [
-    Number(creativeTeam.photographer || 0) > 0
-      ? `Photographer x${creativeTeam.photographer}`
-      : "",
-    Number(creativeTeam.videographer || 0) > 0
-      ? `Videographer x${creativeTeam.videographer}`
-      : "",
-    "All Raw Images, Lighting & Insurance Provided",
-    "Up to 45 Minutes Setup Time",
-    "Digital Delivery",
-  ].filter(Boolean);
+  const packageInclusions = V4_PACKAGE_INCLUSIONS;
   const bookingDetailsStep = 3;
   const editsStep = 4;
   const detailsStep = 5;
@@ -800,7 +761,7 @@ export const BookAShootV4 = () => {
     const stepIndex = currentJourneySteps.indexOf(step);
     const visibleStep = stepIndex >= 0 ? stepIndex + 1 : 1;
     const totalSteps = currentJourneySteps.length || 1;
-    const stepNumber = String(visibleStep).padStart(2, "0");
+    const stepNumber = String(visibleStep);
 
     return {
       stepNumber,
@@ -1045,7 +1006,17 @@ export const BookAShootV4 = () => {
     const browserTimeZone = getBrowserTimeZone();
     const coords = getCoordinates(scheduleData.locationDetails);
 
-    setBookingState((prev) => ({ ...prev, scheduleData }));
+    const removeStudio = journey === "creative" && !isLosAngelesLocation(scheduleData.location, scheduleData.locationDetails);
+    if (removeStudio) {
+      setSelectedStudios([]);
+      setPricingPreview(null);
+    }
+    setBookingState((prev) => ({
+      ...prev,
+      scheduleData,
+      selectedServices: removeStudio ? prev.selectedServices.filter((service) => service !== "studios") : prev.selectedServices,
+      studioCategory: removeStudio ? null : prev.studioCategory,
+    }));
 
     const customProperties = {
       time_zone: browserTimeZone,
@@ -2006,6 +1977,8 @@ export const BookAShootV4 = () => {
   };
 
   const handleBrowseStudios = (scheduleData?: ScheduleData) => {
+    const schedule = scheduleData || bookingState.scheduleData;
+    if (!schedule || !isLosAngelesLocation(schedule.location, schedule.locationDetails)) return;
     setBookingState((prev) => ({
       ...prev,
       scheduleData: scheduleData || prev.scheduleData,
@@ -2177,10 +2150,7 @@ export const BookAShootV4 = () => {
         ? `Hybrid Shooter (Photo + Video) x${creativeTeam.photoVideoCreator}`
         : "",
     ].filter(Boolean);
-    const packageOffers = getIncludedPackageOffers({
-      hasPhoto: hasPhotoCoverage,
-      hasVideo: hasVideoCoverage,
-    });
+    const packageOffers = getIncludedPackageOffers();
 
     return {
       serviceName:
@@ -2291,10 +2261,7 @@ export const BookAShootV4 = () => {
         [...formattedAddOns, ...studioAddOns].length > 0
           ? [...formattedAddOns, ...studioAddOns]
           : ["No add-ons selected"],
-      includedServices: getIncludedPackageOffers({
-        hasPhoto: hasPhotoCoverage,
-        hasVideo: hasVideoCoverage,
-      }),
+      includedServices: getIncludedPackageOffers(),
     };
   };
 
@@ -2313,6 +2280,7 @@ export const BookAShootV4 = () => {
         case 0:
           return (
             <GuidedBookingCard
+              initialEmail={bookingState.email || user?.email || ""}
               onContinue={handleEmailSubmitted}
               imageSrc="/images/misc/BookingFlow/GuidedBookingImg.png"
             />
@@ -2434,7 +2402,7 @@ export const BookAShootV4 = () => {
               initialConfig={bookingState.editsConfig}
               baseFreePhotos={roundedPhotoEditSummary.includedCount}
               photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
-              durationLabel={`${safeDurationHours} Hour Duration`}
+              durationLabel={`${safeDurationHours} ${safeDurationHours === 1 ? "Hour" : "Hours"} Duration`}
               videoEditOptions={editOptions.videoEditOptions}
               photoEditOptions={editOptions.photoEditOptions}
               showVideoEdits={canShowVideoEdits}
@@ -2563,6 +2531,7 @@ export const BookAShootV4 = () => {
       case 0:
         return (
           <GuidedBookingCard
+            initialEmail={bookingState.email || user?.email || ""}
             onContinue={handleEmailSubmitted}
             imageSrc="/images/misc/BookingFlow/GuidedBookingImg.png"
           />
@@ -2717,7 +2686,7 @@ export const BookAShootV4 = () => {
             initialConfig={bookingState.editsConfig}
             baseFreePhotos={roundedPhotoEditSummary.includedCount}
             photosPerSet={PHOTO_EDIT_ADDON_SET_SIZE}
-            durationLabel={`${safeDurationHours} Hour Duration`}
+            durationLabel={`${safeDurationHours} ${safeDurationHours === 1 ? "Hour" : "Hours"} Duration`}
             videoEditOptions={editOptions.videoEditOptions}
             photoEditOptions={editOptions.photoEditOptions}
             showVideoEdits={canShowVideoEdits}

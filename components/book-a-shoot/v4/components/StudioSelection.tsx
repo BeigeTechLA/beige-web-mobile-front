@@ -49,7 +49,7 @@ export default function StudioSelection({
   onBack,
   onContinue,
   initialSelectedStudios = [],
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 40,
 }: StudioSelectionProps) {
   const timeOptions = useMemo(() => buildTimeOptions(), []);

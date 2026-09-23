@@ -170,11 +170,11 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   onBack,
   studios = DEFAULT_STUDIOS,
   initialSelectedStudioIds = [],
-  initialViewMode = "stack",
+  initialViewMode = "grid",
   onViewModeChange,
   title = "Studios That Fit Your Project",
   subtitle = "Browse available studios and find the right space for your shoot.",
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 20,
 }) => {
   const [selectedStudioIds, setSelectedStudioIds] = useState<string[]>(initialSelectedStudioIds);
@@ -446,7 +446,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                     <SwiperSlide key={studio.id} className="border border-white/20 bg-[#101010] overflow-hidden">
                       <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                         {/* Studio Image + Rating Badge */}
-                        <div className="relative w-full md:w-[40%] lg:w-[42%] h-[180px] md:h-full rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
+                        <div className="relative w-full md:w-[40%] lg:w-[42%] h-[180px] md:h-auto md:min-h-[220px] md:self-stretch rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                           <Image
                             src={studio.image}
                             alt={studio.name}

@@ -29,7 +29,7 @@ export default function AddOnsStep({
   addOns = [],
   title = "Want to add anything extra?",
   subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
-  stepNumber = "08",
+  stepNumber = "8",
   completionPercentage = 88,
 }: AddOnsStepProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>(initialAddOns);
@@ -159,7 +159,7 @@ export default function AddOnsStep({
                         <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                       </button>
                       <span className="w-5 text-center">
-                        {String(count).padStart(2, "0")}
+                        {String(count)}
                       </span>
                       <button
                         type="button"
