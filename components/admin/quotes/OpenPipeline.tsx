@@ -358,7 +358,7 @@ export default function OpenPipelineWidget({
             className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
           >
             <div className="overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
-              <table className="w-full text-left border-collapse table-fixed">
+              <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
                 <thead>
                   {/* Desktop Headers */}
                   <tr
@@ -367,14 +367,14 @@ export default function OpenPipelineWidget({
                       : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                       }`}
                   >
-                    <th className="px-5 py-4 w-[22%]">Client Name & Quote No</th>
-                    <th className="p-4 w-[15%]">Project</th>
-                    <th className="p-4 w-[15%]">Booking Status</th>
-                    <th className="p-4 w-[12%]">Amount</th>
-                    <th className="p-4 w-[10%]">Quote Status</th>
-                    <th className="p-4 w-[13%]">Validity</th>
-                    <th className="p-4 w-[10%]">Sales Rep</th>
-                    <th className="p-4 text-center w-[8%]">Action</th>
+                    <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
+                    {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
+                    <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
+                    <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
+                    <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
+                    <th className="w-[5%] whitespace-nowrap p-4 text-center">Action</th>
                   </tr>
 
                   {/* Mobile Headers */}
@@ -466,8 +466,8 @@ export default function OpenPipelineWidget({
                                 </div>
 
                                 {/* Client Text Info */}
-                                <div>
-                                  <div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate">
                                     <span className={`font-medium mr-1 ${isDark ? "text-white" : "text-black"}`}>
                                       {item.client?.name || "-"}
                                     </span>
@@ -479,7 +479,7 @@ export default function OpenPipelineWidget({
                                       ({item.quote_number || "-"})
                                     </Link>
                                   </div>
-                                  <div className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                  <div className={`truncate text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
                                     {item.client?.email || "-"}
                                   </div>
                                 </div>
@@ -487,18 +487,18 @@ export default function OpenPipelineWidget({
                             </td>
 
                             {/* Desktop Specific Cells */}
-                            <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
+                            {/* <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
                               {item.project || "-"}
-                            </td>
+                            </td> */}
 
                             <td className="hidden p-4 md:table-cell align-middle">
                               {item.lead_source ? (
-                                <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A]">
-                                  {item.lead_source}
+                                <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full bg-[#D4FFE4] px-3 py-1.5 text-xs font-medium text-[#16A34A] lg:text-sm">
+                                  Converted to Booking
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
-                                  Pending
+                                <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full bg-[#FFF0CF] px-3 py-1.5 text-xs font-medium text-[#C06D24] lg:text-sm">
+                                  Pending Booking
                                 </span>
                               )}
                             </td>
@@ -508,12 +508,12 @@ export default function OpenPipelineWidget({
                                 ${Number(item.quote_value || 0).toLocaleString()}
                               </div>
                               {item.collected_amount > 0 && (
-                                <div className="text-[10px] lg:text-xs text-[#14BC52]">
+                                <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
                                   PAID - ${Number(item.collected_amount).toLocaleString()}
                                 </div>
                               )}
                               {item.outstanding_amount > 0 && (
-                                <div className="text-[10px] lg:text-xs text-[#F29831]">
+                                <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
                                   PENDING - ${Number(item.outstanding_amount).toLocaleString()}
                                 </div>
                               )}
@@ -521,14 +521,14 @@ export default function OpenPipelineWidget({
 
                             {/* Quote Status Badge */}
                             <td className="hidden p-4 md:table-cell">
-                              <span className={`inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
                                 {formatQuoteStatusText(item.quote_status)}
                               </span>
                             </td>
 
                             {/* Mobile Booking Status Right Alignment */}
                             <td className="p-4 text-right md:hidden">
-                              <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                              <span className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
                                 {formatQuoteStatusText(item.quote_status)}
                               </span>
                             </td>
@@ -570,19 +570,19 @@ export default function OpenPipelineWidget({
                               >
                                 <div className="space-y-4 text-xs">
                                   <div className="grid grid-cols-2 gap-y-4 gap-x-4">
-                                    <div>
+                                    {/* <div>
                                       <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Project</p>
                                       <p className="font-medium text-sm truncate">{item.project}</p>
-                                    </div>
+                                    </div> */}
                                     <div className="text-right">
                                       <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Booking Status</p>
                                       {item.lead_source ? (
-                                        <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A]">
-                                          {item.lead_source}
+                                        <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#D4FFE4] text-[#16A34A]">
+                                          Converted to Booking
                                         </span>
                                       ) : (
-                                        <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
-                                          Pending
+                                        <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF0CF] text-[#C06D24]">
+                                          Pending Booking
                                         </span>
                                       )}
                                     </div>

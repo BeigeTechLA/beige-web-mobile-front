@@ -351,8 +351,8 @@ export default function QuotesOverdueWidget({
       {/* Collapsible Expandable Table Section */}
       {showTable && (
         <div className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
-          <div className="w-full overflow-x-auto md:overflow-hidden">
-            <table className="w-full text-left border-collapse table-fixed">
+          <div className="w-full overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
+            <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
               <thead>
                 {/* Desktop Table Header */}
                 <tr
@@ -361,14 +361,14 @@ export default function QuotesOverdueWidget({
                     : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                     }`}
                 >
-                  <th className="px-5 py-4 w-[22%]">Client Name & Quote No</th>
-                  <th className="p-4 w-[10%]">Project</th>
-                  <th className="p-4 w-[18%]">Payment Status</th>
-                  <th className="p-4 w-[12%]">Amount</th>
-                  <th className="p-4 w-[12%]">Quote Status</th>
-                  <th className="p-4 w-[13%]">Validity</th>
-                  <th className="p-4 w-[10%]">Sales Rep</th>
-                  <th className="p-4 text-center w-[8%]">Action</th>
+                  <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
+                  {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
+                  <th className="w-[17%] whitespace-nowrap p-4">Payment Status</th>
+                  <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
+                  <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
+                  <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
+                  <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
+                  <th className="w-[5%] whitespace-nowrap p-4 text-center">Action</th>
                 </tr>
 
                 {/* Mobile Header Row */}
@@ -481,18 +481,18 @@ export default function QuotesOverdueWidget({
                           </td>
 
                           {/* Desktop Specific Cells */}
-                          <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
+                          {/* <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
                             {item.project}
-                          </td>
+                          </td> */}
 
                           {/* Booking Status Badge */}
                           <td className="hidden p-4 md:table-cell">
                             {item.lead_source ? (
-                              <span className="inline-flex items-center justify-center text-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A] capitalize">
+                              <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#D4FFE4] px-3 py-1.5 text-center text-xs font-medium capitalize text-[#16A34A] lg:text-sm">
                                 {item.lead_source}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center justify-center text-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
+                              <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#FFF0CF] px-3 py-1.5 text-center text-xs font-medium text-[#C06D24] lg:text-sm">
                                 Pending
                               </span>
                             )}
@@ -504,12 +504,12 @@ export default function QuotesOverdueWidget({
                               ${item.quote_value.toLocaleString()}
                             </div>
                             {item.collected_amount > 0 && (
-                              <div className="text-[10px] lg:text-xs text-[#14BC52]">
+                              <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
                                 PAID - ${item.collected_amount.toLocaleString()}
                               </div>
                             )}
                             {item.outstanding_amount > 0 && (
-                              <div className="text-[10px] lg:text-xs text-[#F29831]">
+                              <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
                                 PENDING - ${item.outstanding_amount.toLocaleString()}
                               </div>
                             )}
@@ -517,7 +517,7 @@ export default function QuotesOverdueWidget({
 
                           {/* Quote Status Badge */}
                           <td className="hidden p-4 md:table-cell">
-                            <span className={`inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                            <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
                               {formatQuoteStatusText(item.quote_status)}
                             </span>
                           </td>
@@ -567,7 +567,7 @@ export default function QuotesOverdueWidget({
                             >
                               <div className="space-y-4 text-xs">
                                 <div className="grid grid-cols-2 gap-y-4 gap-x-4">
-                                  <div>
+                                  {/* <div>
                                     <p
                                       className={`mb-1 ${isDark
                                         ? "text-white/50"
@@ -579,7 +579,7 @@ export default function QuotesOverdueWidget({
                                     <p className="font-medium text-sm truncate">
                                       {item.project}
                                     </p>
-                                  </div>
+                                  </div> */}
                                   <div className="text-right">
                                     <p
                                       className={`mb-1 ${isDark
