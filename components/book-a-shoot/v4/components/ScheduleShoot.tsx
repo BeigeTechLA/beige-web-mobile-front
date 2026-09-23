@@ -35,6 +35,7 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import { AnimatePresence, motion } from "framer-motion";
+import { isLosAngelesLocation } from "../bookingRules";
 import { getFormattedDateString } from "@/lib/utils";
 
 // Fallback/stub helpers to prevent runtime errors
@@ -87,7 +88,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   showStudioCreatorBanner = true,
   title,
   subtitle,
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 40,
   initialData,
 }) => {
@@ -191,13 +192,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   }, []);
 
   const validate = () => {
-    if (dateOption !== "have-date") return true;
-
-    if (!isStudioFlow && !location) {
+    if (!isStudioFlow && !location.trim()) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return false;
     }
+
+    if (dateOption !== "have-date") return true;
 
     const now = new Date();
     const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
@@ -305,7 +306,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   };
 
   const handleBrowseStudios = () => {
-    if (!validate()) return;
+    if (!isLosAngelesLocation(location, locationDetails) || !validate()) return;
     onBrowseStudios?.(getSchedulePayload());
   };
 
@@ -1320,7 +1321,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       {!isStudioFlow && (
         <div className="mb-5 2xl:mb-8">
           <h2 className="text-base lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
-            Location / Venue
+            Location / Venue <span className="text-[#E8D1AB]">*</span>
           </h2>
           <LocationPicker
             value={location}
@@ -1344,7 +1345,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       }
       {
-        !isStudioFlow ? <>
+        !isStudioFlow && isLosAngelesLocation(location, locationDetails) && onBrowseStudios ? <>
           <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Studio Banner */}
@@ -1369,7 +1370,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               Browse Studios
             </button>
           </div>
-        </> : showStudioCreatorBanner ? <>
+        </> : isStudioFlow && showStudioCreatorBanner ? <>
           <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Creator Banner */}

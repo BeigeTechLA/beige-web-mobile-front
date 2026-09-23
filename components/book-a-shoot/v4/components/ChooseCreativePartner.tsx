@@ -349,7 +349,7 @@ export default function ChooseCreativePartner({
   initialLetBeigeChoose = false,
   title = "Choose Your Creative Partner",
   subtitle = "Choose your preferred team and complete your booking. Not sure who to pick? No worries—let Beige choose the right Creative Partner for you.",
-  stepNumber = "07",
+  stepNumber = "7",
   completionPercentage = 80,
 }: ChooseCreativePartnerProps) {
   const [loading, setLoading] = useState<boolean>(true);
@@ -871,8 +871,8 @@ export default function ChooseCreativePartner({
               <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
-                  Photographer(s): {String(selectedCounts.photo).padStart(2, "0")}/
-                  {String(requirements.required.photo).padStart(2, "0")}
+                  Photographer(s): {String(selectedCounts.photo)}/
+                  {String(requirements.required.photo)}
                 </span>
               </div>
             )}
@@ -882,8 +882,8 @@ export default function ChooseCreativePartner({
               <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Video className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
-                  Videographer(s): {String(selectedCounts.video).padStart(2, "0")}/
-                  {String(requirements.required.video).padStart(2, "0")}
+                  Videographer(s): {String(selectedCounts.video)}/
+                  {String(requirements.required.video)}
                 </span>
               </div>
             )}
@@ -893,8 +893,8 @@ export default function ChooseCreativePartner({
               <div className={`${isFourItems ? "w-full":""} px-4 py-2.5 2xl:py-4 lg:px-10 rounded-lg lg:rounded-2xl border border-white/20 bg-[linear-gradient(180deg,#191919_0%,rgba(16,16,16,0.00)_100%)] text-sm lg:text-lg font-medium text-white/80 flex items-center justify-center gap-2`}>
                 <Camera className="w-5 h-5 lg:w-7 lg:h-7 text-white" strokeWidth={1} />
                 <span>
-                  Photo + Video: {String(selectedCounts.hybrid).padStart(2, "0")}/
-                  {String(requirements.required.hybrid).padStart(2, "0")}
+                  Photo + Video: {String(selectedCounts.hybrid)}/
+                  {String(requirements.required.hybrid)}
                 </span>
               </div>
             )}
@@ -922,7 +922,7 @@ export default function ChooseCreativePartner({
           disabled={!canContinue}
           className="px-5 lg:px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
-          Continue with {String(selectedIds.length).padStart(2, "0")} Creatives
+          Continue with {String(selectedIds.length)} Creatives
         </button>
       </div>
     </div>

@@ -17,31 +17,31 @@ const SERVICES: ServiceOption[] = [
     id: "photography",
     title: "Photography",
     description: "Events, concerts, portraits, products",
-    iconSrc: "/images/misc/BookingFlow/Camera.png",
+    iconSrc: "/images/misc/BookingFlow/Camera1.png",
   },
   {
     id: "videography",
     title: "Videography",
     description: "Events, commercials, brand videos",
-    iconSrc: "/images/misc/BookingFlow/VideoRecorder.png",
+    iconSrc: "/images/misc/BookingFlow/VideoRecorder2.png",
   },
   {
     id: "editing",
     title: "Editing",
     description: "Post-production on footage you already have",
-    iconSrc: "/images/misc/BookingFlow/Edit.png",
+    iconSrc: "/images/misc/BookingFlow/Edit2.png",
   },
   {
     id: "studios",
     title: "Studios",
     description: "Studios made for photos, videos, & events",
-    iconSrc: "/images/misc/BookingFlow/Studio.png",
+    iconSrc: "/images/misc/BookingFlow/Studio3.png",
   },
   {
     id: "livestream",
     title: "Livestream",
     description: "Live broadcasts, webinars, hybrid events",
-    iconSrc: "/images/misc/BookingFlow/LiveStream.png",
+    iconSrc: "/images/misc/BookingFlow/LiveStream2.png",
     disabled: true,
   },
 ];
@@ -61,8 +61,8 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
   onBack,
   initialSelected = ["photography"],
   title = "How do you want to Beige?",
-  subtitle = "Select everything you need to bring your vision to life in one seamless production.",
-  stepNumber = "01",
+  subtitle = "Select everything you need. We’ll bring it together into one seamless production.",
+  stepNumber = "1",
   completionPercentage = 20,
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelected);

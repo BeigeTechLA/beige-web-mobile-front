@@ -7,13 +7,16 @@ import { CheckCircle2 } from "lucide-react";
 interface GuidedBookingCardProps {
   onContinue?: (email: string) => void;
   imageSrc?: string;
+  initialEmail?: string;
 }
 
 export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
   onContinue,
+  initialEmail = "",
   imageSrc = "/images/misc/BookingFlow/GuidedBookingImg.png", // replace with your asset path
 }) => {
-  const [email, setEmail] = useState("");
+  const [editedEmail, setEditedEmail] = useState<string | null>(null);
+  const email = editedEmail ?? initialEmail;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +65,7 @@ export const GuidedBookingCard: React.FC<GuidedBookingCardProps> = ({
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEditedEmail(e.target.value)}
                 placeholder="Please enter your email"
                 autoComplete="email"
                 autoCapitalize="none"
