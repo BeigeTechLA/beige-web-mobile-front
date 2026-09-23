@@ -81,9 +81,9 @@ export default function QuotePricingPage() {
   const [quoteStatusOptions, setQuoteStatusOptions] = useState<any[]>([]);
   const [paymentStatusOptions, setPaymentStatusOptions] = useState<any[]>([]);
   const [leadSourceOptions, setLeadSourceOptions] = useState<any[]>([]);
-  const [shootTypeOptions, setShootTypeOptions] = useState<any[]>([]);
+  const [serviceOptions, setServiceOptions] = useState<any[]>([]);
   const [customerTypeOptions, setCustomerTypeOptions] = useState<any[]>([]);
-  const [selectedShootType, setSelectedShootType] = useState("");
+  const [selectedService, setSelectedService] = useState("");
   const [selectedQuoteStatus, setSelectedQuoteStatus] = useState("");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("");
   const [selectedLeadSource, setSelectedLeadSource] = useState("");
@@ -95,7 +95,7 @@ export default function QuotePricingPage() {
     const params: Record<string, string> = {};
 
     if (selectedSalesperson && selectedSalesperson !== "all") params.sales_rep_id = selectedSalesperson;
-    if (selectedShootType && selectedShootType !== "all") params.shoot_type = selectedShootType;
+    if (selectedService && selectedService !== "all") params.service = selectedService;
     if (selectedQuoteStatus && selectedQuoteStatus !== "all") params.quote_status = selectedQuoteStatus;
     if (selectedPaymentStatus && selectedPaymentStatus !== "all") params.payment_status = selectedPaymentStatus;
     if (selectedLeadSource && selectedLeadSource !== "all") params.lead_source = selectedLeadSource;
@@ -116,7 +116,7 @@ export default function QuotePricingPage() {
     }
 
     return params;
-  }, [selectedDate, selectedStartDate, selectedEndDate, selectedSalesperson, selectedShootType, selectedQuoteStatus, selectedPaymentStatus, selectedLeadSource, selectedCustomerType]);
+   }, [selectedDate, selectedStartDate, selectedEndDate, selectedSalesperson, selectedService, selectedQuoteStatus, selectedPaymentStatus, selectedLeadSource, selectedCustomerType]);
 
 const fetchQuoteAnalytics = useCallback(async () => {
   try {
@@ -205,7 +205,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
     setPaymentStatusOptions(response.data.payment_statuses ?? []);
     setLeadSourceOptions(response.data.lead_sources ?? []);
     setCustomerTypeOptions(response.data.customer_types ?? []);
-    setShootTypeOptions(response.data.shoot_types ?? []);
+    setServiceOptions(response.data.services ?? []);
   };
 
   void fetchQuoteAnalyticsFilters();
@@ -280,9 +280,9 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
-                      <span>{salesperson.name}</span>
+                      <span className="capitalize">{salesperson.name}</span>
                       {salesperson.role ? (
-                        <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        <span className={`mt-1 text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
                           {salesperson.role}
                         </span>
                       ) : null}
@@ -292,16 +292,15 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
               </SelectContent>
             </Select>
 
-            {/* Shoot Type */}
-            <Select value={selectedShootType} onValueChange={setSelectedShootType}>
+            {/* Service */}
+            <Select value={selectedService} onValueChange={setSelectedService}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
               >
-                <SelectValue placeholder="Shoot Type" className="text-sm medium" />
-              </SelectTrigger>
+                <SelectValue placeholder="Service" className="text-sm medium" />              </SelectTrigger>
               <SelectContent
                 className={
                   isDark
@@ -309,11 +308,11 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Shoots</SelectItem>
-                {shootTypeOptions.map((option) => (
+                <SelectItem value="all">All Services</SelectItem>
+                {serviceOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{option.label ?? option.value}</span>
+                      <span className="capitalize">{option.label ?? option.value}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -341,7 +340,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 {quoteStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{option.label}</span>
+                      <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -369,7 +368,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 {paymentStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{option.label}</span>
+                      <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
@@ -377,7 +376,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             </Select>
 
             {/* Lead Source: Options to be updated as per availability */}
-            <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
+            {/* <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
               <SelectTrigger
                 className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -393,16 +392,16 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All LEad Sources</SelectItem>
+                <SelectItem value="all">All Lead Sources</SelectItem>
                 {leadSourceOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{option.label}</span>
+                      <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
 
             {/* Customer Type: Options to be updated as per availability */}
             <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
@@ -422,7 +421,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 {customerTypeOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex flex-col leading-tight">
-                      <span>{option.label}</span>
+                      <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
                 ))}

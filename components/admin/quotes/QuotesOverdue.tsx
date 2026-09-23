@@ -8,6 +8,8 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-react";
+import { formatQuoteStatusText, getQuoteStatusPillClasses } from "./OpenPipeline";
+import Link from "next/link";
 
 // const DUMMY_OVERDUE_QUOTES: QuoteOverdueItem[] = [
 //   {
@@ -382,7 +384,7 @@ const paginationItems = buildPaginationItems(page, totalPages);
                     }`}
                 >
                   <th className="px-5 py-4">Client Name & Quote No</th>
-                  <th className="p-4">Project</th>
+                  {/* <th className="p-4">Project</th> */}
                   <th className="p-4">Payment Status</th>
                   <th className="p-4">Amount</th>
                   <th className="p-4">Quote Status</th>
@@ -450,9 +452,14 @@ const paginationItems = buildPaginationItems(page, totalPages);
                                 <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                                   {item.client.name}
                                 </span>
-                                <span className={`text-[10px] lg:text-xs ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}>
-                                  ({item.quote_number})
-                                </span>
+                              <Link
+                                href={`/admin/quotes/${item.sales_quote_id}`}
+                                className={`text-[10px] lg:text-xs hover:underline ${
+                                  isDark ? "text-[#E8D1AB]" : "text-black/40"
+                                }`}
+                              >
+                                ({item.quote_number || "-"})
+                              </Link>
                               </div>
                               <div className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
                                 {item.client.email}
@@ -462,52 +469,54 @@ const paginationItems = buildPaginationItems(page, totalPages);
                         </td>
 
                         {/* Project */}
-                        <td className={`p-4 truncate max-w-[150px]`}>
+                        {/* <td className={`p-4 truncate max-w-[150px]`}>
                           {item.project}
-                        </td>
+                        </td> */}
 
                         {/* Booking Status Badge */}
                         <td className="p-4">
                           {item.lead_source ? (
-                            <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A]">
-                              {item.lead_source}
+                            <span
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (item.lead_id) {
+                                  window.location.href = `/admin/sales-representative/${item.lead_id}`;
+                                }
+                              }}
+                              className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A] cursor-pointer hover:bg-[#c2f7d5] transition-colors"
+                            >
+                              Converted to Booking
                             </span>
                           ) : (
-                            <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
-                              Pending
+                            <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
+                              Pending Booking
                             </span>
                           )}
                         </td>
                         {/* Amount */}
                         <td className="p-4">
-                          <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}
-                          >
-                            ${item.quote_value.toLocaleString()}
+                          <div className="flex flex-col">
+                            <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                              ${item.quote_value.toLocaleString()}
+                            </span>
+                            {item.collected_amount > 0 && (
+                              <span className="text-[10px]  text-green-600 uppercase whitespace-nowrap">
+                                Paid: ${item.collected_amount.toLocaleString()}
+                              </span>
+                            )}
+                            {item.outstanding_amount > 0 && (
+                              <span className="text-[12px]  text-orange-400 uppercase whitespace-nowrap mt-0.5">
+                                Pending: ${item.outstanding_amount.toLocaleString()}
+                              </span>
+                            )}
                           </div>
-                          {item.collected_amount > 0 && (
-                            <div className="text-[10px] lg:text-xs text-[#14BC52]">
-                              PAID - ${item.collected_amount.toLocaleString()}
-                            </div>
-                          )}
-                          {item.outstanding_amount > 0 && (
-                            <div className="text-[10px] lg:text-xs text-[#F29831]">
-                              PENDING - ${item.outstanding_amount.toLocaleString()}
-                            </div>
-                          )}
                         </td>
 
                         {/* Quote Status Badge */}
                       <td className="p-4">
-                        <span
-                          className={`inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium ${
-                            item.quote_status === "sent"
-                              ? "bg-[#AAD0FF] text-[#0C52A8]"
-                              : item.quote_status === "accepted"
-                                ? "bg-[#D4FFE4] text-[#16A34A]"
-                                : "bg-[#FFF0CF] text-[#C06D24]"
-                          }`}
-                        >
-                          {item.quote_status.replace("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())}
+                        <span className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                          {formatQuoteStatusText(item.quote_status)}
                         </span>
                       </td>
 

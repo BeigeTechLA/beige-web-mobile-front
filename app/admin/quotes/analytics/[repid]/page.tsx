@@ -50,26 +50,36 @@ export default function QuoteSalesRepDetailsPage() {
   const [analytics, setAnalytics] = useState<RepAnalyticsData | null>(null);
   const [dealsWon, setDealsWon] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overdueQuotes, setOverdueQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
+  const [overdueAllQuotes, setOverdueAllQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overduePage, setOverduePage] = useState(1);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!salesRepId) return;
+    setOverduePage(1);
     const load = async () => {
-      const [analyticsResponse, dealsWonResponse, overdueResponse] = await Promise.all([
+      const [analyticsResponse, dealsWonResponse, overdueAllResponse] = await Promise.all([        
         salesApi.getQuoteAnalyticsByRep(salesRepId),
-        salesApi.getQuoteAnalyticsQuotes({ bucket: "deals_won", sales_rep_id: salesRepId, limit: 20 }),
-        salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 20 }),
+        salesApi.getQuoteAnalyticsQuotes({ bucket: "deals_won", sales_rep_id: salesRepId, limit: "all" }),
+        salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, limit: "all" }),
       ]);
       if (analyticsResponse.success) setAnalytics(analyticsResponse.data as RepAnalyticsData);
       if (dealsWonResponse.success) setDealsWon(dealsWonResponse.data);
-      if (overdueResponse.success) setOverdueQuotes(overdueResponse.data);
+      if (overdueAllResponse.success) setOverdueAllQuotes(overdueAllResponse.data);
     };
     void load();
+  }, [salesRepId]);
+
+  useEffect(() => {
+    if (!salesRepId) return;
+    const loadOverdueTable = async () => {
+      const overdueResponse = await salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 20 });
+      if (overdueResponse.success) setOverdueQuotes(overdueResponse.data);
+    };
+    void loadOverdueTable();
   }, [overduePage, salesRepId]);
 
   const dealWonColumn = useMemo(() => toDealColumn("Deal Won", dealsWon), [dealsWon]);
-  const overdueColumn = useMemo(() => toDealColumn("Overdue Follow-ups", overdueQuotes), [overdueQuotes]);
-  const conversionData = {
+  const overdueColumn = useMemo(() => toDealColumn("Overdue Follow-ups", overdueAllQuotes), [overdueAllQuotes]);  const conversionData = {
     deals_won: analytics?.overview?.deals_won ?? 0,
     quotes_sent: analytics?.overview?.quotes_sent ?? 0,
     win_rate: analytics?.overview?.win_rate ?? 0,

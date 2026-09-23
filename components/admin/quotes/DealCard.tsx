@@ -2,6 +2,7 @@
 
 import React from "react";
 import { DealItem } from "./DealColumn";
+import { formatQuoteStatusText, getQuoteStatusPillClasses } from "./OpenPipeline";
 
 type DealCardProps = {
   deal: DealItem;
@@ -46,8 +47,12 @@ export const DealCard = ({ deal, isDark = true }: DealCardProps) => {
         </div>
 
         {/* Status Badge */}
-        <span className="rounded-full bg-[#D4FFE4] px-4 py-1.5 text-sm lg:text-base font-medium text-[#16A34A]">
-          {deal.status}
+        <span
+          className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium ${getQuoteStatusPillClasses(
+            deal.status
+          )}`}
+        >
+          {formatQuoteStatusText(deal.status)}
         </span>
       </div>
 

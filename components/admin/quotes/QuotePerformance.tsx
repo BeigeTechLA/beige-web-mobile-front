@@ -118,9 +118,16 @@ interface MetricCardData {
 // Custom Active Tooltip Pill hovering over the Apr peak
 const CustomTooltip = ({ active, payload, activeMetric }: any) => {
   if (active && payload && payload.length) {
+    const value = payload[0]?.value ?? 0;
+
+    const formattedValue =
+      activeMetric.key === "quoteValue" || activeMetric.key === "wonRevenue"
+        ? `$${Number(value).toLocaleString()}`
+        : `${Number(value).toLocaleString()}`;
+
     return (
       <div className="bg-white text-black font-extrabold text-xs px-3 py-1.5 rounded-lg shadow-xl border border-white/20">
-        {activeMetric.formattedTooltip}
+        {formattedValue}
       </div>
     );
   }
@@ -345,6 +352,29 @@ const currentMetric = metricsData[activeMetricKey];
               tickLine={false}
               tick={{ fill: isDark ? "#666666" : "#888888", fontSize: 12 }}
               axisLine={false}
+              tickFormatter={(value) => {
+                const isCurrency =
+                  activeMetricKey === "quoteValue" ||
+                  activeMetricKey === "wonRevenue";
+
+                if (isCurrency) {
+                  if (value >= 1000000) {
+                    return `$${(value / 1000000).toFixed(1)}M`;
+                  }
+
+                  if (value >= 1000) {
+                    return `$${(value / 1000).toFixed(0)}K`;
+                  }
+
+                  return `$${value}`;
+                }
+
+                if (value >= 1000) {
+                  return `${(value / 1000).toFixed(0)}K`;
+                }
+
+                return value;
+              }}
             />
 
             <XAxis

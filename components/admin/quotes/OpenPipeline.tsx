@@ -9,6 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
+import Link from "next/link";
 
 type OpenPipelineData = {
   count: number;
@@ -21,6 +22,28 @@ type OpenPipelineData = {
 };
 
 type PaginationItem = number | "...";
+
+export const QUOTE_STATUS_PILL_STYLES: Record<string, string> = {
+  accepted: "bg-[#D4FFE4] text-[#16A34A]",
+  confirmed: "bg-[#D4FFE4] text-[#16A34A]",
+  paid: "bg-[#D4FFE4] text-[#16A34A]",
+  pending: "bg-[#FFF0CF] text-[#C06D24]",
+  sent: "bg-[#AAD0FF] text-[#0C52A8]",
+  viewed: "bg-[#AAD0FF] text-[#0C52A8]",
+  partially_paid: "bg-[#FFF4C2] text-[#B8860B]",
+  draft: "bg-[#E5E5E5] text-[#525252]",
+  rejected: "bg-[#FFD6D6] text-[#DC2626]",
+  cancelled: "bg-[#FFD6D6] text-[#DC2626]",
+  expired: "bg-[#E5E5E5] text-[#525252]",
+};
+
+export const getQuoteStatusPillClasses = (status?: string | null) =>
+  QUOTE_STATUS_PILL_STYLES[(status || "").toLowerCase()] ?? "bg-[#AAD0FF] text-[#0C52A8]";
+
+export const formatQuoteStatusText = (status?: string | null) => {
+  const normalized = String(status || "-").replace(/_/g, " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
 
 const buildPaginationItems = (
   currentPage: number,
@@ -320,7 +343,7 @@ export default function OpenPipelineWidget({
                     }`}
                 >
                   <th className="px-5 py-4">Client Name & Quote No</th>
-                  <th className="p-4">Project</th>
+                  {/* <th className="p-4">Project</th> */}
                   <th className="p-4">Booking Status</th>
                   <th className="p-4">Amount</th>
                   <th className="p-4">Quote Status</th>
@@ -379,9 +402,14 @@ export default function OpenPipelineWidget({
                               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                                 {item.client?.name || "-"}
                               </span>
-                              <span className={`text-[10px] lg:text-xs ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}>
+                              <Link
+                                href={`/admin/quotes/${item.sales_quote_id}`}
+                                className={`text-[10px] lg:text-xs hover:underline ${
+                                  isDark ? "text-[#E8D1AB]" : "text-black/40"
+                                }`}
+                              >
                                 ({item.quote_number || "-"})
-                              </span>
+                              </Link>
                             </div>
                             <div className={`text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>
                                 {item.client?.email || "-"}
@@ -391,45 +419,48 @@ export default function OpenPipelineWidget({
                       </td>
 
                       {/* Project */}
-                      <td className={`p-4 truncate max-w-[150px]`}>
+                      {/* <td className={`p-4 truncate max-w-[150px]`}>
                         {item.project || "-"}
-                      </td>
+                      </td> */}
 
                       {/* Booking Status Badge */}
                       <td className="p-4">
                         {item.lead_source ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A]">
-                            {item.lead_source}
+                          <span
+                            className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium bg-[#D4FFE4] text-[#16A34A] cursor-pointer hover:bg-[#c2f7d5] transition-colors"
+                          >
+                            Converted to Booking
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
-                            Pending
+                          <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium bg-[#FFF0CF] text-[#C06D24]">
+                            Pending Booking
                           </span>
                         )}
                       </td>
 
                       {/* Amount */}
                       <td className="p-4">
-                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}
-                        >
-                          ${Number(item.quote_value || 0).toLocaleString()}
+                        <div className="flex flex-col">
+                          <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                            ${Number(item.quote_value || 0).toLocaleString()}
+                          </span>
+                          {item.collected_amount > 0 && (
+                            <span className="text-[12px]  text-green-600 uppercase whitespace-nowrap">
+                              Paid: ${Number(item.collected_amount).toLocaleString()}
+                            </span>
+                          )}
+                          {item.outstanding_amount > 0 && (
+                            <span className="text-[12px]  text-orange-400 uppercase whitespace-nowrap mt-0.5">
+                              Pending: ${Number(item.outstanding_amount).toLocaleString()}
+                            </span>
+                          )}
                         </div>
-                        {item.collected_amount > 0 && (
-                          <div className="text-[10px] lg:text-xs text-[#14BC52]">
-                            PAID - ${Number(item.collected_amount).toLocaleString()}
-                          </div>
-                        )}
-                        {item.outstanding_amount > 0 && (
-                          <div className="text-[10px] lg:text-xs text-[#F29831]">
-                            PENDING - ${Number(item.outstanding_amount).toLocaleString()}
-                          </div>
-                        )}
                       </td>
 
                       {/* Quote Status Badge */}
                       <td className="p-4">
-                        <span className="inline-flex items-center justify-center px-3 py-1 lg:px-5 lg:py-3 rounded-full text-xs lg:text-sm font-medium bg-[#AAD0FF] text-[#0C52A8]">
-                          {String(item.quote_status || "-").replace(/_/g, " ")}
+                        <span className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                          {formatQuoteStatusText(item.quote_status)}
                         </span>
                       </td>
 
