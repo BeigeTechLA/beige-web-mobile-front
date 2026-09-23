@@ -16,6 +16,7 @@ import {
   Receipt,
   Settings,
   User,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -128,6 +129,12 @@ const menuItems: MenuItem[] = [
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
       { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
+  },
+  {
+    name: "Agreements",
+    icon: ClipboardList,
+    link: "/admin/agreements",
+    permissionKeys: ["agreements"],
   },
   {
     name: "Invoices",

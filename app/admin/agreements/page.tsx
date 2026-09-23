@@ -109,11 +109,10 @@ export default function AdminSaleRepManagerPage() {
         actions={
           <>
             <Button
-              onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+              onClick={() => router.push("/admin/agreements/create-generate-agreement")}
               disabled={!canCreate}
               title={canCreate ? "Create New Lead" : "Create permission not allowed"}
-              className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
-                }`}
+              className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
             >
               Create General Agreement
             </Button>
@@ -124,18 +123,10 @@ export default function AdminSaleRepManagerPage() {
       <div className={`min-h-screen pb-30 p-4 lg:p-6 lg:px-10 lg:py-9 transition-colors duration-300 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}>
         <div className="flex flex-col lg:flex-row gap-6 justify-between items-start w-full">
           <div>
-            <h1
-              className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${
-                isDark ? "text-white" : "text-black"
-              }`}
-            >
+            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
               Agreements
             </h1>
-            <p
-              className={`text-xs lg:text-sm transition-colors ${
-                isDark ? "text-white/70" : "text-black/60"
-              }`}
-            >
+            <p className={`text-xs lg:text-sm transition-colors ${isDark ? "text-white/70" : "text-black/60"}`}>
               Review and manage all agreements in one place
             </p>
           </div>
@@ -330,7 +321,7 @@ export default function AdminSaleRepManagerPage() {
           }`}
         >
           <Button
-            onClick={() => router.push("/admin/sales-representative/create-new-deal")}
+            onClick={() => router.push("/admin/agreements/create-generate-agreement")}
             disabled={!canCreate}
             title={canCreate ? "Create New Lead" : "Create permission not allowed"}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
