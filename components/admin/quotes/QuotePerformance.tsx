@@ -40,82 +40,6 @@ interface MetricCardData {
   infoTooltip: string;
 }
 
-// const metricsData: Record<MetricKey, MetricCardData> = {
-//   quoteValue: {
-//     key: "quoteValue",
-//     label: "Quote Value",
-//     value: "$24.5M",
-//     growth: "+3%",
-//     icon: CircleDollarSign,
-//     formattedTooltip: "$24.5M",
-//     infoTooltip: "Total amount of the proposals sent in the selected period",
-//     data: [
-//       { month: "Jan", value: 30 },
-//       { month: "Feb", value: 20 },
-//       { month: "Mar", value: 35 },
-//       { month: "Apr", value: 65 },
-//       { month: "May", value: 60 },
-//       { month: "Jun", value: 45 },
-//       { month: "Jul", value: 50 },
-//     ],
-//   },
-//   quotesSent: {
-//     key: "quotesSent",
-//     label: "Quotes Sent",
-//     value: "128",
-//     growth: "+3%",
-//     icon: Clock4,
-//     formattedTooltip: "128 Quotes",
-//     infoTooltip: "Total Number of quotes sent.",
-//     data: [
-//       { month: "Jan", value: 40 },
-//       { month: "Feb", value: 45 },
-//       { month: "Mar", value: 52 },
-//       { month: "Apr", value: 70 },
-//       { month: "May", value: 68 },
-//       { month: "Jun", value: 75 },
-//       { month: "Jul", value: 80 },
-//     ],
-//   },
-//   dealsWon: {
-//     key: "dealsWon",
-//     label: "Deals Won",
-//     value: "32",
-//     growth: "+3%",
-//     icon: BadgeCheck,
-//     formattedTooltip: "32 Deals",
-//     infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
-//     data: [
-//       { month: "Jan", value: 15 },
-//       { month: "Feb", value: 18 },
-//       { month: "Mar", value: 24 },
-//       { month: "Apr", value: 40 },
-//       { month: "May", value: 38 },
-//       { month: "Jun", value: 42 },
-//       { month: "Jul", value: 55 },
-//     ],
-//   },
-//   wonRevenue: {
-//     key: "wonRevenue",
-//     label: "Won Revenue",
-//     value: "$8.7M",
-//     growth: "+3%",
-//     icon: CircleDollarSign,
-//     formattedTooltip: "$8.7M",
-//     infoTooltip: "Total amount of deals won",
-//     data: [
-//       { month: "Jan", value: 25 },
-//       { month: "Feb", value: 22 },
-//       { month: "Mar", value: 30 },
-//       { month: "Apr", value: 58 },
-//       { month: "May", value: 52 },
-//       { month: "Jun", value: 48 },
-//       { month: "Jul", value: 62 },
-//     ],
-//   },
-// };
-
-// Custom Active Tooltip Pill hovering over the Apr peak
 const CustomTooltip = ({ active, payload, activeMetric }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -158,7 +82,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.quote_value.toLocaleString()}`,
-    infoTooltip: "Total amount of the proposals sent in the selected period",
+    infoTooltip: "Total value of proposals sent during the selected period ",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.quote_value,
@@ -172,7 +96,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: Clock4,
     formattedTooltip: `${totals.quotes_sent} Quotes`,
-    infoTooltip: "Total Number of quotes sent.",
+    infoTooltip: "Number of proposals sent during the selected period",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.quotes_sent,
@@ -186,7 +110,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: BadgeCheck,
     formattedTooltip: `${totals.deals_won} Deals`,
-    infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
+    infoTooltip: "Number of proposals that converted into paid bookings",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.deals_won,
@@ -200,7 +124,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.won_revenue.toLocaleString()}`,
-    infoTooltip: "Total amount of deals won",
+    infoTooltip: "Total revenue from proposals that converted into paid bookings",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.won_revenue,
@@ -211,8 +135,7 @@ export default function QuotePerformanceWidget({
 const currentMetric = metricsData[activeMetricKey];
 
   return (
-    <div className={`w-full rounded-lg lg:rounded-2xl border p-3 lg:p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"
-      }`}>
+    <div className={`w-full rounded-2xl border p-5 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717] text-white" : "border-black/10 bg-white text-black"}`}>
       {/* Header Title */}
       <div className="flex items-center gap-2.5 mb-5">
         <span className="h-7 w-[3px] bg-[#E8D1AB] rounded-full inline-block" />
@@ -222,8 +145,7 @@ const currentMetric = metricsData[activeMetricKey];
       </div>
 
       {/* Top 2x2 Metric Cards Grid Area */}
-      <div className={`grid grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl mb-4 ${isDark ? "bg-[#101010]" : "bg-zinc-100"
-        }`}>
+      <div className={`grid lg:grid-cols-2 gap-2 p-3 lg:p-5 rounded-lg lg:rounded-2xl mb-4 ${isDark ? "bg-[#101010]" : "bg-zinc-100"}`}>
         {(Object.keys(metricsData) as MetricKey[]).map((key) => {
           const item = metricsData[key];
           const isActive = activeMetricKey === key;
@@ -243,7 +165,7 @@ const currentMetric = metricsData[activeMetricKey];
             >
               {/* Card Header Row */}
               <div className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-1.5 text-xs lg:text-sm font-medium">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
                   <span className={isActive ? "text-black" : isDark ? "text-white" : "text-black"}>
                     {item.label}
                   </span>
@@ -305,7 +227,7 @@ const currentMetric = metricsData[activeMetricKey];
 
               {/* Metric Value & Growth Rate */}
               <div className="mt-2.5">
-                <div className="text-lg lg:text-2xl font-semibold">
+                <div className="text-2xl font-semibold">
                   {item.value}
                 </div>
                 <div
