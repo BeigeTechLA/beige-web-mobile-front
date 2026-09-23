@@ -347,23 +347,27 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-xl lg:rounded-2xl p-1 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => handleViewModeChange("stack")}
-              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                : "text-white hover:text-white/80"
-                }`}
-            >
-              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
-            </button>
-            <button
-              type="button"
               onClick={() => handleViewModeChange("grid")}
+              aria-label="Grid View"
+              aria-pressed={viewMode === "grid"}
               className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
                 }`}
             >
               <LayoutGrid className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange("stack")}
+              aria-label="Stack View"
+              aria-pressed={viewMode === "stack"}
+              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
+                }`}
+            >
+              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
             </button>
           </div>
         </div>
