@@ -55,7 +55,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   photoEditOptions = [],
   showVideoEdits = true,
   showPhotoEdits = true,
-  stepLabel = "STEP 04",
+  stepLabel = "STEP 4",
   progressPercent = 44,
 }) => {
   const [needsEdits, setNeedsEdits] = useState<boolean>(initialConfig.needsEdits);
@@ -133,7 +133,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
 
     onContinue({
       needsEdits,
-      editedPhotosSets,
+      editedPhotosSets: needsEdits && showPhotoEdits ? editedPhotosSets : 0,
       videoEditTypes,
       photoEditTypes:
         needsEdits && showPhotoEdits
@@ -197,7 +197,14 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                 : "border-white/40 bg-transparent"
                 }`}
             >
-              {needsEdits && (
+              {!needsEdits && showPhotoEdits && (
+          <div className="border-t border-white/10 pt-5 text-white/70">
+            <h3 className="font-medium text-white">No additional edits</h3>
+            <p className="mt-2 text-sm lg:text-base">Your photos will still receive standard color and lighting corrections.</p>
+          </div>
+        )}
+
+        {needsEdits && (
                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
               )}
             </div>
@@ -239,23 +246,46 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
               height={18}
             />
             <span className="text-xs lg:text-sm">
-              Professional color grading, sound mixing, selected video packages, and polished photo delivery.
+              Color grading, sound mixing, thoughtful pacing, and delivery optimized for your selected content.
             </span>
           </div>
         </div>
 
+        {!needsEdits && showPhotoEdits && (
+          <div className="border-t border-white/10 pt-5 text-white/70">
+            <h3 className="font-medium text-white">No additional edits</h3>
+            <p className="mt-2 text-sm lg:text-base">Your photos will still receive standard color and lighting corrections.</p>
+          </div>
+        )}
+
         {needsEdits && (
           <div className="space-y-4 lg:space-y-6 2xl:space-y-8">
+            {showPhotoEdits && photoEditOptions.length > 0 && (
+              <CollapsibleEdit
+                title="Photo Edits"
+                itemLabel="Edited Photos"
+                setsCount={editedPhotosSets}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                baseFreeCount={roundedBaseFreePhotos}
+                perSetCount={photosPerSet}
+                durationLabel={durationLabel}
+                totalCount={totalPhotos}
+              />
+            )}
+
             {showVideoEdits && videoEditOptions.length > 0 && (
               <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
                 <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isVideoOpen ? "border-b border-white/20 rounded-b-lg lg:rounded-b-2xl" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setIsVideoOpen((prev) => !prev)}
+                    aria-expanded={isVideoOpen}
+                    aria-controls="video-edit-options"
                     className="w-full py-5 px-3.5 lg:p-7 2xl:py-9 flex items-center justify-between text-left"
                   >
                     <h3 className="text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
-                      Video Edits
+                      Choose your edits
                     </h3>
                     <div className="flex items-center gap-3 text-white/70">
                       {/* <Video className="w-5 h-5 lg:w-8 lg:h-8" /> */}
@@ -272,6 +302,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
+                      id="video-edit-options"
                       className="overflow-hidden"
                     >
                       <div className="p-4 lg:p-8 space-y-4">
@@ -301,7 +332,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                                   <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
                                 </button>
                                 <span className="w-6 text-center text-sm lg:text-xl font-medium">
-                                  {String(count).padStart(2, "0")}
+                                  {String(count)}
                                 </span>
                                 <button
                                   type="button"
@@ -319,22 +350,6 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                   )}
                 </AnimatePresence>
               </div>
-            )}
-
-            {showPhotoEdits && photoEditOptions.length > 0 && (
-              <CollapsibleEdit
-                title="Photo Edits"
-                itemLabel={photoEditOptions[0]?.value || "Edited Photos"}
-                setsCount={editedPhotosSets}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                baseFreeCount={roundedBaseFreePhotos}
-                perSetCount={photosPerSet}
-                durationLabel={durationLabel}
-                totalExtra={totalAddedExtra}
-                totalCount={totalPhotos}
-                icon="📸"
-              />
             )}
           </div>
         )}

@@ -116,7 +116,7 @@ export default function ConfirmAndPay({
   isSubmitting = false,
   title = "One Step Away",
   subtitle = "Review your final total and payment method to confirm your production.",
-  stepNumber = "09",
+  stepNumber = "9",
   completionPercentage = 98,
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -183,15 +183,15 @@ export default function ConfirmAndPay({
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 mb-0 lg:mb-8">
         {/* Left Column: Pricing Summary */}
-        <div className="lg:col-span-7 border border-white/20 rounded-lg lg:rounded-2xl flex flex-col justify-between">
-          <div className="bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) rounded-lg lg:rounded-2xl p-5 lg:px-7 border-b border-white/20">
+        <div className="lg:col-span-7 flex flex-col lg:pr-8">
+          <div className="pb-4 border-b border-white/20">
             <h2 className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
               Pricing Summary
             </h2>
           </div>
 
           {/* // show when only creative services are selected */}
-          <div className="p-4 lg:p-8">
+          <div className="py-6 lg:py-8">
             {/* Service Line Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
@@ -206,17 +206,17 @@ export default function ConfirmAndPay({
             </div>
 
             {/* Package Offer Card */}
-            <div className="bg-[#FEF5E5] text-black rounded-xl mb-3 lg:mb-6">
-              <div className="p-4 border-b border-black/40">
-                <p className="text-sm font-bold text-[#171717]">
-                  Package Offer
+            <div className="mb-6 text-white">
+              <div className="py-3">
+                <p className="text-base font-medium text-[#E8D1AB]">
+                  Included with your package
                 </p>
               </div>
 
-              <div className="p-4 space-y-3 lg:space-y-4">
+              <div className="py-3 space-y-3">
                 {data.packageOffers.map((offer, idx) => (
-                  <div key={idx} className="flex items-center gap-2.5 text-xs lg:text-sm font-medium italic text-black">
-                    <div className="w-10 h-10 rounded-full bg-[#171717] flex items-center justify-center shrink-0">
+                  <div key={idx} className="flex items-center gap-2.5 text-xs lg:text-sm text-white/75">
+                    <div className="w-8 h-8 rounded-full bg-[#211F1C] flex items-center justify-center shrink-0">
                       {idx === 0 && <ShieldCheck className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
                       {idx === 1 && <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
                       {idx === 2 && offer.toLowerCase().includes("revision") && <RotateCcw className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
@@ -257,21 +257,21 @@ export default function ConfirmAndPay({
             </div>
 
             {/* Total Edits Pill Box */}
-            <div className="bg-[#1D1C1A] border border-[#E8D1AB]/30 rounded-lg p-4 flex justify-between items-center text-[#E8D1AB]">
+            <div className="border-t border-white/10 pt-4 flex justify-between items-center text-[#E8D1AB]">
               <span className="text-sm ">Total Edits</span>
               <span className="font-bold text-base">{data.totalEditsText}</span>
             </div>
           </div>
 
           {/* Show only when Studios are selected */}
-          {/* <div className="p-4 lg:p-8">
+          {/* <div className="py-6 lg:py-8">
             <div className="flex justify-between">
               <span className="text-[#A9A9A9] text-sm">{data.studioName}</span>
               <span className="text-white text-base font-bold">{formatCurrency(data.studioFee)}</span>
             </div>
           </div>
 
-          <div className="border-t border-white/20 p-4 lg:p-8">
+          <div className="border-t border-white/20 py-6 lg:py-8">
             <div className="flex justify-between items-start">
               <div className="space-y-5">
                 <div className="flex gap-3 items-center">
@@ -304,7 +304,7 @@ export default function ConfirmAndPay({
           </div> */}
 
           {/* Fee breakdown component */}
-          {/* <div className="border-t border-white/20 p-4 lg:p-8">
+          {/* <div className="border-t border-white/20 py-6 lg:py-8">
             <div className="space-y-3 lg:space-y-4">
               <div className="flex justify-between">
                 <span className="text-[#A9A9A9] text-sm ">Base hours</span>
@@ -319,7 +319,7 @@ export default function ConfirmAndPay({
           {/* Show only when Studios are selected ---Ends */}
 
           {/* Fee breakdown component */}
-          <div className="border-t border-white/20 p-4 lg:p-8">
+          <div className="border-t border-white/20 py-6 lg:py-8">
             <div className="space-y-3 lg:space-y-4">
               <div className="flex justify-between">
                 <span className="text-[#A9A9A9] text-sm ">Editing Service</span>
@@ -370,7 +370,7 @@ export default function ConfirmAndPay({
           </div>
 
           {/* Total Amount Header */}
-          <div className="border-t border-white/20 bg-[#161515] text-[#E8D1AB] px-4 py-6 lg:p-8">
+          <div className="border-t border-white/20 text-[#E8D1AB] py-6 lg:py-8">
             <div className="flex justify-between items-center font-medium">
               <span className="text-base">Total Amount</span>
               <span className="text-xl">
@@ -378,7 +378,7 @@ export default function ConfirmAndPay({
               </span>
             </div>
           </div>
-          <div className="border-t border-white/20 p-4 lg:p-8">
+          <div className="border-t border-white/20 py-6 lg:py-8">
             {/* Action Buttons inside Left Card */}
             <div className="space-y-3">
               <button
@@ -390,27 +390,12 @@ export default function ConfirmAndPay({
                 <Check className="w-6 h-6" />
                 {isSubmitting ? "Confirming..." : "Confirm & Pay"}
               </button>
-
-              <button
-                type="button"
-                onClick={() => handleConfirmClick(data.depositAmount)}
-                disabled={!agreedToTerms}
-                className="w-full rounded-lg border border-white/10 p-5 text-center transition-colors hover:border-[#E8D1AB]/60 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <p className="text-sm lg:text-base font-medium text-[#E8D1AB]">
-                  Secure with deposit — {formatCurrency(data.depositAmount)} now
-                </p>
-                <p className="text-xs text-white/75 mt-0.5">
-                  Balance of {formatCurrency(data.totalAmount - data.depositAmount)} due on shoot day
-                </p>
-              </button>
-
             </div>
           </div>
           <button
             type="button"
             onClick={onConnectTeam}
-            className="w-full py-5 rounded-b-xl bg-white text-black font-medium text-base transition-colors hover:bg-white/90 flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-lg border border-white/30 text-white font-medium text-base transition-colors hover:bg-white/5 flex items-center justify-center gap-2"
           >
             <Phone className="w-6 h-6" />
             Connect with Beige Team
@@ -418,7 +403,7 @@ export default function ConfirmAndPay({
         </div>
 
         {/* Terms Checkbox Card */}
-      <label className="lg:hidden w-full bg-[#272626] rounded-lg p-5 flex gap-2 cursor-pointer hover:border-white/20 transition-colors">
+      <label className="lg:hidden w-full border-t border-white/10 py-5 flex gap-2 cursor-pointer hover:border-white/20 transition-colors">
         <input
           type="checkbox"
           checked={agreedToTerms}
@@ -439,8 +424,8 @@ export default function ConfirmAndPay({
       </label>
 
         {/* Right Column: ConfirmAndPay Method & Quality Guarantee */}
-        <div className="lg:col-span-5 space-y-3 lg:space-y-6">
-          <div className="bg-[#0F0F0F] border border-[#ECE5D8]/10 rounded-lg lg:rounded-2xl p-4 lg:p-7 space-y-3 lg:space-y-6">
+        <div className="lg:col-span-5 space-y-6 lg:border-l lg:border-white/10 lg:pl-8">
+          <div className="py-4 space-y-3 lg:space-y-6">
             <h2 className="text-sm lg:text-2xl font-['Roboto_Condensed'] text-white">
               Payment method
             </h2>
@@ -459,7 +444,7 @@ export default function ConfirmAndPay({
           </div>
 
           {/* Quality Guarantee Box */}
-          <div className="bg-[#121212]/90 border border-white/10 rounded-lg lg:rounded-2xl p-4 lg:p-5 flex items-start gap-3">
+          <div className="border-t border-white/10 py-5 flex items-start gap-3">
             <div className="w-10 h-10 rounded-md lg:rounded-xl bg-[#E8D5B5]/20 flex items-center justify-center shrink-0 mt-0.5">
               <BadgeCheck className="w-6 h-6 text-[#E8D1AB]" strokeWidth={1.5} />
             </div>
@@ -471,7 +456,7 @@ export default function ConfirmAndPay({
       </div>
 
       {/* Terms Checkbox Card */}
-      <label className="hidden w-full bg-[#272626] rounded-xl p-5 lg:flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
+      <label className="hidden w-full border-t border-white/10 py-5 lg:flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
         <input
           type="checkbox"
           checked={agreedToTerms}

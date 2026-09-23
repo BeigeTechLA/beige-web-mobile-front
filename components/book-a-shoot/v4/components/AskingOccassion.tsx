@@ -69,10 +69,10 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onBack,
   initialSelected = "corporate",
   title = "What are you shooting?",
-  subtitle = "Choose the type of shoot and we’ll tailor production around it.",
-  stepNumber = "02",
+  subtitle = "Choose the type of shoot and we’ll tailor the production around it.",
+  stepNumber = "2",
   completionPercentage = 30,
-  initialViewMode = "carousel",
+  initialViewMode = "grid",
   onViewModeChange,
 }) => {
   const [viewMode, setViewMode] = useState<"carousel" | "grid">(initialViewMode);
