@@ -21,6 +21,7 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 import { newshootTypes } from "@/app/data/shootData";
+import { DEFAULT_V4_SHOOT_TYPE, V4_SHOOT_TYPES } from "../shootTypes";
 
 export interface ShootStat {
   label: string;
@@ -67,7 +68,7 @@ interface AskingOccasionProps {
 export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   onContinue,
   onBack,
-  initialSelected = "corporate",
+  initialSelected = DEFAULT_V4_SHOOT_TYPE,
   title = "What are you shooting?",
   subtitle = "Choose the type of shoot and we’ll tailor the production around it.",
   stepNumber = "2",
@@ -103,7 +104,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
 
   // Derive initial shoot types list from the fixed client catalog.
   const [availableShootTypes] = useState<ShootTypeOption[]>(() =>
-    newshootTypes.filter((type) => type.key !== "coachella")
+    V4_SHOOT_TYPES
   );
 
   // Transform options so every item has an `images` array with 4 duplicate copies of `image`
@@ -117,7 +118,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
     occasions.findIndex((item) => item.key === initialSelected)
   );
 
-  const [selectedId, setSelectedId] = useState<string>(initialSelected);
+  const [selectedId, setSelectedId] = useState<string>(occasions[initialIdx]?.key || DEFAULT_V4_SHOOT_TYPE);
   const [activeCarouselIndex, setActiveCarouselIndex] =
     useState<number>(initialIdx);
   const [sampleImageIndex, setSampleImageIndex] = useState<number>(0);
@@ -285,21 +286,9 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-1.5 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => handleViewModeChange("carousel")}
-              className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "carousel"
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                : "text-white hover:text-white/80"
-                }`}
-              title="Arc Carousel View"
-            >
-              <PictureInPicture2
-                className="w-3.5 h-3.5 lg:w-6 lg:h-6"
-                strokeWidth={1}
-              />
-            </button>
-            <button
-              type="button"
               onClick={() => handleViewModeChange("grid")}
+              aria-label="Grid View"
+              aria-pressed={viewMode === "grid"}
               className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
@@ -307,6 +296,22 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
               title="Grid View"
             >
               <LayoutGrid
+                className="w-3.5 h-3.5 lg:w-6 lg:h-6"
+                strokeWidth={1}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange("carousel")}
+              aria-label="Arc Carousel View"
+              aria-pressed={viewMode === "carousel"}
+              className={`flex items-center justify-center p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "carousel"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
+                }`}
+              title="Arc Carousel View"
+            >
+              <PictureInPicture2
                 className="w-3.5 h-3.5 lg:w-6 lg:h-6"
                 strokeWidth={1}
               />

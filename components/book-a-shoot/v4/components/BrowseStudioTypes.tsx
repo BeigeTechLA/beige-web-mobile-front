@@ -16,6 +16,10 @@ export interface StudioCategoryOption {
 export interface BrowseStudioTypesProps {
   onContinue: (selectedCategoryKey: string) => void;
   onBack?: () => void;
+  initialCrewCount?: string;
+  initialShootType?: string;
+  onCrewCountChange?: (value: string) => void;
+  onShootTypeChange?: (value: string) => void;
   occasionTitle?: string;
   initialSelectedKey?: string;
   title?: string;
@@ -53,6 +57,10 @@ const DEFAULT_STUDIO_CATEGORIES: StudioCategoryOption[] = [
 export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   onContinue,
   onBack,
+  initialCrewCount = "",
+  initialShootType = "",
+  onCrewCountChange,
+  onShootTypeChange,
   occasionTitle = "Corporate Shoots",
   initialSelectedKey = "production",
   title = "",
@@ -63,8 +71,8 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   completionPercentage = 60
 }) => {
   const [selectedKey, setSelectedKey] = useState<string>(initialSelectedKey);
-  const [crewCount, setCrewCount] = useState<string>("");
-  const [shootType, setShootType] = useState<string>("");
+  const [crewCount, setCrewCount] = useState<string>(initialCrewCount);
+  const [shootType, setShootType] = useState<string>(initialShootType);
 
   const handleContinue = () => {
     onContinue(selectedKey);
@@ -191,7 +199,12 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                       id="studioCrewCount"
                       type={"text"}
                       value={crewCount}
-                      onChange={(e) => setCrewCount(e.target.value)}
+                      inputMode="numeric"
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setCrewCount(value);
+                        onCrewCountChange?.(value);
+                      }}
                       className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                     />
                   </div>
@@ -211,7 +224,10 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                           id="studioShootType"
                           type={"text"}
                           value={shootType}
-                          onChange={(e) => setShootType(e.target.value)}
+                          onChange={(e) => {
+                            setShootType(e.target.value);
+                            onShootTypeChange?.(e.target.value);
+                          }}
                           className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                         />
                       </div>

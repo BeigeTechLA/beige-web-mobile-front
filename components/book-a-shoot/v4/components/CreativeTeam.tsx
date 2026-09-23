@@ -1,5 +1,6 @@
 "use client";
 
+import { getCreativeTeamError } from "../bookingRules";
 import React, { useState } from "react";
 import { ArrowLeft, Info, Minus, Plus } from "lucide-react";
 
@@ -74,6 +75,8 @@ export default function CreativeTeam({
     return acc;
   }, {});
   const totalSelected = Object.values(visibleCounts).reduce((acc, curr) => acc + curr, 0);
+
+  const teamError = getCreativeTeamError(selectedServices, visibleCounts);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
@@ -151,6 +154,8 @@ export default function CreativeTeam({
                 <button
                   type="button"
                   onClick={() => handleDecrement(role.id)}
+                  aria-label={`Remove ${role.name}`}
+                  disabled={count === 0}
                   className="hover:opacity-70 transition"
                 >
                   <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
@@ -161,6 +166,7 @@ export default function CreativeTeam({
                 <button
                   type="button"
                   onClick={() => handleIncrement(role.id)}
+                  aria-label={`Add ${role.name}`}
                   className="hover:opacity-70 transition"
                 >
                   <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
@@ -175,9 +181,9 @@ export default function CreativeTeam({
       <div className="inline-flex lg:items-center gap-2.5 lg:gap-3 p-4 lg:p-5 2xl:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] text-sm lg:text-base text-[#E8D1AB]">
         <Info className="w-6 h-6 shrink-0" strokeWidth={1.5} />
         <span>
-          {totalSelected > 0
+          {!teamError && totalSelected > 0
             ? `You're all set! ${totalSelected} Creative Partner${totalSelected > 1 ? "s are" : " is a"} great fit for covering your event.`
-            : "Select at least one Creative Partner to proceed with covering your event."}
+            : teamError || "No Creative Partners are required for these services."}
         </span>
       </div>
 
@@ -198,7 +204,8 @@ export default function CreativeTeam({
         </button>
         <button
           type="button"
-          onClick={() => onContinue(visibleCounts)}
+          disabled={Boolean(teamError)}
+          onClick={() => { if (!teamError) onContinue(visibleCounts); }}
           className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue

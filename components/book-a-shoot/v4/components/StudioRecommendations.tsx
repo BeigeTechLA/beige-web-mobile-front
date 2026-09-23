@@ -11,6 +11,8 @@ export interface StudioRecommendationProps {
   onContinue: (data: { studioType: string; crewCount: string }) => void;
   onChangeStudioType?: () => void;
   onBack?: () => void;
+  initialCrewCount?: string;
+  onCrewCountChange?: (value: string) => void;
   occasionTitle?: string;
   recommendedStudioType?: string;
   recommendedStudioDescription?: string;
@@ -25,6 +27,8 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
   onContinue,
   onChangeStudioType,
   onBack,
+  initialCrewCount = "",
+  onCrewCountChange,
   occasionTitle = "Corporate Event",
   recommendedStudioType = "Corporate Event",
   recommendedStudioDescription = "Conferences, summits, company offsites",
@@ -34,7 +38,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
   stepNumber = "3",
   completionPercentage = 40,
 }) => {
-  const [crewCount, setCrewCount] = useState<string>("");
+  const [crewCount, setCrewCount] = useState<string>(initialCrewCount);
 
   const handleContinue = () => {
     onContinue({
@@ -153,7 +157,12 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
                 id="crewSize"
                 type={"text"}
                 value={crewCount}
-                onChange={(e) => setCrewCount(e.target.value)}
+                inputMode="numeric"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setCrewCount(value);
+                  onCrewCountChange?.(value);
+                }}
                 className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>

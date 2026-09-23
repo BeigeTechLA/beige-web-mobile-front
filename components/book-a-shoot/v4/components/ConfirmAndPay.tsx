@@ -1,22 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  ArrowLeft,
-  Info,
-  Check,
-  CreditCard,
-  ShieldCheck,
-  Phone,
-  Clock,
-  FolderDown,
-  BadgeCheck,
-  PencilLine,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowLeft, Check, CreditCard, Phone, BadgeCheck, ChevronDown, Camera, UserRound } from "lucide-react";
 import { ServiceAgreementModal } from "@/components/common/ServiceAgreementModal";
 
 export interface PricingBreakdown {
+  serviceHeading?: string;
+  packageName?: string;
+  crewLabel?: string;
+  summaryRows?: Array<{ label: string; amount: number }>;
   serviceName: string;
   baseServiceCost: number;
   showBaseServiceCost: boolean;
@@ -120,397 +112,162 @@ export default function ConfirmAndPay({
   completionPercentage = 98,
 }: ConfirmAndPayProps) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [packageExpanded, setPackageExpanded] = useState(true);
+  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
+  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
   const data = { ...DEFAULT_PRICING, ...pricingData };
   const mandatoryFees = data.mandatoryFees.length > 0
     ? data.mandatoryFees
     : data.mandatoryFeeCost > 0
       ? [{ name: data.mandatoryFeeText || "Mandatory Fee", amount: data.mandatoryFeeCost }]
       : [];
-
-  const [acceptServiceAgreement, setAcceptServiceAgreement] = useState(true);
-  const [isServiceAgreementOpen, setIsServiceAgreementOpen] = useState(false);
-
-  const formatCurrency = (val: number) =>
-    `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const handleConfirmClick = (paymentAmount?: number) => {
-    if (!agreedToTerms) {
-      return;
-    }
-
-    onConfirmAndPay?.(paymentAmount);
+  const summaryRows = data.summaryRows ?? [
+    ...(data.showCreativeRoleCost ? [{ label: data.creativeRoleTitle, amount: data.creativeRoleCost }] : []),
+    { label: "Editing Services", amount: data.editingServiceCost },
+    ...(data.addOnsCost > 0 ? [{ label: data.addOnsText || "Add-ons", amount: data.addOnsCost }] : []),
+    ...(data.studioCost > 0 ? [{ label: data.studioText || "Studio", amount: data.studioCost }] : []),
+    ...mandatoryFees.map((fee) => ({ label: fee.name, amount: fee.amount })),
+    ...(data.pricingBalanceCost > 0 ? [{ label: data.pricingBalanceText || "Production Fee", amount: data.pricingBalanceCost }] : []),
+  ];
+  // Display charges returned by the quote; the design's sample fee is not a new charge.
+  const isCardCharge = (label: string) => /card.*(?:charge|fee)|(?:processing|payment).*fee/i.test(label);
+  const cardCharges = summaryRows.filter((row) => isCardCharge(row.label));
+  const productionRows = summaryRows.filter((row) => !isCardCharge(row.label));
+  const subtotal = data.totalAmount - cardCharges.reduce((sum, row) => sum + row.amount, 0);
+  const hasEdits = data.photosIncluded > 0 || data.extraPhotosCount > 0 || data.videoEditsCount > 0;
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  const handleConfirmClick = () => {
+    if (agreedToTerms && !isSubmitting) onConfirmAndPay?.();
   };
+  const row = (label: string, amount: number, key: React.Key) => (
+    <div key={key} className="flex items-start justify-between gap-5 text-xs lg:text-sm leading-relaxed">
+      <span className="min-w-0 text-white/50">{label}</span>
+      <span className="shrink-0 tabular-nums text-white/90">{formatCurrency(amount)}</span>
+    </div>
+  );
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
-      {/* Top Content Stack */}
-      <div>
-        {/* Back Arrow */}
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
-          </button>
-        )}
-      </div>
-
-      {/* Progress Step Header */}
-      <div className="mb-5 2xl:mb-8">
-        <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-          STEP {stepNumber}
-        </span>
-        <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-          <div
-            className="h-full bg-[#E8D1AB] w-full rounded-full transition-all duration-300"
-            style={{ width: `${completionPercentage}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Main Title & Description */}
-      <div className="mb-5 2xl:mb-8">
-        <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          {title}
-        </h1>
-        <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
-          {subtitle}
-        </p>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-6 mb-0 lg:mb-8">
-        {/* Left Column: Pricing Summary */}
-        <div className="lg:col-span-7 flex flex-col lg:pr-8">
-          <div className="pb-4 border-b border-white/20">
-            <h2 className="text-lg lg:text-2xl font-['Roboto_Condensed'] text-white">
-              Pricing Summary
-            </h2>
-          </div>
-
-          {/* // show when only creative services are selected */}
-          <div className="py-6 lg:py-8">
-            {/* Service Line Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#A9A9A9] text-sm">{data.serviceName}</span>
-                <Info className="w-5 h-5 text-white cursor-pointer" />
-              </div>
-              {data.showBaseServiceCost && (
-                <span className="text-base font-bold text-white">
-                  {formatCurrency(data.baseServiceCost)}
-                </span>
-              )}
-            </div>
-
-            {/* Package Offer Card */}
-            <div className="mb-6 text-white">
-              <div className="py-3">
-                <p className="text-base font-medium text-[#E8D1AB]">
-                  Included with your package
-                </p>
-              </div>
-
-              <div className="py-3 space-y-3">
-                {data.packageOffers.map((offer, idx) => (
-                  <div key={idx} className="flex items-center gap-2.5 text-xs lg:text-sm text-white/75">
-                    <div className="w-8 h-8 rounded-full bg-[#211F1C] flex items-center justify-center shrink-0">
-                      {idx === 0 && <ShieldCheck className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                      {idx === 1 && <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                      {idx === 2 && offer.toLowerCase().includes("revision") && <RotateCcw className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                      {idx === 2 && !offer.toLowerCase().includes("revision") && <FolderDown className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                      {idx > 2 && <FolderDown className="w-4 h-4 lg:w-5 lg:h-5 text-[#E8D1AB]" />}
-                    </div>
-                    <span>{offer}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4 text-sm text-white/70">
-              <p className="text-white/40 mb-4 text-sm">+ Editing services</p>
-              <div className="flex justify-between items-center">
-                <div className="relative flex items-center gap-2">
-                  <span className="text-white text-sm">Photos Included</span>
-                  <span className="absolute -top-1 -right-8 text-[8px] px-1 py-0.5 rounded bg-[#E8D1AB] text-black">
-                    Free
-                  </span>
-                </div>
-                <span className="text-[#E8D1AB] text-base font-bold">{data.photosIncluded} Photos</span>
-              </div>
-              {data.extraPhotosCount > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-[#A9A9A9] text-sm ">{data.extraPhotoUnitsText}</span>
-                  <span className="text-white text-base font-bold">{data.extraPhotosCount} Photos</span>
-                </div>
-              )}
-              {data.videoEditsCount > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-[#A9A9A9] text-sm max-w-1/2">{data.videoEditUnitsText}</span>
-                  <span className="text-white text-base font-bold">
-                    {data.videoEditsCount} Video{data.videoEditsCount === 1 ? "" : "s"}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Total Edits Pill Box */}
-            <div className="border-t border-white/10 pt-4 flex justify-between items-center text-[#E8D1AB]">
-              <span className="text-sm ">Total Edits</span>
-              <span className="font-bold text-base">{data.totalEditsText}</span>
-            </div>
-          </div>
-
-          {/* Show only when Studios are selected */}
-          {/* <div className="py-6 lg:py-8">
-            <div className="flex justify-between">
-              <span className="text-[#A9A9A9] text-sm">{data.studioName}</span>
-              <span className="text-white text-base font-bold">{formatCurrency(data.studioFee)}</span>
-            </div>
-          </div>
-
-          <div className="border-t border-white/20 py-6 lg:py-8">
-            <div className="flex justify-between items-start">
-              <div className="space-y-5">
-                <div className="flex gap-3 items-center">
-                  <div className="p-3 rounded-full bg-[#E8D1AB] text-black">
-                    <Clapperboard size={24} strokeWidth={1} />
-                  </div>
-                  <p className="text-lg font-medium text-white">{data.studioType}</p>
-                </div>
-                <div className="flex gap-2 items-center">
-                  <div className="space-y-2">
-                    <p className="text-white text-sm">Min Duration:</p>
-                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-xs text-center min-w-25">
-                      <span>
-                        {data.studioDuration}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-white text-sm">Max People:</p>
-                    <div className="bg-[#E8D5B5]/20 rounded-sm px-2 py-1 text-[#E8D5B5] text-xs text-center min-w-25">
-                      <span>
-                        {data.studioCrewSize}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <span className="text-[#E8D1AB] text-base font-bold mt-3">{formatCurrency(data.studioFee)}</span>
-            </div>
-          </div> */}
-
-          {/* Fee breakdown component */}
-          {/* <div className="border-t border-white/20 py-6 lg:py-8">
-            <div className="space-y-3 lg:space-y-4">
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Base hours</span>
-                <span className="text-white text-base font-bold">{formatCurrency(data.studioBaseFee)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Platform fee</span>
-                <span className="text-white text-base font-bold">{formatCurrency(data.platformFee)}</span>
-              </div>
-            </div>
-          </div> */}
-          {/* Show only when Studios are selected ---Ends */}
-
-          {/* Fee breakdown component */}
-          <div className="border-t border-white/20 py-6 lg:py-8">
-            <div className="space-y-3 lg:space-y-4">
-              <div className="flex justify-between">
-                <span className="text-[#A9A9A9] text-sm ">Editing Service</span>
-                <span className="text-white text-base font-bold">{formatCurrency(data.editingServiceCost)}</span>
-              </div>
-              {data.showCreativeRoleCost && data.creativeRoleCost > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-[#A9A9A9] text-sm ">{data.creativeRoleTitle}</span>
-                  <span className="text-white text-base font-bold">{formatCurrency(data.creativeRoleCost)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-[#A9A9A9] text-sm  flex items-center lg:gap-1.5 max-w-1/2">
-                  {data.addOnsText || `Added ${data.addOnsCount} Add-ons`}
-                  <PencilLine className="w-3.5 h-3.5 text-white hover:text-white/80 cursor-pointer shrink-0" />
-                </span>
-                <span className="text-white text-base font-bold">{formatCurrency(data.addOnsCost)}</span>
-              </div>
-              {data.studioCost > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-[#A9A9A9] text-sm ">
-                    {data.studioText || "Studio"}
-                  </span>
-                  <span className="text-white text-base font-bold">
-                    {formatCurrency(data.studioCost)}
-                  </span>
-                </div>
-              )}
-              {mandatoryFees.map((fee) => (
-                <div key={fee.name} className="flex justify-between">
-                  <span className="text-[#A9A9A9] text-sm ">{fee.name}</span>
-                  <span className="text-white text-base font-bold">
-                    {formatCurrency(fee.amount)}
-                  </span>
-                </div>
-              ))}
-              {data.pricingBalanceCost > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-[#A9A9A9] text-sm ">
-                    {data.pricingBalanceText || "Production Fee"}
-                  </span>
-                  <span className="text-white text-base font-bold">
-                    {formatCurrency(data.pricingBalanceCost)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Total Amount Header */}
-          <div className="border-t border-white/20 text-[#E8D1AB] py-6 lg:py-8">
-            <div className="flex justify-between items-center font-medium">
-              <span className="text-base">Total Amount</span>
-              <span className="text-xl">
-                {formatCurrency(data.totalAmount)}
-              </span>
-            </div>
-          </div>
-          <div className="border-t border-white/20 py-6 lg:py-8">
-            {/* Action Buttons inside Left Card */}
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => handleConfirmClick()}
-                disabled={!agreedToTerms}
-                className="w-full py-4 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc498] font-medium text-base 2xl:text-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Check className="w-6 h-6" />
-                {isSubmitting ? "Confirming..." : "Confirm & Pay"}
-              </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onConnectTeam}
-            className="w-full py-4 rounded-lg border border-white/30 text-white font-medium text-base transition-colors hover:bg-white/5 flex items-center justify-center gap-2"
-          >
-            <Phone className="w-6 h-6" />
-            Connect with Beige Team
-          </button>
-        </div>
-
-        {/* Terms Checkbox Card */}
-      <label className="lg:hidden w-full border-t border-white/10 py-5 flex gap-2 cursor-pointer hover:border-white/20 transition-colors">
-        <input
-          type="checkbox"
-          checked={agreedToTerms}
-          onChange={(e) => setAgreedToTerms(e.target.checked)}
-          className="w-4 h-4 accent-[#E8D1AB] rounded shrink-0"
-        />
-        <span className="text-xs text-[#E8D1AB] inline">
-          By continuing to payment, you agree to our
-          <button
-            type="button"
-            onClick={() => setIsServiceAgreementOpen(true)}
-            className="px-0.5 underline hover:text-[#f3e4cd]"
-          >
-            Services Agreement, Terms & Conditions,
-          </button>
-          Cancellation Policy, and Privacy Policy.
-        </span>
-      </label>
-
-        {/* Right Column: ConfirmAndPay Method & Quality Guarantee */}
-        <div className="lg:col-span-5 space-y-6 lg:border-l lg:border-white/10 lg:pl-8">
-          <div className="py-4 space-y-3 lg:space-y-6">
-            <h2 className="text-sm lg:text-2xl font-['Roboto_Condensed'] text-white">
-              Payment method
-            </h2>
-
-            <div className="bg-gradient-to-r from-[#E8D1AB] to-[#FDEFD9] rounded-lg lg:rounded-2xl p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 lg:w-15 lg:h-15 rounded-md lg:rounded-xl bg-[#171717] text-white flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 lg:w-8 lg:h-8" strokeWidth={1} />
-                </div>
-                <span className="text-black font-medium text-sm lg:text-lg">Credit / Debit Card</span>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#FDEFD9]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Quality Guarantee Box */}
-          <div className="border-t border-white/10 py-5 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-md lg:rounded-xl bg-[#E8D5B5]/20 flex items-center justify-center shrink-0 mt-0.5">
-              <BadgeCheck className="w-6 h-6 text-[#E8D1AB]" strokeWidth={1.5} />
-            </div>
-            <p className="text-xs leading-relaxed text-[#E8D1AB] italic font-bold">
-              Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Terms Checkbox Card */}
-      <label className="hidden w-full border-t border-white/10 py-5 lg:flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
-        <input
-          type="checkbox"
-          checked={agreedToTerms}
-          onChange={(e) => setAgreedToTerms(e.target.checked)}
-          className="w-5 h-5 accent-[#E8D1AB] rounded shrink-0"
-        />
-        <span className="text-sm lg:text-lg text-[#E8D1AB]">
-          By continuing to payment, you agree to our
-
-          <button
-            type="button"
-            onClick={() => setIsServiceAgreementOpen(true)}
-            className="px-1 underline hover:text-[#f3e4cd]"
-          >
-            Services Agreement, Terms & Conditions,
-          </button>
-          Cancellation Policy, and Privacy Policy.
-        </span>
-      </label>
-
-      {/* Sticky Bottom Navigation Footer */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-6 lg:px-8 py-3.5 lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
-          >
-            Back
-          </button>
-        ) : (
-          <div />
-        )}
-
-        <button
-          type="button"
-          onClick={() => handleConfirmClick()}
-          disabled={!agreedToTerms}
-          className="px-6 lg:px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
-        >
-          Confirm & Pay {formatCurrency(data.totalAmount)}
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 pt-6 lg:pt-5 pb-32 lg:pb-36 text-white">
+      {onBack && (
+        <button type="button" onClick={onBack} aria-label="Back to shoot summary" disabled={isSubmitting}
+          className="mb-6 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-[#1D1D1D] hover:bg-white/10 disabled:opacity-40">
+          <ArrowLeft className="h-4 w-4" />
         </button>
+      )}
+      <div className="mb-6 lg:mb-8">
+        <span className="mb-3 block text-xs lg:text-sm font-light uppercase text-[#E8D1AB]">STEP {stepNumber}</span>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+          <div className="h-full rounded-full bg-[#E8D1AB]" style={{ width: `${completionPercentage}%` }} />
+        </div>
+      </div>
+      <h1 className="mb-3 text-3xl lg:text-5xl font-['Roboto_Condensed'] font-medium tracking-tight">{title}</h1>
+      <p className="mb-7 lg:mb-9 text-sm lg:text-base text-white/50">{subtitle}</p>
+
+      <div className="grid grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-9">
+        <section className="min-w-0" aria-label="Your package">
+          <h2 className="mb-3 text-xs lg:text-sm uppercase tracking-widest text-[#E8D1AB]">{data.serviceHeading || "Production Services"}</h2>
+          <div className="overflow-hidden rounded-lg border border-white/10">
+            <button type="button" onClick={() => setPackageExpanded((value) => !value)}
+              aria-expanded={packageExpanded} aria-controls="booking-package-inclusions"
+              className="flex w-full items-center gap-3 bg-[#1E1E1C] px-4 py-5 text-left hover:bg-white/5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 text-white/50"><Camera className="h-4 w-4" strokeWidth={1} /></span>
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs lg:text-sm">
+                <span>{data.packageName || data.serviceName}</span>
+                <span className="rounded-full border border-white/10 bg-[#2B2925] px-2 py-1 text-[10px] text-[#E8D1AB]">{packageExpanded ? "Hide Package Includes" : "Show Package Includes"}</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${packageExpanded ? "rotate-180" : ""}`} />
+            </button>
+            <div id="booking-package-inclusions" hidden={!packageExpanded} className="border-t border-white/5 px-4 py-5">
+              <ul className="space-y-3">
+                {data.packageOffers.map((offer, index) => (
+                  <li key={`${offer}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm italic leading-relaxed text-white/55">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20"><Check className="h-3 w-3" strokeWidth={1} /></span>
+                    <span>{offer}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {(data.crewLabel || data.studioCrewSize) && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 bg-[#1E1E1C] px-4 py-4">
+                <div className="flex min-w-0 items-center gap-3 text-xs lg:text-sm">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 text-white/50"><UserRound className="h-4 w-4" strokeWidth={1} /></span>
+                  <div>
+                    {data.crewLabel && <p>{data.crewLabel}</p>}
+                    {data.studioCrewSize && <p className="text-white/50">Studio cast & crew: {data.studioCrewSize}</p>}
+                  </div>
+                </div>
+                {data.crewLabel && <span className="rounded-full border border-emerald-500/10 bg-emerald-500/10 px-3 py-1 text-[10px] tracking-wider text-emerald-400">INCLUDED</span>}
+              </div>
+            )}
+          </div>
+
+          {hasEdits && (
+            <section className="mt-5" aria-label="Editing services">
+              <h2 className="mb-4 text-xs uppercase tracking-widest text-white/80">Editing Services</h2>
+              <div className="space-y-3 text-xs lg:text-sm">
+                {data.photosIncluded > 0 && <div className="flex justify-between gap-4"><span className="text-white/50">Photos Included <span className="align-super rounded-sm bg-[#E8D1AB] px-1 text-[7px] font-semibold text-black">Free</span></span><span>{data.photosIncluded} Photos</span></div>}
+                {data.extraPhotosCount > 0 && <div className="flex justify-between gap-4"><span className="text-white/50">{data.extraPhotoUnitsText}</span><span className="shrink-0">{data.extraPhotosCount} Photos</span></div>}
+                {data.videoEditsCount > 0 && <div className="flex justify-between gap-4"><span className="text-white/50">{data.videoEditUnitsText || "Video edits"}</span><span className="shrink-0">{data.videoEditsCount} Video{data.videoEditsCount === 1 ? "" : "s"}</span></div>}
+                <div className="flex justify-between gap-4 border-t border-white/5 py-4 text-[#E8D1AB]"><span>Total Edits</span><span className="text-right">{data.totalEditsText}</span></div>
+              </div>
+            </section>
+          )}
+          <div className="mt-3 flex items-center justify-between gap-4 border-y border-white/5 py-4">
+            <span className="text-sm font-semibold uppercase tracking-widest text-white/60">Total to Pay</span>
+            <span className="text-2xl lg:text-3xl font-semibold tracking-tight tabular-nums">{formatCurrency(data.totalAmount)}</span>
+          </div>
+          <div className="my-5 flex items-start gap-3 text-xs lg:text-sm leading-relaxed">
+            <input id="booking-payment-terms" type="checkbox" checked={agreedToTerms} onChange={(event) => setAgreedToTerms(event.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-[#E8D1AB]" />
+            <div>
+              <label htmlFor="booking-payment-terms" className="cursor-pointer">By continuing to payment, you agree to our </label>
+              <button type="button" onClick={() => setIsServiceAgreementOpen(true)} className="text-left text-[#E8D1AB] underline underline-offset-4">Services Agreement, Terms & Conditions, Cancellation Policy, and Privacy Policy.</button>
+            </div>
+          </div>
+          <button type="button" onClick={onConnectTeam} className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-4 py-3 text-xs lg:text-sm font-medium text-black hover:bg-white/90">
+            <Phone className="h-4 w-4" /> Connect with Beige Team
+          </button>
+        </section>
+
+        <aside className="min-w-0 space-y-5" aria-label="Payment and pricing summary">
+          <section>
+            <h2 className="mb-3 text-xs lg:text-sm uppercase tracking-widest">Payment Method</h2>
+            <div className="flex items-center gap-3 rounded-md border border-[#E8D1AB]/15 bg-[#23221F] p-4 lg:py-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded bg-[#E8D1AB]/10 text-[#E8D1AB]"><CreditCard className="h-4 w-4" strokeWidth={1} /></span>
+              <span className="flex-1 text-xs lg:text-sm">Credit / Debit Card</span>
+              <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded-full border border-[#E8D1AB]"><span className="h-2 w-2 rounded-full bg-[#E8D1AB]" /></span>
+            </div>
+          </section>
+          <section>
+            <h2 className="mb-4 text-xs uppercase tracking-widest">Pricing Summary</h2>
+            <div className="space-y-2.5">{productionRows.map((item, index) => row(item.label, item.amount, index))}</div>
+            <div className="mt-3 space-y-3 border-t border-white/5 py-3">
+              {row("Sub Total", subtotal, "subtotal")}
+              {cardCharges.map((item, index) => row(item.label, item.amount, `card-${index}`))}
+            </div>
+            <div className="flex justify-between gap-4 border-t border-white/5 pt-3 text-base font-semibold"><span>Final Amount</span><span className="tabular-nums">{formatCurrency(data.totalAmount)}</span></div>
+          </section>
+          <section className="border-l-2 border-[#E8D1AB]/30 pl-4">
+            <h2 className="mb-3 flex items-center gap-2 text-[10px] lg:text-xs uppercase tracking-widest text-[#E8D1AB]"><BadgeCheck className="h-4 w-4 shrink-0" strokeWidth={1} /> Beige Quality Guarantee</h2>
+            <p className="text-xs italic leading-relaxed text-white/45">Our Beige Quality Guarantee ensures your production meets professional standards. If your shoot does not meet the agreed scope or quality expectations, we&apos;ll work with you and your assigned creative partner to make it right — including a complimentary reshoot if necessary.</p>
+          </section>
+        </aside>
       </div>
 
-      <ServiceAgreementModal
-        isOpen={isServiceAgreementOpen}
-        initialChecked={acceptServiceAgreement}
-        onClose={() => setIsServiceAgreementOpen(false)}
-        onAccept={() => {
-          setAcceptServiceAgreement(true);
-          setAgreedToTerms(true);
-          setIsServiceAgreementOpen(false);
-        }}
-      />
+      <div data-testid="payment-footer" className="fixed inset-x-0 bottom-0 z-40 border-t border-white/15 bg-[#171717] pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 md:px-8 lg:py-5">
+          {onBack && <button type="button" onClick={onBack} disabled={isSubmitting} className="rounded-lg border border-white/25 px-6 py-3.5 text-sm lg:min-w-[180px] lg:text-base hover:bg-white/5 disabled:opacity-40">Back</button>}
+          <button type="button" onClick={handleConfirmClick} disabled={!agreedToTerms || isSubmitting} className="ml-auto rounded-lg bg-[#E8D1AB] px-5 py-3.5 text-sm font-medium text-black hover:bg-[#dfc498] disabled:cursor-not-allowed disabled:opacity-40 lg:px-8 lg:text-base">
+            {isSubmitting ? "Confirming…" : `Confirm & Pay ${formatCurrency(data.totalAmount)}`}
+          </button>
+        </div>
+      </div>
+      <ServiceAgreementModal isOpen={isServiceAgreementOpen} initialChecked={acceptServiceAgreement} onClose={() => setIsServiceAgreementOpen(false)} onAccept={() => {
+        setAcceptServiceAgreement(true);
+        setAgreedToTerms(true);
+        setIsServiceAgreementOpen(false);
+      }} />
     </div>
   );
 }
