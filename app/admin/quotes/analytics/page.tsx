@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -12,40 +13,14 @@ import {
 import axios from "axios";
 import Cookies from "js-cookie";
 import {
-  Video,
-  Camera,
-  Scissors,
-  Radio,
-  MapPin,
-  Package,
-  Zap,
-  Plus,
-  Trash2,
-  Pencil,
-  Check,
-  X,
-  Search,
   Loader2,
-  ChevronDown,
-  AlertCircle,
-  RefreshCw,
-  ArrowUpToLine,
-  Calendar,
   SlidersHorizontal,
-  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { salesApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { Box } from "@mui/material";
-
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { DesktopDatePicker } from "@mui/x-date-pickers/DesktopDatePicker";
-import { format } from "date-fns";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { QuotesAnalyticsTable } from "@/components/admin/quotes/QuotesAnalyticsTable";
 import QuotesOverdueWidget from "@/components/admin/quotes/QuotesOverdue";
@@ -225,9 +200,9 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
         className="overflow-hidden p-4 pb-20 lg:p-6 lg:px-10 lg:py-9 space-y-6"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex items-center lg:items-end gap-4 justify-between">
           <div>
-            <h1 className={`mb-1 text-lg font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-black"}`}>
+            <h1 className={`mb-1 text-base font-semibold transition-colors duration-100 lg:text-2xl lg:leading-[32px] ${isDark ? "text-white" : "text-black"}`}>
               Quote Analytics
             </h1>
             <p className={`text-xs transition-colors duration-100 lg:text-sm ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>
@@ -235,7 +210,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             </p>
           </div>
           <Button
-            className={`shrink-0 flex items-center justify-between gap-1 lg:gap-2 px-3 py-1.5 lg:px-5 lg:py-3 transition-all text-xs lg:text-sm lg:font-medium shadow-sm whitespace-nowrap rounded-xl border ${isDark
+            className={`shrink-0 flex items-center justify-between gap-1 lg:gap-2 px-3 py-1.5 lg:px-5 lg:py-3 transition-all text-xs lg:text-sm lg:font-medium shadow-sm whitespace-nowrap rounded-lg lg:rounded-xl border ${isDark
               ? "bg-[#202020] border-white/20 text-white hover:text-[#C4C4C4] hover:border-white/30"
               : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:opacity-80"
               }`}
@@ -248,7 +223,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
 
         {
           showFilters &&
-          <div className={`flex gap-4 rounded-lg lg:rounded-xl p-3.5 ${isDark ? "bg-[#171717]" : "bg-[#E8E8E8]"}`}>
+          <div className={`flex flex-wrap lg:flex-nowrap gap-4 rounded-lg lg:rounded-xl p-3.5 ${isDark ? "bg-[#171717]" : "bg-[#E8E8E8]"}`}>
             {/* Date */}
            <DateFilter
             isDark={isDark}
@@ -262,7 +237,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Sales Rep */}
             <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
@@ -295,7 +270,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Service */}
             <Select value={selectedService} onValueChange={setSelectedService}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
@@ -322,7 +297,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Quote Status: Optiosn to be updated as per availability */}
             <Select value={selectedQuoteStatus} onValueChange={setSelectedQuoteStatus}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
@@ -339,7 +314,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 {quoteStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    <div className="flex flex-col leading-tight">
+                    <div className="flex flex-col leading-tight capitalize">
                       <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
@@ -350,7 +325,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Payment Status: Options to be updated as per availability */}
             <Select value={selectedPaymentStatus} onValueChange={setSelectedPaymentStatus}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
@@ -367,7 +342,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 {paymentStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    <div className="flex flex-col leading-tight">
+                    <div className="flex flex-col leading-tight capitalize">
                       <span className="capitalize">{option.label}</span>
                     </div>
                   </SelectItem>
@@ -378,7 +353,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Lead Source: Options to be updated as per availability */}
             {/* <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
@@ -406,7 +381,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Customer Type: Options to be updated as per availability */}
             <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
               <SelectTrigger
-                className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
+                className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}

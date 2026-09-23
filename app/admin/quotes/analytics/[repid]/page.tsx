@@ -101,14 +101,14 @@ export default function QuoteSalesRepDetailsPage() {
         <div className="flex items-start lg:items-center gap-4 min-w-0">
           <button
             onClick={() => router.back()}
-            className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-[#E0E0E0]" : "text-black hover:text-black/70"}`}
+            className={`transition-colors flex items-center gap-2 text-sm lg:text-base ${isDark ? "text-white hover:text-[#E0E0E0]" : "text-black hover:text-black/70"}`}
           >
             <ArrowLeft size={20} />
             <span>Back</span>
           </button>
 
         </div>
-        <div className={`flex items-center gap-4 p-3 lg:p-5 border rounded-lg lg:rounded-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-black/5 border-black/20"}`}>
+        <div className={`flex items-center gap-4 p-5 border rounded-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-black/5 border-black/20"}`}>
           <div className="relative h-15 w-15 lg:h-21 lg:w-21 rounded-lg">
             <Image
               src="/images/crew/CREW(5).png"
@@ -135,9 +135,13 @@ export default function QuoteSalesRepDetailsPage() {
           <div>
             <QuotesOverdueWidget data={analytics?.overview?.overdue_follow_ups ?? undefined} quotesData={overdueQuotes as never} onPageChange={setOverduePage} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-6">
-            <DealColumn data={dealWonColumn} isDark={isDark} />
-            <DealColumn data={overdueColumn} isDark={isDark} />
+          <div className="flex lg:grid lg:grid-cols-2 gap-3 lg:gap-6 overflow-x-auto lg:overflow-x-hidden snap-x snap-mandatory no-scrollbar pb-2 lg:pb-0 ">
+            <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
+              <DealColumn data={dealWonColumn} isDark={isDark} />
+            </div>
+            <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
+              <DealColumn data={overdueColumn} isDark={isDark} />
+            </div>
           </div>
         </div>
 

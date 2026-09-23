@@ -156,10 +156,10 @@ export default function DateFilter({
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ position: "relative" }} className="inline-flex items-center gap-2 min-w-30">
+      <Box sx={{ position: "relative" }} className="inline-flex items-center gap-2 lg:min-w-30">
         <Select value={preset} onValueChange={handlePresetChange}>
           <SelectTrigger
-            className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${
+            className={`h-12 p-2.5 lg:p-4 rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${
               isDark
                 ? "border-white/20 bg-[#202020] text-white"
                 : "border-[#E3E3E3] bg-[#E8E8E8] text-[#323232] hover:opacity-80"

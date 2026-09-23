@@ -509,6 +509,7 @@ export type QuoteAnalyticsFiltersResponse = {
   data: {
     sales_reps?: any[];
     shoot_types?: any[];
+    services?: any[];
     quote_statuses?: any[];
     payment_statuses?: any[];
     lead_sources?: any[];
@@ -522,7 +523,7 @@ export type QuoteAnalyticsQuotesParams = {
   bucket: 'open_pipeline' | 'overdue_follow_ups' | 'deals_won';
   status?: 'sent' | 'accepted' | 'partially_paid';
   page?: number;
-  limit?: number;
+  limit?: number | 'all';
   sales_rep_id?: string | number;
   date_preset?: string;
   start_date?: string;

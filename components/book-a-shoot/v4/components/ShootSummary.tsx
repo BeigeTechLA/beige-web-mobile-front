@@ -158,7 +158,7 @@ export default function ShootSummaryStep({
   summaryData = DEFAULT_SUMMARY_DATA,
   title = "Your Shoot, All Set.",
   subtitle = "Review your shoot details below. You can make changes before confirming your booking.",
-  stepNumber = "09",
+  stepNumber = "9",
   completionPercentage = 95,
   initialContact,
 }: ShootSummaryStepProps) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { V4_PACKAGE_INCLUSIONS } from "../bookingRules";
 import React, { useState } from "react";
 import { ArrowLeft, Sparkles, Users, Info, Check } from "lucide-react";
 import Image from "next/image";
@@ -21,23 +22,18 @@ interface TeamSelectionStepProps {
   completionPercentage?: number;
 }
 
-const PLACEHOLDER_INCLUSIONS = [
-  "Photographer x1",
-  "All Raw Images, Lighting & Insurance Provided",
-  "Up to 45 Minutes Setup Time",
-  "Digital Delivery",
-];
+
 
 export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   onContinue,
   onBack,
   initialOption = "best-match",
-  packageTitle = "Corporate - Photography",
-  packageInclusions = PLACEHOLDER_INCLUSIONS,
+  packageTitle = "Corporate: Photography",
+  packageInclusions = V4_PACKAGE_INCLUSIONS,
   showStudioCallout = false,
   title = "Who gets to shift your vision to reality?",
   subtitle = "Let Beige find the right creative team for you, or choose your own.",
-  step = "05",
+  step = "5",
   completionPercentage = 45,
 }) => {
   const [teamOption, setTeamOption] = useState<"best-match" | "choose-own">(
@@ -197,7 +193,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       {/* Included with Package Section */}
       <div>
         <h2 className="text-lg lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
-          &quot;Included with package&quot;
+          Included with package:
         </h2>
 
         <div className="p-4 lg:p-6 2xl:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20">
@@ -211,7 +207,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 2xl:gap-x-6 text-sm lg:text-base font-light text-white/70">
-            {PLACEHOLDER_INCLUSIONS.map((item, index) => (
+            {packageInclusions.map((item, index) => (
               <div key={index} className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-full border border-[#E8D1AB]/40 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 text-[#E8D1AB]" />

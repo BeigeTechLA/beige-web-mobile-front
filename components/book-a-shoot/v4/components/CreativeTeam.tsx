@@ -33,7 +33,7 @@ export default function CreativeTeam({
   selectedServices = ["photography"],
   title = "Your Creative Team",
   subtitle = "We recommend 1–2 Creative Partners based on your project. You can add more if needed.",
-  stepNumber = "06",
+  stepNumber = "6",
   completionPercentage = 30
 }: CreativeTeamProps) {
   const hasPhotoService = selectedServices.includes("photography");
@@ -120,7 +120,7 @@ export default function CreativeTeam({
           return (
             <div
               key={role.id}
-              className="flex items-center justify-between "
+              className="flex items-start justify-between gap-3"
             >
               <div className="flex items-start gap-3">
                 {/* Checkbox implementation */}
@@ -135,14 +135,19 @@ export default function CreativeTeam({
                   <div className="text-sm lg:text-lg font-light text-white">
                     {role.name}
                   </div>
+                  {role.id === "photoVideoCreator" && (
+                    <p className="mt-2 max-w-xl pr-4 text-xs lg:text-sm text-white/60 leading-relaxed">
+                      One Creative Partner captures both photo and video, so fewer moments can be captured at once. For full coverage, book a dedicated Photographer and Videographer.
+                    </p>
+                  )}
                   <div className="text-xs lg:text-lg 2xl:text-xl font-medium text-[#E8D1AB]">
-                    ${role.price.toFixed(2)}/hr
+                    ${role.price}/hr
                   </div>
                 </label>
               </div>
 
               {/* Counter Control */}
-              <div className="flex items-center gap-1.5 lg:gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 lg:px-4 lg:py-2.5 rounded-full font-medium text-sm">
+              <div className="shrink-0 flex items-center gap-1.5 lg:gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 lg:px-4 lg:py-2.5 rounded-full font-medium text-sm">
                 <button
                   type="button"
                   onClick={() => handleDecrement(role.id)}
@@ -151,7 +156,7 @@ export default function CreativeTeam({
                   <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                 </button>
                 <span className="lg:w-5 text-center font-medium text-base lg:text-lg 2xl:text-xl">
-                  {String(count).padStart(2, "0")}
+                  {String(count)}
                 </span>
                 <button
                   type="button"
@@ -179,7 +184,7 @@ export default function CreativeTeam({
       <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
       <div className="text-base lg:text-lg 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white">
-        Need to change this later? You can always add or remove partners after booking.
+        Need to change this later? You can always add or remove Creative Partners after booking.
       </div>
 
       {/* Bottom Action Footer Bar */}

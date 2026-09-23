@@ -20,24 +20,24 @@ export const DealCard = ({ deal, isDark = true }: DealCardProps) => {
       }`}
     >
       {/* Header Info */}
-      <div className="flex items-center justify-between p-3 lg:p-5">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-5">
         <div className="flex items-center gap-3">
           <div
-            className={`flex h-10 w-10 lg:h-12 lg:w-12 shrink-0 items-center justify-center rounded-lg text-sm lg:text-xl font-medium ${
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-xl font-medium ${
               isDark ? "bg-[#FFF8E7] text-black" : "bg-zinc-100 text-black"
             }`}
           >
             {deal.initials}
           </div>
           <div>
-            <div className="flex items-center gap-1.5 font-medium text-sm lg:text-base font-medium">
+            <div className="flex items-center gap-1.5 font-medium text-base font-medium">
               <span className={isDark ? "text-white" : "text-black"}>{deal.name}</span>
               <span className="text-[#E8D1AB]">
                 ({deal.quoteId})
               </span>
             </div>
             <p
-              className={`text-xs lg:text-sm ${
+              className={`text-sm ${
                 isDark ? "text-white/40" : "text-black/40"
               }`}
             >
@@ -64,7 +64,7 @@ export const DealCard = ({ deal, isDark = true }: DealCardProps) => {
       />
 
       {/* Details Grid */}
-      <div className="space-y-2 pt-2 text-xs lg:text-sm p-3 lg:p-5">
+      <div className="space-y-2 pt-5 text-xs lg:text-sm p-5">
         <div className="flex justify-between">
           <span className="text-[#E8D1AB] font-medium">
             Project
