@@ -267,7 +267,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             </Select>
 
             {/* Shoot Type */}
-            <Select value={selectedShootType} onValueChange={setSelectedShootType}>
+            {/* <Select value={selectedShootType} onValueChange={setSelectedShootType}>
               <SelectTrigger
                 className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -292,7 +292,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
 
             {/* Quote Status: Optiosn to be updated as per availability */}
             <Select value={selectedQuoteStatus} onValueChange={setSelectedQuoteStatus}>
@@ -314,7 +314,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 {quoteStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    <div className="flex flex-col leading-tight">
+                    <div className="flex flex-col leading-tight capitalize">
                       <span>{option.label}</span>
                     </div>
                   </SelectItem>
@@ -342,7 +342,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 {paymentStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    <div className="flex flex-col leading-tight">
+                    <div className="flex flex-col leading-tight capitalize">
                       <span>{option.label}</span>
                     </div>
                   </SelectItem>
@@ -351,7 +351,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             </Select>
 
             {/* Lead Source: Options to be updated as per availability */}
-            <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
+            {/* <Select value={selectedLeadSource} onValueChange={setSelectedLeadSource}>
               <SelectTrigger
                 className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
@@ -376,7 +376,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
 
             {/* Customer Type: Options to be updated as per availability */}
             <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>

@@ -9,6 +9,7 @@ import {
   Loader2,
   ChevronUp,
   ChevronDown,
+  Info,
 } from "lucide-react";
 
 type OverdueQuoteRow = {
@@ -148,7 +149,7 @@ export default function QuotesOverdueWidget({
 
   return (
     <div
-      className={`w-full overflow-hidden rounded-lg lg:rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}
+      className={`w-full overflow-visible rounded-lg lg:rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#141414]" : "border-[#E5E5E5] bg-white"}`}
     >
       {/* Top Banner Widget */}
       <div className="p-5 lg:p-6 relative">
@@ -161,6 +162,31 @@ export default function QuotesOverdueWidget({
                 <span className={`text-base ${isDark ? "text-white" : "text-black"}`}>
                   Quotes Overdue
                 </span>
+                <div className="relative flex items-center group">
+                  <Info
+                    size={16}
+                    strokeWidth={1.5}
+                    className={`cursor-pointer transition-colors text-black fill-[#E8D1AB]`}
+                  />
+                  {/* Tooltip Popup */}
+                  <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
+                    <div
+                      className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
+                        ? "bg-[#252525] text-white border-white/10"
+                        : "bg-white text-black border-black/10"
+                        }`}
+                    >
+                      Active proposals with no recorded follow-up in the last 72 hours
+                    </div>
+                    {/* Tooltip Arrow */}
+                    <div
+                      className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
+                        ? "bg-[#252525] border-white/10"
+                        : "bg-white border-black/10"
+                        }`}
+                    />
+                  </div>
+                </div>
               </div>
               <div className={`text-3xl lg:text-4xl font-bold mt-2 capitalize ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                 {overdueCount}
@@ -322,7 +348,7 @@ export default function QuotesOverdueWidget({
 
       {/* Collapsible Expandable Table Section */}
       {showTable && (
-        <div className={`border-t transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
+        <div className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
           <div className="w-full overflow-x-auto md:overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed">
               <thead>
@@ -656,7 +682,7 @@ export default function QuotesOverdueWidget({
           {/* Integrated Pagination Footer */}
           {!loading && (
             <div
-              className={`p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
+              className={`p-5 border-t rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
                 ? "border-white/10 bg-[#101010]"
                 : "border-black/10 bg-zinc-50"
                 }`}

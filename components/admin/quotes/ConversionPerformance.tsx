@@ -346,7 +346,7 @@ const quoteToCashRadialData = [
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  Deal won/Quotes sent
+                  Percentage of sent proposals that converted into paid bookings (Calculated as Deals Won ÷ Quotes Sent × 100)
                 </div>
                 <div
                   className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
@@ -409,7 +409,7 @@ const quoteToCashRadialData = [
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  won revenue/deals won
+                  Average revenue generated from each won deal (Calculated as Won Revenue ÷ Deals Won)
                 </div>
                 {/* Tooltip Arrow */}
                 <div
@@ -475,7 +475,7 @@ const quoteToCashRadialData = [
                   : "bg-white text-black border-black/10"
                   }`}
               >
-                Won Revenue/Quote value
+                Percentage of the total proposal value that converted into paid revenue (Calculated as Won Revenue ÷ Quote Value × 100)
               </div>
               {/* Tooltip Arrow */}
               <div

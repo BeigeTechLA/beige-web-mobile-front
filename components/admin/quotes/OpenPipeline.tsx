@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Info,
 } from "lucide-react";
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 
@@ -161,7 +162,7 @@ export default function OpenPipelineWidget({
   };
 
   return (
-    <div className={`w-full overflow-hidden rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+    <div className={`w-full overflow-visible rounded-2xl border transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Top Main Section */}
       <div className="p-5 lg:p-6">
         {/* Header Row */}
@@ -172,7 +173,34 @@ export default function OpenPipelineWidget({
               <span className={`text-base ${isDark ? "text-white" : "text-black"}`}>
                 Open Pipeline
               </span>
+              <div className="relative flex items-center group">
+                <Info
+                  size={16}
+                  strokeWidth={1.5}
+                  className={`cursor-pointer transition-colors text-black fill-[#E8D1AB]`}
+                />
+
+                {/* Tooltip Popup */}
+                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
+                  <div
+                    className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
+                      ? "bg-[#252525] text-white border-white/10"
+                      : "bg-white text-black border-black/10"
+                      }`}
+                  >
+                    The proposals that have not yet been paid, lost, or expired
+                  </div>
+                  {/* Tooltip Arrow */}
+                  <div
+                    className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
+                      ? "bg-[#252525] border-white/10"
+                      : "bg-white border-black/10"
+                      }`}
+                  />
+                </div>
+              </div>
             </div>
+
             <div className={`text-2xl lg:text-4xl font-bold mt-2 capitalize ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
               ${(pipelineValue / 1000000).toFixed(1)}M
             </div>
@@ -319,7 +347,7 @@ export default function OpenPipelineWidget({
       {
         activeSection !== null && (
           <div
-            className={`border-t transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
+            className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
           >
             <div className="overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
               <table className="w-full text-left border-collapse table-fixed">
@@ -603,7 +631,7 @@ export default function OpenPipelineWidget({
             {/* Table Pagination Footer */}
             {!isLoadingQuotes && rows.length > 0 && (
               <div
-                className={`p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
+                className={`p-5 border-t flex flex-col sm:flex-row items-center justify-between gap-4 rounded-b-2xl ${isDark
                   ? "border-white/10 bg-[#101010]"
                   : "border-black/10 bg-zinc-50"
                   }`}

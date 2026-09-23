@@ -82,7 +82,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.quote_value.toLocaleString()}`,
-    infoTooltip: "Total amount of the proposals sent in the selected period",
+    infoTooltip: "Total value of proposals sent during the selected period ",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.quote_value,
@@ -96,7 +96,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: Clock4,
     formattedTooltip: `${totals.quotes_sent} Quotes`,
-    infoTooltip: "Total Number of quotes sent.",
+    infoTooltip: "Number of proposals sent during the selected period",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.quotes_sent,
@@ -110,7 +110,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: BadgeCheck,
     formattedTooltip: `${totals.deals_won} Deals`,
-    infoTooltip: "Number of quotes that converted to a booking/”Paid” deal",
+    infoTooltip: "Number of proposals that converted into paid bookings",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.deals_won,
@@ -124,7 +124,7 @@ export default function QuotePerformanceWidget({
     growth: "0%",
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.won_revenue.toLocaleString()}`,
-    infoTooltip: "Total amount of deals won",
+    infoTooltip: "Total revenue from proposals that converted into paid bookings",
     data: data.map((item) => ({
       month: monthLabel(item.date),
       value: item.won_revenue,
