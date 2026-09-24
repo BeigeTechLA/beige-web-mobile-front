@@ -286,7 +286,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                   : "border-[#E3E3E3] bg-white text-black/70"
                   }`}
               >
-                <SelectValue placeholder="Service" className="text-sm medium" />              </SelectTrigger>
+                <SelectValue placeholder="Service Type" className="text-sm medium" />              </SelectTrigger>
               <SelectContent
                 className={
                   isDark

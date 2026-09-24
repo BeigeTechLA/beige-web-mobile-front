@@ -367,7 +367,7 @@ export default function QuotesOverdueWidget({
                 >
                   <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
                   {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
-                  <th className="w-[17%] whitespace-nowrap p-4">Payment Status</th>
+                  <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
                   <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
                   <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
                   <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
