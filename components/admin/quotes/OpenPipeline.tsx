@@ -372,14 +372,14 @@ export default function OpenPipelineWidget({
                     {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
                     <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
                     <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
-                    <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
+                    {/* <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th> */}
                     <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
                     <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
                     <th className="w-[5%] whitespace-nowrap p-4 text-center">Action</th>
                   </tr>
 
                   {/* Mobile Headers */}
-                  <tr
+                  {/* <tr
                     className={`border-b text-sm font-medium md:hidden w-full ${isDark
                       ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
                       : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
@@ -389,7 +389,7 @@ export default function OpenPipelineWidget({
                     <th className="px-4 py-3 text-right whitespace-nowrap w-auto">
                       Quote Status
                     </th>
-                  </tr>
+                  </tr> */}
                 </thead>
 
                 <tbody className="text-sm lg:text-base">
@@ -521,18 +521,18 @@ export default function OpenPipelineWidget({
                             </td>
 
                             {/* Quote Status Badge */}
-                            <td className="hidden p-4 md:table-cell">
+                            {/* <td className="hidden p-4 md:table-cell">
                               <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
                                 {formatQuoteStatusText(item.quote_status)}
                               </span>
-                            </td>
+                            </td> */}
 
                             {/* Mobile Booking Status Right Alignment */}
-                            <td className="p-4 text-right md:hidden">
+                            {/* <td className="p-4 text-right md:hidden">
                               <span className={`inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
                                 {formatQuoteStatusText(item.quote_status)}
                               </span>
-                            </td>
+                            </td> */}
 
                             <td className="hidden p-4 md:table-cell whitespace-nowrap">
                               {item.validity?.valid_until
@@ -566,7 +566,7 @@ export default function OpenPipelineWidget({
                           {isExpanded && (
                             <tr className={`md:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
                               <td
-                                colSpan={2}
+                                colSpan={1}
                                 className="relative overflow-visible pl-6 pr-4 pb-4 pt-2"
                               >
                                 <div className="space-y-4 text-xs">
