@@ -17,6 +17,8 @@ import {
   CirclePlus,
   MessageCirclePlus,
   AlertCircle,
+  History,
+  RotateCcw,
 } from "lucide-react";
 import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
@@ -38,8 +40,10 @@ import { MobileShootRow } from "@/components/admin/shoot-details/MobileShootRow"
 import { StatusBadge } from "./StatusBadge";
 import { useTheme } from "next-themes";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
+import RestoreConfirmationModal from "./RestoreConfirmationModal";
 import { MissingFieldsModal } from "./MissingFieldsModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
+import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -98,6 +102,7 @@ interface ShootRecord {
   status: ShootStatus;
   hasAssignedCp: boolean;
   notesCount: number;
+  isActive: boolean;
   needsAttention?: {
     required: boolean;
     missing_fields: string[];
@@ -136,6 +141,7 @@ const FILTER_STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "deleted", label: "Deleted" },
 ] as const;
 
 const parseApiDateForDisplay = (value?: string | null) => {
@@ -505,6 +511,9 @@ export const ShootsTable = ({
   const [selectedShootDataForMissingFields, setSelectedShootDataForMissingFields] = useState<Record<string, unknown> | null>(null);
   const [fieldsToShow, setFieldsToShow] = useState<string[]>([]);
   const [hoveredShootId, setHoveredShootId] = useState<string | null>(null);
+  const [historyShoot, setHistoryShoot] = useState<ShootRecord | null>(null);
+  const [restoringShootId, setRestoringShootId] = useState<string | null>(null);
+  const [shootToRestore, setShootToRestore] = useState<ShootRecord | null>(null);
 
   const handleNotesCountChange = useCallback((shootId: string, count: number) => {
     const nextCount = Number.isFinite(count) ? Math.max(0, count) : 0;
@@ -710,6 +719,7 @@ export const ShootsTable = ({
             status: statusLabel,
             hasAssignedCp,
             notesCount: Number.isFinite(notesCount) ? notesCount : 0,
+            isActive: Number(project.is_active) !== 0,
             needsAttention: project.needs_attention ? {
               required: missingFields.length > 0,
               missing_fields: missingFields
@@ -815,7 +825,7 @@ export const ShootsTable = ({
   const visibleKanbanStatuses = useMemo(() => {
     if (statusFilter !== "all" && !isProductionGapStatusFilter(statusFilter)) {
       const selectedStatus = FILTER_STATUS_COLUMN_MAP[statusFilter];
-      return selectedStatus ? [selectedStatus] : [];
+      if (selectedStatus) return [selectedStatus];
     }
 
     return KANBAN_STATUS_ORDER;
@@ -915,7 +925,8 @@ export const ShootsTable = ({
     }
   };
 
-  const handleRowClick = (id: string) => {
+  const handleRowClick = (id: string, isActive = true) => {
+    if (!isActive) return;
     const cleanId = id.replace('#', '');
     try {
       window.localStorage.setItem(SHOOTS_RESTORE_PAGE_KEY, "1");
@@ -970,6 +981,43 @@ export const ShootsTable = ({
     e.stopPropagation();
     setShootToDelete(id);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleHistoryClick = (event: React.MouseEvent, shoot: ShootRecord) => {
+    event.stopPropagation();
+    setOpenCardActionId(null);
+    setHistoryShoot(shoot);
+  };
+
+  const handleRestoreClick = (event: React.MouseEvent, shoot: ShootRecord) => {
+    event.stopPropagation();
+    if (!canDelete || restoringShootId) return;
+    setOpenCardActionId(null);
+    setShootToRestore(shoot);
+  };
+
+  const confirmRestore = async () => {
+    if (!canDelete || !shootToRestore || restoringShootId) return;
+    const shoot = shootToRestore;
+    const shootId = getApiShootId(shoot.id);
+    setRestoringShootId(shoot.id);
+    try {
+      const response = await adminApi.restoreProject(shootId);
+      if (response?.success) {
+        setShoots((current) => current.filter((item) => item.id !== shoot.id));
+        setBoardAllShoots((current) => current.filter((item) => item.id !== shoot.id));
+        setTotalRecords((current) => Math.max(current - 1, 0));
+        toast.success("Shoot restored successfully");
+      } else {
+        toast.error(response?.error || response?.message || "Failed to restore shoot");
+      }
+    } catch (error) {
+      console.error("Restore failed", error);
+      toast.error("An error occurred while restoring the shoot");
+    } finally {
+      setRestoringShootId(null);
+      setShootToRestore(null);
+    }
   };
 
   const reorderKanbanItems = (status: ShootStatus, draggedId: string, targetId?: string) => {
@@ -1265,6 +1313,7 @@ export const ShootsTable = ({
                               }`}
                             onClick={(e) => e.stopPropagation()}
                           >
+                            {shoot.isActive ? <>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -1319,6 +1368,25 @@ export const ShootsTable = ({
                             >
                               <Trash2 size={16} />
                               Delete
+                            </button>
+                            </> : (
+                              <button
+                                type="button"
+                                disabled={!canDelete || restoringShootId === shoot.id}
+                                onClick={(event) => void handleRestoreClick(event, shoot)}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-emerald-400 hover:bg-white/10" : "text-emerald-700 hover:bg-emerald-50"}`}
+                              >
+                                {restoringShootId === shoot.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                Restore
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(event) => handleHistoryClick(event, shoot)}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                            >
+                              <History size={16} />
+                              History
                             </button>
                           </div>
                         )}
@@ -1396,8 +1464,8 @@ export const ShootsTable = ({
                           return (
                             <div
                               key={`${column.status}-${idx}`}
-                              onClick={() => handleRowClick(shoot.id)}
-                              draggable
+                              onClick={() => handleRowClick(shoot.id, shoot.isActive)}
+                              draggable={shoot.isActive}
                               onDragStart={() => {
                                 setDraggedShootId(shoot.id);
                                 setDraggedStatus(column.status);
@@ -1421,13 +1489,13 @@ export const ShootsTable = ({
                                 setDraggedShootId(null);
                                 setDraggedStatus(null);
                               }}
-                              className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                              className={`group rounded-2xl transition-all duration-200 ${shoot.isActive ? "cursor-pointer" : "cursor-not-allowed"} ${isDark
                                 ? "bg-[#202020] hover:bg-[#1A1A1A]"
                                 : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
                                 } ${draggedShootId === shoot.id ? "opacity-50 scale-95" : "opacity-100"}`}
                             >
                               <div className="flex items-start justify-between gap-3 p-5">
-                                <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <div className={`flex min-w-0 flex-1 items-center gap-3 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}>
                                   <div className={`shrink-0 w-[50px] h-[50px] rounded-md bg-[#F1E4D1] flex items-center justify-center text-black font-bold text-xl`}>
                                     {shoot.initials}
                                   </div>
@@ -1447,7 +1515,7 @@ export const ShootsTable = ({
                                       e.stopPropagation();
                                       setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
                                     }}
-                                    className={`shrink-0 p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                                    className={`shrink-0 cursor-pointer p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
                                     aria-label="Card actions"
                                   >
                                     <MoreVertical size={24} />
@@ -1459,6 +1527,7 @@ export const ShootsTable = ({
                                         }`}
                                       onClick={(e) => e.stopPropagation()}
                                     >
+                                      {shoot.isActive ? <>
                                       <button
                                         type="button"
                                         onClick={(e) => {
@@ -1513,15 +1582,34 @@ export const ShootsTable = ({
                                         <Trash2 size={16} />
                                         Delete
                                       </button>
+                                      </> : (
+                                        <button
+                                          type="button"
+                                          disabled={!canDelete || restoringShootId === shoot.id}
+                                          onClick={(event) => void handleRestoreClick(event, shoot)}
+                                          className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-emerald-400 hover:bg-white/10" : "text-emerald-700 hover:bg-emerald-50"}`}
+                                        >
+                                          {restoringShootId === shoot.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                          Restore
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={(event) => handleHistoryClick(event, shoot)}
+                                        className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                      >
+                                        <History size={16} />
+                                        History
+                                      </button>
                                     </div>
                                   )}
                                 </div>
                               </div>
                               {/* DIVIDER */}
-                              <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+                              <div className={`h-[1px] w-full ${shoot.isActive ? "opacity-100" : "opacity-30"} ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
                               {/* BODY */}
-                              <div className="space-y-4 p-5">
+                              <div className={`space-y-4 p-5 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}>
                                 <div className="flex items-center justify-between gap-3">
                                   <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot ID</p>
                                   <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.id}</p>
@@ -1549,11 +1637,11 @@ export const ShootsTable = ({
                               </div>
 
                               {/* DIVIDER */}
-                              <div className={`h-[1px] w-full ${isDark ? "bg-white/50" : "bg-black/5"}`} />
+                              <div className={`h-[1px] w-full ${shoot.isActive ? "opacity-100" : "opacity-30"} ${isDark ? "bg-white/50" : "bg-black/5"}`} />
 
                               {/* FOOTER */}
                               <div
-                                className="flex items-center justify-between p-5"
+                                className={`flex items-center justify-between p-5 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <StatusBadge status={shoot.status} />
@@ -1687,7 +1775,15 @@ export const ShootsTable = ({
                     const isMenuOpen = openCardActionId === shoot.id;
                     const shouldOpenUpward = idx >= currentShoots.length - 2;
                     const borderClass = isDark ? "border-[#333333]" : "border-[#E5E5E5]";
-                    const rowBgClass = isDark ? "bg-[#111111] hover:bg-[#171717]" : "bg-white hover:bg-zinc-50";
+                    const actionBorderClass = shoot.isActive
+                      ? borderClass
+                      : isDark
+                        ? "border-[#333333]/30"
+                        : "border-[#E5E5E5]/30";
+                    const rowBgClass = isDark
+                      ? `bg-[#111111] hover:bg-[#171717] ${shoot.isActive ? "cursor-pointer" : "cursor-not-allowed"}`
+                      : `bg-white hover:bg-zinc-50 ${shoot.isActive ? "cursor-pointer" : "cursor-not-allowed"}`;
+                    const inactiveOpacityClass = shoot.isActive ? "opacity-100" : "opacity-30";
 
                     const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
@@ -1698,13 +1794,13 @@ export const ShootsTable = ({
                         key={shoot.id}
                         className={`group border-b transition-colors last:border-0 relative ${isMenuOpen ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
-                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          <Link
+                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${inactiveOpacityClass} ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          {shoot.isActive && <Link
                             href={shootDetailHref}
                             className="absolute inset-0 z-20"
                             aria-label={`Open shoot ${shoot.customerName}`}
                             prefetch={false}
-                          />
+                          />}
                           <div className="relative z-10 pointer-events-none flex items-center gap-2">
                             <div
                               className="w-8 h-8 shrink-0 flex items-center justify-center relative"
@@ -1751,13 +1847,13 @@ export const ShootsTable = ({
                             <span>{shoot.id}</span>
                           </div>
                         </td>
-                        <td className={`relative py-5 px-6 border-y ${borderClass}`}>
-                          <Link
+                        <td className={`relative py-5 px-6 border-y ${inactiveOpacityClass} ${borderClass}`}>
+                          {shoot.isActive && <Link
                             href={shootDetailHref}
                             className="absolute inset-0 z-20"
                             aria-label={`Open shoot ${shoot.customerName}`}
                             prefetch={false}
-                          />
+                          />}
                           <div className="relative z-10 pointer-events-none flex items-center gap-3">
                             <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center font-semibold text-sm ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#FDF8EE] text-[#B18A00]"}`}>
                               {shoot.initials}
@@ -1770,22 +1866,22 @@ export const ShootsTable = ({
                             </div>
                           </div>
                         </td>
-                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          <Link
+                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y ${inactiveOpacityClass} ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          {shoot.isActive && <Link
                             href={shootDetailHref}
                             className="absolute inset-0 z-20"
                             aria-label={`Open shoot ${shoot.customerName}`}
                             prefetch={false}
-                          />
+                          />}
                           <div className="relative z-10 pointer-events-none">{shoot.category}</div>
                         </td>
-                        <td className={`relative py-5 px-6 text-base leading-tight border-y ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          <Link
+                        <td className={`relative py-5 px-6 text-base leading-tight border-y ${inactiveOpacityClass} ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          {shoot.isActive && <Link
                             href={shootDetailHref}
                             className="absolute inset-0 z-20"
                             aria-label={`Open shoot ${shoot.customerName}`}
                             prefetch={false}
-                          />
+                          />}
                           <div className="relative z-10 pointer-events-none flex flex-col">
                             <span className="font-semibold">{shoot.price}</span>
                             <span className="text-[10px] text-green-600 font-bold uppercase whitespace-nowrap">Paid: {shoot.paidAmount}</span>
@@ -1796,18 +1892,18 @@ export const ShootsTable = ({
                             )}
                           </div>
                         </td>                      
-                        <td className={`relative py-5 px-6 border-y ${borderClass}`}>
-                          <Link
+                        <td className={`relative py-5 px-6 border-y ${inactiveOpacityClass} ${borderClass}`}>
+                          {shoot.isActive && <Link
                             href={shootDetailHref}
                             className="absolute inset-0 z-20"
                             aria-label={`Open shoot ${shoot.customerName}`}
                             prefetch={false}
-                          />
+                          />}
                           <div className="relative z-10 pointer-events-none">
                             <StatusBadge status={shoot.status} />
                           </div>
                         </td>
-                        <td className={`py-5 px-6 text-right border-y border-r ${borderClass}`}>
+                        <td className={`py-5 px-6 text-right border-y border-r ${actionBorderClass}`}>
                           <div className="relative flex justify-end" data-card-actions>
                             <button
                               type="button"
@@ -1815,7 +1911,7 @@ export const ShootsTable = ({
                                 e.stopPropagation();
                                 setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
                               }}
-                              className={`p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                              className={`cursor-pointer p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
                               aria-label="Actions"
                             >
                               <MoreVertical size={24} />
@@ -1826,6 +1922,7 @@ export const ShootsTable = ({
                                 className={`absolute right-0 z-[200] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${shouldOpenUpward ? "bottom-9" : "top-9"} ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
+                                {shoot.isActive ? <>
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1879,6 +1976,25 @@ export const ShootsTable = ({
                                 >
                                   <Trash2 size={16} />
                                   Delete
+                                </button>
+                                </> : (
+                                  <button
+                                    type="button"
+                                    disabled={!canDelete || restoringShootId === shoot.id}
+                                    onClick={(event) => void handleRestoreClick(event, shoot)}
+                                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-emerald-400 hover:bg-white/10" : "text-emerald-700 hover:bg-emerald-50"}`}
+                                  >
+                                    {restoringShootId === shoot.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                                    Restore
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={(event) => handleHistoryClick(event, shoot)}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
+                                >
+                                  <History size={16} />
+                                  History
                                 </button>
                               </div>
                             )}
@@ -2009,8 +2125,23 @@ export const ShootsTable = ({
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Delete Shoot"
-        description="Are you sure you want to delete this shoot? This action cannot be undone."
+        description="Are you sure you want to delete this shoot? You can restore it later from the Deleted filter."
         isLoading={isDeleting}
+        isDark={isDark}
+      />
+      <RestoreConfirmationModal
+        isOpen={Boolean(shootToRestore)}
+        onClose={() => setShootToRestore(null)}
+        onConfirm={() => void confirmRestore()}
+        shootName={shootToRestore?.customerName}
+        isLoading={Boolean(restoringShootId)}
+        isDark={isDark}
+      />
+      <ShootHistoryModal
+        isOpen={Boolean(historyShoot)}
+        shootId={historyShoot ? getApiShootId(historyShoot.id) : null}
+        shootName={historyShoot?.customerName}
+        onClose={() => setHistoryShoot(null)}
       />
     </div >
   );
