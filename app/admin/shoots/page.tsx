@@ -42,6 +42,7 @@ const FILTER_STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "deleted", label: "Deleted" },
 ] as const;
 const RANGE_FILTER_OPTIONS = new Set([
   "all",

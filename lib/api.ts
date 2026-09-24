@@ -2374,6 +2374,38 @@ export const adminApi = {
       };
     }
   },
+  restoreProject: async (projectId: string | number) => {
+    try {
+      const response = await api.post(`admin/restore-project/${projectId}`);
+      return response.data;
+    } catch (error: unknown) {
+      const responseMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      console.error('Restore Project Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: responseMessage || 'Failed to restore project',
+      };
+    }
+  },
+  getProjectHistory: async (projectId: string | number) => {
+    try {
+      const response = await api.get(`admin/shoots/${projectId}/history`);
+      return response.data;
+    } catch (error: unknown) {
+      const responseMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      console.error('Get Project History Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: responseMessage || 'Failed to fetch project history',
+      };
+    }
+  },
   getPayoutPending: async () => {
     try {
       const response = await api.get('admin/dashboard/payout/pending');
