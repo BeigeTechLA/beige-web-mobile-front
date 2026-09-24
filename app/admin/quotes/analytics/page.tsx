@@ -36,6 +36,7 @@ type SalesRepOption = {
   id: string;
   name: string;
   role?: string;
+  email?: string;
 };
 
 export default function QuotePricingPage() {
@@ -155,16 +156,21 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
       }
 
       const uniqueSalespersonMap = new Map<string, SalesRepOption>();
-      response.data.forEach((salesRep: { id?: unknown; name?: unknown; role?: unknown }) => {
+      response.data.forEach((salesRep: { id?: unknown; name?: unknown; role?: unknown; email?: unknown }) => {
         const id = String(salesRep?.id ?? "").trim();
         const name = String(salesRep?.name ?? "").trim();
         if (!id || !name || uniqueSalespersonMap.has(id)) return;
-        uniqueSalespersonMap.set(id, { id, name, role: String(salesRep?.role ?? "").trim() || undefined });
+        uniqueSalespersonMap.set(id, {
+          id,
+          name,
+          role: String(salesRep?.role ?? "").trim() || undefined,
+          email: String(salesRep?.email ?? "").trim() || undefined,
+        });
       });
 
       setSalespersonOptions(Array.from(uniqueSalespersonMap.values()));
     };
-
+    
     void fetchSalesReps();
   }, []);
 
@@ -256,8 +262,13 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
                       <span className="capitalize">{salesperson.name}</span>
+                      {salesperson.email ? (
+                        <span className={`mt-0.5 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          {salesperson.email}
+                        </span>
+                      ) : null}
                       {salesperson.role ? (
-                        <span className={`mt-1 text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
+                        <span className={`mt-0.5 text-xs capitalize ${isDark ? "text-white/45" : "text-black/45"}`}>
                           {salesperson.role}
                         </span>
                       ) : null}

@@ -108,9 +108,10 @@ export default function OpenPipelineWidget({
     return Math.min(100, Math.max(0, (value / pipelineValue) * 100));
   };
 
-  const sentPercentage = getPipelinePercentage(sentValue);
-  const acceptedPercentage = getPipelinePercentage(acceptedValue);
-  const partiallyPaidPercentage = getPipelinePercentage(partiallyPaidValue);
+  const getCardWidthClass = (section: "sent" | "accepted" | "partiallyPaid") => {
+    if (!activeSection) return "md:flex-1";
+    return activeSection === section ? "md:flex-[3]" : "md:flex-1";
+  };
 
   const [page, setPage] = useState(1);
   const [quotesData, setQuotesData] = useState<QuoteAnalyticsQuoteListData | null>(null);
@@ -238,10 +239,10 @@ export default function OpenPipelineWidget({
         </div >
 
         {/* Pipeline Breakdown Bar Cards */}
-        < div className={`p-2 lg:p-5 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 ${isDark ? "bg-[#101010]" : "bg-zinc-50 border border-black/5"}`}
+        < div className={`p-2 lg:p-5 rounded-lg flex flex-col md:flex-row gap-4 ${isDark ? "bg-[#101010]" : "bg-zinc-50 border border-black/5"}`}
         >
           {/* Sent Card */}
-          < div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl transition-all duration-500 ${getCardWidthClass("sent")}`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span className={`text-base lg:text-xl ${isDark ? "text-white/70" : "text-black/70"}`}>
@@ -269,14 +270,13 @@ export default function OpenPipelineWidget({
             <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
-                className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(213,210,255,0.50)_39%,#7E72FF_100%)] transition-all duration-500"
-                style={{ width: `${sentPercentage}%` }}
+                className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(213,210,255,0.50)_39%,#7E72FF_100%)] transition-all duration-500"
               />
             </div>
           </div >
 
           {/* Accepted Card */}
-          < div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl transition-all duration-500 ${getCardWidthClass("accepted")}`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span
@@ -306,14 +306,13 @@ export default function OpenPipelineWidget({
             <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
-                className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(130,245,154,0.50)_39%,#35C653_100%)] transition-all duration-500"
-                style={{ width: `${acceptedPercentage}%` }}
+                className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(130,245,154,0.50)_39%,#35C653_100%)] transition-all duration-500"
               />
             </div>
           </div >
 
           {/* Partially Paid Card */}
-          < div className={`p-3 rounded-xl`}>
+          < div className={`p-3 rounded-xl transition-all duration-500 ${getCardWidthClass("partiallyPaid")}`}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span
@@ -343,8 +342,7 @@ export default function OpenPipelineWidget({
             <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
               <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
               <div
-                className="h-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(255,237,135,0.50)_39%,#DBC548_100%)] transition-all duration-500"
-                style={{ width: `${partiallyPaidPercentage}%` }}
+                className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(255,237,135,0.50)_39%,#DBC548_100%)] transition-all duration-500"
               />
             </div>
           </div >
@@ -352,10 +350,13 @@ export default function OpenPipelineWidget({
       </div >
 
       {/* Expandable Section */}
-      {
-        activeSection !== null && (
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${activeSection !== null ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+      >
+        <div className="overflow-hidden">
           <div
-            className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
+            className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}
           >
             <div className="overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
               <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
@@ -707,8 +708,8 @@ export default function OpenPipelineWidget({
               </div>
             )}
           </div>
-        )
-      }
+        </div>
+      </div>
     </div >
   );
 }
