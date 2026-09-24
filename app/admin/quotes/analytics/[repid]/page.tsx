@@ -14,7 +14,12 @@ import Image from "next/image";
 import { salesApi, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 
 type RepAnalyticsData = {
-  sales_rep?: { name?: string | null };
+  sales_rep?: {
+    name?: string | null;
+    profile_image?: string | null;
+    profile_photo?: string | null;
+    image?: string | null;
+  };
   performance_chart?: { date: string; quote_value: number; quotes_sent: number; deals_won: number; won_revenue: number }[];
   overview?: { open_pipeline?: { count: number; value: number; by_status: { status: "sent" | "accepted" | "partially_paid"; count: number; value: number }[] }; overdue_follow_ups?: { count: number; value: number; by_status: { status: "sent" | "accepted" | "partially_paid"; count: number; value: number }[] }; deals_won?: number; quotes_sent?: number; win_rate?: number; average_deal_size?: number; quote_to_cash_conversion?: number };
 };
@@ -52,6 +57,7 @@ export default function QuoteSalesRepDetailsPage() {
   const [overdueQuotes, setOverdueQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overdueAllQuotes, setOverdueAllQuotes] = useState<QuoteAnalyticsQuoteListData | null>(null);
   const [overduePage, setOverduePage] = useState(1);
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
 
  useEffect(() => {
     if (!salesRepId) return;
@@ -86,6 +92,16 @@ export default function QuoteSalesRepDetailsPage() {
     average_deal_size: analytics?.overview?.average_deal_size ?? 0,
     quote_to_cash_conversion: analytics?.overview?.quote_to_cash_conversion ?? 0,
   };
+  const salesRepName = analytics?.sales_rep?.name || "Sales Representative";
+  const salesRepImage =
+    analytics?.sales_rep?.profile_image ||
+    analytics?.sales_rep?.profile_photo ||
+    analytics?.sales_rep?.image;
+  const salesRepInitial = salesRepName.trim().charAt(0).toUpperCase() || "A";
+
+  useEffect(() => {
+    setProfileImageFailed(false);
+  }, [salesRepImage]);
 
   return (
     <>
@@ -109,15 +125,22 @@ export default function QuoteSalesRepDetailsPage() {
 
         </div>
         <div className={`flex items-center gap-4 p-5 border rounded-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "bg-black/5 border-black/20"}`}>
-          <div className="relative h-15 w-15 lg:h-21 lg:w-21 rounded-lg">
-            <Image
-              src="/images/crew/CREW(5).png"
-              alt={analytics?.sales_rep?.name || "Sales representative"}
-              fill
-              className="object-cover rounded-lg"
-            />
-          </div>
-          <p className="text-base lg:text-xl font-medium">{analytics?.sales_rep?.name || "Sales Representative"}</p>
+          {salesRepImage && !profileImageFailed ? (
+            <div className="relative h-15 w-15 lg:h-21 lg:w-21 shrink-0 overflow-hidden rounded-full">
+              <Image
+                src={salesRepImage}
+                alt={salesRepName}
+                fill
+                className="object-cover"
+                onError={() => setProfileImageFailed(true)}
+              />
+            </div>
+          ) : (
+            <div className="h-15 w-15 lg:h-21 lg:w-21 shrink-0 rounded-full bg-gradient-to-tr from-[#E5D5B8] to-[#C4A470] flex items-center justify-center text-black font-bold text-2xl lg:text-3xl">
+              {salesRepInitial}
+            </div>
+          )}
+          <p className="text-base lg:text-xl font-medium">{salesRepName}</p>
         </div>
 
         <div className="space-y-3 lg:space-y-6">
