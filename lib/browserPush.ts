@@ -45,6 +45,48 @@ const getSessionId = () => {
   return value;
 };
 
+/**
+ * register() resolves once the browser accepts the worker, not once it has
+ * activated it. PushManager needs the worker to be active before Firebase
+ * creates a subscription.
+ */
+const waitForActiveServiceWorker = async (registration: ServiceWorkerRegistration) => {
+  if (registration.active) return registration;
+
+  const worker = registration.installing || registration.waiting;
+  if (!worker) {
+    await navigator.serviceWorker.ready;
+    if (registration.active) return registration;
+    throw new Error("Service worker did not become active after registration.");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const onStateChange = () => {
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", onStateChange);
+        resolve();
+      } else if (worker.state === "redundant") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", onStateChange);
+        reject(new Error("Service worker became redundant before activation."));
+      }
+    };
+    const timeout = window.setTimeout(() => {
+      worker.removeEventListener("statechange", onStateChange);
+      reject(new Error("Timed out waiting for the service worker to activate."));
+    }, 10_000);
+
+    worker.addEventListener("statechange", onStateChange);
+    onStateChange();
+  });
+
+  if (!registration.active) {
+    throw new Error("Service worker activated but is unavailable for push registration.");
+  }
+  return registration;
+};
+
 export const registerBrowserPush = async (userType: unknown) => {
   const appUserType = resolveAppUserType(userType);
   if (!appUserType) return { status: "not-supported-for-user" as const };
@@ -58,6 +100,7 @@ export const registerBrowserPush = async (userType: unknown) => {
   if (permission !== "granted") return { status: "permission-denied" as const };
 
   const registration = await navigator.serviceWorker.register(appUserType === 3 ? "/firebase-messaging-client-sw.js" : "/firebase-messaging-cp-sw.js");
+  await waitForActiveServiceWorker(registration);
   const appName = appUserType === 3 ? "client-push" : "cp-push";
   const app = getApps().some((item) => item.name === appName) ? getApp(appName) : initializeApp(config, appName);
   const token = await getToken(getMessaging(app), {
