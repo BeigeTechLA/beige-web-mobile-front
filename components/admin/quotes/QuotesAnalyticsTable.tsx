@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 type QuoteAnalyticsItem = {
   id: string | number;
@@ -19,59 +19,31 @@ type QuoteAnalyticsItem = {
 
 type QuoteAnalyticsTableProps = {
   isDark?: boolean;
+  loading?: boolean;
+  data?: {
+    rep_id: number;
+    rep_name: string;
+    rep_email: string;
+    quote_value: number;
+    quotes_sent: number;
+    deals_won: number;
+    won_revenue: number;
+    collected_revenue: number;
+    win_rate: number;
+    quote_to_cash_conversion: number;
+    average_deal_size: number;
+    open_pipeline: {
+      count: number;
+      value: number;
+    };
+    overdue_follow_ups: {
+      count: number;
+      value: number;
+    };
+  }[];
 };
 
-// Dummy Data matching screenshot specifications
-const DUMMY_ANALYTICS_DATA: QuoteAnalyticsItem[] = [
-  {
-    id: 1,
-    rep: "John Smith",
-    quoteSent: 42,
-    quoteValue: "$8.4L",
-    dealWon: 12,
-    winRate: "28.6%",
-    wonRevenue: "$3.2L",
-    avgDealSizeOpen: "$26.7K",
-    openPipeline: "$4.1M",
-    followUpsOverdue: 1,
-  },
-  {
-    id: 2,
-    rep: "Michael Chen",
-    quoteSent: 36,
-    quoteValue: "$6.8L",
-    dealWon: 9,
-    winRate: "25.0%",
-    wonRevenue: "$2.4L",
-    avgDealSizeOpen: "$26.7K",
-    openPipeline: "$3.6M",
-    followUpsOverdue: 3,
-  },
-  {
-    id: 3,
-    rep: "Olivia Brown",
-    quoteSent: 28,
-    quoteValue: "$5.2L",
-    dealWon: 7,
-    winRate: "25.0%",
-    wonRevenue: "$1.8L",
-    avgDealSizeOpen: "$25.7K",
-    openPipeline: "$2.7M",
-    followUpsOverdue: 5,
-  },
-  {
-    id: 4,
-    rep: "Lisa Smith",
-    quoteSent: 22,
-    quoteValue: "$4.1L",
-    dealWon: 4,
-    winRate: "18.2%",
-    wonRevenue: "$1.3L",
-    avgDealSizeOpen: "$32.5K",
-    openPipeline: "$2.0M",
-    followUpsOverdue: 2,
-  },
-];
+const PAGE_SIZE = 10;
 
 type PaginationItem = number | "...";
 
@@ -121,15 +93,14 @@ const TableRow = ({
   const router = useRouter();
 
   const handleRowClick = () => {
-      router.push(`/admin/quotes/analytics/${item.id}`);
+    router.push(`/admin/quotes/analytics/${item.id}`);
   };
 
   return (
     <React.Fragment>
       <tr
         onClick={handleRowClick}
-        className={`transition-colors cursor-pointer ${
-          isDark
+        className={`transition-colors cursor-pointer ${isDark
             ? isExpanded
               ? "bg-[#202020]"
               : "border-white/[0.05] hover:bg-white/[0.02]"
@@ -146,8 +117,7 @@ const TableRow = ({
                 e.stopPropagation();
                 onToggle();
               }}
-              className={`lg:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors shrink-0 ${
-                isExpanded
+              className={`lg:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors shrink-0 ${isExpanded
                   ? isDark
                     ? "border-[#E8D1AB] text-[#E8D1AB]"
                     : "border-black text-black"
@@ -173,58 +143,44 @@ const TableRow = ({
         </td>
 
         {/* Desktop Data Columns */}
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.quoteSent}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.quoteValue}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.dealWon}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.winRate}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.wonRevenue}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.avgDealSizeOpen}
         </td>
 
-        <td
-          className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"
-            }`}
+        <td className={`p-4 hidden lg:table-cell ${isDark ? "text-white" : "text-black"}`}
         >
           {item.openPipeline}
         </td>
 
         {/* Follow-ups Badge Column */}
         <td className="p-4 text-right lg:text-left">
-          <span className="inline-flex items-center justify-center rounded-full px-3 py-1.5 lg:px-5 lg:py-3 text-sm lg:text-base font-medium whitespace-nowrap bg-[#FFF0CF] text-[#C06D24]">
+          <span className="inline-flex items-center justify-center rounded-full px-3 py-1.5 lg:px-5 lg:py-3 text-xs lg:text-base font-medium whitespace-nowrap bg-[#FFF0CF] text-[#C06D24]">
             {item.followUpsOverdue} overdue
           </span>
         </td>
@@ -232,112 +188,66 @@ const TableRow = ({
 
       {/* Mobile Expanded Details Section */}
       {isExpanded && (
-        <tr
-          className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"
-            }`}
-        >
+        <tr className={`lg:hidden transition-colors ${isDark ? "bg-[#202020]" : "bg-black/[0.02]"}`}>
           <td
             colSpan={2}
-            className={`px-4 py-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"
-              }`}
+            className={`px-4 pb-6 ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"}`}
           >
             <div className="pl-9 space-y-3">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Quote Sent
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.quoteSent}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Quote Value
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.quoteValue}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Deal Won
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.dealWon}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Win Rate
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.winRate}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Won Revenue
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.wonRevenue}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Avg. Deal Size Open
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.avgDealSizeOpen}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs mb-1 ${isDark ? "text-[#F5F5F5]" : "text-black/50"
-                      }`}
-                  >
+                  <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black/50"}`}>
                     Open Pipeline
                   </p>
-                  <p
-                    className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-black"}`}>
                     {item.openPipeline}
                   </p>
                 </div>
@@ -352,15 +262,39 @@ const TableRow = ({
 
 export const QuotesAnalyticsTable = ({
   isDark = true,
+  loading = false,
+  data = [],
 }: QuoteAnalyticsTableProps) => {
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(
     null
   );
 
-  const totalPages = 10;
-  const safeCurrentPage = page;
+  useEffect(() => {
+    setPage(1);
+  }, [data]);
+
+  const analyticsData: QuoteAnalyticsItem[] = data.map((item) => ({
+    id: item.rep_id,
+    rep: item.rep_name,
+    quoteSent: item.quotes_sent,
+    quoteValue: `$${item.quote_value.toLocaleString()}`,
+    dealWon: item.deals_won,
+    winRate: `${item.win_rate}%`,
+    wonRevenue: `$${item.won_revenue.toLocaleString()}`,
+    avgDealSizeOpen: `$${item.average_deal_size.toLocaleString()}`,
+    openPipeline: `$${item.open_pipeline.value.toLocaleString()}`,
+    followUpsOverdue: item.overdue_follow_ups.count,
+  }));
+
+  const totalPages = Math.max(1, Math.ceil(analyticsData.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(page, totalPages);
+
+  const paginatedData = analyticsData.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
+  );
+
   const paginationItems = buildPaginationItems(safeCurrentPage, totalPages);
 
   return (
@@ -373,8 +307,8 @@ export const QuotesAnalyticsTable = ({
           {/* Desktop Headers */}
           <tr
             className={`hidden lg:table-row border-b rounded-b-lg lg:rounded-b-2xl text-left text-sm transition-colors ${isDark
-                ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
-                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+              ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
               }`}
           >
             {[
@@ -396,8 +330,8 @@ export const QuotesAnalyticsTable = ({
           {/* Mobile Headers */}
           <tr
             className={`lg:hidden border-b text-sm transition-colors ${isDark
-                ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
-                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+              ? "border-white/[0.04] bg-[#101010] text-[#E7D2AB]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
               }`}
           >
             <th className="p-4 font-medium">Rep</th>
@@ -407,19 +341,19 @@ export const QuotesAnalyticsTable = ({
 
         <tbody className="text-sm lg:text-base">
           {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <tr
-                key={index}
-                className={`border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"}`}
-              >
-                <td colSpan={9} className="p-4">
-                  <div
-                    className={`h-5 lg:h-10 animate-pulse rounded ${isDark ? "bg-white/5" : "bg-black/5"}`}
+            <tr>
+              <td colSpan={9} className="p-0">
+                <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+                  <Loader2
+                    size={28}
+                    strokeWidth={2.5}
+                    className={`animate-spin ${isDark ? "text-[#E7D2AB]" : "text-black/60"
+                      }`}
                   />
-                </td>
-              </tr>
-            ))
-          ) : DUMMY_ANALYTICS_DATA.length === 0 ? (
+                </div>
+              </td>
+            </tr>
+          ) : paginatedData.length === 0 ? (
             <tr>
               <td
                 colSpan={9}
@@ -429,7 +363,7 @@ export const QuotesAnalyticsTable = ({
               </td>
             </tr>
           ) : (
-            DUMMY_ANALYTICS_DATA.map((item) => (
+            paginatedData.map((item) => (
               <TableRow
                 key={String(item.id)}
                 item={item}
@@ -444,7 +378,7 @@ export const QuotesAnalyticsTable = ({
         </tbody>
 
         {/* Integrated Pagination Footer */}
-        {!loading && DUMMY_ANALYTICS_DATA.length > 0 && (
+        {!loading && analyticsData.length > 0 && (
           <tfoot>
             <tr
               className={`border-t transition-colors ${isDark ? "border-[#333333] bg-[#101010]" : "border-[#E5E5E5] bg-white"
@@ -456,7 +390,7 @@ export const QuotesAnalyticsTable = ({
                     className={`hidden lg:block text-sm ${isDark ? "text-white" : "text-black"
                       }`}
                   >
-                    {`Page ${safeCurrentPage} to ${totalPages}`}
+                    {`Page ${safeCurrentPage} of ${totalPages}`}
                   </div>
                   <div className="flex items-center gap-2 self-auto">
                     <button
@@ -466,8 +400,8 @@ export const QuotesAnalyticsTable = ({
                       }
                       disabled={safeCurrentPage === 1}
                       className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronLeft size={24} />
@@ -488,10 +422,10 @@ export const QuotesAnalyticsTable = ({
                           type="button"
                           onClick={() => setPage(item)}
                           className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all ${safeCurrentPage === item
-                              ? "bg-[#E5D5B8] text-black"
-                              : isDark
-                                ? "text-white/60 hover:bg-white/5"
-                                : "text-[#666] hover:bg-black/5"
+                            ? "bg-[#E5D5B8] text-black"
+                            : isDark
+                              ? "text-white/60 hover:bg-white/5"
+                              : "text-[#666] hover:bg-black/5"
                             }`}
                         >
                           {item}
@@ -508,8 +442,8 @@ export const QuotesAnalyticsTable = ({
                       }
                       disabled={safeCurrentPage === totalPages}
                       className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                          ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                          : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                        ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                        : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
                         }`}
                     >
                       <ChevronRight size={24} />

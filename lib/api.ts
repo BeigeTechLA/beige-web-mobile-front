@@ -486,6 +486,80 @@ export interface QuotesDashboardResponse {
   error?: string;
 }
 
+export type QuoteAnalyticsParams = {
+  date_preset?: string;
+  start_date?: string;
+  end_date?: string;
+  sales_rep_id?: string | number;
+  shoot_type?: string;
+  quote_status?: string;
+  payment_status?: string;
+  lead_source?: string;
+  customer_type?: string;
+};
+
+export type QuoteAnalyticsResponse = {
+  success: boolean;
+  data: any | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsFiltersResponse = {
+  success: boolean;
+  data: {
+    sales_reps?: any[];
+    shoot_types?: any[];
+    services?: any[];
+    quote_statuses?: any[];
+    payment_statuses?: any[];
+    lead_sources?: any[];
+    customer_types?: any[];
+    date_presets?: any[];
+  } | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsQuotesParams = {
+  bucket: 'open_pipeline' | 'overdue_follow_ups' | 'deals_won';
+  status?: 'sent' | 'accepted' | 'partially_paid';
+  page?: number;
+  limit?: number | 'all';
+  sales_rep_id?: string | number;
+  date_preset?: string;
+  start_date?: string;
+  end_date?: string;
+  shoot_type?: string;
+  quote_status?: string;
+  payment_status?: string;
+  lead_source?: string;
+  customer_type?: string;
+};
+
+export type QuoteAnalyticsQuotesResponse = {
+  success: boolean;
+  data: QuoteAnalyticsQuoteListData | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsQuoteRow = {
+  sales_quote_id: number;
+  quote_number: string | null;
+  client: { name: string | null; email: string | null } | null;
+  project: string | null;
+  quote_value: number;
+  collected_amount: number;
+  outstanding_amount: number;
+  quote_status: string;
+  lead_source: string | null;
+  sales_rep: { id: number; name: string | null; email: string | null } | null;
+  validity: { valid_until: string | null } | null;
+};
+
+export type QuoteAnalyticsQuoteListData = {
+  rows: QuoteAnalyticsQuoteRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
 export interface SalesQuoteListUser {
   id?: number | string;
   name?: string;
@@ -3788,6 +3862,96 @@ export const salesApi = {
       };
     }
   },
+  getQuoteAnalytics: async (
+    params: QuoteAnalyticsParams = {}
+  ): Promise<QuoteAnalyticsResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsResponse>(
+        '/sales/quotes/analytics',
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics',
+      };
+    }
+  },
+
+  getQuoteAnalyticsFilters: async (): Promise<QuoteAnalyticsFiltersResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsFiltersResponse>(
+        '/sales/quotes/analytics/filters'
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Filters Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics filters',
+      };
+    }
+  },
+
+  getQuoteAnalyticsByRep: async (
+    salesRepId: number | string,
+    params: QuoteAnalyticsParams = {}
+  ): Promise<QuoteAnalyticsResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsResponse>(
+        `/sales/quotes/analytics/reps/${salesRepId}`,
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics By Rep Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch sales rep analytics',
+      };
+    }
+  },
+
+  getQuoteAnalyticsQuotes: async (
+    params: QuoteAnalyticsQuotesParams
+  ): Promise<QuoteAnalyticsQuotesResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsQuotesResponse>(
+        '/sales/quotes/analytics/quotes',
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Quotes Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics quotes',
+      };
+    }
+  },
+
   getQuotesDashboard: async (
     params: {
       range?: string;

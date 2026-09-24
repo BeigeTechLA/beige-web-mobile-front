@@ -16,65 +16,80 @@ type HoveredBar = {
   value: string;
 } | null;
 
+type ConversionPerformanceData = {
+  deals_won: number;
+  quotes_sent: number;
+  win_rate: number;
+  average_deal_size: number;
+  quote_to_cash_conversion: number;
+};
+
 export default function ConversionPerformanceWidget({
   isDark = true,
+  data,
 }: {
   isDark?: boolean;
+  data?: ConversionPerformanceData;
 }) {
   const [activeTab, setActiveTab] = useState<MetricTab | null>("winRate");
   const [hoveredBar, setHoveredBar] = useState<HoveredBar>(null);
+  const dealsWon = data?.deals_won ?? 0;
+  const quotesSent = data?.quotes_sent ?? 0;
+  const winRate = data?.win_rate ?? 0;
+  const averageDealValue = data?.average_deal_size ?? 0;
+  const quoteToCashConversion = data?.quote_to_cash_conversion ?? 0;
 
   // 1. General View Concentric Data (Inner to Outer)
   const generalRadialData = [
     {
       name: "Win Rate",
-      value: 75,
+      value: winRate,
       fill: "#38BDF8",
       tooltipLabel: "Deal won",
-      tooltipValue: "25%",
+      tooltipValue: `${winRate}%`,
     },
     {
       name: "Avg Deal Value",
-      value: 65,
+      value: averageDealValue > 0 ? 100 : 0,
       fill: "#A78BFA",
       tooltipLabel: "Avg. deal value",
-      tooltipValue: "$27,188",
+      tooltipValue: `$${averageDealValue.toLocaleString()}`,
     },
     {
       name: "Quote-to-Cash",
-      value: 35.5,
+      value: quoteToCashConversion,
       fill: "#FFF099",
       tooltipLabel: "Quote-to-cash",
-      tooltipValue: "35.5%",
+      tooltipValue: `${quoteToCashConversion}%`,
     },
   ];
 
   // 2. Win Rate View Data (Inner to Outer)
-  const winRateRadialData = [
-    { name: "Inner Cyan Ring", value: 100, fill: "#55D5E3" },
-    { name: "Deals Won", value: 65, fill: "#22C55E" },
-    { name: "Quotes Sent", value: 75, fill: "#DA8BED" },
-  ];
+const winRateRadialData = [
+  { name: "Inner Cyan Ring", value: 100, fill: "#55D5E3" },
+  { name: "Deals Won", value: winRate, fill: "#22C55E" },
+  { name: "Quotes Sent", value: 100, fill: "#DA8BED" },
+];
 
   // 3. Avg Deal Value View (Inner to Outer)
-  const avgDealRadialData = [
-    { name: "Inner Accent Ring", value: 100, fill: "#55D5E3" },
-    { name: "Avg Value", value: 70, fill: "#51DB6B" },
-    { name: "Target Threshold", value: 85, fill: "#DA8BED" },
-  ];
+const avgDealRadialData = [
+  { name: "Inner Accent Ring", value: 100, fill: "#55D5E3" },
+  { name: "Avg Value", value: averageDealValue > 0 ? 100 : 0, fill: "#51DB6B" },
+  { name: "Target Threshold", value: 100, fill: "#DA8BED" },
+];
 
   // 4. Quote-To-Cash View (Inner to Outer)
-  const quoteToCashRadialData = [
-    { name: "Base Accent Ring", value: 100, fill: "#55D5E3" },
-    { name: "Pending Settlement", value: 55, fill: "#51DB6B" },
-    { name: "Conversion Rate", value: 80, fill: "#DA8BED" },
-  ];
-
+const quoteToCashRadialData = [
+  { name: "Base Accent Ring", value: 100, fill: "#55D5E3" },
+  {
+    name: "Pending Settlement",
+    value: quoteToCashConversion,
+    fill: "#51DB6B",
+  },
+  { name: "Conversion Rate", value: 100, fill: "#DA8BED" },
+];
   return (
-    <div
-      className={`flex-1 relative overflow-hidden w-full h-full rounded-lg lg:rounded-2xl border p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
-        }`}
-    >
+    <div className={`flex-1 relative overflow-hidden w-full h-full rounded-2xl border p-5 lg:p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Header Title */}
       <div className="flex items-center justify-between mb-3 relative z-10">
         <div className="flex items-center gap-2.5">
@@ -91,11 +106,11 @@ export default function ConversionPerformanceWidget({
           <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>32 DEALS WON</span>
+              <span>{dealsWon} DEALS WON</span>
             </div>
             <div className="flex items-center gap-1.5 text-[#DA8BED]">
               <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
-              <span>128 QUOTES SENT</span>
+              <span>{quotesSent} QUOTES SENT</span>
             </div>
           </div>
         )}
@@ -104,7 +119,7 @@ export default function ConversionPerformanceWidget({
           <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>$27.1K AVG VALUE</span>
+              <span>${averageDealValue.toLocaleString()} AVG VALUE</span>
             </div>
             <div className="flex items-center gap-1.5 text-[#DA8BED]">
               <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
@@ -114,10 +129,10 @@ export default function ConversionPerformanceWidget({
         )}
 
         {activeTab === "quoteToCash" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
+          <div className="flex items-center gap-5 text-sm lg:text-base lg:tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>35.5% CASH CONVERTED</span>
+              <span>{quoteToCashConversion}% CASH CONVERTED</span>
             </div>
             <div className="flex items-center gap-1.5 text-[#DA8BED]">
               <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
@@ -170,11 +185,8 @@ export default function ConversionPerformanceWidget({
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
-                >
-                  25%
+                <span className={`text-xl lg:text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                  {winRate}%
                 </span>
               </div>
             </div>
@@ -207,11 +219,8 @@ export default function ConversionPerformanceWidget({
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
-                >
-                  $27,188
+                <span className={`text-xl lg:text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                  ${averageDealValue.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -244,11 +253,9 @@ export default function ConversionPerformanceWidget({
                 </RadialBarChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <span
-                  className={`text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"
-                    }`}
+                <span className={`text-xl lg:text-3xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}
                 >
-                  35.5%
+                  {quoteToCashConversion}%
                 </span>
               </div>
             </div>
@@ -310,7 +317,7 @@ export default function ConversionPerformanceWidget({
           onClick={() =>
             setActiveTab(activeTab === "winRate" ? null : "winRate")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
+          className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
               ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -318,8 +325,8 @@ export default function ConversionPerformanceWidget({
             }`}
         >
           <div className="flex items-center justify-between">
-            <span className={`lg:text-2xl font-bold ${activeTab === "winRate" ? "text-black" : "text-[#EDE598]"}`}>
-              25%
+            <span className={`text-xl lg:text-2xl font-bold ${activeTab === "winRate" ? "text-black" : "text-[#EDE598]"}`}>
+              {winRate}%
             </span>
 
             {/* Win Rate Info Tooltip */}
@@ -339,7 +346,7 @@ export default function ConversionPerformanceWidget({
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  Deal won/Quotes sent
+                  Percentage of sent proposals that converted into paid bookings (Calculated as Deals Won ÷ Quotes Sent × 100)
                 </div>
                 <div
                   className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
@@ -372,7 +379,7 @@ export default function ConversionPerformanceWidget({
           onClick={() =>
             setActiveTab(activeTab === "avgDealValue" ? null : "avgDealValue")
           }
-          className={`p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
+          className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
               ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -380,11 +387,8 @@ export default function ConversionPerformanceWidget({
             }`}
         >
           <div className="flex items-center justify-between">
-            <span
-              className={`lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"
-                }`}
-            >
-              $27,188
+            <span className={`text-xl lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"}`}>
+              ${averageDealValue.toLocaleString()}
             </span>
 
             {/* Avg Deal Value Info Tooltip */}
@@ -405,7 +409,7 @@ export default function ConversionPerformanceWidget({
                     : "bg-white text-black border-black/10"
                     }`}
                 >
-                  won revenue/deals won
+                  Average revenue generated from each won deal (Calculated as Won Revenue ÷ Deals Won)
                 </div>
                 {/* Tooltip Arrow */}
                 <div
@@ -440,7 +444,7 @@ export default function ConversionPerformanceWidget({
         onClick={() =>
           setActiveTab(activeTab === "quoteToCash" ? null : "quoteToCash")
         }
-        className={`w-full mt-3 p-4 rounded-lg lg:rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
+        className={`w-full mt-3 p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
           ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
           : isDark
             ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -448,8 +452,8 @@ export default function ConversionPerformanceWidget({
           }`}
       >
         <div className="flex items-center justify-between">
-          <span className={`lg:text-2xl font-bold ${activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"}`}>
-            35.5%
+          <span className={`text-xl lg:text-2xl font-bold ${activeTab === "quoteToCash" ? "text-black" : "text-[#38BDF8]"}`}>
+            {quoteToCashConversion}%
           </span>
 
           {/* Info Icon with Hover Tooltip */}
@@ -471,7 +475,7 @@ export default function ConversionPerformanceWidget({
                   : "bg-white text-black border-black/10"
                   }`}
               >
-                Won Revenue/Quote value
+                Percentage of the total proposal value that converted into paid revenue (Calculated as Won Revenue ÷ Quote Value × 100)
               </div>
               {/* Tooltip Arrow */}
               <div
