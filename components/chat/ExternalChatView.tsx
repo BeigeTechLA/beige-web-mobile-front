@@ -40,6 +40,7 @@ import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
 import EmptyChatState from "./EmptyChatState";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import Image from "next/image";
+import WebPushRegistration from "./WebPushRegistration";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -1346,6 +1347,56 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  useEffect(() => {
+    const openChatRoomFromPush = async (rawRoomId: unknown) => {
+      const roomId = String(rawRoomId || "").trim();
+      if (!roomId) return;
+
+      let room = roomsRef.current.find((item) => getRoomId(item) === roomId);
+      if (!room) {
+        const roomListResult = await externalChatApi.listRoomsWithMeta({
+          page: 1,
+          limit: 100,
+          sortBy: "updatedAt:desc",
+        });
+        room = roomListResult.rooms.find((item) => getRoomId(item) === roomId);
+        if (room) {
+          setRooms((current) => mergeRoomsById(current, [room!]));
+        }
+      }
+
+      if (!room) {
+        toast.error("This conversation is no longer available.");
+        return;
+      }
+
+      await loadRoomDetails(room);
+    };
+
+    const handleBrowserNotificationClick = (event: Event) => {
+      const roomId = (event as CustomEvent<{ roomId?: unknown }>).detail?.roomId;
+      void openChatRoomFromPush(roomId);
+    };
+    const handleServiceWorkerMessage = (event: MessageEvent<{ type?: string; roomId?: unknown }>) => {
+      if (event.data?.type === "beige:open-chat-room") {
+        void openChatRoomFromPush(event.data.roomId);
+      }
+    };
+
+    const roomIdFromUrl = new URLSearchParams(window.location.search).get("roomId");
+    if (roomIdFromUrl) {
+      window.history.replaceState({}, "", window.location.pathname);
+      void openChatRoomFromPush(roomIdFromUrl);
+    }
+
+    window.addEventListener("beige:open-chat-room", handleBrowserNotificationClick);
+    navigator.serviceWorker?.addEventListener("message", handleServiceWorkerMessage);
+    return () => {
+      window.removeEventListener("beige:open-chat-room", handleBrowserNotificationClick);
+      navigator.serviceWorker?.removeEventListener("message", handleServiceWorkerMessage);
+    };
+  }, [loadRoomDetails]);
+
   const handleRoomAvailabilityEvent = (payload: unknown) => {
     const incomingRoom = normalizeRoomCreatedPayload(payload);
 
@@ -2018,6 +2069,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
   return (
     <>
+      <WebPushRegistration userType={effectiveUser?.user_type || effectiveUser?.userType || effectiveUser?.user_type_id} />
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-scroll no-scrollbar lg:overflow-y-auto">
         <div className="flex items-start lg:items-center justify-between gap-3 px-1">
           <div className="max-w-3/5">
