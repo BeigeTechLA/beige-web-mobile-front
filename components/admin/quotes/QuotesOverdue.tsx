@@ -349,8 +349,12 @@ export default function QuotesOverdueWidget({
       </div>
 
       {/* Collapsible Expandable Table Section */}
-      {showTable && (
-        <div className={`border-t rounded-b-2xl transition-all ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+      >
+        <div className="overflow-hidden">
+        <div className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
           <div className="w-full overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
             <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
               <thead>
@@ -763,7 +767,8 @@ export default function QuotesOverdueWidget({
             </div>
           )}
         </div>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
