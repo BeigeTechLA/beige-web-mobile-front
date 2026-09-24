@@ -178,15 +178,23 @@ export default function ConfirmAndPay({
               </span>
               <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${packageExpanded ? "rotate-180" : ""}`} />
             </button>
-            <div id="booking-package-inclusions" hidden={!packageExpanded} className="border-t border-white/5 px-4 py-5">
-              <ul className="space-y-3">
+            <div
+              id="booking-package-inclusions"
+              aria-hidden={!packageExpanded}
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${packageExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div className={`border-t border-white/5 px-4 py-5 transition-opacity duration-200 ${packageExpanded ? "opacity-100" : "opacity-0"}`}>
+                  <ul className="space-y-3">
                 {data.packageOffers.map((offer, index) => (
                   <li key={`${offer}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm italic leading-relaxed text-white/55">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/20"><Check className="h-3 w-3" strokeWidth={1} /></span>
                     <span>{offer}</span>
                   </li>
                 ))}
-              </ul>
+                  </ul>
+                </div>
+              </div>
             </div>
             {(data.crewLabel || data.studioCrewSize) && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 bg-[#1E1E1C] px-4 py-4">

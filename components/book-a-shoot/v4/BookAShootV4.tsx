@@ -2179,6 +2179,10 @@ export const BookAShootV4 = () => {
     const difference = Math.round((totalAmount - summaryRows.reduce((sum, row) => sum + row.amount, 0)) * 100) / 100;
     if (difference !== 0) summaryRows.push({ label: difference < 0 ? "Discount / adjustments" : "Production / adjustments", amount: difference });
 
+    const filteredPackageOffers = packageOffers.filter(
+      (offer) => !/setup time/i.test(offer) || !summaryRows.some((row) => /setup time/i.test(row.label))
+    );
+
     return {
       summaryRows,
       serviceHeading: isStudioOnlyBooking ? "Studio Services" : `${getPrimaryCreativeServiceLabel(bookingState.selectedServices)} Services`,
@@ -2194,7 +2198,7 @@ export const BookAShootV4 = () => {
           ),
       baseServiceCost: selectedStudios.length > 0 ? studioCost : displayedRoleCost,
       showBaseServiceCost: selectedStudios.length > 0,
-      packageOffers,
+      packageOffers: filteredPackageOffers,
       photosIncluded: roundedPhotoEditSummary.includedCount,
       extraPhotoUnitsText: `Extra Photo Units x${photoEditSetCount}`,
       extraPhotosCount: roundedPhotoEditSummary.extraCount,
