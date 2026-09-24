@@ -362,7 +362,7 @@ export default function ChooseCreativePartner({
   const [selectedRoles, setSelectedRoles] = useState<SelectedCrewRoles>({});
 
   useEffect(() => {
-    const totalTimeMs = 5000;
+    const totalTimeMs = 7000;
     const updateIntervalMs = 100;
     const incrementStep = 100 / (totalTimeMs / updateIntervalMs);
 
@@ -750,11 +750,12 @@ export default function ChooseCreativePartner({
     return (
       <div className="w-full min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         {/* Glow & Sparkle Animation */}
-        <div className="relative w-60 h-60 lg:w-100 lg:h-100 mb-5 lg:mb-8 [mask-image:radial-gradient(circle,black_30%,transparent_100%)]">
+        <div className="relative w-full max-w-[760px] aspect-[19/12] translate-y-6 lg:translate-y-8 mb-5 lg:mb-8">
           <Image
-            src={"/images/misc/BookingFlow/sparkleLoader.gif"}
-            alt="Loader gif"
+            src={"/images/misc/BookingFlow/bookashootloader.gif"}
+            alt="Finding creative partners"
             fill
+            className="object-contain"
           />
         </div>
 
@@ -766,7 +767,7 @@ export default function ChooseCreativePartner({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       {onBack && (
         <button
@@ -903,7 +904,7 @@ export default function ChooseCreativePartner({
       })()}
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

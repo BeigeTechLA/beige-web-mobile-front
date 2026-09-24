@@ -18,7 +18,7 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
   service = "Photography"
 }) => {
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 md:p-8">
+    <div className="w-full max-w-6xl mx-auto p-4 pb-32 md:p-8 lg:pb-36">
       {/* Outer Dark Container Card */}
       <div
         className="relative w-full rounded-3xl lg:rounded-[50px] p-5 lg:p-10 2xl:p-20 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-10 items-center border-[0.414px] border-white/20 bg-gradient-to-b from-[#161616] to-[#101010]/50"
@@ -42,25 +42,6 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
           </p>
 
           {/* Interactive Form */}
-
-          <div>
-            {/* Submit Button */}
-            <button
-              type="button"
-              onClick={onContinue}
-              className="w-full py-4 rounded-lg bg-[#E8D1AB] text-[#0A0908] text-sm lg:text-base font-medium hover:bg-[#dfc498] transition-all duration-200 cursor-pointer mb-6"
-            >
-              Continue with Studio
-            </button>
-            {/* Submit Button */}
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-full py-4 rounded-lg bg-[#101010] text-white border border-[#8E8E8E] text-sm lg:text-base font-medium hover:bg-white/5 transition-all duration-200 cursor-pointer mb-6"
-            >
-              Back
-            </button>
-          </div>
 
           {/* Privacy Note */}
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#8A857C]">
@@ -106,6 +87,15 @@ export const FlowInfoCard: React.FC<FlowInfoCardProps> = ({
 
           </div>
         </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
+        <button type="button" onClick={onBack} className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base hover:bg-white/5 transition-all cursor-pointer">
+          Back
+        </button>
+        <button type="button" onClick={onContinue} className="ml-auto w-full rounded-lg bg-[#E8D1AB] px-10 py-3.5 text-base font-medium text-[#101010] transition-all duration-200 hover:bg-[#dfc498] lg:w-auto">
+          Continue with Studio
+        </button>
       </div>
     </div>
   );
