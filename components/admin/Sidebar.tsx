@@ -98,6 +98,7 @@ const menuItems: MenuItem[] = [
       { name: "Disputes", link: "/admin/finances/disputes" },
       { name: "Beige credit points", link: "/admin/finances/creditPoints" },
       { name: "CP Compensation", link: "/admin/finances/cpCompensation" },
+      { name: "Analytics", link: "/admin/finances/analytics" },
     ],
   },
 

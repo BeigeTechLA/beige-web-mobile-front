@@ -31,10 +31,7 @@ type Metric = {
   label: string;
   value: string;
   growth: string;
-  icon: React.ComponentType<{
-    size?: number;
-    className?: string;
-  }>;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 };
 
 type ChartPoint = {
@@ -45,106 +42,22 @@ type ChartPoint = {
   hoverLabel?: number;
 };
 
-type OverviewActiveDotProps = {
-  cx?: number;
-  cy?: number;
-  value?: number;
-  payload?: ChartPoint;
-  isDark: boolean;
-};
-
 const chartData: ChartPoint[] = [
-  {
-    x: 0,
-    gross: 35,
-    pending: 30,
-    payout: 32,
-  },
-  {
-    x: 1,
-    gross: 41,
-    pending: 34,
-    payout: 36,
-  },
-  {
-    x: 2,
-    gross: 20,
-    pending: 28,
-    payout: 27,
-  },
-  {
-    x: 3,
-    gross: 25,
-    pending: 31,
-    payout: 30,
-  },
-  {
-    x: 4,
-    gross: 28,
-    pending: 35,
-    payout: 34,
-  },
-  {
-    x: 5,
-    gross: 41,
-    pending: 40,
-    payout: 41,
-  },
-  {
-    x: 6,
-    gross: 39,
-    pending: 39,
-    payout: 40,
-  },
-  {
-    x: 7,
-    gross: 65,
-    pending: 51,
-    payout: 57,
-    hoverLabel: 24,
-  },
-  {
-    x: 8,
-    gross: 63,
-    pending: 54,
-    payout: 58,
-  },
-  {
-    x: 9,
-    gross: 77,
-    pending: 61,
-    payout: 68,
-  },
-  {
-    x: 10,
-    gross: 56,
-    pending: 49,
-    payout: 54,
-  },
-  {
-    x: 11,
-    gross: 62,
-    pending: 53,
-    payout: 59,
-  },
-  {
-    x: 12,
-    gross: 48,
-    pending: 45,
-    payout: 50,
-  },
-  {
-    x: 13,
-    gross: 61,
-    pending: 55,
-    payout: 60,
-  },
-  {
-    x: 14,
-    gross: 63,
-    pending: 57,
-    payout: 62,
-  },
+  { x: 0, gross: 35, pending: 30, payout: 32 },
+  { x: 1, gross: 41, pending: 34, payout: 36 },
+  { x: 2, gross: 20, pending: 28, payout: 27 },
+  { x: 3, gross: 25, pending: 31, payout: 30 },
+  { x: 4, gross: 28, pending: 35, payout: 34 },
+  { x: 5, gross: 41, pending: 40, payout: 41 },
+  { x: 6, gross: 39, pending: 39, payout: 40 },
+  { x: 7, gross: 65, pending: 51, payout: 57, hoverLabel: 24 },
+  { x: 8, gross: 63, pending: 54, payout: 58 },
+  { x: 9, gross: 77, pending: 61, payout: 68 },
+  { x: 10, gross: 56, pending: 49, payout: 54 },
+  { x: 11, gross: 62, pending: 53, payout: 59 },
+  { x: 12, gross: 48, pending: 45, payout: 50 },
+  { x: 13, gross: 61, pending: 55, payout: 60 },
+  { x: 14, gross: 63, pending: 57, payout: 62 },
 ];
 
 const monthTicks: Record<number, string> = {
@@ -181,6 +94,14 @@ const metrics: Metric[] = [
   },
 ];
 
+type OverviewActiveDotProps = {
+  cx?: number;
+  cy?: number;
+  value?: number;
+  payload?: ChartPoint;
+  isDark: boolean;
+};
+
 function OverviewActiveDot({
   cx,
   cy,
@@ -192,25 +113,16 @@ function OverviewActiveDot({
     return null;
   }
 
-  const label = payload?.hoverLabel ?? Number(value ?? 0);
-
-  const labelText = String(label);
-  const boxWidth = Math.max(44, labelText.length * 9 + 20);
+  const label = payload?.hoverLabel ?? Number(value || 0);
+  const boxWidth = 60;
   const boxHeight = 30;
-
-  const xValue = payload?.x ?? 7;
-
-  const boxX =
-    xValue <= 1 ? cx - 4 : xValue >= 13 ? cx - boxWidth + 4 : cx - boxWidth / 2;
-
-  const boxY = Math.max(2, cy - 52);
-
-  const connectorX = Math.max(boxX + 10, Math.min(cx, boxX + boxWidth - 10));
+  const boxX = cx - boxWidth / 2;
+  const boxY = cy - 52;
 
   return (
     <g pointerEvents="none">
       <line
-        x1={connectorX}
+        x1={cx}
         x2={cx}
         y1={boxY + boxHeight}
         y2={cy - 9}
@@ -229,11 +141,11 @@ function OverviewActiveDot({
       />
 
       <text
-        x={boxX + boxWidth / 2}
+        x={cx}
         y={boxY + 20}
         textAnchor="middle"
         fill="#202020"
-        fontSize="13"
+        fontSize="14"
         fontWeight="700"
       >
         {label}
@@ -251,36 +163,34 @@ function OverviewActiveDot({
   );
 }
 
-export default function Overview({ isDark, selectedDate }: OverviewProps) {
+export default function Overview({ isDark }: OverviewProps) {
   const [activeMetric, setActiveMetric] = useState<MetricKey>("gross");
-
   const [range, setRange] = useState("month");
 
   const active = useMemo(
-    () => metrics.find((metric) => metric.key === activeMetric) ?? metrics[0],
+    () => metrics.find((metric) => metric.key === activeMetric) || metrics[0],
     [activeMetric],
   );
 
   return (
     <section
-      className={`w-full rounded-2xl border p-4 transition-colors duration-300 sm:p-5 lg:p-6 ${
+      className={`w-full rounded-2xl border p-5 transition-colors duration-300 lg:p-6 ${
         isDark
           ? "border-[#3D3D3D] bg-[#171717] text-white"
           : "border-[#E5E5E5] bg-white text-[#202020]"
       }`}
     >
       <div className="mb-5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <span className="h-7 w-[3px] shrink-0 rounded-full bg-[#E8D1AB]" />
-
+        <div className="flex items-center gap-2">
+          <span className="h-6 w-[3px] rounded-full bg-[#E8D1AB]" />
           <h2 className="text-sm font-medium lg:text-base">Overview</h2>
         </div>
 
         <Select value={range} onValueChange={setRange}>
           <SelectTrigger
-            className={`h-8 w-[92px] rounded-full px-3 text-[10px] shadow-none focus:ring-0 sm:w-[100px] lg:h-9 lg:w-[110px] lg:text-xs ${
+            className={`h-9 w-[110px] rounded-full text-[10px] shadow-none focus:ring-0 lg:text-xs ${
               isDark
-                ? "border-[#3D3D3D] bg-[#171717] text-white/70"
+                ? "border-[#3D3D3D] bg-zinc-900 text-white/70"
                 : "border-[#E3E3E3] bg-white text-[#323232]"
             }`}
           >
@@ -295,22 +205,19 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
             }
           >
             <SelectItem value="month">Month</SelectItem>
-
             <SelectItem value="quarter">Quarter</SelectItem>
-
             <SelectItem value="year">Year</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div
-        className={`grid grid-cols-1 gap-2 rounded-xl p-2.5 sm:gap-3 sm:p-3 md:grid-cols-3 lg:p-4 ${
-          isDark ? "bg-[#0D0D0D]" : "border border-[#F0F0F0] bg-white"
+        className={`grid grid-cols-1 gap-3 rounded-2xl p-4 md:grid-cols-3 ${
+          isDark ? "bg-[#101010]" : "border border-[#F0F0F0] bg-white"
         }`}
       >
         {metrics.map((metric) => {
           const selected = metric.key === activeMetric;
-
           const Icon = metric.icon;
 
           return (
@@ -318,72 +225,61 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
               key={metric.key}
               type="button"
               onClick={() => setActiveMetric(metric.key)}
-              className={`min-h-[112px] rounded-lg border p-3 text-left transition-all duration-200 sm:min-h-[125px] sm:p-4 lg:min-h-[135px] ${
+              className={`relative rounded-lg border p-4 text-left transition-all duration-200 ${
                 selected
                   ? "border-transparent bg-[#ECD7B4] text-[#171717]"
                   : isDark
-                    ? "border-transparent bg-[#0D0D0D] text-white hover:border-white/15 hover:bg-white/[0.02]"
-                    : "border-transparent bg-white text-[#171717] hover:border-[#E5D5B8]"
+                    ? "border-transparent bg-[#101010] text-white hover:border-white/20"
+                    : "border-[#F0F0F0] bg-white text-[#171717] hover:border-[#E5D5B8]"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-[11px] font-medium sm:text-xs lg:text-sm">
-                    {metric.label}
-                  </span>
-
-                  <Info size={11} className="shrink-0 opacity-80" />
+              <div className="mb-6 flex items-start justify-between gap-3">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <span>{metric.label}</span>
+                  <Info size={12} className="opacity-80" />
                 </div>
 
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full lg:h-9 lg:w-9 ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-full ${
                     selected
                       ? "bg-[#171717] text-[#E8D1AB]"
                       : isDark
                         ? "bg-[#2C2C2C] text-[#E8D1AB]"
-                        : "bg-[#F2F2F2] text-[#8D6F3F]"
+                        : "bg-[#F2F2F2] text-[#171717]/60"
                   }`}
                 >
-                  <Icon size={16} className="lg:hidden" />
-
-                  <Icon size={18} className="hidden lg:block" />
+                  <Icon size={18} />
                 </span>
               </div>
 
-              <div className="mt-5 text-xl font-semibold leading-none sm:text-[22px] lg:mt-6 lg:text-[26px]">
+              <div className="mb-2 text-xl font-semibold leading-normal lg:text-[26px]">
                 {metric.value}
               </div>
 
               <div
-                className={`mt-2 flex flex-wrap items-center gap-1 text-[9px] sm:text-[10px] lg:text-xs ${
+                className={`text-xs ${
                   selected
-                    ? "text-[#101010]/60"
+                    ? "text-[#101010]/70"
                     : isDark
-                      ? "text-white/45"
+                      ? "text-white/70"
                       : "text-[#676767]"
                 }`}
               >
                 <span className="font-semibold text-[#0DAE3D]">
                   {metric.growth}
-                </span>
-
-                <span>from last month</span>
+                </span>{" "}
+                from last month
               </div>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-4 h-[230px] w-full sm:h-[260px] lg:mt-5 lg:h-[300px]">
+      <div className="mt-5 h-[260px] w-full lg:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{
-              top: 26,
-              right: 8,
-              left: -10,
-              bottom: 4,
-            }}
+            margin={{ top: 24, right: 8, left: -8, bottom: 4 }}
           >
             <defs>
               <linearGradient
@@ -393,8 +289,7 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
                 x2="0"
                 y2="1"
               >
-                <stop offset="5%" stopColor="#E8D1AB" stopOpacity={0.13} />
-
+                <stop offset="5%" stopColor="#E8D1AB" stopOpacity={0.12} />
                 <stop offset="95%" stopColor="#E8D1AB" stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -409,8 +304,8 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
               tickLine={false}
               dy={10}
               tick={{
-                fill: isDark ? "#FFFFFF55" : "#17171755",
-                fontSize: 10,
+                fill: isDark ? "#FFFFFF66" : "#17171766",
+                fontSize: 11,
               }}
             />
 
@@ -419,25 +314,21 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
               ticks={[0, 20, 40, 60, 80]}
               axisLine={false}
               tickLine={false}
-              width={38}
+              width={40}
               tick={{
                 fill: isDark ? "#FFFFFF55" : "#17171755",
                 fontSize: 10,
               }}
             />
 
-            <Tooltip
-              content={() => null}
-              cursor={{
-                stroke: "transparent",
-              }}
-            />
+            {/* Tooltip is invisible; it only activates the custom hover marker. */}
+            <Tooltip content={() => null} cursor={false} />
 
             <Area
               type="monotone"
               dataKey={active.key}
               stroke="#E8D1AB"
-              strokeWidth={1.4}
+              strokeWidth={1.5}
               fill="url(#financeOverviewArea)"
               dot={false}
               activeDot={(props: any) => (
