@@ -175,7 +175,8 @@ const ITEM_SLUGS = {
 };
 
 const CREATIVE_PARTNER_HOURLY_RATE = 250;
-const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 350;
+const PHOTO_VIDEO_CREATOR_HOURLY_RATE = 375;
+const CARD_PROCESSING_FEE_RATE = 0.04;
 
 const V4_ADD_ON_SLUGS = [
   "v4-additional-camera",
@@ -1758,6 +1759,7 @@ export const BookAShootV4 = () => {
       studioMeta,
       selectedStudios.length && bookingState.studioCrewCount ? `Studio cast and crew: ${bookingState.studioCrewCount}` : "",
       selectedStudios.length && bookingState.studioShootType ? `Studio shoot type: ${bookingState.studioShootType}` : "",
+      "Card processing fee: 4%",
     ]
       .filter((entry) => String(entry || "").trim())
       .join("\n\n");
@@ -1914,6 +1916,7 @@ export const BookAShootV4 = () => {
 
       const paymentParams = new URLSearchParams({
         shootId: String(submissionResult.booking_id),
+        cardProcessingFee: "4",
       });
       if (paymentAmount && paymentAmount > 0) {
         paymentParams.set("amount", String(paymentAmount));
@@ -2108,14 +2111,16 @@ export const BookAShootV4 = () => {
       : roleCost;
     const fallbackTotal =
       displayedRoleCost + editingServiceCost + addOnsCost + studioCost + mandatoryFeeCost;
-    const totalAmount = pricingPreview?.total ?? fallbackTotal;
+    const productionTotal = pricingPreview?.total ?? fallbackTotal;
+    const cardProcessingFee = Math.round(productionTotal * CARD_PROCESSING_FEE_RATE * 100) / 100;
+    const totalAmount = productionTotal + cardProcessingFee;
     const visibleBreakdownTotal =
       displayedRoleCost + editingServiceCost + addOnsCost + studioCost + mandatoryFeeCost;
     const pricingBalanceCost =
       previewLineItems.length > 0
         ? Math.max(
           0,
-          Math.round((totalAmount - visibleBreakdownTotal) * 100) / 100
+          Math.round((productionTotal - visibleBreakdownTotal) * 100) / 100
         )
         : 0;
     const pricingBalanceText = previewLineItems
@@ -2176,8 +2181,11 @@ export const BookAShootV4 = () => {
         ...(studioCost > 0 ? [{ label: selectedStudios.map((studio) => studio.name).join(", ") || "Studio", amount: studioCost }] : []),
         ...mandatoryFees.map((fee) => ({ label: fee.name, amount: fee.amount })),
       ];
-    const difference = Math.round((totalAmount - summaryRows.reduce((sum, row) => sum + row.amount, 0)) * 100) / 100;
+    const difference = Math.round((productionTotal - summaryRows.reduce((sum, row) => sum + row.amount, 0)) * 100) / 100;
     if (difference !== 0) summaryRows.push({ label: difference < 0 ? "Discount / adjustments" : "Production / adjustments", amount: difference });
+    if (cardProcessingFee > 0) {
+      summaryRows.push({ label: "Card Payment Charges (4%)", amount: cardProcessingFee });
+    }
 
     const filteredPackageOffers = packageOffers.filter(
       (offer) => !/setup time/i.test(offer) || !summaryRows.some((row) => /setup time/i.test(row.label))

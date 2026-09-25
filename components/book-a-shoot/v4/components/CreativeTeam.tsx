@@ -24,7 +24,7 @@ interface CreativeTeamProps {
 const DEFAULT_ROLES: TeamMember[] = [
   { id: "photographer", name: "Photographer", price: 250.00 },
   { id: "videographer", name: "Videographer", price: 250.00 },
-  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 350.00 },
+  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 375.00 },
 ];
 
 export default function CreativeTeam({
@@ -47,9 +47,14 @@ export default function CreativeTeam({
     return true;
   });
 
-  const [counts, setCounts] = useState<{ [key: string]: number }>(initialCounts);
+  const [counts, setCounts] = useState<{ [key: string]: number }>({
+    ...initialCounts,
+    // A Hybrid Shooter is a single, combined-coverage option.
+    photoVideoCreator: initialCounts.photoVideoCreator ? 1 : 0,
+  });
 
   const handleIncrement = (id: string) => {
+    if (id === "photoVideoCreator") return;
     setCounts((prev) => ({
       ...prev,
       [id]: (prev[id] || 0) + 1,
@@ -66,7 +71,11 @@ export default function CreativeTeam({
   const handleToggleCheckbox = (id: string, checked: boolean) => {
     setCounts((prev) => ({
       ...prev,
-      [id]: checked ? Math.max(1, prev[id] || 1) : 0,
+      [id]: checked
+        ? id === "photoVideoCreator"
+          ? 1
+          : Math.max(1, prev[id] || 1)
+        : 0,
     }));
   };
 
@@ -167,7 +176,8 @@ export default function CreativeTeam({
                   type="button"
                   onClick={() => handleIncrement(role.id)}
                   aria-label={`Add ${role.name}`}
-                  className="hover:opacity-70 transition"
+                  disabled={role.id === "photoVideoCreator"}
+                  className="hover:opacity-70 transition disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                 </button>
