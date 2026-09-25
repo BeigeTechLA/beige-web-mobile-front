@@ -41,8 +41,7 @@ export default function AdminCreateGeneralAgreementPage() {
   const [effectiveDate, setEffectiveDate] = useState<Date | null>(null);
 
   // Success Modal
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(true);
-
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   // Sections State
   const [sections, setSections] = useState<Section[]>([

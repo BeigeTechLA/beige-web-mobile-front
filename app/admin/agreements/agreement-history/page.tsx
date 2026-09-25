@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Search, ChevronDown, User, Clock, AlertCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
+import AgreementModal from "@/components/admin/agreements/AgreementModal";
 
 interface VersionItem {
   id: string;
@@ -55,6 +56,14 @@ export default function AdminVersionHistoryPage() {
   const [selectedMonth, setSelectedMonth] = useState("Month");
   const [selectedFilter, setSelectedFilter] = useState("All");
 
+  // Agreement Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Helper function to close the modal
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -74,8 +83,7 @@ export default function AdminVersionHistoryPage() {
       <Topbar pathname={pathname} />
 
       <div
-        className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-28 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"
-          }`}
+        className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-28 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}
       >
         {/* Back Button */}
         <Button
@@ -176,7 +184,6 @@ export default function AdminVersionHistoryPage() {
             </div>
           </div>
 
-
           {/* Version Cards List */}
           <div className="space-y-4  p-5">
             {filteredVersions.map((item) => (
@@ -273,6 +280,12 @@ export default function AdminVersionHistoryPage() {
             ))}
           </div>
         </div>
+
+        <AgreementModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          isDark={isDark}
+        />
       </div>
     </>
   );

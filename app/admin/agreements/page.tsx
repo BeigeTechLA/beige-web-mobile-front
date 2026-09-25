@@ -7,7 +7,6 @@ import { BasicDropdown } from "@/components/admin/BasicDropdown";
 import { Search, SlidersHorizontal, ChevronDown, Pen } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
-import { useAppSelector } from "@/lib/redux/hooks";
 import { useTheme } from "next-themes";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 import Topbar from "@/components/admin/Topbar";
@@ -23,12 +22,10 @@ const tabs: { label: string; value: TabType }[] = [
   { label: "Cancelled", value: "Cancelled" },
 ];
 
-
 export default function AdminAgreementsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
-  // const { token } = useAppSelector((state: any) => state.auth);
   const [mounted, setMounted] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
