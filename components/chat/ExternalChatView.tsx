@@ -40,7 +40,6 @@ import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
 import EmptyChatState from "./EmptyChatState";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import Image from "next/image";
-import WebPushRegistration from "./WebPushRegistration";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -2069,7 +2068,6 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
   return (
     <>
-      <WebPushRegistration userType={effectiveUser?.user_type || effectiveUser?.userType || effectiveUser?.user_type_id} />
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-scroll no-scrollbar lg:overflow-y-auto">
         <div className="flex items-start lg:items-center justify-between gap-3 px-1">
           <div className="max-w-3/5">

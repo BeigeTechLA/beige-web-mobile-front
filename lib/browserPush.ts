@@ -116,10 +116,6 @@ export const registerBrowserPush = async (userType: unknown) => {
     fcm_token: token,
     session_id: getSessionId(),
     device_type: "web",
-    notification_preferences: {
-      push_enabled: true,
-      topics: { shoots: true, messages: true, meetings: true, files: true },
-    },
   });
   return { status: "registered" as const, token };
 };

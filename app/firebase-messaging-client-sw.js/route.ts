@@ -15,13 +15,15 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const roomId = String(event.notification.data?.roomId || event.notification.data?.chatRoomId || "").trim();
+  const meetingId = String(event.notification.data?.meetingId || "").trim();
   event.waitUntil((async () => {
-    const openUrl = "/affiliate/messages" + (roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
+    const targetPath = meetingId ? "/affiliate/meetings" : "/affiliate/messages";
+    const openUrl = targetPath + (meetingId ? "?meetingId=" + encodeURIComponent(meetingId) : roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
     const clientWindows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const chatWindow = clientWindows.find((client) => new URL(client.url).pathname === "/affiliate/messages");
-    if (chatWindow) {
-      const navigatedWindow = await chatWindow.navigate(openUrl);
-      return (navigatedWindow || chatWindow).focus();
+    const targetWindow = clientWindows.find((client) => new URL(client.url).pathname === targetPath);
+    if (targetWindow) {
+      const navigatedWindow = await targetWindow.navigate(openUrl);
+      return (navigatedWindow || targetWindow).focus();
     }
     return self.clients.openWindow(openUrl);
   })());
