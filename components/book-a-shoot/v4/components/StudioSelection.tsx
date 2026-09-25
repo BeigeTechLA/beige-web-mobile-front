@@ -112,7 +112,7 @@ export default function StudioSelection({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       <div>
         {onBack && (
           <button
@@ -255,7 +255,7 @@ export default function StudioSelection({
         </div>
       </div>
 
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

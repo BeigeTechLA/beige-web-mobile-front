@@ -1,5 +1,6 @@
 "use client";
 
+import { getCreativeTeamError } from "../bookingRules";
 import React, { useState } from "react";
 import { ArrowLeft, Info, Minus, Plus } from "lucide-react";
 
@@ -23,7 +24,7 @@ interface CreativeTeamProps {
 const DEFAULT_ROLES: TeamMember[] = [
   { id: "photographer", name: "Photographer", price: 250.00 },
   { id: "videographer", name: "Videographer", price: 250.00 },
-  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 350.00 },
+  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 375.00 },
 ];
 
 export default function CreativeTeam({
@@ -46,9 +47,14 @@ export default function CreativeTeam({
     return true;
   });
 
-  const [counts, setCounts] = useState<{ [key: string]: number }>(initialCounts);
+  const [counts, setCounts] = useState<{ [key: string]: number }>({
+    ...initialCounts,
+    // A Hybrid Shooter is a single, combined-coverage option.
+    photoVideoCreator: initialCounts.photoVideoCreator ? 1 : 0,
+  });
 
   const handleIncrement = (id: string) => {
+    if (id === "photoVideoCreator") return;
     setCounts((prev) => ({
       ...prev,
       [id]: (prev[id] || 0) + 1,
@@ -65,7 +71,11 @@ export default function CreativeTeam({
   const handleToggleCheckbox = (id: string, checked: boolean) => {
     setCounts((prev) => ({
       ...prev,
-      [id]: checked ? Math.max(1, prev[id] || 1) : 0,
+      [id]: checked
+        ? id === "photoVideoCreator"
+          ? 1
+          : Math.max(1, prev[id] || 1)
+        : 0,
     }));
   };
 
@@ -75,8 +85,10 @@ export default function CreativeTeam({
   }, {});
   const totalSelected = Object.values(visibleCounts).reduce((acc, curr) => acc + curr, 0);
 
+  const teamError = getCreativeTeamError(selectedServices, visibleCounts);
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Navigation */}
       {onBack && (
         <button
@@ -151,6 +163,8 @@ export default function CreativeTeam({
                 <button
                   type="button"
                   onClick={() => handleDecrement(role.id)}
+                  aria-label={`Remove ${role.name}`}
+                  disabled={count === 0}
                   className="hover:opacity-70 transition"
                 >
                   <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
@@ -161,7 +175,9 @@ export default function CreativeTeam({
                 <button
                   type="button"
                   onClick={() => handleIncrement(role.id)}
-                  className="hover:opacity-70 transition"
+                  aria-label={`Add ${role.name}`}
+                  disabled={role.id === "photoVideoCreator"}
+                  className="hover:opacity-70 transition disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                 </button>
@@ -175,9 +191,9 @@ export default function CreativeTeam({
       <div className="inline-flex lg:items-center gap-2.5 lg:gap-3 p-4 lg:p-5 2xl:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] text-sm lg:text-base text-[#E8D1AB]">
         <Info className="w-6 h-6 shrink-0" strokeWidth={1.5} />
         <span>
-          {totalSelected > 0
+          {!teamError && totalSelected > 0
             ? `You're all set! ${totalSelected} Creative Partner${totalSelected > 1 ? "s are" : " is a"} great fit for covering your event.`
-            : "Select at least one Creative Partner to proceed with covering your event."}
+            : teamError || "No Creative Partners are required for these services."}
         </span>
       </div>
 
@@ -188,7 +204,7 @@ export default function CreativeTeam({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         <button
           type="button"
           onClick={onBack}
@@ -198,7 +214,8 @@ export default function CreativeTeam({
         </button>
         <button
           type="button"
-          onClick={() => onContinue(visibleCounts)}
+          disabled={Boolean(teamError)}
+          onClick={() => { if (!teamError) onContinue(visibleCounts); }}
           className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue

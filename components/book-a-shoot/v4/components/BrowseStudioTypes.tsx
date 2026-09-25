@@ -16,6 +16,10 @@ export interface StudioCategoryOption {
 export interface BrowseStudioTypesProps {
   onContinue: (selectedCategoryKey: string) => void;
   onBack?: () => void;
+  initialCrewCount?: string;
+  initialShootType?: string;
+  onCrewCountChange?: (value: string) => void;
+  onShootTypeChange?: (value: string) => void;
   occasionTitle?: string;
   initialSelectedKey?: string;
   title?: string;
@@ -53,6 +57,10 @@ const DEFAULT_STUDIO_CATEGORIES: StudioCategoryOption[] = [
 export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   onContinue,
   onBack,
+  initialCrewCount = "",
+  initialShootType = "",
+  onCrewCountChange,
+  onShootTypeChange,
   occasionTitle = "Corporate Shoots",
   initialSelectedKey = "production",
   title = "",
@@ -63,15 +71,15 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   completionPercentage = 60
 }) => {
   const [selectedKey, setSelectedKey] = useState<string>(initialSelectedKey);
-  const [crewCount, setCrewCount] = useState<string>("");
-  const [shootType, setShootType] = useState<string>("");
+  const [crewCount, setCrewCount] = useState<string>(initialCrewCount);
+  const [shootType, setShootType] = useState<string>(initialShootType);
 
   const handleContinue = () => {
     onContinue(selectedKey);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
@@ -191,13 +199,18 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                       id="studioCrewCount"
                       type={"text"}
                       value={crewCount}
-                      onChange={(e) => setCrewCount(e.target.value)}
+                      inputMode="numeric"
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setCrewCount(value);
+                        onCrewCountChange?.(value);
+                      }}
                       className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                     />
                   </div>
                 </div>
 
-                {showShootType &&
+                {/* {showShootType &&
                   <>
                     <div className="flex-1 relative space-y-2">
                       <Label
@@ -211,13 +224,16 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                           id="studioShootType"
                           type={"text"}
                           value={shootType}
-                          onChange={(e) => setShootType(e.target.value)}
+                          onChange={(e) => {
+                            setShootType(e.target.value);
+                            onShootTypeChange?.(e.target.value);
+                          }}
                           className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                         />
                       </div>
                     </div>
                   </>
-                }
+                } */}
               </div>
             </div>
           </>
@@ -225,7 +241,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

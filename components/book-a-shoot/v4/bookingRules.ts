@@ -37,3 +37,17 @@ export const V4_PACKAGE_INCLUSIONS = [
   "Up to 1 hour of setup time",
   "2 complimentary revision rounds",
 ];
+
+export function getCreativeTeamError(services: string[], counts: Record<string, number>): string | null {
+  const photo = services.includes("photography");
+  const video = services.includes("videography") || services.includes("livestream");
+  const positive = (role: string) => Number.isInteger(counts[role]) && counts[role] > 0;
+  const hybrid = photo && video && positive("photoVideoCreator");
+  if (photo && !positive("photographer") && !hybrid) {
+    return video ? "Select at least one Photographer or Hybrid Shooter for photography." : "Select at least one Photographer to continue.";
+  }
+  if (video && !positive("videographer") && !hybrid) {
+    return photo ? "Select at least one Videographer or Hybrid Shooter for videography." : "Select at least one Videographer to continue.";
+  }
+  return null;
+}

@@ -80,7 +80,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       <div>
         {/* Back Arrow */}
@@ -160,7 +160,7 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
 
                 {/* Right 3D Visual Asset Container */}
                 {service.iconSrc && (
-                  <div className="absolute right-0 w-20 h-20 2xl:w-32 2xl:h-32 shrink-0 pointer-events-none -mr-2">
+                  <div className="absolute right-0 w-24 h-24 shrink-0 pointer-events-none lg:w-28 lg:h-28 2xl:w-36 2xl:h-36">
                     <Image
                       src={service.iconSrc}
                       alt={service.title}
@@ -176,7 +176,19 @@ export const AskingServices: React.FC<AskingServicesProps> = ({
       </div>
 
       {/* Bottom Action Footer - Matches Exact Outer Bounds */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
+          >
+            Back
+          </button>
+        ) : (
+          <div />
+        )}
+
         <button
           onClick={handleNext}
           disabled={selectedIds.length === 0}

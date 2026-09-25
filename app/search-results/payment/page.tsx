@@ -437,6 +437,7 @@ type CreateIntentMultiPayload = {
   use_credit: boolean;
   credit_amount_used: number;
   payment_link_token?: string;
+  apply_card_processing_fee?: boolean;
 };
 
 type CreateIntentMultiResponse = AxiosResponse<any>;
@@ -456,6 +457,7 @@ const buildCreateIntentMultiKey = (apiBaseUrl: string, payload: CreateIntentMult
     use_credit: payload.use_credit,
     credit_amount_used: payload.credit_amount_used,
     payment_link_token: payload.payment_link_token || null,
+    apply_card_processing_fee: Boolean(payload.apply_card_processing_fee),
   });
 };
 
@@ -2181,6 +2183,7 @@ function MultiCreatorPaymentContent() {
     const numericValue = Number(paymentLinkAmountParam);
     return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
   }, [paymentLinkAmountParam]);
+  const cardProcessingFeeRate = searchParams.get("cardProcessingFee") === "4" ? 0.04 : 0;
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
@@ -2418,6 +2421,7 @@ function MultiCreatorPaymentContent() {
       return;
     }
     const { booking } = details;
+    const effectiveCardProcessingFeeRate = cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
     const fullPayableAmount = resolveBasePayableAmount(details);
     const basePayableAmount = paymentLinkAmount
       ? Math.min(paymentLinkAmount, fullPayableAmount)
@@ -2426,19 +2430,22 @@ function MultiCreatorPaymentContent() {
     const canUseCredit = Boolean(details?.account_credit?.can_use_credit) && availableCredit > 0;
     const creditToApply =
       useCreditOverride && canUseCredit ? Math.min(availableCredit, basePayableAmount) : 0;
-    const payableAmount = Math.max(basePayableAmount - creditToApply, 0);
+    const cardPaymentAmount = Math.max(basePayableAmount - creditToApply, 0);
+    const cardProcessingFee = Math.round(cardPaymentAmount * effectiveCardProcessingFeeRate * 100) / 100;
+    const payableAmount = cardPaymentAmount + cardProcessingFee;
 
     try {
       const API_BASE_URL = (process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/").replace(/\/$/, "") + "/";
       const createIntentPayload: CreateIntentMultiPayload = {
         booking_id: shootId,
-        amount: payableAmount,
+        amount: cardPaymentAmount,
         guest_email: resolveGuestEmail(booking, summaryData?.client_email),
         referral_code: details?.quote?.applied_referral_code || null,
         payment_source: isAdditionalPaymentFlow(details) ? "additional_invoice" : undefined,
         use_credit: useCreditOverride && canUseCredit,
         credit_amount_used: creditToApply,
         payment_link_token: paymentLinkToken || undefined,
+        apply_card_processing_fee: effectiveCardProcessingFeeRate > 0,
       };
       const response = await postCreateIntentMultiOnce(
         API_BASE_URL,
@@ -2742,6 +2749,7 @@ function MultiCreatorPaymentContent() {
   }
 
   const { booking, creators, quote } = paymentDetails;
+  const effectiveCardProcessingFeeRate = cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
   const fullPayableAmount = resolveBasePayableAmount(paymentDetails);
@@ -2759,9 +2767,11 @@ function MultiCreatorPaymentContent() {
     isQuoteValid && canUseAccountCredit && useAccountCredit
       ? Math.min(availableCreditAmount, basePayableAmount)
       : 0;
-  const payableTotal = isQuoteValid
+  const cardPaymentAmount = isQuoteValid
     ? Math.max(basePayableAmount - creditAppliedAmount, 0)
     : 0;
+  const cardProcessingFee = Math.round(cardPaymentAmount * effectiveCardProcessingFeeRate * 100) / 100;
+  const payableTotal = cardPaymentAmount + cardProcessingFee;
 
   const customerName =
     pickDisplayName(
@@ -3302,6 +3312,13 @@ function MultiCreatorPaymentContent() {
                                 <span className="text-green-700 font-bold">
                                   -{formatCurrency(creditAppliedAmount)}
                                 </span>
+                              </div>
+                            )}
+
+                            {cardProcessingFee > 0 && (
+                              <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
+                                <span className="text-[#CCC6C6] font-medium">Card Payment Charges (4%)</span>
+                                <span className="font-medium text-white">{formatCurrency(cardProcessingFee)}</span>
                               </div>
                             )}
                           </div>

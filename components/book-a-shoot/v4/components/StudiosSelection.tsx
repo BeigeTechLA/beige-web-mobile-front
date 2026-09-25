@@ -307,7 +307,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <style>{customSwiperStyles}</style>
       <div>
         {/* Top Header Row */}
@@ -347,23 +347,27 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-xl lg:rounded-2xl p-1 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => handleViewModeChange("stack")}
-              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                : "text-white hover:text-white/80"
-                }`}
-            >
-              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
-            </button>
-            <button
-              type="button"
               onClick={() => handleViewModeChange("grid")}
+              aria-label="Grid View"
+              aria-pressed={viewMode === "grid"}
               className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
                 }`}
             >
               <LayoutGrid className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange("stack")}
+              aria-label="Stack View"
+              aria-pressed={viewMode === "stack"}
+              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
+                }`}
+            >
+              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
             </button>
           </div>
         </div>
@@ -720,7 +724,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
