@@ -15,6 +15,7 @@ export interface AgreementData {
   projectId: string;
   role: string;
   version: string;
+  compensation?: number;
   status: "Accepted" | "Expired" | "Not Accepted" | "Pending";
 }
 
@@ -28,6 +29,7 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2012",
     role: "Videographer",
     version: "v1.0",
+    compensation: 2000.0,
     status: "Accepted",
   },
   {
@@ -40,7 +42,8 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2001",
     role: "Photographer",
     version: "v1.0",
-    status: "Expired",
+    compensation: 1200.0,
+    status: "Pending",
   },
   {
     id: "3",
@@ -52,7 +55,8 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2001",
     role: "Editor",
     version: "v1.0",
-    status: "Expired",
+    compensation: 5000.0,
+    status: "Pending",
   },
   {
     id: "4",
@@ -64,7 +68,8 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2001",
     role: "Videographer",
     version: "v1.0",
-    status: "Not Accepted",
+    compensation: 3000.0,
+    status: "Accepted",
   },
   {
     id: "5",
@@ -75,6 +80,7 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2001",
     role: "Videographer",
     version: "v1.0",
+    compensation: 1000.0,
     status: "Pending",
   },
   {
@@ -87,7 +93,8 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
     projectId: "ASN-2001",
     role: "Photographer",
     version: "v1.0",
-    status: "Not Accepted",
+    compensation: 2000.0,
+    status: "Accepted",
   },
 ];
 
@@ -161,6 +168,45 @@ export default function GeneralAgreementHistoryTable({
     }
   };
 
+  const renderCreativePartnerCell = (item: AgreementData) => (
+    <div className="flex items-center gap-3">
+      {item.avatarUrl ? (
+        <img
+          src={item.avatarUrl}
+          alt={item.creativePartnerName}
+          className="w-10 h-10 rounded-lg object-cover"
+        />
+      ) : (
+        <div
+          className={`w-10 h-10 lg:w-11 lg:h-11 rounded-lg flex items-center justify-center text-black font-semibold text-sm lg:text-base ${
+            item.avatarBgColor || "bg-[#EFE6DB]"
+          }`}
+        >
+          {item.avatarInitials}
+        </div>
+      )}
+      <div>
+        <p className={`font-medium text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>
+          {item.creativePartnerName}
+        </p>
+        <p className={`text-xs lg:text-sm mt-0.5 ${isDark ? "text-white/50" : "text-black/50"}`}>
+          {item.date}
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderProjectCell = (item: AgreementData) => (
+    <div>
+      <p className={`text-sm lg:text-base leading-snug ${isDark ? "text-white" : "text-black"}`}>
+        {item.projectName}
+      </p>
+      <p className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/50"}`}>
+        {item.projectId}
+      </p>
+    </div>
+  );
+
   if (!mounted) return null;
 
   return (
@@ -170,7 +216,7 @@ export default function GeneralAgreementHistoryTable({
         <div className="flex items-center gap-2.5">
           <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
           <h2 className={`text-base ${isDark ? "text-white" : "text-black"}`}>
-            General Agreement History
+            {activeTab === "general" ? "General Agreement History" : "Shoot Agreement History"}
           </h2>
         </div>
 
@@ -179,7 +225,8 @@ export default function GeneralAgreementHistoryTable({
           <button
             type="button"
             onClick={() => setActiveTab("general")}
-            className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${activeTab === "general"
+            className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${
+              activeTab === "general"
               ? "bg-[#E5D5B8] text-black font-semibold shadow-xs"
               : isDark
                 ? "text-white/60 hover:text-white"
@@ -191,7 +238,8 @@ export default function GeneralAgreementHistoryTable({
           <button
             type="button"
             onClick={() => setActiveTab("shoot")}
-            className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${activeTab === "shoot"
+            className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${
+              activeTab === "shoot"
               ? "bg-[#E5D5B8] text-black font-semibold shadow-xs"
               : isDark
                 ? "text-white/60 hover:text-white"
@@ -207,64 +255,48 @@ export default function GeneralAgreementHistoryTable({
       <div className="hidden lg:block w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className={`border-b text-sm font-medium rounded-b-xl ${isDark ? "border-[#3D3D3D] text-[#E8D1AB]" : "border-[#E5E5E5] text-[#8C6B30]"}`}>
+            <tr
+              className={`border-b text-sm font-medium rounded-b-xl ${
+                isDark ? "border-[#3D3D3D] text-[#E8D1AB]" : "border-[#E5E5E5] text-[#8C6B30]"
+              }`}
+            >
+              {activeTab === "general" ? (
+                <>
               <th className="py-4 px-6">Creative Partner</th>
               <th className="py-4 px-6">Project Name & ID</th>
               <th className="py-4 px-6">Role</th>
               <th className="py-4 px-6">Version</th>
               <th className="py-4 px-6">Status</th>
               <th className="py-4 px-6 text-right">Action</th>
+                </>
+              ) : (
+                <>
+                  <th className="py-4 px-6">Project Name & ID</th>
+                  <th className="py-4 px-6">Creative Partner</th>
+                  <th className="py-4 px-6">Role</th>
+                  <th className="py-4 px-6">Version</th>
+                  <th className="py-4 px-6">Compensation</th>
+                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6 text-right">Action</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody className={isDark ? "bg-[#171717]" : ""}>
             {data.map((item) => (
               <tr
                 key={item.id}
-                className={`transition-colors ${isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"}`}
+                className={`transition-colors ${
+                  isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"
+                }`}
               >
-                {/* Creative Partner */}
-                <td className="py-4 px-6">
-                  <div className="flex items-center gap-3">
-                    {item.avatarUrl ? (
-                      <img
-                        src={item.avatarUrl}
-                        alt={item.creativePartnerName}
-                        className="w-10 h-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-lg flex items-center justify-center text-black font-medium text-sm lg:text-xl ${item.avatarBgColor || "bg-[#EFE6DB]"}`}>
-                        {item.avatarInitials}
-                      </div>
-                    )}
-                    <div>
-                      <p className={`font-medium text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>
-                        {item.creativePartnerName}
-                      </p>
-                      <p className={`text-xs lg:text-sm mt-0.5 ${isDark ? "text-white/50" : "text-black/50"}`}>
-                        {item.date}
-                      </p>
-                    </div>
-                  </div>
+                {activeTab === "general" ? (
+                  <>
+                    <td className="py-4 px-6">{renderCreativePartnerCell(item)}</td>
+                    <td className="py-4 px-6">{renderProjectCell(item)}</td>
+                    <td className={`py-4 px-6 text-sm lg:text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
+                      {item.role}
                 </td>
-
-                {/* Project Name & ID */}
-                <td className="py-4 px-6">
-                  <div>
-                    <p className={`text-sm lg:text-base leading-snug ${isDark ? "text-white" : "text-black"}`}>
-                      {item.projectName}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
-                      {item.projectId}
-                    </p>
-                  </div>
-                </td>
-
-                {/* Role */}
-                <td className={`py-4 px-6 text-sm lg:text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
-                  {item.role}
-                </td>
-
-                {/* Version */}
                 <td className="py-4 px-6">
                   <span
                     className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
@@ -275,18 +307,40 @@ export default function GeneralAgreementHistoryTable({
                     {item.version}
                   </span>
                 </td>
-
-                {/* Status */}
+                    <td className="py-4 px-6">{getStatusBadge(item.status)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="py-4 px-6">{renderProjectCell(item)}</td>
+                    <td className="py-4 px-6">{renderCreativePartnerCell(item)}</td>
+                    <td className={`py-4 px-6 text-sm lg:text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
+                      {item.role}
+                    </td>
+                    <td className="py-4 px-6">
+                      <span
+                        className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded border ${
+                          isDark
+                            ? "text-white bg-[#222222] border-white/10"
+                            : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
+                        }`}
+                      >
+                        {item.version}
+                      </span>
+                    </td>
+                    <td className={`py-4 px-6 text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      ${item.compensation ? item.compensation.toFixed(2) : "0.00"}
+                    </td>
                 <td className="py-4 px-6">{getStatusBadge(item.status)}</td>
+                  </>
+                )}
 
-                {/* Action */}
+                {/* Action Column */}
                 <td className="py-4 px-6 text-right">
                   <button
                     type="button"
                     onClick={(e) => onActionClick?.(item, e)}
-                    className={`transition-colors ${isDark
-                      ? "text-white/70 hover:text-white"
-                      : "text-black/70 hover:text-black"
+                    className={`transition-colors ${
+                      isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
                       }`}
                   >
                     <MoreVertical size={30} />
@@ -298,13 +352,14 @@ export default function GeneralAgreementHistoryTable({
         </table>
       </div>
 
-      {/* Mobile Responsive List View with Expandable Cards */}
+      {/* Mobile Responsive View */}
       <div className="block lg:hidden w-full">
-        {/* Mobile Header Row */}
         <div
-          className={`flex items-center justify-between px-4 py-3 border-b text-xs uppercase tracking-wider font-medium ${isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "border-[#E5E5E5] text-[#8C6B30] bg-[#F8F8F8]"}`}
+          className={`flex items-center justify-between px-4 py-3 border-b text-xs uppercase tracking-wider font-medium ${
+            isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "border-[#E5E5E5] text-[#8C6B30] bg-[#F8F8F8]"
+          }`}
         >
-          <span>Name</span>
+          <span>{activeTab === "general" ? "Creative Partner" : "Project"}</span>
           <span>Status</span>
         </div>
 
@@ -351,16 +406,15 @@ export default function GeneralAgreementHistoryTable({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
                     <div>{getStatusBadge(item.status)}</div>
-                    {/* */}
-                  </div>
                 </div>
 
                 {/* Collapsible Expanded Details */}
                 {isExpanded && (
                   <div
-                    className={`px-4 pb-4 pt-1 grid grid-cols-2 gap-2.5 text-xs ${isDark ? "border-[#3D3D3D] bg-[##171717]" : "border-[#E5E5E5] bg-[#F8F8F8]/50"}`}
+                    className={`px-4 pb-4 pt-1 grid grid-cols-2 gap-2.5 text-xs ${
+                      isDark ? "bg-[#171717]" : "bg-[#F8F8F8]/50"
+                    }`}
                   >
                     <div className="flex flex-col gap-0.5">
                       <span className={isDark ? "text-white/50" : "text-black/50"}>Project ID</span>
@@ -376,10 +430,20 @@ export default function GeneralAgreementHistoryTable({
                       </span>
                     </div>
 
+                    {activeTab === "shoot" && (
                     <div className="flex flex-col gap-0.5">
+                        <span className={isDark ? "text-white/50" : "text-black/50"}>Compensation</span>
+                        <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          ${item.compensation ? item.compensation.toFixed(2) : "0.00"}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className={`flex flex-col gap-0.5 ${activeTab === "general" ? "" : "items-end"}`}>
                       <span className={isDark ? "text-white/50" : "text-black/50"}>Version</span>
                       <span
-                        className={`w-fit px-2.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
+                        className={`w-fit px-2.5 py-0.5 text-xs font-medium rounded-sm border ${
+                          isDark
                           ? "text-[#18150F] bg-[#EDE5D5] border-[#3D3D3D]"
                           : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
                           }`}
@@ -387,12 +451,12 @@ export default function GeneralAgreementHistoryTable({
                         {item.version}
                       </span>
                     </div>
+
+                    <div className="flex flex-col gap-0.5 col-span-2 pt-2 border-t border-white/10 flex-row justify-between items-center">
                     <div className="flex flex-col gap-0.5 items-end">
                       <span className={isDark ? "text-white/50" : "text-black/50"}>Date</span>
                       <span className={isDark ? "text-white/80" : "text-black/80"}>{item.date}</span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className={isDark ? "text-white/50" : "text-black/50"}>Actions</span>
                       <button
                         type="button"
                         onClick={(e) => {
