@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from '@/components/admin/ShootsTable';
+import { ShootsCalendarView } from "@/components/admin/ShootsCalendarView";
 
-import { Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download, Pencil, X } from 'lucide-react';
+import { CalendarDays, Grid3X3, List, Search, RotateCcw, SlidersHorizontal, Loader2, ArrowUpToLine, Download, Pencil, X } from 'lucide-react';
 import { SortDateButton } from '@/components/admin/SortDateButton';
 import { Button } from '@/src/components/landing/ui/button';
 import Topbar from "@/components/admin/Topbar";
@@ -91,7 +92,7 @@ export default function ShootsPage() {
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar">("list");
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
@@ -122,7 +123,7 @@ export default function ShootsPage() {
       if (parsed.cpAssignmentFilter === "all" || parsed.cpAssignmentFilter === "assigned" || parsed.cpAssignmentFilter === "not_assigned") {
         setCpAssignmentFilter(parsed.cpAssignmentFilter);
       }
-      if (parsed.viewMode === "grid" || parsed.viewMode === "list") {
+      if (parsed.viewMode === "grid" || parsed.viewMode === "list" || parsed.viewMode === "calendar") {
         setViewMode(parsed.viewMode);
       }
       if (typeof parsed.selectedDate === "string") {
@@ -466,7 +467,7 @@ export default function ShootsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode("grid")}
-                  className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${viewMode === "grid"
+                  className={`px-4 py-3.5 transition-colors ${viewMode === "grid"
                     ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                     : isDark
                       ? "bg-transparent text-white/40 hover:text-white"
@@ -474,6 +475,20 @@ export default function ShootsPage() {
                     }`}
                 >
                   <Grid3X3 size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("calendar")}
+                  aria-label="Calendar view"
+                  title="Calendar view"
+                  className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${viewMode === "calendar"
+                    ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                    : isDark
+                      ? "bg-transparent text-white/40 hover:text-white"
+                      : "bg-transparent text-[#666] hover:text-black"
+                    }`}
+                >
+                  <CalendarDays size={18} />
                 </button>
               </div>
             </div>
@@ -928,32 +943,36 @@ export default function ShootsPage() {
         )}
 
         {/* <DottedDivider className="my-0" />  */}
-        <ShootsTable
-          externalSelectedDate={selectedDate}
-          customRangeStartDate={customRangeStartDate}
-          customRangeEndDate={customRangeEndDate}
-          isCustomRangeOpen={isCustomRangeOpen}
-          filtersReady={hasRestoredFilters}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          paymentFilter={paymentFilter}
-          setPaymentFilter={setPaymentFilter}
-          productionFilter={productionFilter}
-          setProductionFilter={setProductionFilter}
-          range={range}
-          setRange={setRange}
-          cpAssignmentFilter={cpAssignmentFilter}
-          setCpAssignmentFilter={setCpAssignmentFilter}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          showHeaderControls={true}
-          showHeaderFilters={false}
-          showViewToggle={false}
-        />
+        {viewMode === "calendar" ? (
+          <ShootsCalendarView isDark={isDark} />
+        ) : (
+          <ShootsTable
+            externalSelectedDate={selectedDate}
+            customRangeStartDate={customRangeStartDate}
+            customRangeEndDate={customRangeEndDate}
+            isCustomRangeOpen={isCustomRangeOpen}
+            filtersReady={hasRestoredFilters}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            categoryFilter={categoryFilter}
+            setCategoryFilter={setCategoryFilter}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            paymentFilter={paymentFilter}
+            setPaymentFilter={setPaymentFilter}
+            productionFilter={productionFilter}
+            setProductionFilter={setProductionFilter}
+            range={range}
+            setRange={setRange}
+            cpAssignmentFilter={cpAssignmentFilter}
+            setCpAssignmentFilter={setCpAssignmentFilter}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            showHeaderControls={true}
+            showHeaderFilters={false}
+            showViewToggle={false}
+          />
+        )}
 
         {/* --- FLOATING MOBILE BUTTON --- */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
