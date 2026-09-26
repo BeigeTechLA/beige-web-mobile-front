@@ -146,22 +146,41 @@ export default function QuoteSalesRepDetailsPage() {
         <div className="space-y-3 lg:space-y-6">
           <div className="w-full flex flex-col lg:flex-row gap-5">
             <div className="w-full lg:w-3/5 h-full">
-              <QuotePerformanceWidget data={analytics?.performance_chart ?? []} />
+              <QuotePerformanceWidget
+                data={analytics?.performance_chart ?? []}
+              />
             </div>
+
             <div className="w-full lg:w-2/5 h-full">
-              <ConversionPerformanceWidget data={conversionData} />
+              <ConversionPerformanceWidget
+                isDark={isDark}
+                data={conversionData}
+              />
             </div>
           </div>
+
           <div>
-            <OpenPipelineWidget data={analytics?.overview?.open_pipeline ?? undefined} filters={{ sales_rep_id: salesRepId }} />
+            <OpenPipelineWidget
+              isDark={isDark}
+              data={analytics?.overview?.open_pipeline ?? undefined}
+              filters={{ sales_rep_id: salesRepId }}
+            />
           </div>
+
           <div>
-            <QuotesOverdueWidget data={analytics?.overview?.overdue_follow_ups ?? undefined} quotesData={overdueQuotes as never} onPageChange={setOverduePage} />
+            <QuotesOverdueWidget
+              isDark={isDark}
+              data={analytics?.overview?.overdue_follow_ups ?? undefined}
+              quotesData={overdueQuotes as never}
+              onPageChange={setOverduePage}
+            />
           </div>
-          <div className="flex lg:grid lg:grid-cols-2 gap-3 lg:gap-6 overflow-x-auto lg:overflow-x-hidden snap-x snap-mandatory no-scrollbar pb-2 lg:pb-0 ">
+
+          <div className="flex lg:grid lg:grid-cols-2 gap-3 lg:gap-6 overflow-x-auto lg:overflow-x-hidden snap-x snap-mandatory no-scrollbar pb-2 lg:pb-0">
             <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
               <DealColumn data={dealWonColumn} isDark={isDark} />
             </div>
+
             <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">
               <DealColumn data={overdueColumn} isDark={isDark} />
             </div>

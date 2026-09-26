@@ -38,6 +38,7 @@ import SocialLinksModal from "./SocialLinksModal";
 import PortfolioLinksModal from "./PortfolioLinksModal";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import { getEquipmentById } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
@@ -61,6 +62,7 @@ type GoogleCreatorOnboardingModalProps = {
   open: boolean;
   initialData: GoogleOnboardingData | null;
   profileData?: Record<string, any> | null;
+  isDark: boolean;
   onClose: () => void;
   onComplete: (data: Record<string, unknown>) => void;
 };
@@ -338,6 +340,7 @@ export function GoogleCreatorOnboardingModal({
   open,
   initialData,
   profileData,
+  isDark,
   onClose,
   onComplete,
 }: GoogleCreatorOnboardingModalProps) {
@@ -706,20 +709,20 @@ export function GoogleCreatorOnboardingModal({
   const progressLabel = step === 1 ? "Basics" : step === 2 ? "Professional" : "Portfolio";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm">
-      <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[18px] border border-white/15 bg-[#101010] text-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/75" : "bg-black/40"}`}>
+      <div className={`relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[18px] border shadow-2xl ${isDark ? "border-white/15 bg-[#101010] text-white" : "border-black/10 bg-white text-black"}`}>
+        <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-white/10" : "border-black/10"}`}>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E8D1AB]">
               Google signup
             </p>
             <h2 className="text-xl font-semibold">Complete your creator application</h2>
-            <p className="text-sm text-white/50">{progressLabel} · Step {step} of 3</p>
+            <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{progressLabel} · Step {step} of 3</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/10 p-2 text-white/60 transition hover:text-white"
+            className={`rounded-full border p-2 transition ${isDark ? "border-white/10 text-white/60 hover:bg-white/5 hover:text-white" : "border-black/10 text-black/60 hover:bg-black/5 hover:text-black"}`}
             aria-label="Close onboarding"
           >
             <X className="h-5 w-5" />
@@ -730,7 +733,7 @@ export function GoogleCreatorOnboardingModal({
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className={`h-1.5 rounded-full ${item <= step ? "bg-[#E8D1AB]" : "bg-white/10"}`}
+              className={`h-1.5 rounded-full ${item <= step ? "bg-[#E8D1AB]" : isDark ? "bg-white/10" : "bg-black/10"}`}
             />
           ))}
         </div>
@@ -738,13 +741,13 @@ export function GoogleCreatorOnboardingModal({
         <div className="overflow-y-auto px-5 py-5">
           {step === 1 && (
             <div className="space-y-5">
-              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+              <div className={`rounded-[12px] border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
                 <p className="font-medium">{initialData.firstName} {initialData.lastName}</p>
-                <p className="text-sm text-white/50">{initialData.email}</p>
+                <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>{initialData.email}</p>
               </div>
 
               <div className="relative">
-                <Label className="mb-2 block text-sm text-white/60">Phone number *</Label>
+                <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Phone number *</Label>
 <Input
   type="tel"
   value={phoneNumber}
@@ -770,10 +773,12 @@ export function GoogleCreatorOnboardingModal({
     }
   }}
   placeholder="+1 (555) 000-0000"
-  className={`h-12 bg-[#151515] text-white ${
+  className={`h-12 ${isDark ? "bg-[#151515] text-white placeholder:text-white/30" : "bg-white text-black placeholder:text-black/30"} ${
     phoneError
       ? "border-red-500 focus-visible:ring-red-500"
-      : "border-white/20"
+      : isDark
+        ? "border-white/20"
+        : "border-black/20"
   }`}
 />
 
@@ -789,15 +794,16 @@ export function GoogleCreatorOnboardingModal({
                 value={location}
                 onChange={setLocation}
                 placeholder="Search your location"
+                isDark={isDark}
               />
 
               <div>
-                <Label className="mb-2 block text-sm text-white/60">Shoot radius *</Label>
+                <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Shoot radius *</Label>
                 <Select value={workingDistance} onValueChange={setWorkingDistance}>
-                  <SelectTrigger className="h-12 border-white/20 bg-[#151515] text-white">
+                  <SelectTrigger className={`h-12 ${isDark ? "border-white/20 bg-[#151515] text-white" : "border-black/20 bg-white text-black"}`}>
                     <SelectValue placeholder="Select travel radius" />
                   </SelectTrigger>
-                  <SelectContent position="popper" className="bg-[#1A1A1A] border-white/20 text-white z-[110]">
+                  <SelectContent position="popper" className={`z-[110] ${isDark ? "border-white/20 bg-[#1A1A1A] text-white" : "border-black/10 bg-white text-black"}`}>
                     {distanceOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -807,10 +813,10 @@ export function GoogleCreatorOnboardingModal({
                 </Select>
               </div>
 
-            <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
-                <Label className="mb-3 block text-sm text-white/60">Profile picture *</Label>
+            <div className={`rounded-[12px] border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
+                <Label className={`mb-3 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Profile picture *</Label>
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-black">
+                  <div className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-full ${isDark ? "bg-black" : "bg-zinc-100"}`}>
                     {profilePreview ? (
                       <img src={profilePreview} alt="Profile preview" className="h-full w-full object-cover" />
                     ) : (
@@ -834,7 +840,7 @@ export function GoogleCreatorOnboardingModal({
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <Label className="mb-3 block text-sm text-white/60">Your role *</Label>
+                <Label className={`mb-3 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Your role *</Label>
                 <div className="flex flex-wrap gap-2">
                   {roleOptions.map((option) => {
                     const selected = roles.includes(option.value);
@@ -846,7 +852,9 @@ export function GoogleCreatorOnboardingModal({
                         className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition ${
                           selected
                             ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
-                            : "border-white/15 text-white hover:border-white/40"
+                            : isDark
+                              ? "border-white/15 text-white hover:border-white/40"
+                              : "border-black/15 text-black hover:border-black/40"
                         }`}
                       >
                         {selected && <Check className="h-4 w-4" />}
@@ -859,18 +867,18 @@ export function GoogleCreatorOnboardingModal({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label className="mb-2 block text-sm text-white/60">Years of experience *</Label>
+                  <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Years of experience *</Label>
                   <Input
                     type="number"
                     min="0"
                     value={yoe}
                     onChange={(event) => setYoe(event.target.value)}
                     placeholder="e.g. 5"
-                    className="h-12 border-white/20 bg-[#151515] text-white"
+                    className={`h-12 ${isDark ? "border-white/20 bg-[#151515] text-white placeholder:text-white/30" : "border-black/20 bg-white text-black placeholder:text-black/30"}`}
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block text-sm text-white/60">Desired hourly rate *</Label>
+                  <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Desired hourly rate *</Label>
                   <div className="relative">
                     <CircleDollarSign className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#E8D1AB]" />
                     <Input
@@ -879,29 +887,31 @@ export function GoogleCreatorOnboardingModal({
                       value={hourlyRate}
                       onChange={(event) => setHourlyRate(event.target.value)}
                       placeholder="0.00"
-                      className="h-12 border-white/20 bg-[#151515] pl-10 text-white"
+                      className={`h-12 pl-10 ${isDark ? "border-white/20 bg-[#151515] text-white placeholder:text-white/30" : "border-black/20 bg-white text-black placeholder:text-black/30"}`}
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <Label className="mb-2 block text-sm text-white/60">Skills *</Label>
+                <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Skills *</Label>
                 <AddSkills
                   options={skillOptions}
                   allOptions={allSkillOptions}
                   value={skills}
                   onChange={setSkills}
+                  isDark={isDark}
                 />
               </div>
 
               <div>
-                <Label className="mb-2 block text-sm text-white/60">
+                <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                   Equipment {isOnlyEditorRole ? "(optional)" : "*"}
                 </Label>
                 <AddEquipments
                   value={equipments}
                   names={equipmentNames}
+                  isDark={isDark}
                   onChange={(ids: Array<string | number>, names: string[]) => {
                     setEquipments(ids);
                     setEquipmentNames(names);
@@ -910,12 +920,12 @@ export function GoogleCreatorOnboardingModal({
               </div>
 
               <div>
-                <Label className="mb-2 block text-sm text-white/60">Bio</Label>
+                <Label className={`mb-2 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>Bio</Label>
                 <Textarea
                   value={bio}
                   onChange={(event) => setBio(event.target.value)}
                   placeholder="Tell us what you shoot best..."
-                  className="min-h-28 border-white/20 bg-[#151515] text-white"
+                  className={`min-h-28 ${isDark ? "border-white/20 bg-[#151515] text-white placeholder:text-white/30" : "border-black/20 bg-white text-black placeholder:text-black/30"}`}
                 />
               </div>
             </div>
@@ -923,13 +933,13 @@ export function GoogleCreatorOnboardingModal({
 
           {step === 3 && (
             <div className="space-y-5">
-              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+              <div className={`rounded-[12px] border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold text-white">
+                    <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                       Social & Professional Links *
                     </h3>
-                    <p className="text-sm text-white/50">
+                    <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
                       Add links that showcase your work, recognition, personality and more.
                     </p>
                   </div>
@@ -950,7 +960,7 @@ export function GoogleCreatorOnboardingModal({
                       return (
                         <div
                           key={link.id}
-                          className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#151515] px-4 py-3"
+                          className={`flex items-center justify-between rounded-[12px] border px-4 py-3 ${isDark ? "border-white/10 bg-[#151515]" : "border-black/10 bg-white"}`}
                         >
                           <div className="flex min-w-0 items-center gap-3">
                             {platform?.src ? (
@@ -961,14 +971,14 @@ export function GoogleCreatorOnboardingModal({
                               <Globe className="h-5 w-5 text-[#E8D1AB]" />
                             )}
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-white">{link.name}</p>
-                              <p className="truncate text-xs text-white/40">{link.url}</p>
+                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{link.name}</p>
+                              <p className={`truncate text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>{link.url}</p>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => setLinks((current) => current.filter((item) => item.id !== link.id))}
-                            className="rounded-lg p-2 text-white/40 transition hover:bg-red-500/10 hover:text-red-400"
+                            className={`rounded-lg p-2 transition hover:bg-red-500/10 hover:text-red-400 ${isDark ? "text-white/40" : "text-black/40"}`}
                             aria-label="Remove link"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -978,17 +988,17 @@ export function GoogleCreatorOnboardingModal({
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-white/40">At least one link is required to proceed.</p>
+                  <p className={`text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>At least one link is required to proceed.</p>
                 )}
               </div>
 
-              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+              <div className={`rounded-[12px] border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold text-white">
+                    <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                       Portfolio Links {isOnlyVideographerRole ? <span className="text-[#E8D1AB]">*</span> : "(Optional)"}
                     </h3>
-                    <p className="text-sm text-white/50">
+                    <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
                       Share links to your portfolio, showreel, or personal website.
                     </p>
                   </div>
@@ -1009,7 +1019,7 @@ export function GoogleCreatorOnboardingModal({
                       return (
                         <div
                           key={link.id}
-                          className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#151515] px-4 py-3"
+                          className={`flex items-center justify-between rounded-[12px] border px-4 py-3 ${isDark ? "border-white/10 bg-[#151515]" : "border-black/10 bg-white"}`}
                         >
                           <div className="flex min-w-0 items-center gap-3">
                             {platform?.icon ? (
@@ -1018,14 +1028,14 @@ export function GoogleCreatorOnboardingModal({
                               <Globe className="h-5 w-5 text-[#E8D1AB]" />
                             )}
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-white">{link.name}</p>
-                              <p className="truncate text-xs text-white/40">{link.url}</p>
+                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{link.name}</p>
+                              <p className={`truncate text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>{link.url}</p>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => setPortfolioLinks((current) => current.filter((item) => item.id !== link.id))}
-                            className="rounded-lg p-2 text-white/40 transition hover:bg-red-500/10 hover:text-red-400"
+                            className={`rounded-lg p-2 transition hover:bg-red-500/10 hover:text-red-400 ${isDark ? "text-white/40" : "text-black/40"}`}
                             aria-label="Remove link"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1035,15 +1045,15 @@ export function GoogleCreatorOnboardingModal({
                     })}
                   </div>
                 ) : isOnlyVideographerRole ? (
-                  <p className="text-sm text-white/40">At least one portfolio link is required to proceed.</p>
+                  <p className={`text-sm ${isDark ? "text-white/40" : "text-black/40"}`}>At least one portfolio link is required to proceed.</p>
                 ) : null}
               </div>
 
-              <div className="rounded-[12px] border border-white/10 bg-white/[0.03] p-4">
+              <div className={`rounded-[12px] border p-4 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
                 <FeaturedWork
                   value={featuredWork}
                   onChange={setFeaturedWork}
-                  darkTheme
+                  darkTheme={isDark}
                   onUploadFiles={handleFeaturedWorkUpload}
                   requiredLabel={!isOnlyVideographerRole}
                 />
@@ -1054,7 +1064,7 @@ export function GoogleCreatorOnboardingModal({
                 onClose={() => setSocialModalOpen(false)}
                 links={links}
                 onChange={setLinks}
-                isDark
+                isDark={isDark}
               />
 
               <PortfolioLinksModal
@@ -1062,19 +1072,19 @@ export function GoogleCreatorOnboardingModal({
                 onClose={() => setPortfolioModalOpen(false)}
                 links={portfolioLinks}
                 onChange={setPortfolioLinks}
-                isDark
+                isDark={isDark}
               />
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-white/10 px-5 py-4">
+        <div className={`flex items-center justify-between gap-3 border-t px-5 py-4 ${isDark ? "border-white/10" : "border-black/10"}`}>
           <Button
             type="button"
             variant="outline"
             onClick={() => step === 1 ? onClose() : setStep((current) => current - 1)}
             disabled={isSubmitting}
-            className="border-white/15 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            className={isDark ? "border-white/15 bg-transparent text-white hover:bg-white/10 hover:text-white" : "border-black/15 bg-transparent text-black hover:bg-black/5 hover:text-black"}
           >
             {step === 1 ? "Cancel" : "Back"}
           </Button>

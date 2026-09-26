@@ -120,7 +120,7 @@ const FeaturedWork = ({
           width: 28px;
           height: 3px;
           border-radius: 2px;
-          background: #ffffff;
+          background: ${darkTheme ? "#ffffff" : "#111111"};
           opacity: 1;
           margin: 0 !important;
           transition: all 0.3s ease;
@@ -133,13 +133,13 @@ const FeaturedWork = ({
       `}</style>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h4 className="text-base font-semibold text-white">
+          <h4 className={`text-base font-semibold ${darkTheme ? "text-white" : "text-black"}`}>
             Showcase Your Work {isRequired ? "*" : "(Optional)"}
           </h4>
-          <p className="text-sm text-white/50">
+          <p className={`text-sm ${darkTheme ? "text-white/50" : "text-black/50"}`}>
             Add up to {MAX_PROJECTS} projects. Each project must have at least 5 images.
           </p>
-          <p className="text-sm text-white/50 mt-1">
+          <p className={`text-sm mt-1 ${darkTheme ? "text-white/50" : "text-black/50"}`}>
             Upload Images of your best work (png, jpg, jpeg, webp - Min 5)
           </p>
         </div>
@@ -162,12 +162,20 @@ const FeaturedWork = ({
       {items.length === 0 ? (
         <div
           onClick={handleOpenModal}
-          className="h-32 border border-dashed border-white/20 rounded-[12px] flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 hover:border-white/40 cursor-pointer transition-all group"
+          className={`h-32 border border-dashed rounded-[12px] flex flex-col items-center justify-center cursor-pointer transition-all group ${
+            darkTheme
+              ? "border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40"
+              : "border-black/20 bg-black/[0.02] hover:bg-black/[0.05] hover:border-black/40"
+          }`}
         >
-          <div className="p-3 rounded-full bg-[#1A1A1A] border border-white/10 mb-2 group-hover:scale-110 transition-transform">
+          <div className={`p-3 rounded-full border mb-2 group-hover:scale-110 transition-transform ${
+            darkTheme ? "bg-[#1A1A1A] border-white/10" : "bg-neutral-100 border-black/10"
+          }`}>
             <Plus className="w-5 h-5 text-[#E8D1AB]" />
           </div>
-          <span className="text-sm text-white/40 font-medium group-hover:text-white/60">
+          <span className={`text-sm font-medium ${
+            darkTheme ? "text-white/40 group-hover:text-white/60" : "text-black/40 group-hover:text-black/60"
+          }`}>
             Upload your work, videos or images
           </span>
         </div>
@@ -178,10 +186,12 @@ const FeaturedWork = ({
             return (
               <div
                 key={it.id}
-                className="relative group bg-[#1A1A1A] rounded-[12px] overflow-hidden border border-white/10 hover:border-[#E8D1AB]/40 transition"
+                className={`relative group rounded-[12px] overflow-hidden border hover:border-[#E8D1AB]/40 transition ${
+                  darkTheme ? "bg-[#1A1A1A] border-white/10" : "bg-white border-black/10"
+                }`}
               >
                 {/* Swiper */}
-                <div className="relative w-full h-48 lg:h-56 bg-[#262626] flex overflow-hidden">
+                <div className={`relative w-full h-48 lg:h-56 flex overflow-hidden ${darkTheme ? "bg-[#262626]" : "bg-neutral-100"}`}>
                   {images.length > 0 ? (
                     <Swiper
                       modules={[Pagination]}
@@ -202,7 +212,7 @@ const FeaturedWork = ({
                     </Swiper>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <ImageIcon className="w-10 h-10 text-white/10" />
+                      <ImageIcon className={`w-10 h-10 ${darkTheme ? "text-white/10" : "text-black/10"}`} />
                     </div>
                   )}
 

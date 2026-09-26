@@ -2226,6 +2226,7 @@ export default function ProfilePage() {
           open={isGoogleOnboardingOpen}
           initialData={googleOnboardingData}
           profileData={profile}
+          isDark={isDark}
           onClose={() => setIsGoogleOnboardingOpen(false)}
           onComplete={async () => {
             setIsGoogleOnboardingOpen(false);

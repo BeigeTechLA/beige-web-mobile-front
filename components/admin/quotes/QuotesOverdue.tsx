@@ -429,7 +429,7 @@ export default function QuotesOverdueWidget({
                           }}
                           className={`transition-colors cursor-pointer ${isDark
                             ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
-                            : "bg-black/10 hover:bg-black/[0.02] text-black border-black/10"
+                            : "bg-white hover:bg-black/[0.025] text-black border-black/10"
                             } ${isExpanded
                               ? isDark
                                 ? "bg-[#202020] border-none"

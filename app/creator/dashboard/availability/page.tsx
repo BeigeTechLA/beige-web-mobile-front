@@ -1094,10 +1094,19 @@ export default function AvailabilityPage() {
       const handleDateHover = (e) => {
         if (isAssigned && availabilityStatus?.projectDetails) {
           const rect = e.currentTarget.getBoundingClientRect();
-          setHoverPosition({
-            x: rect.right + 10,
-            y: rect.top,
-          });
+          const cardWidth = Math.min(420, window.innerWidth - 24);
+          const preferredRight = rect.right + 10;
+          const preferredLeft = rect.left - cardWidth - 10;
+          const x =
+            preferredRight + cardWidth <= window.innerWidth - 12
+              ? preferredRight
+              : Math.max(12, preferredLeft);
+          const y = Math.min(
+            Math.max(12, rect.top),
+            Math.max(12, window.innerHeight - 320)
+          );
+
+          setHoverPosition({ x, y });
           setHoveredProject({
             date: dateString,
             ...availabilityStatus.projectDetails,
@@ -1213,14 +1222,14 @@ export default function AvailabilityPage() {
     <>
       <Topbar pathname={pathname} />
       <div
-        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 overflow-hidden ${isDark
+        className={`mx-2 sm:mx-4 lg:mx-8 mt-4 sm:mt-6 mb-12 sm:mb-20 rounded-xl sm:rounded-2xl transition-all duration-700 overflow-hidden ${isDark
           ? `bg-[#0A0A0A] border border-[#E8D1AB]/30 shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]`
           : "bg-white border-zinc-200 shadow-sm"
           }`}
       >
-        <div className="p-10 lg:p-16 space-y-8 lg:space-y-12 pb-24">
+        <div className="p-3 sm:p-6 lg:p-10 xl:p-16 space-y-6 sm:space-y-8 lg:space-y-12 pb-12 sm:pb-16 lg:pb-24">
           {/* Header Section */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 lg:gap-6">
             <div>
               <h1 className={`text-lg lg:text-2xl font-semibold transition-colors ${isDark ? "text-white" : "text-black"}`}>Manage Availability</h1>
               <p className={`mt-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/55" : "text-black/60"}`}>Set your available dates and times for upcoming projects</p>
@@ -1228,7 +1237,7 @@ export default function AvailabilityPage() {
 
             <Button
               onClick={handleModalOpen}
-              className="bg-[#E8D1AB] text-black rounded-lg lg:rounded-xl h-10 lg:h-12 px-4 lg:px-8 hover:bg-[#d4be9a] transition-colors lg:font-bold flex items-center gap-2"
+              className="w-full sm:w-auto bg-[#E8D1AB] text-black rounded-lg lg:rounded-xl h-10 lg:h-12 px-4 lg:px-8 hover:bg-[#d4be9a] transition-colors lg:font-bold flex items-center justify-center gap-2"
             >
               <Plus size={20} />
               Add Availability
@@ -1236,7 +1245,7 @@ export default function AvailabilityPage() {
           </div>
 
           {/* Summary Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <StatCard
               label="Available Days"
               value={summaryData.availableDays}
@@ -1263,8 +1272,8 @@ export default function AvailabilityPage() {
             />
           </div>
 
-          <div className={`border rounded-2xl p-5 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
-            <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-5">
+          <div className={`border rounded-xl sm:rounded-2xl p-4 sm:p-5 lg:p-6 transition-colors ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200 shadow-sm"}`}>
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5">
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
                   <div className={`shrink-0 h-10 w-10 rounded-lg flex items-center justify-center border ${isDark ? "bg-black border-white/10 text-[#E8D1AB]" : "bg-[#F8F4EE] border-black/10 text-black"}`}>
@@ -1281,8 +1290,8 @@ export default function AvailabilityPage() {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 xl:min-w-[760px]">
+              <div className="w-full min-w-0 flex-1 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 sm:gap-5">
+                <div className="grid w-full min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                   <div className={`rounded-lg border px-4 py-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
                     <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-white/35" : "text-black/40"}`}>Days</p>
                     <p className={`mt-1 truncate text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
@@ -1312,7 +1321,7 @@ export default function AvailabilityPage() {
                 <Button
                   onClick={() => setIsWeeklyModalOpen(true)}
                   disabled={isRulesLoading}
-                  className="bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold shrink-0"
+                  className="w-full sm:w-auto bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold shrink-0 justify-center"
                 >
                   <Pencil size={16} />
                   {hasSavedWeeklyRules ? "Edit Schedule" : "Set Schedule"}
@@ -1324,19 +1333,19 @@ export default function AvailabilityPage() {
 
           <div className="grid grid-cols-12 gap-4 lg:gap-6">
             {/* Main Calendar Section */}
-            <div className="col-span-12 lg:col-span-9 space-y-4 lg:space-y-6">
+            <div className="col-span-12 xl:col-span-9 min-w-0 space-y-4 lg:space-y-6">
               <div className={`transition-colors duration-200 border rounded-2xl overflow-hidden shadow-2xl ${isDark ? "bg-[#101010] border-[#333]" : "bg-white border-gray-200"}`}>
                 {/* Calendar Controls */}
-                <div className={`p-4 lg:p-6 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`flex items-center rounded-lg gap-2 lg:gap-4 p-1`}>
+                <div className={`p-3 sm:p-4 lg:p-6 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${isDark ? "border-white/5" : "border-gray-100"}`}>
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+                    <div className={`flex min-w-0 items-center rounded-lg gap-2 lg:gap-4 p-1`}>
                       <button
                         onClick={() => handleMonthChange("prev")}
                         className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors border ${isDark ? "hover:bg-white/5 text-white/60 bg-black border-white/10" : "hover:bg-gray-200 text-[#000000] bg-[#F0F0F0] border-[#0A0A0A33]"}`}
                       >
                         <ChevronLeft size={18} />
                       </button>
-                      <span className={`lg:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                      <span className={`min-w-0 text-sm sm:text-base lg:text-lg font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
                         {new Date(currentYear, currentMonth - 1).toLocaleString(
                           "default",
                           {
@@ -1354,11 +1363,11 @@ export default function AvailabilityPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex w-full sm:w-auto items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
+                      className={`w-full sm:w-auto px-4 py-2 border rounded-lg text-sm transition-all ${isDark ? "bg-transparent border-white/10 text-white/60 hover:text-white hover:border-[#E5D5B8]/40" : "bg-[#F0F0F0] border-[#E3E3E3] text-gray-600 hover:text-black shadow-sm"}`}
                       onClick={() => {
                         setCurrentMonth(new Date().getMonth() + 1);
                         setCurrentYear(new Date().getFullYear());
@@ -1380,7 +1389,8 @@ export default function AvailabilityPage() {
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-7 border-collapse">
+                <div className="overflow-x-auto overscroll-x-contain">
+                  <div className="grid min-w-[630px] sm:min-w-0 grid-cols-7 border-collapse">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
                     (d, index) => (
                       <div
@@ -1392,12 +1402,13 @@ export default function AvailabilityPage() {
                     )
                   )}
                   {renderCalendarDays()}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Sidebar Info Section */}
-            <div className="col-span-12 lg:col-span-3 space-y-4">
+            <div className="col-span-12 xl:col-span-3 min-w-0 space-y-4">
               <div className={`rounded-lg lg:rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex gap-3`}>
                 <Info className="text-blue-400 shrink-0 mt-0.5" size={18} />
                 <p className={`text-xs leading-relaxed ${isDark ? "text-blue-200/70 " : "text-blue-400"}`}>
@@ -1482,7 +1493,7 @@ export default function AvailabilityPage() {
           {isWeeklyModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
               <div
-                className={`w-full max-w-4xl mx-3 lg:mx-0 p-5 lg:p-7 relative shadow-2xl border max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
+                className={`w-[calc(100%_-_1rem)] sm:w-full max-w-4xl mx-2 sm:mx-3 lg:mx-0 p-4 sm:p-5 lg:p-7 relative rounded-xl sm:rounded-2xl shadow-2xl border max-h-[92vh] sm:max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
               >
                 <button
                   onClick={() => setIsWeeklyModalOpen(false)}
@@ -1500,7 +1511,7 @@ export default function AvailabilityPage() {
                   </p>
                 </div>
 
-                <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 rounded-xl border p-4 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 mb-5 rounded-xl border p-3 sm:p-4 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}>
                   <div>
                     <label className={`block text-[10px] uppercase font-bold tracking-widest mb-2 ${isDark ? "text-white/35" : "text-black/40"}`}>
                       Timezone
@@ -1557,7 +1568,7 @@ export default function AvailabilityPage() {
                     return (
                       <div
                         key={day.value}
-                        className={`grid grid-cols-8 gap-3 items-center rounded-lg border p-3 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}
+                        className={`grid grid-cols-8 gap-2 sm:gap-3 items-center rounded-lg border p-3 ${isDark ? "border-white/10 bg-black/25" : "border-black/10 bg-neutral-50"}`}
                       >
                         <label className="col-span-8 md:col-span-2 flex items-center gap-2">
                           <input
@@ -1609,11 +1620,11 @@ export default function AvailabilityPage() {
                   })}
                 </div>
 
-                <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <p className={`text-xs ${isDark ? "text-white/35" : "text-black/45"}`}>
                     {weeklyRules.length ? `${weeklyRules.length} working days enabled` : "No working days enabled"} · Booking notice prevents last-minute shoot requests.
                   </p>
-                  <div className="flex justify-end gap-3">
+                  <div className="flex w-full sm:w-auto justify-end gap-2 sm:gap-3">
                     <Button
                       type="button"
                       onClick={() => setIsWeeklyModalOpen(false)}
@@ -1626,7 +1637,7 @@ export default function AvailabilityPage() {
                     <Button
                       onClick={handleSaveWeeklyRules}
                       disabled={isRulesSaving || isRulesLoading}
-                      className="min-w-[140px] bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold"
+                      className="flex-1 sm:flex-none sm:min-w-[140px] bg-[#E8D1AB] text-black rounded-lg h-10 px-5 hover:bg-[#d4be9a] transition-colors font-semibold"
                     >
                       {isRulesSaving ? (
                         <span className="flex items-center gap-2">
@@ -1646,7 +1657,7 @@ export default function AvailabilityPage() {
           {selectedDay && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
               <div
-                className={`w-full max-w-2xl mx-3 lg:mx-0 p-5 lg:p-7 relative shadow-2xl border max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
+                className={`w-[calc(100%_-_1rem)] sm:w-full max-w-2xl mx-2 sm:mx-3 lg:mx-0 p-4 sm:p-5 lg:p-7 relative rounded-xl sm:rounded-2xl shadow-2xl border max-h-[92vh] sm:max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}`}
               >
                 <button
                   onClick={() => setSelectedDay(null)}
@@ -1667,7 +1678,7 @@ export default function AvailabilityPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                   <div className={`rounded-xl border p-3 ${isDark ? "bg-black/30 border-white/10" : "bg-neutral-50 border-black/10"}`}>
                     <p className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isDark ? "text-white/35" : "text-black/40"}`}>Status</p>
                     <p className={`text-sm font-semibold ${selectedDayStatus?.available ? "text-green-500" : selectedDayIsTimeOff ? "text-red-400" : isDark ? "text-white" : "text-black"}`}>
@@ -1814,7 +1825,7 @@ export default function AvailabilityPage() {
           {isModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-lg">
               <div
-                className={`w-full max-w-lg mx-2 lg:mx-0 p-4 lg:p-8 relative shadow-2xl transition-colors duration-200 border
+                className={`w-[calc(100%_-_1rem)] sm:w-full max-w-lg mx-2 lg:mx-0 p-4 sm:p-6 lg:p-8 relative rounded-xl sm:rounded-2xl shadow-2xl transition-colors duration-200 border
       ${isAnimating ? "animate-in fade-in zoom-in duration-200" : "animate-out fade-out zoom-out duration-200"}
       ${isDark ? "bg-[#111111] border-white/10 text-white" : "bg-white border-black/5 text-black"}
       max-h-[90vh] overflow-y-auto`}
@@ -1874,7 +1885,7 @@ export default function AvailabilityPage() {
                   </div>
 
                   {!isAllDay && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${isDark ? "text-white/40" : "text-black/40"}`}>
                           Start Time
@@ -1991,7 +2002,7 @@ export default function AvailabilityPage() {
 
                       {/* MONTHLY */}
                       {formData.recurrence === "4" && (
-                        <div className={`flex items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
+                        <div className={`flex flex-wrap items-center gap-2 text-sm ${isDark ? "text-neutral-300" : "text-neutral-700"}`}>
                           <span>Repeat on Day</span>
                           <input
                             type="text"
@@ -2025,7 +2036,7 @@ export default function AvailabilityPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-3 pt-4">
+                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-4">
                     <Button
                       type="button"
                       onClick={handleModalClose}
@@ -2039,7 +2050,7 @@ export default function AvailabilityPage() {
                       type="submit"
                       disabled={isSubmitting}
                       aria-busy={isSubmitting}
-                      className={`min-w-[150px] font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
+                      className={`w-full sm:w-auto sm:min-w-[150px] font-bold px-8 rounded-xl transition-colors text-black ${isDark ? "bg-[#E8D1AB] hover:bg-[#d4be9a]" : "bg-[#cbb38b] hover:bg-[#bfa57c]"}`}
                     >
                       {isSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
@@ -2059,7 +2070,7 @@ export default function AvailabilityPage() {
           {/* Hover Card for Project Details */}
           {hoveredProject && (
             <div
-              className={`fixed z-50 w-[420px] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 border transition-colors ${isDark
+              className={`fixed z-50 w-[calc(100vw-24px)] max-w-[420px] rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 border transition-colors ${isDark
                 ? "bg-[#111111] border-[#E8D1AB]/30 text-white"
                 : "bg-white border-[#cbb38b]/40 text-black"
                 }`}
@@ -2101,7 +2112,7 @@ export default function AvailabilityPage() {
               </div>
 
               {/* Middle Section */}
-              <div className={`grid grid-cols-2 divide-x border-b ${isDark
+              <div className={`grid grid-cols-1 sm:grid-cols-2 sm:divide-x border-b ${isDark
                 ? "divide-white/10 border-white/10 bg-white/[0.01]"
                 : "divide-black/5 border-black/5 bg-black/[0.01]"
                 }`}>

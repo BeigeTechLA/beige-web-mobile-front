@@ -267,8 +267,18 @@ export default function OpenPipelineWidget({
                 />
               </button>
             </div>
-            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
-              <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
+            <div
+              className={`h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center p-1 ${
+                isDark
+                  ? "bg-[#101010]"
+                  : "bg-[#ECECEC]"
+              }`}
+            >
+              <div
+                className={`h-full w-1 rounded-full mr-2 shrink-0 ${
+                  isDark ? "bg-white/80" : "bg-black/30"
+                }`}
+              />
               <div
                 className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(213,210,255,0.50)_39%,#7E72FF_100%)] transition-all duration-500"
               />
@@ -303,8 +313,18 @@ export default function OpenPipelineWidget({
                 />
               </button>
             </div>
-            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
-              <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
+            <div
+              className={`h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center p-1 ${
+                isDark
+                  ? "bg-[#101010]"
+                  : "bg-[#ECECEC]"
+              }`}
+            >
+              <div
+                className={`h-full w-1 rounded-full mr-2 shrink-0 ${
+                  isDark ? "bg-white/80" : "bg-black/30"
+                }`}
+              />
               <div
                 className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(130,245,154,0.50)_39%,#35C653_100%)] transition-all duration-500"
               />
@@ -339,8 +359,18 @@ export default function OpenPipelineWidget({
                 />
               </button>
             </div>
-            <div className="h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center bg-[#101010] p-1">
-              <div className="h-full w-1 bg-white/80 rounded-full mr-2 shrink-0" />
+            <div
+              className={`h-13 lg:h-14 w-full rounded-lg overflow-hidden flex items-center p-1 ${
+                isDark
+                  ? "bg-[#101010]"
+                  : "bg-[#ECECEC]"
+              }`}
+            >
+              <div
+                className={`h-full w-1 rounded-full mr-2 shrink-0 ${
+                  isDark ? "bg-white/80" : "bg-black/30"
+                }`}
+              />
               <div
                 className="h-full w-full rounded-md bg-[linear-gradient(90deg,rgba(255,255,255,0.00)_0%,rgba(255,237,135,0.50)_39%,#DBC548_100%)] transition-all duration-500"
               />
@@ -430,7 +460,7 @@ export default function OpenPipelineWidget({
                             }}
                             className={`transition-colors cursor-pointer ${isDark
                               ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
-                              : "bg-black/10 hover:bg-black/[0.02] text-black border-black/10"
+                              : "bg-white hover:bg-black/[0.025] text-black border-black/10"
                               } ${isExpanded
                                 ? isDark
                                   ? "bg-[#202020] border-none"
