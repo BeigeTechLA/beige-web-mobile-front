@@ -21,7 +21,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
-import { useTheme } from "next-themes";
+import { useTheme } from "next-themes"; 
 import { useAppSelector } from '@/lib/redux/hooks';
 import { hasModulePermission } from '@/lib/permissions';
 import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
