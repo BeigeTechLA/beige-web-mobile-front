@@ -3952,6 +3952,90 @@ export const salesApi = {
     }
   },
 
+  exportOpenPipelineCsv: async (
+    params: QuoteAnalyticsParams & { status?: string } = {}
+  ): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>(
+        '/sales/quotes/analytics/open-pipeline/export',
+        { params, responseType: 'blob' }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      let message = 'Failed to export open pipeline';
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+            // Keep fallback message.
+          }
+        }
+      }
+      console.error('Export Open Pipeline CSV Error:', error);
+      throw new Error(message);
+    }
+  },
+
+  exportOverdueQuotesCsv: async (
+    params: QuoteAnalyticsParams = {}
+  ): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>(
+        '/sales/quotes/analytics/overdue/export',
+        { params, responseType: 'blob' }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      let message = 'Failed to export overdue quotes';
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+            // Keep fallback message.
+          }
+        }
+      }
+      console.error('Export Overdue Quotes CSV Error:', error);
+      throw new Error(message);
+    }
+  },
+
+  exportQuoteAnalyticsRepsCsv: async (
+    params: QuoteAnalyticsParams = {}
+  ): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>(
+        '/sales/quotes/analytics/reps/export',
+        { params, responseType: 'blob' }
+      );
+      return response.data;
+    } catch (error: unknown) {
+      let message = 'Failed to export rep analytics';
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+            // Keep fallback message.
+          }
+        }
+      }
+      console.error('Export Quote Analytics Reps CSV Error:', error);
+      throw new Error(message);
+    }
+  },
+
   getQuotesDashboard: async (
     params: {
       range?: string;

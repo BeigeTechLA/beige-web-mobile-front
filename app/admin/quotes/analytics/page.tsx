@@ -452,12 +452,14 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                 loading={overdueLoading}
                 quotesData={overdueQuotes}
                 onPageChange={setOverduePage}
+                filters={analyticsParams}
               />
             </div>
             <div>
               <QuotesAnalyticsTable isDark={isDark}
               loading={loading}
               data={quoteAnalyticsData?.rep_performance ?? []}
+              filters={analyticsParams}
               />
             </div>
           </div>

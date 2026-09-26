@@ -10,9 +10,11 @@ import {
   ChevronUp,
   Loader2,
   Info,
+  Download,
 } from "lucide-react";
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 import Link from "next/link";
+import { toast } from "sonner";
 
 type OpenPipelineData = {
   count: number;
@@ -79,6 +81,7 @@ export default function OpenPipelineWidget({
   const [activeSection, setActiveSection] = useState<
     "sent" | "accepted" | "partiallyPaid" | null
   >(null);
+  const [isExporting, setIsExporting] = useState(false);
   // const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<number | null>();
   // const [isExpanded, setIsExpanded] = useState(false);
@@ -161,6 +164,39 @@ export default function OpenPipelineWidget({
     setActiveSection((prev) => (prev === section ? null : section));
   };
 
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    try {
+      const statusParam = activeStatus || "sent,accepted,partially_paid";
+      const blob = await salesApi.exportOpenPipelineCsv({
+        ...stableFilters,
+        status: statusParam,
+      });
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `open-pipeline-${statusParam.replace(/,/g, "-")}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Open pipeline exported successfully.");
+    } catch (error) {
+      console.error("Export Open Pipeline Error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export open pipeline."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -218,29 +254,51 @@ export default function OpenPipelineWidget({
             </p>
           </div>
 
-          {/* Active Quotes Badge Box */}
-          <div
-            className={`w-full lg:w-fit p-4 lg:px-5 flex flex-row-reverse lg:flex-col items-center justify-between rounded-2xl border text-center min-w-[120px] ${isDark
-              ? "text-white bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/5"
-              : "bg-zinc-50 border-black/5 text-black"
-              }`}
-          >
+          {/* Active Quotes Badge Box + Export */}
+          <div className="w-full lg:w-fit flex flex-col items-stretch lg:items-center gap-3">
             <div
-              className={`text-[32px] font-semibold`}
+              className={`w-full lg:w-fit p-4 lg:px-5 flex flex-row-reverse lg:flex-col items-center justify-between rounded-2xl border text-center min-w-[120px] ${isDark
+                ? "text-white bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/5"
+                : "bg-zinc-50 border-black/5 text-black"
+                }`}
             >
-              {pipelineCount}
-            </div>
-            <div
-              className={`text-xl mt-0.5`}
-            >
-              Active Quotes
-            </div>
-          </div >
+              <div
+                className={`text-[32px] font-semibold`}
+              >
+                {pipelineCount}
+              </div>
+              <div
+                className={`text-xl mt-0.5`}
+              >
+                Active Quotes
+              </div>
+            </div >
+          </div>
         </div >
 
         {/* Pipeline Breakdown Bar Cards */}
-        < div className={`p-2 lg:p-5 rounded-lg flex flex-col md:flex-row gap-4 ${isDark ? "bg-[#101010]" : "bg-zinc-50 border border-black/5"}`}
+        < div className={`p-2 lg:p-5 rounded-lg flex flex-col gap-4 ${isDark ? "bg-[#101010]" : "bg-zinc-50 border border-black/5"}`}
         >
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              className={`w-full sm:w-fit h-10 px-4 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 ${isDark
+                ? "bg-white/10 text-white hover:bg-white/20"
+                : "bg-black/10 text-black hover:bg-black/20"
+                }`}
+            >
+              {isExporting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+              Export
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4">
           {/* Sent Card */}
           < div className={`p-3 rounded-xl transition-all duration-500 ${getCardWidthClass("sent")}`}>
             <div className="flex items-center justify-between mb-2">
@@ -346,6 +404,7 @@ export default function OpenPipelineWidget({
               />
             </div>
           </div >
+          </div>
         </div >
       </div >
 

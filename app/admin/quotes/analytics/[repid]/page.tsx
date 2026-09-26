@@ -156,7 +156,12 @@ export default function QuoteSalesRepDetailsPage() {
             <OpenPipelineWidget data={analytics?.overview?.open_pipeline ?? undefined} filters={{ sales_rep_id: salesRepId }} />
           </div>
           <div>
-            <QuotesOverdueWidget data={analytics?.overview?.overdue_follow_ups ?? undefined} quotesData={overdueQuotes as never} onPageChange={setOverduePage} />
+            <QuotesOverdueWidget
+              data={analytics?.overview?.overdue_follow_ups ?? undefined}
+              quotesData={overdueQuotes as never}
+              onPageChange={setOverduePage}
+              filters={{ sales_rep_id: salesRepId }}
+            />
           </div>
           <div className="flex lg:grid lg:grid-cols-2 gap-3 lg:gap-6 overflow-x-auto lg:overflow-x-hidden snap-x snap-mandatory no-scrollbar pb-2 lg:pb-0 ">
             <div className="w-[90%] min-w-[90%] lg:w-full shrink-0 lg:min-w-0 snap-center">

@@ -10,9 +10,12 @@ import {
   ChevronUp,
   ChevronDown,
   Info,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { formatQuoteStatusText, getQuoteStatusPillClasses } from "./OpenPipeline";
+import { salesApi, type QuoteAnalyticsParams } from "@/lib/api";
+import { toast } from "sonner";
 
 type OverdueQuoteRow = {
   sales_quote_id: number;
@@ -94,16 +97,48 @@ export default function QuotesOverdueWidget({
   data,
   quotesData,
   onPageChange,
+  filters = {},
 }: {
   isDark?: boolean;
   loading?: boolean;
   data?: OverdueFollowUpsData;
   quotesData?: OverdueQuotesResponse | null;
   onPageChange?: (page: number) => void;
+  filters?: QuoteAnalyticsParams;
 }) {
   const [showTable, setShowTable] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    try {
+      const blob = await salesApi.exportOverdueQuotesCsv(filters);
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `quotes-overdue-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Overdue quotes exported successfully.");
+    } catch (error) {
+      console.error("Export Overdue Quotes Error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export overdue quotes."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const overdueCount = data?.count ?? 0;
   const overdueValue = data?.value ?? 0;
 
@@ -217,9 +252,28 @@ export default function QuotesOverdueWidget({
 
           {/* Right Pipeline Breakdown Card */}
           <div className={`flex-1 rounded-xl p-5 ${isDark ? "bg-[#101010]" : "bg-zinc-50"}`}>
-            <p className={`text-base mb-3 ${isDark ? "text-white/60" : "text-black/60"}`}>
-              Pipeline At Risk
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p className={`text-base ${isDark ? "text-white/60" : "text-black/60"}`}>
+                Pipeline At Risk
+              </p>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={isExporting}
+                title="Export overdue quotes"
+                className={`h-9 px-4 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 ${isDark
+                  ? "bg-white/10 text-white hover:bg-white/20"
+                  : "bg-black/10 text-black hover:bg-black/20"
+                  }`}
+              >
+                {isExporting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )}
+                Export
+              </button>
+            </div>
 
             {/* Mobile Vertical Layout */}
             <div className="flex flex-col gap-4 lg:hidden">

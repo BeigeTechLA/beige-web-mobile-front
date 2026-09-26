@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Loader2, Download } from "lucide-react";
+import { salesApi, type QuoteAnalyticsParams } from "@/lib/api";
+import { toast } from "sonner";
 
 type QuoteAnalyticsItem = {
   id: string | number;
@@ -41,6 +43,7 @@ type QuoteAnalyticsTableProps = {
       value: number;
     };
   }[];
+  filters?: QuoteAnalyticsParams;
 };
 
 const PAGE_SIZE = 10;
@@ -264,11 +267,42 @@ export const QuotesAnalyticsTable = ({
   isDark = true,
   loading = false,
   data = [],
+  filters = {},
 }: QuoteAnalyticsTableProps) => {
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(
     null
   );
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+
+    try {
+      const blob = await salesApi.exportQuoteAnalyticsRepsCsv(filters);
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `quote-analytics-by-rep-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Sales rep analytics exported successfully.");
+    } catch (error) {
+      console.error("Export Quote Analytics Reps Error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export sales rep analytics."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -302,6 +336,28 @@ export const QuotesAnalyticsTable = ({
       className={`overflow-hidden rounded-lg lg:rounded-2xl border transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"
         }`}
     >
+      <div
+        className={`flex items-center justify-end p-3 border-b ${isDark ? "border-white/10" : "border-[#E5E5E5]"
+          }`}
+      >
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isExporting}
+          className={`h-9 px-4 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 ${isDark
+            ? "bg-white/10 text-white hover:bg-white/20"
+            : "bg-black/10 text-black hover:bg-black/20"
+            }`}
+        >
+          {isExporting ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Download size={16} />
+          )}
+          Export
+        </button>
+      </div>
+
       <table className="w-full text-left border-collapse">
         <thead>
           {/* Desktop Headers */}
