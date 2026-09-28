@@ -474,12 +474,32 @@ export function GoogleCreatorOnboardingModal({
     return null;
   }
 
+  const getSkillOptionsForRoles = (selectedRoles: string[]) => {
+    const listsToMerge: Array<Array<{ value: string; label: string; description?: string }>> = [];
+
+    if (selectedRoles.includes("1")) listsToMerge.push(videographerSkills);
+    if (selectedRoles.includes("2")) listsToMerge.push(photographerSkills);
+    if (selectedRoles.includes("3")) listsToMerge.push(editorSkills);
+
+    return listsToMerge.length ? mergeUniqueSkills(...listsToMerge) : [];
+  };
+
   const toggleRole = (roleValue: string) => {
-    setRoles((currentRoles) =>
-      currentRoles.includes(roleValue)
+    setRoles((currentRoles) => {
+      const nextRoles = currentRoles.includes(roleValue)
         ? currentRoles.filter((role) => role !== roleValue)
-        : [...currentRoles, roleValue]
-    );
+        : [...currentRoles, roleValue];
+
+      const validSkillIds = new Set(
+        getSkillOptionsForRoles(nextRoles).map((skill) => String(skill.value))
+      );
+
+      setSkills((currentSkills) =>
+        currentSkills.filter((skillId) => validSkillIds.has(String(skillId)))
+      );
+
+      return nextRoles;
+    });
   };
 
   const getEquipmentNameFromResponse = (response: any): string => {
