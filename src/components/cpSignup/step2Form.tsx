@@ -29,15 +29,6 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
   const labelClasses = "absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none";
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
 
-  const toggleRole = (roleValue: string) => {
-    const currentRoles = data.roles || [];
-    if (currentRoles.includes(roleValue)) {
-      setData((prev) => ({ ...prev, roles: currentRoles.filter((r) => r !== roleValue) }))
-    } else {
-      setData((prev) => ({ ...prev, roles: [...currentRoles, roleValue] }));
-    }
-  };
-
   const mergeUniqueSkills = (...lists) => { 
     const map = new Map();
     lists.flat().forEach((skill) => {
@@ -48,14 +39,43 @@ export default function Step2Form({ data, setData, nextStep, prevStep }) {
     return Array.from(map.values());
   };
 
-  const getSkillOptionsByRole = () => {
-    const roles = data.roles || [];
+  const getSkillOptionsForRoles = (roles: string[] = []) => {
     const listsToMerge = [];
     if (roles.includes("1")) listsToMerge.push(videographerSkills);
     if (roles.includes("2")) listsToMerge.push(photographerSkills);
     if (roles.includes("3")) listsToMerge.push(editorSkills);
     if (listsToMerge.length === 0) return [];
     return mergeUniqueSkills(...listsToMerge);
+  };
+
+  const getSkillOptionsByRole = () => getSkillOptionsForRoles(data.roles || []);
+
+  const toggleRole = (roleValue: string) => {
+    setData((prev) => {
+      const currentRoles = prev.roles || [];
+      const nextRoles = currentRoles.includes(roleValue)
+        ? currentRoles.filter((role) => role !== roleValue)
+        : [...currentRoles, roleValue];
+
+      const validSkillIds = new Set(
+        getSkillOptionsForRoles(nextRoles).map((skill) => String(skill.value))
+      );
+
+      const nextSkills = (prev.skills || []).filter((skill) => {
+        const skillId =
+          typeof skill === "string"
+            ? skill
+            : String(skill?.value ?? skill?.id ?? "");
+
+        return validSkillIds.has(String(skillId));
+      });
+
+      return {
+        ...prev,
+        roles: nextRoles,
+        skills: nextSkills,
+      };
+    });
   };
 
   const handleSubmit = async () => {
