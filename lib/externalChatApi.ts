@@ -3,6 +3,7 @@ import axios from "axios";
 
 export interface ExternalChatUser {
   id?: string | number;
+  crew_member_id?: string | number;
   name?: string;
   email?: string;
   role?: string;

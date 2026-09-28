@@ -31,7 +31,7 @@ export default function WebPushRegistration({ userType }: { userType?: unknown }
         title,
         type: payload?.data?.type || null,
         roomId: payload?.data?.roomId || null,
-        meetingId: payload?.data?.meetingId || null,
+        meetingId: payload?.data?.meetingId || payload?.data?.meeting_id || null,
         messageId: payload?.data?.messageId || null,
       });
 
@@ -44,7 +44,7 @@ export default function WebPushRegistration({ userType }: { userType?: unknown }
       // the user receives while the page is in the background.
       if (Notification.permission === "granted") {
         const roomId = String(payload?.data?.roomId || payload?.data?.chatRoomId || "").trim();
-        const meetingId = String(payload?.data?.meetingId || "").trim();
+        const meetingId = String(payload?.data?.meetingId || payload?.data?.meeting_id || "").trim();
         const notification = new Notification(title, {
           body,
           icon: "/icon.png",

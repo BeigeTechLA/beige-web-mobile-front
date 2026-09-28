@@ -227,15 +227,17 @@ export default function EditMeetingModal({
   const participants = useMemo(() => getAllParticipants(meetingData), [meetingData]);
 
   const availableUsers = useMemo(() => {
-    const existingIds = new Set(participants.map((participant) => participant?.id).filter(Boolean));
+    const existingIds = new Set(participants.map((participant) => String(participant?.id || "")).filter(Boolean));
+    const existingEmails = new Set(participants.map((participant) => String(participant?.email || "").toLowerCase()).filter(Boolean));
     return directoryUsers.filter((user) => {
       const id = String(user.id || "");
+      const email = String(user.email || "").toLowerCase();
       const matchesSearch =
         !search ||
         String(user.name || "").toLowerCase().includes(search.toLowerCase()) ||
         String(user.email || "").toLowerCase().includes(search.toLowerCase());
 
-      return id && !existingIds.has(id) && matchesSearch;
+      return id && !(email ? existingEmails.has(email) : existingIds.has(id)) && matchesSearch;
     });
   }, [directoryUsers, participants, search]);
 
@@ -293,7 +295,10 @@ export default function EditMeetingModal({
 
         const source =
           addRole === "cp"
-            ? directory.creativePartners || []
+            ? (directory.creativePartners || []).map((member) => ({
+                ...member,
+                id: member.crew_member_id ? String(member.crew_member_id) : "",
+              })).filter((member) => Boolean(member.id))
             : directory.staff || [];
 
         setDirectoryUsers(source);
@@ -350,6 +355,7 @@ export default function EditMeetingModal({
       await meetingsApi.addParticipants(meetingData.id, {
         role: addRole,
         user_ids: selectedUsers,
+        ...(addRole === "cp" ? { cp_id_type: "crew_member" as const } : {}),
       });
       toast.success("Participants added");
       setSelectedUsers([]);

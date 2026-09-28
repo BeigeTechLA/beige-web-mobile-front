@@ -69,6 +69,7 @@ export interface CreateMeetingPayload {
   googleCalendarId?: string;
   client_id?: string | number;
   cp_ids?: Array<string | number>;
+  cp_id_type?: "crew_member";
   admin_id?: string | number;
   created_by_id?: string | number;
   participants?: Array<string | number>;
@@ -109,6 +110,7 @@ export interface UpdateEventPayload {
 export interface MeetingParticipantsPayload {
   role: "cp" | "manager";
   user_ids: Array<string | number>;
+  cp_id_type?: "crew_member";
 }
 
 export interface MeetingResponsePayload {

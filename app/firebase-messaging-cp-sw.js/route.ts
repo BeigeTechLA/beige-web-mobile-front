@@ -15,7 +15,7 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const roomId = String(event.notification.data?.roomId || event.notification.data?.chatRoomId || "").trim();
-  const meetingId = String(event.notification.data?.meetingId || "").trim();
+  const meetingId = String(event.notification.data?.meetingId || event.notification.data?.meeting_id || "").trim();
   event.waitUntil((async () => {
     const targetPath = meetingId ? "/creator/dashboard/meetings" : "/creator/dashboard/messages";
     const openUrl = targetPath + (meetingId ? "?meetingId=" + encodeURIComponent(meetingId) : roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
