@@ -835,7 +835,7 @@ return (
       <div className="space-y-6">
 
       {!hideActions && (
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <button
             onClick={handleBack}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
@@ -844,7 +844,7 @@ return (
             <span>Back</span>
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
               {canSendProfileReminder && (
                 <button
                   type="button"
