@@ -147,6 +147,20 @@ interface MessageResponse {
   message?: string;
 }
 
+export interface BatchDeleteMessagesResult {
+  deletedIds: string[];
+  skippedIds: string[];
+  updatedAt?: string;
+}
+
+interface BatchDeleteMessagesResponse {
+  success?: boolean;
+  data?: BatchDeleteMessagesResult;
+  deletedIds?: string[];
+  skippedIds?: string[];
+  updatedAt?: string;
+}
+
 interface ParticipantResponse {
   success?: boolean;
   data?: {
@@ -188,6 +202,7 @@ export interface ExternalChatDirectoryParams {
 }
 
 export interface ExternalChatRoomListParams {
+  status?: "active" | "read_only" | "archived";
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -363,6 +378,20 @@ export const externalChatApi = {
     return response.data || null;
   },
 
+  async deleteMessages(roomId: string, messageIds: string[], sender?: ExternalChatUser | null): Promise<BatchDeleteMessagesResult> {
+    const uniqueIds = Array.from(new Set(messageIds.map((id) => String(id)).filter(Boolean)));
+    const response = await apiClient.post<BatchDeleteMessagesResponse>(
+      `external-chat/room/${roomId}/messages/batch-delete`,
+      { messageIds: uniqueIds, sender }
+    );
+    const payload = response?.data || response;
+    return {
+      deletedIds: (payload?.deletedIds || []).map(String),
+      skippedIds: (payload?.skippedIds || []).map(String),
+      updatedAt: payload?.updatedAt,
+    };
+  },
+
   async reactToMessage(messageId: string, emoji: string, sender?: ExternalChatUser | null, roomId?: string | null) {
     const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/reaction`, {
       emoji,
@@ -370,6 +399,18 @@ export const externalChatApi = {
       sender,
     });
     return response.data || null;
+  },
+
+  async updateRoomStatus(
+    roomId: string,
+    status: "active" | "read_only" | "archived",
+    sender?: ExternalChatUser | null
+  ) {
+    const response = await apiClient.patch<RoomResponse>(`external-chat/room/${roomId}/status`, {
+      status,
+      sender,
+    });
+    return this.extractRoom(response);
   },
 
   async markRoomAsRead(roomId: string, sender?: ExternalChatUser | null) {
