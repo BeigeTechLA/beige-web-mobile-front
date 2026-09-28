@@ -32,6 +32,7 @@ importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js');
 firebase.initializeApp(${JSON.stringify(config)});
 firebase.messaging().onBackgroundMessage((payload) => {
+  console.info('[WebPush] Full background payload (testing)', payload);
   self.registration.showNotification(payload.notification?.title || 'New notification', {
     body: payload.notification?.body || 'You have a new notification.',
     icon: '/icon.png',

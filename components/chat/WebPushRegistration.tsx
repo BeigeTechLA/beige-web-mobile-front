@@ -23,6 +23,8 @@ export default function WebPushRegistration({ userType }: { userType?: unknown }
 
     let unsubscribe: (() => void) | undefined;
     listenForForegroundPush(userType, (payload) => {
+      // Temporary test log: inspect the complete FCM payload in the recipient tab.
+      console.info("[WebPush] Full foreground payload (testing)", payload);
       const title = payload?.notification?.title || "New notification";
       const body = payload?.notification?.body || "You have a new notification.";
       console.info("[WebPush] Foreground push received", {
