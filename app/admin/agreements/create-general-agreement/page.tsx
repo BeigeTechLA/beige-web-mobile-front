@@ -248,7 +248,7 @@ export default function AdminCreateGeneralAgreementPage() {
                 width="w-full"
                 classnames={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark ? "text-white placeholder:text-white/20" : "text-black placeholder:text-gray-400"}`}
                 labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"} text-sm lg:text-base z-10 px-1`}
-                label="MeetEffectiveing Date"
+                label="Effective Date"
               />
               <p className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}>
                 The date from which this agreement becomes effective.
