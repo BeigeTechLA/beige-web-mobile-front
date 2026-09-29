@@ -2169,7 +2169,10 @@ export const BookAShootV4 = () => {
         : "",
     ].filter(Boolean);
     const packageOffers = getIncludedPackageOffers();
-    const summaryRows = previewLineItems.length > 0
+    // Setup time remains a fixed $250 coverage charge, but it is included with
+    // the package rather than presented as a separate pricing-summary item.
+    const isSetupTimeLineItem = (label: string) => /setup time/i.test(label);
+    const allSummaryRows = previewLineItems.length > 0
       ? previewLineItems.filter((item) => !item.hidden && Number(item.line_total) !== 0).map((item) => ({
         label: `${item.item_name}${item.quantity > 1 ? ` × ${item.quantity}` : ""}`,
         amount: Number(item.line_total),
@@ -2181,15 +2184,13 @@ export const BookAShootV4 = () => {
         ...(studioCost > 0 ? [{ label: selectedStudios.map((studio) => studio.name).join(", ") || "Studio", amount: studioCost }] : []),
         ...mandatoryFees.map((fee) => ({ label: fee.name, amount: fee.amount })),
       ];
-    const difference = Math.round((productionTotal - summaryRows.reduce((sum, row) => sum + row.amount, 0)) * 100) / 100;
-    if (difference !== 0) summaryRows.push({ label: difference < 0 ? "Discount / adjustments" : "Production / adjustments", amount: difference });
+    const difference = Math.round((productionTotal - allSummaryRows.reduce((sum, row) => sum + row.amount, 0)) * 100) / 100;
+    if (difference !== 0) allSummaryRows.push({ label: difference < 0 ? "Discount / adjustments" : "Production / adjustments", amount: difference });
     if (cardProcessingFee > 0) {
-      summaryRows.push({ label: "Card Payment Charges (4%)", amount: cardProcessingFee });
+      allSummaryRows.push({ label: "Card Payment Charges (4%)", amount: cardProcessingFee });
     }
 
-    const filteredPackageOffers = packageOffers.filter(
-      (offer) => !/setup time/i.test(offer) || !summaryRows.some((row) => /setup time/i.test(row.label))
-    );
+    const summaryRows = allSummaryRows.filter((row) => !isSetupTimeLineItem(row.label));
 
     return {
       summaryRows,
@@ -2206,7 +2207,7 @@ export const BookAShootV4 = () => {
           ),
       baseServiceCost: selectedStudios.length > 0 ? studioCost : displayedRoleCost,
       showBaseServiceCost: selectedStudios.length > 0,
-      packageOffers: filteredPackageOffers,
+      packageOffers,
       photosIncluded: roundedPhotoEditSummary.includedCount,
       extraPhotoUnitsText: `Extra Photo Units x${photoEditSetCount}`,
       extraPhotosCount: roundedPhotoEditSummary.extraCount,
