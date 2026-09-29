@@ -34,6 +34,7 @@ export interface User {
   is_internal_member?: boolean | number;
   permissions_version?: number | string;
   has_password?: boolean;
+  timezone?: string | null;
 }
 
 export interface AuthTokens {
@@ -44,6 +45,7 @@ export interface AuthTokens {
 export interface LoginCredentials {
   email: string;
   password: string;
+  timezone?: string;
 }
 
 export interface LoginResponse {
@@ -60,6 +62,7 @@ export interface GoogleClientAuthData {
   mode?: 'login' | 'signup';
   phone_number?: string;
   account_type?: 'client' | 'creator';
+  timezone?: string;
 }
 
 export interface RegisterData {

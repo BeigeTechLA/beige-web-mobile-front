@@ -41,6 +41,7 @@ import { useChangePasswordMutation, useGetOnboardingStatusQuery } from "@/lib/re
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { TimezonePreference } from "@/components/common/TimezonePreference";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
 import { GoogleCreatorOnboardingModal } from "@/src/components/cpSignup/GoogleCreatorOnboardingModal";
@@ -1174,6 +1175,9 @@ export default function ProfilePage() {
   return (
     <>
       <Topbar pathname={pathname} />
+      <div className="px-4 pt-4 sm:px-6 lg:px-8">
+        <TimezonePreference isDark={isDark} />
+      </div>
 {showOnboardingBanner && (
         <div
           className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${

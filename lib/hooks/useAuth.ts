@@ -6,6 +6,7 @@ import { setCredentials, logout as logoutAction } from '../redux/features/auth/a
 import { fetchAndCommitUserPermissions } from '../permissionsActions';
 import { authApi } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
+import { apiClient } from '../apiClient';
 import { persistor } from '../redux/store';
 import {
   useLoginMutation,
@@ -31,6 +32,13 @@ import type {
   CreatorRegistrationStep2Data,
 } from '../types';
 
+const saveInitialTimezone = async () => {
+  if (typeof window === 'undefined') return;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!timezone) return;
+  await apiClient.patch('auth/timezone', { timezone, only_if_missing: true });
+};
+
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -55,7 +63,8 @@ export const useAuth = () => {
   });
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    const result = await loginMutation(credentials).unwrap();
+    const timezone = typeof window === 'undefined' ? undefined : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const result = await loginMutation({ ...credentials, timezone }).unwrap();
     
     if (result.token && result.user) {
       const user = {
@@ -63,6 +72,7 @@ export const useAuth = () => {
         permissions_version: result.permissions_version ?? result.user.permissions_version,
       };
       Cookies.set('revure_token', result.token, { expires: 7 }); 
+      void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
       
       if (typeof window !== 'undefined') {
         localStorage.setItem('revure_user', JSON.stringify(user));
@@ -85,7 +95,8 @@ export const useAuth = () => {
   }, [loginMutation, dispatch]);
 
   const googleLogin = useCallback(async (data: GoogleClientAuthData) => {
-    const result = await googleClientAuthMutation(data).unwrap();
+    const timezone = typeof window === 'undefined' ? undefined : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const result = await googleClientAuthMutation({ ...data, timezone }).unwrap();
 
     if (result.token && result.user) {
       const user = {
@@ -94,6 +105,7 @@ export const useAuth = () => {
       };
 
       Cookies.set('revure_token', result.token, { expires: 7 });
+      void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('revure_user', JSON.stringify(user));
