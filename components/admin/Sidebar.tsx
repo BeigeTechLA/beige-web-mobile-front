@@ -141,7 +141,7 @@ const menuItems: MenuItem[] = [
   {
     name: "Sales Cockpit",
     icon: SquareArrowOutUpRight,
-    link: "https://beige.launchfulcrum.com/",
+    link: "https://sales.beige.app/",
   },
   {
     name: "Settings",
