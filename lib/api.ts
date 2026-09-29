@@ -2279,6 +2279,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
     summary_only?: boolean;
@@ -2312,6 +2313,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
   } = {}) => {
@@ -2343,6 +2345,7 @@ export const adminApi = {
     date_on?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     production_filter?: string;
   }
   ): Promise<Blob> => {
@@ -2793,6 +2796,20 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch post production members',
+      };
+    }
+  },
+
+  getPostProductionTeamOptions: async () => {
+    try {
+      const response = await api.get('admin/post-production-team-options');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch post-production team options',
       };
     }
   },

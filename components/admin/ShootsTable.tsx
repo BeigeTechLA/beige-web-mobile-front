@@ -298,6 +298,7 @@ interface ShootsTableProps {
   setRange: (v: string) => void;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
   setCpAssignmentFilter?: (v: "all" | "assigned" | "not_assigned") => void;
+  postProductionUserFilter?: string;
   viewMode?: "grid" | "list";
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
@@ -326,6 +327,7 @@ export const ShootsTable = ({
   setRange,
   cpAssignmentFilter,
   setCpAssignmentFilter,
+  postProductionUserFilter = "all",
   viewMode,
   setViewMode,
   showHeaderControls = true,
@@ -562,6 +564,7 @@ export const ShootsTable = ({
     productionFilter,
     categoryFilter,
     activeCpAssignmentFilter,
+    postProductionUserFilter,
     range,
     externalSelectedDate,
     customRangeStartDate,
@@ -644,6 +647,9 @@ export const ShootsTable = ({
 
         if (activeCpAssignmentFilter !== "all") {
           params.cp_assignment = activeCpAssignmentFilter;
+        }
+        if (postProductionUserFilter !== "all") {
+          params.post_production_user_id = postProductionUserFilter;
         }
 
                 const projectsResponse = isBoardFetch
@@ -760,7 +766,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, postProductionUserFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
 
   // --- CLIENT-SIDE PROCESSING (Sort only; filters/search run on the API) ---
   const processedShoots = useMemo(() => {
