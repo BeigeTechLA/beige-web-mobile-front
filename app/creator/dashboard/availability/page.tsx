@@ -353,6 +353,33 @@ const formatDateTimeInTimeZone = (value?: string, timeZone = DEFAULT_CREATOR_TIM
   }).format(new Date(value));
 };
 
+const getMinutesInTimeZone = (value?: string, timeZone = DEFAULT_CREATOR_TIMEZONE) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const hourPart = parts.find((part) => part.type === "hour");
+  const minutePart = parts.find((part) => part.type === "minute");
+
+  if (!hourPart || !minutePart) return null;
+
+  return Number(hourPart.value) * 60 + Number(minutePart.value);
+};
+
+const rangesOverlap = (startA, endA, startB, endB) => {
+  if (startA === null || endA === null || startB === null || endB === null) {
+    return false;
+  }
+  return startA < endB && startB < endA;
+};
+
 export default function AvailabilityPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1017,6 +1044,29 @@ export default function AvailabilityPage() {
         availabilityStatus?.projectAssigned === true;
       const hasCalendarBusy =
         availabilityStatus?.calendarBusy === true;
+
+      const dayTimezone =
+        availabilityStatus?.weeklyRules?.find((rule) => rule.timezone)?.timezone ||
+        weeklyRules.find((rule) => rule.timezone)?.timezone ||
+        DEFAULT_CREATOR_TIMEZONE;
+      const dayProjectStartMinutes = timeToMinutes(
+        availabilityStatus?.projectDetails?.start_time
+      );
+      const dayProjectEndMinutes = timeToMinutes(
+        availabilityStatus?.projectDetails?.end_time
+      );
+      const hasConflict =
+        isAssigned &&
+        (availabilityStatus?.calendarBusyBlocks || []).some((block) => {
+          const busyStart = getMinutesInTimeZone(block.start_at, dayTimezone);
+          const busyEnd = getMinutesInTimeZone(block.end_at, dayTimezone);
+          return rangesOverlap(
+            busyStart,
+            busyEnd,
+            dayProjectStartMinutes,
+            dayProjectEndMinutes
+          );
+        });
       const startTimeDisplay = formatTimeForDisplay(availabilityStatus?.start_time);
       const endTimeDisplay = formatTimeForDisplay(availabilityStatus?.end_time);
       const hasTimeRange = Boolean(startTimeDisplay && endTimeDisplay);
@@ -1080,6 +1130,9 @@ export default function AvailabilityPage() {
                       <EventDot color="bg-[#E8D1AB]" label="Booked" isDark={isDark} />
                     </>
                   )}
+                  {hasConflict && (
+                    <EventDot color="bg-red-500" label="Conflict" isDark={isDark} />
+                  )}
                 </div>
               )}
               {isAvailable && !isAssigned && (
@@ -1131,6 +1184,30 @@ export default function AvailabilityPage() {
   const selectedDayIsTimeOff =
     selectedDayStatus?.available === false &&
     selectedDayStatus?.projectAssigned !== true;
+
+  const selectedDayProjectStartMinutes = timeToMinutes(
+    selectedDayStatus?.projectDetails?.start_time
+  );
+  const selectedDayProjectEndMinutes = timeToMinutes(
+    selectedDayStatus?.projectDetails?.end_time
+  );
+
+  const selectedDayConflicts = selectedDayStatus?.projectAssigned
+    ? selectedDayBusyBlocks.filter((block) => {
+        const busyStart = getMinutesInTimeZone(block.start_at, selectedDayTimezone);
+        const busyEnd = getMinutesInTimeZone(block.end_at, selectedDayTimezone);
+        return rangesOverlap(
+          busyStart,
+          busyEnd,
+          selectedDayProjectStartMinutes,
+          selectedDayProjectEndMinutes
+        );
+      })
+    : [];
+
+  const selectedDayNonConflictingBusyBlocks = selectedDayBusyBlocks.filter(
+    (block) => !selectedDayConflicts.includes(block)
+  );
 
   return (
     <>
@@ -1625,6 +1702,38 @@ export default function AvailabilityPage() {
                   </div>
                 </div>
 
+                {selectedDayConflicts.length > 0 && (
+                  <div className={`rounded-xl border p-4 mb-3 space-y-4 ${isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200"}`}>
+                    <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-red-300" : "text-red-500"}`}>
+                      Conflicts
+                    </p>
+                    {selectedDayConflicts.map((block, index) => (
+                      <div key={`conflict-${block.start_at}-${block.end_at}-${index}`} className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-500 shrink-0" />
+                          <div>
+                            <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>Google Calendar Busy</p>
+                            <p className={`text-sm mt-0.5 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                              {formatDateTimeInTimeZone(block.start_at, selectedDayTimezone)} - {formatDateTimeInTimeZone(block.end_at, selectedDayTimezone)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500 shrink-0" />
+                          <div>
+                            <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                              {selectedDayStatus?.projectDetails?.project_name || "Booked Shoot"}
+                            </p>
+                            <p className={`text-sm mt-0.5 ${isDark ? "text-white/55" : "text-black/55"}`}>
+                              {formatTimeForDisplay(selectedDayStatus?.projectDetails?.start_time)} - {formatTimeForDisplay(selectedDayStatus?.projectDetails?.end_time)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {selectedDayWorkingRules.length > 0 ? (
                     selectedDayWorkingRules.map((rule, index) => (
@@ -1647,7 +1756,7 @@ export default function AvailabilityPage() {
                     </div>
                   )}
 
-                  {selectedDayBusyBlocks.map((block, index) => (
+                  {selectedDayNonConflictingBusyBlocks.map((block, index) => (
                     <div
                       key={`${block.start_at}-${block.end_at}-${index}`}
                       className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200"}`}
@@ -1676,7 +1785,7 @@ export default function AvailabilityPage() {
                     </div>
                   )}
 
-                  {selectedDayStatus?.projectAssigned && (
+                  {selectedDayStatus?.projectAssigned && selectedDayConflicts.length === 0 && (
                     <div className={`rounded-xl border p-4 flex items-start gap-3 ${isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200"}`}>
                       <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500" />
                       <div className="min-w-0">
