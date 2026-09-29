@@ -2402,6 +2402,33 @@ export const adminApi = {
       };
     }
   },
+  getShootCalendarMonth: async (params: { month: number; year: number }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/month', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Month Error:', error.response?.data || error.message);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch month calendar shoots' };
+    }
+  },
+  getShootCalendarWeek: async (params: { start_date: string }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/week', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Week Error:', error.response?.data || error.message);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch week calendar shoots' };
+    }
+  },
+  getShootCalendarDay: async (params: { date: string }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/day', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Day Error:', error.response?.data || error.message);
+      return { success: false, data: null, error: error.response?.data?.message || 'Failed to fetch day calendar shoots' };
+    }
+  },
   exportShootsCsv: async (
   params: {
     start_date?: string;
