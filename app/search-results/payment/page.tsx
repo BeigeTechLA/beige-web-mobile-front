@@ -612,6 +612,7 @@ const mergeBookingSummaryPaymentData = (
     creditAppliedAmount?: number;
     cardPaidAmount?: number;
     totalBeforeCredit?: number;
+    dueAmount?: number;
     paymentIntentId?: string;
   } = {},
 ) => {
@@ -655,6 +656,15 @@ const mergeBookingSummaryPaymentData = (
     0,
   );
   const combinedPaidAmount = cardPaidAmount + creditAppliedAmount;
+  const dueAmount = Math.max(
+    0,
+    pickPaymentNumber(
+      paymentContext.dueAmount,
+      pricing.due_amount,
+      paymentSummary.due_amount,
+      totalBeforeCredit - combinedPaidAmount,
+    ),
+  );
   const paymentMethod =
     creditAppliedAmount > 0 && cardPaidAmount > 0
       ? "card_and_account_credit"
@@ -672,6 +682,7 @@ const mergeBookingSummaryPaymentData = (
       total_paid: cardPaidAmount,
       total_paid_with_credit: combinedPaidAmount,
       total_before_credit: totalBeforeCredit,
+      due_amount: dueAmount,
       payment_method: paymentMethod,
       payment_intent_id: paymentContext.paymentIntentId ?? pricing.payment_intent_id,
       payment_summary: {
@@ -681,6 +692,7 @@ const mergeBookingSummaryPaymentData = (
         paid_amount: cardPaidAmount,
         total_paid_with_credit: combinedPaidAmount,
         quote_total: totalBeforeCredit || paymentSummary.quote_total,
+        due_amount: dueAmount,
         payment_method: paymentMethod,
       },
     },
@@ -2638,7 +2650,8 @@ function MultiCreatorPaymentContent() {
       const paymentContext = {
         creditAppliedAmount,
         cardPaidAmount: payableTotal,
-        totalBeforeCredit: basePayableAmount,
+        totalBeforeCredit: quoteTotal ?? fullPayableAmount,
+        dueAmount: Math.max(0, (quoteTotal ?? fullPayableAmount) - creditAppliedAmount - cardPaymentAmount),
         paymentIntentId,
       };
       setSummaryData((currentSummary: unknown) =>
@@ -2664,7 +2677,8 @@ function MultiCreatorPaymentContent() {
     const paymentContext = {
       creditAppliedAmount,
       cardPaidAmount: payableTotal,
-      totalBeforeCredit: basePayableAmount,
+      totalBeforeCredit: quoteTotal ?? fullPayableAmount,
+      dueAmount: Math.max(0, (quoteTotal ?? fullPayableAmount) - creditAppliedAmount - cardPaymentAmount),
       paymentIntentId,
     };
 
