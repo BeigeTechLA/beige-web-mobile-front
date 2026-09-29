@@ -24,6 +24,7 @@ export default function ShootAgreementSuccessModal({
 }: SuccessProps) {
   const { isDark } = useResolvedTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const isCommon = mode === "common";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,7 +85,7 @@ export default function ShootAgreementSuccessModal({
           <p className={`text-sm lg:text-base leading-relaxed ${isDark ? "text-[#A0A0A0]" : "text-gray-600"}`}>
             {isIndividual
               ? `Individual shoot agreements have been sent to ${count} creative partners. Each CP must accept their agreement before their assignment is confirmed.`
-              : `A common shoot agreement has been sent to ${count} creative partners. Each CP must accept the agreement before their assignment is confirmed.`}
+              : `The common shoot agreement has been sent to all selected CPs. Each CP must accept the agreement individually before their assignment is confirmed.`}
           </p>
         </div>
 

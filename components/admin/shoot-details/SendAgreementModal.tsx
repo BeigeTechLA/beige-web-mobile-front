@@ -40,7 +40,7 @@ export function SendAgreementModal({
   mode = "individual",
   isDark = true,
 }: SendAgreementModalProps) {
-  const isIndividual = mode === "individual";
+  const isCommon = mode === "common";
   const cpNamesText = cps.map((cp) => cp.name).join(" and ");
 
   return (
@@ -70,13 +70,41 @@ export function SendAgreementModal({
         <div className="px-4 py-4 lg:p-7 space-y-5 ">
           {/* Main Description */}
           <p className={`break-words text-sm lg:text-xl transition-colors ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-            {isIndividual
-              ? `Separate agreements will be sent to ${cpNamesText}. Each CP will receive their own agreement and must accept it before their assignment is confirmed.`
-              : `A shared common agreement will be sent to ${cpNamesText}. Each CP must review and accept the terms before their assignment is confirmed.`}
+            {isCommon
+              ? `One common agreement will be sent to ${cpNamesText}. Each CP must review and accept the agreement individually.`
+              : `Separate agreements will be sent to ${cpNamesText}. Each CP will receive their own agreement and must accept it before their assignment is confirmed.`}
           </p>
-
           {/* CP List Box */}
-          <div className={`border rounded-xl p-3.5 space-y-3 ${isDark ?"bg-[#0E0E0D] border-[#1E1E1C] ":"bg-[#D7D7D7]/80 border-[#D7D7D7]"}`}>
+          <div className={`border rounded-xl p-3.5 space-y-3 ${isDark ? "bg-[#0E0E0D] border-[#1E1E1C] " : "bg-[#D7D7D7]/80 border-[#D7D7D7]"}`}>
+            {
+              isCommon &&
+              <div className="flex flex-col gap-2.5 text-xs lg:text-sm text-[#525250] pb-2.5 border-b mb-2.5 border-[#1A1A19]">
+                <div className="flex justify-between items-center">
+                  <p>
+                    Agreement Type
+                  </p>
+                  <p className={`font-medium ${isDark ? "text-[#E8E8E7]" : "text-black/80"}`}>
+                    Common
+                  </p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p>
+                    Recipients
+                  </p>
+                  <p className={`font-medium ${isDark ? "text-[#E8E8E7]" : "text-black/80"}`}>
+                    {cpNamesText.length} CPs
+                  </p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p>
+                    Version
+                  </p>
+                  <p className={`font-medium ${isDark ? "text-[#E8E8E7]" : "text-black/80"}`}>
+                    v1.0
+                  </p>
+                </div>
+              </div>
+            }
             {cps.map((cp) => (
               <div
                 key={cp.id}

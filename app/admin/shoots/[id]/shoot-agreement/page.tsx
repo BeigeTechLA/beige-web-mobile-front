@@ -247,6 +247,7 @@ export default function AdminAgreementDetailsPage() {
         {currentStep === 3 && (
           <Step3ReviewAgreement
             isDark={isDark}
+            selectedMode={selectedMode}
             cpList={CP_LIST}
             reviewCpIndex={reviewCpIndex}
             setReviewCpIndex={setReviewCpIndex}
