@@ -42,6 +42,7 @@ const FILTER_STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "assetsdelivered", label: "Assets Delivered" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "deleted", label: "Deleted" },
 ] as const;
 const RANGE_FILTER_OPTIONS = new Set([
   "all",
@@ -57,6 +58,17 @@ const RANGE_FILTER_OPTIONS = new Set([
 ]);
 const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
 type PaymentFilter = "all" | "pending" | "paid";
+type PostProductionTeamOption = {
+  id: number;
+  name: string;
+  email?: string | null;
+  role_name?: string | null;
+};
+
+const formatRoleName = (roleName: string) => {
+  const normalizedRoleName = roleName.replace(/_/g, " ");
+  return normalizedRoleName.replace(/\b\w/g, (character) => character.toUpperCase());
+};
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   PAYMENT_FILTER_OPTIONS.has(value);
@@ -91,6 +103,9 @@ export default function ShootsPage() {
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
+  const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
+  const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
@@ -103,6 +118,32 @@ export default function ShootsPage() {
 
   const [exportEndDate, setExportEndDate] =
     useState<Date | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadPostProductionTeamOptions = async () => {
+      setIsLoadingPostProductionTeam(true);
+      const response = await adminApi.getPostProductionTeamOptions();
+      if (isCancelled) return;
+
+      const options = response?.success && Array.isArray(response.data)
+        ? response.data
+        : [];
+      setPostProductionTeamOptions(options);
+      setPostProductionUserFilter((currentValue) =>
+        currentValue === "all" || options.some((option: PostProductionTeamOption) => String(option.id) === currentValue)
+          ? currentValue
+          : "all"
+      );
+      setIsLoadingPostProductionTeam(false);
+    };
+
+    void loadPostProductionTeamOptions();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -121,6 +162,9 @@ export default function ShootsPage() {
       }
       if (parsed.cpAssignmentFilter === "all" || parsed.cpAssignmentFilter === "assigned" || parsed.cpAssignmentFilter === "not_assigned") {
         setCpAssignmentFilter(parsed.cpAssignmentFilter);
+      }
+      if (typeof parsed.postProductionUserFilter === "string") {
+        setPostProductionUserFilter(parsed.postProductionUserFilter);
       }
       if (parsed.viewMode === "grid" || parsed.viewMode === "list") {
         setViewMode(parsed.viewMode);
@@ -163,6 +207,7 @@ export default function ShootsPage() {
           productionFilter,
           range,
           cpAssignmentFilter,
+          postProductionUserFilter,
           viewMode,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
           customRangeStartDate: customRangeStartDate ? customRangeStartDate.toISOString() : null,
@@ -181,6 +226,7 @@ export default function ShootsPage() {
     productionFilter,
     range,
     cpAssignmentFilter,
+    postProductionUserFilter,
     viewMode,
     selectedDate,
     customRangeStartDate,
@@ -201,6 +247,7 @@ export default function ShootsPage() {
     setProductionFilter("all");
     setRange("all");
     setCpAssignmentFilter("all");
+    setPostProductionUserFilter("all");
     setViewMode("list");
     try {
       window.sessionStorage.removeItem(SHOOTS_FILTERS_STORAGE_KEY);
@@ -345,6 +392,7 @@ export default function ShootsPage() {
           ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
           ...(cpAssignmentFilter !== "all" ? { cp_assignment: cpAssignmentFilter } : {}),
           ...(productionFilter !== "all" ? { production_filter: productionFilter } : {}),
+          ...(postProductionUserFilter !== "all" ? { post_production_user_id: postProductionUserFilter } : {}),
         });
 
         if (!(blob instanceof Blob) || blob.size === 0) {
@@ -388,6 +436,9 @@ export default function ShootsPage() {
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
+  const selectedPostProductionUser = postProductionTeamOptions.find(
+    (option) => String(option.id) === postProductionUserFilter
+  );
 
   return (
     <>
@@ -409,9 +460,9 @@ export default function ShootsPage() {
         }
       />
 
-      <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
+      <div className="relative overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
         {/* Header */}
-        <div className="flex justify-between items-start lg:items-end">
+        <div className="flex justify-between items-start pr-28 lg:items-end lg:pr-44">
           <div>
             <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"}`}>Shoots Management</h1>
             <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Track and manage your photography and videography project</p>
@@ -600,7 +651,55 @@ export default function ShootsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button
+                <div className="flex flex-col gap-1">
+                  <Select
+                    value={postProductionUserFilter}
+                    onValueChange={setPostProductionUserFilter}
+                    disabled={isLoadingPostProductionTeam}
+                  >
+                    <SelectTrigger
+                      title={selectedPostProductionUser?.name || "All Post Production Team"}
+                      className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                    >
+                      <SelectValue
+                        placeholder="Post Production Team"
+                        className="min-w-0 flex-1 truncate text-left"
+                      >
+                        {isLoadingPostProductionTeam
+                          ? "Loading team..."
+                          : selectedPostProductionUser?.name || "All Post Production Team"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent
+                      className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                      viewportClassName="!h-auto max-h-80 overflow-y-auto"
+                    >
+                      <SelectItem value="all">All Post Production Team</SelectItem>
+                      {postProductionTeamOptions.map((option) => (
+                        <SelectItem
+                          key={option.id}
+                          value={String(option.id)}
+                          textValue={option.name}
+                          className="py-2.5"
+                        >
+                          <div className="flex flex-col items-start gap-0.5 text-left">
+                            <span className="text-sm leading-5">{option.name}</span>
+                            {option.role_name && (
+                              <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                {formatRoleName(option.role_name)}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )
+          }
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2 lg:right-10 lg:top-9">
+              <Button
                   type="button"
                   onClick={resetAllFilters}
                   aria-label="Reset filters"
@@ -807,9 +906,7 @@ export default function ShootsPage() {
                     </div>
                   </PopoverContent>
                 </Popover>
-              </div>
-            )
-          }
+          </div>
         </div>
 
         {isCustomRangeOpen && (
@@ -948,6 +1045,7 @@ export default function ShootsPage() {
           setRange={setRange}
           cpAssignmentFilter={cpAssignmentFilter}
           setCpAssignmentFilter={setCpAssignmentFilter}
+          postProductionUserFilter={postProductionUserFilter}
           viewMode={viewMode}
           setViewMode={setViewMode}
           showHeaderControls={true}

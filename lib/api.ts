@@ -2319,6 +2319,38 @@ export const adminApi = {
       };
     }
   },
+  restoreProject: async (projectId: string | number) => {
+    try {
+      const response = await api.post(`admin/restore-project/${projectId}`);
+      return response.data;
+    } catch (error: unknown) {
+      const responseMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      console.error('Restore Project Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: responseMessage || 'Failed to restore project',
+      };
+    }
+  },
+  getProjectHistory: async (projectId: string | number) => {
+    try {
+      const response = await api.get(`admin/shoots/${projectId}/history`);
+      return response.data;
+    } catch (error: unknown) {
+      const responseMessage = axios.isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      console.error('Get Project History Error:', error);
+      return {
+        success: false,
+        data: null,
+        error: responseMessage || 'Failed to fetch project history',
+      };
+    }
+  },
   getPayoutPending: async () => {
     try {
       const response = await api.get('admin/dashboard/payout/pending');
@@ -2367,6 +2399,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
     summary_only?: boolean;
@@ -2400,6 +2433,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
   } = {}) => {
@@ -2431,6 +2465,7 @@ export const adminApi = {
     date_on?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     production_filter?: string;
   }
   ): Promise<Blob> => {
@@ -2881,6 +2916,20 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch post production members',
+      };
+    }
+  },
+
+  getPostProductionTeamOptions: async () => {
+    try {
+      const response = await api.get('admin/post-production-team-options');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch post-production team options',
       };
     }
   },
