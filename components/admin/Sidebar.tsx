@@ -21,9 +21,9 @@ import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { useAppSelector } from '@/lib/redux/hooks';
-import { hasModulePermission } from '@/lib/permissions';
-import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
+import { useAppSelector } from "@/lib/redux/hooks";
+import { hasModulePermission } from "@/lib/permissions";
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from "@/lib/permissions/menuHierarchy";
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = "/images/misc/Quotes.svg";
@@ -68,12 +68,42 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
-  { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
-  { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
-  { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
-  { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
-  { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
+  {
+    name: "Dashboard",
+    icon: LayoutDashboard,
+    link: "/admin/dashboard",
+    permissionKeys: ["dashboard"],
+  },
+  {
+    name: "Shoots",
+    icon: Camera,
+    link: "/admin/shoots",
+    permissionKeys: ["shoots"],
+  },
+  {
+    name: "File Manager",
+    icon: FolderOpen,
+    link: "/admin/file-manager",
+    permissionKeys: ["file_manager"],
+  },
+  {
+    name: "Meetings",
+    icon: CalendarClock,
+    link: "/admin/meetings",
+    permissionKeys: ["meetings"],
+  },
+  {
+    name: "Messages",
+    icon: MessageCircle,
+    link: "/admin/messages",
+    permissionKeys: ["messages"],
+  },
+  {
+    name: "Availability",
+    icon: CalendarClock,
+    link: "/admin/availability",
+    permissionKeys: ["availability"],
+  },
   {
     name: "Sales Representative",
     icon: CircleDollarSign,
@@ -94,7 +124,7 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["finances"],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
-      { name: "Transactions", link: "/admin/finances/transactions" },
+      // { name: "Transactions", link: "/admin/finances/transactions" },
       { name: "Disputes", link: "/admin/finances/disputes" },
       { name: "Beige credit points", link: "/admin/finances/creditPoints" },
       { name: "CP Compensation", link: "/admin/finances/cpCompensation" },
