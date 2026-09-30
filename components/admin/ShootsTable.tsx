@@ -298,6 +298,7 @@ interface ShootsTableProps {
   setRange: (v: string) => void;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
   setCpAssignmentFilter?: (v: "all" | "assigned" | "not_assigned") => void;
+  postProductionUserFilter?: string;
   viewMode?: "grid" | "list";
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
@@ -326,6 +327,7 @@ export const ShootsTable = ({
   setRange,
   cpAssignmentFilter,
   setCpAssignmentFilter,
+  postProductionUserFilter = "all",
   viewMode,
   setViewMode,
   showHeaderControls = true,
@@ -562,6 +564,7 @@ export const ShootsTable = ({
     productionFilter,
     categoryFilter,
     activeCpAssignmentFilter,
+    postProductionUserFilter,
     range,
     externalSelectedDate,
     customRangeStartDate,
@@ -644,6 +647,9 @@ export const ShootsTable = ({
 
         if (activeCpAssignmentFilter !== "all") {
           params.cp_assignment = activeCpAssignmentFilter;
+        }
+        if (postProductionUserFilter !== "all") {
+          params.post_production_user_id = postProductionUserFilter;
         }
 
                 const projectsResponse = isBoardFetch
@@ -760,7 +766,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, postProductionUserFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
 
   // --- CLIENT-SIDE PROCESSING (Sort only; filters/search run on the API) ---
   const processedShoots = useMemo(() => {
@@ -1407,14 +1413,14 @@ export const ShootsTable = ({
                 onMouseUp={handleGridMouseEnd}
                 onMouseLeave={handleGridMouseEnd}
               >
-                <div className="flex items-start gap-5 min-w-max px-4">
+                <div className="flex items-start gap-5 w-max min-w-full px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[340px] lg:w-[360px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-auto md:basis-[340px] lg:basis-[360px] md:grow shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
-                      <div className={`flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
+                      <div className={`shrink-0 flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
                         }`}>
                         <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                           {column.status}
@@ -1429,7 +1435,7 @@ export const ShootsTable = ({
                         ref={(node) => {
                           columnScrollRefs.current[column.status] = node;
                         }}
-                        className="max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
+                        className="max-h-[max(620px,calc(100vh-420px))] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
                         onDragOver={(e) => {
                           if (draggedStatus !== column.status) return;
                           handleColumnDragOver(e, column.status);

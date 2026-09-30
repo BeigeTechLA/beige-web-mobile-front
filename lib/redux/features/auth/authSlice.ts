@@ -61,7 +61,7 @@ const authSlice = createSlice({
       state.isLoading = false;
 
       // Store in cookies (expires in 7 days)
-      Cookies.set('revure_token', token, { expires: 7 });
+      Cookies.set('revure_token', token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
       Cookies.set('revure_user', JSON.stringify(user), { expires: 7 });
       Cookies.remove('revure_permissions');
     },

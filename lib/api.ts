@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { clearAccessSession, refreshAccessToken } from '@/lib/auth/session';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
 
@@ -31,6 +32,24 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+    const url = String(originalRequest?.url || '').toLowerCase();
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !url.includes('/auth/refresh')) {
+      originalRequest._retried = true;
+      const token = await refreshAccessToken();
+      if (token) {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api.request(originalRequest);
+      }
+    }
+    if (error.response?.status === 401) clearAccessSession();
     return Promise.reject(error);
   }
 );
@@ -2454,6 +2473,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
     summary_only?: boolean;
@@ -2487,6 +2507,7 @@ export const adminApi = {
     search?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
   } = {}) => {
@@ -2518,6 +2539,7 @@ export const adminApi = {
     date_on?: string;
     category?: string;
     cp_assignment?: string;
+    post_production_user_id?: string | number;
     production_filter?: string;
   }
   ): Promise<Blob> => {
@@ -2968,6 +2990,20 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch post production members',
+      };
+    }
+  },
+
+  getPostProductionTeamOptions: async () => {
+    try {
+      const response = await api.get('admin/post-production-team-options');
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch post-production team options',
       };
     }
   },

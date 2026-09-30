@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { logoutSession } from '@/lib/auth/session';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
@@ -71,7 +72,7 @@ export const useAuth = () => {
         ...result.user,
         permissions_version: result.permissions_version ?? result.user.permissions_version,
       };
-      Cookies.set('revure_token', result.token, { expires: 7 }); 
+      Cookies.set('revure_token', result.token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
       void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
       
       if (typeof window !== 'undefined') {
@@ -104,7 +105,7 @@ export const useAuth = () => {
         permissions_version: result.permissions_version ?? result.user.permissions_version,
       };
 
-      Cookies.set('revure_token', result.token, { expires: 7 });
+      Cookies.set('revure_token', result.token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
       void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
 
       if (typeof window !== 'undefined') {
@@ -193,7 +194,8 @@ export const useAuth = () => {
     return result;
   }, [registerCreatorStep3Mutation]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await logoutSession();
     dispatch(authApi.util.resetApiState());
     dispatch(salesApi.util.resetApiState());
     dispatch(logoutAction());

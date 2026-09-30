@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
+import { clearAccessSession, refreshAccessToken } from '@/lib/auth/session';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5001/v1/';
 
@@ -48,7 +49,18 @@ class ApiClient {
     // Response interceptor - Handle errors globally
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError<ApiError>) => {
+      async (error: AxiosError<ApiError>) => {
+        const originalRequest = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+        const requestUrl = String(originalRequest?.url || '').toLowerCase();
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !requestUrl.includes('/auth/refresh')) {
+          originalRequest._retried = true;
+          const token = await refreshAccessToken();
+          if (token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return this.client.request(originalRequest);
+          }
+        }
+
         if (error.response) {
           const { status, data } = error.response;
           const message = data?.message || 'Unknown error';
@@ -60,8 +72,7 @@ class ApiClient {
               const isExternalShareRequest = requestUrl.includes('external-file-manager/share/');
               // For shared-link OTP/token endpoints, do not clear the logged-in session cookies.
               if (!isExternalShareRequest) {
-                Cookies.remove('revure_token');
-                Cookies.remove('revure_user');
+                clearAccessSession();
               }
               if (typeof window !== 'undefined') {
                 console.error('Unauthorized: Token expired or invalid');
