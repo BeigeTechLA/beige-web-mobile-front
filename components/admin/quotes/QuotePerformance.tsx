@@ -22,23 +22,47 @@ interface QuotePerformanceData {
   won_revenue: number;
 }
 
+interface QuotePerformanceGrowth {
+  quote_value: number | null;
+  quotes_sent: number | null;
+  deals_won: number | null;
+  won_revenue: number | null;
+}
+
 interface QuotePerformanceOverview {
   quote_value: number;
   quotes_sent: number;
   deals_won: number;
   won_revenue: number;
+  growth?: QuotePerformanceGrowth;
 }
 
 interface MetricCardData {
   key: MetricKey;
   label: string;
   value: string;
-  growth: string;
+  growth: number | null | undefined;
   icon: React.ComponentType<{ className?: string }>;
   data: { month: string; value: number }[];
   formattedTooltip: string;
   infoTooltip: string;
 }
+
+const formatCompactCurrency = (value: number) => {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toLocaleString()}`;
+};
+
+const formatGrowth = (growth: number | null | undefined) => {
+  if (growth === null || growth === undefined) {
+    return { text: "New", className: "text-[#0DAE3D]" };
+  }
+  if (growth > 0) return { text: `+${growth}%`, className: "text-[#0DAE3D]" };
+  if (growth < 0) return { text: `${growth}%`, className: "text-[#F04438]" };
+  return { text: "0%", className: "text-[#0DAE3D]" };
+};
 
 const CustomTooltip = ({ active, payload, activeMetric }: any) => {
   if (active && payload && payload.length) {
@@ -77,6 +101,7 @@ export default function QuotePerformanceWidget({
     won_revenue: data.reduce((sum, item) => sum + item.won_revenue, 0),
   };
   const totals = overview ?? chartTotals;
+  const growth = overview?.growth;
   const monthLabel = (date: string) => new Intl.DateTimeFormat("en-US", {
     month: "short",
   }).format(new Date(`${date}T00:00:00`));
@@ -85,8 +110,8 @@ export default function QuotePerformanceWidget({
   quoteValue: {
     key: "quoteValue",
     label: "Quote Value",
-    value: `$${(totals.quote_value / 1000000).toFixed(1)}M`,
-    growth: "0%",
+    value: formatCompactCurrency(totals.quote_value),
+    growth: growth?.quote_value,
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.quote_value.toLocaleString()}`,
     infoTooltip: "Total value of proposals sent during the selected period ",
@@ -100,7 +125,7 @@ export default function QuotePerformanceWidget({
     key: "quotesSent",
     label: "Quotes Sent",
     value: String(totals.quotes_sent),
-    growth: "0%",
+    growth: growth?.quotes_sent,
     icon: Clock4,
     formattedTooltip: `${totals.quotes_sent} Quotes`,
     infoTooltip: "Number of proposals sent during the selected period",
@@ -114,7 +139,7 @@ export default function QuotePerformanceWidget({
     key: "dealsWon",
     label: "Deals Won",
     value: String(totals.deals_won),
-    growth: "0%",
+    growth: growth?.deals_won,
     icon: BadgeCheck,
     formattedTooltip: `${totals.deals_won} Deals`,
     infoTooltip: "Number of proposals that converted into paid bookings",
@@ -127,8 +152,8 @@ export default function QuotePerformanceWidget({
   wonRevenue: {
     key: "wonRevenue",
     label: "Won Revenue",
-    value: `$${(totals.won_revenue / 1000000).toFixed(1)}M`,
-    growth: "0%",
+    value: formatCompactCurrency(totals.won_revenue),
+    growth: growth?.won_revenue,
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.won_revenue.toLocaleString()}`,
     infoTooltip: "Total revenue from proposals that converted into paid bookings",
@@ -245,8 +270,8 @@ const currentMetric = metricsData[activeMetricKey];
                         : "text-black/60"
                     }`}
                 >
-                  <span className="text-sm font-medium text-[#0DAE3D]">
-                    {item.growth}
+                  <span className={`text-sm font-medium ${formatGrowth(item.growth).className}`}>
+                    {formatGrowth(item.growth).text}
                   </span>{" "}
                   from last month
                 </div>
