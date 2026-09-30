@@ -119,6 +119,9 @@ export default function ShootsPage() {
   const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
   const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
   const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(false);
+  const selectedPostProductionUser = postProductionTeamOptions.find(
+    (option) => String(option.id) === postProductionUserFilter,
+  );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
     "list",
   );
@@ -842,10 +845,8 @@ export default function ShootsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            )
-          }
-          <div className="absolute right-4 top-4 z-10 flex items-center gap-2 lg:right-10 lg:top-9">
+
+                <div className="flex items-center gap-2">
               <Button
                   type="button"
                   onClick={resetAllFilters}
@@ -1050,6 +1051,9 @@ export default function ShootsPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
+              </div>
+            )
+          }
             </div>
 
             {isCustomRangeOpen && (
