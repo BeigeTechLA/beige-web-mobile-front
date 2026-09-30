@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import { clearAccessSession, refreshAccessToken } from '@/lib/auth/session';
 
 import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
 
@@ -31,6 +32,24 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+    const url = String(originalRequest?.url || '').toLowerCase();
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !url.includes('/auth/refresh')) {
+      originalRequest._retried = true;
+      const token = await refreshAccessToken();
+      if (token) {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api.request(originalRequest);
+      }
+    }
+    if (error.response?.status === 401) clearAccessSession();
     return Promise.reject(error);
   }
 );

@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { createBaseQueryWithReauth } from '@/lib/redux/baseQueryWithReauth';
 import Cookies from 'js-cookie';
 import type {
   Booking,
@@ -12,16 +13,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5
 
 export const bookingsApi = createApi({
   reducerPath: 'bookingsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: (headers) => {
-      const token = Cookies.get('revure_token');
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQueryWithReauth(API_BASE_URL),
   tagTypes: ['Booking'],
   endpoints: (builder) => ({
     createBooking: builder.mutation<BookingResponse, BookingData>({
