@@ -62,6 +62,7 @@ interface LocationPickerProps {
   onChange: (value: string | LocationPickerValue) => void;
   placeholder?: string;
   colors?: Partial<LocationPickerColors>;
+  isDark?: boolean;
 }
 
 /* ----------------------------- DEFAULT COLORS ----------------------------- */
@@ -94,15 +95,45 @@ const defaultColors: LocationPickerColors = {
   searchResultHover: "rgba(255,255,255,0.05)"
 };
 
+
+const lightColors: LocationPickerColors = {
+  inputBg: "#FFFFFF",
+  inputBorder: "rgba(0,0,0,0.2)",
+  inputBorderHover: "#CBB38B",
+  inputBorderFocus: "#CBB38B",
+  labelText: "rgba(0,0,0,0.6)",
+  placeholderText: "rgba(0,0,0,0.35)",
+  primaryText: "#111111",
+  secondaryText: "rgba(0,0,0,0.45)",
+  iconBg: "#F4F4F5",
+  iconBgHover: "rgba(203,179,139,0.12)",
+  iconColor: "rgba(0,0,0,0.45)",
+  iconColorHover: "#CBB38B",
+  iconBgSelected: "rgba(203,179,139,0.18)",
+  iconColorSelected: "#CBB38B",
+  buttonPrimaryBg: "#E8D1AB",
+  buttonPrimaryBgHover: "#DCB98A",
+  buttonPrimaryText: "#000000",
+  buttonSecondaryBg: "transparent",
+  buttonSecondaryBgHover: "rgba(0,0,0,0.05)",
+  buttonSecondaryText: "#111111",
+  accent: "#CBB38B",
+  accentHover: "#BFA57C",
+  paperBg: "#FFFFFF",
+  divider: "rgba(0,0,0,0.1)",
+  searchResultHover: "rgba(0,0,0,0.05)",
+};
+
 /* ============================ COMPONENT ============================ */
 
 export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   value,
   onChange,
   placeholder = "Select location on map",
-  colors: customColors
+  colors: customColors,
+  isDark = true,
 }) => {
-  const colors = { ...defaultColors, ...customColors };
+  const colors = { ...(isDark ? defaultColors : lightColors), ...customColors };
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -335,7 +366,11 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
               setShouldShowDropdown(true);
             }}
             placeholder="Search Your location ..."
-            style={{ backgroundColor: '#000', color: '#FFF', borderColor: colors.divider }}
+            style={{
+              backgroundColor: colors.inputBg,
+              color: colors.primaryText,
+              borderColor: colors.divider,
+            }}
             className="w-full h-11 pl-9 pr-3 rounded-lg border outline-none focus:border-[#E8D1AB] transition-colors"
           />
         </div>
@@ -348,7 +383,9 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
                 type="button"
                 onClick={() => selectSearchResult(r)}
                 style={{ borderBottomColor: colors.divider }}
-                className="w-full text-left px-4 py-3 border-b last:border-0 hover:bg-white/5 transition-colors"
+                className={`w-full text-left px-4 py-3 border-b last:border-0 transition-colors ${
+                  isDark ? "hover:bg-white/5" : "hover:bg-black/5"
+                }`}
               >
                 <div style={{ color: colors.primaryText }} className="text-sm font-medium">{r.text}</div>
                 <div style={{ color: colors.secondaryText }} className="text-xs opacity-60">{r.place_name}</div>
@@ -365,7 +402,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
             {...viewState}
             onMove={e => setViewState(e.viewState)}
             onClick={handleMapClick}
-            mapStyle="mapbox://styles/mapbox/dark-v11"
+            mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
             mapboxAccessToken={MAPBOX_TOKEN}
           >
             <NavigationControl position="top-right" showCompass={false} />
@@ -428,7 +465,10 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
       </div>
 
       {/* FOOTER */}
-      <div style={{ borderColor: colors.divider }} className="p-4 border-t flex justify-between items-center bg-[#141414]">
+      <div
+        style={{ borderColor: colors.divider, backgroundColor: colors.paperBg }}
+        className="p-4 border-t flex justify-between items-center"
+      >
         <div style={{ color: colors.secondaryText }} className="text-xs truncate max-w-[50%]">
           {marker ? marker.address : "No location selected"}
         </div>

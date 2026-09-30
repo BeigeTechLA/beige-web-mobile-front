@@ -429,35 +429,43 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
           <div className="space-y-3 lg:space-y-6">
             <div className="w-full flex flex-col lg:flex-row items-stretch gap-5">
               <div className="w-full lg:w-3/5 flex flex-col">
-              <QuotePerformanceWidget
-                data={quoteAnalyticsData?.performance_chart ?? []}
-                overview={quoteAnalyticsData?.overview}
-              />
+                <QuotePerformanceWidget
+                  data={quoteAnalyticsData?.performance_chart ?? []}
+                  overview={quoteAnalyticsData?.overview}
+                />
               </div>
+
               <div className="w-full lg:w-2/5 flex flex-col">
                 <ConversionPerformanceWidget
+                  isDark={isDark}
                   data={quoteAnalyticsData?.overview ?? undefined}
                 />
               </div>
             </div>
+
             <div>
               <OpenPipelineWidget
+                isDark={isDark}
                 data={quoteAnalyticsData?.overview?.open_pipeline ?? undefined}
                 filters={analyticsParams}
-                />
+              />
             </div>
+
             <div>
               <QuotesOverdueWidget
+                isDark={isDark}
                 data={quoteAnalyticsData?.overview?.overdue_follow_ups ?? undefined}
                 loading={overdueLoading}
                 quotesData={overdueQuotes}
                 onPageChange={setOverduePage}
               />
             </div>
+
             <div>
-              <QuotesAnalyticsTable isDark={isDark}
-              loading={loading}
-              data={quoteAnalyticsData?.rep_performance ?? []}
+              <QuotesAnalyticsTable
+                isDark={isDark}
+                loading={loading}
+                data={quoteAnalyticsData?.rep_performance ?? []}
               />
             </div>
           </div>

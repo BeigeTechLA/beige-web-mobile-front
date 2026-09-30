@@ -2529,6 +2529,82 @@ export const adminApi = {
       };
     }
   },
+  getGlobalShoots: async (params: {
+    range?:
+      | 'upcoming'
+      | 'all'
+      | 'tbd'
+      | 'today'
+      | 'next_7_days'
+      | 'next_15_days'
+      | 'next_30_days'
+      | 'last_7_days'
+      | 'last_15_days'
+      | 'last_30_days';
+    start_date?: string;
+    end_date?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('admin/global-shoots', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        'Get Global Shoots Error:',
+        error.response?.data || error.message,
+      );
+      return {
+        error: true,
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to fetch global shoots',
+        data: {
+          total_records: 0,
+          projects: [],
+        },
+      };
+    }
+  },
+
+  getShootCalendarMonth: async (params: { month: number; year: number }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/month', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Month Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch month calendar shoots',
+      };
+    }
+  },
+  getShootCalendarWeek: async (params: { start_date: string }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/week', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Week Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch week calendar shoots',
+      };
+    }
+  },
+  getShootCalendarDay: async (params: { date: string }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/day', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Day Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch day calendar shoots',
+      };
+    }
+  },
   exportShootsCsv: async (
   params: {
     start_date?: string;

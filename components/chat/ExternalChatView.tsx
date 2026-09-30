@@ -22,6 +22,8 @@ import {
   X,
   ChevronLeft,
   Plus,
+  ListCheck,
+  ListChecks,
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { toast } from "sonner";
@@ -803,6 +805,13 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [openReactionDetails, setOpenReactionDetails] = useState<{ messageId: string; emoji: string } | null>(null);
   const [showComposerEmojis, setShowComposerEmojis] = useState(false);
   const [messagePendingDelete, setMessagePendingDelete] = useState<ExternalChatMessage | null>(null);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [batchDeletePending, setBatchDeletePending] = useState(false);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+  const [roomListView, setRoomListView] = useState<"active" | "archived">("active");
+  const [archiveChatPending, setArchiveChatPending] = useState(false);
+  const [archivingChat, setArchivingChat] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -828,6 +837,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const selectedRoomRef = useRef<ExternalChatRoom | null>(null);
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
   const roomListRequestRef = useRef(0);
+  const roomListViewRef = useRef<"active" | "archived">("active");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
@@ -840,6 +850,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     [effectiveUser]
   );
   const isAdminView = role === "admin";
+  const isSuperAdmin = useMemo(() => {
+    const record = effectiveUser as Record<string, unknown>;
+    const roleValue = String(record?.userRole ?? record?.role ?? "").trim().toLowerCase();
+    return ["super_admin", "superadmin", "super-admin"].includes(roleValue);
+  }, [effectiveUser]);
   const { canCreate: canCreateMessages } = usePermissions("messages");
   const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
@@ -1075,6 +1090,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     const roomListResult = await externalChatApi.listRoomsWithMeta({
       page: 1,
       limit: refreshLimit,
+      status: roomListViewRef.current,
       sortBy: "updatedAt:desc",
       search: debouncedSearch || undefined,
     });
@@ -1472,6 +1488,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         const roomListResult = await externalChatApi.listRoomsWithMeta({
           page: 1,
           limit: ROOM_LIST_PAGE_SIZE,
+          status: roomListViewRef.current,
           sortBy: "updatedAt:desc",
           search: debouncedSearch || undefined,
         });
@@ -1510,6 +1527,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       const roomListResult = await externalChatApi.listRoomsWithMeta({
         page: roomListPage + 1,
         limit: ROOM_LIST_PAGE_SIZE,
+        status: roomListViewRef.current,
         sortBy: "updatedAt:desc",
         search: debouncedSearch || undefined,
       });
@@ -1578,7 +1596,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
   useEffect(() => {
     loadRooms();
-  }, [bookingId, shouldUseDirectRoom, role, debouncedSearch]);
+  }, [bookingId, shouldUseDirectRoom, role, debouncedSearch, roomListView]);
 
   useEffect(() => {
     if (!selectedRoom) return;
@@ -1763,6 +1781,26 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         )
       );
     });
+    socket.on("messagesDeleted", (payload: any) => {
+      if (payload?.success === false) return;
+      const ids = new Set<string>((payload?.messageIds || []).map((id: unknown) => String(id)));
+      if (!ids.size) return;
+
+      setSelectedMessageIds((current) => current.filter((id) => !ids.has(id)));
+
+      setMessages((current) =>
+        current.map((item) =>
+          ids.has(getMessageId(item))
+            ? {
+              ...item,
+              is_deleted: true,
+              message: "This message was deleted",
+              updatedAt: payload?.updatedAt || item.updatedAt,
+            }
+            : item
+        )
+      );
+    });
     socket.on("reactionUpdated", (payload: any) => {
       if (payload?.success === false) return;
       const messageId = String(payload?.messageId || "").trim();
@@ -1860,6 +1898,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     setThreadSearch("");
     setIsThreadSearchOpen(false);
     setIsHeaderMenuOpen(false);
+    setIsSelectionMode(false);
+    setSelectedMessageIds([]);
+    setBatchDeletePending(false);
   }, [selectedRoom?.id, selectedRoom?._id]);
 
   useEffect(() => {
@@ -2054,6 +2095,109 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const canSelectMessage = (message: ExternalChatMessage) => {
+    if (message.is_deleted || message.message_type === "system") return false;
+    const sender = normalizeUser(message.sent_by);
+    const own = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
+    return own || isSuperAdmin;
+  };
+
+  const toggleSelectMessage = (id: string) =>
+    setSelectedMessageIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+
+  const selectableMessageIds = useMemo(
+    () =>
+      visibleMessages
+        .filter((message) => canSelectMessage(message))
+        .map((message) => getMessageId(message))
+        .filter(Boolean)
+        .slice(0, 100),
+    [visibleMessages, chatUserId, isSuperAdmin]
+  );
+
+  const allSelectableSelected =
+    selectableMessageIds.length > 0 &&
+    selectableMessageIds.every((id) => selectedMessageIds.includes(id));
+
+  const toggleSelectAll = () => {
+    setSelectedMessageIds(allSelectableSelected ? [] : selectableMessageIds);
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedMessageIds([]);
+    setBatchDeletePending(false);
+  };
+
+  const handleBatchDelete = async () => {
+    const roomId = getRoomId(selectedRoom);
+    if (!roomId || selectedMessageIds.length === 0) return;
+
+    setBatchDeleting(true);
+    try {
+      const result = await externalChatApi.deleteMessages(roomId, selectedMessageIds, currentSender);
+      const deleted = new Set(result.deletedIds);
+
+      const nextMessages = messagesRef.current.map((item) =>
+        deleted.has(getMessageId(item))
+          ? { ...item, is_deleted: true, message: "This message was deleted" }
+          : item
+      );
+      setMessages(nextMessages);
+      syncRoomSnapshot(selectedRoom, nextMessages);
+
+      if (result.skippedIds.length) {
+        toast.warning(`${result.skippedIds.length} message(s) could not be deleted`);
+      }
+      exitSelectionMode();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete messages");
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
+  const switchRoomListView = (view: "active" | "archived") => {
+    if (view === roomListViewRef.current) return;
+    roomListViewRef.current = view;
+    setRoomListView(view);
+    clearSelectedConversation();
+  };
+
+  const handleArchiveChat = async () => {
+    const roomId = getRoomId(selectedRoom);
+    if (!roomId) return;
+
+    setArchivingChat(true);
+    try {
+      await externalChatApi.updateRoomStatus(roomId, "archived", currentSender);
+      setRooms((current) => current.filter((item) => getRoomId(item) !== roomId));
+      setArchiveChatPending(false);
+      clearSelectedConversation();
+      toast.success("Chat moved to Archived chats");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete chat");
+    } finally {
+      setArchivingChat(false);
+    }
+  };
+
+  const handleRestoreChat = async () => {
+    const roomId = getRoomId(selectedRoom);
+    if (!roomId) return;
+
+    try {
+      await externalChatApi.updateRoomStatus(roomId, "active", currentSender);
+      setRooms((current) => current.filter((item) => getRoomId(item) !== roomId));
+      clearSelectedConversation();
+      toast.success("Chat restored");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to restore chat");
+    }
+  };
+
   const appendEmojiToDraft = (emoji: string) => {
     setDraftMessage((current) => `${current}${emoji}`);
   };
@@ -2183,6 +2327,23 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                   onScroll={handleRoomListScroll}
                   className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
+                  {isSuperAdmin && !bookingId ? (
+                    <div className={`mb-4 flex rounded-full p-1 ${isDark ? "bg-[#202020]" : "bg-[#F0F0F0]"}`}>
+                      {(["active", "archived"] as const).map((view) => (
+                        <button
+                          key={view}
+                          type="button"
+                          onClick={() => switchRoomListView(view)}
+                          className={`flex-1 rounded-full px-3 py-2 text-xs lg:text-sm font-medium transition-colors ${roomListView === view
+                            ? isDark ? "bg-[#E8D1AB] text-black" : "bg-black text-white"
+                            : isDark ? "text-white/60 hover:text-white" : "text-black/60 hover:text-black"
+                            }`}
+                        >
+                          {view === "active" ? "Chats" : "Archived chats"}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
                     <div className="relative flex-1 min-w-0">
                       <Search className={`absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${isDark ? "text-white" : "text-black/80"}`} />
@@ -2444,6 +2605,46 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                 <span className="truncate">Add participant</span>
                               </button>
                             ) : null}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsHeaderMenuOpen(false);
+                                setIsSelectionMode(true);
+                                setSelectedMessageIds([]);
+                                setOpenMessageMenuId(null);
+                                setShowReactionPickerId(null);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-[#3D3D3D]" : "text-black/80 hover:bg-zinc-50"}`}
+                            >
+                            <ListChecks className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Delete messages</span>
+                            </button>
+                            {isSuperAdmin && selectedRoom?.status !== "archived" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsHeaderMenuOpen(false);
+                                  setArchiveChatPending(true);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-[#ff7d7d] hover:bg-[#3D3D3D]" : "text-red-600 hover:bg-red-50"}`}
+                              >
+                                <Archive className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Archive chat</span>
+                              </button>
+                            ) : null}
+                            {isSuperAdmin && selectedRoom?.status === "archived" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsHeaderMenuOpen(false);
+                                  handleRestoreChat();
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-[#3D3D3D]" : "text-black/80 hover:bg-zinc-50"}`}
+                              >
+                                <RefreshCw className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Restore chat</span>
+                              </button>
+                            ) : null}
                             {isThreadSearchOpen || threadSearch ? (
                               <button
                                 type="button"
@@ -2576,7 +2777,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         });
                         const isSystem = message.message_type === "system";
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
-                        const canDeleteMessage = !message.is_deleted && (isOwn || isAdminView);
+                        const canDeleteMessage = !message.is_deleted && (isOwn || isSuperAdmin);
                         const isEditing = editingMessageId === messageId;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
@@ -2636,7 +2837,25 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                               </div>
                             ) : null}
 
-                            <div className={`group flex items-end gap-2 lg:gap-3 w-full min-w-0 ${isOwn ? "justify-end" : "justify-start"}`}>
+                            <div
+                              onClick={
+                                isSelectionMode && canSelectMessage(message)
+                                  ? () => toggleSelectMessage(messageId)
+                                  : undefined
+                              }
+                              className={`group flex items-end gap-2 lg:gap-3 w-full min-w-0 ${isOwn ? "justify-end" : "justify-start"} ${isSelectionMode && canSelectMessage(message) ? "cursor-pointer" : ""} ${isSelectionMode && selectedMessageIds.includes(messageId) ? "rounded-xl bg-[#E8D1AB]/10" : ""}`}
+                            >
+                              {isSelectionMode && canSelectMessage(message) ? (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedMessageIds.includes(messageId)}
+                                  onChange={() => toggleSelectMessage(messageId)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-4 w-4 shrink-0 self-center accent-[#E8D1AB]"
+                                />
+                              ) : isSelectionMode ? (
+                                <div className="h-4 w-4 shrink-0" aria-hidden="true" />
+                              ) : null}
                               {!isOwn ? (
                                 <div className={`flex h-8 w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-800"}`}>
                                   {getInitials(sender?.name)}
@@ -2648,6 +2867,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
                                   {/* Message Action Area - Fully Mobile Safeguarded */}
                                   <div
+                                    hidden={isSelectionMode}
                                     data-message-action-area="true"
                                     className={`z-10 flex items-center gap-1.5 transition p-1 mb-1 lg:mb-0 relative opacity-100 justify-end w-full lg:absolute lg:top-1/2 lg:-translate-y-1/2 lg:w-auto lg:p-0 ${openMessageMenuId === messageId ? "lg:opacity-100" : "lg:opacity-0 lg:group-hover:opacity-100"} ${isOwn ? "lg:left-0 lg:-translate-x-[calc(100%+12px)]" : "lg:right-0 lg:translate-x-[calc(100%+12px)]"}`}
                                   >
@@ -2893,7 +3113,41 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                 ) : null}
               </div>
 
-              {selectedRoom ? (
+              {selectedRoom && isSelectionMode ? (
+                <div className={`flex items-center justify-between gap-3 p-4 lg:px-8 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
+                  <button
+                    type="button"
+                    onClick={exitSelectionMode}
+                    className={`text-sm font-medium ${isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"}`}
+                  >
+                    Cancel
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      {selectedMessageIds.length} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleSelectAll}
+                      disabled={selectableMessageIds.length === 0}
+                      className={`text-sm font-medium underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}
+                    >
+                      {allSelectableSelected ? "Deselect all" : "Select all"}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={selectedMessageIds.length === 0}
+                    onClick={() => setBatchDeletePending(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#ff7d7d] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#ff6a6a] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedRoom && !isSelectionMode ? (
                 <div className={`relative p-4 lg:px-8 ${isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
                   {replyTarget ? (
                     <div className={`mb-1 lg:mb-3 flex items-center justify-between rounded-lg lg:rounded-xl p-3 lg:px-4 lg:py-3 transition-colors ${isDark ? "border-white/10 bg-[#202020]" : "border-[#E5E5E5] bg-zinc-50"}`}>
@@ -3061,7 +3315,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
               <button
                 type="button"
                 onClick={() => setMessagePendingDelete(null)}
-                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95 ${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
               >
                 Cancel
               </button>
@@ -3077,6 +3331,74 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         </div>
       ) : null}
 
+
+      {batchDeletePending ? (
+        <div className={`fixed inset-0 z-[80] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
+          <div className={`w-full max-w-sm rounded-[28px] border p-4 lg:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] transition-colors duration-200 ${isDark ? "border-white/10 bg-[#121212]" : "border-zinc-200 bg-white"}`}>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff7d7d]/10 text-[#ff7d7d]">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <h3 className={`text-base lg:text-lg font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>
+              Delete {selectedMessageIds.length} {selectedMessageIds.length === 1 ? "message" : "messages"}?
+            </h3>
+            <p className={`mt-1.5 lg:mt-2 text-xs lg:text-sm leading-5 lg:leading-6 ${isDark ? "text-white/55" : "text-zinc-500"}`}>
+              This will remove the selected messages for everyone in this chat. You can&apos;t undo it later.
+            </p>
+            <div className="mt-5 lg:mt-6 flex justify-end gap-2.5 lg:gap-3">
+              <button
+                type="button"
+                disabled={batchDeleting}
+                onClick={() => setBatchDeletePending(false)}
+                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95 disabled:opacity-50 ${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={batchDeleting}
+                onClick={handleBatchDelete}
+                className="rounded-full bg-[#ff7d7d] px-4 py-2 text-xs lg:text-sm font-semibold text-white transition-all duration-150 hover:bg-[#ff6a6a] disabled:opacity-60"
+              >
+                {batchDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {archiveChatPending ? (
+        <div className={`fixed inset-0 z-[80] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}>
+          <div className={`w-full max-w-sm rounded-[28px] border p-4 lg:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55)] ${isDark ? "border-white/10 bg-[#121212]" : "border-zinc-200 bg-white"}`}>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff7d7d]/10 text-[#ff7d7d]">
+              <Archive className="h-5 w-5" />
+            </div>
+            <h3 className={`text-base lg:text-lg font-semibold ${isDark ? "text-white" : "text-zinc-900"}`}>
+              Archive this chat?
+            </h3>
+            <p className={`mt-1.5 lg:mt-2 text-xs lg:text-sm leading-5 lg:leading-6 ${isDark ? "text-white/55" : "text-zinc-500"}`}>
+              The chat will move to Archived chats and disappear from your active list. Messages are kept, and you can restore it later.
+            </p>
+            <div className="mt-5 lg:mt-6 flex justify-end gap-2.5 lg:gap-3">
+              <button
+                type="button"
+                disabled={archivingChat}
+                onClick={() => setArchiveChatPending(false)}
+                className={`rounded-full border px-4 py-2 text-xs lg:text-sm font-medium transition-all duration-150 active:scale-95 disabled:opacity-50 ${isDark ? "border-white/10 text-white/70 hover:bg-[#3D3D3D]" : "border-zinc-200 text-black/80 hover:bg-zinc-50"}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={archivingChat}
+                onClick={handleArchiveChat}
+                className="rounded-full bg-[#ff7d7d] px-4 py-2 text-xs lg:text-sm font-semibold text-white transition-all duration-150 hover:bg-[#ff6a6a] disabled:opacity-60"
+              >
+                {archivingChat ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* --- FLOATING MOBILE BUTTON --- */}
       {isAdminView ? (
