@@ -776,79 +776,113 @@ export default function ShootsPage() {
                     </Select>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <Select
-                      value={cpAssignmentFilter}
-                      onValueChange={(v: "all" | "assigned" | "not_assigned") =>
-                        setCpAssignmentFilter(v)
-                      }
+                <div className="flex flex-col gap-1">
+                  <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
+                    <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Select
+                    value={postProductionUserFilter}
+                    onValueChange={setPostProductionUserFilter}
+                    disabled={isLoadingPostProductionTeam}
+                  >
+                    <SelectTrigger
+                      title={selectedPostProductionUser?.name || "All Post Production Team"}
+                      className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
                     >
-                      <SelectTrigger
-                        className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                      <SelectValue
+                        placeholder="Post Production Team"
+                        className="min-w-0 flex-1 truncate text-left"
                       >
-                        <SelectValue placeholder="CP Assignment" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      >
-                        <SelectItem value="all">All CP Assignment</SelectItem>
-                        <SelectItem value="assigned">CP Assigned</SelectItem>
-                        <SelectItem value="not_assigned">
-                          CP Not Assigned
+                        {isLoadingPostProductionTeam
+                          ? "Loading team..."
+                          : selectedPostProductionUser?.name || "All Post Production Team"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent
+                      className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                      viewportClassName="!h-auto max-h-80 overflow-y-auto"
+                    >
+                      <SelectItem value="all">All Post Production Team</SelectItem>
+                      {postProductionTeamOptions.length > 0 ? (
+                      postProductionTeamOptions.map((option) => (
+                        <SelectItem
+                          key={option.id}
+                          value={String(option.id)}
+                          textValue={option.name}
+                          className="py-2.5"
+                        >
+                          <div className="flex flex-col items-start gap-0.5 text-left">
+                            <span className="text-sm leading-5">{option.name}</span>
+                            {option.role_name && (
+                              <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                {formatRoleName(option.role_name)}
+                              </span>
+                            )}
+                          </div>
                         </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <Select value={postProductionUserFilter} onValueChange={setPostProductionUserFilter} disabled={isLoadingPostProductionTeam}>
-                      <SelectTrigger className={`w-[190px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                        <SelectValue placeholder={isLoadingPostProductionTeam ? "Loading team..." : "Post Production Team"} />
-                      </SelectTrigger>
-                      <SelectContent className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`} viewportClassName="!h-auto max-h-80 overflow-y-auto">
-                        <SelectItem value="all">All Post Production Team</SelectItem>
-                        {postProductionTeamOptions.map((option) => (
-                          <SelectItem key={option.id} value={String(option.id)} textValue={option.name} className="py-2.5">
-                            <div className="flex flex-col items-start text-left"><span>{option.name}</span>{option.role_name && <span className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{formatRoleName(option.role_name)}</span>}</div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={resetAllFilters}
-                    aria-label="Reset filters"
-                    title="Reset filters"
-                    className={`h-8 lg:h-12 w-8 lg:w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
-                  >
-                    <RotateCcw size={18} />
-                  </Button>
-                  <Popover
-                    open={isExportOpen}
-                    onOpenChange={(open) => {
-                      if (!isExporting) {
-                        setIsExportOpen(open);
-                      }
-                    }}
-                  >
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        disabled={isExporting}
-                        aria-label="Export shoots"
-                        title="Export shoots"
-                        className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${
-                          isDark
-                            ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
-                            : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
+                      ))
+                    ) : (
+                      <div
+                        className={`px-3 py-2.5 text-sm ${
+                          isDark ? "text-white/50" : "text-black/50"
                         }`}
                       >
-                        {isExporting ? (
-                          <Loader2 size={18} className="animate-spin" />
-                        ) : (
-                          <ArrowUpToLine size={18} />
-                        )}
+                        No members available
+                      </div>
+                    )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )
+          }
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2 lg:right-10 lg:top-9">
+              <Button
+                  type="button"
+                  onClick={resetAllFilters}
+                  aria-label="Reset filters"
+                  title="Reset filters"
+                  className={`h-8 lg:h-12 w-8 lg:w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
+                >
+                  <RotateCcw size={18} />
+                </Button>
+                <Popover
+                  open={isExportOpen}
+                  onOpenChange={(open) => {
+                    if (!isExporting) {
+                      setIsExportOpen(open);
+                    }
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={isExporting}
+                      aria-label="Export shoots"
+                      title="Export shoots"
+                      className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${
+                        isDark
+                          ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
+                          : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
+                      }`}
+                    >
+                      {isExporting ? (
+                        <Loader2
+                          size={18}
+                          className="animate-spin"
+                        />
+                      ) : (
+                        <ArrowUpToLine size={18} />
+                      )}
 
                         <span className="hidden lg:inline">
                           {isExporting ? "Exporting..." : "Export"}
