@@ -131,6 +131,11 @@ export default function BookingDateTimeSection({
       }
     }
 
+    // Add 11:59 PM as the last option
+    const lastDate = new Date();
+    lastDate.setHours(23, 59, 0, 0);
+    options.push({ key: "23:59", value: format(lastDate, "h:mm aa") });
+
     return options;
   }, []);
 
