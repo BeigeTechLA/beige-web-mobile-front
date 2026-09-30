@@ -1050,7 +1050,6 @@ export default function ShootsPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-              )}
             </div>
 
             {isCustomRangeOpen && (
