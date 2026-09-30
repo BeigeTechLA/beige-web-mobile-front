@@ -50,7 +50,10 @@ import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
 import { toast } from "sonner";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink, EditFeaturedWorkProject } from "@/lib/api";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink, EditFeaturedWorkProject, acceptCpGeneralAgreement, getCpProfileAgreements, getCurrentCpGeneralAgreement, downloadCpGeneralAgreementPdf } from "@/lib/api";
+import CreatorAgreementPage from "./agreement/page";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
@@ -348,7 +351,9 @@ export default function ProfilePage() {
   const [editingFeaturedWork, setEditingFeaturedWork] = useState<any | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [isGoogleOnboardingOpen, setIsGoogleOnboardingOpen] = useState(false);
-  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(true);
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(false);
+  const [isDownloadingAgreement, setIsDownloadingAgreement] = useState(false);
+  const [currentGeneralAgreement, setCurrentGeneralAgreement] = useState<any>(null);
   const [googleOnboardingData, setGoogleOnboardingData] = useState<GoogleOnboardingData | null>(null);
 
   const [isSocialLinksModalOpen, setIsSocialLinksModalOpen] = useState(false);
@@ -387,6 +392,7 @@ export default function ProfilePage() {
   const [resume, setResume] = useState<File | null>(null);
   const certInputRef = useRef<HTMLInputElement>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
+  const agreementPdfRef = useRef<HTMLDivElement>(null);
 
   // Profile State matching API structure
   const [profile, setProfile] = useState<any>({
@@ -406,25 +412,152 @@ export default function ProfilePage() {
 
   const tabs = ["Overview", "Documents & Agreements", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
 
-  // TODO: Replace with real data from the API once agreements endpoints are available
+  const [profileAgreements, setProfileAgreements] = useState<any>({ general_agreements: [], shoot_agreements: [] });
+  const generalAgreements = Array.isArray(profileAgreements?.general_agreements)
+    ? profileAgreements.general_agreements
+    : Array.isArray(profileAgreements?.generalAgreements)
+    ? profileAgreements.generalAgreements
+    : Array.isArray(profileAgreements?.agreements)
+    ? profileAgreements.agreements
+    : Array.isArray(profileAgreements?.data?.general_agreements)
+    ? profileAgreements.data.general_agreements
+    : Array.isArray(profileAgreements)
+    ? profileAgreements
+    : [];
+  const currentProfileGeneralAgreement = generalAgreements[0] || {};
   const generalAgreement = {
-    title: "Beige Creative Partner Agreement",
-    version: "v1.0",
-    status: "Accepted",
-    acceptedDate: "1 Jan 2026",
+    id:
+      currentProfileGeneralAgreement.agreement_id ||
+      currentProfileGeneralAgreement.agreement?.id ||
+      currentProfileGeneralAgreement.agreement_version?.agreement_id ||
+      currentProfileGeneralAgreement.agreement_version?.agreement?.id ||
+      currentProfileGeneralAgreement.id ||
+      currentGeneralAgreement?.agreement?.id ||
+      currentGeneralAgreement?.agreement_id ||
+      currentGeneralAgreement?.id,
+    title:
+      currentProfileGeneralAgreement.agreement_version?.agreement?.agreement_title ||
+      currentProfileGeneralAgreement.agreement_title ||
+      currentProfileGeneralAgreement.agreement_name ||
+      currentGeneralAgreement?.agreement_title ||
+      currentGeneralAgreement?.agreement?.agreement_title ||
+      "General Agreement",
+    version: String(
+      currentProfileGeneralAgreement.agreement_version?.version_number ||
+      currentProfileGeneralAgreement.version_number ||
+      currentGeneralAgreement?.version_number ||
+      currentGeneralAgreement?.agreement_version?.version_number ||
+      "1.0"
+    ).replace(/^((?!v).*)$/, "v$1"),
+    status: String(
+      currentProfileGeneralAgreement.status ||
+      currentProfileGeneralAgreement.acceptance_status ||
+      (currentProfileGeneralAgreement.is_accepted ? "accepted" : "") ||
+      (currentProfileGeneralAgreement.accepted_at ? "accepted" : "") ||
+      (currentGeneralAgreement?.is_accepted ? "accepted" : "") ||
+      currentGeneralAgreement?.status ||
+      "pending"
+    ).replace(/(^|_)([a-z])/g, (_: string, prefix: string, character: string) => `${prefix ? " " : ""}${character.toUpperCase()}`),
+    acceptedDate: currentProfileGeneralAgreement.accepted_at || currentGeneralAgreement?.accepted_at || currentProfileGeneralAgreement.created_at || "—",
+  };
+  const rawShootAgreements = Array.isArray(profileAgreements?.shoot_agreements)
+    ? profileAgreements.shoot_agreements
+    : Array.isArray(profileAgreements?.shootAgreements)
+    ? profileAgreements.shootAgreements
+    : Array.isArray(profileAgreements?.data?.shoot_agreements)
+    ? profileAgreements.data.shoot_agreements
+    : [];
+
+  const getShootAgreementTitle = (ag: any): string => {
+    if (!ag || typeof ag !== "object") return "Untitled Project";
+
+    const candidates = [
+      ag.shoot_request?.project_name,
+      ag.project_name,
+      ag.assignment?.project_name,
+      ag.project?.project_name,
+      ag.project?.name,
+      ag.shoot_request?.title,
+      ag.shoot_request?.name,
+      ag.title,
+      ag.assignment?.title,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    return "Untitled Project";
   };
 
-  const shootAgreements = [
-    {
-      id: 1,
-      title: "ABC Corporate Shoot",
-      role: "Videographer",
-      version: "v1.0",
-      status: "Accepted",
-      amount: "$2000",
-      date: "15 Sep 2026, 10:32 AM",
-    },
-  ];
+  const getShootAgreementDate = (ag: any): string => {
+    if (!ag || typeof ag !== "object") return "—";
+
+    const rawDate =
+      (typeof ag.shoot_request?.production_date === "string" && ag.shoot_request.production_date) ||
+      (typeof ag.production_date === "string" && ag.production_date) ||
+      (typeof ag.assignment?.production_date === "string" && ag.assignment.production_date) ||
+      (typeof ag.production_date_formatted === "string" && ag.production_date_formatted) ||
+      (typeof ag.accepted_at === "string" && ag.accepted_at) ||
+      (typeof ag.sent_at === "string" && ag.sent_at) ||
+      (typeof ag.created_at === "string" && ag.created_at) ||
+      "";
+
+    if (!rawDate) return "—";
+
+    const match = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      }
+    }
+
+    const date = new Date(rawDate);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    return rawDate;
+  };
+
+  const shootAgreements = rawShootAgreements.map((agreement: any) => ({
+    id: agreement.id || agreement.agreement_id,
+    title: getShootAgreementTitle(agreement),
+    role:
+      typeof agreement.role === "string"
+        ? agreement.role
+        : typeof agreement.shoot_request?.role === "string"
+        ? agreement.shoot_request.role
+        : "—",
+    version: String(
+      agreement.agreement_version?.version_number ||
+        agreement.version_number ||
+        agreement.version ||
+        "1.0"
+    ).replace(/^((?!v).*)$/, "v$1"),
+    status: String(agreement.status || "pending").replace(
+      /(^|_)([a-z])/g,
+      (_: string, prefix: string, character: string) =>
+        `${prefix ? " " : ""}${character.toUpperCase()}`
+    ),
+    amount: agreement.compensation
+      ? `$${agreement.compensation}`
+      : agreement.shoot_request?.compensation_offer
+      ? `$${agreement.shoot_request.compensation_offer}`
+      : "—",
+    date: getShootAgreementDate(agreement),
+  }));
 
   useEffect(() => {
     const requestedTab = searchParams.get("tab");
@@ -442,6 +575,96 @@ export default function ProfilePage() {
       setActiveTab(requestedTab);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const loadAgreements = async () => {
+      try {
+        const [currentResponse, profileResponse] = await Promise.all([
+          getCurrentCpGeneralAgreement(),
+          getCpProfileAgreements(),
+        ]);
+
+        const rawCurrent =
+          !currentResponse?.error && currentResponse?.data !== undefined
+            ? currentResponse.data?.data ?? currentResponse.data
+            : !currentResponse?.error
+            ? currentResponse
+            : null;
+        const current = (rawCurrent && typeof rawCurrent === "object") ? rawCurrent : null;
+        if (current) {
+          setCurrentGeneralAgreement(current);
+        }
+
+        const rawProfileData =
+          !profileResponse?.error && profileResponse?.data !== undefined
+            ? profileResponse.data?.data ?? profileResponse.data
+            : !profileResponse?.error
+            ? profileResponse
+            : null;
+        const profileData = (rawProfileData && typeof rawProfileData === "object") ? rawProfileData : null;
+        if (profileData) {
+          setProfileAgreements(profileData);
+        }
+
+        const generalAgreementsList = Array.isArray(profileData?.general_agreements)
+          ? profileData.general_agreements
+          : Array.isArray(profileData?.generalAgreements)
+          ? profileData.generalAgreements
+          : Array.isArray(profileData?.agreements)
+          ? profileData.agreements
+          : Array.isArray(profileData?.data?.general_agreements)
+          ? profileData.data.general_agreements
+          : Array.isArray(profileData)
+          ? profileData
+          : [];
+
+        const profileGeneral = generalAgreementsList[0] || {};
+
+        const isCurrentAcceptedDirectly =
+          current?.is_accepted === true ||
+          current?.is_accepted === 1 ||
+          current?.is_accepted === "1" ||
+          current?.is_accepted === "true" ||
+          current?.has_accepted === true ||
+          current?.has_accepted === 1 ||
+          current?.accepted === true ||
+          current?.accepted === 1 ||
+          String(current?.status || "").toLowerCase() === "accepted" ||
+          String(current?.acceptance_status || "").toLowerCase() === "accepted" ||
+          String(current?.user_acceptance?.status || "").toLowerCase() === "accepted" ||
+          String(current?.user_agreement?.status || "").toLowerCase() === "accepted" ||
+          Boolean(current?.accepted_at) ||
+          Boolean(current?.user_acceptance?.accepted_at);
+
+        const acceptedInList = generalAgreementsList.some((ag: any) => {
+          const statusStr = String(ag?.status || ag?.acceptance_status || "").toLowerCase();
+          return (
+            statusStr === "accepted" ||
+            statusStr === "signed" ||
+            statusStr === "active" ||
+            ag?.is_accepted === true ||
+            ag?.is_accepted === 1 ||
+            Boolean(ag?.accepted_at)
+          );
+        });
+
+        const isAccepted = isCurrentAcceptedDirectly || acceptedInList;
+
+        const hasAgreementToAccept = Boolean(
+          current?.id ||
+          current?.agreement_id ||
+          current?.agreement?.id ||
+          current?.agreement_title ||
+          profileGeneral?.id
+        );
+
+        setIsAgreementModalOpen(!isAccepted && hasAgreementToAccept);
+      } catch (err) {
+        console.error("Failed to load agreements:", err);
+      }
+    };
+    void loadAgreements();
+  }, []);
 
   const viewShootAgreement = (agreement: (typeof shootAgreements)[number]) => {
     try {
@@ -466,6 +689,154 @@ export default function ProfilePage() {
     }
 
     router.push(`/creator/dashboard/profile/agreement/${agreement.id}`);
+  };
+
+  const handleDownloadGeneralAgreement = async () => {
+    if (!agreementPdfRef.current) {
+      toast.error("General agreement content is not ready to download.");
+      return;
+    }
+
+    setIsDownloadingAgreement(true);
+    try {
+      const element = agreementPdfRef.current;
+      const targetHeight = Math.max(element.scrollHeight, element.clientHeight, element.offsetHeight);
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#171717",
+        width: 800,
+        height: targetHeight,
+        windowWidth: 800,
+        windowHeight: targetHeight,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        onclone: (clonedDoc) => {
+          const clonedElement =
+            (clonedDoc.querySelector(".pdf-capture-scope") as HTMLElement) || clonedDoc.body;
+          if (clonedElement) {
+            clonedElement.style.position = "static";
+            clonedElement.style.left = "0";
+            clonedElement.style.top = "0";
+            clonedElement.style.width = "800px";
+            clonedElement.style.height = "auto";
+            clonedElement.style.maxHeight = "none";
+            clonedElement.style.overflow = "visible";
+
+            const parent = clonedElement.parentElement;
+            if (parent) {
+              parent.style.position = "static";
+              parent.style.left = "0";
+              parent.style.top = "0";
+              parent.style.width = "800px";
+              parent.style.height = "auto";
+              parent.style.maxHeight = "none";
+              parent.style.overflow = "visible";
+            }
+
+            const tempCanvas = clonedDoc.createElement("canvas");
+            const tempCtx = tempCanvas.getContext("2d");
+
+            const sanitizeColor = (val?: string | null): string => {
+              if (!val) return "";
+              if (
+                val.includes("lab(") ||
+                val.includes("oklch(") ||
+                val.includes("color-mix(") ||
+                val.includes("color(")
+              ) {
+                if (tempCtx) {
+                  try {
+                    tempCtx.fillStyle = val;
+                    return tempCtx.fillStyle;
+                  } catch {
+                    // ignore
+                  }
+                }
+                return "#ffffff";
+              }
+              return val;
+            };
+
+            const allElements = [
+              clonedElement,
+              ...Array.from(clonedElement.querySelectorAll("*")),
+            ] as HTMLElement[];
+
+            allElements.forEach((el) => {
+              el.style.maxHeight = "none";
+              el.style.overflow = "visible";
+
+              const computed = window.getComputedStyle(el);
+              if (
+                computed.color &&
+                (computed.color.includes("lab(") ||
+                  computed.color.includes("oklch(") ||
+                  computed.color.includes("color-mix("))
+              ) {
+                el.style.color = sanitizeColor(computed.color);
+              }
+              if (
+                computed.backgroundColor &&
+                (computed.backgroundColor.includes("lab(") ||
+                  computed.backgroundColor.includes("oklch(") ||
+                  computed.backgroundColor.includes("color-mix("))
+              ) {
+                el.style.backgroundColor = sanitizeColor(
+                  computed.backgroundColor
+                );
+              }
+              if (
+                computed.borderColor &&
+                (computed.borderColor.includes("lab(") ||
+                  computed.borderColor.includes("oklch(") ||
+                  computed.borderColor.includes("color-mix("))
+              ) {
+                el.style.borderColor = sanitizeColor(computed.borderColor);
+              }
+            });
+          }
+        },
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position -= pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save("general-agreement.pdf");
+      toast.success("General Agreement downloaded successfully.");
+    } catch (error) {
+      console.error("Download General Agreement Error:", error);
+      toast.error("An error occurred while downloading the agreement PDF.");
+    } finally {
+      setIsDownloadingAgreement(false);
+    }
   };
 
   const loadProfile = async () => {
@@ -1677,9 +2048,18 @@ export default function ProfilePage() {
                       >
                         View
                       </button>
-                      <button className="px-4 py-2 rounded-lg text-xs font-medium bg-[#E8D1AB] text-black hover:bg-[#dcb98a] transition-colors flex items-center gap-1.5">
-                        <Download size={14} />
-                        Download
+                      <button
+                        type="button"
+                        onClick={handleDownloadGeneralAgreement}
+                        disabled={isDownloadingAgreement}
+                        className="px-4 py-2 rounded-lg text-xs font-medium bg-[#E8D1AB] text-black hover:bg-[#dcb98a] transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isDownloadingAgreement ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Download size={14} />
+                        )}
+                        {isDownloadingAgreement ? "Downloading..." : "Download"}
                       </button>
                     </div>
                   </div>
@@ -2405,8 +2785,56 @@ export default function ProfilePage() {
         <CreativePartnerAgreementModal
           open={isAgreementModalOpen}
           onOpenChange={setIsAgreementModalOpen}
-          onAccept={() => setIsAgreementModalOpen(false)}
+          agreementTitle={currentGeneralAgreement?.agreement_title || currentGeneralAgreement?.agreement?.agreement_title}
+          description={currentGeneralAgreement?.description || currentGeneralAgreement?.agreement?.description}
+          onAccept={async () => {
+            const versionId = currentGeneralAgreement?.version_id || currentGeneralAgreement?.agreement_version_id || currentGeneralAgreement?.current_version?.id || currentGeneralAgreement?.agreement_version?.id || currentGeneralAgreement?.agreement?.current_version?.id;
+            if (!versionId) {
+              toast.error("The current agreement version is unavailable.");
+              return;
+            }
+            const response = await acceptCpGeneralAgreement(versionId);
+            if (response.error) {
+              toast.error(response.message || "Unable to accept agreement.");
+              throw new Error(response.message);
+            }
+            toast.success(response.message || "Agreement accepted successfully.");
+            setIsAgreementModalOpen(false);
+
+            try {
+              const [curRes, profRes] = await Promise.all([
+                getCurrentCpGeneralAgreement(),
+                getCpProfileAgreements(),
+              ]);
+              const cur = (!curRes?.error && curRes?.data !== undefined) ? (curRes.data?.data ?? curRes.data) : (!curRes?.error ? curRes : null);
+              if (cur) setCurrentGeneralAgreement(cur);
+              const prof = (!profRes?.error && profRes?.data !== undefined) ? (profRes.data?.data ?? profRes.data) : (!profRes?.error ? profRes : null);
+              if (prof) setProfileAgreements(prof);
+            } catch (reloadErr) {
+              console.error("Failed to reload agreements after acceptance:", reloadErr);
+            }
+          }}
         />
+
+        {/* Hidden Agreement Container for Pixel-Consistent PDF Capture */}
+        <div
+          style={{
+            position: "absolute",
+            left: "-9999px",
+            top: 0,
+            width: "800px",
+            zIndex: -1,
+            pointerEvents: "none",
+            height: "auto",
+            maxHeight: "none",
+            overflow: "visible",
+          }}
+          aria-hidden="true"
+        >
+          <div ref={agreementPdfRef} className="pdf-capture-scope w-[800px] bg-[#171717] text-white p-6">
+            <CreatorAgreementPage hideActions readOnly hideBack />
+          </div>
+        </div>
       </div>
     </>
   );

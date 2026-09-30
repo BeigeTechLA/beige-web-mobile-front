@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { createGeneralAgreement } from "@/lib/api";
 
 type AgreementSection = {
   id: number;
@@ -132,7 +133,7 @@ export default function CreateGeneralAgreementPage() {
     markChanged();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!agreementName.trim()) {
       toast.error("Please enter an agreement name.");
       return;
@@ -154,20 +155,24 @@ export default function CreateGeneralAgreementPage() {
     }
 
     try {
-      window.sessionStorage.setItem(
-        "beige_general_agreement_draft",
-        JSON.stringify({
-          agreementName,
-          agreementTitle,
-          description,
-          effectiveDate,
-          sections,
-        }),
-      );
-
+      const response = await createGeneralAgreement({
+        agreement_name: agreementName.trim(),
+        agreement_title: agreementTitle.trim(),
+        description: description.trim(),
+        effective_date: effectiveDate,
+        sections: sections.map((section, index) => ({
+          section_order: index + 1,
+          section_title: section.title.trim(),
+          section_body: section.content.trim(),
+        })),
+      });
+      if (response.error || !response.data) {
+        toast.error(response.message || "Unable to create agreement.");
+        return;
+      }
       setHasChanges(false);
-      toast.success("Agreement saved successfully.");
-      router.push("/admin/agreements/details");
+      toast.success(response.message || "Agreement saved successfully.");
+      router.push(`/admin/agreements/details?id=${(response.data as { id: number | string }).id}`);
     } catch (error) {
       console.error("Failed to save agreement draft:", error);
       toast.error("Unable to open agreement details.");

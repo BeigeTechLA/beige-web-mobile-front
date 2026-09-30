@@ -141,7 +141,9 @@ export default function AgreementHistoryTable({
               isDark ? "text-white" : "text-[#171717]"
             }`}
           >
-            Shoot Agreement History
+            {agreementType === "general"
+              ? "General Agreement History"
+              : "Shoot Agreement History"}
           </h2>
         </div>
 

@@ -1277,6 +1277,87 @@ export const affiliateApi = {
 };
 
 
+// Agreement module API surface. Components consume these functions rather than issuing requests directly.
+export const createGeneralAgreement = async (payload: { agreement_name: string; agreement_title: string; description: string; effective_date: string; sections: { section_order: number; section_title: string; section_body: string }[] }) => {
+  try { const response = await api.post('admin/general-agreements', payload); return response.data; } catch (error) { console.error('Create General Agreement Error:', error); return { error: true, data: null, message: 'Failed to create general agreement' }; }
+};
+export const getGeneralAgreement = async (id: number | string) => {
+  try { const response = await api.get(`admin/general-agreements/${id}`); return response.data; } catch (error) { console.error('Get General Agreement Error:', error); return { error: true, data: null, message: 'Failed to fetch general agreement' }; }
+};
+export const sendGeneralAgreement = async (id: number | string, payload: { crew_member_ids: number[]; role: string; project_id: number | null }) => {
+  try { const response = await api.post(`admin/general-agreements/${id}/send`, payload); return response.data; } catch (error) { console.error('Send General Agreement Error:', error); return { error: true, data: null, message: 'Failed to send general agreement' }; }
+};
+export const getGeneralAgreementHistory = async (params: Record<string, unknown> = {}) => {
+  try { const response = await api.get('admin/general-agreements/history', { params }); return response.data; } catch (error) { console.error('Get General Agreement History Error:', error); return { error: true, data: null, message: 'Failed to fetch general agreement history' }; }
+};
+export const createShootRequest = async (payload: { project_name: string; project_id: number | string; client_name: string; crew_member_id: number; role: string; shoot_type: string; compensation_offer: string | number; production_date: string; location: string }) => {
+  try { const response = await api.post('admin/shoot-requests', payload); return response.data; } catch (error) { console.error('Create Shoot Request Error:', error); return { error: true, data: null, message: 'Failed to create shoot request' }; }
+};
+export const createShootAgreement = async (payload: { shoot_request_id: number | string; assignment_id: number | string; crew_member_id: number; role: string; compensation: string | number; production_date: string; location: string; call_time: string; expected_end_time: string; scope_of_services: string; equipment_requirements: string; deliverables: string; approved_expenses: string; special_instructions: string }) => {
+  try { const response = await api.post('admin/shoot-agreements', payload); return response.data; } catch (error) { console.error('Create Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to create shoot agreement' }; }
+};
+export const getShootAgreement = async (id: number | string) => {
+  try { const response = await api.get(`admin/shoot-agreements/${id}`); return response.data; } catch (error) { console.error('Get Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to fetch shoot agreement' }; }
+};
+export const sendShootAgreement = async (id: number | string, payload: Record<string, unknown> = {}) => {
+  try { const response = await api.post(`admin/shoot-agreements/${id}/send`, payload); return response.data; } catch (error) { console.error('Send Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to send shoot agreement' }; }
+};
+export const getShootAgreementHistory = async (params: Record<string, unknown> = {}) => {
+  try { const response = await api.get('admin/shoot-agreements/history', { params }); return response.data; } catch (error) { console.error('Get Shoot Agreement History Error:', error); return { error: true, data: null, message: 'Failed to fetch shoot agreement history' }; }
+};
+export const getCurrentCpGeneralAgreement = async () => {
+  try { const response = await api.get('cp/general-agreement/current'); return response.data; } catch (error) { console.error('Get Current CP General Agreement Error:', error); return { error: true, data: null, message: 'Failed to fetch current general agreement' }; }
+};
+export const acceptCpGeneralAgreement = async (versionId: number | string) => {
+  try { const response = await api.post(`cp/general-agreement/${versionId}/accept`, { confirmed: true }); return response.data; } catch (error) { console.error('Accept CP General Agreement Error:', error); return { error: true, data: null, message: 'Failed to accept general agreement' }; }
+};
+export const getCpShootRequests = async (params: Record<string, unknown> = {}) => {
+  try { const response = await api.get('cp/shoot-requests', { params }); return response.data; } catch (error) { console.error('Get CP Shoot Requests Error:', error); return { error: true, data: null, message: 'Failed to fetch shoot requests' }; }
+};
+export const getCpShootRequest = async (id: number | string) => {
+  try { const response = await api.get(`cp/shoot-requests/${id}`); return response.data; } catch (error) { console.error('Get CP Shoot Request Error:', error); return { error: true, data: null, message: 'Failed to fetch shoot request' }; }
+};
+export const getCpShootAgreement = async (id: number | string) => {
+  try { const response = await api.get(`cp/shoot-agreements/${id}`); return response.data; } catch (error) { console.error('Get CP Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to fetch shoot agreement' }; }
+};
+export const acceptCpShootAgreement = async (id: number | string) => {
+  try { const response = await api.post(`cp/shoot-agreements/${id}/accept`, { confirmed: true }); return response.data; } catch (error) { console.error('Accept CP Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to accept shoot agreement' }; }
+};
+export const rejectCpShootAgreement = async (id: number | string, reason?: string) => {
+  try { const response = await api.post(`cp/shoot-agreements/${id}/reject`, { reason: reason || 'Declined by creative partner' }); return response.data; } catch (error) { console.error('Reject CP Shoot Agreement Error:', error); return { error: true, data: null, message: 'Failed to reject shoot agreement' }; }
+};
+export const getCpProfileAgreements = async () => {
+  try { const response = await api.get('cp/profile/agreements'); return response.data; } catch (error) { console.error('Get CP Profile Agreements Error:', error); return { error: true, data: null, message: 'Failed to fetch profile agreements' }; }
+};
+
+export const downloadCpGeneralAgreementPdf = async (agreementId: number | string) => {
+  try {
+    const response = await api.get(`cp/general-agreement/${agreementId}/pdf`, {
+      responseType: 'blob',
+    });
+    return {
+      error: false,
+      blob: response.data as Blob,
+      contentDisposition: (response.headers?.['content-disposition'] || (response.headers as any)?.get?.('content-disposition')) as string | undefined,
+    };
+  } catch (error: any) {
+    console.error('Download CP General Agreement PDF Error:', error);
+    let message = 'Failed to download general agreement PDF';
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text();
+        const json = JSON.parse(text);
+        if (json?.message) message = json.message;
+      } catch {
+        // ignore JSON parsing errors
+      }
+    } else if (error?.response?.data?.message) {
+      message = error.response.data.message;
+    }
+    return { error: true, blob: null, message };
+  }
+};
+
 export const getEquipmentSuggestions = async (queryParams = {}) => {
   try {
     const response = await api.get(

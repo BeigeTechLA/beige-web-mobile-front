@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import AgreementHistoryTable from "@/components/admin/agreements/AgreementHistoryTable";
+import { adminApi, getGeneralAgreementHistory, getShootAgreementHistory } from "@/lib/api";
+import { toast } from "sonner";
 
 type AgreementStatus =
   | "Accepted"
@@ -38,6 +40,7 @@ type AgreementType = "general" | "shoot";
 type AgreementRow = {
   id: number;
   cpName: string;
+  cpId?: number | string;
   cpInitials: string;
   cpDate: string;
   avatarTone: string;
@@ -51,7 +54,7 @@ type AgreementRow = {
   sendDate: string;
 };
 
-const agreements: AgreementRow[] = [
+const initialAgreements: AgreementRow[] = [
   {
     id: 1,
     cpName: "John Doe",
@@ -167,22 +170,36 @@ const tabs: AgreementTab[] = [
   "Cancelled",
 ];
 
-const cpOptions = [
-  "all",
-  ...Array.from(new Set(agreements.map((item) => item.cpName))),
-];
-const projectOptions = [
-  "all",
-  ...Array.from(new Set(agreements.map((item) => item.projectName))),
-];
 const versionOptions = [
   "all",
-  ...Array.from(new Set(agreements.map((item) => item.version))),
+  ...Array.from(new Set(initialAgreements.map((item) => item.version))),
 ];
-const adminOptions = [
-  "all",
-  ...Array.from(new Set(agreements.map((item) => item.admin))),
-];
+
+const asOptions = (values: string[], placeholder: string) => values.map((value) => ({ value, label: value === "all" ? placeholder : value }));
+
+const toDateParam = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const getDateRange = (range: string) => {
+  if (range === "all") return {};
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  if (range === "This Week") {
+    start.setDate(start.getDate() - start.getDay());
+    end.setDate(end.getDate() + (6 - end.getDay()));
+  }
+  if (range === "This Month") {
+    start.setDate(1);
+    end.setMonth(end.getMonth() + 1, 0);
+  }
+  return { start_date: toDateParam(start), end_date: toDateParam(end) };
+};
+
+const normalizeStatus = (status: unknown): AgreementStatus => {
+  const value = String(status || "pending").toLowerCase();
+  if (value === "not_accepted" || value === "not accepted") return "Not Accepted";
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}` as AgreementStatus;
+};
 
 const statusClass = (status: AgreementStatus, isDark: boolean) => {
   switch (status) {
@@ -219,7 +236,7 @@ function FilterSelect({
   value: string;
   onValueChange: (value: string) => void;
   placeholder: string;
-  options: string[];
+  options: Array<{ value: string; label: string }>;
   isDark: boolean;
 }) {
   return (
@@ -243,15 +260,15 @@ function FilterSelect({
       >
         {options.map((option) => (
           <SelectItem
-            key={option}
-            value={option}
+            key={option.value}
+            value={option.value}
             className={
               isDark
                 ? "focus:bg-white/10 focus:text-white"
                 : "focus:bg-[#F4F5F7] focus:text-black"
             }
           >
-            {option === "all" ? placeholder : option}
+            {option.label}
           </SelectItem>
         ))}
       </SelectContent>
@@ -274,70 +291,90 @@ export default function AgreementsPage() {
   const [projectFilter, setProjectFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [versionFilter, setVersionFilter] = useState("all");
-  const [adminFilter, setAdminFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [currentPage, setCurrentPage] = useState(1);
-
-  const filteredAgreements = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return agreements.filter((agreement) => {
-      const tabMatch =
-        activeTab === "All" ||
-        agreement.status.toLowerCase() === activeTab.toLowerCase();
-
-      const typeMatch = agreement.agreementType === agreementType;
-
-      const searchMatch =
-        !query ||
-        agreement.cpName.toLowerCase().includes(query) ||
-        agreement.projectName.toLowerCase().includes(query) ||
-        agreement.projectId.toLowerCase().includes(query) ||
-        agreement.role.toLowerCase().includes(query);
-
-      const cpMatch = cpFilter === "all" || agreement.cpName === cpFilter;
-
-      const projectMatch =
-        projectFilter === "all" || agreement.projectName === projectFilter;
-
-      const versionMatch =
-        versionFilter === "all" || agreement.version === versionFilter;
-
-      const adminMatch =
-        adminFilter === "all" || agreement.admin === adminFilter;
-
-      const statusMatch =
-        statusFilter === "all" ||
-        agreement.status.toLowerCase() === statusFilter.toLowerCase();
-
-      const dateMatch = dateFilter === "all" || Boolean(agreement.cpDate);
-
-      return (
-        tabMatch &&
-        typeMatch &&
-        searchMatch &&
-        cpMatch &&
-        projectMatch &&
-        versionMatch &&
-        adminMatch &&
-        statusMatch &&
-        dateMatch
-      );
-    });
-  }, [
-    activeTab,
-    agreementType,
-    search,
-    cpFilter,
-    projectFilter,
-    dateFilter,
-    versionFilter,
-    adminFilter,
-    statusFilter,
+  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [agreementTotal, setAgreementTotal] = useState(0);
+  const historyRequestId = useRef(0);
+  const [cpOptions, setCpOptions] = useState<Array<{ value: string; label: string }>>([
+    { value: "all", label: "CP" },
   ]);
+  const [projectOptions, setProjectOptions] = useState<string[]>(["all"]);
 
-  const totalPages = 3;
+  useEffect(() => {
+    const loadCreativePartners = async () => {
+      const response: any = await adminApi.getCrewMembers({ fetch_all: true, limit: 500 });
+      const payload = response?.data?.data || response?.data || {};
+      const members = Array.isArray(payload) ? payload : payload.items || [];
+      setCpOptions([
+        { value: "all", label: "CP" },
+        ...members.map((member: any) => {
+          const id = member.crew_member_id ?? member.id;
+          return {
+            value: String(id),
+            label: `${member.first_name || ""} ${member.last_name || ""}`.trim() || member.name || `CP #${id}`,
+          };
+        }).filter((option: { value: string }) => option.value !== "undefined"),
+      ]);
+    };
+    void loadCreativePartners();
+  }, []);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const requestId = ++historyRequestId.current;
+      const selectedStatus = statusFilter !== "all" ? statusFilter : activeTab !== "All" ? activeTab : undefined;
+      const params: Record<string, unknown> = {
+        page: currentPage,
+        search: search.trim() || undefined,
+        creative_partner_id: cpFilter !== "all" ? cpFilter : undefined,
+        project: projectFilter !== "all" ? projectFilter : undefined,
+        version: versionFilter !== "all" ? versionFilter : undefined,
+        status: selectedStatus?.toLowerCase().replace(" ", "_"),
+        date_on: selectedDate ? toDateParam(selectedDate) : undefined,
+        ...getDateRange(dateFilter),
+      };
+      const response = agreementType === "general" ? await getGeneralAgreementHistory(params) : await getShootAgreementHistory(params);
+      // Ignore a completed request when a newer tab/filter request is already active.
+      if (requestId !== historyRequestId.current) return;
+      if (response.error || !response.data) { toast.error(response.message || "Failed to load agreement history."); setAgreements([]); return; }
+      // Service functions return the backend envelope; support both the normal
+      // envelope and the axios-wrapped variant used by older service calls.
+      const data: any = response.data;
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const pagination = data?.pagination || {};
+      setTotalPages(Math.max(1, Math.ceil(Number(pagination.total || 0) / Number(pagination.limit || 20))));
+      setProjectOptions([
+        "all",
+        ...Array.from(new Set(items.map((item: any) => item.shoot_request?.project_name || item.agreement_version?.agreement?.agreement_name).filter(Boolean))),
+      ]);
+      setAgreements(items.map((item: any): AgreementRow => {
+        item.status = normalizeStatus(item.status);
+        const cp = item.crew_member || item.creative_partner || {};
+        const name = cp.name || [cp.first_name, cp.last_name].filter(Boolean).join(" ") || `CP #${item.creative_partner_id || "—"}`;
+        return { id: item.id, cpName: name, cpInitials: name.split(" ").map((part: string) => part[0]).join("").slice(0, 2), cpDate: item.created_at || "—", avatarTone: "bg-[#DDEBFA]", projectName: item.shoot_request?.project_name || item.agreement_version?.agreement?.agreement_name || "—", projectId: String(item.shoot_request?.project_id || "—"), role: item.role || "—", version: `v${item.agreement_version?.version_number || item.version_number || "1.0"}`, status: (String(item.status || "pending").replace(/^./, (value) => value.toUpperCase()) as AgreementStatus), agreementType, admin: item.sent_by?.name || "—", sendDate: item.sent_at || item.created_at || "—" };
+      }));
+    };
+    void loadHistory();
+  }, [agreementType, currentPage, search, cpFilter, projectFilter, dateFilter, versionFilter, statusFilter, activeTab, selectedDate]);
+
+  useEffect(() => {
+    const loadAgreementTotal = async () => {
+      const [generalResponse, shootResponse] = await Promise.all([
+        getGeneralAgreementHistory({ limit: 1 }),
+        getShootAgreementHistory({ limit: 1 }),
+      ]);
+      setAgreementTotal(
+        Number(generalResponse?.data?.pagination?.total || 0) +
+        Number(shootResponse?.data?.pagination?.total || 0),
+      );
+    };
+    void loadAgreementTotal();
+  // Keep the all-agreements badge live after every history refresh/filter change.
+  // Its requests intentionally omit filters, so it always represents the full total.
+  }, [agreementType, currentPage, search, cpFilter, projectFilter, dateFilter, versionFilter, statusFilter, activeTab, selectedDate]);
 
   return (
     <>
@@ -382,7 +419,7 @@ export default function AgreementsPage() {
                     : "bg-[#E8D1AB]/35 text-[#7D6235]"
                 }`}
               >
-                3 agreements across all projects
+                {agreementTotal} agreements across all projects
               </span>
             </div>
 
@@ -417,7 +454,9 @@ export default function AgreementsPage() {
                 key={tab}
                 type="button"
                 onClick={() => {
+                  setAgreements([]);
                   setActiveTab(tab);
+                  setStatusFilter("all");
                   setCurrentPage(1);
                 }}
                 className={`h-10 shrink-0 rounded-lg px-5 text-sm font-medium transition-all ${
@@ -509,7 +548,7 @@ export default function AgreementsPage() {
                   value={projectFilter}
                   onValueChange={setProjectFilter}
                   placeholder="Project"
-                  options={projectOptions}
+                  options={asOptions(projectOptions, "Project")}
                   isDark={isDark}
                 />
               </div>
@@ -519,7 +558,7 @@ export default function AgreementsPage() {
                   value={dateFilter}
                   onValueChange={setDateFilter}
                   placeholder="Date"
-                  options={["all", "Today", "This Week", "This Month"]}
+                  options={asOptions(["all", "Today", "This Week", "This Month"], "Date")}
                   isDark={isDark}
                 />
               </div>
@@ -529,17 +568,7 @@ export default function AgreementsPage() {
                   value={versionFilter}
                   onValueChange={setVersionFilter}
                   placeholder="Agreement Version"
-                  options={versionOptions}
-                  isDark={isDark}
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterSelect
-                  value={adminFilter}
-                  onValueChange={setAdminFilter}
-                  placeholder="Admin"
-                  options={adminOptions}
+                  options={asOptions(versionOptions, "Agreement Version")}
                   isDark={isDark}
                 />
               </div>
@@ -547,9 +576,14 @@ export default function AgreementsPage() {
               <div className="shrink-0">
                 <FilterSelect
                   value={statusFilter}
-                  onValueChange={setStatusFilter}
+                  onValueChange={(value) => {
+                    setAgreements([]);
+                    setStatusFilter(value);
+                    setActiveTab("All");
+                    setCurrentPage(1);
+                  }}
                   placeholder="Status"
-                  options={[
+                  options={asOptions([
                     "all",
                     "Accepted",
                     "Expired",
@@ -557,7 +591,7 @@ export default function AgreementsPage() {
                     "Pending",
                     "Rejected",
                     "Cancelled",
-                  ]}
+                  ], "Status")}
                   isDark={isDark}
                 />
               </div>
@@ -566,11 +600,14 @@ export default function AgreementsPage() {
         ) : null}
 
         <AgreementHistoryTable
-          agreements={filteredAgreements}
+          agreements={agreements}
           isDark={isDark}
           agreementType={agreementType}
           onAgreementTypeChange={(type) => {
+            setAgreements([]);
             setAgreementType(type);
+            setActiveTab("All");
+            setStatusFilter("all");
             setCurrentPage(1);
           }}
           currentPage={currentPage}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, History, Pencil, Send } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import SuccessModal from "@/components/admin/agreements/SuccessModal";
+import { adminApi, getGeneralAgreement, sendGeneralAgreement } from "@/lib/api";
+import { toast } from "sonner";
 
 type AgreementSection = {
   id: number;
@@ -74,11 +76,37 @@ function formatEffectiveDate(value?: string) {
 export default function AgreementDetailsPage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
 
   const [draft, setDraft] = useState<AgreementDraft>(DEFAULT_DRAFT);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sendSuccessOpen, setSendSuccessOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [creativePartners, setCreativePartners] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCreativePartnerId, setSelectedCreativePartnerId] = useState("");
+  const [role, setRole] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (!id) return;
+    const loadAgreement = async () => {
+      const response = await getGeneralAgreement(id);
+      if (response.error || !response.data) { toast.error(response.message || "Failed to load agreement."); return; }
+      const data: any = response.data;
+      const agreement = data.agreement || data;
+      const version = data.current_version || agreement.current_version || {};
+      setDraft({
+        agreementName: agreement.agreement_name,
+        agreementTitle: agreement.agreement_title,
+        description: agreement.description,
+        effectiveDate: agreement.effective_date,
+        sections: (version.sections || agreement.sections || []).sort((a: any, b: any) => (a.section_order || 0) - (b.section_order || 0)).map((section: any, index: number) => ({ id: section.id || index + 1, title: section.section_title || section.title || "", content: section.section_body || section.content || "" })),
+      });
+    };
+    void loadAgreement();
+  }, [searchParams]);
 
   useEffect(() => {
     try {
@@ -112,8 +140,38 @@ export default function AgreementDetailsPage() {
     };
   }, [sendSuccessOpen, router]);
 
-  const handleSendAgreement = () => {
+  const handleSendAgreement = async () => {
+    const agreementId = searchParams.get("id");
+    if (!agreementId || !selectedCreativePartnerId) {
+      toast.error("Please select a creative partner.");
+      return;
+    }
+    setIsSending(true);
+    const response = await sendGeneralAgreement(agreementId, {
+      crew_member_ids: [Number(selectedCreativePartnerId)],
+      role,
+      project_id: null,
+    });
+    setIsSending(false);
+    if (response.error) {
+      toast.error(response.message || "Failed to send agreement.");
+      return;
+    }
+    setSendDialogOpen(false);
     setSendSuccessOpen(true);
+  };
+
+  const openSendDialog = async () => {
+    if (creativePartners.length === 0) {
+      const response: any = await adminApi.getCrewMembers({ fetch_all: true, limit: 500 });
+      const payload = response?.data?.data || response?.data || {};
+      const members = Array.isArray(payload) ? payload : payload.items || [];
+      setCreativePartners(members.map((member: any) => ({
+        id: String(member.crew_member_id ?? member.id),
+        name: `${member.first_name || ""} ${member.last_name || ""}`.trim() || member.name || `CP #${member.crew_member_id ?? member.id}`,
+      })).filter((member: { id: string }) => member.id !== "undefined"));
+    }
+    setSendDialogOpen(true);
   };
 
   const handleSuccessClose = () => {
@@ -174,7 +232,7 @@ export default function AgreementDetailsPage() {
 
             <Button
               type="button"
-              onClick={handleSendAgreement}
+              onClick={() => void openSendDialog()}
               className={`h-11 gap-2 rounded-lg px-4 text-sm font-semibold text-black transition-colors lg:h-12 lg:px-6 ${
                 isDark
                   ? "bg-[#E5D5B8] hover:bg-[#D4C3A3]"
@@ -333,6 +391,31 @@ export default function AgreementDetailsPage() {
                 Current
               </span>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className={`max-w-md border ${isDark ? "border-[#3D3D3D] bg-[#0A0A0A] text-white" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232]"}`}>
+          <DialogHeader><DialogTitle>Send Agreement to CP</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <select
+              value={selectedCreativePartnerId}
+              onChange={(event) => setSelectedCreativePartnerId(event.target.value)}
+              className={`h-11 w-full rounded-md border px-3 text-sm ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E3E3E3] bg-white text-[#323232]"}`}
+            >
+              <option value="">Select Creative Partner</option>
+              {creativePartners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}</option>)}
+            </select>
+            <input
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+              placeholder="Role (optional)"
+              className={`h-11 w-full rounded-md border px-3 text-sm ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E3E3E3] bg-white text-[#323232]"}`}
+            />
+            <Button type="button" disabled={isSending || !selectedCreativePartnerId} onClick={() => void handleSendAgreement()} className="h-11 w-full bg-[#E8D1AB] text-black hover:bg-[#D9C19A]">
+              {isSending ? "Sending..." : "Send Agreement"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

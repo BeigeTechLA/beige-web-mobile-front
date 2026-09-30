@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { getCurrentCpGeneralAgreement } from "@/lib/api";
 
 type AgreementSection = {
   id: number;
@@ -15,6 +16,7 @@ type AgreementDraft = {
   agreementTitle?: string;
   description?: string;
   effectiveDate?: string;
+  version?: string;
   sections?: AgreementSection[];
   acceptance?: string;
 };
@@ -26,6 +28,7 @@ const DEFAULT_DRAFT: AgreementDraft = {
   description:
     "This Creative Partner Agreement (the “Agreement”) governs participation as a creative professional on the Beige platform and the performance of photography, videography, production, post-production, livestreaming, editing, audio, and other creative or production services arranged through Beige.\n\nThis Agreement is between Beige Corporation, a Delaware corporation (“Beige,” “we,” “us,” or “our”), and the individual or entity accepting this Agreement (“Creative Partner,” “you,” or “your”).\n\nBy creating a Creative Partner account and affirmatively accepting this Agreement, you acknowledge that you have read, understood, and agree to be bound by it.",
   effectiveDate: "2026-09-01",
+  version: "Version 1.0",
   sections: [
     {
       id: 1,
@@ -59,25 +62,132 @@ function formatEffectiveDate(value?: string) {
   });
 }
 
-export default function CreatorAgreementPage() {
+export interface CreatorAgreementPageProps {
+  hideActions?: boolean;
+  readOnly?: boolean;
+  hideBack?: boolean;
+}
+
+export default function CreatorAgreementPage({
+  hideActions = false,
+  readOnly = false,
+  hideBack = false,
+}: CreatorAgreementPageProps = {}) {
   const router = useRouter();
   const { isDark } = useResolvedTheme();
   const [draft, setDraft] = useState<AgreementDraft>(DEFAULT_DRAFT);
   const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
+    const loadAgreement = async () => {
+      try {
+        const response = await getCurrentCpGeneralAgreement();
+        const data: any =
+          !response?.error && response?.data !== undefined
+            ? response.data?.data ?? response.data
+            : !response?.error
+            ? response
+            : null;
+        const agreement = data?.agreement || data;
+        const version =
+          data?.current_version ||
+          data?.agreement_version ||
+          agreement?.current_version ||
+          {};
+        const rawSections =
+          version?.sections ||
+          agreement?.sections ||
+          data?.sections ||
+          [];
+
+        if (!response?.error && agreement) {
+          const getAcceptanceString = (): string => {
+            if (typeof agreement?.acceptance === "string" && agreement.acceptance.trim()) {
+              return agreement.acceptance;
+            }
+            if (typeof agreement?.acceptance_text === "string" && agreement.acceptance_text.trim()) {
+              return agreement.acceptance_text;
+            }
+            if (typeof version?.acceptance === "string" && version.acceptance.trim()) {
+              return version.acceptance;
+            }
+            if (typeof version?.acceptance_text === "string" && version.acceptance_text.trim()) {
+              return version.acceptance_text;
+            }
+            if (typeof data?.acceptance === "string" && data.acceptance.trim()) {
+              return data.acceptance;
+            }
+            if (typeof data?.acceptance_text === "string" && data.acceptance_text.trim()) {
+              return data.acceptance_text;
+            }
+            return DEFAULT_DRAFT.acceptance || "";
+          };
+
+          setDraft({
+            agreementTitle:
+              typeof agreement.agreement_title === "string"
+                ? agreement.agreement_title
+                : typeof agreement.agreement_name === "string"
+                ? agreement.agreement_name
+                : typeof data?.agreement_title === "string"
+                ? data.agreement_title
+                : DEFAULT_DRAFT.agreementTitle,
+            description:
+              typeof agreement.description === "string"
+                ? agreement.description
+                : typeof data?.description === "string"
+                ? data.description
+                : DEFAULT_DRAFT.description,
+            effectiveDate:
+              typeof agreement.effective_date === "string"
+                ? agreement.effective_date
+                : typeof data?.effective_date === "string"
+                ? data.effective_date
+                : DEFAULT_DRAFT.effectiveDate,
+            version: version.version_number
+              ? `Version ${String(version.version_number).replace(/^v/i, "")}`
+              : agreement.version_number
+              ? `Version ${String(agreement.version_number).replace(/^v/i, "")}`
+              : "Version 1.0",
+            sections:
+              Array.isArray(rawSections) && rawSections.length > 0
+                ? rawSections
+                    .sort(
+                      (a: any, b: any) =>
+                        (a.section_order || 0) - (b.section_order || 0)
+                    )
+                    .map((section: any, index: number) => ({
+                      id: section.id || index + 1,
+                      title: section.section_title || section.title || "",
+                      content: section.section_body || section.content || "",
+                    }))
+                : DEFAULT_DRAFT.sections,
+            acceptance: getAcceptanceString(),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load general agreement:", err);
+      }
+    };
+    void loadAgreement();
     try {
       const saved = window.sessionStorage.getItem(STORAGE_KEY);
       if (!saved) return;
       const parsed = JSON.parse(saved) as AgreementDraft;
-      setDraft({
-        ...DEFAULT_DRAFT,
-        ...parsed,
-        sections:
-          Array.isArray(parsed.sections) && parsed.sections.length > 0
-            ? parsed.sections
-            : DEFAULT_DRAFT.sections,
-      });
+      if (
+        parsed &&
+        (parsed.agreementTitle ||
+          (Array.isArray(parsed.sections) && parsed.sections.length > 0))
+      ) {
+        setDraft((prev) => ({
+          ...prev,
+          ...parsed,
+          sections:
+            Array.isArray(parsed.sections) && parsed.sections.length > 0
+              ? parsed.sections
+              : prev.sections || DEFAULT_DRAFT.sections,
+        }));
+      }
     } catch (error) {
       console.error("Failed to load agreement draft:", error);
     }
@@ -91,124 +201,151 @@ export default function CreatorAgreementPage() {
     [draft.sections],
   );
 
+  const shouldHideBack = hideBack || hideActions || readOnly;
+  const shouldHideActions = hideActions || readOnly;
+  const isDarkTheme = isDark || hideActions || readOnly;
+
   return (
     <main
-      className={`min-h-screen p-4 pb-24 transition-colors duration-300 lg:p-6 lg:px-10 lg:py-8 ${
-        isDark ? "bg-transparent" : "bg-[#F3F4F6]"
-      }`}
+      className={
+        shouldHideActions
+          ? "w-full bg-transparent p-0 overflow-visible max-h-none h-auto"
+          : `min-h-screen p-4 pb-24 transition-colors duration-300 lg:p-6 lg:px-10 lg:py-8 ${
+              isDark ? "bg-transparent" : "bg-[#F3F4F6]"
+            }`
+      }
       style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
-      <button
-        type="button"
-        onClick={() => router.push("/creator/dashboard/profile")}
-        className={`mb-7 inline-flex items-center gap-2 text-sm transition-colors ${
-          isDark ? "text-white/80 hover:text-white" : "text-black/65 hover:text-black"
-        }`}
-      >
-        <ArrowLeft size={19} />
-        Back
-      </button>
+      {!shouldHideBack && (
+        <button
+          type="button"
+          onClick={() => router.push("/creator/dashboard/profile")}
+          className={`mb-7 inline-flex items-center gap-2 text-sm transition-colors ${
+            isDark ? "text-white/80 hover:text-white" : "text-black/65 hover:text-black"
+          }`}
+        >
+          <ArrowLeft size={19} />
+          Back
+        </button>
+      )}
 
       <article
-        className={`mx-auto overflow-hidden rounded-2xl border transition-colors ${
-          isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"
+        className={`mx-auto rounded-2xl border transition-colors ${
+          shouldHideActions ? "overflow-visible max-h-none h-auto" : "overflow-hidden"
+        } ${
+          isDarkTheme ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"
         }`}
       >
         <header
           className={`flex flex-col gap-5 px-6 py-7 md:flex-row md:items-center md:justify-between lg:px-8 ${
-            isDark ? "bg-[#202020]" : "bg-[#FFFCF6]"
+            isDarkTheme ? "bg-[#202020]" : "bg-[#FFFCF6]"
           }`}
         >
           <div>
-            <p className={`text-xs font-semibold uppercase tracking-[0.08em] ${isDark ? "text-[#E8D1AB]/85" : "text-[#8D6F3F]"}`}>
+            <p
+              className={`text-xs font-semibold uppercase tracking-[0.08em] ${isDarkTheme ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}
+              style={{ color: isDarkTheme ? "#E8D1AB" : "#8D6F3F" }}
+            >
               General Agreement
             </p>
-            <h1 className={`mt-3 text-2xl font-light uppercase leading-tight tracking-[-0.02em] md:text-[32px] ${isDark ? "text-white" : "text-[#171717]"}`}>
+            <h1 className={`mt-3 text-2xl font-light uppercase leading-tight tracking-[-0.02em] md:text-[32px] ${isDarkTheme ? "text-white" : "text-[#171717]"}`}>
               {draft.agreementTitle || DEFAULT_DRAFT.agreementTitle}
             </h1>
           </div>
 
           <div className="shrink-0 text-left md:text-right">
             <span className="inline-flex rounded-lg bg-[#E8D1AB] px-3 py-1.5 text-xs font-medium text-black">
-              Version 1.0
+              {draft.version || "Version 1.0"}
             </span>
-            <p className={`mt-3 text-[11px] ${isDark ? "text-white/75" : "text-black/55"}`}>
+            <p
+              className={`mt-3 text-[11px] ${isDarkTheme ? "text-[#BFBFBF]" : "text-[#737373]"}`}
+              style={{ color: isDarkTheme ? "#BFBFBF" : "#737373" }}
+            >
               Effective {formatEffectiveDate(draft.effectiveDate)}
             </p>
           </div>
         </header>
 
         <div className="px-6 py-7 lg:px-8 lg:py-8">
-          {draft.description?.trim() ? (
-            <div className={`whitespace-pre-line text-[15px] leading-6 ${isDark ? "text-white/65" : "text-black/65"}`}>
+          {typeof draft.description === "string" && draft.description.trim() ? (
+            <div
+              className={`whitespace-pre-line text-[15px] leading-6 ${isDarkTheme ? "text-[#A6A6A6]" : "text-[#595959]"}`}
+              style={{ color: isDarkTheme ? "#A6A6A6" : "#595959" }}
+            >
               {draft.description}
             </div>
           ) : null}
 
           {sections.map((section, index) => (
-            <section key={section.id} className={`mt-7 border-t pt-7 ${isDark ? "border-[#464646]" : "border-[#DDDDDD]"}`}>
-              <h2 className={`text-xl font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
+            <section key={section.id} className={`mt-7 border-t pt-7 ${isDarkTheme ? "border-[#464646]" : "border-[#DDDDDD]"}`}>
+              <h2 className={`text-xl font-medium ${isDarkTheme ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
                 {index + 1}. {section.title || "Untitled Section"}
               </h2>
-              <div className={`mt-3 whitespace-pre-line text-[15px] leading-6 ${isDark ? "text-white/65" : "text-black/65"}`}>
+              <div
+                className={`mt-3 whitespace-pre-line text-[15px] leading-6 ${isDarkTheme ? "text-[#A6A6A6]" : "text-[#595959]"}`}
+                style={{ color: isDarkTheme ? "#A6A6A6" : "#595959" }}
+              >
                 {section.content || "No content added."}
               </div>
             </section>
           ))}
 
-          {draft.acceptance?.trim() ? (
+          {typeof draft.acceptance === "string" && draft.acceptance.trim() ? (
             <section className="mt-7">
-              <h2 className={`text-md font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
+              <h2 className={`text-md font-medium ${isDarkTheme ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
                 Acceptance
               </h2>
-              <div className={`mt-3 whitespace-pre-line text-[15px] leading-6 ${isDark ? "text-white/65" : "text-black/65"}`}>
+              <div
+                className={`mt-3 whitespace-pre-line text-[15px] leading-6 ${isDarkTheme ? "text-[#A6A6A6]" : "text-[#595959]"}`}
+                style={{ color: isDarkTheme ? "#A6A6A6" : "#595959" }}
+              >
                 {draft.acceptance}
               </div>
             </section>
           ) : null}
         </div>
 
-        <div
-          className={`border-t px-6 py-6 lg:px-8 ${
-            isDark ? "border-[#2D2D2D] bg-[#1B1B1B]" : "border-[#E3E3E3] bg-[#FAFAFA]"
-          }`}
-        >
-          <p className={`text-sm uppercase font-bold  ${isDark ? "text-white/85" : "text-black/80"}`}>
-            Please review and accept Beige&apos;s Creative Partner Agreement to start receiving and working on assignments.
-          </p>
-
-          <label
-            className={`mt-4 flex cursor-pointer items-center gap-2 text-sm ${
-              isDark ? "text-white/70" : "text-black/65"
+        {!shouldHideActions && (
+          <div
+            className={`border-t px-6 py-6 lg:px-8 ${
+              isDark ? "border-[#2D2D2D] bg-[#1B1B1B]" : "border-[#E3E3E3] bg-[#FAFAFA]"
             }`}
           >
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="h-4 w-4 rounded border-[#B3B3B3] accent-[#E8D1AB]"
-            />
-            I have read and agree to the terms and conditions
-          </label>
+            <p className={`text-sm uppercase font-bold  ${isDark ? "text-white/85" : "text-black/80"}`}>
+              Please review and accept Beige&apos;s Creative Partner Agreement to start receiving and working on assignments.
+            </p>
 
-          <button
-            type="button"
-            disabled={!agreed}
-            onClick={() => {
-              // TODO: hook up acceptance submission
-              router.push("/creator/dashboard/profile");
-            }}
-            className={`mt-4 w-full rounded-lg py-3 text-sm font-medium transition-colors ${
-              agreed
-                ? "bg-[#E8D1AB] text-black hover:bg-[#DEC194]"
-                : "cursor-not-allowed bg-[#E8D1AB]/50 text-black/50"
-            }`}
-          >
-            Accept &amp; Continue
-          </button>
+            <label
+              className={`mt-4 flex cursor-pointer items-center gap-2 text-sm ${
+                isDark ? "text-white/70" : "text-black/65"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="h-4 w-4 rounded border-[#B3B3B3] accent-[#E8D1AB]"
+              />
+              I have read and agree to the terms and conditions
+            </label>
 
-          
-        </div>
+            <button
+              type="button"
+              disabled={!agreed}
+              onClick={() => {
+                // TODO: hook up acceptance submission
+                router.push("/creator/dashboard/profile");
+              }}
+              className={`mt-4 w-full rounded-lg py-3 text-sm font-medium transition-colors ${
+                agreed
+                  ? "bg-[#E8D1AB] text-black hover:bg-[#DEC194]"
+                  : "cursor-not-allowed bg-[#E8D1AB]/50 text-black/50"
+              }`}
+            >
+              Accept &amp; Continue
+            </button>
+          </div>
+        )}
       </article>
     </main>
   );

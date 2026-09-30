@@ -39,10 +39,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getCpShootRequests, getCpShootRequest } from "@/lib/api";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
-import { getProject } from "@/lib/api";
 
 import { toast } from "sonner";
 import { MobileRow } from "@/components/creator-profile/MobileRow";
@@ -70,6 +69,7 @@ type ProjectItem = {
     event_date?: string;
     shoot_date?: string;
   };
+  agreement?: { id?: number | string; status?: string };
 };
 
 type DashboardStats = {
@@ -124,9 +124,7 @@ export default function RequestsShootsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (crewMemberId) fetchData();
-  }, [crewMemberId]);
+  useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
     setStatusFilter("all");
@@ -145,74 +143,26 @@ export default function RequestsShootsPage() {
 
   /* ---------------- FETCH DATA ---------------- */
   const fetchData = async () => {
-    const crew_member_id = getCrewMemberId();
-    if (!crew_member_id) {
-      toast.error("Invalid user session");
-      setIsLoading(false);
-      return;
-    }
     setIsLoading(true);
 
     try {
-      const statsPayload = {
-        creator_id: crew_member_id,
-        crew_member_id: crew_member_id
+      const response = await getCpShootRequests();
+      if (response.error || !response.data) {
+        toast.error(response.message || "Failed to load requests and shoots");
+        return;
+      }
+      const data = (response.data?.data ?? response.data) as { items?: ProjectItem[]; summary?: Record<string, number> };
+      const items = Array.isArray(data.items) ? data.items : [];
+      const normalizeStatus = (status?: string): ProjectItem["status"] => {
+        const value = String(status || "pending").toLowerCase();
+        return value === "confirmed" ? "Confirmed" : value === "completed" ? "Completed" : value === "declined" || value === "rejected" ? "Declined" : "Pending";
       };
-      const statsResponse = await getStatusCount(statsPayload);
-      const statsData =
-        statsResponse && statsResponse.error === false ? statsResponse.data : null;
-      if (statsResponse && statsResponse.error === false) {
-        setDashboardStats(statsResponse.data);
-      }
-
-      const commonPayload = { crew_member_id };
-      const [pendingRes, upcomingRes] = await Promise.all([
-        getPendingProjects(commonPayload),
-        GetUpcomingShoots(commonPayload),
-      ]);
-
-      const pendingRequests: ProjectItem[] =
-        pendingRes && pendingRes.error === false && Array.isArray(pendingRes.data)
-          ? pendingRes.data.filter((p: ProjectItem) => isUpcomingShoot(p))
-          : [];
-      setProjects(
-        pendingRequests.map((p) => ({
-          ...p,
-          status: "Pending",
-          project_id: p.project_id || p.id,
-        }))
-      );
-
-      const acceptedSource =
-        upcomingRes && upcomingRes.error === false && Array.isArray(upcomingRes.data)
-          ? upcomingRes.data as ProjectItem[]
-          : [];
-      const upcomingAccepted = acceptedSource;
-
-      if (upcomingAccepted.length > 0) {
-        const acceptedProjects: ProjectItem[] = upcomingAccepted.map((p): ProjectItem => ({
-          ...p,
-          status: isCompletedFlag(p) ? "Completed" : "Confirmed",
-          project_id: p.project_id || p.id,
-        }));
-        setShoots(acceptedProjects);
-        const completedCount = acceptedProjects.filter((p) => isCompletedFlag(p)).length;
-        const confirmedCount = acceptedProjects.length;
-        setComputedStats({
-          pendingRequests: pendingRequests.length,
-          confirmedRequests: confirmedCount,
-          completedShoots: completedCount,
-          declinedRequests: statsData?.declinedRequests || 0,
-        });
-      } else {
-        setShoots([]);
-        setComputedStats({
-          pendingRequests: pendingRequests.length,
-          confirmedRequests: 0,
-          completedShoots: 0,
-          declinedRequests: statsData?.declinedRequests || 0,
-        });
-      }
+      const normalized = items.map((item) => ({ ...item, project_id: item.project_id || item.id, status: normalizeStatus(item.status) }));
+      setProjects(normalized.filter((item) => item.status === "Pending"));
+      setShoots(normalized.filter((item) => item.status !== "Pending"));
+      const summary = data.summary || {};
+      setDashboardStats({ pendingRequests: summary.pending || 0, confirmedRequests: summary.confirmed || 0, completedShoots: summary.completed || 0, declinedRequests: summary.declined || 0 });
+      setComputedStats(null);
     } catch (error) {
       console.error("Fetch Error:", error);
       toast.error("Failed to load dashboard data");
@@ -293,52 +243,19 @@ export default function RequestsShootsPage() {
 
   /* ---------------- ACTIONS ---------------- */
   const handleAcceptProject = async (projectId: number, accept: boolean) => {
-    const crew_member_id = getCrewMemberId();
-    if (!crew_member_id) {
-      toast.error("Invalid user session");
+    // Assignment acceptance is performed from the agreement review route, where the
+    // agreement id (rather than only a shoot-request id) is available.
+    const item = [...projects, ...shoots].find((project) => String(project.project_id) === String(projectId));
+    if (item?.agreement?.id) {
+      router.push(`/creator/dashboard/request/review-agreement/${item.agreement.id}`);
       return;
     }
-
-    try {
-      const response = await acceptOrDeclineProject({
-        project_id: projectId,
-        crew_member_id,
-        crew_accept: accept ? 1 : 2,
-      });
-
-      if (response && response.error === false) {
-        toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
-        const acceptedItem = acceptShootEvent;
-        setAcceptShootEvent(null);
-        setDeclineShootEvent(null);
-        setDeclineReason("Schedule conflict");
-        setDeclineComments("");
-        if (accept && acceptedItem) {
-          setProjects((current) => current.filter((item) => item.project_id !== projectId));
-          setShoots((current) => {
-            const nextShoot = {
-              ...acceptedItem,
-              status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
-              project_id: acceptedItem.project_id || acceptedItem.id,
-            };
-            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
-            return [nextShoot, ...withoutDuplicate];
-          });
-          handleTabChange("shoots");
-        }
-        await fetchData();
-      } else {
-        toast.error(response?.message || "Failed to update project status");
-      }
-    } catch (err) {
-      console.error("Action Error:", err);
-      toast.error("An unexpected error occurred");
-    }
+    toast.error("No agreement is available for this request.");
   };
 
   const handleOpenProjectDetails = async (projectId: number) => {
     try {
-      const res = await getProject(projectId);
+      const res = await getCpShootRequest(projectId);
       if (!res?.error && res?.data) {
         setProjectDetailsData(res.data);
         setProjectDetailsOpen(true);
@@ -375,42 +292,10 @@ export default function RequestsShootsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const staticAgreementRequest = {
-    id: 1,
-    title: "PRIVATE Shoot - Punyashree@Revurge.Com",
-    date: "13 Sept, 2026",
-    compensation: "$2000.00",
-    location: "Los Angeles, California, United States",
-    role: "Videographer",
-    version: "v1.0",
-  };
-  const showStaticAgreementRequest =
-    activeTab === "requests" &&
-    (statusFilter === "all" || statusFilter === "pending") &&
-    staticAgreementRequest.title.toLowerCase().includes(search.toLowerCase());
-
-  const handleReviewAgreement = () => {
-    try {
-      window.sessionStorage.setItem(
-        "beige_selected_agreement",
-        JSON.stringify({
-          id: staticAgreementRequest.id,
-          cpName: "Creative Partner",
-          projectName: "ABC Corporate Shoot",
-          projectId: "ASN-2012",
-          role: staticAgreementRequest.role,
-          version: staticAgreementRequest.version,
-          status: "Pending",
-          agreementType: "shoot",
-          sendDate: staticAgreementRequest.date,
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to save selected agreement:", error);
-    }
-
-    router.push(`/creator/dashboard/request/review-agreement/${staticAgreementRequest.id}`);
-  };
+  // The legacy showcase card is intentionally hidden; real cards below use API data.
+  const showStaticAgreementRequest = false;
+  const staticAgreementRequest = { id: "", title: "", date: "", compensation: "", location: "", role: "", version: "" };
+  const handleReviewAgreement = () => undefined;
 
   if (isLoading) {
     return (
@@ -764,6 +649,16 @@ export default function RequestsShootsPage() {
                         </span>
                       </div>
                     </div>
+
+                    {item.agreement?.id && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/creator/dashboard/request/review-agreement/${item.agreement?.id}`)}
+                        className="mb-4 text-xs font-semibold text-[#C58E42] hover:text-[#E8D1AB]"
+                      >
+                        Agreement: {String(item.agreement.status || "pending")} · Review Agreement →
+                      </button>
+                    )}
 
                     <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
                       <Button

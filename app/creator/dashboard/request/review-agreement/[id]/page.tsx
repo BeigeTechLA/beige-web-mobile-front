@@ -7,6 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import ShootAssignmentAgreement from "@/components/creator-profile/agreements/ShootAssignmentAgreement";
+import { acceptCpShootAgreement, getCpShootAgreement, rejectCpShootAgreement } from "@/lib/api";
+import { toast } from "sonner";
 
 type AgreementStatus =
   | "Accepted"
@@ -119,6 +121,7 @@ export default function ReviewAgreementPage() {
     useState<AgreementDetail>(FALLBACK_AGREEMENT);
 
 const [isAssignmentAccepted, setIsAssignmentAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     try {
@@ -150,6 +153,39 @@ const [isAssignmentAccepted, setIsAssignmentAccepted] = useState(false);
       console.error("Failed to load selected agreement:", error);
     }
   }, [params.id]);
+
+  useEffect(() => {
+    const loadAgreement = async () => {
+      const response = await getCpShootAgreement(params.id);
+      if (response.error || !response.data) {
+        toast.error(response.message || "Failed to load agreement.");
+        return;
+      }
+      const data: any = response.data?.data ?? response.data;
+      const request = data.shoot_request || {};
+      setAgreement({
+        ...FALLBACK_AGREEMENT,
+        id: data.id || params.id,
+        cpName: data.crew_member?.name || "Creative Partner",
+        projectName: request.project_name || data.project_name || "—",
+        projectId: String(request.project_id || "—"),
+        role: data.role || "—",
+        version: `v${data.version?.version_number || data.version_number || "1.0"}`,
+        status: (String(data.status || "pending").replace(/^./, (value) => value.toUpperCase()) as AgreementStatus),
+        sendDate: data.sent_at || data.created_at || "—",
+      });
+    };
+    void loadAgreement();
+  }, [params.id]);
+
+  const submitDecision = async (accept: boolean) => {
+    setIsSubmitting(true);
+    const response = accept ? await acceptCpShootAgreement(params.id) : await rejectCpShootAgreement(params.id);
+    setIsSubmitting(false);
+    if (response.error) { toast.error(response.message || "Unable to update assignment."); return; }
+    toast.success(response.message || (accept ? "Assignment accepted successfully." : "Assignment declined."));
+    router.push("/creator/dashboard/request");
+  };
 
   return (
     <>
@@ -224,6 +260,7 @@ const [isAssignmentAccepted, setIsAssignmentAccepted] = useState(false);
                 <button
                   type="button"
                   disabled={!isAssignmentAccepted}
+                  onClick={() => void submitDecision(true)}
                   className={`h-[37px] flex-1 rounded-md px-4 text-xs font-medium transition-colors ${
                     isAssignmentAccepted
                       ? "bg-[#167653] text-white hover:bg-[#126346]"
@@ -235,6 +272,8 @@ const [isAssignmentAccepted, setIsAssignmentAccepted] = useState(false);
 
                 <button
                   type="button"
+                  disabled={isSubmitting}
+                  onClick={() => void submitDecision(false)}
                   className="h-[37px] w-[74px] rounded-md bg-[#A83232] px-4 text-xs font-medium text-white hover:bg-[#922C2C]"
                 >
                   Reject

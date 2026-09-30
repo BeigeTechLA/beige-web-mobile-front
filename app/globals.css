@@ -288,5 +288,52 @@ input[type="number"] {
 /* Give Safari a strong feedback target on hover */
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
-  
+}
+
+/* Scoped overrides for PDF Capture to ensure html2canvas compatibility (pure Hex / RGB, avoiding lab/oklch, full unclipped height) */
+.pdf-capture-scope {
+  --background: #171717 !important;
+  --foreground: #ffffff !important;
+  --color-background: #171717 !important;
+  --color-foreground: #ffffff !important;
+  --color-white: #ffffff !important;
+  --color-black: #000000 !important;
+  --color-border: #2D2D2D !important;
+  color-scheme: dark !important;
+  background-color: #171717 !important;
+  color: #ffffff !important;
+  max-height: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.pdf-capture-scope,
+.pdf-capture-scope * {
+  border-color: #2D2D2D;
+  box-sizing: border-box;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.pdf-capture-scope article {
+  background-color: #171717 !important;
+  border-color: #2D2D2D !important;
+  color: #ffffff !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.pdf-capture-scope header {
+  background-color: #202020 !important;
+}
+
+.pdf-capture-scope h1 {
+  color: #ffffff !important;
+}
+
+.pdf-capture-scope h2 {
+  color: #E8D1AB !important;
 }
