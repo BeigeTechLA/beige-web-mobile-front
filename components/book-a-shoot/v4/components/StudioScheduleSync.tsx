@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   ArrowLeft,
@@ -74,6 +75,7 @@ export interface StudioScheduleSyncProps {
   initialUseSameSchedule?: boolean;
   initialBookingType?: "single_day" | "multi_day";
   initialScheduleData?: {
+    dateOption?: "have-date" | "confirm-later";
     bookingType?: "single_day" | "multi_day" | null;
     startDate?: string | null;
     endDate?: string | null;
@@ -101,7 +103,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   selectedStudio: selectedStudioProp,
   title = "Should the studio use the same schedule?",
   subtitle = "You can use your shoot schedule or set a separate date and time for the studio.",
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 60,
 }) => {
   const sourceBookingDays = initialScheduleData?.bookingDays || [];
@@ -133,6 +135,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   const selectedStudio = {
     ...PLACEHOLDER_STUDIO,
     ...selectedStudioProp,
+    image: selectedStudioProp?.image || PLACEHOLDER_STUDIO.image,
     tags: selectedStudioProp?.tags || PLACEHOLDER_STUDIO.tags,
     isAdded: true,
   };
@@ -574,6 +577,27 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   ]);
 
   const handleContinue = () => {
+    if (!useSameSchedule) {
+      const minimumStart = Date.now() + 4 * 60 * 60 * 1000;
+      const days = bookingType === "multi_day"
+        ? data.bookingDays.map((day) => ({
+          start: day.startTime ? `${day.date}T${day.startTime}` : "",
+          end: day.endTime ? `${day.date}T${day.endTime}` : "",
+        }))
+        : [{ start: data.startDate, end: data.endDate }];
+      if (days.length === 0 || days.some(({ start, end }) => {
+        const startTime = new Date(start).getTime();
+        const endTime = new Date(end).getTime();
+        return !Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime;
+      })) {
+        toast.error("Please select a studio date, start time, and end time for each day.");
+        return;
+      }
+      if (days.some(({ start }) => new Date(start).getTime() < minimumStart)) {
+        toast.error("Please choose a studio start time at least 4 hours from now.");
+        return;
+      }
+    }
     onContinue({
       useSameSchedule,
       bookingType,
@@ -585,7 +609,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
@@ -671,7 +695,14 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
         </div>
 
         {/* Accordion Schedule Edit Card when "No, different schedule" is active */}
-        {useSameSchedule ? (
+        {useSameSchedule && initialScheduleData?.dateOption === "confirm-later" ? (
+          <div role="status" className="rounded-lg lg:rounded-2xl border border-white/20 bg-[#191919] p-5 lg:p-7">
+            <h3 className="text-lg lg:text-xl font-medium text-[#E8D1AB]">You’ll choose your date and time later</h3>
+            <p className="mt-2 text-sm lg:text-base text-white/70 leading-relaxed">
+              You selected “I’ll choose later” for your shoot, so your studio date and time are also to be confirmed. The Beige team will help you finalize both schedules. To set a studio date now, select “No, different schedule”.
+            </p>
+          </div>
+        ) : useSameSchedule ? (
           <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-[#101010] overflow-hidden transition-all duration-300">
             {/* Accordion Header */}
             <button
@@ -1393,11 +1424,12 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
               <div className="border border-white/20 bg-[#101010] rounded-lg lg:rounded-2xl">
                 <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                   {/* Studio Image + Rating Badge */}
-                  <div className="relative w-full md:w-[42%] h-[180px] lg:h-full rounded-t-lg md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
+                  <div className="relative w-full md:w-[42%] h-[220px] md:h-auto md:min-h-[220px] md:self-stretch rounded-t-lg md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                     <Image
                       src={selectedStudio.image}
                       alt={selectedStudio.name}
                       fill
+                      unoptimized
                       className="object-cover"
                     />
                     <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-lg font-medium flex items-center gap-1.5 border border-white/20">
@@ -1515,7 +1547,7 @@ export const StudioScheduleSync: React.FC<StudioScheduleSyncProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

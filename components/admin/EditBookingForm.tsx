@@ -184,6 +184,9 @@ export default function EditBookingForm({ leadId, initialBookingData, onSuccess,
         options.push({ key: `${h}:${m}`, value: format(date, "h:mm aa") });
       }
     }
+    const lastDate = new Date();
+    lastDate.setHours(23, 59, 0, 0);
+    options.push({ key: "23:59", value: format(lastDate, "h:mm aa") });
     setTimeOptions(options);
   }, []);
 

@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createBaseQueryWithReauth } from "@/lib/redux/baseQueryWithReauth";
 import type {
   PricingCategory,
   DiscountTier,
@@ -30,23 +31,7 @@ const API_BASE_URL =
 
 export const pricingApi = createApi({
   reducerPath: "pricingApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: (headers) => {
-      // Get token from cookies if available
-      if (typeof window !== "undefined") {
-        const cookies = document.cookie.split(";");
-        const tokenCookie = cookies.find((c) =>
-          c.trim().startsWith("revure_token="),
-        );
-        if (tokenCookie) {
-          const token = tokenCookie.split("=")[1];
-          headers.set("Authorization", `Bearer ${token}`);
-        }
-      }
-      return headers;
-    },
-  }),
+  baseQuery: createBaseQueryWithReauth(API_BASE_URL),
   tagTypes: ["Catalog", "Quote", "Item"],
   endpoints: (builder) => ({
     // Get pricing catalog
@@ -113,6 +98,7 @@ export const pricingApi = createApi({
         custom_add_on_items?: CustomAddOnQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -141,6 +127,7 @@ export const pricingApi = createApi({
         custom_add_on_items?: CustomAddOnQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -219,6 +206,7 @@ export const pricingApi = createApi({
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -255,6 +243,7 @@ export const pricingApi = createApi({
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({

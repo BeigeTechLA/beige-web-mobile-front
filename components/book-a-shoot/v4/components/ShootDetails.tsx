@@ -24,9 +24,9 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   onBack,
   initialNotes = "",
   initialLinks = [],
-  title = " Tell us a little about your shoot.",
-  subtitle = "Share anything about your shoot, vibe, or ideas. We'll take it from there.",
-  stepNumber = "04",
+  title = "How do you want to Beige it?",
+  subtitle = "Share your vision, vibe, references, or anything else we should know. We’ll take it from there.",
+  stepNumber = "4",
   completionPercentage = 50,
 }) => {
   const [notes, setNotes] = useState<string>(initialNotes);
@@ -60,7 +60,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Navigation */}
         {onBack && (
           <button
@@ -99,7 +99,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={6}
-            placeholder="Give us the quick version"
+            placeholder="Give us the quick version—what are you trying to create?"
             className="w-full bg-transparent text-sm lg:text-base text-white/90 placeholder:text-white/30 focus:outline-none resize-none pt-1 lg:h-60"
           />
         </div>
@@ -113,14 +113,14 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
               htmlFor="referenceLinks-input"
               className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
             >
-              Supporting Links
+              Add inspiration
             </label>
             <input
               type="text"
               value={currentLinkInput}
               onChange={(e) => setCurrentLinkInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Got some inspiration? Drop in a link."
+              placeholder="Drop in a link to a mood board, cool content, or examples you love."
               className="w-full rounded-lg lg:rounded-xl border border-white/30 px-4 py-4 text-white placeholder:text-white/20 outline-none focus:border-white/60 transition-all bg-[#101010] text-sm lg:text-base lg:h-18"
             />
           </div>
@@ -167,7 +167,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

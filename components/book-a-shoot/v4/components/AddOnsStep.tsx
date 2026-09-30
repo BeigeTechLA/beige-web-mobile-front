@@ -29,7 +29,7 @@ export default function AddOnsStep({
   addOns = [],
   title = "Want to add anything extra?",
   subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
-  stepNumber = "08",
+  stepNumber = "8",
   completionPercentage = 88,
 }: AddOnsStepProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>(initialAddOns);
@@ -72,7 +72,7 @@ export default function AddOnsStep({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6  flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6  flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       <div>
         {/* Back Arrow */}
@@ -159,7 +159,7 @@ export default function AddOnsStep({
                         <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                       </button>
                       <span className="w-5 text-center">
-                        {String(count).padStart(2, "0")}
+                        {String(count)}
                       </span>
                       <button
                         type="button"
@@ -199,7 +199,7 @@ export default function AddOnsStep({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

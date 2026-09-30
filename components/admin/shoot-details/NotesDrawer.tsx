@@ -113,6 +113,10 @@ const OPTIMISTIC_REACTION_USER = { userId: -1, name: "You" };
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/150?img=11";
 
+const FALLBACK_CAPTION = "Attachment";
+const shouldShowMessage = (n: NoteUiItem) =>
+  !(n.attachments.length > 0 && n.message.trim() === FALLBACK_CAPTION);
+
 const countNotesWithReplies = (items: NoteUiItem[]): number =>
   items.reduce((total, note) => total + 1 + countNotesWithReplies(note.replies || []), 0);
 
@@ -340,7 +344,7 @@ export default function NotesDrawer({
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showComposerEmojis, setShowComposerEmojis] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<File[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
@@ -458,6 +462,14 @@ export default function NotesDrawer({
     };
   }, [showReactionPickerId]);
 
+  // Auto-resize composer textarea
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [inputValue]);
+
   // Focus input on open
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -537,9 +549,10 @@ export default function NotesDrawer({
       setInputValue('');
       setSelectedAttachments([]);
       setReplyingToId(null);
-      await fetchNotes();
+      await fetchNotes({ silent: true });
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
@@ -607,7 +620,7 @@ export default function NotesDrawer({
         return;
       }
       toast.success("Note deleted");
-      await fetchNotes();
+      await fetchNotes({ silent: true });
     } finally {
       setIsActionLoading(false);
     }
@@ -647,8 +660,8 @@ export default function NotesDrawer({
             </div>
 
             {/* Scrollable Body */}
-            <div className={`flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent ${isDark ? "scrollbar-thumb-white/10" : "scrollbar-thumb-black/10"}`}>
-              <div className="w-fit min-w-full px-6 py-5 space-y-6">
+            <div className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent ${isDark ? "scrollbar-thumb-white/10" : "scrollbar-thumb-black/10"}`}>
+              <div className="w-full min-w-0 px-6 py-5 space-y-6">
                 {loadingNotes ? (
                 <div className={`flex items-center justify-center py-8 text-sm ${isDark ? "text-white/60" : "text-[#667085]"}`}>Loading notes...</div>
               ) : null}
@@ -691,8 +704,8 @@ export default function NotesDrawer({
                   <button className={isDark ? "text-white/70 hover:text-white" : "text-[#667085] hover:text-[#101828]"} onClick={() => setReplyingToId(null)}>Cancel</button>
                 </div>
               ) : null}
-              <div className={`relative flex items-center gap-3 rounded-full border px-5 py-3.5 transition-colors ${isDark ? "border-white/5 bg-[#161616] focus-within:border-white/10" : "border-[#E4E7EC] bg-[#F9FAFB] focus-within:border-[#D0D5DD]"} ${isApiBusy ? "opacity-80" : ""}`}>
-                <label className={`flex-shrink-0 cursor-pointer transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"} ${isApiBusy ? "pointer-events-none opacity-50" : ""}`}>
+              <div className={`relative flex items-end gap-3 rounded-[26px] border px-5 py-3 transition-colors ${isDark ? "border-white/5 bg-[#161616] focus-within:border-white/10" : "border-[#E4E7EC] bg-[#F9FAFB] focus-within:border-[#D0D5DD]"} ${isApiBusy ? "opacity-80" : ""}`}>
+                <label className={`mb-1 flex-shrink-0 cursor-pointer transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"} ${isApiBusy ? "pointer-events-none opacity-50" : ""}`}>
                   <Paperclip size={18} />
                   <input
                     type="file"
@@ -703,28 +716,32 @@ export default function NotesDrawer({
                   />
                 </label>
                 <button
-                  className={`flex-shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"}`}
+                  className={`mb-0.5 flex-shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white/70" : "text-[#98A2B3] hover:text-[#475467]"}`}
                   onClick={() => setShowComposerEmojis((current) => !current)}
                   disabled={isApiBusy}
                 >
                   <Smile size={20} />
                 </button>
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
                     if (isApiBusy) return;
-                    if (e.key === 'Enter') handleSubmit();
+                    // Enter = send, Shift+Enter = new line
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
                   }}
                   placeholder="Write a Note.."
-                  className={`flex-1 bg-transparent text-sm outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-[#101828] placeholder:text-[#98A2B3]"}`}
+                  className={`max-h-40 flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-sm leading-relaxed outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${isDark ? "text-white placeholder:text-white/30" : "text-[#101828] placeholder:text-[#98A2B3]"}`}
                   disabled={isApiBusy}
                 />
                 <button
                   onClick={handleSubmit}
-                  className={`flex-shrink-0 transition-colors ${
+                  className={`mb-0.5 flex-shrink-0 transition-colors ${
                     inputValue.trim() || selectedAttachments.length > 0
                       ? isDark
                         ? 'text-[#E8D1AB] hover:text-[#dccaa9]'
@@ -860,7 +877,7 @@ function NoteCard({
   }, [showActionsMenu]);
 
   return (
-    <div className={`relative w-fit max-w-none rounded-[22px] border px-5 py-4 transition-colors ${isDark ? "border-white/5 bg-[#161616]" : "border-[#EAECF0] bg-[#F9FAFB]"}`}>
+    <div className={`relative w-full min-w-0 max-w-full rounded-[22px] border px-5 py-4 transition-colors ${isDark ? "border-white/5 bg-[#161616]" : "border-[#EAECF0] bg-[#F9FAFB]"}`}>
       {/* Parent Note */}
       <div className="flex gap-4">
         <div className="relative flex flex-col items-center">
@@ -919,9 +936,11 @@ function NoteCard({
             ) : null}
           </div>
 
-          <p className={`mb-3 max-w-[440px] text-sm leading-relaxed ${isDark ? "text-white/60" : "text-[#475467]"}`}>
-            {note.message}
-          </p>
+          {shouldShowMessage(note) && (
+            <p className={`mb-3 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-relaxed ${isDark ? "text-white/60" : "text-[#475467]"}`}>
+              {note.message}
+            </p>
+          )}
           {note.attachments.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {note.attachments.map((file) => (
@@ -1058,7 +1077,7 @@ function NoteCard({
 
       {/* Thread Replies */}
       {hasReplies && (
-        <div className={`ml-[19px] mt-5 w-fit space-y-7 border-l pl-6 pr-4 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
+        <div className={`ml-[19px] mt-5 min-w-0 space-y-7 border-l pl-6 pr-4 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
           {note.replies.map((reply) => (
             <NoteReply
               key={reply.id}
@@ -1212,9 +1231,11 @@ function NoteReply({
             ) : null}
           </div>
 
-          <p className={`mb-2 max-w-[400px] text-sm leading-relaxed ${isDark ? "text-white/50" : "text-[#475467]"}`}>
-            {reply.message}
-          </p>
+          {shouldShowMessage(reply) && (
+            <p className={`mb-2 max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-relaxed ${isDark ? "text-white/50" : "text-[#475467]"}`}>
+              {reply.message}
+            </p>
+          )}
           {reply.attachments.length > 0 ? (
             <div className="mb-2 flex flex-wrap gap-2">
               {reply.attachments.map((file) => (
@@ -1337,7 +1358,7 @@ function NoteReply({
           ) : null}
 
           {hasReplies ? (
-            <div className={`ml-[15px] mt-6 w-fit space-y-7 border-l pl-5 pr-2 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
+            <div className={`ml-[15px] mt-6 min-w-0 space-y-7 border-l pl-5 pr-2 ${isDark ? "border-white/10" : "border-[#D0D5DD]"}`}>
               {reply.replies.map((childReply) => (
                 <NoteReply
                   key={childReply.id}

@@ -1,5 +1,6 @@
 "use client";
 
+import { getCreativeTeamError } from "../bookingRules";
 import React, { useState } from "react";
 import { ArrowLeft, Info, Minus, Plus } from "lucide-react";
 
@@ -23,7 +24,7 @@ interface CreativeTeamProps {
 const DEFAULT_ROLES: TeamMember[] = [
   { id: "photographer", name: "Photographer", price: 250.00 },
   { id: "videographer", name: "Videographer", price: 250.00 },
-  { id: "photoVideoCreator", name: "Photographer + Videographer (1 person)", price: 375.00 },
+  { id: "photoVideoCreator", name: "Hybrid Shooter (Photo + Video)", price: 375.00 },
 ];
 
 export default function CreativeTeam({
@@ -33,7 +34,7 @@ export default function CreativeTeam({
   selectedServices = ["photography"],
   title = "Your Creative Team",
   subtitle = "We recommend 1–2 Creative Partners based on your project. You can add more if needed.",
-  stepNumber = "06",
+  stepNumber = "6",
   completionPercentage = 30
 }: CreativeTeamProps) {
   const hasPhotoService = selectedServices.includes("photography");
@@ -46,9 +47,14 @@ export default function CreativeTeam({
     return true;
   });
 
-  const [counts, setCounts] = useState<{ [key: string]: number }>(initialCounts);
+  const [counts, setCounts] = useState<{ [key: string]: number }>({
+    ...initialCounts,
+    // A Hybrid Shooter is a single, combined-coverage option.
+    photoVideoCreator: initialCounts.photoVideoCreator ? 1 : 0,
+  });
 
   const handleIncrement = (id: string) => {
+    if (id === "photoVideoCreator") return;
     setCounts((prev) => ({
       ...prev,
       [id]: (prev[id] || 0) + 1,
@@ -65,7 +71,11 @@ export default function CreativeTeam({
   const handleToggleCheckbox = (id: string, checked: boolean) => {
     setCounts((prev) => ({
       ...prev,
-      [id]: checked ? Math.max(1, prev[id] || 1) : 0,
+      [id]: checked
+        ? id === "photoVideoCreator"
+          ? 1
+          : Math.max(1, prev[id] || 1)
+        : 0,
     }));
   };
 
@@ -75,8 +85,10 @@ export default function CreativeTeam({
   }, {});
   const totalSelected = Object.values(visibleCounts).reduce((acc, curr) => acc + curr, 0);
 
+  const teamError = getCreativeTeamError(selectedServices, visibleCounts);
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Navigation */}
       {onBack && (
         <button
@@ -120,7 +132,7 @@ export default function CreativeTeam({
           return (
             <div
               key={role.id}
-              className="flex items-center justify-between "
+              className="flex items-start justify-between gap-3"
             >
               <div className="flex items-start gap-3">
                 {/* Checkbox implementation */}
@@ -135,28 +147,37 @@ export default function CreativeTeam({
                   <div className="text-sm lg:text-lg font-light text-white">
                     {role.name}
                   </div>
+                  {role.id === "photoVideoCreator" && (
+                    <p className="mt-2 max-w-xl pr-4 text-xs lg:text-sm text-white/60 leading-relaxed">
+                      One Creative Partner captures both photo and video, so fewer moments can be captured at once. For full coverage, book a dedicated Photographer and Videographer.
+                    </p>
+                  )}
                   <div className="text-xs lg:text-lg 2xl:text-xl font-medium text-[#E8D1AB]">
-                    ${role.price.toFixed(2)}
+                    ${role.price}/hr
                   </div>
                 </label>
               </div>
 
               {/* Counter Control */}
-              <div className="flex items-center gap-1.5 lg:gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 lg:px-4 lg:py-2.5 rounded-full font-medium text-sm">
+              <div className="shrink-0 flex items-center gap-1.5 lg:gap-3 bg-[#E8D1AB] text-black px-3.5 py-2 lg:px-4 lg:py-2.5 rounded-full font-medium text-sm">
                 <button
                   type="button"
                   onClick={() => handleDecrement(role.id)}
+                  aria-label={`Remove ${role.name}`}
+                  disabled={count === 0}
                   className="hover:opacity-70 transition"
                 >
                   <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                 </button>
                 <span className="lg:w-5 text-center font-medium text-base lg:text-lg 2xl:text-xl">
-                  {String(count).padStart(2, "0")}
+                  {String(count)}
                 </span>
                 <button
                   type="button"
                   onClick={() => handleIncrement(role.id)}
-                  className="hover:opacity-70 transition"
+                  aria-label={`Add ${role.name}`}
+                  disabled={role.id === "photoVideoCreator"}
+                  className="hover:opacity-70 transition disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                 </button>
@@ -170,20 +191,20 @@ export default function CreativeTeam({
       <div className="inline-flex lg:items-center gap-2.5 lg:gap-3 p-4 lg:p-5 2xl:p-6 rounded-lg lg:rounded-2xl bg-[#211F1C] text-sm lg:text-base text-[#E8D1AB]">
         <Info className="w-6 h-6 shrink-0" strokeWidth={1.5} />
         <span>
-          {totalSelected > 0
+          {!teamError && totalSelected > 0
             ? `You're all set! ${totalSelected} Creative Partner${totalSelected > 1 ? "s are" : " is a"} great fit for covering your event.`
-            : "Select at least one Creative Partner to proceed with covering your event."}
+            : teamError || "No Creative Partners are required for these services."}
         </span>
       </div>
 
       <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
       <div className="text-base lg:text-lg 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white">
-        Need to change this later? You can always add or remove partners after booking.
+        Need to change this later? You can always add or remove Creative Partners after booking.
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         <button
           type="button"
           onClick={onBack}
@@ -193,7 +214,8 @@ export default function CreativeTeam({
         </button>
         <button
           type="button"
-          onClick={() => onContinue(visibleCounts)}
+          disabled={Boolean(teamError)}
+          onClick={() => { if (!teamError) onContinue(visibleCounts); }}
           className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
