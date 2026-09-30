@@ -1133,9 +1133,9 @@ export const ShootsTable = ({
   if (!mounted) return null;
 
   return (
-    <div className={`w-full overflow-visible transition-all duration-300 ${activeViewMode === "list"
-      ? `rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
-      : "bg-transparent border-transparent"
+    <div className={`w-full min-w-0 max-w-full transition-all duration-300 ${activeViewMode === "list"
+      ? `overflow-visible rounded-2xl border ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5]"}`
+      : "overflow-hidden bg-transparent border-transparent"
       }`}>
       {/* Table Header Controls */}
       {shouldRenderHeaderControls && (
@@ -1398,16 +1398,16 @@ export const ShootsTable = ({
             )
           }
           {activeViewMode === "grid" ? (
-            <div className="relative block pt-0">
+            <div className="relative block w-0 min-w-full max-w-full overflow-hidden pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`block w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
                 onMouseLeave={handleGridMouseEnd}
               >
-                <div className="flex items-start gap-5 min-w-max px-4">
+                <div className="flex w-max min-w-full items-start gap-5 px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}

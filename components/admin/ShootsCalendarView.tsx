@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
+  Camera,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Loader2,
   MapPin,
+  Video,
   X,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
@@ -196,6 +199,82 @@ const getCalendarGridDates = (focusDate: Date) => {
   });
 };
 
+
+const isoDatePart = (value?: string | null) => {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+};
+
+const isoTimePart = (value?: string | null) => {
+  if (!value) return null;
+  const match = String(value).match(/T(\d{2}:\d{2}:\d{2})/);
+  return match?.[1] || null;
+};
+
+const normalizeCalendarResponse = (response: any): CalendarShoot[] => {
+  const payload = response?.success !== undefined ? response : response?.data;
+  if (!payload?.success || !payload?.data) return [];
+
+  const data = payload.data;
+
+  const activeShoots: CalendarShoot[] = Array.isArray(data.active_shoots)
+    ? data.active_shoots.map((shoot: any) => ({
+        ...shoot,
+        id: shoot.id,
+        title: formatShootTitle(shoot.title),
+        date: apiDateKey(shoot.date),
+        type: shoot.type || "shoot",
+        event_type: shoot.event_type || "shoot",
+        is_deleted: false,
+      }))
+    : [];
+
+  const deletedShoots: CalendarShoot[] = Array.isArray(data.deleted_shoots)
+    ? data.deleted_shoots.map((shoot: any) => ({
+        ...shoot,
+        id: `deleted-${shoot.id}`,
+        original_id: shoot.id,
+        title: formatShootTitle(shoot.title),
+        date: apiDateKey(shoot.date),
+        type: "deleted",
+        event_type: "deleted_shoot",
+        status: shoot.status || "deleted",
+        is_deleted: true,
+      }))
+    : [];
+
+  const meetings: CalendarShoot[] = Array.isArray(data.meetings)
+    ? data.meetings.map((meeting: any) => ({
+        ...meeting,
+        id: `meeting-${meeting.id}`,
+        original_id: meeting.id,
+        title: meeting.title || "Untitled Meeting",
+        date: isoDatePart(meeting.meeting_date_time),
+        start_time: isoTimePart(meeting.meeting_date_time),
+        end_time: isoTimePart(meeting.meeting_end_time),
+        time_zone: meeting.meeting_timezone || null,
+        type: "meeting",
+        event_type: "meeting",
+        status: meeting.meeting_status || "meeting",
+        location: meeting.meet_link || null,
+      }))
+    : [];
+
+  if (activeShoots.length || deletedShoots.length || meetings.length) {
+    return [...activeShoots, ...deletedShoots, ...meetings];
+  }
+
+  if (Array.isArray(data.shoots)) {
+    return data.shoots.map((shoot: CalendarShoot) => ({
+      ...shoot,
+      title: formatShootTitle(shoot.title),
+      date: apiDateKey(shoot.date),
+    }));
+  }
+
+  return [];
+};
+
 export const ShootsCalendarView = ({
   isDark,
   searchQuery = "",
@@ -205,6 +284,7 @@ export const ShootsCalendarView = ({
   productionFilter = "all",
   cpAssignmentFilter = "all",
 }: ShootCalendarViewProps) => {
+  const router = useRouter();
   const today = new Date();
   const [view, setView] = useState<CalendarView>("month");
   const [focusDate, setFocusDate] = useState(today);
@@ -246,14 +326,7 @@ export const ShootsCalendarView = ({
               : await adminApi.getShootCalendarDay({ date: dateKey(focusDate) });
 
         if (!cancelled) {
-          setShoots(
-            response?.success && Array.isArray(response?.data?.shoots)
-              ? response.data.shoots.map((shoot: CalendarShoot) => ({
-                  ...shoot,
-                  title: formatShootTitle(shoot.title),
-                }))
-              : []
-          );
+          setShoots(normalizeCalendarResponse(response));
         }
       } catch (error) {
         console.error("Failed to load shoot calendar:", error);
@@ -276,9 +349,16 @@ export const ShootsCalendarView = ({
         .replace(/[\s_-]+/g, "")
         .trim();
 
+    const hasValue = (value: unknown) => {
+      if (Array.isArray(value)) return value.length > 0;
+      return value !== undefined && value !== null && String(value).trim() !== "";
+    };
+
     const search = searchQuery.trim().toLowerCase();
 
     return shoots.filter((shoot) => {
+      const kind = getItemKind(shoot);
+
       if (search) {
         const searchableText = [
           shoot.title,
@@ -297,92 +377,142 @@ export const ShootsCalendarView = ({
           shoot.phone,
         ]
           .filter(Boolean)
-          .join(" ")
+          .join(" " )
           .toLowerCase();
 
         if (!searchableText.includes(search)) return false;
       }
 
       if (categoryFilter !== "all") {
+        // The calendar API mainly returns title/date/time. Include title so filters
+        // such as Corporate/Wedding still work with the calendar response.
         const categorySource = [
           shoot.category,
           shoot.event_type,
-          shoot.type,
           shoot.shoot_type,
           shoot.content_type,
           shoot.event_type_labels,
+          shoot.title,
         ]
           .filter(Boolean)
           .map(normalize);
 
-        if (!categorySource.some((value) => value.includes(normalize(categoryFilter)))) {
+        // Only enforce the category filter when we have something meaningful
+        // to evaluate. The title from the calendar API normally provides this.
+        if (
+          categorySource.length > 0 &&
+          !categorySource.some((value) =>
+            value.includes(normalize(categoryFilter)),
+          )
+        ) {
           return false;
         }
       }
 
       if (statusFilter !== "all") {
-        const statusSource = [
-          shoot.status,
-          shoot.project_status,
-          shoot.shoot_status,
-          shoot.production_status,
-        ]
-          .filter(Boolean)
-          .map(normalize);
+        const normalizedStatusFilter = normalize(statusFilter);
 
-        if (!statusSource.some((value) => value.includes(normalize(statusFilter)))) {
-          return false;
+        // Deleted/cancelled can be resolved from the calendar response itself.
+        if (normalizedStatusFilter === "deleted") {
+          if (kind !== "deleted") return false;
+        } else if (normalizedStatusFilter === "cancelled") {
+          if (kind !== "deleted") return false;
+        } else {
+          const rawStatusValues = [
+            shoot.status,
+            shoot.project_status,
+            shoot.shoot_status,
+            shoot.production_status,
+          ].filter(hasValue);
+
+          // Month/week/day endpoints do not return the normal project timeline
+          // status. Do not hide valid calendar shoots merely because that field
+          // is absent from this endpoint.
+          if (rawStatusValues.length > 0) {
+            const statusSource = rawStatusValues.map(normalize);
+            if (
+              !statusSource.some((value) =>
+                value.includes(normalizedStatusFilter),
+              )
+            ) {
+              return false;
+            }
+          }
         }
       }
 
       if (paymentFilter !== "all") {
-        const paymentStatus = normalize(shoot.payment_status);
-        const paidAmount = Number(shoot.paid_amount ?? 0);
-        const pendingAmount = Number(shoot.pending_amount ?? 0);
+        const hasPaymentData =
+          hasValue(shoot.payment_status) ||
+          hasValue(shoot.paid_amount) ||
+          hasValue(shoot.pending_amount);
 
-        if (paymentFilter === "paid") {
-          const isPaid = paymentStatus.includes("paid") || (paidAmount > 0 && pendingAmount <= 0);
-          if (!isPaid) return false;
-        }
+        if (hasPaymentData) {
+          const paymentStatus = normalize(shoot.payment_status);
+          const paidAmount = Number(shoot.paid_amount ?? 0);
+          const pendingAmount = Number(shoot.pending_amount ?? 0);
 
-        if (paymentFilter === "pending") {
-          const isPending = paymentStatus.includes("pending") || pendingAmount > 0;
-          if (!isPending) return false;
+          if (paymentFilter === "paid") {
+            const isPaid =
+              paymentStatus.includes("paid") ||
+              (paidAmount > 0 && pendingAmount <= 0);
+            if (!isPaid) return false;
+          }
+
+          if (paymentFilter === "pending") {
+            const isPending =
+              paymentStatus.includes("pending") || pendingAmount > 0;
+            if (!isPending) return false;
+          }
         }
       }
 
       if (productionFilter !== "all") {
-        const productionSource = [
+        const productionValues = [
           shoot.production_filter,
           shoot.production_status,
           shoot.production_gap,
           shoot.missing_production_item,
-        ]
-          .filter(Boolean)
-          .map(normalize);
+        ].filter(hasValue);
 
-        if (!productionSource.some((value) => value.includes(normalize(productionFilter)))) {
-          return false;
+        if (productionValues.length > 0) {
+          const productionSource = productionValues.map(normalize);
+          if (
+            !productionSource.some((value) =>
+              value.includes(normalize(productionFilter)),
+            )
+          ) {
+            return false;
+          }
         }
       }
 
       if (cpAssignmentFilter !== "all") {
-        const selectedCrewIds = Array.isArray(shoot.selected_crew_ids)
-          ? shoot.selected_crew_ids
-          : [];
-        const assignedCrew = Array.isArray(shoot.assigned_crews)
-          ? shoot.assigned_crews
-          : Array.isArray(shoot.assignedCrew)
-            ? shoot.assignedCrew
-            : [];
-        const hasAssignedCp =
-          selectedCrewIds.length > 0 ||
-          assignedCrew.length > 0 ||
-          shoot.has_assigned_cp === true ||
-          shoot.cp_assigned === true;
+        const hasCpData =
+          Array.isArray(shoot.selected_crew_ids) ||
+          Array.isArray(shoot.assigned_crews) ||
+          Array.isArray(shoot.assignedCrew) ||
+          typeof shoot.has_assigned_cp === "boolean" ||
+          typeof shoot.cp_assigned === "boolean";
 
-        if (cpAssignmentFilter === "assigned" && !hasAssignedCp) return false;
-        if (cpAssignmentFilter === "not_assigned" && hasAssignedCp) return false;
+        if (hasCpData) {
+          const selectedCrewIds = Array.isArray(shoot.selected_crew_ids)
+            ? shoot.selected_crew_ids
+            : [];
+          const assignedCrew = Array.isArray(shoot.assigned_crews)
+            ? shoot.assigned_crews
+            : Array.isArray(shoot.assignedCrew)
+              ? shoot.assignedCrew
+              : [];
+          const hasAssignedCp =
+            selectedCrewIds.length > 0 ||
+            assignedCrew.length > 0 ||
+            shoot.has_assigned_cp === true ||
+            shoot.cp_assigned === true;
+
+          if (cpAssignmentFilter === "assigned" && !hasAssignedCp) return false;
+          if (cpAssignmentFilter === "not_assigned" && hasAssignedCp) return false;
+        }
       }
 
       return true;
@@ -411,12 +541,25 @@ export const ShootsCalendarView = ({
   const selectedDateShoots = selectedDate ? shootsByDate[dateKey(selectedDate)] || [] : [];
 
   const drawerItems = useMemo(() => {
-    if (drawerFilter === "all") return selectedDateShoots;
-    return selectedDateShoots.filter((item) => {
-      const kind = getItemKind(item);
-      if (drawerFilter === "shoots") return kind === "shoot";
-      if (drawerFilter === "meetings") return kind === "meeting";
-      return kind === "deleted";
+    const filteredItems =
+      drawerFilter === "all"
+        ? selectedDateShoots
+        : selectedDateShoots.filter((item) => {
+            const kind = getItemKind(item);
+            if (drawerFilter === "shoots") return kind === "shoot";
+            if (drawerFilter === "meetings") return kind === "meeting";
+            return kind === "deleted";
+          });
+
+    return [...filteredItems].sort((a, b) => {
+      const aStart = parseTimeToMinutes(a.start_time);
+      const bStart = parseTimeToMinutes(b.start_time);
+
+      if (aStart === null && bStart === null) return 0;
+      if (aStart === null) return 1;
+      if (bStart === null) return -1;
+
+      return aStart - bStart;
     });
   }, [drawerFilter, selectedDateShoots]);
 
@@ -433,36 +576,68 @@ export const ShootsCalendarView = ({
     setDrawerFilter("all");
   };
 
+  const getCalendarItemId = (item: CalendarShoot) => {
+    const rawId = item.original_id ?? item.id;
+    return String(rawId ?? "")
+      .replace(/^deleted-/, "")
+      .replace(/^meeting-/, "")
+      .replace(/^#/, "")
+      .trim();
+  };
+
+  const handleItemDetails = (item: CalendarShoot) => {
+    const kind = getItemKind(item);
+    const id = getCalendarItemId(item);
+
+    setSelectedDate(null);
+
+    if (kind === "meeting") {
+      router.push("/admin/meetings");
+      return;
+    }
+
+    if (id) {
+      router.push(`/admin/shoots/${encodeURIComponent(id)}`);
+    }
+  };
+
+  const formatUpdatedAt = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return `Updated ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  };
+
   const headerLabel = focusDate.toLocaleString("default", {
     month: "long",
     year: "numeric",
   });
 
   const renderTopToolbar = () => (
-    <div className="flex min-h-[59px] items-center justify-between gap-4 border-b border-[#2B2B2B] px-7">
+    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-4 border-b px-4 lg:px-6 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
       <div className="flex min-w-0 items-center gap-5">
         <button
           type="button"
           onClick={() => setFocusDate(new Date())}
-          className="h-8 rounded-[5px] border border-[#2C2C2C] px-4 text-[13px] font-medium text-[#E3E3E3] transition hover:border-white/20"
+          className={`h-10 rounded-lg border px-4 text-sm font-medium transition-colors ${isDark ? "border-[#333333] bg-[#202020] text-white/80 hover:bg-[#2A2A2A]" : "border-[#E5E5E5] bg-white text-black/70 hover:bg-[#F7F7F7]"}`}
         >
           Today
         </button>
 
-        <div className="flex items-center gap-3 text-[#5F5F5F]">
-          <button type="button" onClick={() => changeDate(-1)} className="hover:text-white" aria-label="Previous">
+        <div className={`flex items-center gap-2 ${isDark ? "text-white/35" : "text-black/35"}`}>
+          <button type="button" onClick={() => changeDate(-1)} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`} aria-label="Previous">
             <ChevronLeft size={18} strokeWidth={1.7} />
           </button>
-          <button type="button" onClick={() => changeDate(1)} className="hover:text-white" aria-label="Next">
+          <button type="button" onClick={() => changeDate(1)} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`} aria-label="Next">
             <ChevronRight size={18} strokeWidth={1.7} />
           </button>
         </div>
 
-        <h2 className="truncate text-[15px] font-semibold text-[#F5F5F5]">{headerLabel}</h2>
+        <h2 className={`truncate text-sm font-semibold lg:text-base ${isDark ? "text-white" : "text-black"}`}>{headerLabel}</h2>
       </div>
 
       <div className="flex shrink-0 items-center gap-5">
-        <div className="hidden items-center gap-4 text-[13px] text-[#B9B9B9] xl:flex">
+        <div className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#DDBE7A]" />
             Shoot
@@ -478,14 +653,14 @@ export const ShootsCalendarView = ({
         </div>
 
 
-        <div className="flex h-9 overflow-hidden rounded-[5px] border border-[#292929] bg-[#141414] p-[2px]">
+        <div className={`flex h-10 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
           {(["month", "week", "day"] as CalendarView[]).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setView(item)}
-              className={`min-w-[55px] rounded-[4px] px-3 text-[12px] capitalize transition ${
-                view === item ? "bg-[#232323] text-white" : "text-[#474747] hover:text-[#A4A4A4]"
+              className={`min-w-[62px] px-3 text-xs capitalize transition-colors ${
+                view === item ? "bg-[#E5D5B8] text-black" : isDark ? "text-white/40 hover:text-white" : "text-[#666] hover:text-black"
               }`}
             >
               {item}
@@ -502,11 +677,11 @@ export const ShootsCalendarView = ({
     return (
       <div className="overflow-x-auto">
         <div className="min-w-[920px]">
-          <div className="grid grid-cols-7 border-b border-[#2B2B2B] bg-[#171717]">
+          <div className={`grid grid-cols-7 border-b ${isDark ? "border-[#333333] bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="flex h-[37px] items-center justify-center text-[13px] font-medium tracking-[0.08em] text-[#929292]"
+                className={`flex h-10 items-center justify-center text-xs font-medium tracking-[0.08em] ${isDark ? "text-white/50" : "text-black/45"}`}
               >
                 {day}
               </div>
@@ -524,7 +699,7 @@ export const ShootsCalendarView = ({
                   type="button"
                   key={dateKey(date)}
                   onClick={() => openDay(date)}
-                  className={`relative h-[145px] border-b border-r border-[#2B2B2B] p-[7px] text-left transition hover:bg-white/[0.015] ${
+                  className={`relative h-[145px] border-b border-r ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"} p-[7px] text-left transition hover:bg-white/[0.015] ${
                     index % 7 === 6 ? "border-r-0" : ""
                   }`}
                 >
@@ -784,133 +959,286 @@ export const ShootsCalendarView = ({
 
   const renderDrawerCard = (item: CalendarShoot) => {
     const kind = getItemKind(item);
-    const colors = itemColors(kind);
     const location = getLocation(item);
     const platforms = Array.isArray(item.streaming_platforms) ? item.streaming_platforms : [];
     const equipment = Array.isArray(item.equipment) ? item.equipment : [];
+    const updatedLabel = formatUpdatedAt(item.updated_at);
+    const hasExtraDetails = platforms.length > 0 || equipment.length > 0;
+
+    const badgeConfig =
+      kind === "deleted"
+        ? {
+            label: "Deleted Shoot",
+            className: isDark
+              ? "bg-[#5A2E31] text-[#FF9292]"
+              : "bg-[#FFF0F0] text-[#D64545]",
+          }
+        : kind === "meeting"
+          ? {
+              label: "Meeting",
+              className: isDark
+                ? "bg-[#1D3550] text-[#78B9FF]"
+                : "bg-[#EDF6FF] text-[#2F7BF1]",
+            }
+          : {
+              label: "Shoot",
+              className: isDark
+                ? "bg-[#2A261F] text-[#E8D1AB]"
+                : "bg-[#FFF8EC] text-[#9B7B4F]",
+            };
 
     return (
-      <div key={item.id} className="overflow-hidden rounded-[14px] border border-[#353535] bg-black">
-        <div className="p-6 pb-5">
-          <div className="mb-3 flex items-center gap-2">
-            {kind === "shoot" && (
-              <>
-                <span className="rounded-full bg-[#0AAE5D] px-2.5 py-1 text-[11px] font-semibold text-white">Active</span>
-                <span className="rounded-full bg-[#2F7BF1] px-2.5 py-1 text-[11px] font-semibold text-white">Shoot</span>
-              </>
-            )}
-            {kind === "deleted" && (
-              <span className="rounded-full bg-[#EE555B] px-2.5 py-1 text-[11px] font-semibold text-white">Shoot Deleted</span>
-            )}
-            {kind === "meeting" && (
-              <span className="rounded-full bg-[#2F7BF1] px-2.5 py-1 text-[11px] font-semibold text-white">Meeting</span>
-            )}
+      <article
+        key={item.id}
+        className={`overflow-hidden rounded-2xl border transition-colors ${
+          isDark
+            ? "border-[#333333] bg-[#141414] hover:border-[#454545]"
+            : "border-[#E5E5E5] bg-white hover:border-[#D6D6D6]"
+        }`}
+      >
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {kind === "shoot" && (
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-semibold ${
+                      isDark
+                        ? "bg-[#123A27] text-[#53D18B]"
+                        : "bg-[#EAF8F0] text-[#16824A]"
+                    }`}
+                  >
+                    Active
+                  </span>
+                )}
+                <span
+                  className={`rounded-md px-2.5 py-1 text-[10px] font-semibold ${badgeConfig.className}`}
+                >
+                  {badgeConfig.label}
+                </span>
+              </div>
+
+              <h3
+                className={`truncate text-base font-semibold leading-snug sm:text-[17px] ${
+                  isDark ? "text-white" : "text-black"
+                }`}
+                title={item.title}
+              >
+                {item.title}
+              </h3>
+            </div>
           </div>
 
-          <h3 className="text-[18px] font-semibold text-white">{item.title}</h3>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[#777]">
-            <span className="flex items-center gap-1.5">
-              <CalendarDays size={15} />
-              {new Date(`${apiDateKey(item.date)}T00:00:00`).toLocaleDateString("default", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
-            {location && (
-              <span className="flex items-center gap-1.5">
-                <MapPin size={15} />
-                {location}
+          <div
+            className={`mt-4 grid gap-3 text-xs sm:grid-cols-2 ${
+              isDark ? "text-white/50" : "text-black/50"
+            }`}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <CalendarDays size={15} className="shrink-0" />
+              <span>
+                {new Date(`${apiDateKey(item.date)}T00:00:00`).toLocaleDateString(
+                  "default",
+                  { month: "short", day: "numeric", year: "numeric" },
+                )}
               </span>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <Clock3 size={15} className="shrink-0" />
+              <span>
+                {formatTime(item.start_time)} – {formatTime(item.end_time)}
+              </span>
+            </div>
+
+            {location && (
+              <div className="flex min-w-0 items-center gap-2.5 sm:col-span-2">
+                <MapPin size={15} className="shrink-0" />
+                <span className="truncate" title={location}>
+                  {location}
+                </span>
+              </div>
             )}
-            <span className="flex items-center gap-1.5">
-              <Clock3 size={15} />
-              {formatTime(item.start_time)} – {formatTime(item.end_time)}
-            </span>
           </div>
         </div>
 
-        {kind !== "meeting" && (
-          <div className="grid grid-cols-2 border-y border-[#353535]">
-            <div className="min-h-[84px] border-r border-[#353535] px-6 py-4">
-              <p className="text-[11px] text-white">{kind === "deleted" ? "Type" : "Streaming Platforms"}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {kind === "deleted" ? (
-                  <span className="rounded-[4px] border border-[#333] bg-[#171717] px-2 py-1 text-[12px] text-[#777]">Available</span>
-                ) : platforms.length ? (
-                  platforms.map((platform) => (
-                    <span key={platform} className="rounded-[4px] border border-[#333] bg-[#171717] px-2 py-1 text-[12px] text-[#777]">
-                      {platform}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[12px] text-[#565656]">—</span>
-                )}
+        {hasExtraDetails && (
+          <div
+            className={`grid grid-cols-1 border-y sm:grid-cols-2 ${
+              isDark ? "border-[#303030] bg-[#101010]" : "border-[#ECECEC] bg-[#FAFAFA]"
+            }`}
+          >
+            <div
+              className={`min-h-[88px] px-5 py-4 sm:border-r ${
+                isDark ? "sm:border-[#303030]" : "sm:border-[#ECECEC]"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Video
+                  size={14}
+                  className={isDark ? "text-white/45" : "text-black/40"}
+                />
+                <p
+                  className={`text-[11px] font-medium ${
+                    isDark ? "text-white/75" : "text-black/70"
+                  }`}
+                >
+                  Streaming Platforms
+                </p>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {platforms.map((platform) => (
+                  <span
+                    key={platform}
+                    className={`rounded-md border px-2 py-1 text-[10px] ${
+                      isDark
+                        ? "border-[#363636] bg-[#1D1D1D] text-white/55"
+                        : "border-[#E5E5E5] bg-white text-black/55"
+                    }`}
+                  >
+                    {platform}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div className="min-h-[84px] px-6 py-4">
-              <p className="text-[11px] text-white">{kind === "deleted" ? "All Day Availability" : "Equipment Assigned"}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {kind === "deleted" ? (
-                  <span className="rounded-[4px] border border-[#333] bg-[#171717] px-2 py-1 text-[12px] text-[#777]">No</span>
-                ) : equipment.length ? (
-                  equipment.map((name) => (
-                    <span key={name} className="rounded-[4px] border border-[#333] bg-[#171717] px-2 py-1 text-[12px] text-[#777]">
-                      {name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[12px] text-[#565656]">—</span>
-                )}
+            <div className="min-h-[88px] px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Camera
+                  size={14}
+                  className={isDark ? "text-white/45" : "text-black/40"}
+                />
+                <p
+                  className={`text-[11px] font-medium ${
+                    isDark ? "text-white/75" : "text-black/70"
+                  }`}
+                >
+                  Equipment Assigned
+                </p>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {equipment.map((name) => (
+                  <span
+                    key={name}
+                    className={`rounded-md border px-2 py-1 text-[10px] ${
+                      isDark
+                        ? "border-[#363636] bg-[#1D1D1D] text-white/55"
+                        : "border-[#E5E5E5] bg-white text-black/55"
+                    }`}
+                  >
+                    {name}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex min-h-[82px] items-center justify-between px-6">
-          <span className="text-[12px] text-[#777]">Updated 4h ago</span>
+        <div
+          className={`flex min-h-[68px] items-center justify-between gap-4 px-5 py-3 sm:px-6 ${
+            isDark ? "bg-[#121212]" : "bg-[#FCFCFC]"
+          }`}
+        >
+          <span
+            className={`min-w-0 truncate text-[11px] ${
+              isDark ? "text-white/35" : "text-black/35"
+            }`}
+          >
+            {updatedLabel ||
+              (item.time_zone ? `Timezone: ${item.time_zone}` : "Shoot schedule")}
+          </span>
+
           <button
             type="button"
-            className="rounded-[8px] bg-[#E8D1AB] px-5 py-2.5 text-[12px] font-semibold text-black"
+            onClick={() => handleItemDetails(item)}
+            className="shrink-0 rounded-lg bg-[#E8D1AB] px-5 py-2.5 text-xs font-semibold text-black transition-colors hover:bg-[#DCC49C]"
           >
-            {kind === "deleted" ? "Edit Availability" : "View Details"}
+            {kind === "meeting" ? "View Meeting" : "View Details"}
           </button>
         </div>
-      </div>
+      </article>
     );
   };
 
   const renderDrawer = () => {
     if (!selectedDate) return null;
 
+    const totalItems = selectedDateShoots.length;
+
     return (
-      <div className="fixed inset-0 z-[120] bg-black/55" onClick={() => setSelectedDate(null)}>
+      <div
+        className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-[2px]"
+        onClick={() => setSelectedDate(null)}
+      >
         <aside
-          className="absolute right-0 top-0 h-full w-full max-w-[626px] overflow-y-auto border-l border-[#3B3B3B] bg-black shadow-[-18px_0_55px_rgba(0,0,0,0.35)]"
+          className={`absolute right-0 top-0 flex h-full w-full max-w-[620px] flex-col border-l shadow-[-18px_0_55px_rgba(0,0,0,0.38)] ${
+            isDark
+              ? "border-[#333333] bg-[#0E0E0E]"
+              : "border-[#E5E5E5] bg-[#F9F9F9]"
+          }`}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex h-[123px] items-center justify-between border-b border-[#383838] px-8">
-            <h2 className="text-[28px] font-bold text-white">
-              {selectedDate.toLocaleDateString("default", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </h2>
+          <div
+            className={`flex min-h-[108px] items-center justify-between border-b px-5 py-5 sm:px-7 ${
+              isDark ? "border-[#303030] bg-[#111111]" : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <div className="min-w-0 pr-4">
+              <p
+                className={`mb-1 text-[11px] font-medium uppercase tracking-[0.12em] ${
+                  isDark ? "text-white/35" : "text-black/35"
+                }`}
+              >
+                Day Schedule
+              </p>
+              <h2
+                className={`truncate text-xl font-semibold sm:text-2xl ${
+                  isDark ? "text-white" : "text-black"
+                }`}
+              >
+                {selectedDate.toLocaleDateString("default", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </h2>
+              <p
+                className={`mt-1 text-xs ${
+                  isDark ? "text-white/40" : "text-black/40"
+                }`}
+              >
+                {totalItems} {totalItems === 1 ? "event" : "events"} scheduled
+              </p>
+            </div>
+
             <button
               type="button"
               onClick={() => setSelectedDate(null)}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#272324] text-white transition hover:bg-[#343030]"
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                isDark
+                  ? "border-[#343434] bg-[#202020] text-white/70 hover:bg-[#2A2A2A] hover:text-white"
+                  : "border-[#E5E5E5] bg-[#F4F4F4] text-black/55 hover:bg-[#EBEBEB] hover:text-black"
+              }`}
               aria-label="Close"
             >
-              <X size={25} />
+              <X size={21} />
             </button>
           </div>
 
-          <div className="p-8">
-            <div className="grid grid-cols-4 rounded-[15px] bg-[#191919] p-2">
+          <div
+            className={`border-b px-5 py-4 sm:px-7 ${
+              isDark ? "border-[#292929] bg-[#0E0E0E]" : "border-[#EBEBEB] bg-[#F9F9F9]"
+            }`}
+          >
+            <div
+              className={`grid grid-cols-2 gap-1 rounded-xl border p-1 sm:grid-cols-4 ${
+                isDark
+                  ? "border-[#303030] bg-[#191919]"
+                  : "border-[#E5E5E5] bg-white"
+              }`}
+            >
               {([
                 ["all", "All"],
                 ["shoots", "Shoots"],
@@ -921,21 +1249,52 @@ export const ShootsCalendarView = ({
                   type="button"
                   key={key}
                   onClick={() => setDrawerFilter(key)}
-                  className={`h-10 rounded-[10px] text-[14px] transition ${
-                    drawerFilter === key ? "bg-[#E8D1AB] text-black" : "text-[#BABABA]"
+                  className={`h-10 rounded-lg px-3 text-[13px] font-medium transition-colors ${
+                    drawerFilter === key
+                      ? "bg-[#E8D1AB] text-black shadow-sm"
+                      : isDark
+                        ? "text-white/50 hover:bg-white/[0.04] hover:text-white"
+                        : "text-black/45 hover:bg-black/[0.035] hover:text-black"
                   }`}
                 >
                   {label}
                 </button>
               ))}
             </div>
+          </div>
 
-            <div className="mt-5 space-y-5">
+          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+            <div className="space-y-4">
               {drawerItems.length ? (
                 drawerItems.map(renderDrawerCard)
               ) : (
-                <div className="rounded-[14px] border border-[#2E2E2E] px-5 py-10 text-center text-sm text-[#666]">
-                  No events found for this filter.
+                <div
+                  className={`rounded-2xl border px-5 py-12 text-center ${
+                    isDark
+                      ? "border-[#303030] bg-[#141414]"
+                      : "border-[#E5E5E5] bg-white"
+                  }`}
+                >
+                  <CalendarDays
+                    size={30}
+                    className={`mx-auto mb-3 ${
+                      isDark ? "text-white/20" : "text-black/20"
+                    }`}
+                  />
+                  <p
+                    className={`text-sm font-medium ${
+                      isDark ? "text-white/55" : "text-black/55"
+                    }`}
+                  >
+                    No events found
+                  </p>
+                  <p
+                    className={`mt-1 text-xs ${
+                      isDark ? "text-white/30" : "text-black/30"
+                    }`}
+                  >
+                    There are no items for the selected filter.
+                  </p>
                 </div>
               )}
             </div>
@@ -946,12 +1305,12 @@ export const ShootsCalendarView = ({
   };
 
   return (
-    <div className={`relative w-full overflow-hidden bg-[#101010] ${isDark ? "text-white" : "text-white"}`}>
+    <div className={`relative w-full overflow-hidden rounded-2xl border ${isDark ? "border-[#333333] bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
       {renderTopToolbar()}
 
       <div className="relative min-h-[500px]">
         {isLoading && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#101010]/75">
+          <div className={`absolute inset-0 z-30 flex items-center justify-center ${isDark ? "bg-[#111111]/75" : "bg-white/75"}`}>
             <Loader2 className="animate-spin text-[#E8D1AB]" size={28} />
           </div>
         )}

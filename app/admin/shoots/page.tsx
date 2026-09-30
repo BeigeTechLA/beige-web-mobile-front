@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from "@/components/admin/ShootsTable";
 import { ShootsCalendarView } from "@/components/admin/ShootsCalendarView";
+import { ShootsGlobeView } from "@/components/admin/ShootsGlobeView";
 
 import {
   CalendarDays,
@@ -111,7 +112,7 @@ export default function ShootsPage() {
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<
     "all" | "assigned" | "not_assigned"
   >("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar">(
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
     "list",
   );
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
@@ -155,7 +156,8 @@ export default function ShootsPage() {
       if (
         parsed.viewMode === "grid" ||
         parsed.viewMode === "list" ||
-        parsed.viewMode === "calendar"
+        parsed.viewMode === "calendar" ||
+        parsed.viewMode === "globe"
       ) {
         setViewMode(parsed.viewMode);
       }
@@ -446,7 +448,7 @@ export default function ShootsPage() {
       <Topbar
         pathname={pathname}
         actions={
-          viewMode !== "calendar" ? (
+          viewMode !== "calendar" && viewMode !== "globe" ? (
             <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
               {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
@@ -470,7 +472,7 @@ export default function ShootsPage() {
         className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
-        {viewMode !== "calendar" && (
+        {viewMode !== "calendar" && viewMode !== "globe" && (
           <>
             {/* Header */}
             <div className="flex justify-between items-start lg:items-end">
@@ -487,9 +489,34 @@ export default function ShootsPage() {
                 </p>
               </div>
               {/* <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
-          /> */}
+                selectedDate={selectedDate}
+                onDateChange={handleDateSort}
+              /> */}
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={() => setViewMode("globe")}
+                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${
+                    isDark
+                      ? "border-[#3A3A3A] bg-[#171717] text-white/75 hover:bg-[#202020] hover:text-white"
+                      : "border-[#DADADA] bg-white text-black/70 hover:bg-[#F7F7F7] hover:text-black"
+                  }`}
+                >
+                  Globe View
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => setViewMode("calendar")}
+                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${
+                    isDark
+                      ? "border-white bg-white text-black hover:bg-white/90"
+                      : "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:bg-[#2A2A2A]"
+                  }`}
+                >
+                  Calendar View
+                </Button>
+              </div>
             </div>
             {/* Search Bar */}
             <div className="flex flex-col gap-3">
@@ -561,21 +588,6 @@ export default function ShootsPage() {
                       }`}
                     >
                       <Grid3X3 size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode("calendar")}
-                      aria-label="Calendar view"
-                      title="Calendar view"
-                      className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${
-                        viewMode === "calendar"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : isDark
-                            ? "bg-transparent text-white/40 hover:text-white"
-                            : "bg-transparent text-[#666] hover:text-black"
-                      }`}
-                    >
-                      <CalendarDays size={18} />
                     </button>
                   </div>
                 </div>
@@ -1321,6 +1333,29 @@ export default function ShootsPage() {
             />
           </div>
         </>
+      ) : viewMode === "globe" ? (
+        <>
+          <div
+            className={`flex h-[42px] items-center px-1 ${
+              isDark ? "bg-[#111111]" : "bg-white"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+                isDark
+                  ? "text-white/80 hover:text-white"
+                  : "text-black/70 hover:text-black"
+              }`}
+            >
+              <ArrowLeft size={20} strokeWidth={1.7} />
+              Back
+            </button>
+          </div>
+
+          <ShootsGlobeView isDark={isDark} />
+        </>
       ) : (
           <ShootsTable
             externalSelectedDate={selectedDate}
@@ -1351,7 +1386,7 @@ export default function ShootsPage() {
         )}
 
         {/* --- FLOATING MOBILE BUTTON --- */}
-        {viewMode !== "calendar" && (
+        {viewMode !== "calendar" && viewMode !== "globe" && (
           <div
             className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}
           >
