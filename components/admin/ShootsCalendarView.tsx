@@ -60,26 +60,36 @@ const HOUR_HEIGHT = 60;
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
+    date.getDate(),
   ).padStart(2, "0")}`;
 
 const apiDateKey = (value: string) => String(value || "").slice(0, 10);
 const formatShootTitle = (title: string) =>
   String(title || "Untitled Shoot").replace(/^CUSTOM Shoot\b/i, "CUSTOM");
-const isSameDay = (first: Date, second: Date) => dateKey(first) === dateKey(second);
+const isSameDay = (first: Date, second: Date) =>
+  dateKey(first) === dateKey(second);
 
 const parseTimeToMinutes = (value?: string | null) => {
   if (!value) return null;
 
   const raw = String(value).trim();
 
-  const twelveHourMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  const twelveHourMatch = raw.match(
+    /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i,
+  );
   if (twelveHourMatch) {
     let hour = Number(twelveHourMatch[1]);
     const minute = Number(twelveHourMatch[2]);
     const meridiem = twelveHourMatch[3].toUpperCase();
 
-    if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+    if (
+      !Number.isFinite(hour) ||
+      !Number.isFinite(minute) ||
+      hour < 1 ||
+      hour > 12 ||
+      minute < 0 ||
+      minute > 59
+    ) {
       return null;
     }
 
@@ -92,7 +102,14 @@ const parseTimeToMinutes = (value?: string | null) => {
   if (isoTimeMatch) {
     const hour = Number(isoTimeMatch[1]);
     const minute = Number(isoTimeMatch[2]);
-    if (Number.isFinite(hour) && Number.isFinite(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+    if (
+      Number.isFinite(hour) &&
+      Number.isFinite(minute) &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59
+    ) {
       return hour * 60 + minute;
     }
   }
@@ -101,15 +118,20 @@ const parseTimeToMinutes = (value?: string | null) => {
   if (twentyFourHourMatch) {
     const hour = Number(twentyFourHourMatch[1]);
     const minute = Number(twentyFourHourMatch[2]);
-    if (Number.isFinite(hour) && Number.isFinite(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+    if (
+      Number.isFinite(hour) &&
+      Number.isFinite(minute) &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59
+    ) {
       return hour * 60 + minute;
     }
   }
 
   return null;
 };
-
-
 
 const formatTime = (value?: string | null) => {
   const minutes = parseTimeToMinutes(value);
@@ -198,7 +220,6 @@ const getCalendarGridDates = (focusDate: Date) => {
     return date;
   });
 };
-
 
 const isoDatePart = (value?: string | null) => {
   if (!value) return "";
@@ -306,7 +327,7 @@ export const ShootsCalendarView = ({
         date.setDate(weekStart.getDate() + index);
         return date;
       }),
-    [weekStart]
+    [weekStart],
   );
 
   useEffect(() => {
@@ -322,8 +343,12 @@ export const ShootsCalendarView = ({
                 year: focusDate.getFullYear(),
               })
             : view === "week"
-              ? await adminApi.getShootCalendarWeek({ start_date: dateKey(weekStart) })
-              : await adminApi.getShootCalendarDay({ date: dateKey(focusDate) });
+              ? await adminApi.getShootCalendarWeek({
+                  start_date: dateKey(weekStart),
+                })
+              : await adminApi.getShootCalendarDay({
+                  date: dateKey(focusDate),
+                });
 
         if (!cancelled) {
           setShoots(normalizeCalendarResponse(response));
@@ -351,7 +376,9 @@ export const ShootsCalendarView = ({
 
     const hasValue = (value: unknown) => {
       if (Array.isArray(value)) return value.length > 0;
-      return value !== undefined && value !== null && String(value).trim() !== "";
+      return (
+        value !== undefined && value !== null && String(value).trim() !== ""
+      );
     };
 
     const search = searchQuery.trim().toLowerCase();
@@ -377,7 +404,7 @@ export const ShootsCalendarView = ({
           shoot.phone,
         ]
           .filter(Boolean)
-          .join(" " )
+          .join(" ")
           .toLowerCase();
 
         if (!searchableText.includes(search)) return false;
@@ -511,7 +538,8 @@ export const ShootsCalendarView = ({
             shoot.cp_assigned === true;
 
           if (cpAssignmentFilter === "assigned" && !hasAssignedCp) return false;
-          if (cpAssignmentFilter === "not_assigned" && hasAssignedCp) return false;
+          if (cpAssignmentFilter === "not_assigned" && hasAssignedCp)
+            return false;
         }
       }
 
@@ -529,16 +557,21 @@ export const ShootsCalendarView = ({
 
   const shootsByDate = useMemo(
     () =>
-      filteredShoots.reduce<Record<string, CalendarShoot[]>>((result, shoot) => {
-        const normalizedDate = apiDateKey(shoot.date);
-        if (!normalizedDate) return result;
-        (result[normalizedDate] ||= []).push(shoot);
-        return result;
-      }, {}),
-    [filteredShoots]
+      filteredShoots.reduce<Record<string, CalendarShoot[]>>(
+        (result, shoot) => {
+          const normalizedDate = apiDateKey(shoot.date);
+          if (!normalizedDate) return result;
+          (result[normalizedDate] ||= []).push(shoot);
+          return result;
+        },
+        {},
+      ),
+    [filteredShoots],
   );
 
-  const selectedDateShoots = selectedDate ? shootsByDate[dateKey(selectedDate)] || [] : [];
+  const selectedDateShoots = selectedDate
+    ? shootsByDate[dateKey(selectedDate)] || []
+    : [];
 
   const drawerItems = useMemo(() => {
     const filteredItems =
@@ -588,11 +621,14 @@ export const ShootsCalendarView = ({
   const handleItemDetails = (item: CalendarShoot) => {
     const kind = getItemKind(item);
     const id = getCalendarItemId(item);
+    const meetLink = getLocation(item);
 
     setSelectedDate(null);
 
     if (kind === "meeting") {
-      router.push("/admin/meetings");
+      if (meetLink) {
+        window.open(meetLink, "_blank", "noopener,noreferrer");
+      }
       return;
     }
 
@@ -614,7 +650,9 @@ export const ShootsCalendarView = ({
   });
 
   const renderTopToolbar = () => (
-    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-4 border-b px-4 lg:px-6 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}>
+    <div
+      className={`flex min-h-[64px] flex-wrap items-center justify-between gap-4 border-b px-4 lg:px-6 ${isDark ? "border-[#333333] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
+    >
       <div className="flex min-w-0 items-center gap-5">
         <button
           type="button"
@@ -624,20 +662,38 @@ export const ShootsCalendarView = ({
           Today
         </button>
 
-        <div className={`flex items-center gap-2 ${isDark ? "text-white/35" : "text-black/35"}`}>
-          <button type="button" onClick={() => changeDate(-1)} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`} aria-label="Previous">
+        <div
+          className={`flex items-center gap-2 ${isDark ? "text-white/35" : "text-black/35"}`}
+        >
+          <button
+            type="button"
+            onClick={() => changeDate(-1)}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`}
+            aria-label="Previous"
+          >
             <ChevronLeft size={18} strokeWidth={1.7} />
           </button>
-          <button type="button" onClick={() => changeDate(1)} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`} aria-label="Next">
+          <button
+            type="button"
+            onClick={() => changeDate(1)}
+            className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isDark ? "border-[#333333] bg-[#202020] hover:text-white" : "border-[#E5E5E5] bg-white hover:text-black"}`}
+            aria-label="Next"
+          >
             <ChevronRight size={18} strokeWidth={1.7} />
           </button>
         </div>
 
-        <h2 className={`truncate text-sm font-semibold lg:text-base ${isDark ? "text-white" : "text-black"}`}>{headerLabel}</h2>
+        <h2
+          className={`truncate text-sm font-semibold lg:text-base ${isDark ? "text-white" : "text-black"}`}
+        >
+          {headerLabel}
+        </h2>
       </div>
 
       <div className="flex shrink-0 items-center gap-5">
-        <div className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}>
+        <div
+          className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}
+        >
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#DDBE7A]" />
             Shoot
@@ -652,15 +708,20 @@ export const ShootsCalendarView = ({
           </span>
         </div>
 
-
-        <div className={`flex h-10 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+        <div
+          className={`flex h-10 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}
+        >
           {(["month", "week", "day"] as CalendarView[]).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setView(item)}
               className={`min-w-[62px] px-3 text-xs capitalize transition-colors ${
-                view === item ? "bg-[#E5D5B8] text-black" : isDark ? "text-white/40 hover:text-white" : "text-[#666] hover:text-black"
+                view === item
+                  ? "bg-[#E5D5B8] text-black"
+                  : isDark
+                    ? "text-white/40 hover:text-white"
+                    : "text-[#666] hover:text-black"
               }`}
             >
               {item}
@@ -677,7 +738,9 @@ export const ShootsCalendarView = ({
     return (
       <div className="overflow-x-auto">
         <div className="min-w-[920px]">
-          <div className={`grid grid-cols-7 border-b ${isDark ? "border-[#333333] bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
+          <div
+            className={`grid grid-cols-7 border-b ${isDark ? "border-[#333333] bg-[#171717]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}
+          >
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
@@ -731,13 +794,17 @@ export const ShootsCalendarView = ({
                             backgroundColor: `${colors.bg}CC`,
                           }}
                         >
-                          <span className="mr-1 shrink-0 opacity-80">{compactTime(item.start_time)}</span>
+                          <span className="mr-1 shrink-0 opacity-80">
+                            {compactTime(item.start_time)}
+                          </span>
                           <span className="truncate">{item.title}</span>
                         </div>
                       );
                     })}
                     {items.length > 3 && (
-                      <p className="px-1 text-[10px] text-[#777]">+{items.length - 3} more</p>
+                      <p className="px-1 text-[10px] text-[#777]">
+                        +{items.length - 3} more
+                      </p>
                     )}
                   </div>
                 </button>
@@ -749,11 +816,20 @@ export const ShootsCalendarView = ({
     );
   };
 
-  const getEventGeometry = (item: CalendarShoot, startHour: number, endHour: number) => {
+  const getEventGeometry = (
+    item: CalendarShoot,
+    startHour: number,
+    endHour: number,
+  ) => {
     const startMinutes = parseTimeToMinutes(item.start_time) ?? startHour * 60;
-    const endMinutes = parseTimeToMinutes(item.end_time) ?? Math.min(startMinutes + 60, endHour * 60);
+    const endMinutes =
+      parseTimeToMinutes(item.end_time) ??
+      Math.min(startMinutes + 60, endHour * 60);
     const visibleStart = Math.max(startMinutes, startHour * 60);
-    const visibleEnd = Math.min(Math.max(endMinutes, visibleStart + 30), endHour * 60);
+    const visibleEnd = Math.min(
+      Math.max(endMinutes, visibleStart + 30),
+      endHour * 60,
+    );
     return {
       top: ((visibleStart - startHour * 60) / 60) * HOUR_HEIGHT,
       height: Math.max(((visibleEnd - visibleStart) / 60) * HOUR_HEIGHT, 34),
@@ -763,13 +839,19 @@ export const ShootsCalendarView = ({
   const renderWeek = () => {
     const startHour = WEEK_START_HOUR;
     const endHour = WEEK_END_HOUR;
-    const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+    const hours = Array.from(
+      { length: endHour - startHour + 1 },
+      (_, i) => startHour + i,
+    );
     const timelineHeight = (endHour - startHour) * HOUR_HEIGHT;
 
     return (
       <div className="overflow-x-auto overflow-y-hidden">
         <div className="min-w-[980px]">
-          <div className="grid border-b border-[#2A2A2A]" style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}>
+          <div
+            className="grid border-b border-[#2A2A2A]"
+            style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}
+          >
             <div className="border-r border-[#2A2A2A]" />
             {weekDates.map((date) => (
               <button
@@ -778,10 +860,14 @@ export const ShootsCalendarView = ({
                 onClick={() => openDay(date)}
                 className="h-[71px] border-r border-[#2A2A2A] last:border-r-0"
               >
-                <p className="mt-2 text-[12px] tracking-[0.08em] text-[#838383]">{WEEKDAYS[date.getDay()]}</p>
+                <p className="mt-2 text-[12px] tracking-[0.08em] text-[#838383]">
+                  {WEEKDAYS[date.getDay()]}
+                </p>
                 <span
                   className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-semibold ${
-                    isSameDay(date, today) ? "bg-[#E8D1AB] text-black" : "text-[#A6A6A6]"
+                    isSameDay(date, today)
+                      ? "bg-[#E8D1AB] text-black"
+                      : "text-[#A6A6A6]"
                   }`}
                 >
                   {date.getDate()}
@@ -790,8 +876,14 @@ export const ShootsCalendarView = ({
             ))}
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}>
-            <div className="relative border-r border-[#2A2A2A]" style={{ height: timelineHeight }}>
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}
+          >
+            <div
+              className="relative border-r border-[#2A2A2A]"
+              style={{ height: timelineHeight }}
+            >
               {hours.slice(0, -1).map((hour) => (
                 <span
                   key={hour}
@@ -838,8 +930,12 @@ export const ShootsCalendarView = ({
                         }}
                       >
                         <div className="flex h-full flex-col justify-center">
-                          <p className="truncate text-[10px] font-medium">{item.title}</p>
-                          <p className="mt-[2px] text-[9px] opacity-75">{compactTime(item.start_time)}</p>
+                          <p className="truncate text-[10px] font-medium">
+                            {item.title}
+                          </p>
+                          <p className="mt-[2px] text-[9px] opacity-75">
+                            {compactTime(item.start_time)}
+                          </p>
                         </div>
                       </button>
                     );
@@ -857,7 +953,10 @@ export const ShootsCalendarView = ({
     const dayItems = shootsByDate[dateKey(focusDate)] || [];
     const startHour = DAY_START_HOUR;
     const endHour = DAY_END_HOUR;
-    const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
+    const hours = Array.from(
+      { length: endHour - startHour + 1 },
+      (_, i) => startHour + i,
+    );
     const timelineHeight = (endHour - startHour) * HOUR_HEIGHT;
 
     return (
@@ -871,7 +970,9 @@ export const ShootsCalendarView = ({
             <span className="text-[9px] font-semibold uppercase leading-none">
               {focusDate.toLocaleDateString("default", { weekday: "short" })}
             </span>
-            <span className="mt-[2px] text-[18px] font-bold leading-none">{focusDate.getDate()}</span>
+            <span className="mt-[2px] text-[18px] font-bold leading-none">
+              {focusDate.getDate()}
+            </span>
           </div>
           <div>
             <p className="text-[15px] font-semibold text-[#EAEAEA]">
@@ -881,12 +982,17 @@ export const ShootsCalendarView = ({
                 day: "numeric",
               })}
             </p>
-            <p className="mt-1 text-[12px] text-[#424242]">{dayItems.length} events scheduled</p>
+            <p className="mt-1 text-[12px] text-[#424242]">
+              {dayItems.length} events scheduled
+            </p>
           </div>
         </button>
 
         <div className="grid" style={{ gridTemplateColumns: "95px 1fr" }}>
-          <div className="relative border-r border-[#1F1F1F]" style={{ height: timelineHeight }}>
+          <div
+            className="relative border-r border-[#1F1F1F]"
+            style={{ height: timelineHeight }}
+          >
             {hours.slice(0, -1).map((hour) => (
               <span
                 key={hour}
@@ -930,22 +1036,42 @@ export const ShootsCalendarView = ({
                 >
                   <div className="flex h-full items-center justify-between gap-5 px-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold">{item.title}</p>
-                      <p className="mt-1 text-[12px] opacity-75">
-                        {formatTime(item.start_time)} – {formatTime(item.end_time)}
+                      <p className="truncate text-[14px] font-semibold">
+                        {item.title}
                       </p>
-                      {location && <p className="mt-1 truncate text-[11px] text-[#696969]">{location}</p>}
+                      <p className="mt-1 text-[12px] opacity-75">
+                        {formatTime(item.start_time)} –{" "}
+                        {formatTime(item.end_time)}
+                      </p>
+                      {location && (
+                        <p className="mt-1 truncate text-[11px] text-[#696969]">
+                          {location}
+                        </p>
+                      )}
                     </div>
 
                     <span
                       className="shrink-0 rounded-full px-3 py-1 text-[12px]"
                       style={{
                         backgroundColor:
-                          kind === "deleted" ? "#EE555B" : kind === "meeting" ? "#1D1D1D" : "#26323C",
-                        color: kind === "deleted" ? "#FFFFFF" : kind === "meeting" ? "#858585" : "#58A9F5",
+                          kind === "deleted"
+                            ? "#EE555B"
+                            : kind === "meeting"
+                              ? "#1D1D1D"
+                              : "#26323C",
+                        color:
+                          kind === "deleted"
+                            ? "#FFFFFF"
+                            : kind === "meeting"
+                              ? "#858585"
+                              : "#58A9F5",
                       }}
                     >
-                      {kind === "deleted" ? "Shoot Deleted" : kind === "meeting" ? "Upcoming" : "In Progress"}
+                      {kind === "deleted"
+                        ? "Shoot Deleted"
+                        : kind === "meeting"
+                          ? "Upcoming"
+                          : "In Progress"}
                     </span>
                   </div>
                 </button>
@@ -960,7 +1086,9 @@ export const ShootsCalendarView = ({
   const renderDrawerCard = (item: CalendarShoot) => {
     const kind = getItemKind(item);
     const location = getLocation(item);
-    const platforms = Array.isArray(item.streaming_platforms) ? item.streaming_platforms : [];
+    const platforms = Array.isArray(item.streaming_platforms)
+      ? item.streaming_platforms
+      : [];
     const equipment = Array.isArray(item.equipment) ? item.equipment : [];
     const updatedLabel = formatUpdatedAt(item.updated_at);
     const hasExtraDetails = platforms.length > 0 || equipment.length > 0;
@@ -1037,10 +1165,13 @@ export const ShootsCalendarView = ({
             <div className="flex min-w-0 items-center gap-2.5">
               <CalendarDays size={15} className="shrink-0" />
               <span>
-                {new Date(`${apiDateKey(item.date)}T00:00:00`).toLocaleDateString(
-                  "default",
-                  { month: "short", day: "numeric", year: "numeric" },
-                )}
+                {new Date(
+                  `${apiDateKey(item.date)}T00:00:00`,
+                ).toLocaleDateString("default", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
               </span>
             </div>
 
@@ -1065,7 +1196,9 @@ export const ShootsCalendarView = ({
         {hasExtraDetails && (
           <div
             className={`grid grid-cols-1 border-y sm:grid-cols-2 ${
-              isDark ? "border-[#303030] bg-[#101010]" : "border-[#ECECEC] bg-[#FAFAFA]"
+              isDark
+                ? "border-[#303030] bg-[#101010]"
+                : "border-[#ECECEC] bg-[#FAFAFA]"
             }`}
           >
             <div
@@ -1137,25 +1270,16 @@ export const ShootsCalendarView = ({
         )}
 
         <div
-          className={`flex min-h-[68px] items-center justify-between gap-4 px-5 py-3 sm:px-6 ${
+          className={`flex min-h-[68px] items-center justify-end gap-4 px-5 py-3 sm:px-6 ${
             isDark ? "bg-[#121212]" : "bg-[#FCFCFC]"
           }`}
         >
-          <span
-            className={`min-w-0 truncate text-[11px] ${
-              isDark ? "text-white/35" : "text-black/35"
-            }`}
-          >
-            {updatedLabel ||
-              (item.time_zone ? `Timezone: ${item.time_zone}` : "Shoot schedule")}
-          </span>
-
           <button
             type="button"
             onClick={() => handleItemDetails(item)}
             className="shrink-0 rounded-lg bg-[#E8D1AB] px-5 py-2.5 text-xs font-semibold text-black transition-colors hover:bg-[#DCC49C]"
           >
-            {kind === "meeting" ? "View Meeting" : "View Details"}
+            {kind === "meeting" ? "Join Meeting" : "View Details"}
           </button>
         </div>
       </article>
@@ -1182,7 +1306,9 @@ export const ShootsCalendarView = ({
         >
           <div
             className={`flex min-h-[108px] items-center justify-between border-b px-5 py-5 sm:px-7 ${
-              isDark ? "border-[#303030] bg-[#111111]" : "border-[#E5E5E5] bg-white"
+              isDark
+                ? "border-[#303030] bg-[#111111]"
+                : "border-[#E5E5E5] bg-white"
             }`}
           >
             <div className="min-w-0 pr-4">
@@ -1229,7 +1355,9 @@ export const ShootsCalendarView = ({
 
           <div
             className={`border-b px-5 py-4 sm:px-7 ${
-              isDark ? "border-[#292929] bg-[#0E0E0E]" : "border-[#EBEBEB] bg-[#F9F9F9]"
+              isDark
+                ? "border-[#292929] bg-[#0E0E0E]"
+                : "border-[#EBEBEB] bg-[#F9F9F9]"
             }`}
           >
             <div
@@ -1239,12 +1367,14 @@ export const ShootsCalendarView = ({
                   : "border-[#E5E5E5] bg-white"
               }`}
             >
-              {([
-                ["all", "All"],
-                ["shoots", "Shoots"],
-                ["meetings", "Meetings"],
-                ["deleted", "Deleted"],
-              ] as Array<[CalendarFilter, string]>).map(([key, label]) => (
+              {(
+                [
+                  ["all", "All"],
+                  ["shoots", "Shoots"],
+                  ["meetings", "Meetings"],
+                  ["deleted", "Deleted"],
+                ] as Array<[CalendarFilter, string]>
+              ).map(([key, label]) => (
                 <button
                   type="button"
                   key={key}
@@ -1263,7 +1393,7 @@ export const ShootsCalendarView = ({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6 custom-scrollbar">
             <div className="space-y-4">
               {drawerItems.length ? (
                 drawerItems.map(renderDrawerCard)
@@ -1305,12 +1435,16 @@ export const ShootsCalendarView = ({
   };
 
   return (
-    <div className={`relative w-full overflow-hidden rounded-2xl border ${isDark ? "border-[#333333] bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+    <div
+      className={`relative w-full overflow-hidden rounded-2xl border ${isDark ? "border-[#333333] bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+    >
       {renderTopToolbar()}
 
       <div className="relative min-h-[500px]">
         {isLoading && (
-          <div className={`absolute inset-0 z-30 flex items-center justify-center ${isDark ? "bg-[#111111]/75" : "bg-white/75"}`}>
+          <div
+            className={`absolute inset-0 z-30 flex items-center justify-center ${isDark ? "bg-[#111111]/75" : "bg-white/75"}`}
+          >
             <Loader2 className="animate-spin text-[#E8D1AB]" size={28} />
           </div>
         )}
