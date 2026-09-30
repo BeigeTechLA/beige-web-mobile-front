@@ -1175,9 +1175,6 @@ export default function ProfilePage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <div className="px-4 pt-4 sm:px-6 lg:px-8">
-        <TimezonePreference isDark={isDark} />
-      </div>
 {showOnboardingBanner && (
         <div
           className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${
@@ -1579,6 +1576,8 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+
+                <TimezonePreference isDark={isDark} />
               </div>
             )}
 

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { adminApi } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { TimezonePreference } from "@/components/common/TimezonePreference";
 
 type AdminProfileSettingsProps = {
   isDark?: boolean;
@@ -469,6 +470,8 @@ export const AdminProfileSettings = ({
           )}
         </form>
       </div>
+
+      <TimezonePreference isDark={isDark} />
 
       <div
         className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
