@@ -22,6 +22,10 @@ import {
   X,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import DatePicker from "@/components/ui/Datepicker";
+import { Button } from "@/src/components/landing/ui/button";
+import { toast } from "sonner";
+import { format as formatDateFns, startOfDay } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -434,6 +438,11 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   const [range, setRange] = useState<GlobalRange>("upcoming");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [draftCustomRangeStartDate, setDraftCustomRangeStartDate] =
+    useState<Date | null>(null);
+  const [draftCustomRangeEndDate, setDraftCustomRangeEndDate] =
+    useState<Date | null>(null);
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<GlobeShoot | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<GlobeStatus>>(
     () =>
@@ -515,11 +524,8 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
     const loadGlobalShoots = async () => {
       if (range === "custom" && (!customStartDate || !customEndDate)) {
-        setDbEvents([]);
-        setSelectedEvent(null);
         setEventsLoading(false);
         setGeocoding(false);
-        initialZoomDone.current = false;
         return;
       }
 
@@ -757,6 +763,78 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
     );
   }, [filteredEvents, mappedEvents, moveMapTo]);
 
+  const openCustomRangeDialog = useCallback(() => {
+    setDraftCustomRangeStartDate(
+      customStartDate ? new Date(`${customStartDate}T00:00:00`) : null,
+    );
+    setDraftCustomRangeEndDate(
+      customEndDate ? new Date(`${customEndDate}T00:00:00`) : null,
+    );
+    setIsCustomRangeOpen(true);
+  }, [customStartDate, customEndDate]);
+
+  const handleRangeChange = useCallback(
+    (value: GlobalRange) => {
+      if (value === "custom") {
+        setRange("custom");
+        openCustomRangeDialog();
+        return;
+      }
+
+      setRange(value);
+      setCustomStartDate("");
+      setCustomEndDate("");
+      setDraftCustomRangeStartDate(null);
+      setDraftCustomRangeEndDate(null);
+      setIsCustomRangeOpen(false);
+    },
+    [openCustomRangeDialog],
+  );
+
+  const handleCustomRangeApply = useCallback(() => {
+    if (!draftCustomRangeStartDate || !draftCustomRangeEndDate) {
+      toast.error("Select both start and end dates for the custom range.");
+      return;
+    }
+
+    const start = startOfDay(draftCustomRangeStartDate);
+    const end = startOfDay(draftCustomRangeEndDate);
+
+    if (start > end) {
+      toast.error("Start date cannot be after end date.");
+      return;
+    }
+
+    setCustomStartDate(formatDateFns(start, "yyyy-MM-dd"));
+    setCustomEndDate(formatDateFns(end, "yyyy-MM-dd"));
+    setRange("custom");
+    setIsCustomRangeOpen(false);
+  }, [draftCustomRangeStartDate, draftCustomRangeEndDate]);
+
+  const handleCustomRangeCancel = useCallback(() => {
+    setIsCustomRangeOpen(false);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+
+    if (!customStartDate && !customEndDate) {
+      setRange("all");
+    }
+  }, [customStartDate, customEndDate]);
+
+  const clearCustomRange = useCallback(() => {
+    setIsCustomRangeOpen(false);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setRange("all");
+  }, []);
+
+  const currentCustomRangeLabel =
+    range === "custom" && customStartDate && customEndDate
+      ? `${formatDateFns(new Date(`${customStartDate}T00:00:00`), "MMM dd, yyyy")} - ${formatDateFns(new Date(`${customEndDate}T00:00:00`), "MMM dd, yyyy")}`
+      : "";
+
   const mapStyleUrl = isDark
     ? "mapbox://styles/mapbox/dark-v11"
     : "mapbox://styles/mapbox/light-v11";
@@ -981,13 +1059,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
             <Select
               value={range}
-              onValueChange={(value: GlobalRange) => {
-                setRange(value);
-                if (value !== "custom") {
-                  setCustomStartDate("");
-                  setCustomEndDate("");
-                }
-              }}
+              onValueChange={(value: GlobalRange) => handleRangeChange(value)}
             >
               <SelectTrigger
                 className={`h-11 w-[175px] rounded-lg text-sm focus:ring-0 ${
@@ -1016,48 +1088,170 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
                 <SelectItem value="last_7_days">Last 7 Days</SelectItem>
                 <SelectItem value="last_15_days">Last 15 Days</SelectItem>
                 <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
+                <SelectItem
+                  value="custom"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    handleRangeChange("custom");
+                  }}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleRangeChange("custom");
+                  }}
+                >
+                  Custom Range
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        {range === "custom" && (
+        {currentCustomRangeLabel && (
           <div
-            className={`pointer-events-auto mt-3 ml-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl border p-2.5 shadow-lg ${
+            className={`pointer-events-auto mt-3 ml-auto flex w-fit max-w-full items-center gap-3 rounded-xl border px-3 py-2.5 shadow-lg ${
               isDark
-                ? "border-[#333333] bg-[#171717]"
-                : "border-[#E5E5E5] bg-white"
+                ? "border-[#333333] bg-[#171717] text-white"
+                : "border-[#E5E5E5] bg-white text-black"
             }`}
           >
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(event) => setCustomStartDate(event.target.value)}
-              max={customEndDate || undefined}
-              className={`h-10 rounded-lg border px-3 text-xs outline-none ${
+            <div className="min-w-0">
+              <p className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? "text-[#E8D1AB]" : "text-[#B38B4D]"}`}>
+                Saved Range
+              </p>
+              <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/70" : "text-black/65"}`}>
+                {currentCustomRangeLabel}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openCustomRangeDialog}
+              className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
                 isDark
-                  ? "border-[#333333] bg-[#202020] text-white [color-scheme:dark] focus:border-[#E8D1AB]"
-                  : "border-[#E5E5E5] bg-white text-black focus:border-[#D7BD90]"
+                  ? "border-[#333333] bg-[#202020] text-white hover:bg-[#2A2A2A]"
+                  : "border-[#E5E5E5] bg-white text-black hover:bg-[#F7F7F7]"
               }`}
-              aria-label="Custom start date"
-            />
-            <span className={`text-xs ${isDark ? "text-white/35" : "text-[#999999]"}`}>to</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(event) => setCustomEndDate(event.target.value)}
-              min={customStartDate || undefined}
-              className={`h-10 rounded-lg border px-3 text-xs outline-none ${
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={clearCustomRange}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
                 isDark
-                  ? "border-[#333333] bg-[#202020] text-white [color-scheme:dark] focus:border-[#E8D1AB]"
-                  : "border-[#E5E5E5] bg-white text-black focus:border-[#D7BD90]"
+                  ? "border-[#333333] bg-[#202020] text-white/70 hover:bg-[#2A2A2A] hover:text-white"
+                  : "border-[#E5E5E5] bg-white text-black/60 hover:bg-[#F7F7F7] hover:text-black"
               }`}
-              aria-label="Custom end date"
-            />
+              aria-label="Clear custom range"
+              title="Clear custom range"
+            >
+              <X size={14} />
+            </button>
           </div>
         )}
       </div>
+
+      {isCustomRangeOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4 py-6"
+          onClick={handleCustomRangeCancel}
+        >
+          <div
+            className={`w-full max-w-2xl rounded-2xl border p-5 shadow-2xl ${
+              isDark
+                ? "border-[#3A3A3A] bg-[#171717] text-white"
+                : "border-[#E5E5E5] bg-white text-black"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-lg font-semibold">Custom Range</h3>
+              <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-black/55"}`}>
+                Choose a start and end date to filter globe shoots.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <DatePicker
+                label="Start Date"
+                value={draftCustomRangeStartDate}
+                onChange={(date) => {
+                  const nextStartDate = date ? startOfDay(date) : null;
+                  setDraftCustomRangeStartDate(nextStartDate);
+
+                  if (
+                    nextStartDate &&
+                    draftCustomRangeEndDate &&
+                    nextStartDate > startOfDay(draftCustomRangeEndDate)
+                  ) {
+                    setDraftCustomRangeEndDate(nextStartDate);
+                  }
+                }}
+                maxDate={draftCustomRangeEndDate || undefined}
+                isDark={isDark}
+                disablePortal
+                format="MM/dd/yyyy"
+              />
+
+              <DatePicker
+                label="End Date"
+                value={draftCustomRangeEndDate}
+                onChange={(date) => {
+                  const nextEndDate = date ? startOfDay(date) : null;
+                  setDraftCustomRangeEndDate(nextEndDate);
+
+                  if (
+                    nextEndDate &&
+                    draftCustomRangeStartDate &&
+                    nextEndDate < startOfDay(draftCustomRangeStartDate)
+                  ) {
+                    setDraftCustomRangeStartDate(nextEndDate);
+                  }
+                }}
+                minDate={draftCustomRangeStartDate || undefined}
+                isDark={isDark}
+                disablePortal
+                format="MM/dd/yyyy"
+              />
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={clearCustomRange}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  isDark
+                    ? "border-[#3D3D3D] bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+                    : "border-[#E3E3E3] bg-white text-black/60 hover:bg-black/5 hover:text-black"
+                }`}
+              >
+                Clear Range
+              </button>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeCancel}
+                  className={
+                    isDark
+                      ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                      : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                  }
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeApply}
+                  className="bg-[#E8D1AB] text-black hover:bg-[#d4c3a3]"
+                >
+                  Apply Range
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={`absolute bottom-4 left-4 z-20 hidden w-[248px] rounded-xl border p-3 shadow-xl md:block ${
