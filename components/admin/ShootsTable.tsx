@@ -1407,7 +1407,7 @@ export const ShootsTable = ({
             <div className="relative block pt-0">
               <div
                 ref={gridScrollRef}
-                className={`overflow-x-auto overflow-y-hidden pb-6 ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
+                className={`block w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain pb-6 custom-scrollbar ${isGridPanning ? "cursor-grabbing select-none" : "cursor-grab"}`}
                 onMouseDown={handleGridMouseDown}
                 onMouseMove={handleGridMouseMove}
                 onMouseUp={handleGridMouseEnd}
