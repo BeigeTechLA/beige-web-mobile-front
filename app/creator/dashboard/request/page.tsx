@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Pencil,
   Trash2,
-  Info
+  Info,
+  Dot
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -48,6 +49,8 @@ import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import Link from "next/link";
+import ActionMenu from "@/components/creator-profile/AgreementActionMenu";
 
 type ProjectItem = {
   id?: number | string;
@@ -107,8 +110,13 @@ export default function RequestsShootsPage() {
   const [shoots, setShoots] = useState<ProjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [computedStats, setComputedStats] = useState<DashboardStats | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
 
   const { isDark } = useResolvedTheme()
+
+  // State for popover positioning and selected item
+  const [activeProjectId, setActiveProjectId] = useState<string | number | null>(null);
+
 
   /* ---------------- LOAD USER ---------------- */
   useEffect(() => {
@@ -254,7 +262,6 @@ export default function RequestsShootsPage() {
     }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
   };
 
-
   const isCompletedFlag = (item: ProjectItem) => {
     const flag = item?.is_completed ?? item?.project?.is_completed;
     if (flag === true || flag === 1 || flag === "1") return true;
@@ -364,7 +371,6 @@ export default function RequestsShootsPage() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-
   /* ---------------- FILTERING ---------------- */
   const visibleProjects = activeTab === "requests" ? projects : shoots;
   const filteredProjects = visibleProjects.filter((p) => {
@@ -396,19 +402,18 @@ export default function RequestsShootsPage() {
     );
   }
 
-
   return (
     <>
       <Topbar pathname={pathname} />
-      <div 
+      <div
         className={`mx-4 mb-20 mt-6 overflow-hidden rounded-2xl border transition-all duration-700 lg:mx-8 ${isDark
           ? `bg-[#0A0A0A] text-white border-[#E8D1AB]/30
              shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]`
           : "bg-white text-[#171717] border-zinc-200 shadow-sm"
-        }`}
+          }`}
       >
         <div className="p-8 lg:p-12 space-y-6 lg:space-y-10">
-            {/* 1. Simple Header: Title & Description */}
+          {/* 1. Simple Header: Title & Description */}
           <div>
             <h1 className={`text-2xl font-bold transition-colors lg:text-3xl ${isDark ? "text-white" : "text-[#171717]"}`}>
               Requests & Shoots
@@ -421,7 +426,7 @@ export default function RequestsShootsPage() {
             className={`flex w-fit items-center gap-1 rounded-xl border p-1 transition-all duration-300 ${isDark
               ? "border-[#333] bg-[#111]"
               : "border-[#E5E5E5] bg-white"
-            }`}
+              }`}
           >
             <button
               onClick={() => handleTabChange("requests")}
@@ -506,7 +511,6 @@ export default function RequestsShootsPage() {
               />
             </div>
 
-
             {/* Filter Group - Grouped to stay on the Right */}
             <div className="flex items-center gap-3 w-full md:w-auto justify-end">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -514,7 +518,7 @@ export default function RequestsShootsPage() {
                   className={`min-w-[170px] rounded-xl transition-colors ${isDark
                     ? "border-white/10 bg-[#1A1A1A] text-white data-[placeholder]:text-white/50"
                     : "border-[#E3E3E3] bg-white text-[#323232] data-[placeholder]:text-[#667085]"
-                  }`}
+                    }`}
                 >
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -522,7 +526,7 @@ export default function RequestsShootsPage() {
                   className={`border transition-colors ${isDark
                     ? "border-white/10 bg-[#1A1A1A] text-white"
                     : "border-[#E3E3E3] bg-white text-[#323232] shadow-lg"
-                  }`}
+                    }`}
                 >
                   <SelectItem value="all" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>All Status</SelectItem>
                   <SelectItem value="confirmed" className={isDark ? "focus:bg-[#1E1E1E] focus:text-white" : "focus:bg-[#E8D1AB] focus:text-black"}>Confirmed</SelectItem>
@@ -548,7 +552,7 @@ export default function RequestsShootsPage() {
                   <div className={`absolute right-0 top-full z-[50] mt-2 w-48 overflow-hidden rounded-xl border shadow-2xl transition-colors ${isDark
                     ? "border-[#FFFFFF33] bg-[#171717] text-white"
                     : "border-[#E5E5E5] bg-white text-[#171717]"
-                  }`}>
+                    }`}>
                     <button
                       onClick={() => handleViewChange('grid')}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${view === 'grid'
@@ -607,8 +611,8 @@ export default function RequestsShootsPage() {
           {filteredProjects.length > 0 ? (
             view === "grid" ? (
               /* --- DYNAMIC GRID VIEW --- */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
-                  {filteredProjects.map((item) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
+                {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
                     className={`group rounded-2xl border p-4 transition-all duration-300 lg:p-6 ${isDark
@@ -629,7 +633,7 @@ export default function RequestsShootsPage() {
                             : isDark
                               ? "border-amber-400/20 bg-amber-400/10 text-amber-300"
                               : "border-amber-200 bg-amber-50 text-amber-700"
-                        }`}
+                          }`}
                       >
                         {item.status}
                       </span>
@@ -643,28 +647,58 @@ export default function RequestsShootsPage() {
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
-                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                        <CalendarIcon size={16} className="text-[#E8D1AB]" />
-                        <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
+                      <div className="flex gap-3 items-center">
+                        <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          <CalendarIcon size={16} className="text-[#E8D1AB]" />
+                          <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
+                          <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
+                        </svg>
+                        <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          <span>Compensation:</span>
+                          <span className="text-[#E8D1AB]">$ 2000.00</span>
+                        </div>
                       </div>
-                      <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                        <MapPin size={16} className="text-[#E8D1AB]" />
-                        <span className="truncate">
-                          {formatLocation(item.event_location || item.location)}
-                        </span>
+
+                      <div className="flex gap-3 items-center">
+                        <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          <MapPin size={16} className="text-[#E8D1AB]" />
+                          <span className="truncate">
+                            {formatLocation(item.event_location || item.location)}
+                          </span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
+                          <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
+                        </svg>
+                        <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                          <span>Agreement:</span>
+                          <p className="flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[8px] font-medium px-1.5 py-[2px]">
+                            ●  Pending Acceptance
+                          </p>
+                        </div>
                       </div>
                     </div>
 
                     <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
-                      <Button
-                        onClick={() => handleOpenProjectDetails(item.project_id)}
-                        className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
-                          ? "border-white/10 bg-transparent text-white hover:bg-white/5"
-                          : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"
-                          }`}
-                      >
-                        View Details
-                      </Button>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={() => handleOpenProjectDetails(item.project_id)}
+                          className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
+                            ? "border-white/10 bg-transparent text-white hover:bg-white/5"
+                            : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"
+                            }`}
+                        >
+                          View Details
+                        </Button>
+                        <Link
+                          href={"/creator/dashboard/request/review-agreement"}
+                          className={`rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
+                        >
+                          Review Agreement →
+                        </Link>
+                      </div>
+
 
                       {item.status === "Pending" && (
                         <div className="flex gap-2">
@@ -674,7 +708,7 @@ export default function RequestsShootsPage() {
                             className={`transition-colors ${isDark
                               ? "bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white"
                               : "bg-green-50 text-green-600 hover:bg-green-600 hover:text-white"
-                            }`}
+                              }`}
                           >
                             <Check size={18} />
                           </Button>
@@ -684,7 +718,7 @@ export default function RequestsShootsPage() {
                             className={`transition-colors ${isDark
                               ? "bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white"
                               : "bg-red-50 text-red-600 hover:bg-red-600 hover:text-white"
-                            }`}
+                              }`}
                           >
                             <X size={18} />
                           </Button>
@@ -698,17 +732,24 @@ export default function RequestsShootsPage() {
               /* --- DYNAMIC LIST VIEW (Matches Screenshot Style) --- */
               <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${isDark ? "border-white/5 bg-[#111]" : "border-[#E5E5E5] bg-white shadow-sm"}`}>
                 {/* DESKTOP TABLE VIEW */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="hidden lg:block w-full overflow-hidden">
+                  <table className="w-full table-fixed text-left border-collapse">
                     <thead>
-                      <tr className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark ? "bg-white/[0.03] text-white/40 border-white/5" : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"}`}>
-                        <th className="px-6 py-4 font-semibold">Shoot ID</th>
-                        <th className="px-6 py-4 font-semibold">Name</th>
-                        <th className="px-6 py-4 font-semibold">Location</th>
-                        <th className="px-6 py-4 font-semibold">Email</th>
-                        <th className="px-6 py-4 font-semibold">Category</th>
-                        <th className="px-6 py-4 font-semibold">Status</th>
-                        <th className="px-6 py-4 font-semibold text-right pr-12">Action</th>
+                      <tr
+                        className={`text-xs uppercase tracking-wider transition-colors border-b ${isDark
+                          ? "bg-white/[0.03] text-white/40 border-white/5"
+                          : "bg-black/[0.05] text-black/40 border-[#E5E5E5]"
+                          }`}
+                      >
+                        <th className="w-[9%] px-3.5 py-5 font-semibold">Shoot ID</th>
+                        <th className="w-[18%] px-3.5 py-5 font-semibold">Name</th>
+                        <th className="w-[13%] px-3.5 py-5 font-semibold">Location</th>
+                        <th className="w-[9%] px-3.5 py-5 font-semibold">Email</th>
+                        <th className="w-[11%] px-3.5 py-5 font-semibold">Category</th>
+                        <th className="w-[10%] px-3.5 py-5 font-semibold">Compensation</th>
+                        <th className="w-[10%] px-3.5 py-5 font-semibold">Status</th>
+                        <th className="w-[11%] px-3.5 py-5 font-semibold">Agreement</th>
+                        <th className="w-[9%] px-3.5 py-5 font-semibold text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-[#E5E5E5]"}`}>
@@ -736,27 +777,33 @@ export default function RequestsShootsPage() {
                           label = "Rejected";
                         }
 
+                        const isMenuOpen =
+                          menuAnchor !== null &&
+                          activeProjectId !== null &&
+                          String(activeProjectId) === String(item.project_id ?? item.id);
+
                         return (
                           <tr
                             key={item.project_id}
-                            className={`transition-colors group ${isDark ? "hover:bg-white/[0.01]" : "hover:bg-[#FFFCF6]/50"}`}
+                            className={`transition-colors group ${isDark ? "hover:bg-white/[0.01]" : "hover:bg-[#FFFCF6]/50"
+                              }`}
                           >
                             {/* Shoot ID Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                            <td className={`px-3.5 py-5 text-sm truncate ${isDark ? "text-white/60" : "text-black/60"}`}>
                               #{item.project_id?.toString().slice(-6) || "123456"}
                             </td>
 
                             {/* Name/Project Details Column */}
-                            <td className="px-6 py-5">
-                              <div className="flex items-center gap-4">
+                            <td className="px-3.5 py-5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="shrink-0 h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 overflow-hidden flex items-center justify-center text-[#E8D1AB] font-bold text-xs">
                                   {(item.project_name || "PR").split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
                                 </div>
-                                <div>
-                                  <div className={`text-sm font-bold leading-tight ${isDark ? "text-white" : "text-black"}`}>
+                                <div className="min-w-0 truncate">
+                                  <div className={`text-sm font-bold truncate leading-tight ${isDark ? "text-white" : "text-black"}`}>
                                     {(item.project_name || "Untitled").replace(/^CUSTOM Shoot\b/i, "CUSTOM")}
                                   </div>
-                                  <div className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                  <div className={`text-xs truncate mt-0.5 ${isDark ? "text-white/40" : "text-black/40"}`}>
                                     Production Shoot
                                   </div>
                                 </div>
@@ -764,77 +811,85 @@ export default function RequestsShootsPage() {
                             </td>
 
                             {/* Location Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                              <div className="max-w-[180px] truncate">
+                            <td className={`px-3.5 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              <div className="truncate">
                                 {formatLocation(item.event_location || item.location)}
                               </div>
                             </td>
 
                             {/* Email Column */}
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
-                              <div className="max-w-[200px] truncate">
+                            <td className={`px-3.5 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              <div className="truncate">
                                 {item.guest_email || "N/A"}
                               </div>
                             </td>
 
-                            <td className={`px-6 py-5 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                            {/* Category */}
+                            <td className={`px-3.5 py-5 text-sm truncate ${isDark ? "text-white/60" : "text-black/60"}`}>
                               Videographer
                             </td>
 
+                            {/* Compensation */}
+                            <td className={`px-3.5 py-5 text-sm truncate ${isDark ? "text-white/60" : "text-black/60"}`}>
+                              $2000.00
+                            </td>
+
                             {/* Status Pill Column */}
-                            <td className="px-6 py-5">
-                              <span className={`inline-flex min-w-[100px] items-center justify-center rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${statusClass}`}>
+                            <td className="px-3.5 py-5">
+                              <span className={`inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${statusClass}`}>
                                 {label}
                               </span>
                             </td>
 
-                            {/* Action Column */}
-                            <td className="px-6 py-5">
-                              <div className="flex items-center justify-end gap-6">
-                                {item.status === "Pending" ? (
-                                  <div className="flex items-center gap-4">
-                                    {/* Pill Shape Approve Button */}
-                                    <button
-                                      onClick={() => setAcceptShootEvent(item)}
-                                      className={`rounded-full px-4 py-1 text-xs font-bold transition-colors ${isDark
-                                        ? "border border-green-400/20 bg-green-400/10 text-green-300 hover:bg-green-400/20"
-                                        : "bg-[#DCFCE7] text-[#166534] hover:bg-green-200"
-                                      }`}
-                                    >
-                                      Approve
-                                    </button>
-                                    {/* Red Underlined Decline Link */}
-                                    <button
-                                      onClick={() => setDeclineShootEvent(item)}
-                                      className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark ? "text-[#F87171] hover:text-red-400" : "text-[#EF4444] hover:text-red-600"
-                                        }`}
-                                    >
-                                      Decline
-                                    </button>
-                                  </div>
-                                ) : item.status === "Confirmed" ? (
-                                  <div className={`flex items-center gap-3 ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                    <button className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}>
-                                      <Pencil size={18} />
-                                    </button>
-                                    <button className={`transition-colors ${isDark ? "hover:text-red-400" : "hover:text-red-600"}`}>
-                                      <Trash2 size={18} />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className={isDark ? "text-white/20" : "text-black/20"}>
-                                    <Info size={18} />
-                                  </div>
-                                )}
+                            {/* Agreement Status */}
+                            <td className="px-3.5 py-5">
+                              <p className="shrink-0 flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-xs font-medium px-4 py-1.5">
+                                Pending Acceptance
+                              </p>
+                            </td>
 
-                                {/* Detail Chevron */}
-                                <button
-                                  onClick={() => handleOpenProjectDetails(item.project_id)}
-                                  className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
-                                >
-                                  <ChevronRight size={20} />
-                                </button>
-                              </div>
+                            {/* Action Column */}
+                            <td className="px-3.5 py-5 text-right">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveProjectId(item.project_id);
+                                  setMenuAnchor({
+                                    x: rect.left - 150,
+                                    y: rect.bottom + 6,
+                                  });
+                                }}
+                                className={`transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+
+                              {isMenuOpen && (
+                                <ActionMenu
+                                  isOpen={Boolean(isMenuOpen)}
+                                  anchor={menuAnchor}
+                                  onClose={() => {
+                                    setMenuAnchor(null);
+                                    setActiveProjectId(null);
+                                  }}
+                                  leadId={item.project_id ?? item.id ?? ""}
+                                  onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                                  onReview={() => {
+                                    window.location.href = "/creator/dashboard/request/review-agreement";
+                                  }}
+                                  onApprove={() => {
+                                    setAcceptShootEvent(item);
+                                    setMenuAnchor(null);
+                                    setActiveProjectId(null);
+                                  }}
+                                  onDecline={() => {
+                                    setDeclineShootEvent(item);
+                                    setMenuAnchor(null);
+                                    setActiveProjectId(null);
+                                  }}
+                                />
+                              )}
                             </td>
                           </tr>
                         );
@@ -863,7 +918,7 @@ export default function RequestsShootsPage() {
               className={`col-span-full rounded-xl border p-12 text-center text-sm transition-colors ${isDark
                 ? "border-white/5 bg-[#111] text-white/40"
                 : "border-[#E5E5E5] bg-[#FAFAFA] text-[#667085]"
-              }`}
+                }`}
             >
               No projects found matching your criteria.
             </div>
