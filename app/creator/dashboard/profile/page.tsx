@@ -58,6 +58,7 @@ import { formatCreatorRoles, normalizeCreatorRoleIds } from "@/lib/creatorRoles"
 import { Button } from "@/components/ui/button";
 import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
+import Link from "next/link";
 
 
 // --- CONSTANTS ---
@@ -233,21 +234,21 @@ const capitalizeName = (value: unknown) => {
     .replace(/(^|[\s'-])([a-z])/g, (_, separator, letter) => `${separator}${letter.toUpperCase()}`);
 };
 
-  const getDisplayLocation = (value: unknown): string => {
-    if (value == null) return "";
-    if (typeof value === "object") {
-      return (value as any).address || (value as any).formatted_address || "";
-    }
-    let str = String(value).trim();
-    while (
-      (str.startsWith('"') && str.endsWith('"')) ||
-      (str.startsWith("'") && str.endsWith("'"))
-    ) {
-      str = str.slice(1, -1).trim();
-    }
-    if (str === "{}" || str === "[]" || str === "null" || str === "undefined") return "";
-    return str;
-  };
+const getDisplayLocation = (value: unknown): string => {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    return (value as any).address || (value as any).formatted_address || "";
+  }
+  let str = String(value).trim();
+  while (
+    (str.startsWith('"') && str.endsWith('"')) ||
+    (str.startsWith("'") && str.endsWith("'"))
+  ) {
+    str = str.slice(1, -1).trim();
+  }
+  if (str === "{}" || str === "[]" || str === "null" || str === "undefined") return "";
+  return str;
+};
 
 const SectionHeader = ({ title, onEdit, isEditing, isDark }: { title: string, onEdit?: () => void, isEditing?: boolean, isDark?: boolean }) => (
   <div className="flex items-center justify-between mb-4 lg:mb-8">
@@ -401,7 +402,7 @@ export default function ProfilePage() {
     crew_member_files: []
   });
 
-  const tabs = ["Overview", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
+  const tabs = ["Overview", "Documents & Agreements", "Featured Work", "Certificates", "Resume", "Portfolio Links"];
 
   const loadProfile = async () => {
     const userStr = localStorage.getItem("revure_user");
@@ -544,7 +545,7 @@ export default function ProfilePage() {
       working_distance: profile.working_distance
     };
 
-  try {
+    try {
       setIsPageLoading(true);
       const response = await EditMyProfile(payload);
 
@@ -677,7 +678,7 @@ export default function ProfilePage() {
 
     if (!crewMemberId) return;
 
-    
+
     const sanitizedLinks = updatedLinksArray.map((item, index) => ({
       id: item.id ?? index,
       platform: item.platform,
@@ -1154,36 +1155,35 @@ export default function ProfilePage() {
   });
 
   const handleOpenOnboarding = () => {
-  if (!googleOnboardingData) {
-    const userStr = localStorage.getItem("revure_user");
-    const user = userStr ? JSON.parse(userStr) : null;
+    if (!googleOnboardingData) {
+      const userStr = localStorage.getItem("revure_user");
+      const user = userStr ? JSON.parse(userStr) : null;
 
-  setGoogleOnboardingData({
-      user_id: user?.id || 0,
-      crew_member_id: user?.crew_member_id || profile.crew_member_id,
-      firstName: profile.first_name || "",
-      lastName: profile.last_name || "",
-      email: profile.email || "",
-      phoneNumber: profile.phone_number || "",
-    });
-  }
-  setIsGoogleOnboardingOpen(true);
-};
+      setGoogleOnboardingData({
+        user_id: user?.id || 0,
+        crew_member_id: user?.crew_member_id || profile.crew_member_id,
+        firstName: profile.first_name || "",
+        lastName: profile.last_name || "",
+        email: profile.email || "",
+        phoneNumber: profile.phone_number || "",
+      });
+    }
+    setIsGoogleOnboardingOpen(true);
+  };
 
 
   return (
     <>
       <Topbar pathname={pathname} />
-{showOnboardingBanner && (
+      {showOnboardingBanner && (
         <div
-          className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${
-            isDark
-              ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
-              : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
-          }`}
+          className={`border-b px-4 py-3 sm:px-6 lg:px-8 ${isDark
+            ? "border-[#4E4128] bg-[#2B2823] text-[#E6D8B6]"
+            : "border-[#D7C295] bg-[#EFE1BE] text-[#2D2415]"
+            }`}
         >
           <div className="flex items-center justify-between gap-6">
-            
+
             {/* Left Side: Title + Progress Bar (Takes full available space up to the button) */}
             <div className="flex-1 min-w-0 mr-4">
               <p className="truncate text-xs font-medium sm:text-sm">
@@ -1198,7 +1198,7 @@ export default function ProfilePage() {
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                
+
                 <div className={`mt-1.5 text-xs font-semibold sm:text-[13px] ${isDark ? "text-white/55" : "text-black/55"}`}>
                   {completedCount}/{totalRequired} Required Fields | {missingCount} Remaining | Complete all required details to become eligible for shoot assignments
                 </div>
@@ -1219,7 +1219,7 @@ export default function ProfilePage() {
         </div>
       )}
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
-      
+
         <div className="mx-auto space-y-4 lg:space-y-8">
 
           {/* TOP PROFILE CARD */}
@@ -1288,8 +1288,8 @@ export default function ProfilePage() {
               </div>
 
               <div className={`text-sm lg:text-base border rounded-lg lg:rounded-2xl flex max-w-sm justify-center capitalize ${isDark ? "bg-white/[0.02] border-white/5" : "bg-[#FDFAF7] border-[#F5EBDA]"}`}>
-                <StatBox value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${Math.round(profile.hourly_rate)}` : "-"} sublabel="/Hour" isDark={isDark} />                
-                <StatBox value={profile.years_of_experience ?? "-"} sublabel="Years Exp." isDark={isDark} />                
+                <StatBox value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${Math.round(profile.hourly_rate)}` : "-"} sublabel="/Hour" isDark={isDark} />
+                <StatBox value={profile.years_of_experience ?? "-"} sublabel="Years Exp." isDark={isDark} />
                 <StatBox value={profile.working_distance?.split(' ')[1] || "25"} sublabel="Miles Radius" isDark={isDark} />
               </div>
 
@@ -1478,14 +1478,14 @@ export default function ProfilePage() {
                         label="Experience"
                         value={profile.years_of_experience !== null && profile.years_of_experience !== undefined && profile.years_of_experience !== "" ? `${profile.years_of_experience} Years` : undefined}
                         placeholder="Add years of experience"
-                        isDark={isDark} 
+                        isDark={isDark}
                       />
-                    <InfoField
-                      label="Hourly Rate"
-                      value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${profile.hourly_rate}` : undefined}
-                      placeholder="Add hourly rate"
-                      isDark={isDark}
-                    />
+                      <InfoField
+                        label="Hourly Rate"
+                        value={profile.hourly_rate !== null && profile.hourly_rate !== undefined && profile.hourly_rate !== "" ? `$${profile.hourly_rate}` : undefined}
+                        placeholder="Add hourly rate"
+                        isDark={isDark}
+                      />
                       <div className="col-span-full">
                         <InfoField label="Bio" value={profile.bio} placeholder="Add a professional bio..." isDark={isDark} />
                       </div>
@@ -1574,6 +1574,90 @@ export default function ProfilePage() {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "Documents & Agreements" && (
+              <div className="space-y-3 lg:space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* GENERAL AGREEMENT */}
+                <div>
+                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>
+                    General Agreement
+                  </h3>
+                  <div
+                    className={`border rounded-lg lg:rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Document Icon Badge */}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#D4FFE4] text-[#16A34A]">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                          Beige Creative Partner Agreement
+                        </h4>
+                        <p className="text-xs text-[#16A34A]">
+                          v1.0 — Accepted · 1 Jan 2026
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
+                          ? "bg-[#0F0F0F] text-white hover:bg-[#0F0F0F]/50"
+                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          }`}
+                        href={"/creator/dashboard/agreements/general-agreement"}
+                        target="_blank"
+                      >
+                        View
+                      </Link>
+                      <button className="px-3 py-2 text-xs font-medium rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc8a0] transition-colors">
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SHOOT AGREEMENT */}
+                <div>
+                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>
+                    Shoot Agreements
+                  </h3>
+
+                  <div
+                    className={`border rounded-lg lg:rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}
+                  >
+                    <div>
+                      <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                        ABC Corporate Shoot
+                      </h4>
+                      <p className={`text-xs ${isDark ? "text-[#BEBDBD]" : "text-gray-500"}`}>
+                        Videographer · v1.0
+                      </p>
+                      <p className={`text-xs pt-4 ${isDark ? "text-white" : "text-black"}`}>
+                        $2000 · 15 Sep 2026, 10:32 AM
+                      </p>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
+                      <span className="inline-flex items-center rounded-full bg-[#D4FFE4] px-2.5 py-1 text-xs font-semibold text-[#16A34A]">
+                        Accepted
+                      </span>
+                      <Link
+                        className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
+                          ? "bg-[#0F0F0F] text-white hover:bg-[#0F0F0F]/50"
+                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          }`}
+                        href={"/"}
+                        target="_blank"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
