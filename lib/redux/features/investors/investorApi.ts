@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { createBaseQueryWithReauth } from "@/lib/redux/baseQueryWithReauth";
 import type { InvestorData, InvestorResponse, ApiResponse } from "@/lib/types";
 
 const API_BASE_URL =
@@ -6,9 +7,7 @@ const API_BASE_URL =
 
 export const investorApi = createApi({
   reducerPath: "investorApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-  }),
+  baseQuery: createBaseQueryWithReauth(API_BASE_URL),
   endpoints: (builder) => ({
     // Submit investor interest form
     submitInvestorInterest: builder.mutation<InvestorResponse, InvestorData>({
