@@ -35,6 +35,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
 
   const sectionClasses = "rounded-[12px] border border-white/30 bg-[#101010] p-6 space-y-4";
   const isBusy = isLoading || isUploadingFile;
+  const isOnlyVideographer = data.roles?.length === 1 && data.roles.includes("1");
 
   const getCrewFileId = (item: any) => item?.crew_files_id ?? item?.crewFilesId ?? item?.fileId ?? item?.id;
 
@@ -110,20 +111,27 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
       });
       return;
     }
-    if (!featuredWork || featuredWork.length === 0) {
-      toast.error("Required Field", {
-        description: "Please add at least one item to your Featured Work."
-      });
-      return;
-    }
+  if (!isOnlyVideographer && (!featuredWork || featuredWork.length === 0)) {
+    toast.error("Required Field", {
+      description: "Please add at least one item to your Featured Work."
+    });
+    return;
+  }
 
 
-    if (!links || links.length === 0) {
-      toast.error("Required Field", {
-        description: "Please add at least one social link."
-      });
-      return;
-    }
+  if (!links || links.length === 0) {
+    toast.error("Required Field", {
+      description: "Please add at least one social link."
+    });
+    return;
+  }
+
+  if (isOnlyVideographer && (!portfolioLinks || portfolioLinks.length === 0)) {
+    toast.error("Required Field", {
+      description: "Please add at least one Portfolio Link."
+    });
+    return;
+  }
 
     try {
       if (!data.crew_member_id) {
@@ -274,9 +282,9 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
         {/* Portfolio Links (Optional) */}
         <div className={sectionClasses}>
           <div>
-            <h2 className="text-base font-semibold text-white">
-              Portfolio Links (Optional)
-            </h2>
+          <h2 className="text-base font-semibold text-white">
+            Portfolio Links {isOnlyVideographer ? "*" : "(Optional)"}
+          </h2>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -303,6 +311,7 @@ export default function Step3Form({ data, setData, nextStep, prevStep }: { data:
             value={featuredWork}
             onChange={setFeaturedWork}
             darkTheme={true}
+            isOptional={isOnlyVideographer}
             onUploadFiles={handleFeaturedWorkUpload}
           />
         </div>

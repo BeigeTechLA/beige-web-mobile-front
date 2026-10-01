@@ -17,6 +17,8 @@ interface StudioSelectionProps {
   onBack?: () => void;
   onContinue: (studios: SelectedStudio[]) => void;
   initialSelectedStudios?: SelectedStudio[];
+  stepNumber?: string;
+  completionPercentage?: number;
 }
 
 const buildTimeOptions = () => {
@@ -47,6 +49,8 @@ export default function StudioSelection({
   onBack,
   onContinue,
   initialSelectedStudios = [],
+  stepNumber = "3",
+  completionPercentage = 40,
 }: StudioSelectionProps) {
   const timeOptions = useMemo(() => buildTimeOptions(), []);
   const firstStudio = HOURLY_STUDIO_LIST[0];
@@ -108,7 +112,7 @@ export default function StudioSelection({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       <div>
         {onBack && (
           <button
@@ -122,10 +126,13 @@ export default function StudioSelection({
 
          <div className="mb-5 lg:mb-8">
           <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
-            STEP 03
+            STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
-            <div className="h-full w-2/5 bg-[#E8D1AB] transition-all duration-300" />
+            <div
+              className="h-full bg-[#E8D1AB] transition-all duration-300"
+              style={{ width: `${completionPercentage}%` }}
+            />
           </div>
         </div>
 
@@ -169,7 +176,7 @@ export default function StudioSelection({
                     )}
                   </div>
                   <div className="p-5 space-y-3">
-                    <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                    <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                       {studio.name}
                     </h3>
                     <p className="flex items-start gap-2 text-sm text-white/60">
@@ -248,12 +255,12 @@ export default function StudioSelection({
         </div>
       </div>
 
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -265,7 +272,7 @@ export default function StudioSelection({
           type="button"
           onClick={handleContinue}
           disabled={!selectedStudioPayload}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

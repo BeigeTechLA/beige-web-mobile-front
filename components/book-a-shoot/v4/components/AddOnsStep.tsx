@@ -11,72 +11,6 @@ export interface AddOnItem {
   price: number;
 }
 
-export const ADD_ONS_DATA: AddOnItem[] = [
-  {
-    id: "additional_camera",
-    slug: "v4-additional-camera",
-    title: "Additional Camera",
-    description: "A second angle for coverage.",
-    price: 350,
-  },
-  {
-    id: "teleprompter",
-    slug: "v4-teleprompter",
-    title: "Teleprompter",
-    description: "On-camera script delivery.",
-    price: 250,
-  },
-  {
-    id: "drone",
-    slug: "v4-drone",
-    title: "Drone",
-    description: "Licensed aerial cinematography.",
-    price: 500,
-  },
-  {
-    id: "lavalier_mics",
-    slug: "v4-lavalier-mics",
-    title: "Additional Lavalier Microphones",
-    description: "Capture every voice clearly with additional professional lavalier microphones.",
-    price: 250,
-  },
-  {
-    id: "green_screen",
-    slug: "v4-green-screen",
-    title: "Green Screen",
-    description: "Chroma set for compositing.",
-    price: 500,
-  },
-  {
-    id: "backdrop",
-    slug: "v4-backdrop",
-    title: "Backdrop",
-    description: "Set the scene with a professionally styled backdrop for your shoot.",
-    price: 500,
-  },
-  {
-    id: "additional_lights",
-    slug: "v4-additional-lights",
-    title: "Additional Lights",
-    description: "Expanded lighting package.",
-    price: 350,
-  },
-  {
-    id: "next_day_editing",
-    slug: "v4-next-day-editing",
-    title: "Next-Day Editing (Per Video)",
-    description: "First cut within 24 hours.",
-    price: 750,
-  },
-  {
-    id: "expedited_editing",
-    slug: "v4-expedited-editing",
-    title: "Expedited Editing (1 Week)",
-    description: "Prioritized one-week turnaround.",
-    price: 500,
-  },
-];
-
 interface AddOnsStepProps {
   onBack?: () => void;
   onContinue?: (selectedAddOns: Record<string, number>, subtotal: number) => void;
@@ -92,10 +26,10 @@ export default function AddOnsStep({
   onBack,
   onContinue,
   initialAddOns = {},
-  addOns = ADD_ONS_DATA,
+  addOns = [],
   title = "Want to add anything extra?",
   subtitle = "These are some of our most popular add-ons. Add anything that could make your production even better or Skip it.",
-  stepNumber = "08",
+  stepNumber = "8",
   completionPercentage = 88,
 }: AddOnsStepProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>(initialAddOns);
@@ -138,7 +72,7 @@ export default function AddOnsStep({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6  flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       <div>
         {/* Back Arrow */}
@@ -146,16 +80,16 @@ export default function AddOnsStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
       </div>
 
-      {/* Progress Step Header */}
-      <div className="mb-5 lg:mb-8">
-        <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+      {/* Step Indicator Bar */}
+      <div className="mb-5 2xl:mb-8">
+        <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -164,23 +98,31 @@ export default function AddOnsStep({
         </div>
       </div>
 
-      {/* Main Title & Description */}
-      <div className="mb-5 lg:mb-8">
-        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      {/* Header Titles */}
+      <div className="mb-5 2xl:mb-8">
+        <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-sm md:text-xl font-light">
+        <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
           {subtitle}
         </p>
       </div>
 
       {/* Section Subhead */}
-      <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
+      <h2 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-medium text-white mb-4">
         Optional Add-on
       </h2>
 
       {/* Add-ons List */}
       <div className="flex flex-col gap-3 mb-6">
+        {addOns.length === 0 && (
+          <div className="w-full rounded-lg lg:rounded-2xl border border-white/20 bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7">
+            <p className="text-sm lg:text-lg text-white/60">
+              No optional add-ons are available right now.
+            </p>
+          </div>
+        )}
+
         {addOns.map((item) => {
           const count = quantities[item.id] || 0;
           const isSelected = count > 0;
@@ -188,27 +130,27 @@ export default function AddOnsStep({
           return (
             <div
               key={item.id}
-              className={`w-full rounded-lg lg:rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-7 flex flex-col gap-7 transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]" : "border-white/20"}`}
+              className={`w-full rounded-lg lg:rounded-2xl border bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) p-4 lg:p-5 2xl:p-7 flex flex-col gap-7 transition-all duration-200 hover:border-white/20 ${isSelected ? "border-[#E8D1AB]" : "border-white/20"}`}
             >
               <div className="flex items-center justify-between ">
                 {/* Info Column */}
                 <div className="flex flex-col gap-1 pr-4 max-w-[65%]">
-                  <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-semibold lg:font-bold text-[#E8D1AB]">
+                  <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-semibold lg:font-bold text-[#E8D1AB]">
                     {item.title}
                   </h3>
-                  <p className="text-xs lg:text-base text-white/70 font-light leading-snug">
+                  <p className="text-xs lg:text-sm 2xl:text-base text-white/70 font-light leading-snug">
                     {item.description}
                   </p>
                 </div>
 
                 {/* Pricing & Control Column */}
                 <div className="flex items-center gap-4 md:gap-6 shrink-0">
-                  <span className="hidden lg:block text-[26px] font-medium text-white">
+                  <span className="hidden lg:block text-xl 2xl:text-[26px] font-medium text-white">
                     ${item.price}
                   </span>
 
                   {isSelected ? (
-                    <div className="flex items-center bg-[#E8D1AB] text-black px-2 py-1 lg:py-2.5 lg:px-4 rounded-full gap-1.5 lg:gap-3 font-medium text-sm lg:text-xl ">
+                    <div className="flex items-center bg-[#E8D1AB] text-black px-2 py-1 lg:py-2.5 lg:px-4 rounded-full gap-1.5 lg:gap-3 font-medium text-sm lg:text-base 2xl:text-xl ">
                       <button
                         type="button"
                         onClick={() => handleDecrement(item.id)}
@@ -217,7 +159,7 @@ export default function AddOnsStep({
                         <Minus className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
                       </button>
                       <span className="w-5 text-center">
-                        {String(count).padStart(2, "0")}
+                        {String(count)}
                       </span>
                       <button
                         type="button"
@@ -231,7 +173,7 @@ export default function AddOnsStep({
                     <button
                       type="button"
                       onClick={() => handleIncrement(item.id)}
-                      className="px-6 py-1.5 lg:py-2.5 lg:px-9 rounded-full border border-[#E8D1AB]/50 text-white hover:bg-white/10 text-sm lg:text-xl font-medium transition-colors"
+                      className="px-6 py-1.5 lg:py-2.5 lg:px-9 rounded-full border border-[#E8D1AB]/50 text-white hover:bg-white/10 text-sm lg:text-base 2xl:text-xl font-medium transition-colors"
                     >
                       Add
                     </button>
@@ -247,22 +189,22 @@ export default function AddOnsStep({
       </div>
 
       {/* Subtotal Footer Card */}
-      <div className="w-full rounded-lg lg:rounded-2xl bg-[#211F1C] p-4 lg:p-5 flex items-center justify-between lg:mb-12">
-        <span className="text-base lg:text-2xl font-['Roboto_Condensed'] text-white">
+      <div className="w-full rounded-lg lg:rounded-2xl bg-[#211F1C] p-4 lg:p-5 flex items-center justify-between 2xl:mb-12">
+        <span className="text-base lg:text-xl 2xl:text-2xl font-['Roboto_Condensed'] text-white">
           Add-ons subtotal
         </span>
-        <span className="text-xl lg:text-3xl font-medium text-[#E8D1AB]">
+        <span className="text-xl lg:text-2xl 2xl:text-3xl font-medium text-[#E8D1AB]">
           ${subtotal.toFixed(2)}
         </span>
       </div>
 
       {/* Bottom Action Footer Bar */}
-     <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -273,7 +215,7 @@ export default function AddOnsStep({
         <button
           type="button"
           onClick={handleContinueClick}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

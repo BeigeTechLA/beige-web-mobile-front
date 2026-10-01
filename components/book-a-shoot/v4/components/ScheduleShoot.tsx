@@ -35,6 +35,7 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import { AnimatePresence, motion } from "framer-motion";
+import { isLosAngelesLocation } from "../bookingRules";
 import { getFormattedDateString } from "@/lib/utils";
 
 // Fallback/stub helpers to prevent runtime errors
@@ -53,9 +54,10 @@ const LA_STUDIO_LOCATION = "Los Angeles, CA";
 interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
-  onBrowseStudios?: () => void;
+  onBrowseStudios?: (data: any) => void;
   onBrowseCreators?: (data: any) => void;
   isStudioFlow?: boolean;
+  showStudioCreatorBanner?: boolean;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -83,12 +85,24 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   onBrowseStudios,
   onBrowseCreators,
   isStudioFlow = false,
-  title = " When & Where are you planning to shoot?",
-  subtitle = "We can always refine the exact dates together later.",
-  stepNumber = "03",
+  showStudioCreatorBanner = true,
+  title,
+  subtitle,
+  stepNumber = "3",
   completionPercentage = 40,
   initialData,
 }) => {
+  const displayTitle =
+    title ||
+    (isStudioFlow
+      ? "When are you planning to use the studio?"
+      : "When and where do you want to Beige?");
+  const displaySubtitle =
+    subtitle ||
+    (isStudioFlow
+      ? "The studio location will be confirmed from your selected BEIGE studio."
+      : "Choose a date now, or reserve your spot and confirm the details later.");
+
   // Don't fabricate a "now" default — an unpicked date/time should stay empty,
   // otherwise validate() will immediately flag the un-chosen default as
   // violating the 4-hour lead time.
@@ -178,13 +192,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   }, []);
 
   const validate = () => {
-    if (dateOption !== "have-date") return true;
-
-    if (!isStudioFlow && !location) {
+    if (!isStudioFlow && !location.trim()) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return false;
     }
+
+    if (dateOption !== "have-date") return true;
 
     const now = new Date();
     const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
@@ -289,6 +303,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const handleBrowseCreators = () => {
     if (!validate()) return;
     onBrowseCreators?.(getSchedulePayload());
+  };
+
+  const handleBrowseStudios = () => {
+    if (!isLosAngelesLocation(location, locationDetails) || !validate()) return;
+    onBrowseStudios?.(getSchedulePayload());
   };
 
   // Generate time options
@@ -750,21 +769,21 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   ]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 text-white select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 pb-32 lg:pb-36 text-white select-none">
       {/* Top Navigation */}
       {onBack && (
         <button
           type="button"
           onClick={onBack}
-          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
         </button>
       )}
 
-      {/* Progress Bar */}
-      <div className="mb-5 lg:mb-8">
-        <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+      {/* Step Indicator Bar */}
+      <div className="mb-5 2xl:mb-8">
+        <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -776,31 +795,31 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       </div>
 
       {/* Header */}
-      <div className="mb-5 lg:mb-8">
-        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
-          {title}
+      <div className="mb-5 2xl:mb-8">
+        <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+          {displayTitle}
         </h1>
-        <p className="text-white/30 text-sm md:text-xl font-light">
-          {subtitle}
+        <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
+          {displaySubtitle}
         </p>
       </div>
 
       {/* Top Date Selection Option Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 2xl:mb-8">
         {/* Card 1: I have a date */}
         <div
           onClick={() => setDateOption("have-date")}
-          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-center lg:items-start ${dateOption === "have-date"
+          className={`relative p-4 lg:p-5 2xl:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-center lg:items-start ${dateOption === "have-date"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-[#121212] border-white/10 text-white hover:border-white/20"
             }`}
         >
           <div>
-            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
+            <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "have-date" ? "text-black" : "text-[#E8D1AB]"}`}>
               I have a date
             </h3>
-            <p className={`text-xs lg:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
-              Specific shoot day and time
+            <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
+              Choose your shoot date and time.
             </p>
           </div>
           {dateOption === "have-date" && (
@@ -813,17 +832,17 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         {/* Card 2: I'll confirm later */}
         <div
           onClick={() => setDateOption("confirm-later")}
-          className={`relative p-4 lg:p-7 rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${dateOption === "confirm-later"
+          className={`relative p-4 lg:p-5 2xl:p-7  rounded-lg lg:rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${dateOption === "confirm-later"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border-transparent shadow-lg"
             : "bg-[#121212] border-white/10 text-white hover:border-white/20"
             }`}
         >
           <div>
-            <h3 className={`text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
-              I'll confirm later
+            <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
+              I&apos;ll choose later
             </h3>
-            <p className={`text-xs lg:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
-              Hold my spot for 30 days
+            <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
+              Reserve your production and confirm details later.
             </p>
           </div>
           {dateOption === "confirm-later" && (
@@ -834,19 +853,19 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       </div>
 
-      <hr className={`border-t border-white/20 my-5 lg:my-10`} />
+      <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
       {/* DYNAMIC SECTION BASED ON DATE OPTION */}
       {dateOption === "have-date" ? (
         /* View 1: Booking For + Inputs */
-        <div className="space-y-4 lg:space-y-10 lg:mb-10">
+        <div className="space-y-4 lg:space-y-10 2xl:mb-10">
           <div>
-            <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
+            <h2 className="text-base lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
               Booking For
             </h2>
 
             {/* Segmented Pill Switch */}
-            <div className="flex w-fit h-15 lg:h-20 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8">
+            <div className="flex w-fit h-15 lg:h-20 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 overflow-hidden px-8">
               <button
                 type="button"
                 onClick={() => setBookingType("single_day")}
@@ -980,7 +999,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
             </div>
           ) : (
             <>
-              <div className="relative mb-8 lg:mb-15">
+              <div className="relative">
                 <div className="flex justify-between items-center mb-4 lg:mb-6">
                   <h3 className={`text-base lg:text-2xl font-['Roboto_Condensed'] font-medium transition-colors ${errors.includes("timeError") ? "text-red-400" : "text-white/90"}`}>
                     Select Date
@@ -1114,165 +1133,170 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
                 </AnimatePresence>
               </div>
               {selectedDates.length > 0 && (
-                <div className="pt-6 lg:pt-15 border-t border-white/10 space-y-6">
-                  <h3 className={`text-lg lg:text-[28px] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
+                <>
+                  {/* mb-8 lg:mb-15 */}
+                  <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
-                  <div className="flex gap-4">
-                    <button
-                      type="button"
-                      onClick={() => handleSameTimingsModeChange(true)}
-                      disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                    >
-                      <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
-                      <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
-                        {sameTimingsMulti && (
-                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                        )}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSameTimingsModeChange(false)}
-                      disabled={data.shootType === ""}
-                      className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
-                    >
-                      <span className="font-medium text-sm lg:text-lg pr-2">No</span>
-                      <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
-                        {!sameTimingsMulti && (
-                          <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
-                        )}
-                      </div>
-                    </button>
-                  </div>
+                  <div className="space-y-6">
+                    <h3 className={`text-base lg:text-2xl font-['Roboto_Condensed'] font-medium mb-3 lg:mb-6 transition-colors`}>Are timings same for all selected dates?</h3>
 
-                  {
-                    sameTimingsMulti ? (
-                      <div>
-                        <div className="flex flex-col lg:flex-row gap-6">
-                          <div className="flex-1">
-                            <DropdownSelect
-                              title="Start Time"
-                              options={filteredStartTimeOptions}
-                              value={getStartTimeKey()}
-                              onChange={handleStartTimeChange}
-                              bgColour="bg-[#101010]"
-                              floatingTitle={true}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <DropdownSelect
-                              title="End Time"
-                              options={filteredEndTimeOptions}
-                              value={getEndTimeKey()}
-                              onChange={handleEndTimeChange}
-                              bgColour="bg-[#101010]"
-                              floatingTitle={true}
-                            />
-                          </div>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => handleSameTimingsModeChange(true)}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      >
+                        <span className="font-medium text-sm lg:text-lg pr-2">Yes</span>
+                        <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                          {sameTimingsMulti && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                          )}
                         </div>
-                        <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
-                          <Check className="text-white w-4 h-4 lg:w-6 lg:h-6" /> Applied to {selectedDates.length} selected dates
-                        </p>
-                        <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
-                          <p className="text-white font-medium text-sm lg:text-[20px]">
-                            {getFormattedDateString(selectedDates)}
-                          </p>
-                          <p className="text-white/60 font-medium text-sm lg:text-[20px]">
-                            {getStartTimeKey() && getEndTimeKey()
-                              ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
-                              : "Select time"}
-                          </p>
-                          <p className="text-[#E8D1AB] font-medium text-sm lg:text-[20px]">
-                            {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
-                              ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
-                              : "Duration Hour/Day"}
-                          </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSameTimingsModeChange(false)}
+                        disabled={data.shootType === ""}
+                        className={`h-14 lg:h-[82px] w-[100px] lg:w-[140px] rounded-lg lg:rounded-2xl border px-4 lg:px-6 flex items-center justify-between transition-colors duration-300 ease-in-out ${!sameTimingsMulti ? "bg-[#E8D1AB] [background:linear-gradient(to_right,#E8D1AB,#FDEFD9)] border-transparent text-black" : "bg-[#101010] border-white/10 hover:border-white/20 text-[#A9A9A9]"}`}
+                      >
+                        <span className="font-medium text-sm lg:text-lg pr-2">No</span>
+                        <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${!sameTimingsMulti ? "bg-black" : "border border-[#E5E5E5]"}`}>
+                          {!sameTimingsMulti && (
+                            <div className="w-2 h-2 rounded-full bg-[#E8D1AB]" />
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 lg:space-y-4">
-                        {selectedDates.map((date) => {
-                          const dateKey = getDateKey(date);
-                          const isExpanded = expandedDateKey === dateKey;
-                          return (
-                            <div
-                              key={date.toISOString()}
-                              ref={(el) => {
-                                selectedDateCardRefs.current[dateKey] = el;
-                              }}
-                              className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const nextExpanded = isExpanded ? null : dateKey;
-                                  setExpandedDateKey(nextExpanded);
-                                  if (nextExpanded) {
-                                    requestAnimationFrame(() => {
-                                      selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
-                                        behavior: "smooth",
-                                        block: "nearest",
-                                        inline: "nearest",
-                                      });
-                                    });
-                                  }
-                                }}
-                                className={`w-full py-3 px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10 " : ""}`}
-                              >
-                                <span className="text-white text-sm lg:text-base font-medium">{format(date, "MMMM dd, yyyy")}</span>
-                                <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                              </button>
-                              <AnimatePresence>
-                                {isExpanded && (
-                                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-2xl">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                      <div className="flex-1">
-                                        <DropdownSelect
-                                          title="Start Time"
-                                          options={getDateSpecificStartOptions(dateKey)}
-                                          value={multiDayTimes[dateKey]?.startKey || ""}
-                                          onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
-                                          bgColour="bg-[#101010]"
-                                          floatingTitle={true}
-                                        />
-                                      </div>
-                                      <div className="flex-1">
-                                        <DropdownSelect
-                                          title="End Time"
-                                          options={getDateSpecificEndOptions(dateKey)}
-                                          value={multiDayTimes[dateKey]?.endKey || ""}
-                                          onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
-                                          bgColour="bg-[#101010]"
-                                          floatingTitle={true}
-                                        />
-                                      </div>
-                                    </div>
+                      </button>
+                    </div>
 
-                                    <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-full bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
-                                      <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
-                                        Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
-                                          ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
-                                          : "Select time"}
-                                      </p>
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+                    {
+                      sameTimingsMulti ? (
+                        <div>
+                          <div className="flex flex-col lg:flex-row gap-6">
+                            <div className="flex-1">
+                              <DropdownSelect
+                                title="Start Time"
+                                options={filteredStartTimeOptions}
+                                value={getStartTimeKey()}
+                                onChange={handleStartTimeChange}
+                                bgColour="bg-[#101010]"
+                                floatingTitle={true}
+                              />
                             </div>
-                          );
-                        })}
-                      </div>
-                    )
-                  }
-                </div>
+                            <div className="flex-1">
+                              <DropdownSelect
+                                title="End Time"
+                                options={filteredEndTimeOptions}
+                                value={getEndTimeKey()}
+                                onChange={handleEndTimeChange}
+                                bgColour="bg-[#101010]"
+                                floatingTitle={true}
+                              />
+                            </div>
+                          </div>
+                          <p className="flex items-center gap-2 my-3 lg:mt-6 lg:mb-8 text-[#A9A9A9] text-sm lg:text-base">
+                            <Check className="text-white w-4 h-4 lg:w-6 lg:h-6" /> Applied to {selectedDates.length} selected dates
+                          </p>
+                          <div className="bg-[#171717] rounded-lg lg:rounded-2xl border border-white/30 p-4 lg:p-7 flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center">
+                            <p className="text-white font-medium text-sm lg:text-xl">
+                              {getFormattedDateString(selectedDates)}
+                            </p>
+                            <p className="text-white/60 font-medium text-sm lg:text-xl">
+                              {getStartTimeKey() && getEndTimeKey()
+                                ? `${getTimeLabel(getStartTimeKey())} - ${getTimeLabel(getEndTimeKey())}`
+                                : "Select time"}
+                            </p>
+                            <p className="text-[#E8D1AB] font-medium text-sm lg:text-xl">
+                              {getStartTimeKey() && getEndTimeKey() && calculateDurationHours(getStartTimeKey(), getEndTimeKey()) !== null
+                                ? `${calculateDurationHours(getStartTimeKey(), getEndTimeKey())} Hours/Day`
+                                : "Duration Hour/Day"}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 lg:space-y-4">
+                          {selectedDates.map((date) => {
+                            const dateKey = getDateKey(date);
+                            const isExpanded = expandedDateKey === dateKey;
+                            return (
+                              <div
+                                key={date.toISOString()}
+                                ref={(el) => {
+                                  selectedDateCardRefs.current[dateKey] = el;
+                                }}
+                                className={`border border-white/10 rounded-lg lg:rounded-2xl bg-[#171717] ${isExpanded ? "overflow-visible" : "overflow-hidden"}`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextExpanded = isExpanded ? null : dateKey;
+                                    setExpandedDateKey(nextExpanded);
+                                    if (nextExpanded) {
+                                      requestAnimationFrame(() => {
+                                        selectedDateCardRefs.current[nextExpanded]?.scrollIntoView({
+                                          behavior: "smooth",
+                                          block: "nearest",
+                                          inline: "nearest",
+                                        });
+                                      });
+                                    }
+                                  }}
+                                  className={`w-full p-4 px-6 lg:py-5 flex justify-between items-center ${isExpanded ? "border-b rounded-b-lg lg:rounded-b-2xl border-b-white/10 " : ""}`}
+                                >
+                                  <span className="text-white text-sm lg:text-base font-medium">{format(date, "MMMM dd, yyyy")}</span>
+                                  <ChevronDown className={`text-white/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                </button>
+                                <AnimatePresence>
+                                  {isExpanded && (
+                                    <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="bg-[#101010] p-4 lg:p-7 overflow-visible rounded-2xl">
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="Start Time"
+                                            options={getDateSpecificStartOptions(dateKey)}
+                                            value={multiDayTimes[dateKey]?.startKey || ""}
+                                            onChange={(value) => handleMultiDayStartTimeChange(dateKey, value)}
+                                            bgColour="bg-[#101010]"
+                                            floatingTitle={true}
+                                          />
+                                        </div>
+                                        <div className="flex-1">
+                                          <DropdownSelect
+                                            title="End Time"
+                                            options={getDateSpecificEndOptions(dateKey)}
+                                            value={multiDayTimes[dateKey]?.endKey || ""}
+                                            onChange={(value) => handleMultiDayEndTimeChange(dateKey, value)}
+                                            bgColour="bg-[#101010]"
+                                            floatingTitle={true}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-2 lg:mt-4 rounded-lg lg:rounded-full bg-[#211F1C] w-fit px-4 py-2 lg:px-7 lg:py-3">
+                                        <p className="font-medium text-[#E8D1AB] text-xs lg:text-sm">
+                                          Duration: {multiDayTimes[dateKey]?.startKey && multiDayTimes[dateKey]?.endKey && calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "") !== null
+                                            ? `${calculateDurationHours(multiDayTimes[dateKey]?.startKey || "", multiDayTimes[dateKey]?.endKey || "")} hours`
+                                            : "Select time"}
+                                        </p>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    }
+                  </div>
+                </>
               )}
             </>
           )}
         </div>
       ) : (
         /* View 2: Not Ready to Schedule Banner */
-        <div className="p-4 lg:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex items-center gap-4">
+        <div className="p-4 lg:p-6 2xl:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex items-center gap-4">
           <div className="flex items-center justify-center flex-shrink-0">
             <Image
               src={"/images/misc/BookingFlow/CalendarBlock.png"}
@@ -1292,12 +1316,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       )}
 
-      <hr className={`border-t border-white/20 my-5 lg:my-10`} />
+      <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
       {!isStudioFlow && (
-        <div className="mb-5 lg:mb-8">
-          <h2 className="text-base lg:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
-            Location / Venue
+        <div className="mb-5 2xl:mb-8">
+          <h2 className="text-base lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
+            Location / Venue <span className="text-[#E8D1AB]">*</span>
           </h2>
           <LocationPicker
             value={location}
@@ -1312,13 +1336,20 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
           />
         </div>
       )}
-
       {
-        !isStudioFlow ? <>
-          <hr className={`border-t border-white/20 my-5 lg:my-10`} />
+        isStudioFlow &&
+        <div className="pt-5">
+          <span className="inline-block px-3 py-1.5 lg:px-6 lg:py-3.5 rounded-xl bg-[#211F1C] text-xs lg:text-sm text-[#E8D1AB]">
+            Note : Studios are available for LA only
+          </span>
+        </div>
+      }
+      {
+        !isStudioFlow && isLosAngelesLocation(location, locationDetails) && onBrowseStudios ? <>
+          <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Studio Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 2xl:mb-12">
             <div className="flex items-center gap-4">
               <div className="w-12 lg:w-19 h-12 lg:h-19 lg:rounded-xl lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
                 <Building2 className="w-8 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
@@ -1333,28 +1364,31 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
             <button
               type="button"
-              onClick={onBrowseStudios}
+              onClick={handleBrowseStudios}
               className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Studios
             </button>
           </div>
-        </> : <>
-          <hr className={`border-t border-white/20 my-5 lg:my-10`} />
+        </> : isStudioFlow && showStudioCreatorBanner ? <>
+          <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Creator Banner */}
-          <div className="p-5 rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+          <div className="p-5 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4 2xl:mb-12">
             <div className="flex items-center gap-4">
-              <div className="w-12 lg:w-19 h-12 lg:h-19 lg:rounded-xl lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
-                <Camera className="w-8 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
+              <div className="w-12 lg:w-19 h-12 lg:h-19 rounded-md lg:rounded-xl bg-[#101010] lg:bg-[#E8D1AB] flex items-center justify-center flex-shrink-0">
+                <Camera className="w-7 lg:w-11 h-8 lg:h-11 text-[#E8D1AB] lg:text-[#101010]" strokeWidth={1} />
               </div>
               <div>
-                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Photographer or Videographer for your Studio?</h3>
-                <p className="text-xs lg:text-sm text-[#A9A9A9]">
-                  Bring your shoot to life with top photographers/videographers at your studio.
+                <h3 className="text-sm lg:text-xl font-medium text-white">Need a Photographer or Videographer for your location?</h3>
+                <p className="hidden lg:block text-xs lg:text-sm text-[#A9A9A9]">
+                  Bring your shoot to life with top photographers/videographers at your location.
                 </p>
               </div>
             </div>
+            <p className="lg:hidden text-xs lg:text-sm text-[#A9A9A9]">
+              Bring your shoot to life with top photographers/videographers at your location.
+            </p>
 
             <button
               type="button"
@@ -1364,16 +1398,16 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               Browse Creators
             </button>
           </div>
-        </>
+        </> : null
       }
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -1384,12 +1418,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>
       </div>
-    </div>
+    </div >
   );
 };
 

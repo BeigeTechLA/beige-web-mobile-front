@@ -2,7 +2,8 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import imageCompression from "browser-image-compression";
 import { PDFDocument } from 'pdf-lib';
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
+import { useRef, useCallback } from "react";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -475,3 +476,22 @@ export const getDateColorThreshold = (dateParam: string | Date): string => {
 
 // Basic numeric formatter to convert numbers to 2 digit values
 export const  formatter = new Intl.NumberFormat('en-US', { minimumIntegerDigits: 2 });
+
+export const usePageTimer = () => {
+  const mountTime = useRef<number>(Date.now());
+
+  const getDurationOnPage = useCallback(() => {
+    return (Date.now() - mountTime.current) / 1000; // seconds
+  }, []);
+
+  return { getDurationOnPage };
+};
+
+export const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "Not available";
+
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return value;
+
+  return format(parsed, "d MMM, yyyy h:mm a");
+};

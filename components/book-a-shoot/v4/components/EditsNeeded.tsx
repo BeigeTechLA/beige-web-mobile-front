@@ -5,6 +5,7 @@ import { ArrowLeft, Info, Check, Minus, Plus, Video, ChevronDown } from "lucide-
 import { toast } from "sonner";
 import { CollapsibleEdit } from "./CollapsibleEdit";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image"
 
 export interface EditsConfig {
   needsEdits: boolean;
@@ -48,13 +49,13 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   baseFreePhotos = 100,
   photosPerSet = 25,
   durationLabel = "4 Hour Duration",
-  title = "Need edits for your occasion?",
-  subtitle = "Add professional editing to turn your raw footage into polished, share-ready content",
+  title = "Want Beige to edit it?",
+  subtitle = "Turn your raw footage into polished, ready-to-share content—professionally edited by the Beige team.",
   videoEditOptions = [],
   photoEditOptions = [],
   showVideoEdits = true,
   showPhotoEdits = true,
-  stepLabel = "STEP 04",
+  stepLabel = "STEP 4",
   progressPercent = 44,
 }) => {
   const [needsEdits, setNeedsEdits] = useState<boolean>(initialConfig.needsEdits);
@@ -132,7 +133,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
 
     onContinue({
       needsEdits,
-      editedPhotosSets,
+      editedPhotosSets: needsEdits && showPhotoEdits ? editedPhotosSets : 0,
       videoEditTypes,
       photoEditTypes:
         needsEdits && showPhotoEdits
@@ -142,7 +143,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       <div>
         {/* Back Arrow */}
@@ -150,15 +151,15 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
         {/* Step Indicator Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             {stepLabel}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -170,17 +171,17 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {/* Heading & Subtitle */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
-          <p className="text-white/30 text-base md:text-xl font-light">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Yes / No Toggle Group */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-5 2xl:mb-8">
           <button
             type="button"
             onClick={() => setNeedsEdits(true)}
@@ -196,7 +197,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                 : "border-white/40 bg-transparent"
                 }`}
             >
-              {needsEdits && (
+        {needsEdits && (
                 <div className="w-1.5 h-1.5 rounded-full bg-[#E8D1AB]" />
               )}
             </div>
@@ -225,31 +226,59 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
         </div>
 
         {/* Info Box */}
-        <div className="space-y-2 mb-5 lg:mb-10">
+        <div className="space-y-2 mb-5 2xl:mb-10">
           <div className="flex items-center gap-2 tracking-wider text-white">
             <Info className="w-4 h-4 lg:w-6 lg:h-6" />
             <span className="text-base lg:text-xl font-medium">Editing includes</span>
           </div>
           <div className="flex items-center gap-2 text-[#A9A9A9]">
-            <Check className="w-4 h-4 lg:w-6 lg:h-6 shrink-0 mt-0.5" />
+            <Image
+              src={"/images/misc/BookingFlow/Tick.svg"}
+              alt="Check mark icon"
+              width={18}
+              height={18}
+            />
             <span className="text-xs lg:text-sm">
-              Professional color grading, sound mixing, selected video packages, and polished photo delivery.
+              Color grading, sound mixing, thoughtful pacing, and delivery optimized for your selected content.
             </span>
           </div>
         </div>
 
+        {!needsEdits && showPhotoEdits && (
+          <div className="border-t border-white/10 pt-5 text-white/70">
+            <h3 className="font-medium text-white">No additional edits</h3>
+            <p className="mt-2 text-sm lg:text-base">Your photos will still receive standard color and lighting corrections.</p>
+          </div>
+        )}
+
         {needsEdits && (
-          <div className="space-y-4 lg:space-y-8">
+          <div className="space-y-4 lg:space-y-6 2xl:space-y-8">
+            {showPhotoEdits && photoEditOptions.length > 0 && (
+              <CollapsibleEdit
+                title="Photo Edits"
+                itemLabel="Edited Photos"
+                setsCount={editedPhotosSets}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
+                baseFreeCount={roundedBaseFreePhotos}
+                perSetCount={photosPerSet}
+                durationLabel={durationLabel}
+                totalCount={totalPhotos}
+              />
+            )}
+
             {showVideoEdits && videoEditOptions.length > 0 && (
               <div className="rounded-lg lg:rounded-2xl bg-[#101010] border border-white/10 overflow-hidden transition-all duration-300">
                 <div className={` bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) ${isVideoOpen ? "border-b border-white/20 rounded-b-lg lg:rounded-b-2xl" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setIsVideoOpen((prev) => !prev)}
-                    className="w-full py-5 px-3.5 lg:px-7 lg:py-9 flex items-center justify-between text-left"
+                    aria-expanded={isVideoOpen}
+                    aria-controls="video-edit-options"
+                    className="w-full py-5 px-3.5 lg:p-7 2xl:py-9 flex items-center justify-between text-left"
                   >
-                    <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
-                      Video Edits
+                    <h3 className="text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                      Choose your edits
                     </h3>
                     <div className="flex items-center gap-3 text-white/70">
                       {/* <Video className="w-5 h-5 lg:w-8 lg:h-8" /> */}
@@ -266,6 +295,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
+                      id="video-edit-options"
                       className="overflow-hidden"
                     >
                       <div className="p-4 lg:p-8 space-y-4">
@@ -278,7 +308,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                               className={`flex items-center justify-between gap-4 rounded-lg lg:rounded-2xl border p-3 lg:p-5 bg-[#171717] transition-colors ${count > 0 ? "border-[#E8D1AB]" : "border-white/10"}`}
                             >
                               <div>
-                                <h4 className="text-sm lg:text-xl font-medium text-white">
+                                <h4 className="text-sm lg:text-lg 2xl:text-xl font-medium text-white">
                                   {option.value}
                                 </h4>
                                 {option.note && (
@@ -295,7 +325,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                                   <Minus className="w-3.5 h-3.5 lg:w-5 lg:h-5 stroke-[2.5]" />
                                 </button>
                                 <span className="w-6 text-center text-sm lg:text-xl font-medium">
-                                  {String(count).padStart(2, "0")}
+                                  {String(count)}
                                 </span>
                                 <button
                                   type="button"
@@ -314,33 +344,17 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
                 </AnimatePresence>
               </div>
             )}
-
-            {showPhotoEdits && photoEditOptions.length > 0 && (
-              <CollapsibleEdit
-                title="Photo Edits"
-                itemLabel={photoEditOptions[0]?.value || "Edited Photos"}
-                setsCount={editedPhotosSets}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                baseFreeCount={roundedBaseFreePhotos}
-                perSetCount={photosPerSet}
-                durationLabel={durationLabel}
-                totalExtra={totalAddedExtra}
-                totalCount={totalPhotos}
-                icon="📸"
-              />
-            )}
           </div>
         )}
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -350,7 +364,7 @@ export const EditsNeeded: React.FC<EditsNeededProps> = ({
 
         <button
           onClick={handleNext}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

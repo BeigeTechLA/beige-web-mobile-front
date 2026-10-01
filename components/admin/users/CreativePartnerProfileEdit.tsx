@@ -24,7 +24,15 @@ import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
 import SocialLinksModal from "@/src/components/cpSignup/SocialLinksModal";
 import UploadResumePortfolio from "@/src/components/cpSignup/UploadResumePortfolio";
 import CropProfileModal from "@/src/components/cpSignup/cropProfileModal";
-import { editorSkills, photographerSkills, roleOptions, videographerSkills, SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
+import { editorSkills, photographerSkills, roleOptions, videographerSkills, distanceOptions, SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { LocationPickerSignup } from "@/src/components/cpSignup/LocationPickerSignup";
 import { adminApi } from "@/lib/api";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
@@ -43,6 +51,9 @@ const S3_BASE_URL =
 const ALL_SKILL_OPTIONS = [...videographerSkills, ...photographerSkills, ...editorSkills];
 
 const normalizeText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+const getErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.message || error?.message || fallback;
 
 const getCrewFilesId = (record: any, fallback?: string | number) =>
   record?.crew_files_id ??
@@ -188,6 +199,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const [hasExistingProfilePhoto, setHasExistingProfilePhoto] = useState(false);
   const [resume, setResume] = useState<any>(null);
   const [portfolioFiles, setPortfolioFiles] = useState<any[]>([]);
   const initialFeaturedWorkRef = useRef<FeaturedWorkItem[]>([]);
@@ -227,6 +239,9 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const toggleRole = (roleValue: string) => {
     setSelectedRoles((current) => (current.includes(roleValue) ? current.filter((role) => role !== roleValue) : [...current, roleValue]));
   };
+
+  const isOnlyEditorRole = selectedRoles.length === 1 && selectedRoles[0] === "3";
+  const isOnlyVideographerRole = selectedRoles.length === 1 && selectedRoles[0] === "1";
 
   const mergeUniqueSkills = (...lists: Array<Array<{ value: string; label: string; description?: string }>>) => {
     const map = new Map<string, { value: string; label: string; description?: string }>();
@@ -299,6 +314,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
       const uploadedPreview = uploadedPath ? `${S3_BASE_URL}${uploadedPath}` : croppedPreview;
 
       setData((prev) => ({ ...prev, profileImage: croppedBlob, profilePreview: uploadedPreview }));
+      setHasExistingProfilePhoto(true);
       setCropModalOpen(false);
       setSelectedImage(null);
       toast.success("Profile photo updated successfully.");
@@ -319,7 +335,80 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
     }));
   };
 
+  const validateProfileBeforeSave = () => {
+    if (!data.firstName.trim()) {
+      toast.error("Please add a first name.");
+      return false;
+    }
+
+    if (!data.lastName.trim()) {
+      toast.error("Please add a last name.");
+      return false;
+    }
+
+    if (!data.location.trim()) {
+      toast.error("Please add a location.");
+      return false;
+    }
+
+    if (!data.workingDistance) {
+      toast.error("Please select a shoot radius.");
+      return false;
+    }
+
+    if (!data.profileImage && !hasExistingProfilePhoto) {
+      toast.error("Please upload a profile picture.");
+      return false;
+    }
+
+    if (!selectedRoles.length) {
+      toast.error("Please select at least one role.");
+      return false;
+    }
+
+    if (!data.yoe) {
+      toast.error("Please add years of experience.");
+      return false;
+    }
+
+    if (!data.hourlyRate) {
+      toast.error("Please add hourly rate.");
+      return false;
+    }
+
+    if (!data.skills.length) {
+      toast.error("Please select at least one skill.");
+      return false;
+    }
+
+    if (!isOnlyEditorRole && !data.equipments.length) {
+      toast.error("Please add at least one equipment.");
+      return false;
+    }
+
+    if (!data.links.length) {
+      toast.error("Please add at least one social/professional link.");
+      return false;
+    }
+
+    if (isOnlyVideographerRole) {
+      if (!data.portfolioLinks.length) {
+        toast.error("Please add at least one portfolio link.");
+        return false;
+      }
+    } else if (!data.featuredWork.length) {
+      toast.error("Please add at least one featured work project.");
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSaveProfile = async () => {
+    if (!validateProfileBeforeSave()) {
+      return;
+    }
+
     try {
       setIsSaving(true);
       const equipmentPayload = data.equipments
@@ -914,7 +1003,6 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           lng: payload.longitude != null ? String(payload.longitude) : prev.lng,
           workingDistance: payload.working_distance || "",
           profilePreview: profilePhoto ? `${S3_BASE_URL}${profilePhoto.file_path}` : prev.profilePreview,
-          profileImage: profilePhoto ? (new Blob() as Blob) : prev.profileImage,
           yoe: payload.years_of_experience != null ? String(payload.years_of_experience) : prev.yoe,
           hourlyRate: payload.hourly_rate != null ? String(payload.hourly_rate) : prev.hourlyRate,
           bio: payload.bio || "",
@@ -935,6 +1023,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
           featuredWork: featuredGroups as any,
         }));
 
+        setHasExistingProfilePhoto(Boolean(profilePhoto));
         setResume(resumePrefill);
         setPortfolioFiles(portfolioPrefill);
         initialFeaturedWorkRef.current = featuredGroups;
@@ -993,15 +1082,18 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         isSaving={isSaving}
         leftContent={
           <>
-            <StepOne
-              data={data}
-              onPhoneNumberChange={(phoneNumber) => setData((prev) => ({ ...prev, phoneNumber }))}
-              isDark={isDark}
-              fieldStyles={fieldStyles}
-              mutedText={mutedText}
-              isCompressing={isCompressing}
-              onUploadProfile={() => fileInputRef.current?.click()}
-            />
+        <StepOne
+          data={data}
+          setData={setData}
+          onPhoneNumberChange={(phoneNumber) =>
+            setData((prev) => ({ ...prev, phoneNumber }))
+          }
+          isDark={isDark}
+          fieldStyles={fieldStyles}
+          mutedText={mutedText}
+          isCompressing={isCompressing}
+          onUploadProfile={() => fileInputRef.current?.click()}
+        />
             <StepTwo
               data={data}
               isDark={isDark}
@@ -1010,6 +1102,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
               toggleRole={toggleRole}
               getSkillOptionsByRole={getSkillOptionsByRole}
               setData={setData}
+              isOnlyEditorRole={isOnlyEditorRole}
             />
             <StepThree
               data={data}
@@ -1031,6 +1124,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
               onUploadPortfolioFiles={handlePortfolioFileUpload}
               onUploadCertification={handleCertificationUpload}
               onDeleteFeaturedWork={handleDeleteFeaturedWork}
+              isOnlyVideographerRole={isOnlyVideographerRole}
             />
           </>
         }
@@ -1139,6 +1233,7 @@ function AdminEditLayout({
 
 function StepOne({
   data,
+  setData,
   onPhoneNumberChange,
   isDark,
   fieldStyles,
@@ -1147,6 +1242,7 @@ function StepOne({
   onUploadProfile,
 }: {
   data: any;
+  setData: React.Dispatch<React.SetStateAction<any>>;
   onPhoneNumberChange: (phoneNumber: string) => void;
   isDark: boolean;
   fieldStyles: string;
@@ -1154,6 +1250,7 @@ function StepOne({
   isCompressing: boolean;
   onUploadProfile: () => void;
 }) {
+
   const labelStyles = isDark ? "text-white/60" : "text-black/60";
 
   return (
@@ -1164,9 +1261,31 @@ function StepOne({
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Field label="First Name" value={data.firstName} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
-        <Field label="Last Name" value={data.lastName} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
-        <Field label="Email Address" value={data.email} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
+        <Field
+          label="First Name"
+          value={data.firstName}
+          labelStyles={labelStyles}
+          fieldStyles={fieldStyles}
+          onChange={(firstName) =>
+            setData((prev: any) => ({ ...prev, firstName }))
+          }
+        />
+        <Field
+          label="Last Name"
+          value={data.lastName}
+          labelStyles={labelStyles}
+          fieldStyles={fieldStyles}
+          onChange={(lastName) =>
+            setData((prev: any) => ({ ...prev, lastName }))
+          }
+        />
+        <Field
+          label="Email Address"
+          value={data.email}
+          labelStyles={labelStyles}
+          fieldStyles={fieldStyles}
+          readOnly
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -1176,10 +1295,56 @@ function StepOne({
           labelStyles={labelStyles}
           fieldStyles={fieldStyles}
           type="tel"
-          onChange={onPhoneNumberChange}
+          readOnly
         />
-        <Field label="Location" value={data.location} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
-        <Field label="Shoot Radius" value={data.workingDistance} labelStyles={labelStyles} fieldStyles={fieldStyles} readOnly />
+
+        <div>
+          <Label className={labelStyles}>Shoot Radius</Label>
+          <Select
+            value={data.workingDistance}
+            onValueChange={(workingDistance) =>
+              setData((prev: any) => ({ ...prev, workingDistance }))
+            }
+          >
+            <SelectTrigger className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`}>
+              <SelectValue placeholder="Select travel radius" />
+            </SelectTrigger>
+            <SelectContent position="popper" className="bg-[#1A1A1A] border-white/20 text-white z-[110]">
+              {distanceOptions.map((option: any) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <LocationPickerSignup
+          value={
+            data.location
+              ? {
+                  address: data.location,
+                  lat: data.lat ? Number(data.lat) : undefined,
+                  lng: data.lng ? Number(data.lng) : undefined,
+                }
+              : null
+          }
+          onChange={(location: any) => {
+            const address =
+              typeof location === "object" && location !== null ? location.address : location;
+            const lat = typeof location === "object" && location !== null ? location.lat : undefined;
+            const lng = typeof location === "object" && location !== null ? location.lng : undefined;
+            setData((prev: any) => ({
+              ...prev,
+              location: address || "",
+              lat: lat != null ? String(lat) : "",
+              lng: lng != null ? String(lng) : "",
+            }));
+          }}
+          placeholder="Search your location"
+        />
       </div>
 
       <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
@@ -1236,6 +1401,7 @@ function StepTwo({
   selectedRoles,
   toggleRole,
   getSkillOptionsByRole,
+  isOnlyEditorRole,
 }: {
   data: any;
   setData: React.Dispatch<React.SetStateAction<any>>;
@@ -1244,6 +1410,7 @@ function StepTwo({
   selectedRoles: string[];
   toggleRole: (roleValue: string) => void;
   getSkillOptionsByRole: () => Array<{ value: string; label: string; description?: string }>;
+  isOnlyEditorRole: boolean;
 }) {
   const labelStyles = isDark ? "text-white/60" : "text-black/60";
   const sectionBorder = isDark ? "border-white/20" : "border-black/15";
@@ -1331,7 +1498,9 @@ function StepTwo({
 
       <div className={`rounded-[18px] border ${sectionBorder} bg-[#111111] p-5 lg:p-6`}>
         <div>
-          <h3 className="text-base font-semibold text-white">What Equipment Do You Own? *</h3>
+          <h3 className="text-base font-semibold text-white">
+            What Equipment Do You Own? {isOnlyEditorRole ? "(Optional)" : "*"}
+          </h3>
           <p className="text-sm text-white/55">List the gear you own</p>
         </div>
 
@@ -1374,6 +1543,7 @@ function StepThree({
   onUploadCertification,
   onChangeFeaturedWork,
   onDeleteFeaturedWork,
+  isOnlyVideographerRole,
 }: {
   data: any;
   isDark: boolean;
@@ -1394,6 +1564,7 @@ function StepThree({
   onUploadCertification: (processedCerts: any[], originalFiles: File[]) => Promise<any[]>;
   onChangeFeaturedWork: (items: FeaturedWorkItem[]) => Promise<void>;
   onDeleteFeaturedWork: (item: any) => Promise<void>;
+  isOnlyVideographerRole: boolean;
 }) {
   return (
     <div className="space-y-8">
@@ -1426,8 +1597,14 @@ function StepThree({
       <div className="rounded-[18px] border border-white/20 bg-[#111111] p-5 lg:p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-white">Portfolio Links (Optional)</h3>
-            <p className="text-sm text-white/55">Add a portfolio link if you want to share external work.</p>
+            <h3 className="text-base font-semibold text-white">
+              Portfolio Links {isOnlyVideographerRole ? <span className="text-[#E8D1AB]">*</span> : "(Optional)"}
+            </h3>
+            <p className="text-sm text-white/55">
+              {isOnlyVideographerRole
+                ? "At least one portfolio link is required to proceed."
+                : "Add a portfolio link if you want to share external work."}
+            </p>
           </div>
           <ActionTrigger onClick={() => setPortfolioModalOpen(true)} label="Add a link" />
         </div>
@@ -1449,6 +1626,7 @@ function StepThree({
         onChange={onChangeFeaturedWork}
         onDeleteItem={onDeleteFeaturedWork}
         darkTheme={isDark}
+        requiredLabel={!isOnlyVideographerRole}
       />
 
       <AddCertification

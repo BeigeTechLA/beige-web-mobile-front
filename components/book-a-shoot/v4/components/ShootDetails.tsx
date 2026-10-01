@@ -24,9 +24,9 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   onBack,
   initialNotes = "",
   initialLinks = [],
-  title = " Tell us a little about your shoot.",
-  subtitle = "Share anything about your shoot, vibe, or ideas. We'll take it from there.",
-  stepNumber = "04",
+  title = "How do you want to Beige it?",
+  subtitle = "Share your vision, vibe, references, or anything else we should know. We’ll take it from there.",
+  stepNumber = "4",
   completionPercentage = 50,
 }) => {
   const [notes, setNotes] = useState<string>(initialNotes);
@@ -60,23 +60,21 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Navigation */}
-      <div>
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-             className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+          className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
-      </div>
 
-      {/* Progress Bar */}
-      <div className="mb-5 lg:mb-8">
-        <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+      {/* Step Indicator Bar */}
+      <div className="mb-5 2xl:mb-8">
+        <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
           STEP {stepNumber}
         </span>
         <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -84,12 +82,12 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
         </div>
       </div>
 
-      {/* Header */}
-      <div className="mb-5 lg:mb-8">
-        <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+      {/* Header Titles */}
+      <div className="mb-5 2xl:mb-8">
+        <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
           {title}
         </h1>
-        <p className="text-white/30 text-sm md:text-xl font-light">
+        <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
           {subtitle}
         </p>
       </div>
@@ -101,28 +99,28 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={6}
-            placeholder="Give us the quick version"
-            className="w-full bg-transparent text-sm lg:text-base text-white/90 placeholder:text-white/30 focus:outline-none resize-none pt-1 lg:h-70"
+            placeholder="Give us the quick version—what are you trying to create?"
+            className="w-full bg-transparent text-sm lg:text-base text-white/90 placeholder:text-white/30 focus:outline-none resize-none pt-1 lg:h-60"
           />
         </div>
       </div>
 
       {/* Supporting Links Input Section */}
-      <div className="mb-5 lg:mb-8">
+      <div>
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="relative flex flex-col gap-4 w-full">
             <label
               htmlFor="referenceLinks-input"
               className="absolute -top-2 lg:-top-3 left-4 px-2 bg-[#101010] text-sm lg:text-base text-white/60 z-10"
             >
-              Supporting Links
+              Add inspiration
             </label>
             <input
               type="text"
               value={currentLinkInput}
               onChange={(e) => setCurrentLinkInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Got some inspiration? Drop in a link."
+              placeholder="Drop in a link to a mood board, cool content, or examples you love."
               className="w-full rounded-lg lg:rounded-xl border border-white/30 px-4 py-4 text-white placeholder:text-white/20 outline-none focus:border-white/60 transition-all bg-[#101010] text-sm lg:text-base lg:h-18"
             />
           </div>
@@ -169,12 +167,12 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
       </div>
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -185,7 +183,7 @@ export const ShootDetails: React.FC<ShootDetailsStepProps> = ({
         <button
           type="button"
           onClick={() => onContinue({ notes, links })}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>
