@@ -16,6 +16,7 @@ interface ManageParticipantsModalProps {
   canManage?: boolean;
   currentUserId?: string | null;
   isDark?: boolean;
+  maskParticipantIdentity?: boolean;
 }
 
 type ModalTab = "add" | "current";
@@ -56,6 +57,36 @@ const getReadableName = (item: { id?: string | number; name?: string | null; ema
   if (name && name.toLowerCase() !== "participant" && name !== id) return name;
   if (email) return email;
   return id || "Participant";
+};
+
+
+const getParticipantDisplayName = (
+  member: { id?: string | number; name?: string | null; email?: string | null },
+  maskParticipantIdentity = false,
+) => {
+  const readableName = getReadableName(member);
+
+  if (!maskParticipantIdentity) return readableName;
+
+  const rawName = String(member?.name || "").trim();
+  const normalizedName =
+    rawName &&
+    rawName.toLowerCase() !== "participant" &&
+    rawName !== String(member?.id || "").trim()
+      ? rawName
+      : "";
+
+  if (!normalizedName) return "Participant";
+
+  const parts = normalizedName.split(/\s+/).filter(Boolean);
+  const firstName = parts[0] || "Participant";
+
+  if (parts.length < 2) return firstName;
+
+  const lastName = parts[parts.length - 1];
+  const lastInitial = lastName?.charAt(0)?.toUpperCase();
+
+  return lastInitial ? `${firstName} ${lastInitial}` : firstName;
 };
 
 const isBogusValue = (value?: string | number | null) => {
@@ -144,6 +175,7 @@ export default function ManageParticipantsModal({
   canManage = false,
   currentUserId = null,
   isDark = true,
+  maskParticipantIdentity = false,
 }: ManageParticipantsModalProps) {
   const [directory, setDirectory] = useState<{
     staff?: ExternalChatUser[];
@@ -404,26 +436,28 @@ export default function ManageParticipantsModal({
                             {resolveImage(member) ? (
                               <img
                                 src={resolveImage(member) || ""}
-                                alt={member.name || "Participant"}
+                                alt={getParticipantDisplayName(member, maskParticipantIdentity)}
                                 className="h-10 w-10 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
                               />
                             ) : (
                               <div className={`flex h-10 w-10 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
-                                {getInitials(member.name || member.email)}
+                                {getInitials(getParticipantDisplayName(member, maskParticipantIdentity))}
                               </div>
                             )}
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <p className={`text-sm lg:text-base font-semibold truncate max-w-[140px] lg:max-w-none ${isDark ? "text-white" : "text-black"}`}>
-                                  {member.name || member.email || member.id}
+                                  {getParticipantDisplayName(member, maskParticipantIdentity)}
                                 </p>
                                 <span className={`rounded-full border px-2.5 py-0.5 text-[9px] lg:text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}>
                                   {getRoleLabel(member.role)}
                                 </span>
                               </div>
-                              <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-400"}`}>
-                                {member.email || "No email"}
-                              </p>
+                              {!maskParticipantIdentity ? (
+                                <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                                  {member.email || "No email"}
+                                </p>
+                              ) : null}
                             </div>
                           </div>
 
@@ -519,26 +553,28 @@ export default function ManageParticipantsModal({
                             {resolveImage(member) ? (
                               <img
                                 src={resolveImage(member) || ""}
-                                alt={member.name || "Participant"}
+                                alt={getParticipantDisplayName(member, maskParticipantIdentity)}
                                 className="h-12 w-12 lg:h-15 lg:w-15 rounded-full object-cover shrink-0"
                               />
                             ) : (
                               <div className={`flex h-12 w-12 lg:h-15 lg:w-15 shrink-0 items-center justify-center rounded-full text-sm lg:text-lg font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-700"}`}>
-                                {getInitials(member.name || member.email || memberId)}
+                                {getInitials(getParticipantDisplayName(member, maskParticipantIdentity))}
                               </div>
                             )}
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <p className={`text-sm lg:text-base font-semibold truncate max-w-[140px] lg:max-w-none ${isDark ? "text-white" : "text-black"}`}>
-                                  {member.name || member.email || memberId}
+                                  {getParticipantDisplayName(member, maskParticipantIdentity)}
                                 </p>
                                 <span className={`rounded-full border px-2.5 py-0.5 text-[9px] lg:text-[10px] font-medium ${isDark ? "border-white/10 bg-white/5 text-white" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}>
                                   {getRoleLabel(member.role)}
                                 </span>
                               </div>
-                              <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-400"}`}>
-                                {member.email || member.subtitle || getRoleLabel(member.role)}
-                              </p>
+                              {!maskParticipantIdentity ? (
+                                <p className={`text-xs lg:text-sm truncate break-all ${isDark ? "text-white/45" : "text-zinc-400"}`}>
+                                  {member.email || member.subtitle || getRoleLabel(member.role)}
+                                </p>
+                              ) : null}
                             </div>
                           </div>
 

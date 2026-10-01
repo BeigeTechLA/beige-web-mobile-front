@@ -2990,6 +2990,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           defaultTab={manageDefaultTab}
           canManage={isAdminView}
           currentUserId={userId}
+          maskParticipantIdentity={role === "client" || role === "cp"}
           onAdded={async () => {
             const activeRoom = selectedRoomRef.current || selectedRoom;
             await loadRoomDetails(activeRoom, { silent: true, preserveRoomUnread: true });
