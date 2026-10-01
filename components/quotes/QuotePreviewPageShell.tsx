@@ -1332,6 +1332,7 @@ export default function QuotePreviewPageShell({
                 onOpenServiceAgreement={() => {
                   setIsServiceAgreementOpen(true);
                 }}
+                hidePriceHistory={quoteDetailMode === "public"}
               />
             </div>
           </>
