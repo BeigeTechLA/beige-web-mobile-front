@@ -1016,9 +1016,18 @@ export const ShootsTable = ({
     try {
       const response = await adminApi.restoreProject(shootId);
       if (response?.success) {
+        if (statusFilter === "deleted") {
         setShoots((current) => current.filter((item) => item.id !== shoot.id));
         setBoardAllShoots((current) => current.filter((item) => item.id !== shoot.id));
         setTotalRecords((current) => Math.max(current - 1, 0));
+        } else {
+          setShoots((current) => current.map((item) =>
+            item.id === shoot.id ? { ...item, isActive: true } : item
+          ));
+          setBoardAllShoots((current) => current.map((item) =>
+            item.id === shoot.id ? { ...item, isActive: true } : item
+          ));
+        }
         toast.success("Shoot restored successfully");
       } else {
         toast.error(response?.error || response?.message || "Failed to restore shoot");
@@ -1126,8 +1135,8 @@ export const ShootsTable = ({
     try {
       const response = await adminApi.deleteProject(cleanId);
       if (response?.success || response?.message === "Project deleted successfully") {
-        setShoots(prev => prev.filter(shoot => shoot.id !== shootToDelete));
-        setTotalRecords((prev) => Math.max(prev - 1, 0));
+        setShoots(prev => prev.map(shoot => shoot.id === shootToDelete ? { ...shoot, isActive: false } : shoot));
+        setBoardAllShoots(prev => prev.map(shoot =>shoot.id === shootToDelete ? { ...shoot, isActive: false } : shoot));
         toast.success("Shoot deleted successfully");
       } else {
         toast.error(response?.error || "Failed to delete shoot");
@@ -1653,7 +1662,7 @@ export const ShootsTable = ({
 
                               {/* FOOTER */}
                               <div
-                                className={`flex items-center justify-between p-5 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}
+                                className={`flex items-center justify-between p-5 ${shoot.isActive ? "opacity-100" : "opacity-30 pointer-events-none select-none"}`}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <StatusBadge status={shoot.status} />
