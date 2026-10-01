@@ -23,15 +23,21 @@ export function GeneralAgreementModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-0 md:p-4">
       <div
-        className={`w-full max-w-lg rounded-2xl border transition-colors ${isDark
+        className={`w-full max-w-lg rounded-t-3xl md:rounded-2xl border-t md:border transition-all duration-300 animate-in slide-in-from-bottom md:animate-none ${
+          isDark
             ? "border-white/40 bg-[#000000] text-white"
             : "border-gray-200 bg-white text-black"
           }`}
       >
+        {/* Mobile Handle Bar */}
+        <div className="flex justify-center pt-3 md:hidden">
+          <div className={`h-1.5 w-12 rounded-full ${isDark ? "bg-[#333333]" : "bg-gray-300"}`} />
+        </div>
+
         {/* Header */}
-        <div className={`flex items-center justify-between border-b p-6 ${isDark ? "border-[#CACACA]" : "border-gray-100"}`}>
+        <div className={`flex items-center justify-between border-b p-5 md:p-6 ${isDark ? "border-[#CACACA]" : "border-gray-100"}`}>
           <h2 className="text-xl lg:text-2xl font-bold">General Agreement</h2>
           <button
             onClick={onClose}
@@ -46,10 +52,10 @@ export function GeneralAgreementModal({
         </div>
 
         {/* Content Container */}
-        <div className="p-6 space-y-6">
+        <div className="px-4 py-8 md:p-6 space-y-6">
           {/* Inner Card */}
           <div className={`rounded-lg p-3.5 space-y-2 ${isDark ? "bg-[#1F1F1F]" : "bg-gray-50"}`}>
-            <h3 className={`lg:text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+            <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
               Before you get started
             </h3>
             <p className={`text-sm leading-relaxed ${isDark ? "text-[#a0a0a0]" : "text-gray-600"}`}>
@@ -91,7 +97,7 @@ export function GeneralAgreementModal({
           <button
             onClick={onAccept}
             disabled={!isChecked}
-            className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-all text-black ${isChecked
+            className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-all text-black mb-5 lg:mb-0 ${isChecked
                 ? "bg-[#E8D1AB] hover:bg-[#E8D1AB]/70"
                 : "bg-[#E8D1AB]/50 cursor-not-allowed"
               }`}

@@ -1603,7 +1603,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-13 lg:ml-0">
                       <Link
                         className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
                           ? "bg-[#0F0F0F] text-white hover:bg-[#0F0F0F]/50"
@@ -1623,13 +1623,8 @@ export default function ProfilePage() {
 
                 {/* SHOOT AGREEMENT */}
                 <div>
-                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>
-                    Shoot Agreements
-                  </h3>
-
-                  <div
-                    className={`border rounded-lg lg:rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}
-                  >
+                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>Shoot Agreements</h3>
+                  <div className={`border rounded-lg lg:rounded-xl p-4 flex items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}>
                     <div>
                       <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
                         ABC Corporate Shoot
@@ -1642,7 +1637,7 @@ export default function ProfilePage() {
                       </p>
                     </div>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
+                    <div className="flex flex-col items-end justify-between md:justify-center gap-3">
                       <span className="inline-flex items-center rounded-full bg-[#D4FFE4] px-2.5 py-1 text-xs font-semibold text-[#16A34A]">
                         Accepted
                       </span>

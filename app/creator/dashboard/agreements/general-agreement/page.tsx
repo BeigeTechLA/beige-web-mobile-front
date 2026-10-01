@@ -23,7 +23,7 @@ export default function AgreementPage({
     <>
       <Topbar pathname={pathname} />
       <div className={`min-h-screen w-full px-4 py-6 md:px-8 lg:px-12 ${isDark ? "bg-black text-white" : "bg-gray-50 text-black"}`}>
-        <div className="mx-auto max-w-5xl space-y-4">
+        <div className="mx-auto space-y-4">
           {/* Top Navigation / Back Button */}
           <div>
             <button
@@ -67,8 +67,8 @@ export default function AgreementPage({
             </div>
 
             {/* Document Content */}
-            <div className="p-5 lg:p-8 space-y-4 lg:space-y-8 text-sm leading-relaxed lg:text-base">
-              <div className="space-y-3 lg:space-y-5">
+            <div className="p-5 lg:p-8 space-y-4 lg:space-y-8 leading-relaxed text-base">
+              <div className="space-y-3 lg:space-y-5 text-sm lg:text-base">
                 <p>
                   This Creative Partner Agreement (the “Agreement”) governs participation as a creative professional on the Beige platform and the performance of photography, videography, production, post-production, livestreaming, editing, audio, and other creative or production services arranged through Beige.
                 </p>
@@ -86,7 +86,7 @@ export default function AgreementPage({
 
               {/* Section 1 */}
               <div className="space-y-3 lg:space-y-5">
-                <h2 className="text-base lg:text-xl font-medium text-[#E8D1AB] lg:text-lg">
+                <h2 className="font-medium text-[#E8D1AB] text-lg">
                   1. Creative Partner Relationship
                 </h2>
                 <p>
@@ -183,7 +183,7 @@ export default function AgreementPage({
               START RECEIVING AND WORKING ON ASSIGNMENTS.
             </p>
 
-            <label className="flex items-center gap-3 cursor-pointer select-none group">
+            <label className="flex items-start lg:items-center gap-3 cursor-pointer select-none group">
               <div
                 onClick={() => setIsChecked(!isChecked)}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${isChecked
@@ -195,7 +195,7 @@ export default function AgreementPage({
               >
                 {isChecked && <Check size={14} strokeWidth={3} />}
               </div>
-              <span className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-gray-700"}`}>
+              <span className={`text-sm ${isDark ? "text-white" : "text-gray-700"}`}>
                 I have read and agree to the terms and conditions
               </span>
             </label>
@@ -204,11 +204,8 @@ export default function AgreementPage({
               onClick={onAccept}
               disabled={!isChecked}
               className={`w-full rounded-lg py-3 text-sm font-semibold transition-all ${isChecked
-                ? "bg-[#E8D1AB] text-black hover:bg-[#dfc8a0] active:scale-[0.99]"
-                : isDark
-                  ? "bg-[#25231F] text-[#6B6355] cursor-not-allowed"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
+                ? "bg-[#E8D1AB] text-black hover:bg-[#dfc8a0] active:scale-[0.99]": "bg-[#25231F] text-[#6B6355] cursor-not-allowed"
+              }`}
             >
               Accept & Continue
             </button>

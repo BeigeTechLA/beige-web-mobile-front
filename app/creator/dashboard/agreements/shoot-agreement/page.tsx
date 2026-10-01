@@ -121,9 +121,9 @@ export default function ShootAgreementPage() {
 
   return (
     <>
-      <Topbar pathname={pathname}/>
+      <Topbar pathname={pathname} />
 
-      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-40 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
+      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-20 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
         <Button
           onClick={() => router.back()}
           className={`transition-colors flex items-center gap-2 mb-5 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
@@ -132,20 +132,20 @@ export default function ShootAgreementPage() {
           <span className="text-sm font-medium">Back</span>
         </Button>
 
-          <div className="flex flex-col lg:flex-row gap-4 items-center w-full">
-            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-              Shoot Agreement Detail
-            </h1>
-            <span
-              className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
-                ? "text-[#18150F] bg-[#EDE5D5] border-[#3D3D3D]"
-                : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
-                }`}
-            >
-              {data.currentVersion}
-            </span>
-            {getStatusBadge(data.status)}
-          </div>
+        <div className="flex gap-4 items-center w-full">
+          <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
+            Shoot Agreement Detail
+          </h1>
+          <span
+            className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
+              ? "text-[#18150F] bg-[#EDE5D5] border-[#3D3D3D]"
+              : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
+              }`}
+          >
+            {data.currentVersion}
+          </span>
+          {getStatusBadge(data.status)}
+        </div>
 
         {/* Main Grid Section (Left: Document Card, Right: Version History & Activity Log) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,31 +159,56 @@ export default function ShootAgreementPage() {
                   {data.projectName}
                 </p>
               </div>
-              <div>
+              <div className="text-right lg:text-left">
                 <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>CP</p>
                 <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
                   {data.cpName}
                 </p>
               </div>
               <div>
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Role</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                  {data.role}
-                </p>
+                <div className="hidden lg:block">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Role</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
+                    {data.role}
+                  </p>
+                </div>
+                <div className="lg:hidden">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Assignment ID</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
+                    {data.assignmentId}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right lg:text-left">
+                <div className="hidden lg:block">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Assignment ID</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
+                    {data.assignmentId}
+                  </p>
+                </div>
+                <div className="lg:hidden">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Current Version</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                    {data.currentVersion}
+                  </p>
+                </div>
               </div>
               <div>
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Assignment ID</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                  {data.assignmentId}
-                </p>
+                <div className="hidden lg:block">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Current Version</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                    {data.currentVersion}
+                  </p>
+                </div>
+                <div className="lg:hidden">
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Role</p>
+                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
+                    {data.role}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Current Version</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                  {data.currentVersion}
-                </p>
-              </div>
-              <div>
+              <div className="text-right lg:text-left">
                 <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Compensation</p>
                 <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
                   ${data.compensation.toFixed(2)}
@@ -193,21 +218,22 @@ export default function ShootAgreementPage() {
 
             <div className={`lg:col-span-2 border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
               {/* Header Title Section */}
-              <div className={`space-y-2 p-5 lg:px-8 lg:py-7 rounded-t-2xl ${isDark ? "bg-[#202020]" : "bg-white"}`}>
-                <div className="flex items-center justify-between">
+              <div className={`space-y-2 p-5 lg:px-8 lg:py-7 rounded-t-2xl flex flex-col lg:flex-row lg:justify-between ${isDark ? "bg-[#202020]" : "bg-white"}`}>
+
+
+                <div className="">
                   <p className={`text-xs uppercase font-semibold mb-1 ${isDark ? "text-[#D8CCBA]" : "text-gray-400"}`}>
                     {data.agreementType}
                   </p>
-                  <span
-                    className={`px-2.5 py-1 text-xs font-medium rounded-lg ${isDark ? "bg-white/10 text-white/70" : "bg-[#F0F0F0] text-black/70"}`}
-                  >
-                    {data.currentVersion}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className={`text-2xl lg:text-3xl capitalize ${isDark ? "text-white" : "text-black"}`}>
+                  <h2 className={`text-lg lg:text-3xl capitalize ${isDark ? "text-white" : "text-black"}`}>
                     {data.projectName}
                   </h2>
+                </div>
+
+                <div className="flex flex-col gap-2 lg:items-end">
+                  <span className={`px-2.5 py-1 text-xs font-medium rounded-lg w-fit ${isDark ? "bg-white/10 text-white/70" : "bg-[#F0F0F0] text-black/70"}`}>
+                    {data.currentVersion}
+                  </span>
                   <div className="flex gap-2">
                     <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-[#D4E0FF] text-[#0B2F8B]">
                       ● {data.badgeType}
@@ -224,16 +250,16 @@ export default function ShootAgreementPage() {
                 <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Project Information
                 </h3>
-                <div className={`text-xs lg:text-sm w-full flex flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
+                <div className={`text-xs lg:text-sm w-full flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
                   <p>Project Name : <span className={isDark ? "text-white" : "text-black"}>{data.projectName}</span></p>
-                  <p>|</p>
+                  <p className="hidden lg:block">|</p>
                   <p>Project ID : <span className={isDark ? "text-white" : "text-black"}>{data.projectId}</span></p>
-                  <p>|</p>
+                  <p className="hidden lg:block">|</p>
                   <p>Assignment ID : <span className={isDark ? "text-white" : "text-black"}>{data.assignmentId}</span></p>
                 </div>
-                <div className={`text-xs lg:text-sm flex flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
+                <div className={`text-xs lg:text-sm flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
                   <p>Creative Partner : <span className={isDark ? "text-[#E8D1AB]" : "text-black"}>{data.cpName}</span></p>
-                  <p>|</p>
+                  <p className="hidden lg:block">|</p>
                   <p>Role : <span className={isDark ? "text-white" : "text-black"}>{data.role}</span></p>
                 </div>
               </div>
@@ -245,11 +271,11 @@ export default function ShootAgreementPage() {
                 <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Production Details
                 </h3>
-                <div className={`text-xs lg:text-sm w-full flex flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
+                <div className={`text-xs lg:text-sm w-full flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
                   <p>Production Date : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.date}</span></p>
-                  <p>|</p>
+                  <p className="hidden lg:block">|</p>
                   <p>Location : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.location}</span></p>
-                  <p>|</p>
+                  <p className="hidden lg:block">|</p>
                   <p>Call Time : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.callTime}</span></p>
                 </div>
                 <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>
@@ -261,11 +287,11 @@ export default function ShootAgreementPage() {
 
               {/* Compensation Box */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Compensation
                 </h3>
-                <div className={`flex justify-between items-center border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  <span className={`text-sm lg:text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
+                <div className={`flex justify-between items-center border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                  <span className={`text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
                     Total Compensation
                   </span>
                   <span className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
@@ -278,10 +304,10 @@ export default function ShootAgreementPage() {
 
               {/* Scope of Services Box */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Scope of Services
                 </h3>
-                <div className={`border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
                   {data.scopeOfServices}
                 </div>
               </div>
@@ -290,10 +316,10 @@ export default function ShootAgreementPage() {
 
               {/* Equipment Requirements Box */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Equipment Requirements
                 </h3>
-                <div className={`border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
                   {data.equipmentRequirements}
                 </div>
               </div>
@@ -301,10 +327,10 @@ export default function ShootAgreementPage() {
 
               {/* Deliverables / Media Transfer Requirements */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Deliverables / Media Transfer Requirements
                 </h3>
-                <div className={`border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
                   {data.deliverableRequirements}
                 </div>
               </div>
@@ -312,10 +338,10 @@ export default function ShootAgreementPage() {
 
               {/* Approved Expenses / Travel */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Approved Expenses / Travel
                 </h3>
-                <div className={`border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
                   {data.approvedExpenses}
                 </div>
               </div>
@@ -323,10 +349,10 @@ export default function ShootAgreementPage() {
 
               {/* Special Instructions */}
               <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
+                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
                   Special Instructions
                 </h3>
-                <div className={`border rounded-xl p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
+                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
                   {data.specialInstructions}
                 </div>
               </div>
@@ -436,22 +462,6 @@ export default function ShootAgreementPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Floating Mobile Sticky Action Bar */}
-        <div className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
-          <Button
-            onClick={() => router.push("/admin/agreements")}
-            title="View Version History"
-            variant="outline"
-            className={`h-14 rounded-md font-semibold text-sm px-4 gap-2 transition-all ${isDark
-              ? "bg-[#202020] border-white/10 text-white hover:bg-[#2C2C2C]"
-              : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
-              }`}
-          >
-            <History size={24} />
-            View Version History
-          </Button>
         </div>
       </div>
     </>
