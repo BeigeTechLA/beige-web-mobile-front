@@ -103,7 +103,7 @@ export function Step2AgreementDetails({
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div>
-          <h1 className={`text-lg lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+          <h1 className={`text-base lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
             {isCommon ? (
               "Create Common Shoot Agreement"
             ) : (
@@ -131,6 +131,26 @@ export function Step2AgreementDetails({
         </Button>
       </div>
 
+      <div className="flex gap-4 lg:hidden">
+        <Button
+          variant="outline"
+          className={`w-full rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+            ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+            : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+            }`}
+        > Save Draft
+        </Button>
+
+        <Button
+          className={`w-full rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+            ? "bg-white border-white/10 text-black hover:bg-[#F0F0F0]"
+            : "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+            }`}
+        >
+          Preview
+        </Button>
+      </div>
+
       {/* Common Mode Specific Cards */}
       {isCommon ? (
         <>
@@ -140,7 +160,7 @@ export function Step2AgreementDetails({
               Agreement Recipients
             </h2>
             <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
-            <div className="p-5 lg:p-9 flex flex-wrap items-center gap-6">
+            <div className="px-5 py-3 lg:p-9 flex flex-wrap items-center gap-6">
               {cpList.map((cp) => (
                 <div key={cp.id} className="flex items-center gap-3">
                   <div
@@ -152,7 +172,7 @@ export function Step2AgreementDetails({
                     {cp.initials}
                   </div>
                   <p className={`text-sm lg:text-base font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
-                    {cp.name}{" "}
+                    {cp.name}{""}
                     <span className={`ml-4 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
                       {cp.role}
                     </span>
@@ -169,24 +189,21 @@ export function Step2AgreementDetails({
             </h2>
             <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
             <div className="p-4 lg:p-9 space-y-3 text-xs lg:text-sm">
-              <div
-                className={`flex flex-wrap items-center gap-5 ${isDark ? "text-[#AAA7A7]" : "text-black/60"
-                  }`}
-              >
+              <div className={`flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-3 lg:gap-5 ${isDark ? "text-[#AAA7A7]" : "text-black/60"}`}>
                 <p>
                   Project Name :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {cpList[0]?.projectName || "Wedding Videography"}
                   </span>
                 </p>
-                <span>|</span>
+                <span className="hidden lg:block">|</span>
                 <p>
                   Project ID :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {cpList[0]?.projectId || "PRJ-1024"}
                   </span>
                 </p>
-                <span>|</span>
+                <span className="hidden lg:block">|</span>
                 <p>
                   Assignment ID :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
@@ -210,6 +227,89 @@ export function Step2AgreementDetails({
                   ))}
                 </span>
               </p>
+            </div>
+          </div>
+
+           {/* Production Information Card */}
+          <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+            <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+              Production Information
+            </h2>
+            <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+            <div className="px-4 py-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-10">
+              <DatePickerFloating
+                selectedDate={productionDate}
+                onDateChange={setProductionDate}
+                width="w-full"
+                classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
+                  ? "text-white placeholder:text-white/20"
+                  : "text-black placeholder:text-gray-400"
+                  }`}
+                labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                  } text-sm lg:text-base z-10 px-2`}
+                label="Production Date"
+              />
+
+              <div
+                className={`relative rounded-xl border ${isDark
+                  ? "border-white/20 bg-[#171717]"
+                  : "border-gray-300 bg-white"
+                  }`}
+              >
+                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                  Location
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. General Terms of Service"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                    ? "text-white placeholder:text-white/20"
+                    : "text-black placeholder:text-gray-400"
+                    }`}
+                />
+              </div>
+
+              <div
+                className={`relative rounded-xl border ${isDark
+                  ? "border-white/20 bg-[#171717]"
+                  : "border-gray-300 bg-white"
+                  }`}
+              >
+                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                  Call Time
+                </label>
+                <input
+                  type="text"
+                  value={callTime}
+                  onChange={(e) => setCallTime(e.target.value)}
+                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                    ? "text-white placeholder:text-white/20"
+                    : "text-black placeholder:text-gray-400"
+                    }`}
+                />
+              </div>
+
+              <div
+                className={`relative rounded-xl border ${isDark
+                  ? "border-white/20 bg-[#171717]"
+                  : "border-gray-300 bg-white"
+                  }`}
+              >
+                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                  Expected End Time / Duration
+                </label>
+                <input
+                  type="text"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                    ? "text-white placeholder:text-white/20"
+                    : "text-black placeholder:text-gray-400"
+                    }`}
+                />
+              </div>
             </div>
           </div>
 
@@ -239,8 +339,8 @@ export function Step2AgreementDetails({
                     </span>
                   </div>
 
-                  <div className="bg-[#E8D1AB] text-[#171717] px-5 py-2.5 rounded-full text-xs flex items-center gap-1.5">
-                    <span className="text-base font-semibold">{cp.compensation}</span>
+                  <div className="bg-[#E8D1AB] text-[#171717] px-3 lg:px-5 py-2.5 rounded-full text-xs flex items-center gap-1.5">
+                    <span className="text-sm lg:text-base font-semibold">{cp.compensation}</span>
                     <span className="text-[#171717]/60">Compensation</span>
                   </div>
                 </div>
@@ -250,7 +350,7 @@ export function Step2AgreementDetails({
         </>
       ) : (
         <>
-        /* Individual Mode Project Detail Card */
+          { /* Individual Mode Project Detail Card */}
           <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
             <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
               Project Detail
@@ -278,24 +378,21 @@ export function Step2AgreementDetails({
                   </div>
                 </div>
 
-                <div
-                  className={`flex gap-4 text-xs lg:text-sm ${isDark ? "text-[#AAA7A7]" : "text-black/60"
-                    }`}
-                >
+                <div className={`flex gap-4 text-xs lg:text-sm ${isDark ? "text-[#AAA7A7]" : "text-black/60"}`}>
                   <p>
                     Project Name :{" "}
                     <span className={isDark ? "text-white" : "text-black"}>
                       {currentCP.projectName}
                     </span>
                   </p>
-                  |
+                  <span className="hidden lg:block">|</span>
                   <p>
                     Project ID :{" "}
                     <span className={isDark ? "text-white" : "text-black"}>
                       {currentCP.projectId}
                     </span>
                   </p>
-                  |
+                  <span className="hidden lg:block">|</span>
                   <p>
                     Assignment ID :{" "}
                     <span className={isDark ? "text-white" : "text-black"}>
@@ -427,23 +524,15 @@ export function Step2AgreementDetails({
                   size={16}
                   className={isDark ? "text-[#6E6E6B]" : "text-black/30"}
                 />
-                <span
-                  className={`text-xs font-medium mr-2 ${isDark ? "text-[#E8D1AB]" : "text-black/60"
-                    }`}
-                >
+                <span className={`text-xs font-medium mr-2 ${isDark ? "text-[#E8D1AB]" : "text-black/60" }`}>
                   {String(idx + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <p
-                    className={`text-sm font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
                     {section.title || "Untitled Section"}
                   </p>
                   {!section.isExpanded && section.content && (
-                    <p
-                      className={`text-xs truncate max-w-xs md:max-w-md ${isDark ? "text-[#737373]" : "text-black/40"}`}
-                    >
+                    <p className={`text-xs truncate max-w-[190px] md:max-w-md ${isDark ? "text-[#737373]" : "text-black/40"}`}>
                       {section.content}
                     </p>
                   )}

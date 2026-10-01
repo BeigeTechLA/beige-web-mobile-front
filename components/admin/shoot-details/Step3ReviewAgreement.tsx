@@ -46,7 +46,7 @@ export function Step3ReviewAgreement({
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         {
           isCommon ? <div>
-            <h1 className={`text-xl lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
+            <h1 className={`text-base lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
               Review Common Shoot Agreement
             </h1>
             <p className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
@@ -189,9 +189,7 @@ export function Step3ReviewAgreement({
           }`}
       >
         {/* Header Badge */}
-        <div
-          className={`p-6 lg:py-8 lg:px-10 space-y-2 lg:space-y-5 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}
-        >
+        <div className={`p-5 lg:py-8 lg:px-10 space-y-2 lg:space-y-5 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
           <div className="flex items-center gap-2">
             <span className="w-1 h-6 bg-[#E8D1AB] rounded-full inline-block" />
             <span className="text-xs tracking-wider uppercase font-medium text-[#E8D1AB]">
@@ -211,76 +209,58 @@ export function Step3ReviewAgreement({
         </div>
 
         {/* Project Information Section */}
-        <div className={`p-6 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
-          <h3 className="text-xs lg:text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
+        <div className={`p-5 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
+          <h3 className="text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
             Project Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2.5 text-sm lg:text-base">
+          <div className="grid grid-cols-2 gap-y-2.5 text-sm lg:text-base">
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Project Name
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {reviewCP.projectName}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Project ID
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {reviewCP.projectId}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Assignment ID
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {reviewCP.assignmentId}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Creative Partner
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {reviewCP.name}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Role
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {reviewCP.role}
             </div>
           </div>
         </div>
 
         {/* Production Details Section */}
-        <div className={`p-6 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
-          <h3 className="text-xs lg:text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
+        <div className={`p-5 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
+          <h3 className="text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
             Production Details
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2.5 text-sm lg:text-base">
+          <div className="grid grid-cols-2 gap-y-2.5 text-sm lg:text-base">
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Production Date
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {productionDate
                 ? productionDate.toLocaleDateString("en-GB", {
                   day: "numeric",
@@ -293,38 +273,29 @@ export function Step3ReviewAgreement({
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Location
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {location}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Call Time
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {callTime}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Expected End Time / Duration
             </div>
-            <div
-              className={`md:text-right ${isDark ? "text-[#E8E8E7]" : "text-black"
-                }`}
-            >
+            <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {endTime}
             </div>
           </div>
         </div>
 
         {/* Commercial Information */}
-        <div className={`p-6 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
-          <h3 className="text-xs lg:text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
+        <div className={`p-5 lg:p-10 space-y-4 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}>
+          <h3 className="text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
             Commercial Information
           </h3>
           {isCommon ? (
@@ -339,7 +310,7 @@ export function Step3ReviewAgreement({
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr
-                      className={`border-b text-xs tracking-wider uppercase ${isDark
+                      className={`border-b text-[10px] lg:text-xs tracking-wider uppercase ${isDark
                           ? "border-[#1A1A19] text-[#7E7E7E]"
                           : "border-[#E5E7EB] text-gray-500"
                         }`}
@@ -351,20 +322,20 @@ export function Step3ReviewAgreement({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="text-xs lg:text-sm">
+                  <tbody className="text-[10px] lg:text-sm">
                     {cpList?.map((cp, idx) => (
                       <tr
                         key={cp.id || idx}
                         className={`border-b last:border-b-0 ${isDark ? "border-[#1A1A1A]" : "border-[#F3F4F6]"}`}
                       >
-                        <td className={`px-4 py-3 ${isDark ? "text-[#E8E8E7]" : "text-gray-900"}`}
+                        <td className={`px-2.5 lg:px-4 py-3 ${isDark ? "text-[#E8E8E7]" : "text-gray-900"}`}
                         >
                           {cp.name}
                         </td>
-                        <td className={`px-4 py-3 ${isDark ? "text-[#737370]" : "text-gray-500"}`}>
+                        <td className={`px-2.5 lg:px-4 py-3 ${isDark ? "text-[#737370]" : "text-gray-500"}`}>
                           {cp.role}
                         </td>
-                        <td className={`px-4 py-3 text-right font-medium ${isDark ? "text-[#E8E8E7]" : "text-gray-900"}`}>
+                        <td className={`px-2.5 lg:px-4 py-3 text-right font-medium ${isDark ? "text-[#E8E8E7]" : "text-gray-900"}`}>
                           {cp.compensation}
                         </td>
                       </tr>
@@ -379,9 +350,7 @@ export function Step3ReviewAgreement({
                   size={14}
                   className={`shrink-0 ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}
                 />
-                <span
-                  className={isDark ? "text-[#E8D1AB]" : "text-gray-500"}
-                >
+                <span className={isDark ? "text-[#E8D1AB]" : "text-gray-500"}>
                   Each creative partner's compensation is specified individually. All
                   recipients are reviewing the same agreement.
                 </span>
@@ -404,12 +373,12 @@ export function Step3ReviewAgreement({
           sections.map((sec) => (
             <div
               key={sec.id}
-              className={`p-6 lg:p-10 space-y-2 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}
+              className={`p-5 lg:p-10 space-y-2 border-b ${isDark ? "border-[#1E1E1C]" : "border-[#E2E8F0]"}`}
             >
-              <h3 className="text-xs lg:text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
+              <h3 className="text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
                 {sec.title}
               </h3>
-              <p className={`text-sm lg:text-base ${isDark ? "text-[#7B7B7B]" : "text-black/80"}`}>
+              <p className={`text-base ${isDark ? "text-[#7B7B7B]" : "text-black/80"}`}>
                 {sec.content}
               </p>
             </div>
@@ -424,7 +393,7 @@ export function Step3ReviewAgreement({
           Beige Creative Partner Agreement.
         </div>
 
-        <div className="p-6 lg:p-10 flex items-center gap-6 text-xs lg:text-sm">
+        <div className="p-5 lg:p-10 flex items-center gap-6 text-xs lg:text-sm">
           <div>
             <span className="text-[#E8D1AB]">Beige Sheet Version</span>
             <p className={`font-semibold text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>
@@ -441,7 +410,7 @@ export function Step3ReviewAgreement({
       </div >
 
       {/* Bottom Actions */}
-      < div className="flex items-center gap-4 pt-4" >
+      < div className="hidden lg:flex items-center gap-4 pt-4" >
         <Button
           type="button"
           onClick={onPrevious}

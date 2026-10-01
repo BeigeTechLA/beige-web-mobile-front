@@ -188,21 +188,41 @@ export default function AdminAgreementDetailsPage() {
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar
+        pathname={pathname}
+        actions={
+          <>
+            {currentStep === 2 &&
+              <>
+                <Button
+                  variant="outline"
+                  className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                    ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                    : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
+                    }`}
+                > Save Draft
+                </Button>
+                <Button
+                  className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
+                    ? "bg-white border-white/10 text-black hover:bg-[#F0F0F0]"
+                    : "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
+                    }`}
+                >
+                  Preview
+                </Button>
+              </>}
+          </>
+        }
+      />
 
-      <div
-        className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-40 transition-colors space-y-4 lg:space-y-9 ${
-          isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"
-        }`}
-      >
+      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-40 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
         <Button
           type="button"
           onClick={handlePreviousStep}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent ${
-            isDark
+          className={`transition-colors flex items-center gap-2 lg:mb-5 p-0 bg-transparent hover:bg-transparent ${isDark
               ? "text-white hover:text-white/80"
               : "text-black hover:text-black/70"
-          }`}
+            }`}
         >
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back</span>
@@ -264,18 +284,16 @@ export default function AdminAgreementDetailsPage() {
 
         {/* Mobile Sticky Action Bar */}
         <div
-          className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${
-            isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-          }`}
+          className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
+            }`}
         >
           <Button
             type="button"
             onClick={handlePreviousStep}
-            className={`flex-1 h-12 rounded-xl border text-sm font-medium bg-transparent ${
-              isDark
+            className={`flex-1 h-12 rounded-lg border text-sm font-medium bg-transparent ${isDark
                 ? "border-white/20 text-white"
                 : "border-black/20 text-black"
-            }`}
+              }`}
           >
             Back
           </Button>
@@ -283,17 +301,17 @@ export default function AdminAgreementDetailsPage() {
           <Button
             type="button"
             onClick={handleNextStep}
-            className="flex-[2] h-12 rounded-xl text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]"
+            className="flex-[2] h-12 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]"
           >
             {currentStep === 1
-              ? "Continue"
+              ? "Continue to Add Agreement"
               : currentStep === 2 &&
                 selectedMode === "individual" &&
                 activeCpIndex < CP_LIST.length - 1
-              ? "Next CP"
-              : currentStep === 2
-              ? "Review"
-              : "Send Agreement"}
+                ? "Next CP"
+                : currentStep === 2
+                  ? "Review"
+                  : "Save"}
           </Button>
         </div>
       </div>
