@@ -647,7 +647,7 @@ export default function RequestsShootsPage() {
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
-                      <div className="flex gap-3 items-center">
+                      <div className="flex gap-2 lg:gap-3 items-center">
                         <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <CalendarIcon size={16} className="text-[#E8D1AB]" />
                           <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
@@ -661,14 +661,14 @@ export default function RequestsShootsPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-3 items-center">
+                      <div className="flex flex-wrap gap-3 items-center">
                         <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <MapPin size={16} className="text-[#E8D1AB]" />
                           <span className="truncate">
                             {formatLocation(item.event_location || item.location)}
                           </span>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
+                        <svg className="hidden lg:block" xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
                           <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
                         </svg>
                         <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
@@ -681,7 +681,7 @@ export default function RequestsShootsPage() {
                     </div>
 
                     <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col lg:flex-row gap-3">
                         <Button
                           onClick={() => handleOpenProjectDetails(item.project_id)}
                           className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
@@ -693,7 +693,7 @@ export default function RequestsShootsPage() {
                         </Button>
                         <Link
                           href={"/creator/dashboard/request/review-agreement"}
-                          className={`rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
+                          className={`h-10 rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
                         >
                           Review Agreement →
                         </Link>
