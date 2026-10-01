@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 import Link from "next/link";
+import { formatQuoteAnalyticsDate } from "./formatQuoteAnalyticsDate";
 
 type OpenPipelineData = {
   count: number;
@@ -405,7 +405,6 @@ export default function OpenPipelineWidget({
                     {/* <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th> */}
                     <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
                     <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
-                    <th className="w-[5%] whitespace-nowrap p-4 text-center">Action</th>
                   </tr>
 
                   {/* Mobile Headers */}
@@ -425,7 +424,7 @@ export default function OpenPipelineWidget({
                 <tbody className="text-sm lg:text-base">
                   {isLoadingQuotes ? (
                     <tr>
-                      <td colSpan={8} className="p-0">
+                      <td colSpan={5} className="p-0">
                         <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
                           <Loader2
                             size={28}
@@ -439,7 +438,7 @@ export default function OpenPipelineWidget({
                   ) : rows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={5}
                         className={`px-6 py-20 text-center ${isDark ? "text-white" : "text-black"
                           }`}
                       >
@@ -565,31 +564,13 @@ export default function OpenPipelineWidget({
                             </td> */}
 
                             <td className="hidden p-4 md:table-cell whitespace-nowrap">
-                              {item.validity?.valid_until
-                                ? new Date(item.validity.valid_until).toLocaleDateString("en-US", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })
-                                : "-"}
+                              {formatQuoteAnalyticsDate(item.validity?.valid_until)}
                             </td>
 
                             <td className={`hidden p-4 md:table-cell whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
                               {item.sales_rep?.name || "-"}
                             </td>
 
-                            {/* Action Menu */}
-                            <td className="hidden p-4 text-center md:table-cell">
-                              <button
-                                type="button"
-                                className={`p-1.5 rounded-lg transition-colors ${isDark
-                                  ? "hover:text-white/80"
-                                  : "hover:text-black/80"
-                                  }`}
-                              >
-                                <MoreVertical size={30} />
-                              </button>
-                            </td>
                           </tr>
 
                           {/* Mobile Expanded Sub-row View */}
@@ -638,27 +619,10 @@ export default function OpenPipelineWidget({
                                     </div>
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-y-4 gap-x-4">
-                                    <div>
+                                  <div>
                                       <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Validity</p>
-                                      <p className="font-medium text-sm">{item.validity?.valid_until
-                                        ? new Date(item.validity.valid_until).toLocaleDateString("en-US", {
-                                          day: "numeric",
-                                          month: "short",
-                                          year: "numeric",
-                                        })
-                                        : "-"}</p>
+                                      <p className="font-medium text-sm">{formatQuoteAnalyticsDate(item.validity?.valid_until)}</p>
                                     </div>
-                                    <div className="flex flex-col items-end justify-end" onClick={(e) => e.stopPropagation()}>
-                                      <p className={`mb-1 ${isDark ? "text-white/50" : "text-black/50"}`}>Action</p>
-                                      <button
-                                        type="button"
-                                        className={`p-1 rounded-lg transition-colors ${isDark ? "hover:text-white" : "hover:text-black"}`}
-                                      >
-                                        <MoreVertical size={24} />
-                                      </button>
-                                    </div>
-                                  </div>
                                 </div>
                               </td>
                             </tr>
