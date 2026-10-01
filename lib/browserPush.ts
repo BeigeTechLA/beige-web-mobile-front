@@ -4,11 +4,19 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getMessaging, getToken, isSupported, onMessage, type MessagePayload } from "firebase/messaging";
 import apiClient from "@/lib/apiClient";
 
-type AppUserType = 2 | 3;
+type AppUserType = 1 | 2 | 3;
 
 const getFirebaseConfig = (appUserType: AppUserType) => {
   const isClient = appUserType === 3;
-  const config = isClient ? {
+  const isAdmin = appUserType === 1;
+  const config = isAdmin ? {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_ADMIN_APP_ID,
+  } : isClient ? {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_AUTH_DOMAIN,
     projectId: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_PROJECT_ID,
@@ -25,7 +33,9 @@ const getFirebaseConfig = (appUserType: AppUserType) => {
   };
   return {
     config,
-    vapidKey: isClient
+    vapidKey: isAdmin
+      ? process.env.NEXT_PUBLIC_FIREBASE_ADMIN_VAPID_KEY
+      : isClient
       ? process.env.NEXT_PUBLIC_FIREBASE_CLIENT_VAPID_KEY
       : process.env.NEXT_PUBLIC_FIREBASE_CP_VAPID_KEY,
   };
@@ -33,9 +43,15 @@ const getFirebaseConfig = (appUserType: AppUserType) => {
 
 const resolveAppUserType = (value: unknown): AppUserType | null => {
   const userType = Number(value);
-  return userType === 2 || userType === 3 ? userType : null;
+  return userType === 1 || userType === 2 || userType === 3 ? userType : null;
 };
 
+
+const getPushAppName = (appUserType: AppUserType) =>
+  appUserType === 1 ? "admin-push" : appUserType === 3 ? "client-push" : "cp-push";
+
+const getPushServiceWorkerPath = (appUserType: AppUserType) =>
+  appUserType === 1 ? "/firebase-messaging-admin-sw.js" : appUserType === 3 ? "/firebase-messaging-client-sw.js" : "/firebase-messaging-cp-sw.js";
 const getSessionId = () => {
   const key = "beige-web-push-session-id";
   const existing = window.localStorage.getItem(key);
@@ -43,6 +59,11 @@ const getSessionId = () => {
   const value = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
   window.localStorage.setItem(key, value);
   return value;
+};
+
+const getExistingSessionId = () => {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("beige-web-push-session-id");
 };
 
 /**
@@ -99,9 +120,9 @@ export const registerBrowserPush = async (userType: unknown) => {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { status: "permission-denied" as const };
 
-  const registration = await navigator.serviceWorker.register(appUserType === 3 ? "/firebase-messaging-client-sw.js" : "/firebase-messaging-cp-sw.js");
+  const registration = await navigator.serviceWorker.register(getPushServiceWorkerPath(appUserType));
   await waitForActiveServiceWorker(registration);
-  const appName = appUserType === 3 ? "client-push" : "cp-push";
+  const appName = getPushAppName(appUserType);
   const app = getApps().some((item) => item.name === appName) ? getApp(appName) : initializeApp(config, appName);
   const token = await getToken(getMessaging(app), {
     vapidKey,
@@ -120,12 +141,24 @@ export const registerBrowserPush = async (userType: unknown) => {
   return { status: "registered" as const, token };
 };
 
+/**
+ * Stops server-side delivery to this browser. Keep the Firebase token itself
+ * intact: Firebase can reuse it when the user logs in again.
+ */
+export const unregisterBrowserPush = async () => {
+  const sessionId = getExistingSessionId();
+  if (!sessionId) return { status: "not-registered" as const };
+
+  await apiClient.delete("push-notifications/tokens", { session_id: sessionId });
+  return { status: "unregistered" as const };
+};
+
 export const listenForForegroundPush = async (userType: unknown, onPayload: (payload: MessagePayload) => void) => {
   const appUserType = resolveAppUserType(userType);
   if (!appUserType) return () => undefined;
   const { config } = getFirebaseConfig(appUserType);
   if (typeof window === "undefined" || !Object.values(config).every(Boolean) || !(await isSupported())) return () => undefined;
-  const appName = appUserType === 3 ? "client-push" : "cp-push";
+  const appName = getPushAppName(appUserType);
   const app = getApps().some((item) => item.name === appName) ? getApp(appName) : initializeApp(config, appName);
   return onMessage(getMessaging(app), onPayload);
 };

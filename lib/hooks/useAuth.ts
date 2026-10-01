@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { logoutSession } from '@/lib/auth/session';
+import { unregisterBrowserPush } from '@/lib/browserPush';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
@@ -195,6 +196,13 @@ export const useAuth = () => {
   }, [registerCreatorStep3Mutation]);
 
   const logout = useCallback(async () => {
+    // This request needs the current access token, so it must happen before
+    // the auth session and cookies are cleared. Failure must not block logout.
+    try {
+      await unregisterBrowserPush();
+    } catch (error) {
+      console.warn('Failed to unregister browser push during logout:', error);
+    }
     await logoutSession();
     dispatch(authApi.util.resetApiState());
     dispatch(salesApi.util.resetApiState());

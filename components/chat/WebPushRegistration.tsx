@@ -52,7 +52,7 @@ export default function WebPushRegistration({ userType }: { userType?: unknown }
         });
         notification.onclick = () => {
           window.focus();
-          const basePath = Number(userType) === 2 ? "/creator/dashboard" : "/affiliate";
+          const basePath = Number(userType) === 1 ? "/admin" : Number(userType) === 2 ? "/creator/dashboard" : "/affiliate";
           const destination = meetingId
             ? basePath + "/meetings?meetingId=" + encodeURIComponent(meetingId)
             : basePath + "/messages" + (roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
