@@ -51,7 +51,7 @@ export default function SuccessModal({
           ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
           : "border-[#D7D7D7] bg-white text-black shadow-2xl"
           }`}>
-        <div className="relative w-[360px] h-[240px]">
+        <div className="relative w-[300px] lg:w-[360px] h-[240px]">
           <Image
             src="/images/misc/PaymentSuccess.gif"
             alt="Payment Done"

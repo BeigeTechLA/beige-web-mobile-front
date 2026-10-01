@@ -219,8 +219,6 @@ export default function ShootAgreementPage() {
             <div className={`lg:col-span-2 border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
               {/* Header Title Section */}
               <div className={`space-y-2 p-5 lg:px-8 lg:py-7 rounded-t-2xl flex flex-col lg:flex-row lg:justify-between ${isDark ? "bg-[#202020]" : "bg-white"}`}>
-
-
                 <div className="">
                   <p className={`text-xs uppercase font-semibold mb-1 ${isDark ? "text-[#D8CCBA]" : "text-gray-400"}`}>
                     {data.agreementType}

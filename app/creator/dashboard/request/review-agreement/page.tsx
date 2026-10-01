@@ -75,14 +75,10 @@ export default function AgreementReviewPage() {
     <>
       <Topbar pathname={pathname} />
 
-      <div
-        className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-20 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"
-          }`}
-      >
+      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-20 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
         <Button
           onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-2 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"
-            }`}
+          className={`transition-colors flex items-center gap-2 mb-2 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
           variant="ghost"
         >
           <ArrowLeft size={24} />
@@ -91,13 +87,13 @@ export default function AgreementReviewPage() {
 
         {/* Document Card Container */}
         <div
-          className={`border rounded-2xl transition-colors max-w-6xl mx-auto ${isDark
+          className={`border rounded-2xl transition-colors mx-auto ${isDark
             ? "bg-[#171717] border-[#3D3D3D] text-[#D8D8D8]"
             : "bg-white border-[#E2E8F0] text-gray-800"
             }`}
         >
           {/* Header Metadata Section */}
-          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 lg:px-8 lg:py-7 rounded-t-2xl border-b ${isDark
+          <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 lg:gap-4 p-5 lg:px-8 lg:py-7 rounded-t-2xl border-b ${isDark
             ? "bg-[#202020] border-[#3D3D3D] text-[#D8D8D8]"
             : "bg-white border-[#E2E8F0] text-gray-800"
             }`}>
@@ -105,7 +101,7 @@ export default function AgreementReviewPage() {
               <p className={`text-xs uppercase font-semibold mb-1 ${isDark ? "text-[#D8CCBA]" : "text-gray-400"}`}>
                 {agreementType}
               </p>
-              <h1 className={`text-2xl lg:text-3xl uppercase ${isDark ? "text-white" : "text-black"}`}>
+              <h1 className={`text-lg lg:text-3xl uppercase ${isDark ? "text-white" : "text-black"}`}>
                 {agreementTitle}
               </h1>
             </div>
@@ -115,7 +111,7 @@ export default function AgreementReviewPage() {
                 {version}
               </span>
 
-              <span className="shrink-0 flex gap-1 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-xs font-medium px-4 py-1.5">
+              <span className="shrink-0 w-fit flex gap-1 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[10px] lg:text-xs font-medium px-2 py-0.5 lg:px-4 lg:py-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#D68910]" />
                 {status}
               </span>
@@ -128,46 +124,35 @@ export default function AgreementReviewPage() {
               <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                 Project Information
               </h2>
-              <div
-                className={`flex flex-wrap items-center text-sm gap-y-2 gap-x-3 ${isDark ? "text-[#AAA7A7]" : "text-gray-700"
-                  }`}
-              >
+              <div className={`flex flex-col lg:flex-row lg:flex-wrap lg:items-center text-sm gap-y-2 gap-x-3 ${isDark ? "text-[#AAA7A7]" : "text-gray-700"}`}>
                 <p>
                   Project Name :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {projectInfo.projectName}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Project ID :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {projectInfo.projectId}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Assignment ID :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {projectInfo.assignmentId}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Creative Partner :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {projectInfo.creativePartner}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Role :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
@@ -184,37 +169,28 @@ export default function AgreementReviewPage() {
               <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
                 Production Details
               </h2>
-              <div
-                className={`flex flex-wrap items-center text-sm gap-y-2 gap-x-3 ${isDark ? "text-[#AAA7A7]" : "text-gray-700"
-                  }`}
-              >
+              <div className={`flex flex-col lg:flex-row lg:flex-wrap lg:items-center text-sm gap-y-2 gap-x-3 ${isDark ? "text-[#AAA7A7]" : "text-gray-700"}`}>
                 <p>
                   Production Date :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {productionDetails.productionDate}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Location :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {productionDetails.location}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Call Time :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
                     {productionDetails.callTime}
                   </span>
                 </p>
-                <p className={isDark ? "text-[#E0E0E0]" : "text-gray-300"}>
-                  |
-                </p>
+                <p className={`hidden lg:block ${isDark ? "text-[#E0E0E0]" : "text-gray-300"}`}>|</p>
                 <p>
                   Expected End Time / Duration :{" "}
                   <span className={isDark ? "text-white" : "text-black"}>
@@ -232,7 +208,7 @@ export default function AgreementReviewPage() {
                 Compensation
               </h2>
               <div
-                className={`flex items-center justify-between rounded-xl border p-5 ${isDark
+                className={`flex items-center justify-between border rounded-md lg:rounded-xl p-2.5 lg:p-5 ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB]"
                     : "bg-gray-50 border-gray-200"
                   }`}
@@ -254,7 +230,7 @@ export default function AgreementReviewPage() {
                 Scope of Services
               </h2>
               <div
-                className={`rounded-xl border p-5 text-sm leading-relaxed ${isDark
+                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
                     : "bg-gray-50 border-gray-200 text-gray-700"
                   }`}
@@ -271,7 +247,7 @@ export default function AgreementReviewPage() {
                 Equipment Requirements
               </h2>
               <div
-                className={`rounded-xl border p-5 text-sm leading-relaxed ${isDark
+                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
                     : "bg-gray-50 border-gray-200 text-gray-700"
                   }`}
@@ -288,7 +264,7 @@ export default function AgreementReviewPage() {
                 Deliverables / Media Transfer
               </h2>
               <div
-                className={`rounded-xl border p-5 text-sm leading-relaxed ${isDark
+                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
                     : "bg-gray-50 border-gray-200 text-gray-700"
                   }`}
@@ -305,7 +281,7 @@ export default function AgreementReviewPage() {
                 Approved Expenses / Travel
               </h2>
               <div
-                className={`rounded-xl border p-5 text-sm leading-relaxed ${isDark
+                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
                     : "bg-gray-50 border-gray-200 text-gray-700"
                   }`}
@@ -322,7 +298,7 @@ export default function AgreementReviewPage() {
                 Special Instructions
               </h2>
               <div
-                className={`rounded-xl border p-5 text-sm leading-relaxed ${isDark
+                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
                     ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
                     : "bg-gray-50 border-gray-200 text-gray-700"
                   }`}
@@ -330,10 +306,7 @@ export default function AgreementReviewPage() {
                 {specialInstructions}
               </div>
 
-              <p
-                className={`text-xs lg:text-sm leading-relaxed pt-2 ${isDark ? "text-[#9E9690]" : "text-gray-600"
-                  }`}
-              >
+              <p className={`text-xs lg:text-sm leading-relaxed pt-2 ${isDark ? "text-[#9E9690]" : "text-gray-600"}`}>
                 This Shoot Assignment Agreement is issued under the Beige Creative
                 Partner Agreement. By accepting, the Creative Partner confirms their
                 ability to perform the assignment as described and agrees to the
@@ -344,30 +317,18 @@ export default function AgreementReviewPage() {
 
               <div className="flex items-center gap-8 pt-2">
                 <div>
-                  <p
-                    className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-gray-400"
-                      }`}
-                  >
+                  <p className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}>
                     Beige Sheet Version
                   </p>
-                  <p
-                    className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                     {metaFooter.beigeSheetVersion}
                   </p>
                 </div>
                 <div>
-                  <p
-                    className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-gray-400"
-                      }`}
-                  >
+                  <p className={`text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}>
                     Created
                   </p>
-                  <p
-                    className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"
-                      }`}
-                  >
+                  <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
                     {metaFooter.createdDate}
                   </p>
                 </div>
@@ -383,10 +344,7 @@ export default function AgreementReviewPage() {
               : "bg-white border-[#E2E8F0]"
             }`}
         >
-          <p
-            className={`text-xs lg:text-sm font-semibold tracking-wider uppercase ${isDark ? "text-[#E8D1AB]" : "text-gray-800"
-              }`}
-          >
+          <p className={`text-xs lg:text-sm font-semibold tracking-wider uppercase ${isDark ? "text-[#E8D1AB]" : "text-gray-800"}`}>
             ASSIGNMENT ACCEPTANCE
           </p>
 
@@ -402,15 +360,12 @@ export default function AgreementReviewPage() {
             >
               {isChecked && <Check size={14} strokeWidth={3} />}
             </div>
-            <p
-              className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white" : "text-gray-700"
-                }`}
-            >
+            <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white" : "text-gray-700"}`}>
               By selecting 'Accept Assignment,' I confirm that I have reviewed this Beige Sheet and agree to perform this Assignment according to its terms and the Beige Creative Partner Agreement. I understand that accepting this Assignment creates a binding project commitment.
             </p>
           </label>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-2">
             <button
               disabled={!isChecked}
               className={`flex-1 rounded-lg py-3 text-sm font-medium transition-all ${isChecked
