@@ -291,13 +291,13 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Product.jpg", stats: [
+    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
       { label: "Type", value: "Product" },
       { label: "Use", value: "Commerce" }
     ]
   },
   {
-    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Others.jpeg", stats: [
+    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/behind_scenes.jpg", stats: [
       { label: "Type", value: "Custom" },
       { label: "Details", value: "Describe later" }
     ]
