@@ -49,6 +49,16 @@ const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" } as const;
 type GlobeStatus = "active" | "upcoming" | "completed" | "cancelled";
 type GlobeStatusFilter = "all" | GlobeStatus;
 type CrewFilter = "all" | "assigned" | "not_assigned";
+type PostProductionTeamOption = {
+  id: number;
+  name: string;
+  role_name?: string | null;
+};
+
+const formatRoleName = (roleName: string) =>
+  roleName
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 type GlobalRange =
   | "upcoming"
   | "all"
@@ -84,6 +94,8 @@ type GlobeShoot = {
 
 type ShootsGlobeViewProps = {
   isDark: boolean;
+  onBack?: () => void;
+  onOpenCalendarDay?: (date: Date) => void;
 };
 
 const isValidMapboxToken = Boolean(
@@ -286,6 +298,25 @@ const formatTime = (value?: string | null) => {
   }`;
 };
 
+const timeToMinutes = (value?: string | null) => {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const match = String(value).trim().match(/(\d{1,2}):(\d{2})/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return hour * 60 + minute;
+};
+
+const getProjectsFromGlobalResponse = (response: any): any[] => {
+  if (Array.isArray(response?.data?.projects)) return response.data.projects;
+  if (Array.isArray(response?.projects)) return response.projects;
+  if (Array.isArray(response?.data?.data?.projects)) return response.data.data.projects;
+  return [];
+};
+
 const normalizeStringList = (value: unknown): string[] => {
   if (!value) return [];
 
@@ -418,7 +449,11 @@ const calculateViewport = (events: GlobeShoot[]) => {
   };
 };
 
-export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
+export const ShootsGlobeView = ({
+  isDark,
+  onBack,
+  onOpenCalendarDay,
+}: ShootsGlobeViewProps) => {
   const router = useRouter();
   const initialZoomDone = useRef(false);
   const geocodeCache = useRef(
@@ -430,11 +465,19 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
   const mapRef = useRef<any>(null);
   const [dbEvents, setDbEvents] = useState<GlobeShoot[]>([]);
+  const [todayEvents, setTodayEvents] = useState<GlobeShoot[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [todayLoading, setTodayLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<GlobeStatusFilter>("all");
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
+  const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
+  const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
+  const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(false);
+  const selectedPostProductionUser = postProductionTeamOptions.find(
+    (option) => String(option.id) === postProductionUserFilter,
+  );
   const [range, setRange] = useState<GlobalRange>("upcoming");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -450,6 +493,46 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   );
   const [highlightedLegend, setHighlightedLegend] =
     useState<GlobeStatus | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPostProductionTeamOptions = async () => {
+      setIsLoadingPostProductionTeam(true);
+
+      try {
+        const response = await adminApi.getPostProductionTeamOptions();
+        if (cancelled) return;
+
+        const options =
+          response?.success && Array.isArray(response.data) ? response.data : [];
+
+        setPostProductionTeamOptions(options);
+        setPostProductionUserFilter((current) =>
+          current === "all" ||
+          options.some(
+            (option: PostProductionTeamOption) => String(option.id) === current,
+          )
+            ? current
+            : "all",
+        );
+      } catch (error) {
+        console.error("Failed to load post production team options:", error);
+        if (!cancelled) {
+          setPostProductionTeamOptions([]);
+          setPostProductionUserFilter("all");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingPostProductionTeam(false);
+      }
+    };
+
+    void loadPostProductionTeamOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const geocodeAddress = useCallback(async (address: string) => {
     if (!address || address === "Location TBD" || !isValidMapboxToken)
@@ -534,18 +617,19 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
       initialZoomDone.current = false;
 
       try {
-        const params =
+        const params: Record<string, string> =
           range === "custom"
             ? { start_date: customStartDate, end_date: customEndDate }
             : { range };
 
+        if (postProductionUserFilter !== "all") {
+          params.post_production_user_id = postProductionUserFilter;
+        }
+
         const response = await adminApi.getGlobalShoots(params);
         if (cancelled) return;
 
-        const projects =
-          response?.error === false && Array.isArray(response?.data?.projects)
-            ? response.data.projects
-            : [];
+        const projects = getProjectsFromGlobalResponse(response);
 
         const transformedEvents = projects.map(mapProjectToGlobeShoot);
 
@@ -628,7 +712,99 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
     return () => {
       cancelled = true;
     };
-  }, [range, customStartDate, customEndDate, geocodeAddress]);
+  }, [
+    range,
+    customStartDate,
+    customEndDate,
+    postProductionUserFilter,
+    geocodeAddress,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTodayShoots = async () => {
+      setTodayLoading(true);
+
+      try {
+        const response = await adminApi.getGlobalShoots({ range: "today" });
+        if (cancelled) return;
+
+        const projects = getProjectsFromGlobalResponse(response);
+        const transformedEvents = projects.map(mapProjectToGlobeShoot);
+        setTodayEvents(transformedEvents);
+
+        const eventsToGeocode = transformedEvents.filter(
+          (event) =>
+            !event.hasCoordinates &&
+            Boolean(event.location) &&
+            event.location !== "Location TBD",
+        );
+
+        if (!eventsToGeocode.length || !isValidMapboxToken) return;
+
+        const results = await Promise.all(
+          eventsToGeocode.map(async (event) => {
+            const coordinates = await geocodeAddress(event.location);
+            return coordinates ? { id: event.id, ...coordinates } : null;
+          }),
+        );
+
+        if (cancelled) return;
+
+        const successful = results.filter(
+          (
+            result,
+          ): result is {
+            id: string;
+            latitude: number;
+            longitude: number;
+            placeName: string;
+          } => Boolean(result),
+        );
+
+        if (successful.length) {
+          const geocodedById = new Map(successful.map((item) => [item.id, item]));
+          setTodayEvents((previous) =>
+            previous.map((event) => {
+              const geocoded = geocodedById.get(event.id);
+              if (!geocoded) return event;
+
+              return {
+                ...event,
+                latitude: geocoded.latitude,
+                longitude: geocoded.longitude,
+                location: geocoded.placeName || event.location,
+                hasCoordinates: true,
+                isGeocoded: true,
+              };
+            }),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load today's globe shoots:", error);
+        if (!cancelled) setTodayEvents([]);
+      } finally {
+        if (!cancelled) setTodayLoading(false);
+      }
+    };
+
+    void loadTodayShoots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [geocodeAddress]);
+
+  const sortedTodayEvents = useMemo(
+    () =>
+      [...todayEvents].sort((a, b) => {
+        const byTime = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+        if (Number.isFinite(byTime) && byTime !== 0) return byTime;
+        return a.title.localeCompare(b.title);
+      }),
+    [todayEvents],
+  );
 
   const mappedEvents = useMemo(
     () =>
@@ -702,6 +878,66 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
       return true;
     });
   }, [dbEvents, searchQuery, statusFilter, crewFilter, activeFilters]);
+
+  const mapEventsToRender = useMemo(() => {
+    if (
+      !selectedEvent ||
+      !selectedEvent.hasCoordinates ||
+      !hasValidCoordinates(selectedEvent.latitude, selectedEvent.longitude) ||
+      filteredEvents.some((event) => event.id === selectedEvent.id)
+    ) {
+      return filteredEvents;
+    }
+
+    return [...filteredEvents, selectedEvent];
+  }, [filteredEvents, selectedEvent]);
+
+  const handleTodayShootClick = useCallback(
+    async (event: GlobeShoot) => {
+      let target = event;
+
+      if (
+        (!target.hasCoordinates ||
+          !hasValidCoordinates(target.latitude, target.longitude)) &&
+        target.location &&
+        target.location !== "Location TBD"
+      ) {
+        const coordinates = await geocodeAddress(target.location);
+        if (coordinates) {
+          target = {
+            ...target,
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+            location: coordinates.placeName || target.location,
+            hasCoordinates: true,
+            isGeocoded: true,
+          };
+
+          setTodayEvents((previous) =>
+            previous.map((item) => (item.id === target.id ? target : item)),
+          );
+        }
+      }
+
+      if (!hasValidCoordinates(target.latitude, target.longitude)) {
+        toast.error("Location is not available for this shoot.");
+        return;
+      }
+
+      setSelectedEvent(target);
+      moveMapTo(
+        {
+          latitude: Number(target.latitude),
+          longitude: Number(target.longitude),
+          zoom: 11,
+          pitch: 0,
+          bearing: 0,
+        },
+        650,
+      );
+    },
+    [geocodeAddress, moveMapTo],
+  );
 
   const zoomToLegendMarkers = useCallback(
     (status: GlobeStatus) => {
@@ -851,13 +1087,133 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   );
 
   return (
-    <div
-      className={`relative h-[calc(100vh-250px)] min-h-[640px] w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${
-        isDark
-          ? "border-[#333333] bg-[#111111]"
-          : "border-[#E5E5E5] bg-white"
-      }`}
-    >
+    <div className="w-full space-y-4">
+      <div className="flex min-h-[42px] items-center justify-between gap-4 px-1">
+        <button
+          type="button"
+          onClick={onBack}
+          className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+            isDark
+              ? "text-white/80 hover:text-white"
+              : "text-black/70 hover:text-black"
+          }`}
+        >
+          <ChevronRight size={20} strokeWidth={1.7} className="rotate-180" />
+          Back
+        </button>
+
+        <div className="flex min-w-0 flex-col items-end gap-2">
+          <Select
+            value={range}
+            onValueChange={(value: GlobalRange) => handleRangeChange(value)}
+          >
+            <SelectTrigger
+              className={`h-11 w-[165px] rounded-lg text-sm focus:ring-0 ${
+                isDark
+                  ? "border-[#333333] bg-[#171717] text-white/70"
+                  : "border-[#E5E5E5] bg-white text-[#666666]"
+              }`}
+            >
+              <CalendarDays
+                size={16}
+                className={isDark ? "mr-2 text-white/35" : "mr-2 text-[#777777]"}
+              />
+              <SelectValue placeholder="Upcoming" />
+            </SelectTrigger>
+            <SelectContent
+              className={`max-h-72 ${
+                isDark
+                  ? "border-[#333333] bg-[#111111] text-white"
+                  : "border-[#E5E5E5] bg-white text-black"
+              }`}
+            >
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="tbd">TBD</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+              <SelectItem value="next_15_days">Next 15 Days</SelectItem>
+              <SelectItem value="next_30_days">Next 30 Days</SelectItem>
+              <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+              <SelectItem value="last_15_days">Last 15 Days</SelectItem>
+              <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+              <SelectItem
+                value="custom"
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleRangeChange("custom");
+                }}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  handleRangeChange("custom");
+                }}
+              >
+                Custom Range
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {currentCustomRangeLabel && (
+            <div
+              className={`flex max-w-[420px] items-center gap-3 rounded-xl border px-3 py-2.5 shadow-lg ${
+                isDark
+                  ? "border-[#333333] bg-[#171717] text-white"
+                  : "border-[#E5E5E5] bg-white text-black"
+              }`}
+            >
+              <div className="min-w-0">
+                <p
+                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                    isDark ? "text-[#E8D1AB]" : "text-[#B38B4D]"
+                  }`}
+                >
+                  Saved Range
+                </p>
+                <p
+                  className={`mt-0.5 truncate text-xs ${
+                    isDark ? "text-white/70" : "text-black/65"
+                  }`}
+                >
+                  {currentCustomRangeLabel}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openCustomRangeDialog}
+                className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                  isDark
+                    ? "border-[#333333] bg-[#202020] text-white hover:bg-[#2A2A2A]"
+                    : "border-[#E5E5E5] bg-white text-black hover:bg-[#F7F7F7]"
+                }`}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={clearCustomRange}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                  isDark
+                    ? "border-[#333333] bg-[#202020] text-white/70 hover:bg-[#2A2A2A] hover:text-white"
+                    : "border-[#E5E5E5] bg-white text-black/60 hover:bg-[#F7F7F7] hover:text-black"
+                }`}
+                aria-label="Clear custom range"
+                title="Clear custom range"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
+        <div
+          className={`relative h-[calc(100vh-250px)] min-h-[640px] min-w-0 overflow-hidden rounded-2xl border transition-colors duration-300 ${
+            isDark
+              ? "border-[#333333] bg-[#111111]"
+              : "border-[#E5E5E5] bg-white"
+          }`}
+        >
       {isValidMapboxToken ? (
         <MapboxMap
           ref={mapRef}
@@ -873,7 +1229,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
         >
           <NavigationControl position="bottom-right" showCompass={false} />
 
-          {filteredEvents.map((event) => {
+          {mapEventsToRender.map((event) => {
             const colors = statusConfig[event.status];
             const isSelected = selectedEvent?.id === event.id;
             const isHighlighted = highlightedLegend === event.status;
@@ -973,7 +1329,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
       <div className="pointer-events-none absolute left-4 right-4 top-4 z-20">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="pointer-events-auto w-full xl:w-[340px]">
+          <div className="pointer-events-auto w-full xl:w-[300px]">
             <div className="relative">
               <Search
                 size={17}
@@ -1011,7 +1367,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
           <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 xl:justify-end">
             <Select value={statusFilter} onValueChange={(value: GlobeStatusFilter) => setStatusFilter(value)}>
               <SelectTrigger
-                className={`h-11 w-[160px] rounded-lg text-sm focus:ring-0 ${
+                className={`h-11 w-fit rounded-lg text-sm focus:ring-0 ${
                   isDark
                     ? "border-[#333333] bg-[#171717] text-white/70"
                     : "border-[#E5E5E5] bg-white text-[#666666]"
@@ -1036,7 +1392,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
             <Select value={crewFilter} onValueChange={(value: CrewFilter) => setCrewFilter(value)}>
               <SelectTrigger
-                className={`h-11 w-[155px] rounded-lg text-sm focus:ring-0 ${
+                className={`h-11 w-fit rounded-lg text-sm focus:ring-0 ${
                   isDark
                     ? "border-[#333333] bg-[#171717] text-white/70"
                     : "border-[#E5E5E5] bg-white text-[#666666]"
@@ -1056,98 +1412,67 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
                 <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
               </SelectContent>
             </Select>
-
+            
             <Select
-              value={range}
-              onValueChange={(value: GlobalRange) => handleRangeChange(value)}
+              value={postProductionUserFilter}
+              onValueChange={setPostProductionUserFilter}
+              disabled={isLoadingPostProductionTeam}
             >
               <SelectTrigger
-                className={`h-11 w-[175px] rounded-lg text-sm focus:ring-0 ${
+                title={selectedPostProductionUser?.name || "All Post Production Team"}
+                className={`h-11 w-[190px] rounded-lg text-sm focus:ring-0 ${
                   isDark
                     ? "border-[#333333] bg-[#171717] text-white/70"
                     : "border-[#E5E5E5] bg-white text-[#666666]"
                 }`}
               >
-                <CalendarDays size={16} className={isDark ? "mr-2 text-white/35" : "mr-2 text-[#777777]"} />
-                <SelectValue placeholder="Upcoming" />
+                <SelectValue
+                  placeholder="Post Production Team"
+                  className="min-w-0 flex-1 truncate text-left"
+                >
+                  {isLoadingPostProductionTeam
+                    ? "Loading team..."
+                    : selectedPostProductionUser?.name || "All Post Production Team"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent
-                className={`max-h-72 ${
-                  isDark
-                    ? "border-[#333333] bg-[#111111] text-white"
-                    : "border-[#E5E5E5] bg-white text-black"
-                }`}
+                className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                viewportClassName="!h-auto max-h-80 overflow-y-auto"
               >
-                <SelectItem value="upcoming">Upcoming</SelectItem>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="tbd">TBD</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="next_7_days">Next 7 Days</SelectItem>
-                <SelectItem value="next_15_days">Next 15 Days</SelectItem>
-                <SelectItem value="next_30_days">Next 30 Days</SelectItem>
-                <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                <SelectItem value="last_15_days">Last 15 Days</SelectItem>
-                <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-                <SelectItem
-                  value="custom"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    handleRangeChange("custom");
-                  }}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    handleRangeChange("custom");
-                  }}
+                <SelectItem value="all">All Post Production Team</SelectItem>
+                {postProductionTeamOptions.length > 0 ? (
+                postProductionTeamOptions.map((option) => (
+                  <SelectItem
+                    key={option.id}
+                    value={String(option.id)}
+                    textValue={option.name}
+                    className="py-2.5"
+                  >
+                    <div className="flex flex-col items-start gap-0.5 text-left">
+                      <span className="text-sm leading-5">{option.name}</span>
+                      {option.role_name && (
+                        <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                          {formatRoleName(option.role_name)}
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))
+              ) : (
+                <div
+                  className={`px-3 py-2.5 text-sm ${
+                    isDark ? "text-white/50" : "text-black/50"
+                  }`}
                 >
-                  Custom Range
-                </SelectItem>
+                  No members available
+                </div>
+              )}
               </SelectContent>
             </Select>
+
           </div>
         </div>
 
-        {currentCustomRangeLabel && (
-          <div
-            className={`pointer-events-auto mt-3 ml-auto flex w-fit max-w-full items-center gap-3 rounded-xl border px-3 py-2.5 shadow-lg ${
-              isDark
-                ? "border-[#333333] bg-[#171717] text-white"
-                : "border-[#E5E5E5] bg-white text-black"
-            }`}
-          >
-            <div className="min-w-0">
-              <p className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? "text-[#E8D1AB]" : "text-[#B38B4D]"}`}>
-                Saved Range
-              </p>
-              <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/70" : "text-black/65"}`}>
-                {currentCustomRangeLabel}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={openCustomRangeDialog}
-              className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                isDark
-                  ? "border-[#333333] bg-[#202020] text-white hover:bg-[#2A2A2A]"
-                  : "border-[#E5E5E5] bg-white text-black hover:bg-[#F7F7F7]"
-              }`}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={clearCustomRange}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-                isDark
-                  ? "border-[#333333] bg-[#202020] text-white/70 hover:bg-[#2A2A2A] hover:text-white"
-                  : "border-[#E5E5E5] bg-white text-black/60 hover:bg-[#F7F7F7] hover:text-black"
-              }`}
-              aria-label="Clear custom range"
-              title="Clear custom range"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        )}
       </div>
 
       {isCustomRangeOpen && (
@@ -1349,39 +1674,6 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
               >
                 {selectedEvent.status}
               </span>
-
-              {!!selectedEvent.crew.length && (
-                <div className="flex -space-x-2">
-                  {selectedEvent.crew.slice(0, 4).map((member) => (
-                    <div
-                      key={member.id}
-                      title={member.name}
-                      className={`flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 text-[9px] font-semibold ${
-                        isDark
-                          ? "border-[#171717] bg-[#E8D1AB] text-black"
-                          : "border-white bg-[#E8D1AB] text-black"
-                      }`}
-                    >
-                      {member.image ? (
-                        <img src={member.image} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        member.name.slice(0, 1).toUpperCase()
-                      )}
-                    </div>
-                  ))}
-                  {selectedEvent.crew.length > 4 && (
-                    <div
-                      className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-[9px] font-semibold ${
-                        isDark
-                          ? "border-[#171717] bg-[#202020] text-white/70"
-                          : "border-white bg-[#F4F5F7] text-[#666666]"
-                      }`}
-                    >
-                      +{selectedEvent.crew.length - 4}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <h3 className={`pr-8 text-base font-semibold leading-snug ${isDark ? "text-white" : "text-[#111111]"}`}>
@@ -1495,6 +1787,180 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
           </div>
         </div>
       )}
+      </div>
+
+      <aside
+        className={`flex h-[calc(100vh-250px)] min-h-[640px] min-w-0 flex-col overflow-hidden rounded-2xl border ${
+          isDark
+            ? "border-[#333333] bg-[#111111] text-white"
+            : "border-[#E5E5E5] bg-white text-black"
+        }`}
+      >
+        <div
+          className={`border-b px-5 py-5 ${
+            isDark ? "border-[#333333]" : "border-[#E5E5E5]"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p
+                className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                  isDark ? "text-[#E8D1AB]" : "text-[#9B7B4F]"
+                }`}
+              >
+                Today Calendar
+              </p>
+              <h3 className="mt-1 text-lg font-semibold">
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </h3>
+              <p
+                className={`mt-1 text-xs ${
+                  isDark ? "text-white/40" : "text-black/45"
+                }`}
+              >
+                {todayLoading
+                  ? "Loading today's shoots..."
+                  : `${sortedTodayEvents.length} ${sortedTodayEvents.length === 1 ? "shoot" : "shoots"} scheduled`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenCalendarDay?.(new Date())}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                isDark
+                  ? "border-[#333333] bg-[#202020] text-[#E8D1AB] hover:bg-[#2A2A2A]"
+                  : "border-[#E5E5E5] bg-[#FFFCF6] text-[#9B7B4F] hover:bg-[#F8F1E5]"
+              }`}
+              aria-label="Open today's shoots in Calendar View"
+              title="Open today's shoots in Calendar View"
+            >
+              <CalendarDays size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="custom-scrollbar flex-1 overflow-y-auto p-4">
+          {todayLoading ? (
+            <div className="flex h-full min-h-[220px] items-center justify-center">
+              <Loader2 size={22} className="animate-spin text-[#E8D1AB]" />
+            </div>
+          ) : sortedTodayEvents.length ? (
+            <div className="space-y-3">
+              {sortedTodayEvents.map((event) => {
+                const isSelected = selectedEvent?.id === event.id;
+                const colors = statusConfig[event.status];
+
+                return (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => void handleTodayShootClick(event)}
+                    className={`w-full rounded-xl border p-4 text-left transition-all ${
+                      isSelected
+                        ? isDark
+                          ? "border-[#E8D1AB]/60 bg-[#201D18] ring-1 ring-[#E8D1AB]/20"
+                          : "border-[#D7BD90] bg-[#FFFCF6] ring-1 ring-[#E8D1AB]/40"
+                        : isDark
+                          ? "border-[#333333] bg-[#171717] hover:border-[#464646] hover:bg-[#1C1C1C]"
+                          : "border-[#E5E5E5] bg-white hover:border-[#D7D7D7] hover:bg-[#FAFAFA]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize ${colors.badge}`}
+                          >
+                            {event.status}
+                          </span>
+                          {event.isGeocoded && (
+                            <span className="text-[9px] font-medium text-[#C7A46B]">
+                              Approx. location
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`line-clamp-2 text-sm font-semibold leading-5 ${
+                            isDark ? "text-white" : "text-[#111111]"
+                          }`}
+                        >
+                          {event.title}
+                        </p>
+                      </div>
+                      <span
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${colors.marker}`}
+                      />
+                    </div>
+
+                    <div
+                      className={`mt-3 space-y-2 text-[11px] ${
+                        isDark ? "text-white/45" : "text-[#777777]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock3 size={13} className="shrink-0" />
+                        <span>
+                          {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                        </span>
+                      </div>
+                      <div className="flex min-w-0 items-start gap-2">
+                        <MapPin size={13} className="mt-0.5 shrink-0" />
+                        <span className="line-clamp-2">{event.location}</span>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`mt-3 flex items-center justify-between border-t pt-3 ${
+                        isDark ? "border-[#2A2A2A]" : "border-[#EEEEEE]"
+                      }`}
+                    >
+                      <span
+                        className={`text-[10px] ${
+                          isDark ? "text-white/30" : "text-black/35"
+                        }`}
+                      >
+                        {event.hasCoordinates
+                          ? "Click to focus on map"
+                          : "Click to locate on map"}
+                      </span>
+                      <MapPin
+                        size={14}
+                        className={isSelected ? "text-[#E8D1AB]" : "opacity-45"}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              className={`flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-dashed px-5 text-center ${
+                isDark
+                  ? "border-[#333333] bg-[#151515]"
+                  : "border-[#E5E5E5] bg-[#FAFAFA]"
+              }`}
+            >
+              <CalendarDays
+                size={28}
+                className={isDark ? "text-white/20" : "text-black/20"}
+              />
+              <p className="mt-3 text-sm font-medium">No shoots today</p>
+              <p
+                className={`mt-1 text-xs ${
+                  isDark ? "text-white/35" : "text-black/40"
+                }`}
+              >
+                Today's calendar is independent from the map filters.
+              </p>
+            </div>
+          )}
+        </div>
+      </aside>
+      </div>
     </div>
   );
 };
