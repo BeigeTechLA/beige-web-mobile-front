@@ -675,7 +675,8 @@ export default function ShootsPage() {
                       viewportClassName="!h-auto max-h-80 overflow-y-auto"
                     >
                       <SelectItem value="all">All Post Production Team</SelectItem>
-                      {postProductionTeamOptions.map((option) => (
+                      {postProductionTeamOptions.length > 0 ? (
+                      postProductionTeamOptions.map((option) => (
                         <SelectItem
                           key={option.id}
                           value={String(option.id)}
@@ -691,7 +692,16 @@ export default function ShootsPage() {
                             )}
                           </div>
                         </SelectItem>
-                      ))}
+                      ))
+                    ) : (
+                      <div
+                        className={`px-3 py-2.5 text-sm ${
+                          isDark ? "text-white/50" : "text-black/50"
+                        }`}
+                      >
+                        No members available
+                      </div>
+                    )}
                     </SelectContent>
                   </Select>
                 </div>

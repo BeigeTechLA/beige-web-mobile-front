@@ -664,7 +664,13 @@ export const ShootsTable = ({
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
           const customerName = getShootDisplayName(project);
-          const initials = customerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+          const initials = customerName
+              .split(/[\s\-–—]+/)                                 // split on spaces and dashes
+              .filter((part: string) => /[a-zA-Z0-9]/.test(part)) // drop empty or symbol-only parts
+              .map((part: string) => part[0])
+              .join('')
+              .toUpperCase()
+              .substring(0, 2);
           const extractedPhone = extractPhoneNumber(project);
           const resolvedLocation =
             typeof project.event_location === "string"
