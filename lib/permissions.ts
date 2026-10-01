@@ -158,11 +158,16 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
     permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2]],
   },
   {
+    prefix: "/admin/quotes/analytics",
+    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[3]],
+  },
+  {
     prefix: "/admin/quotes",
     permissionKeys: [
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[0],
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1],
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[3],
       "admin_quotes",
     ],
   },

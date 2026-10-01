@@ -113,6 +113,7 @@ export const pricingApi = createApi({
         custom_add_on_items?: CustomAddOnQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -141,6 +142,7 @@ export const pricingApi = createApi({
         custom_add_on_items?: CustomAddOnQuoteItem[];
         video_edit_types?: Array<{ slug: string; quantity: number }>;
         photo_edit_types?: Array<{ slug: string; quantity: number }>;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -219,6 +221,7 @@ export const pricingApi = createApi({
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({
@@ -255,6 +258,7 @@ export const pricingApi = createApi({
         studio_items?: StudioQuoteItem[];
         skip_discount?: boolean;
         skip_margin?: boolean;
+        apply_self_serve_coverage_pricing?: boolean;
       }
     >({
       query: (body) => ({

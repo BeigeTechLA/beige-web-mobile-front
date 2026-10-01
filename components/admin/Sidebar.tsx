@@ -13,13 +13,10 @@ import {
   CircleDollarSign,
   DollarSign,
   X,
-  type LucideIcon,
   Receipt,
   Settings,
   SquareArrowOutUpRight,
   User,
-  CalendarRange,
-  Save,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -130,6 +127,7 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
+      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
   {

@@ -451,7 +451,7 @@ export const Navbar = () => {
                   <button
                     key={link.label}
                     onClick={() => handleNavClick(link.href)}
-                    className={`lg:text-lg font-medium transition-all px-2 xl:px-4 py-2 rounded-lg flex items-center gap-2 ${active ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
+                    className={`lg:text-lg font-medium transition-all px-2 xl:px-4 py-2 rounded-lg flex items-center gap-2 cursor-pointer ${active ? "bg-white text-black hover:bg-white/90" : "text-white/70 hover:text-[#ECE1CE]"}`}
                   >
                     {link.label}
                     {link.hasDropdown && (

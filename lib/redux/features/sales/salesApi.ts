@@ -160,6 +160,10 @@ export const salesApi = createApi({
         location_longitude?: number | null;
         specialInstructions?: string;
         reference_links?: string[];
+        role_counts?: Record<string, number>;
+        estimated_total?: number;
+        pricing_subtotal?: number;
+        pricing_line_items?: Array<Record<string, unknown>>;
         studio_total?: number;
         studio_items?: Array<{
           studio_id: string;

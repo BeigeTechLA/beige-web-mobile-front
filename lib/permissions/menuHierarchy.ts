@@ -32,6 +32,7 @@ export const ADMIN_PERMISSION_MENU_HIERARCHY: Record<
       "admin_quotes_all_quotes",
       "admin_quotes_quote_approvals",
       "admin_quotes_master_pricing",
+      "admin_quotes_quote_analytics",
     ],
   },
 };

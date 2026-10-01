@@ -50,6 +50,8 @@ export interface StudiosSelectionProps {
   onBack?: () => void;
   studios?: StudioItem[];
   initialSelectedStudioIds?: string[];
+  initialViewMode?: "stack" | "grid";
+  onViewModeChange?: (viewMode: "stack" | "grid") => void;
   title?: string;
   subtitle?: string;
   stepNumber?: string;
@@ -168,14 +170,16 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   onBack,
   studios = DEFAULT_STUDIOS,
   initialSelectedStudioIds = [],
+  initialViewMode = "grid",
+  onViewModeChange,
   title = "Studios That Fit Your Project",
   subtitle = "Browse available studios and find the right space for your shoot.",
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 20,
 }) => {
   const [selectedStudioIds, setSelectedStudioIds] = useState<string[]>(initialSelectedStudioIds);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"stack" | "grid">("stack");
+  const [viewMode, setViewMode] = useState<"stack" | "grid">(initialViewMode);
   const [swiperRef, setSwiperRef] = useState<SwiperClass | null>(null);
   const [sortBy, setSortBy] = useState("");
   const stackActionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -186,6 +190,11 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
       setSelectedStudioIds(initialSelectedStudioIds);
     }
   }, [initialSelectedStudioIds]);
+
+  const handleViewModeChange = (nextViewMode: "stack" | "grid") => {
+    setViewMode(nextViewMode);
+    onViewModeChange?.(nextViewMode);
+  };
 
   const filteredStudios = useMemo(() => {
     if (!searchQuery.trim()) return studios;
@@ -298,7 +307,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <style>{customSwiperStyles}</style>
       <div>
         {/* Top Header Row */}
@@ -312,9 +321,9 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -324,12 +333,12 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         </div>
 
         {/* Section Heading & View Toggle */}
-        <div className="flex items-start justify-between mb-4 lg:mb-6">
+        <div className="flex items-start justify-between mb-5 2xl:mb-8">
           <div>
-            <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+            <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
               {title}
             </h1>
-            <p className="text-white/30 text-sm md:text-xl font-light">
+            <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
               {subtitle}
             </p>
           </div>
@@ -338,23 +347,27 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
           <div className="flex items-center bg-transparent border border-white/20 rounded-xl lg:rounded-2xl p-1 lg:p-2.5 gap-1">
             <button
               type="button"
-              onClick={() => setViewMode("stack")}
-              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
-                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
-                : "text-white hover:text-white/80"
-                }`}
-            >
-              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
+              onClick={() => handleViewModeChange("grid")}
+              aria-label="Grid View"
+              aria-pressed={viewMode === "grid"}
               className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "grid"
                 ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
                 : "text-white hover:text-white/80"
                 }`}
             >
               <LayoutGrid className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange("stack")}
+              aria-label="Stack View"
+              aria-pressed={viewMode === "stack"}
+              className={`flex items-center justify-center p-1 lg:p-2 rounded-lg transition-colors cursor-pointer ${viewMode === "stack"
+                ? "bg-[linear-gradient(180deg,#E8D1AB_0.1%,#FFF_168.26%)] text-black border border-[#E8D1AB]"
+                : "text-white hover:text-white/80"
+                }`}
+            >
+              <PictureInPicture2 className="w-3.5 h-3.5 lg:w-6 lg:h-6" strokeWidth={1} />
             </button>
           </div>
         </div>
@@ -437,11 +450,12 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                     <SwiperSlide key={studio.id} className="border border-white/20 bg-[#101010] overflow-hidden">
                       <div className="w-full h-full flex flex-col md:flex-row items-stretch">
                         {/* Studio Image + Rating Badge */}
-                        <div className="relative w-full md:w-[40%] lg:w-[42%] h-[180px] md:h-full rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
+                        <div className="relative w-full md:w-[40%] lg:w-[42%] h-[180px] md:h-auto md:min-h-[220px] md:self-stretch rounded-t-xl md:rounded-tr-none md:rounded-l-xl overflow-hidden shrink-0">
                           <Image
                             src={studio.image}
                             alt={studio.name}
                             fill
+                            unoptimized
                             className="object-cover"
                           />
                           <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
@@ -483,7 +497,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                               <span className="truncate">{studio.location}</span>
                             </div>
 
-                            <hr className="border-t my-2.5 lg:my-3.5 border-white/20" />
+                            <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                             {/* Tags */}
                             <div className="flex flex-wrap items-center gap-1.5 lg:gap-2">
@@ -498,7 +512,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                             </div>
                           </div>
 
-                          <hr className="border-t my-2.5 lg:my-3.5 border-white/20" />
+                          <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                           {/* Action & Price Footer */}
                           <div className="flex items-center justify-between pt-1 shrink-0 mt-auto">
@@ -622,6 +636,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                         src={studio.image}
                         alt={studio.name}
                         fill
+                        unoptimized
                         className="object-cover"
                       />
                       <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
@@ -645,7 +660,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                       <MapPin className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0" strokeWidth={1.5} />
                       <span className="truncate">{studio.location}</span>
                     </div>
-                    <hr className="border-t my-2.5 lg:my-3.5 border-white/20" />
+                    <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                     {/* Tags */}
                     <div className="flex flex-wrap items-center gap-1.5 lg:gap-2">
@@ -659,7 +674,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                       ))}
                     </div>
                   </div>
-                  <hr className="border-t my-2.5 lg:my-3.5 border-white/20" />
+                  <hr className={`border-t border-white/20 my-3 lg:my-5 2xl:my-7`} />
 
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2">
@@ -708,13 +723,13 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         )}
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      {/* Bottom Action Footer Bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -725,7 +740,7 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>

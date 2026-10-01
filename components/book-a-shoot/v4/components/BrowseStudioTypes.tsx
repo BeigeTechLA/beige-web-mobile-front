@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ArrowLeft, Check, Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 
 export interface StudioCategoryOption {
   key: string;
@@ -17,6 +16,10 @@ export interface StudioCategoryOption {
 export interface BrowseStudioTypesProps {
   onContinue: (selectedCategoryKey: string) => void;
   onBack?: () => void;
+  initialCrewCount?: string;
+  initialShootType?: string;
+  onCrewCountChange?: (value: string) => void;
+  onShootTypeChange?: (value: string) => void;
   occasionTitle?: string;
   initialSelectedKey?: string;
   title?: string;
@@ -54,40 +57,44 @@ const DEFAULT_STUDIO_CATEGORIES: StudioCategoryOption[] = [
 export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
   onContinue,
   onBack,
+  initialCrewCount = "",
+  initialShootType = "",
+  onCrewCountChange,
+  onShootTypeChange,
   occasionTitle = "Corporate Shoots",
   initialSelectedKey = "production",
   title = "",
   subtitle = "Explore studios that match your selected shoot type.",
-  stepNumber = "03",
+  stepNumber = "3",
   showCrewInput = false,
   showShootType = false,
   completionPercentage = 60
 }) => {
   const [selectedKey, setSelectedKey] = useState<string>(initialSelectedKey);
-  const [crewCount, setCrewCount] = useState<string>("");
-  const [shootType, setShootType] = useState<string>("");
+  const [crewCount, setCrewCount] = useState<string>(initialCrewCount);
+  const [shootType, setShootType] = useState<string>(initialShootType);
 
   const handleContinue = () => {
     onContinue(selectedKey);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-[linear-gradient(241deg,rgba(255,255,255,0.40)_9.9%,rgba(255,255,255,0.00)_151.26%)]">
@@ -98,17 +105,17 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         </div>
 
         {/* Section Heading */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title ? title : `Browse Studios for your ${occasionTitle}`}
           </h1>
-          <p className="text-white/30 text-sm md:text-xl font-light">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
 
         {/* Category Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-5 mb-5 lg:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-5 mb-5 2xl:mb-8">
           {DEFAULT_STUDIO_CATEGORIES.map((category) => {
             const isSelected = selectedKey === category.key;
 
@@ -133,7 +140,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
 
                 {/* Content Overlay */}
                 <div className="relative z-10 max-w-[70%] space-y-2">
-                  <h3 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
+                  <h3 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-[#E8D1AB]">
                     {category.title}
                   </h3>
                   <p className="text-xs lg:text-base text-white/70 font-light">
@@ -168,11 +175,11 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         {
           showCrewInput &&
           <>
-            <hr className="border-t border-white/20 my-5 lg:my-10" />
+            <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
             {/* Crew Size Input Section */}
             <div className="space-y-4 lg:space-y-8">
-              <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
+              <h2 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-bold text-white">
                 {
                   showShootType ? "How big will your crew be and what kind of shoot is it?" : "How big will your crew be?"
                 }
@@ -182,56 +189,64 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
                 {/* Styled Floating-label Input */}
                 <div className="flex-1 relative space-y-2">
                   <Label
-                    htmlFor="crewSize"
+                    htmlFor="studioCrewCount"
                     className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
                   >
                     Enter no Cast & Crew for your studio
                   </Label>
                   <div className="relative">
                     <Input
-                      id="crewSize"
+                      id="studioCrewCount"
                       type={"text"}
                       value={crewCount}
-                      onChange={(e) => setCrewCount(e.target.value)}
+                      inputMode="numeric"
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setCrewCount(value);
+                        onCrewCountChange?.(value);
+                      }}
                       className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                     />
                   </div>
                 </div>
 
-                {showShootType &&
+                {/* {showShootType &&
                   <>
                     <div className="flex-1 relative space-y-2">
                       <Label
-                        htmlFor="crewSize"
+                        htmlFor="studioShootType"
                         className="absolute -top-2 lg:-top-3 left-4 z-10 px-2 bg-[#101010] text-sm lg:text-base text-white/60 pointer-events-none"
                       >
                         Shoot Type
                       </Label>
                       <div className="relative">
                         <Input
-                          id="crewSize"
+                          id="studioShootType"
                           type={"text"}
-                          value={crewCount}
-                          onChange={(e) => setCrewCount(e.target.value)}
+                          value={shootType}
+                          onChange={(e) => {
+                            setShootType(e.target.value);
+                            onShootTypeChange?.(e.target.value);
+                          }}
                           className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
                         />
                       </div>
                     </div>
                   </>
-                }
+                } */}
               </div>
             </div>
           </>
         }
       </div>
 
-      {/* Bottom Action Footer */}
-      <div className="pt-10 mt-12 border-t border-white/10 flex items-center justify-between">
+      {/* Bottom Action Footer Bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -242,7 +257,7 @@ export const BrowseStudioTypes: React.FC<BrowseStudioTypesProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
         >
           Continue
         </button>

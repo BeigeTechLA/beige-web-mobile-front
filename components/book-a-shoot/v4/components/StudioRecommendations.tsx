@@ -11,6 +11,8 @@ export interface StudioRecommendationProps {
   onContinue: (data: { studioType: string; crewCount: string }) => void;
   onChangeStudioType?: () => void;
   onBack?: () => void;
+  initialCrewCount?: string;
+  onCrewCountChange?: (value: string) => void;
   occasionTitle?: string;
   recommendedStudioType?: string;
   recommendedStudioDescription?: string;
@@ -25,16 +27,18 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
   onContinue,
   onChangeStudioType,
   onBack,
+  initialCrewCount = "",
+  onCrewCountChange,
   occasionTitle = "Corporate Event",
   recommendedStudioType = "Corporate Event",
   recommendedStudioDescription = "Conferences, summits, company offsites",
   studioImage = "https://d2jhn32fsulyac.cloudfront.net/assets/studio/hollywood-hills/living-room-2.png",
   title = "We’ve Picked a Studio Type for Your Shoot",
   subtitle = `Based on your ${occasionTitle}, we found a studio that fits your shoot.`,
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 40,
 }) => {
-  const [crewCount, setCrewCount] = useState<string>("");
+  const [crewCount, setCrewCount] = useState<string>(initialCrewCount);
 
   const handleContinue = () => {
     onContinue({
@@ -44,22 +48,22 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between select-none">
       <div>
         {/* Top Header Row */}
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 lg:mb-8 cursor-pointer"
+            className="w-8 h-8 lg:w-11 lg:h-11 rounded-full bg-[#1D1D1D] border border-[#9C9C9C80] flex items-center justify-center text-white hover:text-white/80 transition-colors mb-4 2xl:mb-8 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 lg:w-6 lg:h-6" />
           </button>
         )}
 
-        {/* Progress Bar */}
-        <div className="mb-5 lg:mb-8">
-          <span className="text-sm lg:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
+        {/* Step Indicator Bar */}
+        <div className="mb-5 2xl:mb-8">
+          <span className="text-sm lg:text-base 2xl:text-lg font-light text-[#E8D1AB] uppercase block mb-2 lg:mb-4 font-['Instrument_Sans']">
             STEP {stepNumber}
           </span>
           <div className="w-full h-1.5 rounded-full overflow-hidden bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0)">
@@ -69,12 +73,12 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
           </div>
         </div>
 
-        {/* Section Heading */}
-        <div className="mb-5 lg:mb-8">
-          <h1 className="text-xl md:text-5xl lg:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
+        {/* Header Titles */}
+        <div className="mb-5 2xl:mb-8">
+          <h1 className="text-xl lg:text-4xl 2xl:text-6xl font-['Roboto_Condensed'] font-medium text-white mb-3 tracking-tight">
             {title}
           </h1>
-          <p className="text-white/30 text-sm md:text-xl font-light">
+          <p className="text-white/40 text-sm lg:text-base 2xl:text-xl font-light">
             {subtitle}
           </p>
         </div>
@@ -87,6 +91,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
               src={studioImage}
               alt={recommendedStudioType}
               fill
+              unoptimized
               className="object-cover"
             />
           </div>
@@ -110,7 +115,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
               {/* Recommendation Note Box */}
               <div className="w-full rounded-md lg:rounded-2xl bg-[#211F1C] p-2.5 lg:px-6">
                 <p className="text-[10px] lg:text-sm text-[#E8D1AB] font-medium leading-relaxed">
-                  Note : Based on your {occasionTitle}, we recommend an Event Studio. Prefer something else? Choose a different studio type based on your requirements.
+                  Note: Based on your {occasionTitle}, we recommend an Event Studio. Prefer something else? Choose a different studio type based on your requirements.
                 </p>
               </div>
             </div>
@@ -135,7 +140,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
 
         {/* Crew Size Input Section */}
         <div className="space-y-4 lg:space-y-8">
-          <h2 className="text-base lg:text-[26px] font-['Roboto_Condensed'] font-medium lg:font-bold text-white">
+          <h2 className="text-base lg:text-lg 2xl:text-[26px] font-['Roboto_Condensed'] font-medium lg:font-bold text-white">
             How big will your crew be?
           </h2>
 
@@ -152,7 +157,12 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
                 id="crewSize"
                 type={"text"}
                 value={crewCount}
-                onChange={(e) => setCrewCount(e.target.value)}
+                inputMode="numeric"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setCrewCount(value);
+                  onCrewCountChange?.(value);
+                }}
                 className="h-14 lg:h-[82px] w-full rounded-xl border border-white/30 px-4 text-white outline-none focus:border-white bg-[#101010] text-sm lg:text-base"
               />
             </div>
@@ -161,12 +171,12 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="pt-8 lg:pt-10 mt-8 lg:mt-12 border-t border-white/10 flex items-center justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base lg:text-xl hover:bg-white/5 transition-all cursor-pointer"
+            className="px-8 py-3.5 w-full lg:w-auto lg:min-w-[185px] rounded-lg border border-[#8E8E8E] bg-[#101010] text-white font-medium text-base 2xl:text-xl hover:bg-white/5 transition-all cursor-pointer"
           >
             Back
           </button>
@@ -177,7 +187,7 @@ export const StudioRecommendation: React.FC<StudioRecommendationProps> = ({
         <button
           type="button"
           onClick={handleContinue}
-          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
+          className="px-10 py-3.5 w-full lg:w-auto rounded-lg bg-[#E8D1AB] text-[#101010] font-medium text-base 2xl:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer lg:ml-auto"
         >
           Continue
         </button>
