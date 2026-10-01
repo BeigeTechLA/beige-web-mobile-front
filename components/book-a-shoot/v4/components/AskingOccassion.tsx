@@ -110,7 +110,8 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
   // Transform options so every item has an `images` array with 4 duplicate copies of `image`
   const occasions: ProcessedShootType[] = availableShootTypes.map((type) => ({
     ...type,
-    images: Array(4).fill(type.image),
+    // images: Array(4).fill(type.image),
+    images: Array(1).fill(type.image),
   }));
 
   const initialIdx = Math.max(
