@@ -10,6 +10,7 @@ import OpenPipelineWidget from "@/components/admin/quotes/OpenPipeline";
 import ConversionPerformanceWidget from "@/components/admin/quotes/ConversionPerformance";
 import QuotePerformanceWidget from "@/components/admin/quotes/QuotePerformance";
 import { DealColumn, DealColumnData } from "@/components/admin/quotes/DealColumn";
+import { formatQuoteAnalyticsDate } from "@/components/admin/quotes/formatQuoteAnalyticsDate";
 import Image from "next/image";
 import { salesApi, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 
@@ -41,7 +42,7 @@ const toDealColumn = (title: string, response: QuoteAnalyticsQuoteListData | nul
       amount: `$${Number(quote.quote_value || 0).toLocaleString()}`,
       paid: `$${Number(quote.collected_amount || 0).toLocaleString()}`,
       pending: `$${Number(quote.outstanding_amount || 0).toLocaleString()}`,
-      validity: quote.validity?.valid_until || "-",
+      validity: formatQuoteAnalyticsDate(quote.validity?.valid_until),
     };
   }),
 });
@@ -78,7 +79,7 @@ export default function QuoteSalesRepDetailsPage() {
   useEffect(() => {
     if (!salesRepId) return;
     const loadOverdueTable = async () => {
-      const overdueResponse = await salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 20 });
+      const overdueResponse = await salesApi.getQuoteAnalyticsQuotes({ bucket: "overdue_follow_ups", sales_rep_id: salesRepId, page: overduePage, limit: 10 });
       if (overdueResponse.success) setOverdueQuotes(overdueResponse.data);
     };
     void loadOverdueTable();
