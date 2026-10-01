@@ -44,16 +44,19 @@ export default function WebPushRegistration({ userType }: { userType?: unknown }
       // the user receives while the page is in the background.
       if (Notification.permission === "granted") {
         const roomId = String(payload?.data?.roomId || payload?.data?.chatRoomId || "").trim();
+        const topic = String(payload?.data?.topic || payload?.data?.category || "").toLowerCase();
         const meetingId = String(payload?.data?.meetingId || payload?.data?.meeting_id || "").trim();
         const notification = new Notification(title, {
           body,
           icon: "/icon.png",
-          data: { roomId, meetingId },
+          data: { roomId, meetingId, topic },
         });
         notification.onclick = () => {
           window.focus();
           const basePath = Number(userType) === 1 ? "/admin" : Number(userType) === 2 ? "/creator/dashboard" : "/affiliate";
-          const destination = meetingId
+          const destination = topic === "shoots" && Number(userType) === 2
+            ? "/creator/dashboard/request"
+            : meetingId
             ? basePath + "/meetings?meetingId=" + encodeURIComponent(meetingId)
             : basePath + "/messages" + (roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
           window.location.assign(destination);

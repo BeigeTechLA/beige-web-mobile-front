@@ -376,6 +376,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         project_id: Number(projectId),
         crew_member_ids: selectedCreativeIds,
         allow_pending_compensation_assignment: true,
+        defer_new_shoot_request_email: true,
       }).unwrap();
 
       if (!assignResponse.success) {
@@ -386,7 +387,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      await cpCompensationApi.submitForApproval(payload);
+      await cpCompensationApi.submitForApproval({ ...payload, new_shoot_request_creator_ids: selectedCreativeIds });
       toast.success("CP assigned and compensation sent for finance approval");
       setIsAddCompOpen(false);
       router.push(`/admin/shoots/${projectId}`);

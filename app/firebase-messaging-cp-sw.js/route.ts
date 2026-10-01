@@ -15,10 +15,11 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const roomId = String(event.notification.data?.roomId || event.notification.data?.chatRoomId || "").trim();
+  const topic = String(event.notification.data?.topic || event.notification.data?.category || "").toLowerCase();
   const meetingId = String(event.notification.data?.meetingId || event.notification.data?.meeting_id || "").trim();
   event.waitUntil((async () => {
-    const targetPath = meetingId ? "/creator/dashboard/meetings" : "/creator/dashboard/messages";
-    const openUrl = targetPath + (meetingId ? "?meetingId=" + encodeURIComponent(meetingId) : roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
+    const targetPath = topic === "shoots" ? "/creator/dashboard/request" : meetingId ? "/creator/dashboard/meetings" : "/creator/dashboard/messages";
+    const openUrl = targetPath + (topic === "shoots" ? "" : meetingId ? "?meetingId=" + encodeURIComponent(meetingId) : roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
     const clientWindows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const targetWindow = clientWindows.find((client) => new URL(client.url).pathname === targetPath);
     if (targetWindow) {
