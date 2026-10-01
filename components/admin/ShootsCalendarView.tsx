@@ -17,6 +17,8 @@ import { adminApi } from "@/lib/api";
 
 type ShootCalendarViewProps = {
   isDark: boolean;
+  initialOpenDate?: Date | null;
+  onInitialOpenDateHandled?: () => void;
   searchQuery?: string;
   categoryFilter?: string;
   statusFilter?: string;
@@ -298,6 +300,8 @@ const normalizeCalendarResponse = (response: any): CalendarShoot[] => {
 
 export const ShootsCalendarView = ({
   isDark,
+  initialOpenDate = null,
+  onInitialOpenDateHandled,
   searchQuery = "",
   categoryFilter = "all",
   statusFilter = "all",
@@ -313,6 +317,23 @@ export const ShootsCalendarView = ({
   const [shoots, setShoots] = useState<CalendarShoot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [drawerFilter, setDrawerFilter] = useState<CalendarFilter>("all");
+
+  useEffect(() => {
+    if (!initialOpenDate) return;
+
+    const targetDate = new Date(initialOpenDate);
+    if (Number.isNaN(targetDate.getTime())) {
+      onInitialOpenDateHandled?.();
+      return;
+    }
+
+    targetDate.setHours(0, 0, 0, 0);
+    setFocusDate(targetDate);
+    setView("day");
+    setSelectedDate(null);
+    setDrawerFilter("all");
+    onInitialOpenDateHandled?.();
+  }, [initialOpenDate, onInitialOpenDateHandled]);
 
   const weekStart = useMemo(() => {
     const date = new Date(focusDate);

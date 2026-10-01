@@ -125,6 +125,7 @@ export default function ShootsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
     "list",
   );
+  const [calendarOpenDate, setCalendarOpenDate] = useState<Date | null>(null);
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
@@ -503,7 +504,7 @@ export default function ShootsPage() {
       />
 
       <div
-        className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"
+        className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-3 lg:space-y-6"
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         {viewMode !== "calendar" && viewMode !== "globe" && (
@@ -1408,6 +1409,8 @@ export default function ShootsPage() {
           >
             <ShootsCalendarView
               isDark={isDark}
+              initialOpenDate={calendarOpenDate}
+              onInitialOpenDateHandled={() => setCalendarOpenDate(null)}
               searchQuery={searchQuery}
               categoryFilter={categoryFilter}
               statusFilter={statusFilter}
@@ -1418,28 +1421,14 @@ export default function ShootsPage() {
           </div>
         </>
       ) : viewMode === "globe" ? (
-        <>
-          <div
-            className={`flex h-[42px] items-center px-1 ${
-              isDark ? "bg-[#111111]" : "bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-                isDark
-                  ? "text-white/80 hover:text-white"
-                  : "text-black/70 hover:text-black"
-              }`}
-            >
-              <ArrowLeft size={20} strokeWidth={1.7} />
-              Back
-            </button>
-          </div>
-
-          <ShootsGlobeView isDark={isDark} />
-        </>
+        <ShootsGlobeView
+          isDark={isDark}
+          onBack={() => setViewMode("list")}
+          onOpenCalendarDay={(date) => {
+            setCalendarOpenDate(date);
+            setViewMode("calendar");
+          }}
+        />
       ) : (
           <ShootsTable
             externalSelectedDate={selectedDate}
