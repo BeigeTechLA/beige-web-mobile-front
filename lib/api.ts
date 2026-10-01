@@ -2920,9 +2920,11 @@ export const adminApi = {
     }
   },
 
-  getPostProductionTeamOptions: async () => {
+  getPostProductionTeamOptions: async (projectId?: number) => {
     try {
-      const response = await api.get('admin/post-production-team-options');
+      const response = await api.get('admin/post-production-team-options', {
+        params: projectId ? { project_id: projectId } : undefined,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
@@ -2944,6 +2946,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign post production member',
+      };
+    }
+  },
+  removePostProductionMember: async (payload: { project_id: number; post_production_member_id: number }) => {
+    try {
+      const response = await api.post('admin/remove-post-production-member', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remove Post Production Member Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to remove post production member',
       };
     }
   },
