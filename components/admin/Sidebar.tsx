@@ -127,7 +127,7 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
-      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
+      // { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
   {
