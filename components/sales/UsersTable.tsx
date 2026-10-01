@@ -380,13 +380,13 @@ export default function UsersTable<T>({
                 onMouseUp={handleGridMouseEnd}
                 onMouseLeave={handleGridMouseEnd}
               >
-                <div className="flex items-start gap-5 min-w-max px-4">
+                <div className="flex items-start gap-5 w-max min-w-full px-4">
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-[320px] shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
+                      className={`w-[calc(100vw-48px)] md:w-auto md:basis-[340px] lg:basis-[360px] md:grow shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"}`}
                     >
-                      <div className={`flex items-center justify-between w-full px-5 py-4 sticky top-[-1px] z-20 rounded-t-[22px] border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8D1AB] bg-[#FBF7EF]"
+                      <div className={`shrink-0 flex items-center justify-between w-full px-5 py-4 sticky top-[-1px] z-20 rounded-t-[22px] border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8D1AB] bg-[#FBF7EF]"
                         }`}>
                         <h4 className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>
                           {column.status}
@@ -396,7 +396,7 @@ export default function UsersTable<T>({
                         </span>
                       </div>
 
-                      <div className="max-h-[620px] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
+                      <div className="max-h-[max(620px,calc(100vh-420px))] overflow-y-auto no-scrollbar px-4 py-4 space-y-3"
                       // onDragOver={(e) => draggedStatus === column.status && e.preventDefault()}
                       // onDrop={(e) => {
                       //   if (draggedStatus !== column.status || !draggedItemId) return;
@@ -441,9 +441,9 @@ export default function UsersTable<T>({
                                   setDraggedStatus(null);
                                 }}
                                 // PERFECT SINGLE BOX WRAPPER
-                                className={`group cursor-pointer rounded-2xl border transition-all duration-200 ${isDark
-                                  ? "border-[#2F2F2F] bg-[#1A1A1A] hover:border-[#4A4A4A]"
-                                  : "border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
+                                className={`group cursor-pointer rounded-2xl transition-all duration-200 ${isDark
+                                  ? "bg-[#202020] hover:bg-[#1A1A1A]"
+                                  : "border border-[#EAE3D6] bg-white hover:border-[#D9C7A0] hover:shadow-md"
                                   } ${draggedItemId === itemId ? "opacity-50 scale-95" : "opacity-100"}`}
                               >
                                 {renderKanbanCard!(item)}

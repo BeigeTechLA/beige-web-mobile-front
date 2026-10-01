@@ -66,6 +66,8 @@ type ShootHeaderProject = {
   country?: unknown;
   latitude?: string | number | null;
   longitude?: string | number | null;
+  event_latitude?: string | number | null;
+  event_longitude?: string | number | null;
   location_latitude?: string | number | null;
   location_longitude?: string | number | null;
   needs_attention?: {
@@ -672,8 +674,16 @@ export default function ShootHeader({
       const locationFields = locationForPayload
         ? {
           location: locationForPayload,
-          latitude: getNumericValue(project?.latitude, project?.location_latitude),
-          longitude: getNumericValue(project?.longitude, project?.location_longitude),
+          latitude: getNumericValue(
+            project?.event_latitude,
+            project?.latitude,
+            project?.location_latitude
+          ),
+          longitude: getNumericValue(
+            project?.event_longitude,
+            project?.longitude,
+            project?.location_longitude
+          ),
         }
         : {};
 

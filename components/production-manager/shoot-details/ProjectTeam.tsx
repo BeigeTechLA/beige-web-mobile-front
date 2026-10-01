@@ -123,7 +123,7 @@ export default function ProjectTeam({ projectId, assignedMembers }: { projectId:
                 "text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300",
                 isDark ? "text-white" : "text-black"
             )}>
-                Project Post Production Team
+            Post Production Team
             </h3>
 
             <div className={cn(

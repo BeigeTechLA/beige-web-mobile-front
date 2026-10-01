@@ -70,6 +70,14 @@ const RANGE_FILTER_OPTIONS = new Set([
 ]);
 const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
 type PaymentFilter = "all" | "pending" | "paid";
+type PostProductionTeamOption = {
+  id: number;
+  name: string;
+  role_name?: string | null;
+};
+
+const formatRoleName = (roleName: string) =>
+  roleName.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   PAYMENT_FILTER_OPTIONS.has(value);
@@ -112,6 +120,12 @@ export default function ShootsPage() {
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<
     "all" | "assigned" | "not_assigned"
   >("all");
+  const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
+  const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<
+    PostProductionTeamOption[]
+  >([]);
+  const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] =
+    useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
     "list",
   );
@@ -124,6 +138,35 @@ export default function ShootsPage() {
   const [exportStartDate, setExportStartDate] = useState<Date | null>(null);
 
   const [exportEndDate, setExportEndDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadPostProductionTeamOptions = async () => {
+      setIsLoadingPostProductionTeam(true);
+      const response = await adminApi.getPostProductionTeamOptions();
+      if (isCancelled) return;
+
+      const options =
+        response?.success && Array.isArray(response.data) ? response.data : [];
+      setPostProductionTeamOptions(options);
+      setPostProductionUserFilter((currentValue) =>
+        currentValue === "all" ||
+        options.some(
+          (option: PostProductionTeamOption) =>
+            String(option.id) === currentValue,
+        )
+          ? currentValue
+          : "all",
+      );
+      setIsLoadingPostProductionTeam(false);
+    };
+
+    void loadPostProductionTeamOptions();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -152,6 +195,9 @@ export default function ShootsPage() {
         parsed.cpAssignmentFilter === "not_assigned"
       ) {
         setCpAssignmentFilter(parsed.cpAssignmentFilter);
+      }
+      if (typeof parsed.postProductionUserFilter === "string") {
+        setPostProductionUserFilter(parsed.postProductionUserFilter);
       }
       if (
         parsed.viewMode === "grid" ||
@@ -199,6 +245,7 @@ export default function ShootsPage() {
           productionFilter,
           range,
           cpAssignmentFilter,
+          postProductionUserFilter,
           viewMode,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
           customRangeStartDate: customRangeStartDate
@@ -221,6 +268,7 @@ export default function ShootsPage() {
     productionFilter,
     range,
     cpAssignmentFilter,
+    postProductionUserFilter,
     viewMode,
     selectedDate,
     customRangeStartDate,
@@ -241,6 +289,7 @@ export default function ShootsPage() {
     setProductionFilter("all");
     setRange("all");
     setCpAssignmentFilter("all");
+    setPostProductionUserFilter("all");
     setViewMode("list");
     try {
       window.sessionStorage.removeItem(SHOOTS_FILTERS_STORAGE_KEY);
@@ -403,6 +452,9 @@ export default function ShootsPage() {
         ...(productionFilter !== "all"
           ? { production_filter: productionFilter }
           : {}),
+        ...(postProductionUserFilter !== "all"
+          ? { post_production_user_id: postProductionUserFilter }
+          : {}),
       });
 
       if (!(blob instanceof Blob) || blob.size === 0) {
@@ -442,6 +494,9 @@ export default function ShootsPage() {
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
+  const selectedPostProductionUser = postProductionTeamOptions.find(
+    (option) => String(option.id) === postProductionUserFilter,
+  );
 
   return (
     <>
@@ -765,6 +820,54 @@ export default function ShootsPage() {
                         <SelectItem value="not_assigned">
                           CP Not Assigned
                         </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Select
+                      value={postProductionUserFilter}
+                      onValueChange={setPostProductionUserFilter}
+                      disabled={isLoadingPostProductionTeam}
+                    >
+                      <SelectTrigger
+                        title={selectedPostProductionUser?.name || "All Post Production Team"}
+                        className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                      >
+                        <SelectValue placeholder="Post Production Team">
+                          {isLoadingPostProductionTeam
+                            ? "Loading team..."
+                            : selectedPostProductionUser?.name ||
+                              "All Post Production Team"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent
+                        className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        viewportClassName="!h-auto max-h-80 overflow-y-auto"
+                      >
+                        <SelectItem value="all">All Post Production Team</SelectItem>
+                        {postProductionTeamOptions.length > 0 ? (
+                          postProductionTeamOptions.map((option) => (
+                            <SelectItem
+                              key={option.id}
+                              value={String(option.id)}
+                              textValue={option.name}
+                              className="py-2.5"
+                            >
+                              <div className="flex flex-col items-start gap-0.5 text-left">
+                                <span className="text-sm leading-5">{option.name}</span>
+                                {option.role_name && (
+                                  <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                    {formatRoleName(option.role_name)}
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className={`px-3 py-2.5 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                            No post-production team members found.
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1377,6 +1480,7 @@ export default function ShootsPage() {
             setRange={setRange}
             cpAssignmentFilter={cpAssignmentFilter}
             setCpAssignmentFilter={setCpAssignmentFilter}
+            postProductionUserFilter={postProductionUserFilter}
             viewMode={viewMode}
             setViewMode={setViewMode}
             showHeaderControls={true}

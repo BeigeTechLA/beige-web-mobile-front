@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminApi, salesApi } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 
 interface AddPostProductionTeamModalProps {
   isOpen: boolean;
@@ -38,8 +38,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       const fetchMembers = async () => {
         try {
           setLoading(true);
-          // Use same API as sales representative dashboard.
-          const response = await salesApi.getSalesReps();
+          const response = await adminApi.getPostProductionTeamOptions();
           const membersList = response?.data || [];
 
           if (response?.success && Array.isArray(membersList)) {
@@ -49,7 +48,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                 name:
                   String(m.name || `${m.first_name || ""} ${m.last_name || ""}`)
                     .trim() || "Unknown",
-                role: m.role || "Post Production",
+                role: m.role_name || "Post Production",
                 email: m.email,
               }))
             );

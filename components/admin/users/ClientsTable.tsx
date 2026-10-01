@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Loader2, ArrowUpToLine, ChevronLeft, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -141,6 +141,7 @@ export const ClientsTable = () => {
   // --- DATE FILTER STATES ---
   const [range, setRange] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const sortDateButtonRef = useRef<HTMLDivElement>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -599,11 +600,12 @@ export const ClientsTable = () => {
 
         {/* Theme Datepicker Component */}
         <div className="flex items-center gap-3">
-          <SortDateButton
+          <div ref={sortDateButtonRef}>
+            <SortDateButton
             selectedDate={selectedDate}
             onDateChange={handleDateSort}
           />
-
+          </div>
           <Popover
             open={isExportOpen}
             onOpenChange={(open) => {
@@ -862,8 +864,24 @@ export const ClientsTable = () => {
 
           {/* Range Select */}
           <Select value={range} onValueChange={(val) => {
+            if (val === "custom") {
+              setRange("all");
+              setSelectedDate(null);
+              setCurrentPage(1);
+
+              window.setTimeout(() => {
+                const trigger =
+                  sortDateButtonRef.current?.querySelector<HTMLButtonElement>(
+                    "button",
+                  );
+                trigger?.click();
+              }, 0);
+
+              return;
+            }
+
             setRange(val);
-            if (val !== "custom") setSelectedDate(null);
+            setSelectedDate(null);
             setCurrentPage(1);
           }}>
             <SelectTrigger className={`w-[180px] rounded-lg h-12 capitalize transition-colors ${isDark ? "border-white/20 bg-[#202020] text-[#C4C4C4] hover:bg-[#252525]" : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"}`}>

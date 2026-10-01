@@ -102,7 +102,7 @@ export default function AffiliateQuotePreviewModal({
                 </div>
               </div>
 
-              <QuotePreviewDocument quote={quoteData} quoteId={quoteId} />
+              <QuotePreviewDocument quote={quoteData} quoteId={quoteId} hidePriceHistory />
             </>
           )}
         </div>

@@ -1,4 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { createBaseQueryWithReauth } from '@/lib/redux/baseQueryWithReauth';
 import type {
   Creator,
   CreatorProfile,
@@ -14,9 +15,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5
 
 export const creatorsApi = createApi({
   reducerPath: 'creatorsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-  }),
+  baseQuery: createBaseQueryWithReauth(API_BASE_URL),
   tagTypes: ['Creator'],
   endpoints: (builder) => ({
     searchCreators: builder.query<PaginatedResponse<Creator>, CreatorSearchParams>({
