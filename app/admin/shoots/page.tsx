@@ -1375,6 +1375,57 @@ export default function ShootsPage() {
                   </SelectContent>
                 </Select>
 
+                <Select
+                  value={postProductionUserFilter}
+                  onValueChange={setPostProductionUserFilter}
+                  disabled={isLoadingPostProductionTeam}
+                >
+                  <SelectTrigger
+                    title={selectedPostProductionUser?.name || "All Post Production Team"}
+                    className={`h-10 w-[220px] rounded-lg text-sm focus:ring-0 ${
+                      isDark
+                        ? "bg-zinc-900 border-[#333333] text-white/70"
+                        : "bg-white border-[#E5E5E5] text-[#666]"
+                    }`}
+                  >
+                    <SelectValue placeholder="Post Production Team" className="min-w-0 flex-1 truncate text-left">
+                      {isLoadingPostProductionTeam
+                        ? "Loading team..."
+                        : selectedPostProductionUser?.name || "All Post Production Team"}
+                    </SelectValue>
+                  </SelectTrigger>
+
+                  <SelectContent
+                    className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                    viewportClassName="!h-auto max-h-80 overflow-y-auto"
+                  >
+                    <SelectItem value="all">All Post Production Team</SelectItem>
+                    {postProductionTeamOptions.length > 0 ? (
+                      postProductionTeamOptions.map((option) => (
+                        <SelectItem
+                          key={option.id}
+                          value={String(option.id)}
+                          textValue={option.name}
+                          className="py-2.5"
+                        >
+                          <div className="flex flex-col items-start gap-0.5 text-left">
+                            <span className="text-sm leading-5">{option.name}</span>
+                            {option.role_name && (
+                              <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                {formatRoleName(option.role_name)}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className={`px-3 py-2.5 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                        No members available
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+
                 <Button
                   type="button"
                   onClick={() => {
@@ -1384,6 +1435,7 @@ export default function ShootsPage() {
                     setPaymentFilter("all");
                     setProductionFilter("all");
                     setCpAssignmentFilter("all");
+                    setPostProductionUserFilter("all");
                   }}
                   aria-label="Reset calendar filters"
                   title="Reset calendar filters"
@@ -1417,6 +1469,7 @@ export default function ShootsPage() {
               paymentFilter={paymentFilter}
               productionFilter={productionFilter}
               cpAssignmentFilter={cpAssignmentFilter}
+              postProductionUserFilter={postProductionUserFilter}
             />
           </div>
         </>

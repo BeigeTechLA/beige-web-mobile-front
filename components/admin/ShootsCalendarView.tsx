@@ -25,6 +25,7 @@ type ShootCalendarViewProps = {
   paymentFilter?: "all" | "pending" | "paid";
   productionFilter?: string;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
+  postProductionUserFilter?: string;
 };
 type CalendarView = "month" | "week" | "day";
 type CalendarFilter = "all" | "shoots" | "meetings" | "deleted";
@@ -308,6 +309,7 @@ export const ShootsCalendarView = ({
   paymentFilter = "all",
   productionFilter = "all",
   cpAssignmentFilter = "all",
+  postProductionUserFilter = "all",
 }: ShootCalendarViewProps) => {
   const router = useRouter();
   const today = new Date();
@@ -362,13 +364,22 @@ export const ShootsCalendarView = ({
             ? await adminApi.getShootCalendarMonth({
                 month: focusDate.getMonth() + 1,
                 year: focusDate.getFullYear(),
+                ...(postProductionUserFilter !== "all"
+                  ? { post_production_user_id: postProductionUserFilter }
+                  : {}),
               })
             : view === "week"
               ? await adminApi.getShootCalendarWeek({
                   start_date: dateKey(weekStart),
+                  ...(postProductionUserFilter !== "all"
+                    ? { post_production_user_id: postProductionUserFilter }
+                    : {}),
                 })
               : await adminApi.getShootCalendarDay({
                   date: dateKey(focusDate),
+                  ...(postProductionUserFilter !== "all"
+                    ? { post_production_user_id: postProductionUserFilter }
+                    : {}),
                 });
 
         if (!cancelled) {
@@ -386,7 +397,7 @@ export const ShootsCalendarView = ({
     return () => {
       cancelled = true;
     };
-  }, [view, focusDate, weekStart]);
+  }, [view, focusDate, weekStart, postProductionUserFilter]);
 
   const filteredShoots = useMemo(() => {
     const normalize = (value: unknown) =>
