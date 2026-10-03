@@ -181,6 +181,7 @@ const ScheduleTooltipValue = ({
 };
 
 interface ShootHeaderProps {
+  embedded?: boolean;
   activeTab?: string;
   project?: ShootHeaderProject;
   projectId?: string;
@@ -310,6 +311,7 @@ const buildBookingScheduleData = (project?: ShootHeaderProject): BookingSchedule
 };
 
 export default function ShootHeader({
+  embedded = false,
   activeTab = "Overview",
   project,
   projectId,
@@ -776,7 +778,8 @@ export default function ShootHeader({
 
   return (
     <div data-active-tab={activeTab}>
-      <div className="lg:hidden flex items-center justify-between mb-5">
+      <div className={`lg:hidden flex items-center mb-5 ${embedded ? "justify-end" : "justify-between"}`}>
+        {!embedded && (
         <button
           onClick={() => router.back()}
           className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
@@ -784,6 +787,7 @@ export default function ShootHeader({
           <ArrowLeft size={20} />
           <span className="text-sm font-medium">Back</span>
         </button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -797,13 +801,15 @@ export default function ShootHeader({
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
-          >
-            <ArrowLeft size={20} />
-            <span className="text-sm font-medium">Back</span>
-          </button>
+          {!embedded && (
+            <button
+              onClick={() => router.back()}
+              className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+            >
+              <ArrowLeft size={20} />
+              <span className="text-sm font-medium">Back</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-start gap-3">

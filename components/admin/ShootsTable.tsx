@@ -19,6 +19,7 @@ import {
   AlertCircle,
   History,
   RotateCcw,
+  X,
 } from "lucide-react";
 import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
@@ -44,9 +45,11 @@ import RestoreConfirmationModal from "./RestoreConfirmationModal";
 import { MissingFieldsModal } from "./MissingFieldsModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
+import { createPortal } from "react-dom";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 import { useDebounce } from "@/hooks/use-debounce";
+import ShootDetailsView from "./ShootDetailsView";
 
 type ShootStatus =
   | "Booked"
@@ -516,16 +519,16 @@ export const ShootsTable = ({
   const [historyShoot, setHistoryShoot] = useState<ShootRecord | null>(null);
   const [restoringShootId, setRestoringShootId] = useState<string | null>(null);
   const [shootToRestore, setShootToRestore] = useState<ShootRecord | null>(null);
+  const [previewShootId, setPreviewShootId] = useState<string | null>(null);
 
   const handleNotesCountChange = useCallback((shootId: string, count: number) => {
     const nextCount = Number.isFinite(count) ? Math.max(0, count) : 0;
-    setShoots((currentShoots) =>
-      currentShoots.map((shoot) =>
-        shoot.id === shootId
-          ? { ...shoot, notesCount: nextCount }
-          : shoot
-      )
-    );
+    const applyCount = (items: ShootRecord[]) =>
+      items.map((shoot) =>
+        shoot.id === shootId ? { ...shoot, notesCount: nextCount } : shoot
+      );
+    setShoots(applyCount);
+    setBoardAllShoots(applyCount);
   }, []);
 
 
@@ -948,6 +951,21 @@ export const ShootsTable = ({
     router.push(`${detailBasePath}/${cleanId}`);
   };
 
+  // Board-only: navigate karva ni jagya e preview kholo
+  const handleCardClick = (id: string, isActive = true) => {
+    if (!isActive) return;
+    setPreviewShootId(getApiShootId(id));
+  };
+
+  const handlePreviewDeleted = (apiId: string) => {
+    const tableId = `#${apiId}`;
+    const markInactive = (items: ShootRecord[]) =>
+      items.map((shoot) => (shoot.id === tableId ? { ...shoot, isActive: false } : shoot));
+    setShoots(markInactive);
+    setBoardAllShoots(markInactive);
+    setPreviewShootId(null);
+  };
+
   const getShootDetailHref = (id: string) => `${detailBasePath}/${id.replace(/^#/, "").trim()}`;
 
   const getApiShootId = (id: string) => id.replace(/^#/, '').trim();
@@ -1341,6 +1359,7 @@ export const ShootsTable = ({
                                 e.stopPropagation();
                                 setOpenCardActionId(null);
                                 handleRowClick(shoot.id);
+                                handleCardClick(shoot.id);
                               }}
                               className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"
                                 }`}
@@ -1485,7 +1504,7 @@ export const ShootsTable = ({
                           return (
                             <div
                               key={`${column.status}-${idx}`}
-                              onClick={() => handleRowClick(shoot.id, shoot.isActive)}
+                              onClick={() => handleCardClick(shoot.id, shoot.isActive)}
                               draggable={shoot.isActive}
                               onDragStart={() => {
                                 setDraggedShootId(shoot.id);
@@ -2164,6 +2183,40 @@ export const ShootsTable = ({
         shootName={historyShoot?.customerName}
         onClose={() => setHistoryShoot(null)}
       />
+
+      {previewShootId && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setPreviewShootId(null)}
+          />
+          <div
+            className={`relative flex h-[calc(100dvh-96px)] w-[calc(100vw-32px)] max-w-[1100px] flex-col overflow-hidden rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}
+          >
+            <div className={`flex shrink-0 items-center justify-between border-b px-4 py-2 ${isDark ? "border-white/10 text-white" : "border-[#E5E5E5] text-black"}`}>
+              <span className="text-sm font-medium">Shoot #{previewShootId}</span>
+              <button
+                type="button"
+                onClick={() => setPreviewShootId(null)}
+                aria-label="Close preview"
+                className={`rounded-md p-2 transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/5"}`}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <ShootDetailsView
+                key={previewShootId}
+                id={previewShootId}
+                embedded
+                onDeleted={handlePreviewDeleted}
+                onNotesCountChange={(sid, count) => handleNotesCountChange(`#${sid}`, count)}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div >
   );
 };
