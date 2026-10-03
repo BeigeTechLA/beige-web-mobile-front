@@ -30,6 +30,7 @@ import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFi
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
+import ShootCallHistory from "@/components/admin/shoot-details/ShootCallHistory";
 
 type SkillOption = {
   id?: number | string;
@@ -738,7 +739,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       </div>
                     </div>
                   ) : null}
-                  <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                  <div className="mt-5 lg:mt-9">
+                    <ShootCallHistory shootId={id} project={project as Record<string, unknown> | null} previewLimit={2} />
+                  </div>
+                  <div className={`mt-5 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>

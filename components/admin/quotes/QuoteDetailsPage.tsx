@@ -8,6 +8,7 @@ import {
   Camera,
   DollarSign,
   Eye,
+  History,
   Loader2,
   Mail,
   MapPin,
@@ -712,6 +713,7 @@ const QuoteTopActions = ({
   onReject,
   onPaymentTransaction,
   onPreview,
+  onVersionHistory,
   previewDisabled,
   rejectDisabled,
   paymentDisabled,
@@ -725,6 +727,7 @@ const QuoteTopActions = ({
   onReject: () => void;
   onPaymentTransaction: () => void;
   onPreview: () => void;
+  onVersionHistory?: () => void;
   previewDisabled: boolean;
   rejectDisabled: boolean;
   paymentDisabled: boolean;
@@ -736,7 +739,7 @@ const QuoteTopActions = ({
   showReject?: boolean;
 }) => (
   <div className="flex items-center gap-1 lg:gap-3">
-    {versions.length > 0 && (
+    {/* {versions.length > 0 && (
       <div className="mr-1 lg:mr-2 flex items-center gap-1 lg:gap-2">
         <span className="text-sm font-medium text-[#8F8F95]">Version:</span>
         <Select value={selectedVersionId || ""} onValueChange={onVersionChange}>
@@ -760,7 +763,8 @@ const QuoteTopActions = ({
           </SelectContent>
         </Select>
       </div>
-    )}
+    )} */}
+
     {showReject && (
       <Button
         type="button"
@@ -770,6 +774,16 @@ const QuoteTopActions = ({
       >
         {isRejecting ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
         {isRejecting ? "Rejecting..." : isRejected ? "Rejected" : "Reject Quote"}
+      </Button>
+    )}
+    {versions.length > 0 && (
+      <Button
+        type="button"
+        onClick={onVersionHistory}
+        className="h-11 rounded-xl border px-5 w-full lg:w-auto border-white/10 bg-transparent text-white hover:bg-[#232323]"
+      >
+        <History size={18} />
+        View Version History
       </Button>
     )}
     <Button
@@ -885,6 +899,7 @@ export default function QuoteDetailsPage({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const isAdminFlow = baseHref.startsWith("/admin");
   const [quote, setQuote] = useState<SalesQuoteDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [versions, setVersions] = useState<QuoteVersionMeta[]>([]);
@@ -2263,6 +2278,7 @@ export default function QuoteDetailsPage({
         void handlePaymentTransactionAction();
       }}
       onPreview={() => setIsPreviewOpen(true)}
+      onVersionHistory={isAdminFlow ? () => router.push(`/admin/quotes/${quoteId}/history`) : undefined}
       previewDisabled={!quote || isQuoteDetailsLoading || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       rejectDisabled={!canDelete || !quote || isQuoteDetailsLoading || isRejecting || isConverting || isSelectedVersionRejected || ["rejected", "cancelled"].includes(normalizedQuoteStatus)}
       showReject={canDelete}
@@ -2387,8 +2403,8 @@ export default function QuoteDetailsPage({
           <div className="space-y-3 lg:space-y-6 pb-12 lg:pb-0">
             <SectionShell
               title="Client Information"
-              actionLabel={canEditSelectedVersion ? "Edit Details" : undefined}
-              onAction={canEditSelectedVersion ? () => setPendingEditView("details") : undefined}
+              actionLabel={isAdminFlow ? "View Call History" : (canEditSelectedVersion ? "Edit Details" : undefined)}
+              onAction={isAdminFlow ? () => router.push(`/admin/quotes/${quoteId}/call-history`) : (canEditSelectedVersion ? () => setPendingEditView("details") : undefined)}
               isDark={isDark}
             >
               <div className="flex flex-col gap-3 lg:gap-6">
@@ -2884,6 +2900,32 @@ export default function QuoteDetailsPage({
                 <p className="text-base text-[#8F8F95]">No custom line items added.</p>
               )}
             </SectionShell>
+
+            {!isAdminFlow ? (
+              <SectionShell
+                title="Custom Line Item"
+                isDark={isDark}
+              >
+                {logisticsItems.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {logisticsItems.map((item) => (
+                      <div
+                        key={item.id}
+                        title={item.name}
+                        className={`min-w-0 max-w-full rounded-lg lg:rounded-[14px] border p-3 lg:px-5 lg:py-4 text-sm lg:text-lg sm:max-w-[360px] transition-colors ${isDark
+                          ? "border-[#2B2B2B] bg-[#111111] text-[#9B9BA1]"
+                          : "border-[#000000]/10 bg-white text-[#000000]/60"
+                          }`}
+                      >
+                        <p className="truncate">{item.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-base text-[#8F8F95]">No custom line items added.</p>
+                )}
+              </SectionShell>
+            ) : null}
 
             <SectionShell
               title="Other Details"
