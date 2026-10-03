@@ -7,13 +7,107 @@ type ApiEnvelope<T> = {
   message?: string;
 };
 
+export type FinanceAnalyticsDateParams = {
+  date_from?: string;
+  date_to?: string;
+};
+export type FinanceOverviewParams = FinanceAnalyticsDateParams & {
+  metric?: "gross_revenue" | "pending_revenue" | "cp_payout";
+  group_by?: "day" | "month" | "year";
+};
+export type FinanceMetricCard = {
+  total: number;
+  change_percent: number;
+  trend: "up" | "down" | "flat";
+  change_label: string;
+  has_current_data: boolean;
+};
+export type FinanceOverview = {
+  cards: {
+    gross_revenue: FinanceMetricCard;
+    pending_revenue: FinanceMetricCard;
+    cp_payout: FinanceMetricCard;
+  };
+  graph: Array<{ label: string; value: number }>;
+};
+export type FinanceCpAnalysis = {
+  top_cps_by_payout: Array<{
+    rank: number;
+    cp_id: number;
+    name: string;
+    total_payout: number;
+    margin_percent: number;
+    bar_percent: number;
+  }>;
+  averages: {
+    avg_cp_payout: number;
+    avg_cp_margin_percent: number;
+    avg_cps_per_shoot: number;
+  };
+};
+export type FinanceTopCpShoot = {
+  rank: number;
+  cp_id: number;
+  name: string;
+  shoots_count: number;
+};
+export type FinanceClientsParams = FinanceAnalyticsDateParams & {
+  sort_by?: "shoot" | "spend";
+  status?: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+};
+export type FinancePagination = {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+};
+export type FinanceClients = {
+  top_clients: {
+    rows: Array<{
+      client_key: string;
+      client_id: number;
+      client_name: string;
+      avatar: string | null;
+      shoots_count: number;
+      total_spend: number;
+    }>;
+    pagination: FinancePagination;
+  };
+  avg_client_spend_per_shoot: {
+    total_avg: number;
+    top_client: string;
+    top_spend: number;
+    graph: Array<{ label: string; value: number }>;
+  };
+  shoot_distribution: Array<{
+    client_key: string;
+    client_id: number;
+    client_name: string;
+    shoots_count: number;
+    bar_percent: number;
+  }>;
+};
+export type FinanceDisputesParams = FinanceAnalyticsDateParams & {
+  page?: number;
+  limit?: number;
+};
+export type FinanceDisputes = {
+  counts: { raised: number; resolved: number; pending: number; active: number };
+  top_dispute_reasons: {
+    rows: Array<{
+      rank: number;
+      reason_name: string;
+      cases: number;
+      progress_percent: number;
+    }>;
+    pagination: FinancePagination;
+  };
+};
 export type FinanceTransactionStatus =
-  | "paid"
-  | "pending"
-  | "failed"
-  | "refunded"
-  | "void"
-  | "cancelled";
+  "paid" | "pending" | "failed" | "refunded" | "void" | "cancelled";
 
 export type FinanceTransactionApiRow = {
   finance_transaction_id?: number | null;
@@ -350,26 +444,28 @@ export type AdminFinanceDisputeListParams = {
 
 const cleanParams = (params: Record<string, unknown>) =>
   Object.fromEntries(
-    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    Object.entries(params).filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    ),
   );
 
 export const financeTransactionsApi = {
   listTransactions(params: FinanceTransactionListParams = {}) {
-    return apiClient.get<ApiEnvelope<FinanceListResponse<FinanceTransactionApiRow>>>(
-      "finance/transactions",
-      cleanParams(params)
-    );
+    return apiClient.get<
+      ApiEnvelope<FinanceListResponse<FinanceTransactionApiRow>>
+    >("finance/transactions", cleanParams(params));
   },
 
-  async exportTransactionsCsv(params: FinanceTransactionExportParams = {}): Promise<Blob> {
+  async exportTransactionsCsv(
+    params: FinanceTransactionExportParams = {},
+  ): Promise<Blob> {
     try {
-      const response = await apiClient.getInstance().get<Blob>(
-        "finance/transactions/export",
-        {
+      const response = await apiClient
+        .getInstance()
+        .get<Blob>("finance/transactions/export", {
           params: cleanParams(params),
           responseType: "blob",
-        }
-      );
+        });
       return response.data;
     } catch (error: unknown) {
       let message = "Failed to export transactions.";
@@ -396,161 +492,223 @@ export const financeTransactionsApi = {
   listShoots(params: FinanceShootListParams = {}) {
     return apiClient.get<ApiEnvelope<FinanceListResponse<FinanceShootApiRow>>>(
       "finance/shoots",
-      cleanParams(params)
+      cleanParams(params),
     );
   },
 
   listClientPayments(params: FinanceTransactionListParams = {}) {
-    return apiClient.get<ApiEnvelope<FinanceListResponse<ClientFinancePaymentApiRow>>>(
-      "finance/client/payments",
-      cleanParams(params)
-    );
+    return apiClient.get<
+      ApiEnvelope<FinanceListResponse<ClientFinancePaymentApiRow>>
+    >("finance/client/payments", cleanParams(params));
   },
 
   listClientDisputes(params: AdminFinanceDisputeListParams = {}) {
-    return apiClient.get<ApiEnvelope<FinanceListResponse<ClientFinanceDisputeDetailsApiRow>>>(
-      "finance/client/disputes",
-      cleanParams(params)
-    );
+    return apiClient.get<
+      ApiEnvelope<FinanceListResponse<ClientFinanceDisputeDetailsApiRow>>
+    >("finance/client/disputes", cleanParams(params));
   },
 
   async createClientDispute(payload: FormData) {
-    const response = await apiClient.getInstance().post<ApiEnvelope<ClientFinanceDisputeDetailsApiRow>>(
-      "finance/client/disputes",
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+    const response = await apiClient
+      .getInstance()
+      .post<ApiEnvelope<ClientFinanceDisputeDetailsApiRow>>(
+        "finance/client/disputes",
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
     return response.data;
   },
 
   getClientDisputeDetails(disputeId: number | string) {
     return apiClient.get<ApiEnvelope<ClientFinanceDisputeDetailsApiRow>>(
-      `finance/client/disputes/${disputeId}`
+      `finance/client/disputes/${disputeId}`,
     );
   },
 
   addClientDisputeComment(disputeId: number | string, body: string) {
     return apiClient.post<ApiEnvelope<unknown>>(
       `finance/client/disputes/${disputeId}/comments`,
-      { body }
+      { body },
     );
   },
 
-  async addClientDisputeAttachment(disputeId: number | string, payload: FormData) {
-    const response = await apiClient.getInstance().post<ApiEnvelope<unknown>>(
-      `finance/client/disputes/${disputeId}/attachments`,
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+  async addClientDisputeAttachment(
+    disputeId: number | string,
+    payload: FormData,
+  ) {
+    const response = await apiClient
+      .getInstance()
+      .post<ApiEnvelope<unknown>>(
+        `finance/client/disputes/${disputeId}/attachments`,
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
     return response.data;
   },
 
   listCreatorDisputes(params: AdminFinanceDisputeListParams = {}) {
-    return apiClient.get<ApiEnvelope<FinanceListResponse<AdminFinanceDisputeDetailsApiRow>>>(
-      "finance/creator/disputes",
-      cleanParams(params)
-    );
+    return apiClient.get<
+      ApiEnvelope<FinanceListResponse<AdminFinanceDisputeDetailsApiRow>>
+    >("finance/creator/disputes", cleanParams(params));
   },
 
   async createCreatorDispute(payload: FormData) {
-    const response = await apiClient.getInstance().post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
-      "finance/creator/disputes",
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+    const response = await apiClient
+      .getInstance()
+      .post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
+        "finance/creator/disputes",
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
     return response.data;
   },
 
   getCreatorDisputeDetails(disputeId: number | string) {
     return apiClient.get<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
-      `finance/creator/disputes/${disputeId}`
+      `finance/creator/disputes/${disputeId}`,
     );
   },
 
   addCreatorDisputeComment(disputeId: number | string, body: string) {
     return apiClient.post<ApiEnvelope<unknown>>(
       `finance/creator/disputes/${disputeId}/comments`,
-      { body }
+      { body },
     );
   },
 
-  async addCreatorDisputeAttachment(disputeId: number | string, payload: FormData) {
-    const response = await apiClient.getInstance().post<ApiEnvelope<unknown>>(
-      `finance/creator/disputes/${disputeId}/attachments`,
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+  async addCreatorDisputeAttachment(
+    disputeId: number | string,
+    payload: FormData,
+  ) {
+    const response = await apiClient
+      .getInstance()
+      .post<ApiEnvelope<unknown>>(
+        `finance/creator/disputes/${disputeId}/attachments`,
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
     return response.data;
   },
 
   getAdminDisputesDashboard(params: AdminFinanceDisputeListParams = {}) {
     return apiClient.get<ApiEnvelope<AdminFinanceDisputesDashboard>>(
       "finance/admin/disputes/dashboard",
-      cleanParams(params)
+      cleanParams(params),
     );
   },
 
   listAdminDisputes(params: AdminFinanceDisputeListParams = {}) {
-    return apiClient.get<ApiEnvelope<FinanceListResponse<AdminFinanceDisputeApiRow>>>(
-      "finance/admin/disputes",
-      cleanParams(params)
-    );
+    return apiClient.get<
+      ApiEnvelope<FinanceListResponse<AdminFinanceDisputeApiRow>>
+    >("finance/admin/disputes", cleanParams(params));
   },
 
   getAdminDisputeDetails(disputeId: number | string) {
     return apiClient.get<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
-      `finance/admin/disputes/${disputeId}`
+      `finance/admin/disputes/${disputeId}`,
     );
   },
 
-  updateAdminDispute(disputeId: number | string, payload: Record<string, unknown> = {}) {
+  updateAdminDispute(
+    disputeId: number | string,
+    payload: Record<string, unknown> = {},
+  ) {
     return apiClient.patch<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
       `finance/admin/disputes/${disputeId}`,
-      payload
+      payload,
     );
   },
 
   addAdminDisputeComment(disputeId: number | string, body: string) {
     return apiClient.post<ApiEnvelope<unknown>>(
       `finance/admin/disputes/${disputeId}/comments`,
-      { body, visibility: "all", comment_type: "status_update" }
+      { body, visibility: "all", comment_type: "status_update" },
     );
   },
 
-  async addAdminDisputeAttachment(disputeId: number | string, payload: FormData) {
-    const response = await apiClient.getInstance().post<ApiEnvelope<unknown>>(
-      `finance/admin/disputes/${disputeId}/attachments`,
-      payload,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+  async addAdminDisputeAttachment(
+    disputeId: number | string,
+    payload: FormData,
+  ) {
+    const response = await apiClient
+      .getInstance()
+      .post<ApiEnvelope<unknown>>(
+        `finance/admin/disputes/${disputeId}/attachments`,
+        payload,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
     return response.data;
   },
 
-  holdAdminDisputePayout(disputeId: number | string, payload: Record<string, unknown> = {}) {
+  holdAdminDisputePayout(
+    disputeId: number | string,
+    payload: Record<string, unknown> = {},
+  ) {
     return apiClient.post<ApiEnvelope<unknown>>(
       `finance/admin/disputes/${disputeId}/hold-payout`,
-      payload
+      payload,
     );
   },
 
-  resolveAdminDispute(disputeId: number | string, payload: Record<string, unknown> = {}) {
+  resolveAdminDispute(
+    disputeId: number | string,
+    payload: Record<string, unknown> = {},
+  ) {
     return apiClient.post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
       `finance/admin/disputes/${disputeId}/resolve`,
-      payload
+      payload,
     );
   },
 
-  rejectOrRefundAdminDispute(disputeId: number | string, payload: Record<string, unknown> = {}) {
+  rejectOrRefundAdminDispute(
+    disputeId: number | string,
+    payload: Record<string, unknown> = {},
+  ) {
     return apiClient.post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
       `finance/admin/disputes/${disputeId}/reject-refund`,
-      payload
+      payload,
     );
   },
 
-  escalateAdminDispute(disputeId: number | string, payload: Record<string, unknown> = {}) {
+  getFinanceOverview(params: FinanceOverviewParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceOverview>>(
+      "finance/overview",
+      cleanParams(params),
+    );
+  },
+  getFinanceCpAnalysis(params: FinanceAnalyticsDateParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceCpAnalysis>>(
+      "finance/cp-analysis",
+      cleanParams(params),
+    );
+  },
+  getFinanceTopCpsShoots(
+    params: FinanceAnalyticsDateParams & { limit?: number } = {},
+  ) {
+    return apiClient.get<ApiEnvelope<FinanceTopCpShoot[]>>(
+      "finance/top-cps-shoots",
+      cleanParams(params),
+    );
+  },
+  getFinanceClients(params: FinanceClientsParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceClients>>(
+      "finance/clients",
+      cleanParams(params),
+    );
+  },
+  getFinanceDisputes(params: FinanceDisputesParams = {}) {
+    return apiClient.get<ApiEnvelope<FinanceDisputes>>(
+      "finance/disputes",
+      cleanParams(params),
+    );
+  },
+  escalateAdminDispute(
+    disputeId: number | string,
+    payload: Record<string, unknown> = {},
+  ) {
     return apiClient.post<ApiEnvelope<AdminFinanceDisputeDetailsApiRow>>(
       `finance/admin/disputes/${disputeId}/escalate`,
-      payload
+      payload,
     );
   },
 };

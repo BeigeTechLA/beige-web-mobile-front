@@ -1,6 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { format } from "date-fns";
+
+import { financeTransactionsApi, type FinanceCpAnalysis, type FinanceTopCpShoot } from "@/lib/api/financeTransactions";
 import {
   Bar,
   BarChart,
@@ -21,51 +24,6 @@ type ShootPoint = {
   value: number;
   hoverValue?: number;
 };
-
-const payoutRows = [
-  {
-    rank: "01",
-    name: "Marcus Reid",
-    amount: "$143M",
-    stat: "34.2% mg",
-    value: 100,
-  },
-  {
-    rank: "02",
-    name: "Priya Nair",
-    amount: "$128M",
-    stat: "31.8% mg",
-    value: 81,
-  },
-  { rank: "03", name: "Leon Vo", amount: "$114M", stat: "29.4% mg", value: 72 },
-  {
-    rank: "04",
-    name: "Cleo Dasha",
-    amount: "$99M",
-    stat: "32.1% mg",
-    value: 62,
-  },
-  {
-    rank: "05",
-    name: "Amara Sow",
-    amount: "$87M",
-    stat: "28.9% mg",
-    value: 55,
-  },
-];
-
-const shoots: ShootPoint[] = [
-  { name: "Priya Nair", value: 82 },
-  { name: "Marcus Reid", value: 35 },
-  { name: "Leon Vo", value: 58 },
-  { name: "Cleo Dasha", value: 94, hoverValue: 110 },
-  { name: "Amara Sow", value: 18 },
-  { name: "Raj Verma", value: 47 },
-  { name: "John Doe", value: 27 },
-  { name: "Ethan Cater", value: 66 },
-  { name: "Sakuna Patel", value: 40 },
-  { name: "Amy Jason", value: 75 },
-];
 
 function Panel({
   title,
@@ -217,7 +175,67 @@ function ActiveShootBar({
 
 export default function CreativePartnerAnalysis({
   isDark,
+  selectedDate,
 }: CreativePartnerAnalysisProps) {
+  const [analysis, setAnalysis] = useState<FinanceCpAnalysis | null>(null);
+  const [shoots, setShoots] = useState<FinanceTopCpShoot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const selected = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+
+    setLoading(true);
+    setError(null);
+
+    void Promise.all([
+      financeTransactionsApi.getFinanceCpAnalysis({
+        date_from: selected,
+        date_to: selected,
+      }),
+      financeTransactionsApi.getFinanceTopCpsShoots({
+        date_from: selected,
+        date_to: selected,
+        limit: 10,
+      }),
+    ])
+      .then(([analysisResponse, shootsResponse]) => {
+        if (!cancelled) {
+          setAnalysis(analysisResponse.data);
+          setShoots(shootsResponse.data);
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load creative partner analytics.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
+
+  const payoutRows = (analysis?.top_cps_by_payout ?? []).map((row) => ({
+    rank: String(row.rank).padStart(2, "0"),
+    name: row.name,
+    amount: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(row.total_payout),
+    stat: `${row.margin_percent}% mg`,
+    value: row.bar_percent,
+  }));
+  const chartData: ShootPoint[] = shoots.map((shoot) => ({
+    name: shoot.name,
+    value: shoot.shoots_count,
+  }));
+  const averages = analysis?.averages;
   return (
     <section
       className={`w-full rounded-2xl border p-5 transition-colors duration-300 lg:p-6 ${
@@ -236,7 +254,7 @@ export default function CreativePartnerAnalysis({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
         <Panel title="Top CPs By Payout" isDark={isDark}>
           <div className="space-y-3 px-5 py-5">
-            {payoutRows.map((row) => (
+            {loading ? (<p className="py-8 text-center text-sm">Loading…</p>) : error ? (<p className="py-8 text-center text-sm text-red-500">{error}</p>) : payoutRows.length === 0 ? (<p className="py-8 text-center text-sm">No data found</p>) : payoutRows.map((row) => (
               <div
                 key={row.rank}
                 className="grid grid-cols-[24px_minmax(0,1fr)_64px] items-center gap-3"
@@ -295,7 +313,7 @@ export default function CreativePartnerAnalysis({
                 className="left-[40px] top-[10px]"
               >
                 <div className="flex h-[105px] w-[105px] items-center justify-center rounded-full bg-[#6399E8] text-base font-semibold text-white">
-                  $3,039
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(averages?.avg_cp_payout ?? 0)}
                 </div>
               </BubbleTooltip>
 
@@ -304,7 +322,7 @@ export default function CreativePartnerAnalysis({
                 className="bottom-[10px] left-[0px]"
               >
                 <div className="flex h-[82px] w-[82px] items-center justify-center rounded-full bg-[#62C89A] text-sm font-semibold text-white">
-                  31.3%
+                  {averages?.avg_cp_margin_percent ?? 0}%
                 </div>
               </BubbleTooltip>
 
@@ -313,7 +331,7 @@ export default function CreativePartnerAnalysis({
                 className="bottom-[2px] right-[2px]"
               >
                 <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D953B4] text-sm font-semibold text-white">
-                  1.8
+                  {averages?.avg_cps_per_shoot ?? 0}
                 </div>
               </BubbleTooltip>
             </div>
@@ -350,9 +368,9 @@ export default function CreativePartnerAnalysis({
           className="xl:col-span-2"
         >
           <div className="h-[330px] px-2 pb-2 pt-4 lg:h-[370px] lg:px-4">
-            <ResponsiveContainer width="100%" height="100%">
+            {loading ? (<p className="pt-20 text-center text-sm">Loading…</p>) : error ? (<p className="pt-20 text-center text-sm text-red-500">{error}</p>) : chartData.length === 0 ? (<p className="pt-20 text-center text-sm">No data found</p>) : <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={shoots}
+                data={chartData}
                 margin={{ top: 30, right: 8, left: -10, bottom: 8 }}
                 barCategoryGap="34%"
               >
@@ -420,7 +438,7 @@ export default function CreativePartnerAnalysis({
                   )}
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </div>
         </Panel>
       </div>

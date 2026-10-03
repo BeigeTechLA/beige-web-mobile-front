@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { useDebounce } from "@/hooks/use-debounce";
+import { financeTransactionsApi, type FinanceClients } from "@/lib/api/financeTransactions";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
 import { ChevronLeft, ChevronRight, Info, Search } from "lucide-react";
 
@@ -19,109 +22,6 @@ type ClientAnalyticsProps = {
 
 type ClientMode = "shoots" | "spend";
 
-type ClientRow = {
-  id: number;
-  initials: string;
-  name: string;
-  shoots: number;
-  spend: string;
-  color: string;
-};
-
-const clients: ClientRow[] = [
-  {
-    id: 1,
-    initials: "PC",
-    name: "Prince Carter",
-    shoots: 45,
-    spend: "$188M",
-    color: "#F3B9DD",
-  },
-  {
-    id: 2,
-    initials: "EC",
-    name: "Ethan Carter",
-    shoots: 10,
-    spend: "$45M",
-    color: "#F2E5C7",
-  },
-  {
-    id: 3,
-    initials: "SJ",
-    name: "Sophia Johnson",
-    shoots: 20,
-    spend: "$95M",
-    color: "#F0E4CF",
-  },
-  {
-    id: 4,
-    initials: "MR",
-    name: "Maya Ross",
-    shoots: 16,
-    spend: "$100M",
-    color: "#CDF2C1",
-  },
-  {
-    id: 5,
-    initials: "JL",
-    name: "John Lee",
-    shoots: 9,
-    spend: "$150M",
-    color: "#E5E7EA",
-  },
-  {
-    id: 6,
-    initials: "AR",
-    name: "Arvi Ross",
-    shoots: 11,
-    spend: "$70M",
-    color: "#E1DCD6",
-  },
-  {
-    id: 7,
-    initials: "DR",
-    name: "Daniel Roberts",
-    shoots: 38,
-    spend: "$20M",
-    color: "#FFFFFF",
-  },
-  {
-    id: 8,
-    initials: "RY",
-    name: "Raj Yadhav",
-    shoots: 40,
-    spend: "$35M",
-    color: "#BDD8E8",
-  },
-];
-
-const spendTrend = [
-  { point: "01", value: 16 },
-  { point: "02", value: 29 },
-  { point: "03", value: 26 },
-  { point: "04", value: 48 },
-  { point: "05", value: 49 },
-  { point: "06", value: 75 },
-  { point: "07", value: 51 },
-  { point: "08", value: 41 },
-  { point: "09", value: 47 },
-  { point: "10", value: 58 },
-  { point: "11", value: 68 },
-  { point: "12", value: 50 },
-  { point: "13", value: 27 },
-];
-
-const distribution = [
-  { name: "Lumino Studio", shoots: 31, width: 100 },
-  { name: "Velo Creative", shoots: 27, width: 59 },
-  { name: "Marz Agency", shoots: 24, width: 52 },
-  { name: "Orion Brands", shoots: 22, width: 48 },
-  { name: "RV Music Studio", shoots: 15, width: 34 },
-  { name: "Nike Campaign", shoots: 10, width: 25 },
-  { name: "DP Editing Studio", shoots: 5, width: 14 },
-  { name: "Joh Photography Agency", shoots: 1, width: 5 },
-];
-
 type SpendActiveDotProps = {
   cx?: number;
   cy?: number;
@@ -134,7 +34,7 @@ function SpendActiveDot({ cx, cy, value, isDark }: SpendActiveDotProps) {
     return null;
   }
 
-  const label = `$${Number(value || 0)}M Spend`;
+  const label = `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0))} Spend`;
   const boxWidth = 112;
   const boxHeight = 32;
   const boxX = cx - boxWidth / 2;
@@ -206,7 +106,7 @@ function FilterSelect({
             : "border-[#E3E3E3] bg-white text-[#323232]"
         }`}
       >
-        <SelectValue />
+        <SelectValue placeholder="Status" />
       </SelectTrigger>
 
       <SelectContent
@@ -226,25 +126,55 @@ function FilterSelect({
   );
 }
 
-export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
+export default function ClientAnalytics({
+  isDark,
+  selectedDate,
+}: ClientAnalyticsProps) {
   const [mode, setMode] = useState<ClientMode>("shoots");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("status");
-  const [month, setMonth] = useState("month");
-  const [clientFilter, setClientFilter] = useState("all");
+  const [status, setStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [data, setData] = useState<FinanceClients | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search, 400);
 
-  const filteredClients = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, mode, selectedDate, status]);
 
-    return clients.filter((client) => {
-      const matchesSearch = !query || client.name.toLowerCase().includes(query);
-      const matchesClient =
-        clientFilter === "all" || client.name === clientFilter;
+  useEffect(() => {
+    let cancelled = false;
+    const selected = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
-      return matchesSearch && matchesClient;
+    setLoading(true);
+    setError(null);
+
+    void financeTransactionsApi.getFinanceClients({
+      date_from: selected,
+      date_to: selected,
+      sort_by: mode === "shoots" ? "shoot" : "spend",
+      status: status ? Number(status) : undefined,
+      search: debouncedSearch.trim() || undefined,
+      page: currentPage,
+      limit: 10,
+    }).then((response) => {
+      if (!cancelled) setData(response.data);
+    }).catch((requestError: unknown) => {
+      if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Unable to load client analytics.");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
     });
-  }, [search, clientFilter]);
+
+    return () => { cancelled = true; };
+  }, [currentPage, debouncedSearch, mode, selectedDate, status]);
+
+  const clients = data?.top_clients.rows ?? [];
+  const spendTrend = data?.avg_client_spend_per_shoot.graph ?? [];
+  const distribution = data?.shoot_distribution ?? [];
+  const pagination = data?.top_clients.pagination;
+  const initials = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+  const formatMoney = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value);
 
   return (
     <section
@@ -321,39 +251,17 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <FilterSelect
                   value={status}
-                  onChange={setStatus}
+                  onChange={(value) => setStatus(value === "all" ? "" : value)}
                   width="w-[92px]"
                   isDark={isDark}
                   items={[
-                    { value: "status", label: "Status" },
-                    { value: "active", label: "Active" },
-                    { value: "inactive", label: "Inactive" },
-                  ]}
-                />
-
-                <FilterSelect
-                  value={month}
-                  onChange={setMonth}
-                  width="w-[92px]"
-                  isDark={isDark}
-                  items={[
-                    { value: "month", label: "Month" },
-                    { value: "quarter", label: "Quarter" },
-                    { value: "year", label: "Year" },
-                  ]}
-                />
-
-                <FilterSelect
-                  value={clientFilter}
-                  onChange={setClientFilter}
-                  width="w-[76px]"
-                  isDark={isDark}
-                  items={[
-                    { value: "all", label: "All" },
-                    ...clients.map((client) => ({
-                      value: client.name,
-                      label: client.name,
-                    })),
+                    { value: "all", label: "Status" },
+                    { value: "0", label: "0" },
+                    { value: "1", label: "1" },
+                    { value: "2", label: "2" },
+                    { value: "3", label: "3" },
+                    { value: "4", label: "4" },
+                    { value: "5", label: "5" },
                   ]}
                 />
               </div>
@@ -392,9 +300,9 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
           </div>
 
           <div>
-            {filteredClients.map((client) => (
+            {loading ? (<p className="p-8 text-center text-sm">Loading…</p>) : error ? (<p className="p-8 text-center text-sm text-red-500">{error}</p>) : clients.length === 0 ? (<p className="p-8 text-center text-sm">No data found</p>) : clients.map((client) => (
               <div
-                key={client.id}
+                key={client.client_key}
                 className={`grid min-h-[58px] grid-cols-[1fr_82px_105px] items-center px-5 py-2 transition-colors ${
                   isDark ? "hover:bg-white/[0.025]" : "hover:bg-black/[0.02]"
                 }`}
@@ -402,11 +310,11 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                 <div className="flex min-w-0 items-center gap-3">
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-medium text-black"
-                    style={{ backgroundColor: client.color }}
+                    style={{ backgroundColor: "#F0E4CF" }}
                   >
-                    {client.initials}
+                    {initials(client.client_name)}
                   </div>
-                  <span className="truncate text-sm">{client.name}</span>
+                  <span className="truncate text-sm">{client.client_name}</span>
                 </div>
 
                 <span
@@ -414,7 +322,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                     isDark ? "text-white/80" : "text-black/70"
                   }`}
                 >
-                  {client.shoots.toString().padStart(2, "0")}
+                  {client.shoots_count.toString().padStart(2, "0")}
                 </span>
 
                 <span
@@ -422,7 +330,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                     isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"
                   }`}
                 >
-                  {client.spend}
+                  {formatMoney(client.total_spend)}
                 </span>
               </div>
             ))}
@@ -435,7 +343,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                 : "border-t-[#E3E3E3] bg-white text-[#666]"
             }`}
           >
-            <span>Page 1 to 10</span>
+            <span>Page {pagination?.page ?? 1} to {Math.min((pagination?.page ?? 1) * (pagination?.limit ?? 10), pagination?.total ?? 0)}</span>
 
             <div className="flex items-center gap-2">
               <button
@@ -471,7 +379,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
 
               <button
                 type="button"
-                onClick={() => setCurrentPage((page) => page + 1)}
+                onClick={() => setCurrentPage((page) => Math.min(pagination?.total_pages ?? page, page + 1))}
                 className={`flex items-center justify-center rounded-lg border p-2 transition-all ${
                   isDark
                     ? "border-[#333] bg-[#1A1A1A] text-white/60 hover:bg-white/10"
@@ -508,7 +416,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
             </div>
 
             <div className="p-5">
-              <p className="text-xl font-semibold lg:text-[26px]">$2433</p>
+              <p className="text-xl font-semibold lg:text-[26px]">{formatMoney(data?.avg_client_spend_per_shoot.total_avg ?? 0)}</p>
               <p
                 className={`mt-1 text-xs ${
                   isDark ? "text-white/45" : "text-black/45"
@@ -529,8 +437,8 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                   <p className="mt-2">Top spend</p>
                 </div>
                 <div className="text-right">
-                  <p>Lumino Studio</p>
-                  <p className="mt-2 text-[#E8D1AB]">$188.4M</p>
+                  <p>{data?.avg_client_spend_per_shoot.top_client ?? "-"}</p>
+                  <p className="mt-2 text-[#E8D1AB]">{formatMoney(data?.avg_client_spend_per_shoot.top_spend ?? 0)}</p>
                 </div>
               </div>
 
@@ -605,11 +513,11 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
 
             <div className="space-y-3.5 p-5">
               {distribution.map((item) => (
-                <div key={item.name}>
+                <div key={item.client_key}>
                   <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <span className="truncate text-xs">{item.name}</span>
+                    <span className="truncate text-xs">{item.client_name}</span>
                     <span className="text-[11px] text-[#E8D1AB]">
-                      {item.shoots} shoots
+                      {item.shoots_count} shoots
                     </span>
                   </div>
 
@@ -620,7 +528,7 @@ export default function ClientAnalytics({ isDark }: ClientAnalyticsProps) {
                   >
                     <div
                       className="h-full bg-[#E8D1AB]"
-                      style={{ width: `${item.width}%` }}
+                      style={{ width: `${item.bar_percent}%` }}
                     />
                   </div>
                 </div>

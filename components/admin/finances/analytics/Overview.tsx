@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,6 +10,8 @@ import {
   YAxis,
 } from "recharts";
 import { CircleDollarSign, Info, LockKeyhole, Minus } from "lucide-react";
+import { format } from "date-fns";
+import { financeTransactionsApi, type FinanceMetricCard, type FinanceOverview } from "@/lib/api/financeTransactions";
 
 import {
   Select,
@@ -24,7 +26,7 @@ type OverviewProps = {
   selectedDate?: Date | null;
 };
 
-type MetricKey = "gross" | "pending" | "payout";
+type MetricKey = "gross_revenue" | "pending_revenue" | "cp_payout";
 
 type Metric = {
   key: MetricKey;
@@ -32,6 +34,7 @@ type Metric = {
   value: string;
   growth: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
+  card?: FinanceMetricCard;
 };
 
 type ChartPoint = {
@@ -42,51 +45,33 @@ type ChartPoint = {
   hoverLabel?: number;
 };
 
-const chartData: ChartPoint[] = [
-  { x: 0, gross: 35, pending: 30, payout: 32 },
-  { x: 1, gross: 41, pending: 34, payout: 36 },
-  { x: 2, gross: 20, pending: 28, payout: 27 },
-  { x: 3, gross: 25, pending: 31, payout: 30 },
-  { x: 4, gross: 28, pending: 35, payout: 34 },
-  { x: 5, gross: 41, pending: 40, payout: 41 },
-  { x: 6, gross: 39, pending: 39, payout: 40 },
-  { x: 7, gross: 65, pending: 51, payout: 57, hoverLabel: 24 },
-  { x: 8, gross: 63, pending: 54, payout: 58 },
-  { x: 9, gross: 77, pending: 61, payout: 68 },
-  { x: 10, gross: 56, pending: 49, payout: 54 },
-  { x: 11, gross: 62, pending: 53, payout: 59 },
-  { x: 12, gross: 48, pending: 45, payout: 50 },
-  { x: 13, gross: 61, pending: 55, payout: 60 },
-  { x: 14, gross: 63, pending: 57, payout: 62 },
-];
+function formatDayTick(value: string | number) {
+  const dateValue =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00`
+      : value;
+  const date = new Date(dateValue);
 
-const monthTicks: Record<number, string> = {
-  1: "Jan",
-  3: "Feb",
-  5: "Mar",
-  7: "Apr",
-  9: "May",
-  11: "Jun",
-  13: "Jul",
-};
+  return Number.isNaN(date.getTime()) ? String(value) : format(date, "dd MMM");
+}
 
-const metrics: Metric[] = [
+const metricTemplates: Metric[] = [
   {
-    key: "gross",
+    key: "gross_revenue",
     label: "Gross Revenue",
     value: "$1.9M",
     growth: "+3%",
     icon: LockKeyhole,
   },
   {
-    key: "pending",
+    key: "pending_revenue",
     label: "Pending Revenue",
     value: "$237M",
     growth: "+3%",
     icon: Minus,
   },
   {
-    key: "payout",
+    key: "cp_payout",
     label: "CP Payout",
     value: "$571M",
     growth: "+3%",
@@ -113,7 +98,7 @@ function OverviewActiveDot({
     return null;
   }
 
-  const label = payload?.hoverLabel ?? Number(value || 0);
+  const label = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
   const boxWidth = 60;
   const boxHeight = 30;
   const boxX = cx - boxWidth / 2;
@@ -163,14 +148,28 @@ function OverviewActiveDot({
   );
 }
 
-export default function Overview({ isDark }: OverviewProps) {
-  const [activeMetric, setActiveMetric] = useState<MetricKey>("gross");
-  const [range, setRange] = useState("month");
+export default function Overview({ isDark, selectedDate }: OverviewProps) {
+  const [activeMetric, setActiveMetric] = useState<MetricKey>("gross_revenue");
+  const [range, setRange] = useState<"day" | "month" | "year">("month");
+  const [data, setData] = useState<FinanceOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const active = useMemo(
-    () => metrics.find((metric) => metric.key === activeMetric) || metrics[0],
-    [activeMetric],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const selected = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+    void financeTransactionsApi.getFinanceOverview({ date_from: selected, date_to: selected, metric: activeMetric, group_by: range }).then((response) => {
+      if (!cancelled) setData(response.data);
+    }).catch((requestError: unknown) => {
+      if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Unable to load overview.");
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeMetric, range, selectedDate]);
+
+  const metrics = useMemo(() => metricTemplates.map((metric) => {
+    const card = data?.cards[metric.key];
+    return { ...metric, value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(card?.total ?? 0), growth: card?.has_current_data ? `${card.change_percent > 0 ? "+" : ""}${card.change_percent}%` : "-", card };
+  }), [data]);
 
   return (
     <section
@@ -205,7 +204,7 @@ export default function Overview({ isDark }: OverviewProps) {
             }
           >
             <SelectItem value="month">Month</SelectItem>
-            <SelectItem value="quarter">Quarter</SelectItem>
+            <SelectItem value="day">Day</SelectItem>
             <SelectItem value="year">Year</SelectItem>
           </SelectContent>
         </Select>
@@ -253,7 +252,7 @@ export default function Overview({ isDark }: OverviewProps) {
               </div>
 
               <div className="mb-2 text-xl font-semibold leading-normal lg:text-[26px]">
-                {metric.value}
+                {loading ? "…" : metric.value}
               </div>
 
               <div
@@ -278,7 +277,7 @@ export default function Overview({ isDark }: OverviewProps) {
       <div className="mt-5 h-[260px] w-full lg:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={chartData}
+            data={data?.graph || []}
             margin={{ top: 24, right: 8, left: -8, bottom: 4 }}
           >
             <defs>
@@ -295,30 +294,25 @@ export default function Overview({ isDark }: OverviewProps) {
             </defs>
 
             <XAxis
-              type="number"
-              dataKey="x"
-              domain={[0, 14]}
-              ticks={[1, 3, 5, 7, 9, 11, 13]}
-              tickFormatter={(value) => monthTicks[value] || ""}
+              dataKey="label"
+              interval="preserveStartEnd"
+              minTickGap={18}
+              tickFormatter={(value: string | number) =>
+                range === "day" ? formatDayTick(value) : String(value)
+              }
               axisLine={false}
               tickLine={false}
               dy={10}
-              tick={{
-                fill: isDark ? "#FFFFFF66" : "#17171766",
-                fontSize: 11,
-              }}
+              tick={{ fill: isDark ? "#FFFFFF66" : "#17171766", fontSize: 11 }}
             />
 
             <YAxis
-              domain={[0, 80]}
-              ticks={[0, 20, 40, 60, 80]}
+              domain={[0, "auto"]}
+              tickFormatter={(value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)}
               axisLine={false}
               tickLine={false}
-              width={40}
-              tick={{
-                fill: isDark ? "#FFFFFF55" : "#17171755",
-                fontSize: 10,
-              }}
+              width={52}
+              tick={{ fill: isDark ? "#FFFFFF55" : "#17171755", fontSize: 10 }}
             />
 
             {/* Tooltip is invisible; it only activates the custom hover marker. */}
@@ -326,7 +320,7 @@ export default function Overview({ isDark }: OverviewProps) {
 
             <Area
               type="monotone"
-              dataKey={active.key}
+              dataKey="value"
               stroke="#E8D1AB"
               strokeWidth={1.5}
               fill="url(#financeOverviewArea)"

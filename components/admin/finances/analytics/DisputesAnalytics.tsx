@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { format } from "date-fns";
+
+import { financeTransactionsApi, type FinanceDisputes } from "@/lib/api/financeTransactions";
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 
 type DisputesAnalyticsProps = {
@@ -8,7 +11,7 @@ type DisputesAnalyticsProps = {
   selectedDate?: Date | null;
 };
 
-const metrics = [
+const metricPresentation = [
   {
     label: "Disputes Raised",
     value: "76",
@@ -39,7 +42,7 @@ const metrics = [
   },
 ];
 
-const reasons = [
+const reasonPresentation = [
   {
     rank: "01",
     name: "Late Delivery",
@@ -77,8 +80,73 @@ const reasons = [
   },
 ];
 
-export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
+export default function DisputesAnalytics({
+  isDark,
+  selectedDate,
+}: DisputesAnalyticsProps) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [data, setData] = useState<FinanceDisputes | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const selected = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+
+    setLoading(true);
+    setError(null);
+
+    void financeTransactionsApi
+      .getFinanceDisputes({
+        date_from: selected,
+        date_to: selected,
+        page: currentPage,
+        limit: 10,
+      })
+      .then((response) => {
+        if (!cancelled) setData(response.data);
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Unable to load disputes analytics.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, selectedDate]);
+
+  const maxCount = Math.max(
+    data?.counts.raised ?? 0,
+    data?.counts.resolved ?? 0,
+    data?.counts.pending ?? 0,
+    data?.counts.active ?? 0,
+    0,
+  );
+  const metrics = metricPresentation.map((metric, index) => {
+    const keys = ["raised", "resolved", "pending", "active"] as const;
+    const value = data?.counts[keys[index]] ?? 0;
+
+    return {
+      ...metric,
+      value,
+      width: `${maxCount === 0 ? 0 : (value / maxCount) * 100}%`,
+    };
+  });
+  const reasons = data?.top_dispute_reasons.rows ?? [];
+  const pagination = data?.top_dispute_reasons.pagination;
 
   return (
     <section
@@ -99,7 +167,7 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
         }`}
       >
         <div className="space-y-5">
-          {metrics.map((metric) => (
+          {loading ? (<p className="py-8 text-center text-sm">Loading…</p>) : error ? (<p className="py-8 text-center text-sm text-red-500">{error}</p>) : metrics.map((metric) => (
             <div key={metric.label} className="group">
               <div className="mb-2 flex items-center gap-1.5">
                 <span className="text-[10px] font-medium lg:text-xs">
@@ -164,9 +232,9 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
         </div>
 
         <div>
-          {reasons.map((reason) => (
+          {loading ? (<p className="p-8 text-center text-sm">Loading…</p>) : error ? (<p className="p-8 text-center text-sm text-red-500">{error}</p>) : reasons.length === 0 ? (<p className="p-8 text-center text-sm">No data found</p>) : reasons.map((reason, index) => (
             <div
-              key={reason.rank}
+              key={`${String(reason.rank).padStart(2, "0")}-${reason.reason_name}`}
               className={`grid min-h-[38px] grid-cols-[34px_1.1fr_60px_2fr] items-center border-b px-4 transition-colors last:border-b-0 lg:grid-cols-[40px_1.15fr_70px_2.1fr] lg:px-5 ${
                 isDark
                   ? "border-[#202020] hover:bg-white/[0.02]"
@@ -178,11 +246,11 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
                   isDark ? "text-white/35" : "text-black/40"
                 }`}
               >
-                {reason.rank}
+                {String(reason.rank).padStart(2, "0")}
               </span>
 
               <span className="text-[10px] font-medium lg:text-xs">
-                {reason.name}
+                {reason.reason_name}
               </span>
 
               <span
@@ -202,8 +270,8 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
                   <div
                     className="h-px"
                     style={{
-                      width: `${reason.progress}%`,
-                      backgroundColor: reason.color,
+                      width: `${reason.progress_percent}%`,
+                      backgroundColor: reasonPresentation[index % reasonPresentation.length].color,
                     }}
                   />
                 </div>
@@ -222,13 +290,14 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
               isDark ? "text-white/60" : "text-black/55"
             }`}
           >
-            Page 1 to 10
+            Page {pagination?.page ?? 1} to {Math.min((pagination?.page ?? 1) * (pagination?.limit ?? 10), pagination?.total ?? 0)}
           </span>
 
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage <= 1}
               className={`flex h-8 w-8 items-center justify-center rounded-md ${
                 isDark
                   ? "text-white/35 hover:bg-white/5"
@@ -263,7 +332,8 @@ export default function DisputesAnalytics({ isDark }: DisputesAnalyticsProps) {
 
             <button
               type="button"
-              onClick={() => setCurrentPage((page) => page + 1)}
+              onClick={() => setCurrentPage((page) => Math.min(pagination?.total_pages ?? page, page + 1))}
+              disabled={currentPage >= (pagination?.total_pages ?? 1)}
               className={`flex h-8 w-8 items-center justify-center rounded-md ${
                 isDark
                   ? "text-white/35 hover:bg-white/5"
