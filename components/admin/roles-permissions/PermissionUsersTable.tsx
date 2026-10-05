@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, History, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, History, Pencil, RotateCcw, Search, Trash2, UserRoundCog, X } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,11 +18,22 @@ import {
 } from "@/components/admin/roles-permissions/types";
 import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { UserLoginHistoryAction } from "./UserLoginHistoryAction";
 
+type BulkRoleOption = {
+  id: number;
+  name: string;
+};
+
 type PermissionUsersTableProps = {
   users: PermissionUser[];
+  roles?: BulkRoleOption[];
+  canBulkEdit?: boolean;
+  canBulkDelete?: boolean;
+  onBulkChangeRole?: (userIds: number[], roleId: number) => boolean | Promise<boolean>;
+  onBulkDelete?: (userIds: number[]) => boolean | Promise<boolean>;
   sortOrder?: "asc" | "desc";
   isDark?: boolean;
   isLoading?: boolean;
@@ -169,6 +180,11 @@ const mapApiUserToPermissionUser = (
 
 export function PermissionUsersTable({
   users,
+  roles = [],
+  canBulkEdit = false,
+  canBulkDelete = false,
+  onBulkChangeRole,
+  onBulkDelete,
   sortOrder = "desc",
   isLoading = false,
   error = "",
@@ -191,6 +207,10 @@ export function PermissionUsersTable({
   const [serverLoading, setServerLoading] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
+  const [bulkRoleId, setBulkRoleId] = useState("");
+  const [isBulkRoleModalOpen, setIsBulkRoleModalOpen] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const tableTopRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToTableRef = useRef(false);
 
@@ -382,13 +402,14 @@ export function PermissionUsersTable({
     return () => window.cancelAnimationFrame(frame);
   }, [currentPage, filteredUsers.length]);
 
+  const selectablePageUsers = paginatedUsers.filter((user) => user.status === "Active");
   const allSelected =
-    paginatedUsers.length > 0 &&
-    paginatedUsers.every((user) => selectedRows.includes(user.id));
+    selectablePageUsers.length > 0 &&
+    selectablePageUsers.every((user) => selectedRows.includes(user.id));
 
   const toggleAll = (checked: boolean) => {
     setSelectedRows((current) => {
-      const visibleIds = paginatedUsers.map((user) => user.id);
+      const visibleIds = selectablePageUsers.map((user) => user.id);
 
       if (checked) {
         return Array.from(new Set([...current, ...visibleIds]));
@@ -400,8 +421,72 @@ export function PermissionUsersTable({
 
   const toggleOne = (id: number, checked: boolean) => {
     setSelectedRows((current) =>
-      checked ? [...current, id] : current.filter((item) => item !== id),
+      checked
+        ? Array.from(new Set([...current, id]))
+        : current.filter((item) => item !== id),
     );
+  };
+
+  useEffect(() => {
+    const activeIds = new Set(serverUsers.filter((user) => user.status === "Active").map((user) => user.id));
+    setSelectedRows((current) => current.filter((id) => activeIds.has(id)));
+  }, [serverUsers]);
+
+  const clearBulkSelection = () => {
+    setSelectedRows([]);
+    setBulkRoleId("");
+  };
+
+  const handleBulkChangeRole = async () => {
+    const roleId = Number(bulkRoleId);
+    if (!canBulkEdit || !onBulkChangeRole || !selectedRows.length || !Number.isFinite(roleId)) return;
+
+    const targetRole = roles.find((role) => role.id === roleId);
+    if (!targetRole) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const succeeded = await onBulkChangeRole([...selectedRows], roleId);
+      if (!succeeded) return;
+
+      const updatedAt = new Date().toISOString();
+      setServerUsers((current) =>
+        current.map((user) =>
+          selectedRows.includes(user.id)
+            ? { ...user, role_id: roleId, role: targetRole.name, updated: updatedAt }
+            : user,
+        ),
+      );
+
+      clearBulkSelection();
+      setIsBulkRoleModalOpen(false);
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!canBulkDelete || !onBulkDelete || !selectedRows.length) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const succeeded = await onBulkDelete([...selectedRows]);
+      if (!succeeded) return;
+
+      const updatedAt = new Date().toISOString();
+      setServerUsers((current) =>
+        current.map((user) =>
+          selectedRows.includes(user.id)
+            ? { ...user, status: "In-Active" as PermissionStatus, updated: updatedAt }
+            : user,
+        ),
+      );
+
+      clearBulkSelection();
+      setIsBulkDeleteModalOpen(false);
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   const goToPage = (page: number) => {
@@ -507,6 +592,95 @@ export function PermissionUsersTable({
               className={`h-12 w-full rounded-lg border pl-11 pr-4 text-sm focus:outline-none focus:ring-1 ${searchClass}`}
             />
           </div>
+
+          {selectedRows.length > 0 && (
+            <div
+              className={`mt-3 rounded-xl border px-4 py-3 lg:mt-5 ${
+                isDark
+                  ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.06]"
+                  : "border-[#E5D5B8] bg-[#FFF8EC]"
+              }`}
+            >
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span
+                    className={`inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 text-sm font-semibold ${
+                      isDark ? "bg-[#E8D1AB] text-black" : "bg-[#171717] text-white"
+                    }`}
+                  >
+                    {selectedRows.length}
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className={`truncate text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+                      {selectedRows.length === 1 ? "1 user selected" : `${selectedRows.length} users selected`}
+                    </p>
+                    <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
+                      Perform an action on all selected users.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto xl:shrink-0">
+                  <Select
+                    value={bulkRoleId}
+                    onValueChange={setBulkRoleId}
+                    disabled={!canBulkEdit || isBulkUpdating}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-full rounded-lg px-4 text-sm sm:w-[240px] xl:w-[260px] focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}
+                    >
+                      <SelectValue placeholder="Select new role" />
+                    </SelectTrigger>
+                    <SelectContent className={selectContentClass}>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={String(role.id)}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <button
+                    type="button"
+                    disabled={!canBulkEdit || !onBulkChangeRole || !bulkRoleId || isBulkUpdating}
+                    onClick={() => setIsBulkRoleModalOpen(true)}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#E5D5B8] px-5 text-sm font-semibold text-black transition hover:bg-[#d8c6a4] disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[132px]"
+                  >
+                    <UserRoundCog size={16} className="shrink-0" />
+                    <span>Change Role</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!canBulkDelete || !onBulkDelete || isBulkUpdating}
+                    onClick={() => setIsBulkDeleteModalOpen(true)}
+                    className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[156px] ${
+                      isDark
+                        ? "border-red-400/20 bg-red-500/10 text-red-300 hover:bg-red-500/15"
+                        : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                    }`}
+                  >
+                    <Trash2 size={16} className="shrink-0" />
+                    <span>Delete Selected</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isBulkUpdating}
+                    onClick={clearBulkSelection}
+                    className={`inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-sm font-medium transition ${
+                      isDark
+                        ? "text-white/55 hover:bg-white/5 hover:text-white"
+                        : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+                    }`}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* LOADING & ERROR BOUNDS FOR BOTH MOBILE AND DESKTOP VIEWS */}
@@ -540,14 +714,16 @@ export function PermissionUsersTable({
               <table className={`w-full table-fixed border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
                 <thead>
                   <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                    {/* <th className="w-[5%] px-4 py-4">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={(value) => toggleAll(value === true)}
-                  className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
-                />
-              </th> */}
-                    <th className="w-[25%] px-4 py-4 rounded-bl-xl">Names</th>
+                    <th className="w-[5%] px-4 py-4 rounded-bl-xl">
+                      <Checkbox
+                        checked={allSelected}
+                        disabled={selectablePageUsers.length === 0}
+                        aria-label="Select all active users on this page"
+                        onCheckedChange={(value) => toggleAll(value === true)}
+                        className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                      />
+                    </th>
+                    <th className="w-[20%] px-4 py-4">Names</th>
                     <th className="w-[16%] px-4 py-4">Roles</th>
                     <th className="w-[14%] px-4 py-4">Created</th>
                     <th className="w-[14%] px-4 py-4">Updated</th>
@@ -566,14 +742,16 @@ export function PermissionUsersTable({
                         onRowClick?.(user);
                       }}
                     >
-                      {/* <td className="px-4 py-5">
+                      <td className="px-4 py-5">
                         <Checkbox
                           checked={selectedRows.includes(user.id)}
+                          disabled={user.status !== "Active"}
+                          aria-label={`Select ${user.name}`}
                           onCheckedChange={(value) => toggleOne(user.id, value === true)}
                           onClick={(event) => event.stopPropagation()}
-                          className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+                          className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
                         />
-                      </td> */}
+                      </td>
                       <td className="px-4 py-5">
                         <div className="flex items-center gap-3">
                           <div
@@ -718,6 +896,14 @@ export function PermissionUsersTable({
                       onClick={() => setExpandedRowId(isExpanded ? null : user.id)}
                     >
                       <div className="flex items-center gap-2 shrink-0">
+                        <Checkbox
+                          checked={selectedRows.includes(user.id)}
+                          disabled={user.status !== "Active"}
+                          aria-label={`Select ${user.name}`}
+                          onCheckedChange={(value) => toggleOne(user.id, value === true)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                        />
                         <button
                           type="button"
                           className={`flex h-6 w-6 items-center justify-center rounded-full transition-transform duration-200 border ${isDark ? "border-[#777674] text-[#777674]" : "border-[32323299] text-[#32323299]"} ${isExpanded ? "rotate-180 border-[#E8D1AB]" : "rotate-0"}`}
@@ -915,6 +1101,40 @@ export function PermissionUsersTable({
           </div>
         ) : null}
       </div>
+      <ActionModal
+        isOpen={isBulkRoleModalOpen}
+        onClose={() => {
+          if (isBulkUpdating) return;
+          setIsBulkRoleModalOpen(false);
+        }}
+        onConfirm={handleBulkChangeRole}
+        title="Change User Role"
+        description={
+          bulkRoleId
+            ? `Are you sure you want to change the role of ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"} to ${roles.find((role) => String(role.id) === bulkRoleId)?.name || "the selected role"}?`
+            : "Select a role before continuing."
+        }
+        tone="default"
+        confirmLabel="Change Role"
+        cancelLabel="Cancel"
+        isLoading={isBulkUpdating}
+      />
+
+      <ActionModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => {
+          if (isBulkUpdating) return;
+          setIsBulkDeleteModalOpen(false);
+        }}
+        onConfirm={handleBulkDelete}
+        title="Delete Selected Users"
+        description={`Are you sure you want to delete ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"}? This will move ${selectedRows.length === 1 ? "the user" : "them"} to the archived user list.`}
+        tone="danger"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isBulkUpdating}
+      />
+
       {successModal ? (
         <ActionSuccessModal
           isOpen={successModal.isOpen}

@@ -105,11 +105,11 @@ export function ActionModal({
               <AlertCircle className={styles.iconColor} size={26} strokeWidth={1.8} />
             </div>
 
-            <DialogHeader className="space-y-0">
-              <DialogTitle className={`text-[20px] font-semibold leading-snug tracking-[-0.01em] ${isDark ? "text-white" : "text-[#101010]"}`}>
+            <DialogHeader className="w-full items-center space-y-0 text-center">
+              <DialogTitle className={`w-full text-center text-[20px] font-semibold leading-snug tracking-[-0.01em] ${isDark ? "text-white" : "text-[#101010]"}`}>
                 {title}
               </DialogTitle>
-              <DialogDescription className={`mt-2 text-[13px] leading-relaxed ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
+              <DialogDescription className={`mx-auto mt-2 max-w-[420px] text-center text-[13px] leading-relaxed ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
                 {description}
               </DialogDescription>
             </DialogHeader>
