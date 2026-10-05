@@ -81,7 +81,7 @@ export function ActionModal({
         }`}
       >
         <div className="px-6 pb-6 pt-8 sm:px-7 sm:pb-7 sm:pt-9">
-          <DialogHeader className="flex flex-col items-center space-y-0 text-center">
+          <div className="flex flex-col items-center space-y-0 text-center">
             <div
               className={`mb-5 flex h-14 w-14 items-center justify-center rounded-full border ${styles.iconBg} ${styles.iconBorder}`}
             >
