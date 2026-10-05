@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { logoutSession } from '@/lib/auth/session';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
@@ -35,6 +36,7 @@ import type {
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const logoutPending = useRef(false);
   const { user, token, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [loginMutation, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
@@ -183,7 +185,15 @@ export const useAuth = () => {
   }, [registerCreatorStep3Mutation]);
 
   const logout = useCallback(async () => {
-    await logoutSession();
+    if (logoutPending.current) return false;
+    logoutPending.current = true;
+    try {
+      await logoutSession(Cookies.get('revure_token') || token || undefined);
+    } catch {
+      toast.error('Could not end your session. Check your connection and try signing out again.');
+      logoutPending.current = false;
+      return false;
+    }
     dispatch(authApi.util.resetApiState());
     dispatch(salesApi.util.resetApiState());
     dispatch(logoutAction());
@@ -198,7 +208,9 @@ export const useAuth = () => {
     }
     void persistor.purge();
     router.push('/');
-  }, [dispatch, router]);
+    logoutPending.current = false;
+    return true;
+  }, [dispatch, router, token]);
   
   // const getCurrentUser = useCallback(async () => {
   //   if (!token) {

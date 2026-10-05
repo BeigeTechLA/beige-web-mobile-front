@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { PermissionGuard } from "@/components/common/PermissionGuard";
 import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
 import { ExportUsersButton } from "@/components/admin/roles-permissions/ExportUsersButton";
+import { UserLoginHistoryAction } from "@/components/admin/roles-permissions/UserLoginHistoryAction";
 
 const formatDate = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -279,19 +280,22 @@ export default function RoleUsersPage() {
                           {formatDate(user.created_at)}
                         </td>
                         <td className="px-4 py-5 text-right">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              router.push(
-                                `/admin/roles-permissions/edit-details?user_id=${user.user_id}`,
-                              );
-                            }}
-                            aria-label={`Open details for ${user.name}`}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
-                          >
-                            <ChevronRight size={16} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <UserLoginHistoryAction user={{ id: user.user_id, name: user.name, email: user.email }} />
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(
+                                  `/admin/roles-permissions/edit-details?user_id=${user.user_id}`,
+                                );
+                              }}
+                              aria-label={`Open details for ${user.name}`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

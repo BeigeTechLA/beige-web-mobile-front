@@ -362,6 +362,96 @@ useEffect(() => {
     setSelectedRestoreUser(null);
   };
 
+  const handleBulkChangeRole = async (
+    userIds: number[],
+    roleId: number,
+  ): Promise<boolean> => {
+    if (!canEdit || !userIds.length) return false;
+
+    const targetRole = roles.find((role) => role.role_id === roleId);
+    if (!targetRole) {
+      setUsersError("Selected role is no longer available.");
+      return false;
+    }
+
+    setUsersError("");
+
+    try {
+      const response = await adminApi.multiUserAction({
+        action: "change_role",
+        user_ids: userIds,
+        role_id: roleId,
+      });
+
+      if (!response?.success) {
+        setUsersError(response?.message || response?.error || "Failed to change roles");
+        return false;
+      }
+
+      await Promise.all([loadRoles(), loadUsers()]);
+
+      const affectedCount = response.data?.affected_count ?? userIds.length;
+      const roleName = response.data?.role_name || targetRole.name;
+
+      setSuccessModal({
+        isOpen: true,
+        title: "Roles Updated Successfully",
+        subtext: `${affectedCount} user${affectedCount === 1 ? "" : "s"} ${affectedCount === 1 ? "has" : "have"} been moved to ${roleName}.`,
+        buttonText: "Done",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Bulk Change Role Error:", error);
+      setUsersError(
+        error instanceof Error
+          ? error.message
+          : "Failed to change roles for selected users",
+      );
+      return false;
+    }
+  };
+
+  const handleBulkDelete = async (userIds: number[]): Promise<boolean> => {
+    if (!canDelete || !userIds.length) return false;
+
+    setUsersError("");
+
+    try {
+      const response = await adminApi.multiUserAction({
+        action: "delete",
+        user_ids: userIds,
+        reason: "Deleted from Roles & Permissions bulk action",
+      });
+
+      if (!response?.success) {
+        setUsersError(response?.message || response?.error || "Failed to delete users");
+        return false;
+      }
+
+      await Promise.all([loadRoles(), loadUsers()]);
+
+      const affectedCount = response.data?.affected_count ?? userIds.length;
+
+      setSuccessModal({
+        isOpen: true,
+        title: "Users Deleted Successfully",
+        subtext: `${affectedCount} user${affectedCount === 1 ? "" : "s"} ${affectedCount === 1 ? "has" : "have"} been moved to the archived user list.`,
+        buttonText: "Done",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Bulk Delete Users Error:", error);
+      setUsersError(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete selected users",
+      );
+      return false;
+    }
+  };
+
   return (
     <>
       <div
@@ -444,6 +534,11 @@ useEffect(() => {
 
           <PermissionUsersTable
             users={users}
+            roles={roles.map((role) => ({ id: role.role_id, name: role.name }))}
+            canBulkEdit={canEdit}
+            canBulkDelete={canDelete}
+            onBulkChangeRole={handleBulkChangeRole}
+            onBulkDelete={handleBulkDelete}
             sortOrder={sortOrder}
             isDark={isDark}
             isLoading={isLoading}

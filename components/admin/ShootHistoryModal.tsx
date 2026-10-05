@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CalendarDays, CalendarRange, Clock3, Globe2, History, Loader2, MapPin, Pencil, RotateCcw, Trash2, UserMinus, UserPlus, X } from "lucide-react";
+import { CalendarDays, CalendarPlus, CalendarRange, CalendarX, Clock3, Globe2, History, Loader2, MapPin, MessageSquare, Pencil, RotateCcw, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 
@@ -25,6 +25,15 @@ type ShootHistoryMetadata = {
   crew_member_id?: number;
   crew_member_name?: string;
   post_production_member_name?: string;
+  meeting_id?: number;
+  meeting_title?: string | null;
+  meeting_type?: string | null;
+  meeting_date_time?: string | null;
+  chat_room_id?: string | null;
+  chat_room_name?: string | null;
+  participant_count?: number | null;
+  meeting_end_time?: string | null;
+  meeting_timezone?: string | null;
   changes?: ShootHistoryChange[];
 };
 
@@ -131,33 +140,38 @@ const formatHistoryValue = (field: string, value: unknown): string => {
 };
 
   const actionLabel = (action: string, metadata: ShootHistoryMetadata = {}) => {
-  const crewName = metadata.crew_member_name || "Creative partner";
-  const postName = metadata.post_production_member_name || "Member";
+  const quoted = (value?: string | null) => (value ? `"${value}" ` : "");
   switch (action) {
     case "created":
       return "Shoot was created";
     case "crew_assigned":
-      return `${crewName} was assigned to the shoot`;
+      return `${quoted(metadata.crew_member_name)}Creative Partner was assigned`;
     case "crew_removed":
-      return `${crewName} was removed from the shoot`;
+      return `${quoted(metadata.crew_member_name)}Creative Partner was removed`;
     case "post_production_member_assigned":
-      return `${postName} was added to post production team`;
+      return `${quoted(metadata.post_production_member_name)}Post Production Member was added`;
     case "post_production_member_removed":
-      return `${postName} was removed from post production team`;
+      return `${quoted(metadata.post_production_member_name)}Post Production Member was removed`;
     case "project_name_updated":
-      return "Project name updated";
+      return "Project Name was updated";
     case "schedule_location_updated":
-      return "Schedule updated";
+      return "Schedule was updated";
     case "restored":
       return "Shoot was restored";
     case "deleted":
       return "Shoot was deleted";
     case "files_uploaded":
-      return "Files are uploaded";
+      return "Files were uploaded";
     case "raw_files_uploaded":
-      return "Raw Files are uploaded";
+      return "Raw Files were uploaded";
     case "payment":
-      return "Partial payment is made";
+      return "Partial Payment was made";
+    case "chat_room_created":
+      return `${quoted(metadata.chat_room_name)}Chat Room was created`;
+    case "meeting_created":
+      return `${quoted(metadata.meeting_title)}Meeting was scheduled`;
+    case "meeting_deleted":
+      return `${quoted(metadata.meeting_title)}Meeting was deleted`;
     default:
       return action.replaceAll("_", " ");
   }
@@ -189,6 +203,12 @@ const actionIcon = (action: string) => {
       return Pencil;
     case "schedule_location_updated":
       return CalendarDays;
+    case "chat_room_created":
+      return MessageSquare;
+    case "meeting_created":
+      return CalendarPlus;
+    case "meeting_deleted":
+      return CalendarX;
     default:
       return History;
   }
@@ -320,7 +340,22 @@ export default function ShootHistoryModal({ isOpen, shootId, shootName, onClose 
                     : hasBookingDaysChange
                       ? rawChanges.filter((c) => !scheduleFields.includes(c.field))
                       : rawChanges;
-const hasNamedLabel = Boolean(metadata.crew_member_name || metadata.post_production_member_name);
+                const isMeetingAction = entry.action === "meeting_created" || entry.action === "meeting_deleted";
+                const hasNamedLabel = Boolean(
+                  metadata.crew_member_name ||
+                  metadata.post_production_member_name ||
+                  isMeetingAction ||
+                  entry.action === "chat_room_created"
+                );
+                const meetingTypeLabel = metadata.meeting_type
+                  ? metadata.meeting_type.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                  : "";
+                const meetingEnd = metadata.meeting_end_time ? new Date(metadata.meeting_end_time) : null;
+                const meetingWhen = metadata.meeting_date_time
+                  ? meetingEnd && !Number.isNaN(meetingEnd.getTime())
+                    ? `${formatDate(metadata.meeting_date_time)} - ${meetingEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                    : formatDate(metadata.meeting_date_time)
+                  : "";
                 const ActionIcon = actionIcon(entry.action);
 
 
@@ -419,6 +454,11 @@ const hasNamedLabel = Boolean(metadata.crew_member_name || metadata.post_product
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[15px] font-medium text-white/90 break-words">
                                     {hasNamedLabel ? mainActionText : entry.reason || mainActionText}
+                                    {isMeetingAction && (meetingTypeLabel || meetingWhen) && (
+                                      <span className="mt-1 block text-xs font-normal text-white/50">
+                                        {[meetingTypeLabel, meetingWhen].filter(Boolean).join("  •  ")}
+                                      </span>
+                                    )}
                                   </p>
                                   
                                 </div>

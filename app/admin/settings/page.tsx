@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import { CreditPointsSettings } from "@/components/admin/finances/CreditPointsSettings";
 import { FileManagerSettings } from "@/components/admin/file-manager/FileManagerSettings";
+import { InternalPasswordExpirySettings } from "@/components/admin/InternalPasswordExpirySettings";
 
 export default function Settings() {
   const { theme } = useTheme();
@@ -43,7 +44,7 @@ export default function Settings() {
               isDark ? "text-white/70" : "text-[#000000B2]"
             }`}
           >
-            Manage platform credits, file policies and administrative settings.
+            Manage platform credits, file policies, account security and administrative settings.
           </p>
         </div>
 
@@ -52,6 +53,8 @@ export default function Settings() {
           <CreditPointsSettings isDark={isDark} />
 
           <FileManagerSettings isDark={isDark} />
+
+          <InternalPasswordExpirySettings isDark={isDark} />
         </div>
       </div>
     </>

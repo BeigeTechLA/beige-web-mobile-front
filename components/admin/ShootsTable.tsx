@@ -367,7 +367,13 @@ export const ShootsTable = ({
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
   const BOARD_PAGE_SIZE = 10;
-  const [boardVisibleCounts, setBoardVisibleCounts] = useState<Record<string, number>>({});
+  type BoardColumnMeta = { page: number; hasMore: boolean; total: number };
+  const [, setBoardVisibleCounts] = useState<Record<string, number>>({});
+  const [boardColumnMeta, setBoardColumnMeta] = useState<Record<string, BoardColumnMeta>>({});
+  const boardColumnMetaRef = React.useRef<Record<string, BoardColumnMeta>>({});
+  const boardColumnLoadingRef = React.useRef<Record<string, boolean>>({});
+  const boardBaseParamsRef = React.useRef<Record<string, string | number>>({});
+  const mapProjectItemRef = React.useRef<((item: any) => ShootRecord) | null>(null);
   const [boardAllShoots, setBoardAllShoots] = useState<ShootRecord[]>([]);
   const [boardLoading, setBoardLoading] = useState(false);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -653,13 +659,18 @@ export const ShootsTable = ({
         }
 
                 const projectsResponse = isBoardFetch
-          ? await adminApi.getProjectsBoard(params)
+          ? await adminApi.getProjectsBoard({ ...params, board_page: 1, board_limit: BOARD_PAGE_SIZE })
           : await adminApi.getProjects(params);
-        const projectsList = projectsResponse?.data?.projects || [];
+        const boardColumnsPayload: Record<string, any> = isBoardFetch
+          ? (projectsResponse?.data?.columns || {})
+          : {};
+        const projectsList = isBoardFetch
+          ? Object.values(boardColumnsPayload).flatMap((column: any) => column?.projects || [])
+          : (projectsResponse?.data?.projects || []);
         const pagination = projectsResponse?.data?.pagination;
         const nextTotalRecords = Number(pagination?.totalRecords ?? projectsList.length);
 
-        const mappedShoots = projectsList.map((item: any) => {
+        const mapProjectItem = (item: any) => {
           const project = item.project || item;
           const resolvedStatus = resolveTimelineStage(project);
           const statusLabel = (STATUS_LABEL_MAP[resolvedStatus] || "Unknown") as ShootStatus;
@@ -737,11 +748,24 @@ export const ShootsTable = ({
               missing_fields: missingFields
             } : undefined
           };
-        });
+        };
+        mapProjectItemRef.current = mapProjectItem;
+        const mappedShoots = projectsList.map(mapProjectItem);
         if (!isCancelled && fetchId === latestFetchIdRef.current) {
           if (isBoardFetch) {
+            const nextMeta: Record<string, BoardColumnMeta> = {};
+            Object.entries(boardColumnsPayload).forEach(([columnStatus, column]: [string, any]) => {
+              nextMeta[columnStatus] = {
+                page: Number(column?.pagination?.page || 1),
+                hasMore: Boolean(column?.pagination?.hasMore),
+                total: Number(column?.pagination?.total || 0),
+              };
+            });
+            boardBaseParamsRef.current = params;
+            boardColumnLoadingRef.current = {};
+            boardColumnMetaRef.current = nextMeta;
+            setBoardColumnMeta(nextMeta);
             setBoardAllShoots(mappedShoots);
-            setBoardVisibleCounts({});
           } else {
             setShoots(mappedShoots);
           }
@@ -898,27 +922,59 @@ export const ShootsTable = ({
         .map((id) => itemMap.get(id))
         .filter((item): item is ShootRecord => Boolean(item));
 
-      const visibleCount = activeViewMode === "grid"
-        ? (boardVisibleCounts[status] ?? BOARD_PAGE_SIZE)
-        : orderedItems.length;
-      const displayedItems = activeViewMode === "grid"
-        ? orderedItems.slice(0, visibleCount)
-        : orderedItems;
+      const meta = activeViewMode === "grid" ? boardColumnMeta[status] : undefined;
 
       return {
         status,
-        totalItems: orderedItems.length,
-        items: displayedItems,
-        hasMore: activeViewMode === "grid" && orderedItems.length > visibleCount,
+        totalItems: meta?.total ?? orderedItems.length,
+        items: orderedItems,
+        hasMore: Boolean(meta?.hasMore),
       };
     });
-  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, activeViewMode, boardVisibleCounts]);
+  }, [processedShoots, visibleKanbanStatuses, kanbanOrder, activeViewMode, boardColumnMeta]);
 
-  const loadMoreBoardRecordsForStatus = useCallback((status: ShootStatus) => {
-    setBoardVisibleCounts((prev) => ({
-      ...prev,
-      [status]: (prev[status] ?? BOARD_PAGE_SIZE) + BOARD_PAGE_SIZE,
-    }));
+  const loadMoreBoardRecordsForStatus = useCallback(async (status: ShootStatus) => {
+    const meta = boardColumnMetaRef.current[status];
+    const mapItem = mapProjectItemRef.current;
+
+    if (!meta || !meta.hasMore || !mapItem || boardColumnLoadingRef.current[status]) return;
+
+    const requestVersion = latestFetchIdRef.current;
+    boardColumnLoadingRef.current[status] = true;
+
+    try {
+      const response = await adminApi.getProjectsBoard({
+        ...boardBaseParamsRef.current,
+        column_status: status,
+        board_page: meta.page + 1,
+        board_limit: BOARD_PAGE_SIZE,
+      });
+
+      // Filters changed while this request was running, so discard it.
+      if (requestVersion !== latestFetchIdRef.current) return;
+
+      const column = response?.data?.columns?.[status];
+      const incoming = (column?.projects || []).map(mapItem);
+
+      setBoardAllShoots((prev) => {
+        const seen = new Set(prev.map((shoot) => shoot.id));
+        return [...prev, ...incoming.filter((shoot: ShootRecord) => !seen.has(shoot.id))];
+      });
+
+      boardColumnMetaRef.current = {
+        ...boardColumnMetaRef.current,
+        [status]: {
+          page: Number(column?.pagination?.page || meta.page + 1),
+          hasMore: Boolean(column?.pagination?.hasMore),
+          total: Number(column?.pagination?.total ?? meta.total),
+        },
+      };
+      setBoardColumnMeta(boardColumnMetaRef.current);
+    } catch (error) {
+      console.error(`Failed to load more shoots for ${status}:`, error);
+    } finally {
+      boardColumnLoadingRef.current[status] = false;
+    }
   }, []);
 
   const totalPages = listTotalPages;
@@ -1804,7 +1860,7 @@ export const ShootsTable = ({
                     const rowBgClass = isDark
                       ? `bg-[#111111] hover:bg-[#171717] ${shoot.isActive ? "cursor-pointer" : "cursor-not-allowed"}`
                       : `bg-white hover:bg-zinc-50 ${shoot.isActive ? "cursor-pointer" : "cursor-not-allowed"}`;
-                    const inactiveOpacityClass = shoot.isActive ? "opacity-100" : "opacity-30";
+                    const inactiveOpacityClass = shoot.isActive ? "" : "opacity-30";
 
                     const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
 
@@ -1813,31 +1869,27 @@ export const ShootsTable = ({
                     return (
                       <tr
                         key={shoot.id}
-                        className={`group border-b transition-colors last:border-0 relative ${isMenuOpen ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
+                        className={`group border-b transition-colors last:border-0 relative ${isMenuOpen || hoveredShootId === `list-${shoot.id}` ? "z-[100]" : "z-0"} ${isDark ? `border-[#222222] ${rowBgClass}` : `border-[#F5F5F5] ${rowBgClass}`}`}
                       >
-                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${inactiveOpacityClass} ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
-                          {shoot.isActive && <Link
-                            href={shootDetailHref}
-                            className="absolute inset-0 z-20"
-                            aria-label={`Open shoot ${shoot.customerName}`}
-                            prefetch={false}
-                          />}
-                          <div className="relative z-10 pointer-events-none flex items-center gap-2">
+                        <td className={`relative py-5 px-6 text-base leading-none tracking-normal border-y border-l ${borderClass} ${isDark ? "text-[#E0E0E0]" : "text-[#333]"}`}>
+                          <div className="relative z-30 flex items-center gap-2">
                             <div
                               className="w-8 h-8 shrink-0 flex items-center justify-center relative"
-                              onMouseEnter={() => setHoveredShootId(`list-${shoot.id}`)}
+                              onMouseEnter={() => { if (shoot.isActive) setHoveredShootId(`list-${shoot.id}`); }}
                               onMouseLeave={() => setHoveredShootId(null)}>
                               {hasMissingFields && (
                                 <div>
+                                  <div className={inactiveOpacityClass}>
                                   <Lottie animationData={animationData} loop={true} />
+                                  </div>
                                   {/* Tooltip */}
                                   <AnimatePresence>
-                                    {hoveredShootId === `list-${shoot.id}` && (
+                                    {shoot.isActive && hoveredShootId === `list-${shoot.id}` && (
                                       <motion.div
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -10 }}
-
+                                    
                                         className={`absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 rounded-lg text-xs font-medium shadow-2xl whitespace-nowrap pointer-events-none 
                                         ${isDark
                                             ? "bg-[#222] border border-white/10 text-white"
@@ -1865,7 +1917,7 @@ export const ShootsTable = ({
                                 </div>
                               )}
                             </div>
-                            <span>{shoot.id}</span>
+                            <span className={inactiveOpacityClass}>{shoot.id}</span>
                           </div>
                         </td>
                         <td className={`relative py-5 px-6 border-y ${inactiveOpacityClass} ${borderClass}`}>
