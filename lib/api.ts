@@ -63,6 +63,40 @@ export type GetUsersWithRolesParams = {
   order?: 'asc' | 'desc' | 'ASC' | 'DESC';
 };
 
+export type UserLoginHistoryEntry = {
+  login_history_id: number | string;
+  user_id: number;
+  user: {
+    name: string | null;
+    email: string | null;
+    phone_number: string | null;
+    role: string | null;
+    user_type_id: number;
+  } | null;
+  ip_address: string | null;
+  city: string | null;
+  country: string | null;
+  login_method: string;
+  user_agent: string | null;
+  logged_in_at: string;
+  browser?: string;
+  os?: string;
+  ip_type?: 'public' | 'private' | 'loopback' | 'unknown';
+  session_status?: 'active' | 'inactive' | 'untracked';
+  inactive_reason?: string | null;
+  is_current_session?: boolean;
+  last_seen_at?: string | null;
+  logged_out_at?: string | null;
+  expires_at?: string | null;
+};
+
+export type UserLoginHistoryResponse = {
+  success: boolean;
+  message?: string;
+  data: UserLoginHistoryEntry[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
 export type AdminUserRoleRecord = {
   user_id: number;
   name: string;
@@ -1881,6 +1915,13 @@ export const getCreatorEarningDetails = async (
 
 
 export const adminApi = {
+  getUserLoginHistory: async (
+    params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
+    signal?: AbortSignal,
+  ): Promise<UserLoginHistoryResponse> => {
+    const response = await api.get<UserLoginHistoryResponse>('admin/login-history', { params, signal });
+    return response.data;
+  },
   createInternalCredential: async (payload: {
     name: string;
     email: string;
@@ -2044,6 +2085,20 @@ export const adminApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to update signup credit promotion',
       };
+    }
+  },
+  getInternalPasswordExpirySettings: async () => {
+    try {
+      return (await api.get('admin/settings/internal-password-expiry')).data;
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch password expiry settings' };
+    }
+  },
+  updateInternalPasswordExpirySettings: async (payload: { is_enabled: boolean; expiry_days: number }) => {
+    try {
+      return (await api.patch('admin/settings/internal-password-expiry', payload)).data;
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to update password expiry settings' };
     }
   },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {

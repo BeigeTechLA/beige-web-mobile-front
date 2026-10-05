@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
@@ -34,6 +35,7 @@ import type {
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const logoutPending = useRef(false);
   const { user, token, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [loginMutation, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
@@ -181,7 +183,28 @@ export const useAuth = () => {
     return result;
   }, [registerCreatorStep3Mutation]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (logoutPending.current) return false;
+    logoutPending.current = true;
+    const activeToken = Cookies.get('revure_token') || token;
+    if (activeToken) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5001/v1/';
+        const response = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/logout`, {
+          method: 'POST', headers: { Authorization: `Bearer ${activeToken}` }, signal: controller.signal,
+        });
+        // A rejected credential is already unusable; it is safe to clear it locally.
+        if (!response.ok && response.status !== 401) throw new Error('Logout failed');
+      } catch {
+        toast.error('Could not end your session. Check your connection and try signing out again.');
+        logoutPending.current = false;
+        return false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
     dispatch(authApi.util.resetApiState());
     dispatch(salesApi.util.resetApiState());
     dispatch(logoutAction());
@@ -196,7 +219,9 @@ export const useAuth = () => {
     }
     void persistor.purge();
     router.push('/');
-  }, [dispatch, router]);
+    logoutPending.current = false;
+    return true;
+  }, [dispatch, router, token]);
   
   // const getCurrentUser = useCallback(async () => {
   //   if (!token) {

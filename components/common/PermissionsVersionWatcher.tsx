@@ -84,6 +84,12 @@ export function PermissionsVersionWatcher() {
           return;
         }
 
+        if (error?.data?.code === "PASSWORD_EXPIRED" || error?.data?.password_expired === true) {
+          hasHandledUpdateRef.current = true;
+          router.replace("/password-expired");
+          return;
+        }
+
         if (status === 403) {
           hasHandledUpdateRef.current = true;
           setIsForcedLogoutOpen(true);

@@ -19,6 +19,7 @@ type AdminProfileSettingsProps = {
 type AdminProfileResponse = {
   success?: boolean;
   message?: string;
+  force_logout?: boolean;
   status?: number;
   error?: string;
   data?: {
@@ -330,6 +331,11 @@ export const AdminProfileSettings = ({
       }
 
       toast.success(response?.message || "Password changed successfully");
+
+      if (response?.force_logout) {
+        logout();
+        return;
+      }
 
       setCurrentPassword("");
       setNewPassword("");

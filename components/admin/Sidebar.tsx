@@ -294,8 +294,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     return isActiveLink(item.link);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (!await logout()) return;
     localStorage.clear();
     if (onClose) onClose();
     router.push("/");

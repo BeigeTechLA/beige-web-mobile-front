@@ -80,7 +80,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
         if (data?.success === false || data?.status === "inactive") {
           toast.error(data?.message || "Your creator account is inactive.");
-          logout();
+          if (!await logout()) return;
           localStorage.clear();
           router.push("/login");
           return;

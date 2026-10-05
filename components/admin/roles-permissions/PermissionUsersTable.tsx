@@ -19,6 +19,7 @@ import {
 import { USER_BADGE_TONES } from "@/components/admin/roles-permissions/data";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { UserLoginHistoryAction } from "./UserLoginHistoryAction";
 
 type PermissionUsersTableProps = {
   users: PermissionUser[];
@@ -621,9 +622,10 @@ export function PermissionUsersTable({
 
                       <td className="px-4 py-5">
                         <div className="flex items-center justify-end gap-3">
+                          <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                           <button
                             type="button"
-                            title="View user history"
+                            title="View archive history"
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E8D1AB]/10 hover:text-[#E8D1AB]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E8D1AB]/10 hover:text-[#8E6A2A]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -775,9 +777,10 @@ export function PermissionUsersTable({
                             <p className={`text-xs font-medium`}>Action</p>
 
                             <div className="flex items-center gap-3">
+                              <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                               <button
                                 type="button"
-                                title="View user history"
+                                title="View archive history"
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
