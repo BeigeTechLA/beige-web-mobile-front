@@ -413,8 +413,8 @@ export function LoginForm() {
               className="relative w-full rounded-[8px] lg:rounded-[20px] bg-gradient-to-br from-[#2a2a2a] to-[#121212] lg:from-[#E9D3A2] lg:to-[#E4C48A] border border-white/5 lg:border-none flex items-center justify-between lg:justify-start p-4 lg:py-5 lg:px-6 transition-transform duration-300"
             >
               <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
-                <h2 className="text-[#E8E8E8] lg:text-black text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
-                  JOIN BEIGE
+                <h2 className="text-[#E8E8E8] lg:text-black text-sm lg:text-base font-medium lg:font-semibold leading-tight">
+                  Sign Up as Client
                 </h2>
 
                 <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-black flex items-center justify-center shrink-0">
@@ -436,8 +436,8 @@ export function LoginForm() {
               className="relative w-full rounded-[8px] lg:rounded-[20px] bg-gradient-to-br from-[#2a2a2a] to-[#121212] lg:from-[#101010] lg:to-[#474343] border border-white/5 lg:border-none flex items-center justify-between lg:justify-start p-4 lg:py-5 lg:px-6 transition-transform duration-300"
             >
               <div className="w-full relative z-10 flex justify-between gap-2 h-full items-center">
-                <h2 className="text-[#E8E8E8] lg:text-white text-[13px] lg:text-sm font-medium lg:font-semibold leading-tight">
-                  SHOOT FOR BEIGE
+                <h2 className="text-[#E8E8E8] lg:text-white text-sm lg:text-base font-medium lg:font-semibold leading-tight">
+                  Sign Up as Creative Partner
                 </h2>
 
                 <div className="w-6 h-6 lg:w-[30px] lg:h-[30px] rounded-full border border-white/20 lg:border-white flex items-center justify-center shrink-0">

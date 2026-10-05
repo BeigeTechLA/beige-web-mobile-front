@@ -35,6 +35,7 @@ import { LocationPicker, darkThemeColors } from "@/src/components/booking/v2/com
 import DropdownSelect from "@/components/book-a-shoot/DropdownSelect";
 import DatePicker, { datePickerColours } from "@/components/ui/Datepicker";
 import { AnimatePresence, motion } from "framer-motion";
+import { isLosAngelesLocation } from "../bookingRules";
 import { getFormattedDateString } from "@/lib/utils";
 
 // Fallback/stub helpers to prevent runtime errors
@@ -53,7 +54,7 @@ const LA_STUDIO_LOCATION = "Los Angeles, CA";
 interface ScheduleShootStepProps {
   onBack?: () => void;
   onContinue?: (data: any) => void;
-  onBrowseStudios?: () => void;
+  onBrowseStudios?: (data: any) => void;
   onBrowseCreators?: (data: any) => void;
   isStudioFlow?: boolean;
   showStudioCreatorBanner?: boolean;
@@ -87,7 +88,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   showStudioCreatorBanner = true,
   title,
   subtitle,
-  stepNumber = "03",
+  stepNumber = "3",
   completionPercentage = 40,
   initialData,
 }) => {
@@ -95,12 +96,12 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
     title ||
     (isStudioFlow
       ? "When are you planning to use the studio?"
-      : "When & Where are you planning to shoot?");
+      : "When and where do you want to Beige?");
   const displaySubtitle =
     subtitle ||
     (isStudioFlow
       ? "The studio location will be confirmed from your selected BEIGE studio."
-      : "We can always refine the exact dates together later.");
+      : "Choose a date now, or reserve your spot and confirm the details later.");
 
   // Don't fabricate a "now" default — an unpicked date/time should stay empty,
   // otherwise validate() will immediately flag the un-chosen default as
@@ -191,13 +192,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   }, []);
 
   const validate = () => {
-    if (dateOption !== "have-date") return true;
-
-    if (!isStudioFlow && !location) {
+    if (!isStudioFlow && !location.trim()) {
       toast.error("Please select a location");
       setErrors((prev) => (prev.includes("locationError") ? prev : [...prev, "locationError"]));
       return false;
     }
+
+    if (dateOption !== "have-date") return true;
 
     const now = new Date();
     const minimumTime = new Date(now.getTime() + 4 * 60 * 60 * 1000);
@@ -302,6 +303,11 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   const handleBrowseCreators = () => {
     if (!validate()) return;
     onBrowseCreators?.(getSchedulePayload());
+  };
+
+  const handleBrowseStudios = () => {
+    if (!isLosAngelesLocation(location, locationDetails) || !validate()) return;
+    onBrowseStudios?.(getSchedulePayload());
   };
 
   // Generate time options
@@ -763,7 +769,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
   ]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 text-white select-none">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 pb-32 lg:pb-36 text-white select-none">
       {/* Top Navigation */}
       {onBack && (
         <button
@@ -813,7 +819,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
               I have a date
             </h3>
             <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "have-date" ? "text-black/70" : "text-white/40"}`}>
-              Specific shoot day and time
+              Choose your shoot date and time.
             </p>
           </div>
           {dateOption === "have-date" && (
@@ -833,10 +839,10 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         >
           <div>
             <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${dateOption === "confirm-later" ? "text-black" : "text-[#E8D1AB]"}`}>
-              I'll confirm later
+              I&apos;ll choose later
             </h3>
             <p className={`text-xs lg:text-sm 2xl:text-base font-light ${dateOption === "confirm-later" ? "text-black/70" : "text-white/40"}`}>
-              Hold my spot for 30 days
+              Reserve your production and confirm details later.
             </p>
           </div>
           {dateOption === "confirm-later" && (
@@ -1315,7 +1321,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       {!isStudioFlow && (
         <div className="mb-5 2xl:mb-8">
           <h2 className="text-base lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4 lg:mb-8">
-            Location / Venue
+            Location / Venue <span className="text-[#E8D1AB]">*</span>
           </h2>
           <LocationPicker
             value={location}
@@ -1339,7 +1345,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
         </div>
       }
       {
-        !isStudioFlow ? <>
+        !isStudioFlow && isLosAngelesLocation(location, locationDetails) && onBrowseStudios ? <>
           <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Studio Banner */}
@@ -1358,13 +1364,13 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
 
             <button
               type="button"
-              onClick={onBrowseStudios}
+              onClick={handleBrowseStudios}
               className="w-full lg:w-fit px-10 py-4 lg:py-6 rounded-md lg:rounded-lg bg-[#E8D1AB] text-[#101010] font-bold lg:font-medium text-sm lg:text-xl hover:bg-[#dfc498] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer ml-auto"
             >
               Browse Studios
             </button>
           </div>
-        </> : showStudioCreatorBanner ? <>
+        </> : isStudioFlow && showStudioCreatorBanner ? <>
           <hr className={`border-t border-white/20 my-5 lg:my-7 2xl:my-10`} />
 
           {/* Need a Creator Banner */}
@@ -1396,7 +1402,7 @@ export const ScheduleShoot: React.FC<ScheduleShootStepProps> = ({
       }
 
       {/* Bottom Action Footer Bar */}
-      <div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5">
         {onBack ? (
           <button
             type="button"

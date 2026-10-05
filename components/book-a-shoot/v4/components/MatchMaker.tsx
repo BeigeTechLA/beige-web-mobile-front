@@ -1,5 +1,6 @@
 "use client";
 
+import { V4_PACKAGE_INCLUSIONS } from "../bookingRules";
 import React, { useState } from "react";
 import { ArrowLeft, Sparkles, Users, Info, Check } from "lucide-react";
 import Image from "next/image";
@@ -21,23 +22,18 @@ interface TeamSelectionStepProps {
   completionPercentage?: number;
 }
 
-const PLACEHOLDER_INCLUSIONS = [
-  "Photographer x1",
-  "All Raw Images, Lighting & Insurance Provided",
-  "Up to 45 Minutes Setup Time",
-  "Digital Delivery",
-];
+
 
 export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   onContinue,
   onBack,
   initialOption = "best-match",
-  packageTitle = "Corporate - Photography",
-  packageInclusions = PLACEHOLDER_INCLUSIONS,
+  packageTitle = "Corporate: Photography",
+  packageInclusions = V4_PACKAGE_INCLUSIONS,
   showStudioCallout = false,
-  title = "Who shoots your event?",
+  title = "Who gets to shift your vision to reality?",
   subtitle = "Let Beige find the right creative team for you, or choose your own.",
-  step = "05",
+  step = "5",
   completionPercentage = 45,
 }) => {
   const [teamOption, setTeamOption] = useState<"best-match" | "choose-own">(
@@ -45,7 +41,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] justify-between">
+    <div className="w-full max-w-6xl mx-auto px-4 md:px-8 py-6 lg:py-5 2xl:py-6 flex flex-col min-h-[calc(100vh-160px)] pb-32 lg:pb-36 justify-between">
       {/* Top Content Stack */}
       {/* Back Arrow */}
       {onBack && (
@@ -94,11 +90,11 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
               <Sparkles className="w-4 h-4 lg:w-6 lg:h-6" />
             </div>
             <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "best-match" ? "text-black" : "text-[#E8D1AB]"}`}>
-              Best match for you
+              Let Beige Match Me
             </h3>
             <p className={`text-sm 2xl:text-base font-light ${teamOption === "best-match" ? "text-black/70" : "text-white/40"}`}>
-              Our team selects the ideal creative partner based on your event
-              type, style, and location.
+              Powered by thousands of past productions, Beige AI matches you with
+              the right Creative Partner for your style, location, and vision.
             </p>
           </div>
         </div>
@@ -116,11 +112,11 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
               <Users className="w-4 h-4 lg:w-6 lg:h-6" />
             </div>
             <h3 className={`text-base lg:text-xl 2xl:text-[26px] font-['Roboto_Condensed'] font-bold mb-1 ${teamOption === "choose-own" ? "text-black" : "text-[#E8D1AB]"}`} >
-              I'll choose my team
+              Choose my Creative Partner
             </h3>
             <p className={`text-sm 2xl:text-base font-light ${teamOption === "choose-own" ? "text-black/70" : "text-white/40"}`}>
-              Browse AI-recommended creators and choose the one that's right for
-              your project.
+              Browse recommended Creative Partners and find the right fit for your
+              production.
             </p>
           </div>
         </div>
@@ -131,7 +127,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
         <Info className="w-6 h-6 flex-shrink-0" />
         {teamOption === "best-match" ? (
           <span>
-            We'll find the right Creative Partner for your event and make sure
+            We&apos;ll find the right Creative Partner for your event and make sure
             everything works for you before confirming.
           </span>
         ) : (
@@ -153,12 +149,12 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
                 <Sparkles className="w-5 h-5 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8" strokeWidth={1} />
               </div>
               <h3 className="text-base lg:text-lg 2xl:text-[22px] font-bold text-white">
-                About <span className="text-[#E8D1AB]">AI Matchmaker</span>
+                About <span className="text-[#E8D1AB]">Beige AI Matchmaking</span>
               </h3>
             </div>
             <p className="text-sm lg:text-xl text-white mb-4">
-              Our AI will analyse your project and match you with the perfect crew
-              size and specialists
+              Powered by insights from 4,000+ past productions, Beige AI recommends
+              the right Creative Partners, crew, and services for your vision and location.
             </p>
             <div className="flex flex-wrap gap-4 lg:gap-6 text-sm lg:text-lg text-[#A9A9A9]">
               <div className="flex items-center gap-2">
@@ -168,7 +164,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
                   width={18}
                   height={18}
                 />
-                <span>Optimal team composition</span>
+                <span>Matched to your style and creative vision</span>
               </div>
               <div className="flex items-center gap-2">
                 <Image
@@ -177,7 +173,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
                   width={18}
                   height={18}
                 />
-                <span>Matched based on your budget</span>
+                <span>Optimized for your shoot type and location</span>
               </div>
               <div className="flex items-center gap-2">
                 <Image
@@ -186,7 +182,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
                   width={18}
                   height={18}
                 />
-                <span>Industry best practices</span>
+                <span>Built on real production outcomes</span>
               </div>
             </div>
           </div>
@@ -197,7 +193,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       {/* Included with Package Section */}
       <div>
         <h2 className="text-lg lg:text-xl 2xl:text-[26px] font-medium font-['Roboto_Condensed'] text-white mb-4">
-          Included with Package
+          Included with package:
         </h2>
 
         <div className="p-4 lg:p-6 2xl:p-8 rounded-lg lg:rounded-2xl bg-gradient-to-b from-[#191919] to-rgba(16,16,16,0) border border-white/20">
@@ -211,7 +207,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 2xl:gap-x-6 text-sm lg:text-base font-light text-white/70">
-            {PLACEHOLDER_INCLUSIONS.map((item, index) => (
+            {packageInclusions.map((item, index) => (
               <div key={index} className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-full border border-[#E8D1AB]/40 flex items-center justify-center flex-shrink-0">
                   <Check className="w-3.5 h-3.5 text-[#E8D1AB]" />
@@ -234,7 +230,7 @@ export const MatchMakerStep: React.FC<TeamSelectionStepProps> = ({
       </div >
 
       {/* Bottom Action Footer Bar */}
-      < div className="pt-8 lg:pt-5 2xl:pt-10 mt-8 lg:mt-6 2xl:mt-12 border-t border-white/10 flex items-center lg:justify-between gap-3" >
+      < div className="fixed inset-x-0 bottom-0 z-40 flex items-center lg:justify-between gap-3 border-t border-white/10 bg-[#171717] px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 lg:px-[max(2rem,calc((100vw-72rem)/2))] lg:py-5" >
         {
           onBack ? (
             <button

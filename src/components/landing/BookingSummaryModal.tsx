@@ -182,6 +182,19 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
     pricing.total_before_discounts ??
     pricing.total
   );
+  // A deposit is a payment toward the booking, not the booking total. Prefer the
+  // server-calculated balance, with a safe client-side fallback after checkout.
+  const dueAmount = Math.max(
+    pickNumber(
+      pricing.due_amount,
+      pricing.pending_amount,
+      pricing.outstanding_amount,
+      paymentSummary.due_amount,
+      paymentSummary.pending_amount,
+      Math.max(0, displayTotalAmount - combinedPaidAmount),
+    ),
+    0,
+  );
   const paymentMethodLabel =
     pricing.payment_method_label ||
     paymentSummary.payment_method_label ||
@@ -475,6 +488,14 @@ export const BookingSummaryModal = ({ isOpen, onClose, data }: any) => {
 	                   )}
                    
                    <div className="pt-4 mt-2 border-t border-white/20 print:border-gray-300">
+	                     {dueAmount > 0.009 && (
+	                       <div className="flex items-center justify-between gap-6 pb-4 mb-4 border-b border-white/10 print:border-gray-200">
+	                         <p className="text-white/70 font-semibold text-sm sm:text-base leading-none whitespace-nowrap print:text-black">Amount Due</p>
+	                         <span className="text-[#E8D1AB] font-bold text-lg sm:text-xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">
+	                           {formatCurrency(dueAmount)}
+	                         </span>
+	                       </div>
+	                     )}
 	                     <div className="flex items-center justify-between gap-6">
 	                        <p className="text-white font-bold text-base sm:text-lg leading-none whitespace-nowrap print:text-black">Total Paid</p>
 	                        <span className="text-[#E8D1AB] font-bold text-xl sm:text-2xl tabular-nums text-right leading-none whitespace-nowrap print:text-black">

@@ -15,6 +15,7 @@ import {
   X,
   Receipt,
   Settings,
+  SquareArrowOutUpRight,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -167,6 +168,11 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["invoices"],
   },
   {
+    name: "Sales Cockpit",
+    icon: SquareArrowOutUpRight,
+    link: "https://sales.beige.app/",
+  },
+  {
     name: "Settings",
     icon: Settings,
     link: "/admin/settings",
@@ -253,6 +259,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
+      if (/^https?:\/\//.test(link)) {
+        window.open(link, "_blank", "noopener,noreferrer");
+        if (onClose) onClose();
+        return;
+      }
+
       if (link === "/admin/dashboard") {
         try {
           window.localStorage.removeItem(SHOOTS_CURRENT_PAGE_KEY);
