@@ -86,6 +86,72 @@ export type AdminUsersExportResponse = {
   contentDisposition?: string;
 };
 
+export type AdminMultiUserActionPayload =
+  | {
+      action: 'change_role';
+      user_ids: number[];
+      role_id: number;
+    }
+  | {
+      action: 'delete';
+      user_ids: number[];
+      reason?: string;
+    };
+
+export type AdminMultiUserActionResponse = {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action?: 'change_role' | 'delete';
+    role_id?: number;
+    role_name?: string;
+    affected_count?: number;
+    user_ids?: number[];
+    results?: Array<{
+      user_id: number;
+      status?: string;
+      role_id?: number;
+      role_name?: string;
+      [key: string]: unknown;
+    }>;
+    unavailable_user_ids?: number[];
+    [key: string]: unknown;
+  } | null;
+};
+
+export type AdminCreativePartnerBulkAction = 'approve' | 'decline' | 'send_reminder';
+
+export type AdminCreativePartnerBulkActionPayload = {
+  action: AdminCreativePartnerBulkAction;
+  crew_member_ids: Array<string | number>;
+};
+
+export type AdminCreativePartnerBulkActionResult = {
+  crew_member_id: number;
+  success: boolean;
+  message?: string;
+  error?: string;
+  to_email?: string;
+  message_id?: string | null;
+  [key: string]: unknown;
+};
+
+export type AdminCreativePartnerBulkActionResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: AdminCreativePartnerBulkAction;
+    success_ids: number[];
+    failed_ids: number[];
+    success_count: number;
+    failed_count: number;
+    results: AdminCreativePartnerBulkActionResult[];
+  } | null;
+};
+
 export type ArchiveHistoryRecord = {
   history_id: number;
   target_type: string;
@@ -2824,6 +2890,53 @@ export const adminApi = {
       };
     }
   },
+
+  creativePartnerBulkAction: async (
+    payload: AdminCreativePartnerBulkActionPayload,
+  ): Promise<AdminCreativePartnerBulkActionResponse> => {
+    const crewMemberIds = Array.from(
+      new Set(
+        payload.crew_member_ids
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    );
+
+    if (crewMemberIds.length === 0) {
+      return {
+        success: false,
+        data: null,
+        error: 'No valid creative partners selected',
+      };
+    }
+
+    try {
+      const response = await api.post<AdminCreativePartnerBulkActionResponse>(
+        'admin/creative-partners/bulk-action',
+        {
+          action: payload.action,
+          crew_member_ids: crewMemberIds,
+        },
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.response?.data?.error || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to perform bulk creative partner action';
+
+      console.error('Creative Partner Bulk Action Error:', error);
+
+      return {
+        success: false,
+        data: axios.isAxiosError(error) ? error.response?.data?.data || null : null,
+        message: axios.isAxiosError(error) ? error.response?.data?.message : undefined,
+        error: message,
+      };
+    }
+  },
   getAdminDashboardDetail: async (payload: { crew_member_id: string | number }) => {
     try {
       const response = await api.post('admin/dashboard-detail', payload);
@@ -3310,6 +3423,29 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign role',
+      };
+    }
+  },
+
+  multiUserAction: async (
+    payload: AdminMultiUserActionPayload,
+  ): Promise<AdminMultiUserActionResponse> => {
+    try {
+      const response = await api.post<AdminMultiUserActionResponse>(
+        'admin/users/multi-action',
+        payload,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Multi User Action Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          'Failed to perform action on selected users',
       };
     }
   },
