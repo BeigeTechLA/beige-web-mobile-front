@@ -42,8 +42,15 @@ type ChartPoint = {
   gross: number;
   pending: number;
   payout: number;
+  label: string;
+  value: number;
   hoverLabel?: number;
 };
+
+function toFiniteNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
 
 function formatDayTick(value: string | number) {
   const dateValue =
@@ -98,7 +105,7 @@ function OverviewActiveDot({
     return null;
   }
 
-  const label = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0));
+  const label = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value));
   const boxWidth = 60;
   const boxHeight = 30;
   const boxX = cx - boxWidth / 2;
@@ -167,9 +174,18 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
   }, [activeMetric, range, selectedDate]);
 
   const metrics = useMemo(() => metricTemplates.map((metric) => {
-    const card = data?.cards[metric.key];
-    return { ...metric, value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(card?.total ?? 0), growth: card?.has_current_data ? `${card.change_percent > 0 ? "+" : ""}${card.change_percent}%` : "-", card };
+    const card = data?.cards?.[metric.key];
+    const changePercent = toFiniteNumber(card?.change_percent);
+    return { ...metric, value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(card?.total)), growth: card?.has_current_data ? `${changePercent > 0 ? "+" : ""}${changePercent}%` : "-", card };
   }), [data]);
+  const graphData: ChartPoint[] = (data?.graph ?? []).map((point, index) => ({
+    x: index,
+    gross: 0,
+    pending: 0,
+    payout: 0,
+    label: point.label,
+    value: toFiniteNumber(point.value),
+  }));
 
   return (
     <section
@@ -275,9 +291,12 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
       </div>
 
       <div className="mt-5 h-[260px] w-full lg:h-[300px]">
+        {graphData.length === 0 ? (
+          <p className="pt-20 text-center text-sm">No data found</p>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={data?.graph || []}
+            data={graphData}
             margin={{ top: 24, right: 8, left: -8, bottom: 4 }}
           >
             <defs>
@@ -308,7 +327,7 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
 
             <YAxis
               domain={[0, "auto"]}
-              tickFormatter={(value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)}
+              tickFormatter={(value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value))}
               axisLine={false}
               tickLine={false}
               width={52}
@@ -325,7 +344,7 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
               strokeWidth={1.5}
               fill="url(#financeOverviewArea)"
               dot={false}
-              activeDot={(props: any) => (
+              activeDot={(props: OverviewActiveDotProps) => (
                 <OverviewActiveDot
                   cx={props.cx}
                   cy={props.cy}
@@ -337,6 +356,7 @@ export default function Overview({ isDark, selectedDate }: OverviewProps) {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </section>
   );

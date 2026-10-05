@@ -29,12 +29,17 @@ type SpendActiveDotProps = {
   isDark: boolean;
 };
 
+function toFiniteNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
 function SpendActiveDot({ cx, cy, value, isDark }: SpendActiveDotProps) {
   if (typeof cx !== "number" || typeof cy !== "number") {
     return null;
   }
 
-  const label = `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(Number(value || 0))} Spend`;
+  const label = `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value))} Spend`;
   const boxWidth = 112;
   const boxHeight = 32;
   const boxX = cx - boxWidth / 2;
@@ -137,6 +142,7 @@ export default function ClientAnalytics({
   const [data, setData] = useState<FinanceClients | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failedAvatars, setFailedAvatars] = useState<Set<string>>(new Set());
   const debouncedSearch = useDebounce(search, 400);
 
   useEffect(() => {
@@ -169,12 +175,18 @@ export default function ClientAnalytics({
     return () => { cancelled = true; };
   }, [currentPage, debouncedSearch, mode, selectedDate, status]);
 
-  const clients = data?.top_clients.rows ?? [];
-  const spendTrend = data?.avg_client_spend_per_shoot.graph ?? [];
+  const clients = data?.top_clients?.rows ?? [];
+  const spendTrend = (data?.avg_client_spend_per_shoot?.graph ?? []).map(
+    (point) => ({ ...point, value: toFiniteNumber(point.value) }),
+  );
   const distribution = data?.shoot_distribution ?? [];
-  const pagination = data?.top_clients.pagination;
-  const initials = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
-  const formatMoney = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value);
+  const pagination = data?.top_clients?.pagination;
+  const initials = (name?: string | null) => {
+    const safeName = (name ?? "").trim();
+    if (!safeName) return "NA";
+    return safeName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+  };
+  const formatMoney = (value: unknown) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value));
 
   return (
     <section
@@ -300,21 +312,35 @@ export default function ClientAnalytics({
           </div>
 
           <div>
-            {loading ? (<p className="p-8 text-center text-sm">Loading…</p>) : error ? (<p className="p-8 text-center text-sm text-red-500">{error}</p>) : clients.length === 0 ? (<p className="p-8 text-center text-sm">No data found</p>) : clients.map((client) => (
+            {loading ? (<p className="p-8 text-center text-sm">Loading…</p>) : error ? (<p className="p-8 text-center text-sm text-red-500">{error}</p>) : clients.length === 0 ? (<p className="p-8 text-center text-sm">No data found</p>) : clients.map((client, index) => {
+              const clientName = client.client_name?.trim() || "Unknown";
+              const clientKey = client.client_key || `${client.client_id}-${index}`;
+              const showAvatar = Boolean(client.avatar?.trim()) && !failedAvatars.has(clientKey);
+
+              return (
               <div
-                key={client.client_key}
+                key={clientKey}
                 className={`grid min-h-[58px] grid-cols-[1fr_82px_105px] items-center px-5 py-2 transition-colors ${
                   isDark ? "hover:bg-white/[0.025]" : "hover:bg-black/[0.02]"
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-medium text-black"
-                    style={{ backgroundColor: "#F0E4CF" }}
-                  >
-                    {initials(client.client_name)}
-                  </div>
-                  <span className="truncate text-sm">{client.client_name}</span>
+                  {showAvatar ? (
+                    <img
+                      src={client.avatar ?? ""}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-md object-cover"
+                      onError={() => setFailedAvatars((avatars) => new Set(avatars).add(clientKey))}
+                    />
+                  ) : (
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-medium text-black"
+                      style={{ backgroundColor: "#F0E4CF" }}
+                    >
+                      {initials(clientName)}
+                    </div>
+                  )}
+                  <span className="truncate text-sm">{clientName}</span>
                 </div>
 
                 <span
@@ -322,7 +348,7 @@ export default function ClientAnalytics({
                     isDark ? "text-white/80" : "text-black/70"
                   }`}
                 >
-                  {client.shoots_count.toString().padStart(2, "0")}
+                  {toFiniteNumber(client.shoots_count).toString().padStart(2, "0")}
                 </span>
 
                 <span
@@ -333,7 +359,8 @@ export default function ClientAnalytics({
                   {formatMoney(client.total_spend)}
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div
@@ -416,7 +443,7 @@ export default function ClientAnalytics({
             </div>
 
             <div className="p-5">
-              <p className="text-xl font-semibold lg:text-[26px]">{formatMoney(data?.avg_client_spend_per_shoot.total_avg ?? 0)}</p>
+              <p className="text-xl font-semibold lg:text-[26px]">{formatMoney(data?.avg_client_spend_per_shoot?.total_avg ?? 0)}</p>
               <p
                 className={`mt-1 text-xs ${
                   isDark ? "text-white/45" : "text-black/45"
@@ -437,12 +464,15 @@ export default function ClientAnalytics({
                   <p className="mt-2">Top spend</p>
                 </div>
                 <div className="text-right">
-                  <p>{data?.avg_client_spend_per_shoot.top_client ?? "-"}</p>
-                  <p className="mt-2 text-[#E8D1AB]">{formatMoney(data?.avg_client_spend_per_shoot.top_spend ?? 0)}</p>
+                  <p>{data?.avg_client_spend_per_shoot?.top_client?.trim() || "-"}</p>
+                  <p className="mt-2 text-[#E8D1AB]">{formatMoney(data?.avg_client_spend_per_shoot?.top_spend ?? 0)}</p>
                 </div>
               </div>
 
               <div className="mt-3 h-[180px]">
+                {spendTrend.length === 0 ? (
+                  <p className="pt-16 text-center text-sm">No data found</p>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={spendTrend}
@@ -479,7 +509,7 @@ export default function ClientAnalytics({
                       strokeWidth={2}
                       fill="url(#clientSpendArea)"
                       dot={false}
-                      activeDot={(props: any) => (
+                      activeDot={(props: SpendActiveDotProps) => (
                         <SpendActiveDot
                           cx={props.cx}
                           cy={props.cy}
@@ -490,6 +520,7 @@ export default function ClientAnalytics({
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -512,12 +543,12 @@ export default function ClientAnalytics({
             </div>
 
             <div className="space-y-3.5 p-5">
-              {distribution.map((item) => (
-                <div key={item.client_key}>
+              {distribution.map((item, index) => (
+                <div key={item.client_key || `${item.client_id}-${index}`}>
                   <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <span className="truncate text-xs">{item.client_name}</span>
+                    <span className="truncate text-xs">{item.client_name?.trim() || "Unknown"}</span>
                     <span className="text-[11px] text-[#E8D1AB]">
-                      {item.shoots_count} shoots
+                      {toFiniteNumber(item.shoots_count)} shoots
                     </span>
                   </div>
 
@@ -528,7 +559,7 @@ export default function ClientAnalytics({
                   >
                     <div
                       className="h-full bg-[#E8D1AB]"
-                      style={{ width: `${item.bar_percent}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, toFiniteNumber(item.bar_percent)))}%` }}
                     />
                   </div>
                 </div>

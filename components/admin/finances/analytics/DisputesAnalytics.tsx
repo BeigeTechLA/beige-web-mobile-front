@@ -11,6 +11,11 @@ type DisputesAnalyticsProps = {
   selectedDate?: Date | null;
 };
 
+function toFiniteNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
 const metricPresentation = [
   {
     label: "Disputes Raised",
@@ -128,16 +133,17 @@ export default function DisputesAnalytics({
     };
   }, [currentPage, selectedDate]);
 
-  const maxCount = Math.max(
-    data?.counts.raised ?? 0,
-    data?.counts.resolved ?? 0,
-    data?.counts.pending ?? 0,
-    data?.counts.active ?? 0,
-    0,
-  );
+  const counts = data?.counts;
+  const countValues = [
+    toFiniteNumber(counts?.raised),
+    toFiniteNumber(counts?.resolved),
+    toFiniteNumber(counts?.pending),
+    toFiniteNumber(counts?.active),
+  ];
+  const maxCount = countValues.length > 0 ? Math.max(...countValues) : 0;
   const metrics = metricPresentation.map((metric, index) => {
     const keys = ["raised", "resolved", "pending", "active"] as const;
-    const value = data?.counts[keys[index]] ?? 0;
+    const value = toFiniteNumber(counts?.[keys[index]]);
 
     return {
       ...metric,
@@ -145,8 +151,8 @@ export default function DisputesAnalytics({
       width: `${maxCount === 0 ? 0 : (value / maxCount) * 100}%`,
     };
   });
-  const reasons = data?.top_dispute_reasons.rows ?? [];
-  const pagination = data?.top_dispute_reasons.pagination;
+  const reasons = data?.top_dispute_reasons?.rows ?? [];
+  const pagination = data?.top_dispute_reasons?.pagination;
 
   return (
     <section
@@ -234,7 +240,7 @@ export default function DisputesAnalytics({
         <div>
           {loading ? (<p className="p-8 text-center text-sm">Loading…</p>) : error ? (<p className="p-8 text-center text-sm text-red-500">{error}</p>) : reasons.length === 0 ? (<p className="p-8 text-center text-sm">No data found</p>) : reasons.map((reason, index) => (
             <div
-              key={`${String(reason.rank).padStart(2, "0")}-${reason.reason_name}`}
+              key={`${String(toFiniteNumber(reason.rank)).padStart(2, "0")}-${reason.reason_name?.trim() || "Unknown"}`}
               className={`grid min-h-[38px] grid-cols-[34px_1.1fr_60px_2fr] items-center border-b px-4 transition-colors last:border-b-0 lg:grid-cols-[40px_1.15fr_70px_2.1fr] lg:px-5 ${
                 isDark
                   ? "border-[#202020] hover:bg-white/[0.02]"
@@ -246,11 +252,11 @@ export default function DisputesAnalytics({
                   isDark ? "text-white/35" : "text-black/40"
                 }`}
               >
-                {String(reason.rank).padStart(2, "0")}
+                {String(toFiniteNumber(reason.rank)).padStart(2, "0")}
               </span>
 
               <span className="text-[10px] font-medium lg:text-xs">
-                {reason.reason_name}
+                {reason.reason_name?.trim() || "Unknown"}
               </span>
 
               <span
@@ -258,7 +264,7 @@ export default function DisputesAnalytics({
                   isDark ? "text-white/75" : "text-black/65"
                 }`}
               >
-                {reason.cases}
+                {toFiniteNumber(reason.cases)}
               </span>
 
               <div className="pl-4">
@@ -270,7 +276,7 @@ export default function DisputesAnalytics({
                   <div
                     className="h-px"
                     style={{
-                      width: `${reason.progress_percent}%`,
+                      width: `${Math.min(100, Math.max(0, toFiniteNumber(reason.progress_percent)))}%`,
                       backgroundColor: reasonPresentation[index % reasonPresentation.length].color,
                     }}
                   />

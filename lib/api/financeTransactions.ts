@@ -34,7 +34,7 @@ export type FinanceCpAnalysis = {
   top_cps_by_payout: Array<{
     rank: number;
     cp_id: number;
-    name: string;
+    name: string | null;
     total_payout: number;
     margin_percent: number;
     bar_percent: number;
@@ -48,7 +48,7 @@ export type FinanceCpAnalysis = {
 export type FinanceTopCpShoot = {
   rank: number;
   cp_id: number;
-  name: string;
+  name: string | null;
   shoots_count: number;
 };
 export type FinanceClientsParams = FinanceAnalyticsDateParams & {
@@ -67,9 +67,9 @@ export type FinancePagination = {
 export type FinanceClients = {
   top_clients: {
     rows: Array<{
-      client_key: string;
+      client_key: string | null;
       client_id: number;
-      client_name: string;
+      client_name: string | null;
       avatar: string | null;
       shoots_count: number;
       total_spend: number;
@@ -78,14 +78,14 @@ export type FinanceClients = {
   };
   avg_client_spend_per_shoot: {
     total_avg: number;
-    top_client: string;
+    top_client: string | null;
     top_spend: number;
     graph: Array<{ label: string; value: number }>;
   };
   shoot_distribution: Array<{
-    client_key: string;
+    client_key: string | null;
     client_id: number;
-    client_name: string;
+    client_name: string | null;
     shoots_count: number;
     bar_percent: number;
   }>;
@@ -99,7 +99,7 @@ export type FinanceDisputes = {
   top_dispute_reasons: {
     rows: Array<{
       rank: number;
-      reason_name: string;
+      reason_name: string | null;
       cases: number;
       progress_percent: number;
     }>;

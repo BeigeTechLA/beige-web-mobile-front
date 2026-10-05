@@ -25,6 +25,11 @@ type ShootPoint = {
   hoverValue?: number;
 };
 
+function toFiniteNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
 function Panel({
   title,
   isDark,
@@ -225,15 +230,15 @@ export default function CreativePartnerAnalysis({
   }, [selectedDate]);
 
   const payoutRows = (analysis?.top_cps_by_payout ?? []).map((row) => ({
-    rank: String(row.rank).padStart(2, "0"),
-    name: row.name,
-    amount: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(row.total_payout),
-    stat: `${row.margin_percent}% mg`,
-    value: row.bar_percent,
+    rank: String(toFiniteNumber(row.rank)).padStart(2, "0"),
+    name: row.name?.trim() || "Unknown",
+    amount: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(row.total_payout)),
+    stat: `${toFiniteNumber(row.margin_percent)}% mg`,
+    value: Math.min(100, Math.max(0, toFiniteNumber(row.bar_percent))),
   }));
-  const chartData: ShootPoint[] = shoots.map((shoot) => ({
-    name: shoot.name,
-    value: shoot.shoots_count,
+  const chartData: ShootPoint[] = (shoots ?? []).map((shoot) => ({
+    name: shoot.name?.trim() || "Unknown",
+    value: toFiniteNumber(shoot.shoots_count),
   }));
   const averages = analysis?.averages;
   return (
@@ -313,7 +318,7 @@ export default function CreativePartnerAnalysis({
                 className="left-[40px] top-[10px]"
               >
                 <div className="flex h-[105px] w-[105px] items-center justify-center rounded-full bg-[#6399E8] text-base font-semibold text-white">
-                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(averages?.avg_cp_payout ?? 0)}
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(averages?.avg_cp_payout))}
                 </div>
               </BubbleTooltip>
 
@@ -322,7 +327,7 @@ export default function CreativePartnerAnalysis({
                 className="bottom-[10px] left-[0px]"
               >
                 <div className="flex h-[82px] w-[82px] items-center justify-center rounded-full bg-[#62C89A] text-sm font-semibold text-white">
-                  {averages?.avg_cp_margin_percent ?? 0}%
+                  {toFiniteNumber(averages?.avg_cp_margin_percent)}%
                 </div>
               </BubbleTooltip>
 
@@ -331,7 +336,7 @@ export default function CreativePartnerAnalysis({
                 className="bottom-[2px] right-[2px]"
               >
                 <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D953B4] text-sm font-semibold text-white">
-                  {averages?.avg_cps_per_shoot ?? 0}
+                  {toFiniteNumber(averages?.avg_cps_per_shoot)}
                 </div>
               </BubbleTooltip>
             </div>
@@ -426,7 +431,7 @@ export default function CreativePartnerAnalysis({
                   fill="url(#finance-shoot-bar-gradient)"
                   radius={[5, 5, 0, 0]}
                   barSize={32}
-                  activeBar={(props: any) => (
+                  activeBar={(props: { x?: number; y?: number; width?: number; height?: number; payload?: ShootPoint }) => (
                     <ActiveShootBar
                       x={props.x}
                       y={props.y}
