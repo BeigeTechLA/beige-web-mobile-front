@@ -23,10 +23,18 @@ export function clearAccessSession() {
   Cookies.remove('revure_user');
 }
 
-export async function logoutSession() {
+export async function logoutSession(accessToken?: string) {
+  const token = accessToken || Cookies.get('revure_token');
   try {
-    await axios.post(API_BASE_URL.replace(/\/$/, '') + '/auth/logout', {}, { withCredentials: true });
-  } finally {
-    clearAccessSession();
+    await axios.post(API_BASE_URL.replace(/\/$/, '') + '/auth/logout', {}, {
+      withCredentials: true,
+      timeout: 10000,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+  } catch (error) {
+    // An already-invalid session can be cleared locally. Preserve credentials on
+    // network/server failures so the user can retry revoking their session.
+    if (!axios.isAxiosError(error) || error.response?.status !== 401) throw error;
   }
+  clearAccessSession();
 }

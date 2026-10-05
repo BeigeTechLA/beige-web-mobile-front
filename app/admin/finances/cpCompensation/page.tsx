@@ -255,7 +255,14 @@ export default function AdminFinancesPage() {
     {
       id: "payout",
       label: "Total Payout",
-      value: new Intl.NumberFormat("en-US").format(overviewRows.reduce((sum, row) => sum + row.cpPayout, 0)),
+      value: new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(
+          overviewRows.reduce((sum, row) => sum + Number(row.cpPayout || 0), 0)
+        ),
       helperText: "Paid",
       icon: CircleDollarSign,
     },
