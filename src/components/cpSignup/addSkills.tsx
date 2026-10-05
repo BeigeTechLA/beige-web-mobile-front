@@ -1,6 +1,5 @@
 'use client';
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Button } from "@/components/ui/button";
 import { X, Plus, Check } from "lucide-react";
@@ -31,6 +30,18 @@ const AddSkills = ({
 }: AddSkillsProps) => {
   const [tempSelected, setTempSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const validOptionIds = new Set(options.map((option) => String(option.value)));
+
+    setTempSelected((current) =>
+      current.filter((skillId) => validOptionIds.has(String(skillId)))
+    );
+
+    if (options.length === 0) {
+      setOpen(false);
+    }
+  }, [options]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && options.length === 0) {

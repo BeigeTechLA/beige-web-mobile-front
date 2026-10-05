@@ -15,15 +15,16 @@ import {
   X,
   Receipt,
   Settings,
+  SquareArrowOutUpRight,
   User,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
-import { useTheme } from "next-themes";
-import { useAppSelector } from "@/lib/redux/hooks";
-import { hasModulePermission } from "@/lib/permissions";
-import { ADMIN_PERMISSION_MENU_HIERARCHY } from "@/lib/permissions/menuHierarchy";
+import { useTheme } from "next-themes"; 
+import { useAppSelector } from '@/lib/redux/hooks';
+import { hasModulePermission } from '@/lib/permissions';
+import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
 
 const CustomQuotesIcon = ({ size = 24, isActive = false, ...props }) => {
   const inactiveIcon = "/images/misc/Quotes.svg";
@@ -167,6 +168,11 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["invoices"],
   },
   {
+    name: "Sales Cockpit",
+    icon: SquareArrowOutUpRight,
+    link: "https://sales.beige.app/",
+  },
+  {
     name: "Settings",
     icon: Settings,
     link: "/admin/settings",
@@ -253,6 +259,12 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   // Shared helper to handle navigation and closing sidebar
   const handleNavigation = (link: string) => {
     if (link && link !== "#") {
+      if (/^https?:\/\//.test(link)) {
+        window.open(link, "_blank", "noopener,noreferrer");
+        if (onClose) onClose();
+        return;
+      }
+
       if (link === "/admin/dashboard") {
         try {
           window.localStorage.removeItem(SHOOTS_CURRENT_PAGE_KEY);

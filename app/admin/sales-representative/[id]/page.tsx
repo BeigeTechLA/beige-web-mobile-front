@@ -875,8 +875,8 @@ export default function LeadDetailPage() {
       0
     )
     : 0;
-  const basePrice = (isQuoteConvertedLead && convertedQuoteTotal > 0)
-    ? convertedQuoteTotal
+  const basePrice = (isQuoteConvertedLead && Number(quotePricingDetails?.subtotal || 0) > 0)
+    ? Number(quotePricingDetails?.subtotal)
     : (lead?.pricing_breakdown?.shoot_cost || 0);
   const editingCost = lead?.pricing_breakdown?.editing_cost || 0;
   const additionalCreatives = lead?.pricing_breakdown?.additional_creatives_cost || 0;
@@ -2184,7 +2184,9 @@ export default function LeadDetailPage() {
                 )}
                 {discountCodeDiscount > 0 && (
                   <div className="flex justify-between font-medium">
-                    <span className="text-[#71717B] text-xs">Discount Code Discount</span>
+                    <span className="text-[#71717B] text-xs">
+                      {isQuoteConvertedLead ? "Discount" : "Discount Code Discount"}
+                    </span>
                     <span className="text-sm lg:text-base text-red-400">-${discountCodeDiscount.toLocaleString()}</span>
                   </div>
                 )}

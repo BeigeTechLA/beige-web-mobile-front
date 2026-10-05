@@ -829,6 +829,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const roomLastSeenAtRef = useRef<Record<string, string>>({});
   const roomListRequestRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const effectiveUser = useMemo(() => ({ ...(storedUser || {}), ...(user || {}) }), [storedUser, user]);
@@ -1806,6 +1807,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     messagesRef.current = messages;
   }, [messages]);
 
+  // Auto-resize composer textarea
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [draftMessage]);
+
   useEffect(() => {
     setThreadSearch("");
     setIsThreadSearchOpen(false);
@@ -1895,6 +1904,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       toast.error(err?.message || "Failed to send message");
     } finally {
       setSending(false);
+      setTimeout(() => composerInputRef.current?.focus(), 50);
     }
   };
 
@@ -2722,7 +2732,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                           value={editingText}
                                           onChange={(e) => setEditingText(e.target.value)}
                                           rows={3}
-                                          className={`w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:ring-0 ${isDark
+                                          className={`w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:ring-0 [overflow-wrap:anywhere] ${isDark
                                             ? "border-white/10 bg-black/10 text-white focus:border-[#E8D1AB]/40"
                                             : "border-zinc-200 bg-white text-zinc-900 focus:border-black"
                                             }`}
@@ -2754,7 +2764,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                         </div>
                                       </div>
                                     ) : (
-                                      <p className={`whitespace-pre-wrap text-sm leading-6 break-words max-w-full ${isDark ? "text-white/85" : "text-zinc-800"}`}>
+                                      <p className={`whitespace-pre-wrap text-sm leading-6 break-words [overflow-wrap:anywhere] max-w-full ${isDark ? "text-white/85" : "text-zinc-800"}`}>
                                         {getMessageText(message)}
                                       </p>
                                     )}
@@ -2881,7 +2891,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                     </div>
                   ) : null}
 
-                  <div className={`flex items-center gap-2 lg:gap-3 rounded-lg lg:rounded-xl p-3 transition-colors ${isDark ? "border-white/10 bg-[#202020]" : "border-[#E5E5E5] bg-zinc-50"}`}>
+                  <div className={`flex items-end gap-2 lg:gap-3 rounded-2xl p-3 transition-colors ${isDark ? "border-white/10 bg-[#202020]" : "border-[#E5E5E5] bg-zinc-50"}`}>
                     {/* Attachment support is not ready yet, so hide the button for now */}
                     {/* File input hidden */}
                     <input
@@ -2904,7 +2914,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         fileInputRef.current?.click();
                       }}
                       disabled={uploadingFile || !selectedRoom}
-                      className={`transition ${isDark ? "hover:text-white/75 text-white disabled:opacity-30" : "hover:text-black/75 text-black disabled:opacity-30"}`}
+                      className={`mb-1 transition ${isDark ? "hover:text-white/75 text-white disabled:opacity-30" : "hover:text-black/75 text-black disabled:opacity-30"}`}
                     >
                       {uploadingFile
                         ? <Loader2 className="h-5 w-5 animate-spin" />
@@ -2912,10 +2922,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                       }
                     </button>
                     <textarea
+                      ref={composerInputRef}
                       value={draftMessage}
                       onChange={(e) => setDraftMessage(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (sending) return;
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           sendMessage();
                         }
@@ -2923,12 +2935,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                       disabled={!selectedRoom || sending}
                       placeholder={selectedRoom ? "Message" : "Select a room to start messaging"}
                       rows={1}
-                      className={`max-h-32 min-h-6 flex-1 resize-none border-0 bg-transparent py-1 outline-none transition-colors text-sm lg:text-base ${isDark ? "text-white placeholder:text-white" : "text-black placeholder:text-black"}`}
+                      className={`max-h-32 min-h-6 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-1 leading-relaxed outline-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-colors text-sm lg:text-base ${isDark ? "text-white placeholder:text-white" : "text-black placeholder:text-black"}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowComposerEmojis((current) => !current)}
-                      className={`transition ${isDark ? "hover:text-white/75 text-white" : "hover:text-black/75 text-black"}`}
+                      className={`mb-1 transition ${isDark ? "hover:text-white/75 text-white" : "hover:text-black/75 text-black"}`}
                     >
                       <Smile className="h-5 w-5" />
                     </button>
@@ -2936,7 +2948,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                       onClick={sendMessage}
                       disabled={!selectedRoom || !draftMessage.trim() || sending}
                       // className={`flex h-9 w-9 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-full  ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d8c49e]" : "bg-black text-white hover:bg-zinc-800"}`}
-                      className={`disabled:opacity-50 transition-colors`}
+                      className={`mb-1 disabled:opacity-50 transition-colors`}
 
                     >
                       {/* <Image src={`/images/misc/SendIcon.svg`} width={24} height={24} alt="Send Icon" /> */}
@@ -2978,6 +2990,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           defaultTab={manageDefaultTab}
           canManage={isAdminView}
           currentUserId={userId}
+          maskParticipantIdentity={role === "client" || role === "cp"}
           onAdded={async () => {
             const activeRoom = selectedRoomRef.current || selectedRoom;
             await loadRoomDetails(activeRoom, { silent: true, preserveRoomUnread: true });

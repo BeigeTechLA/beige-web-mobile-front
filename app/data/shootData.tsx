@@ -237,55 +237,55 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   // COACHELLA_SHOOT_TYPE,
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Wedding.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "Hours", value: "6-10 hrs" }
     ]
   },
   {
-    key: "music", title: "Music Video", details: "Artist-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
+    key: "music", title: "Music Video", details: "Artist-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/MusicVideo.jpg", stats: [
       { label: "Type", value: "Video" },
       { label: "Hours", value: "6-10 hrs" }
     ]
   },
   {
-    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/ConferenceShoot.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "50-2K" }
     ]
   },
   {
-    key: "corporate", title: "Corporate", details: "Company events, offsites, and business content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+    key: "corporate", title: "Corporate", details: "Company events, offsites, and business content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Corporate.jpeg", stats: [
       { label: "Type", value: "Business" },
       { label: "People", value: "50-2K" }
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Private.jpeg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Birthday.jpeg", stats: [
       { label: "Type", value: "Party" },
       { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/people_teams.jpg", stats: [
+    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Memorial.png", stats: [
       { label: "Type", value: "Memorial" },
       { label: "Tone", value: "Respectful" }
     ]
   },
   {
-    key: "real_estate", title: "Real Estate", details: "Property, listing, and architectural shoots", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+    key: "real_estate", title: "Real Estate", details: "Property, listing, and architectural shoots", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/RealEstate.png", stats: [
       { label: "Type", value: "Property" },
       { label: "Use", value: "Listings" }
     ]
   },
   {
-    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
+    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/BrandPromotional.jpeg", stats: [
       { label: "Type", value: "Brand" },
       { label: "Use", value: "Promotional" }
     ]
