@@ -27,11 +27,13 @@ export default function PasswordExpiredPage() {
   const { logout } = useAuth();
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const passwordRef = useRef<HTMLInputElement>(null);
+  const currentPasswordRef = useRef<HTMLInputElement>(null);
   const [codeSent, setCodeSent] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [error, setError] = useState("");
   const [verified, setVerified] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,6 +45,7 @@ export default function PasswordExpiredPage() {
   const busy = isRequesting || isVerifying || isChanging;
   const otpComplete = digits.every((digit) => /^\d$/.test(digit));
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const reusesCurrentPassword = newPassword.length > 0 && newPassword === currentPassword;
 
   useEffect(() => {
     if (!resendSeconds) return;
@@ -51,7 +54,7 @@ export default function PasswordExpiredPage() {
   }, [resendSeconds]);
 
   useEffect(() => {
-    if (verified) passwordRef.current?.focus();
+    if (verified) currentPasswordRef.current?.focus();
     else if (codeSent) inputRefs.current[0]?.focus();
   }, [verified, codeSent]);
 
@@ -109,11 +112,16 @@ export default function PasswordExpiredPage() {
   const change = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
+    if (!currentPassword) return setError("Enter your current password.");
     if (newPassword.length < 8) return setError("Use at least 8 characters for your new password.");
     if (!passwordsMatch) return setError("Passwords do not match.");
+    if (reusesCurrentPassword) return setError("Your new password must be different from your current password.");
     setError("");
     try {
-      const result = await changePassword({ newPassword, confirmPassword }).unwrap();
+      const result = await changePassword({ currentPassword, newPassword, confirmPassword }).unwrap();
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       toast.success(result.message);
       if (await logout()) router.replace("/login");
     } catch (error: unknown) {
@@ -147,7 +155,7 @@ export default function PasswordExpiredPage() {
           </h1>
           <p className="mt-3 text-sm leading-6 text-white/60">
             {verified
-              ? "Your email is verified. Set a new password to regain access to your dashboard."
+              ? "Your email is verified. Confirm your current password, then choose a different password to regain dashboard access."
               : codeSent
                 ? "Enter the 6-digit code sent to your registered email address. The code is valid for 10 minutes."
                 : "Keep your account secure with a new password. First, we’ll send a 6-digit verification code to your registered email."}
@@ -199,22 +207,36 @@ export default function PasswordExpiredPage() {
           ) : (
             <form className="mt-7 space-y-5" onSubmit={change}>
               <div className="space-y-2">
+                <Label htmlFor="current-password" className="text-sm text-white/80">Current password / Old password</Label>
+                <div className="relative">
+                  <Input ref={currentPasswordRef} id="current-password" name="currentPassword" autoComplete="current-password" type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword} onChange={(event) => { setCurrentPassword(event.target.value); setError(""); }}
+                    required disabled={busy} placeholder="Enter your current password" className={passwordInputClass} />
+                  <button type="button" aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} aria-pressed={showCurrentPassword}
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-1 right-1 flex w-12 items-center justify-center rounded-lg text-white/50 hover:text-[#E8D1AB] focus-visible:outline focus-visible:outline-[#E8D1AB]">
+                    {showCurrentPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm text-white/80">New password</Label>
                 <div className="relative">
-                  <Input ref={passwordRef} id="password" autoComplete="new-password" type={showPassword ? "text" : "password"}
+                  <Input id="password" name="newPassword" autoComplete="new-password" type={showPassword ? "text" : "password"}
                     value={newPassword} onChange={(event) => { setNewPassword(event.target.value); setError(""); }}
-                    minLength={8} required disabled={busy} placeholder="Enter a new password" aria-describedby="password-help" className={passwordInputClass} />
+                    minLength={8} required disabled={busy} placeholder="Enter a new password" aria-invalid={reusesCurrentPassword} aria-describedby="password-help" className={passwordInputClass} />
                   <button type="button" aria-label={showPassword ? "Hide new password" : "Show new password"} aria-pressed={showPassword}
                     onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-1 right-1 flex w-12 items-center justify-center rounded-lg text-white/50 hover:text-[#E8D1AB] focus-visible:outline focus-visible:outline-[#E8D1AB]">
                     {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                   </button>
                 </div>
-                <p id="password-help" className={`text-xs ${newPassword.length >= 8 ? "text-[#E8D1AB]" : "text-white/45"}`}>Use at least 8 characters.</p>
+                <p id="password-help" className={`text-xs ${reusesCurrentPassword ? "text-red-300" : newPassword.length >= 8 ? "text-[#E8D1AB]" : "text-white/45"}`}>
+                  {reusesCurrentPassword ? "Your new password must be different from your current password." : "Use at least 8 characters and choose a different password."}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm-password" className="text-sm text-white/80">Confirm new password</Label>
                 <div className="relative">
-                  <Input id="confirm-password" autoComplete="new-password" type={showConfirmation ? "text" : "password"}
+                  <Input id="confirm-password" name="confirmPassword" autoComplete="new-password" type={showConfirmation ? "text" : "password"}
                     value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setError(""); }}
                     minLength={8} required disabled={busy} placeholder="Re-enter your password" className={passwordInputClass}
                     aria-invalid={confirmPassword.length > 0 && !passwordsMatch} aria-describedby={confirmPassword ? "password-match" : undefined} />
@@ -226,7 +248,7 @@ export default function PasswordExpiredPage() {
                 {confirmPassword && <p id="password-match" className={`text-xs ${passwordsMatch ? "text-[#E8D1AB]" : "text-red-300"}`}>{passwordsMatch ? "Passwords match." : "Passwords do not match yet."}</p>}
               </div>
               {error && <p role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-sm text-red-300">{error}</p>}
-              <Button variant="beige" type="submit" className={primaryButtonClass} disabled={busy || newPassword.length < 8 || !passwordsMatch}>
+              <Button variant="beige" type="submit" className={primaryButtonClass} disabled={busy || !currentPassword || reusesCurrentPassword || newPassword.length < 8 || !passwordsMatch}>
                 {isChanging ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                 {isChanging ? "Updating password..." : "Update password"}
                 {!isChanging && <ArrowRight aria-hidden="true" />}

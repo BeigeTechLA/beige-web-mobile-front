@@ -52,9 +52,10 @@ export default function Settings() {
         <div className="space-y-4 lg:space-y-6">
           <CreditPointsSettings isDark={isDark} />
 
-          <FileManagerSettings isDark={isDark} />
-
-          <InternalPasswordExpirySettings isDark={isDark} />
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2 lg:gap-6">
+            <FileManagerSettings isDark={isDark} />
+            <InternalPasswordExpirySettings isDark={isDark} />
+          </div>
         </div>
       </div>
     </>

@@ -132,7 +132,7 @@ export const authApi = createApi({
     verifyPasswordExpiryOtp: builder.mutation<{ success: boolean; message: string }, { otp: string }>({
       query: (body) => ({ url: 'auth/password-expiry/verify-otp', method: 'POST', body }),
     }),
-    changeExpiredPassword: builder.mutation<{ success: boolean; message: string; force_logout?: boolean }, { newPassword: string; confirmPassword: string }>({
+    changeExpiredPassword: builder.mutation<{ success: boolean; message: string; force_logout?: boolean }, { currentPassword: string; newPassword: string; confirmPassword: string }>({
       query: (body) => ({ url: 'auth/password-expiry/change', method: 'POST', body }),
     }),
 
