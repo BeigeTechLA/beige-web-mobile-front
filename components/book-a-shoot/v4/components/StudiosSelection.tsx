@@ -458,14 +458,14 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                             unoptimized
                             className="object-cover"
                           />
-                          <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
+                          {/* <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 lg:w-4 lg:h-4" viewBox="0 0 20 20" fill="none">
                               <path d="M19.4965 7.2823C19.4339 7.08334 19.3158 6.90771 19.1569 6.7772C18.9981 6.6467 18.8055 6.56707 18.603 6.5482L12.9602 6.02112L10.7301 0.649329C10.5655 0.254664 10.1909 0 9.77386 0C9.35686 0 8.98209 0.254664 8.81849 0.649329L6.58842 6.02112L0.944711 6.5482C0.530959 6.58748 0.180623 6.87581 0.0511939 7.2823C-0.0118736 7.48143 -0.0167794 7.69522 0.0370842 7.89719C0.0909477 8.09916 0.201214 8.28044 0.354225 8.41857L4.61976 12.2668L3.36209 17.9661C3.27008 18.3851 3.42814 18.8185 3.76611 19.0698C3.94312 19.2023 4.15643 19.2736 4.37534 19.2734C4.56298 19.2734 4.7471 19.221 4.90806 19.1218L9.77386 16.1284L14.6388 19.1218C14.8133 19.2292 15.0146 19.2816 15.2178 19.2723C15.421 19.2631 15.617 19.1927 15.7816 19.0698C16.1196 18.8185 16.2777 18.3851 16.1857 17.9661L14.9279 12.2668L19.1935 8.41861C19.3465 8.28049 19.4568 8.09921 19.5107 7.89724C19.5645 7.69526 19.5596 7.48147 19.4965 7.28234V7.2823Z" fill="#FDE955" />
                             </svg>
                             <span>
                               {studio.rating} ({studio.reviewCount})
                             </span>
-                          </div>
+                          </div> */}
                         </div>
 
                         {/* Studio Content & Details */}
@@ -639,14 +639,14 @@ export const StudiosSelection: React.FC<StudiosSelectionProps> = ({
                         unoptimized
                         className="object-cover"
                       />
-                      <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
+                      {/* <div className="absolute top-3 left-3 bg-white/20 lg:backdrop-blur-md text-white px-2 lg:px-3 py-1 rounded-full text-[10px] lg:text-sm font-medium flex items-center gap-1.5 border border-white/20">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 lg:w-4 lg:h-4" viewBox="0 0 20 20" fill="none">
                           <path d="M19.4965 7.2823C19.4339 7.08334 19.3158 6.90771 19.1569 6.7772C18.9981 6.6467 18.8055 6.56707 18.603 6.5482L12.9602 6.02112L10.7301 0.649329C10.5655 0.254664 10.1909 0 9.77386 0C9.35686 0 8.98209 0.254664 8.81849 0.649329L6.58842 6.02112L0.944711 6.5482C0.530959 6.58748 0.180623 6.87581 0.0511939 7.2823C-0.0118736 7.48143 -0.0167794 7.69522 0.0370842 7.89719C0.0909477 8.09916 0.201214 8.28044 0.354225 8.41857L4.61976 12.2668L3.36209 17.9661C3.27008 18.3851 3.42814 18.8185 3.76611 19.0698C3.94312 19.2023 4.15643 19.2736 4.37534 19.2734C4.56298 19.2734 4.7471 19.221 4.90806 19.1218L9.77386 16.1284L14.6388 19.1218C14.8133 19.2292 15.0146 19.2816 15.2178 19.2723C15.421 19.2631 15.617 19.1927 15.7816 19.0698C16.1196 18.8185 16.2777 18.3851 16.1857 17.9661L14.9279 12.2668L19.1935 8.41861C19.3465 8.28049 19.4568 8.09921 19.5107 7.89724C19.5645 7.69526 19.5596 7.48147 19.4965 7.28234V7.2823Z" fill="#FDE955" />
                         </svg>
                         <span>
                           {studio.rating} ({studio.reviewCount})
                         </span>
-                      </div>
+                      </div> */}
                     </div>
                     <h3 className="text-sm sm:text-base lg:text-xl font-bold text-white leading-snug">
                       {studio.name}
