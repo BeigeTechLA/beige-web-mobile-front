@@ -284,7 +284,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
           </div>
 
           {/* View Mode Toggle Switcher */}
-          <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-1.5 lg:p-2.5 gap-1">
+          {/* <div className="flex items-center bg-transparent border border-white/20 rounded-2xl p-1.5 lg:p-2.5 gap-1">
             <button
               type="button"
               onClick={() => handleViewModeChange("grid")}
@@ -317,7 +317,7 @@ export const AskingOccasion: React.FC<AskingOccasionProps> = ({
                 strokeWidth={1}
               />
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* CONDITIONAL VIEW RENDER */}

@@ -237,13 +237,13 @@ export const hybridShootTypes: { key: string; title: string; details: string; im
 export const newshootTypes: { key: string; title: string; details: string; image: string; stats: Option[] }[] = [
   // COACHELLA_SHOOT_TYPE,
   {
-    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Wedding.jpg", stats: [
+    key: "wedding", title: "Wedding", details: "Ceremony and reception", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/wedding.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "Hours", value: "6-10 hrs" }
     ]
   },
   {
-    key: "music", title: "Music Video", details: "Artist-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/MusicVideo.jpg", stats: [
+    key: "music", title: "Music Video", details: "Artist-led productions", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/music.jpg", stats: [
       { label: "Type", value: "Video" },
       { label: "Hours", value: "6-10 hrs" }
     ]
@@ -255,13 +255,13 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "corporate", title: "Corporate", details: "Company events, offsites, and business content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Corporate.jpeg", stats: [
+    key: "corporate", title: "Corporate", details: "Company events, offsites, and business content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
       { label: "Type", value: "Business" },
       { label: "People", value: "50-2K" }
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Private.jpeg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "10-100" }
     ]
@@ -285,13 +285,13 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/BrandPromotional.jpeg", stats: [
+    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "Type", value: "Brand" },
       { label: "Use", value: "Promotional" }
     ]
   },
   {
-    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "Type", value: "Product" },
       { label: "Use", value: "Commerce" }
     ]
