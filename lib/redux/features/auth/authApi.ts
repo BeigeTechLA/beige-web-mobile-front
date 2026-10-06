@@ -16,6 +16,11 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:5001/v1/';
 
+type OtpRequestResponse = { success: boolean; message: string; retry_after_seconds: number };
+type OtpVerifyResponse = { success: boolean; message: string; resetProof: string };
+type ResetPasswordData = { resetProof: string; newPassword: string; confirmPassword: string };
+export type PasswordUpdateResponse = LoginResponse & { success: boolean; permissions: Record<string, Record<string, boolean>> };
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: createBaseQueryWithReauth(API_BASE_URL),
@@ -80,7 +85,7 @@ export const authApi = createApi({
     }),
 
     // Verify email with verification code
-    verifyEmail: builder.mutation<{ success: boolean; message: string; token?: string; user?: unknown }, VerifyEmailData>({
+    verifyEmail: builder.mutation<{ success: boolean; message: string; token?: string; user?: User; permissions_version?: number | string }, VerifyEmailData>({
       query: (data) => ({
         url: 'auth/verify-email',
         method: 'POST',
@@ -118,14 +123,23 @@ export const authApi = createApi({
       }),
     }),
 
-    requestPasswordExpiryOtp: builder.mutation<{ success: boolean; message: string }, void>({
+    requestPasswordExpiryOtp: builder.mutation<OtpRequestResponse, void>({
       query: () => ({ url: 'auth/password-expiry/request-otp', method: 'POST' }),
     }),
-    verifyPasswordExpiryOtp: builder.mutation<{ success: boolean; message: string }, { otp: string }>({
+    verifyPasswordExpiryOtp: builder.mutation<OtpVerifyResponse, { otp: string }>({
       query: (body) => ({ url: 'auth/password-expiry/verify-otp', method: 'POST', body }),
     }),
-    changeExpiredPassword: builder.mutation<{ success: boolean; message: string; force_logout?: boolean }, { currentPassword: string; newPassword: string; confirmPassword: string }>({
+    changeExpiredPassword: builder.mutation<PasswordUpdateResponse, ResetPasswordData & { currentPassword: string }>({
       query: (body) => ({ url: 'auth/password-expiry/change', method: 'POST', body }),
+    }),
+    requestForgotPasswordOtp: builder.mutation<OtpRequestResponse, { email: string }>({
+      query: (body) => ({ url: 'auth/forgot-password/request-otp', method: 'POST', body }),
+    }),
+    verifyForgotPasswordOtp: builder.mutation<OtpVerifyResponse, { email: string; otp: string }>({
+      query: (body) => ({ url: 'auth/forgot-password/verify-otp', method: 'POST', body }),
+    }),
+    resetForgottenPassword: builder.mutation<PasswordUpdateResponse, ResetPasswordData & { email: string }>({
+      query: (body) => ({ url: 'auth/forgot-password/reset', method: 'POST', body }),
     }),
 
     // Change password (authenticated)

@@ -50,6 +50,7 @@ export function PermissionsVersionWatcher() {
       pathname?.startsWith("/signup") ||
       pathname === "/creator-signup" ||
       pathname?.startsWith("/forgot-password") ||
+      pathname === "/password-expired" ||
       pathname?.startsWith("/reset-password") ||
       pathname?.startsWith("/verify-email");
 
