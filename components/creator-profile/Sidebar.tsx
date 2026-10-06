@@ -87,8 +87,8 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
     });
   }, [pathname]);
 
-  const handleLogout = useCallback(() => {
-    logout();
+  const handleLogout = useCallback(async () => {
+    if (!await logout()) return;
     try {
       localStorage.clear();
     } catch (error) {

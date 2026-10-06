@@ -82,6 +82,40 @@ export type GetUsersWithRolesParams = {
   order?: 'asc' | 'desc' | 'ASC' | 'DESC';
 };
 
+export type UserLoginHistoryEntry = {
+  login_history_id: number | string;
+  user_id: number;
+  user: {
+    name: string | null;
+    email: string | null;
+    phone_number: string | null;
+    role: string | null;
+    user_type_id: number;
+  } | null;
+  ip_address: string | null;
+  city: string | null;
+  country: string | null;
+  login_method: string;
+  user_agent: string | null;
+  logged_in_at: string;
+  browser?: string;
+  os?: string;
+  ip_type?: 'public' | 'private' | 'loopback' | 'unknown';
+  session_status?: 'active' | 'inactive' | 'untracked';
+  inactive_reason?: string | null;
+  is_current_session?: boolean;
+  last_seen_at?: string | null;
+  logged_out_at?: string | null;
+  expires_at?: string | null;
+};
+
+export type UserLoginHistoryResponse = {
+  success: boolean;
+  message?: string;
+  data: UserLoginHistoryEntry[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
 export type AdminUserRoleRecord = {
   user_id: number;
   name: string;
@@ -103,6 +137,72 @@ export type AdminUserRoleRecord = {
 export type AdminUsersExportResponse = {
   blob: Blob;
   contentDisposition?: string;
+};
+
+export type AdminMultiUserActionPayload =
+  | {
+      action: 'change_role';
+      user_ids: number[];
+      role_id: number;
+    }
+  | {
+      action: 'delete';
+      user_ids: number[];
+      reason?: string;
+    };
+
+export type AdminMultiUserActionResponse = {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action?: 'change_role' | 'delete';
+    role_id?: number;
+    role_name?: string;
+    affected_count?: number;
+    user_ids?: number[];
+    results?: Array<{
+      user_id: number;
+      status?: string;
+      role_id?: number;
+      role_name?: string;
+      [key: string]: unknown;
+    }>;
+    unavailable_user_ids?: number[];
+    [key: string]: unknown;
+  } | null;
+};
+
+export type AdminCreativePartnerBulkAction = 'approve' | 'decline' | 'send_reminder';
+
+export type AdminCreativePartnerBulkActionPayload = {
+  action: AdminCreativePartnerBulkAction;
+  crew_member_ids: Array<string | number>;
+};
+
+export type AdminCreativePartnerBulkActionResult = {
+  crew_member_id: number;
+  success: boolean;
+  message?: string;
+  error?: string;
+  to_email?: string;
+  message_id?: string | null;
+  [key: string]: unknown;
+};
+
+export type AdminCreativePartnerBulkActionResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: AdminCreativePartnerBulkAction;
+    success_ids: number[];
+    failed_ids: number[];
+    success_count: number;
+    failed_count: number;
+    results: AdminCreativePartnerBulkActionResult[];
+  } | null;
 };
 
 export type ArchiveHistoryRecord = {
@@ -1981,6 +2081,13 @@ export const getCreatorEarningDetails = async (
 
 
 export const adminApi = {
+  getUserLoginHistory: async (
+    params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
+    signal?: AbortSignal,
+  ): Promise<UserLoginHistoryResponse> => {
+    const response = await api.get<UserLoginHistoryResponse>('admin/login-history', { params, signal });
+    return response.data;
+  },
   createInternalCredential: async (payload: {
     name: string;
     email: string;
@@ -2144,6 +2251,20 @@ export const adminApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to update signup credit promotion',
       };
+    }
+  },
+  getInternalPasswordExpirySettings: async () => {
+    try {
+      return (await api.get('admin/settings/internal-password-expiry')).data;
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to fetch password expiry settings' };
+    }
+  },
+  updateInternalPasswordExpirySettings: async (payload: { is_enabled: boolean; expiry_days: number }) => {
+    try {
+      return (await api.patch('admin/settings/internal-password-expiry', payload)).data;
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to update password expiry settings' };
     }
   },
   getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
@@ -2924,6 +3045,53 @@ export const adminApi = {
       };
     }
   },
+
+  creativePartnerBulkAction: async (
+    payload: AdminCreativePartnerBulkActionPayload,
+  ): Promise<AdminCreativePartnerBulkActionResponse> => {
+    const crewMemberIds = Array.from(
+      new Set(
+        payload.crew_member_ids
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    );
+
+    if (crewMemberIds.length === 0) {
+      return {
+        success: false,
+        data: null,
+        error: 'No valid creative partners selected',
+      };
+    }
+
+    try {
+      const response = await api.post<AdminCreativePartnerBulkActionResponse>(
+        'admin/creative-partners/bulk-action',
+        {
+          action: payload.action,
+          crew_member_ids: crewMemberIds,
+        },
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.response?.data?.error || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to perform bulk creative partner action';
+
+      console.error('Creative Partner Bulk Action Error:', error);
+
+      return {
+        success: false,
+        data: axios.isAxiosError(error) ? error.response?.data?.data || null : null,
+        message: axios.isAxiosError(error) ? error.response?.data?.message : undefined,
+        error: message,
+      };
+    }
+  },
   getAdminDashboardDetail: async (payload: { crew_member_id: string | number }) => {
     try {
       const response = await api.post('admin/dashboard-detail', payload);
@@ -3001,9 +3169,11 @@ export const adminApi = {
     }
   },
 
-  getPostProductionTeamOptions: async () => {
+  getPostProductionTeamOptions: async (projectId?: number) => {
     try {
-      const response = await api.get('admin/post-production-team-options');
+      const response = await api.get('admin/post-production-team-options', {
+        params: projectId ? { project_id: projectId } : undefined,
+      });
       return response.data;
     } catch (error: any) {
       console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
@@ -3025,6 +3195,19 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign post production member',
+      };
+    }
+  },
+  removePostProductionMember: async (payload: { project_id: number; post_production_member_id: number }) => {
+    try {
+      const response = await api.post('admin/remove-post-production-member', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Remove Post Production Member Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to remove post production member',
       };
     }
   },
@@ -3395,6 +3578,29 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign role',
+      };
+    }
+  },
+
+  multiUserAction: async (
+    payload: AdminMultiUserActionPayload,
+  ): Promise<AdminMultiUserActionResponse> => {
+    try {
+      const response = await api.post<AdminMultiUserActionResponse>(
+        'admin/users/multi-action',
+        payload,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Multi User Action Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          'Failed to perform action on selected users',
       };
     }
   },

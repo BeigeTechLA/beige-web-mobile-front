@@ -29,6 +29,7 @@ import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
+import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import CreativePartnerAgreementTable from "@/components/admin/shoot-details/CreativePartnerAgreementTable";
 
 type SkillOption = {
@@ -196,6 +197,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
 
   // 3. Helper to update the URL when a tab is clicked
@@ -625,6 +627,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               hasFormDetails={hasFormDetails}
               onOpenMissingFields={() => setIsMissingFieldsModalOpen(true)}
               onScheduleUpdated={() => fetchProjectAndSkills(false)}
+              onOpenHistory={() => setIsHistoryOpen(true)}
             />
           </div>
 
@@ -883,6 +886,12 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           quote={quotePreviewData}
           quoteId={convertedSalesQuoteId}
           isLoading={isLoadingQuotePreview}
+        />
+        <ShootHistoryModal
+          isOpen={isHistoryOpen}
+          shootId={id}
+          shootName={project?.project_name}
+          onClose={() => setIsHistoryOpen(false)}
         />
         <NotesDrawer
           isOpen={isNotesDrawerOpen}

@@ -158,7 +158,7 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
-      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
+      // { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
   {
@@ -326,8 +326,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     return isActiveLink(item.link);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (!await logout()) return;
     localStorage.clear();
     if (onClose) onClose();
     router.push("/");

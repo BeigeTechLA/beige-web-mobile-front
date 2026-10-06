@@ -126,7 +126,7 @@ export function FileManagerSettings({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
+      className={`flex h-full min-w-0 flex-col rounded-lg lg:rounded-2xl p-4 md:p-6 2xl:p-10 border transition-colors ${
         isDark
           ? "bg-[#111] border-white/5"
           : "bg-white border-zinc-200"
@@ -157,7 +157,7 @@ export function FileManagerSettings({
         </p>
       </div>
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="flex w-full flex-1 flex-col gap-6">
         {/* Lock Days */}
         <div className="space-y-3">
           <Label
@@ -204,7 +204,7 @@ export function FileManagerSettings({
 
         {/* Save */}
         <div
-          className={`pt-4 border-t transition-colors ${
+          className={`mt-auto pt-4 border-t transition-colors ${
             isDark
               ? "border-white/5"
               : "border-zinc-100"
