@@ -75,12 +75,12 @@ export function InternalPasswordExpirySettings({ isDark = true }: InternalPasswo
   const labelClassName = `text-sm font-medium transition-colors ${isDark ? "text-white/60" : "text-zinc-500"}`;
 
   return (
-    <form onSubmit={handleSubmit} className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
+    <form onSubmit={handleSubmit} className={`flex h-full min-w-0 flex-col rounded-lg lg:rounded-2xl p-4 md:p-6 2xl:p-10 border transition-colors ${
       isDark ? "bg-[#111] border-white/5" : "bg-white border-zinc-200"
     }`}>
       <div className="mb-4 lg:mb-8">
         <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
             isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/30 text-[#8B642A]"
           }`}><ShieldCheck size={20} /></div>
           <div>
@@ -92,7 +92,7 @@ export function InternalPasswordExpirySettings({ isDark = true }: InternalPasswo
         </div>
       </div>
 
-      <div className="max-w-2xl space-y-6">
+      <div className="flex w-full flex-1 flex-col gap-6">
         <div className={`flex items-center justify-between gap-4 rounded-lg lg:rounded-xl border p-4 lg:p-5 ${
           isDark ? "border-white/10 bg-[#1A1A1A]" : "border-zinc-200 bg-[#F9F9F9]"
         }`}>
@@ -124,7 +124,7 @@ export function InternalPasswordExpirySettings({ isDark = true }: InternalPasswo
           </p>
         </div>
 
-        <div className={`pt-4 border-t ${isDark ? "border-white/5" : "border-zinc-100"}`}>
+        <div className={`mt-auto pt-4 border-t ${isDark ? "border-white/5" : "border-zinc-100"}`}>
           <Button type="submit" disabled={loading || saving}
             className="h-10 lg:h-14 bg-[#E8D1AB] text-black font-medium lg:text-lg rounded-lg lg:rounded-xl min-w-[140px] lg:min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? "Saving..." : "Save Settings"}
