@@ -208,38 +208,23 @@ const getLocationLabel = (project: any) => {
   );
 };
 
-const getShootStatus = (project: any): GlobeStatus => {
-  const status = String(
-    project?.status || project?.project_status || project?.shoot_status || "",
-  ).toLowerCase();
-
-  if (
-    Number(project?.is_cancelled) === 1 ||
-    status.includes("cancel") ||
-    status.includes("delete")
-  ) {
+const getShootStatus = (project: any): GlobeStatus | null => {
+  if (Number(project?.is_active) === 0) {
     return "cancelled";
   }
 
-  if (
-    Number(project?.is_completed) === 1 ||
-    status.includes("complete") ||
-    status.includes("asset")
-  ) {
-    return "completed";
-  }
+  if (!project?.event_date) return null;
 
-  if (project?.event_date) {
-    const eventDate = new Date(
-      `${String(project.event_date).slice(0, 10)}T00:00:00`,
-    );
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const eventDate = new Date(
+    `${String(project.event_date).slice(0, 10)}T00:00:00`,
+  );
+  if (Number.isNaN(eventDate.getTime())) return null;
 
-    if (!Number.isNaN(eventDate.getTime()) && eventDate > today) {
-      return "upcoming";
-    }
-  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (eventDate < today) return "completed";
+  if (eventDate > today) return "upcoming";
 
   return "active";
 };
@@ -349,8 +334,10 @@ const normalizeStringList = (value: unknown): string[] => {
   return [];
 };
 
-const mapProjectToGlobeShoot = (item: any): GlobeShoot => {
+const mapProjectToGlobeShoot = (item: any): GlobeShoot | null => {
   const project = item?.project || item;
+  const status = getShootStatus(project);
+  if (!status) return null;
   const coordinates = getCoordinates(project);
 
   const assignedCrew = Array.isArray(item?.assignedCrew)
@@ -388,7 +375,7 @@ const mapProjectToGlobeShoot = (item: any): GlobeShoot => {
     latitude: coordinates?.latitude ?? null,
     longitude: coordinates?.longitude ?? null,
     hasCoordinates: Boolean(coordinates),
-    status: getShootStatus(project),
+    status,
     assignedCrewCount: crew.length,
     crew,
     equipment: normalizeStringList(
@@ -478,7 +465,7 @@ export const ShootsGlobeView = ({
   const selectedPostProductionUser = postProductionTeamOptions.find(
     (option) => String(option.id) === postProductionUserFilter,
   );
-  const [range, setRange] = useState<GlobalRange>("upcoming");
+  const [range, setRange] = useState<GlobalRange>("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [draftCustomRangeStartDate, setDraftCustomRangeStartDate] =
@@ -631,7 +618,9 @@ export const ShootsGlobeView = ({
 
         const projects = getProjectsFromGlobalResponse(response);
 
-        const transformedEvents = projects.map(mapProjectToGlobeShoot);
+        const transformedEvents = projects
+          .map(mapProjectToGlobeShoot)
+          .filter((event): event is GlobeShoot => Boolean(event));
 
         // Same flow as the reference: store every project first.
         setDbEvents(transformedEvents);
@@ -731,7 +720,9 @@ export const ShootsGlobeView = ({
         if (cancelled) return;
 
         const projects = getProjectsFromGlobalResponse(response);
-        const transformedEvents = projects.map(mapProjectToGlobeShoot);
+        const transformedEvents = projects
+          .map(mapProjectToGlobeShoot)
+          .filter((event): event is GlobeShoot => Boolean(event));
         setTodayEvents(transformedEvents);
 
         const eventsToGeocode = transformedEvents.filter(
