@@ -5,9 +5,10 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
-import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
+import { setCredentials, setPermissions, logout as logoutAction } from '../redux/features/auth/authSlice';
 import { fetchAndCommitUserPermissions } from '../permissionsActions';
 import { authApi } from '../redux/features/auth/authApi';
+import type { PasswordUpdateResponse } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
 import { apiClient } from '../apiClient';
 import { persistor } from '../redux/store';
@@ -66,6 +67,17 @@ export const useAuth = () => {
     skip: !token || !!user,
   });
 
+  // The server revoked older sessions and returned a fresh login for this device.
+  const acceptPasswordUpdate = useCallback((result: PasswordUpdateResponse) => {
+    const updatedUser = { ...result.user, permissions_version: result.permissions_version ?? result.user.permissions_version };
+    dispatch(setCredentials({ user: updatedUser, token: result.token }));
+    dispatch(setPermissions(result.permissions));
+    dispatch(authApi.util.resetApiState());
+    dispatch(salesApi.util.resetApiState());
+    localStorage.setItem('revure_user', JSON.stringify(updatedUser));
+    localStorage.removeItem('revure_permissions');
+  }, [dispatch]);
+
   const login = useCallback(async (credentials: LoginCredentials) => {
     const timezone = typeof window === 'undefined' ? undefined : Intl.DateTimeFormat().resolvedOptions().timeZone;
     const result = await loginMutation({ ...credentials, timezone }).unwrap();
@@ -86,6 +98,7 @@ export const useAuth = () => {
       dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user, token: result.token }));
 
+      if (result.password_expired) return result;
       try {
         await fetchAndCommitUserPermissions(dispatch, user.id, {
           broadcast: false,
@@ -119,6 +132,7 @@ export const useAuth = () => {
       dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user, token: result.token }));
 
+      if (result.password_expired) return result;
       try {
         await fetchAndCommitUserPermissions(dispatch, user.id, {
           broadcast: false,
@@ -256,6 +270,7 @@ export const useAuth = () => {
     loginError,
     registerError,
     login,
+    acceptPasswordUpdate,
     googleLogin,
     register,
     quickRegister,

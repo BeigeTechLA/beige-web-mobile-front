@@ -101,6 +101,10 @@ export function LoginForm() {
     try {
       // The 'result' variable will now contain the JSON object you provided
       const result = await login({ email: data.email, password: data.password })
+      if (result.password_expired) {
+        router.replace("/password-expired")
+        return
+      }
 
       toast.success(result.message || "Login successful!")
 
@@ -145,6 +149,10 @@ export function LoginForm() {
         credential: credentialResponse.credential,
         mode: "login",
       })
+      if (result.password_expired) {
+        router.replace("/password-expired")
+        return
+      }
 
       toast.success(result.message || "Google login successful")
 
