@@ -70,13 +70,13 @@ export default function SuccessModal({
       <div
         ref={containerRef}
         onClick={(event) => event.stopPropagation()}
-        className={`relative flex max-h-[84vh] w-full flex-col items-center gap-3 overflow-y-auto rounded-[16px] border p-5 transition-colors duration-200 lg:max-w-lg lg:gap-6 lg:p-8 ${
+        className={`relative flex max-h-[84vh] w-full max-w-[480px] flex-col items-center gap-5 overflow-y-auto rounded-[16px] border px-6 py-8 transition-colors duration-200 lg:px-8 lg:py-10 ${
           isDark
             ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
             : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}
       >
-        <div className="relative h-[170px] w-[280px] sm:h-[190px] sm:w-[320px] lg:h-[220px] lg:w-[360px]">
+        <div className="relative h-[112px] w-[150px] sm:h-[122px] sm:w-[165px]">
           <Image
             src="/images/misc/PaymentSuccess.gif"
             alt="Agreement sent successfully"
@@ -87,9 +87,9 @@ export default function SuccessModal({
           />
         </div>
 
-        <div className="flex flex-col items-center gap-2 text-center lg:gap-3">
+        <div className="flex w-full flex-col items-center gap-2 text-center">
           <h2
-            className={`text-lg font-bold leading-tight lg:text-3xl ${
+            className={`text-xl font-semibold leading-tight sm:text-2xl ${
               isDark ? "text-white" : "text-black"
             }`}
           >
@@ -97,7 +97,7 @@ export default function SuccessModal({
           </h2>
 
           <p
-            className={`max-w-md text-xs leading-5 lg:text-sm lg:leading-6 ${
+            className={`max-w-[390px] text-sm leading-6 sm:text-base ${
               isDark ? "text-white/60" : "text-black/60"
             }`}
           >

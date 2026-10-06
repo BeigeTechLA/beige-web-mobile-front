@@ -2,214 +2,119 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, History, Pencil, Send } from "lucide-react";
-import Topbar from "@/components/admin/Topbar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import SuccessModal from "@/components/admin/agreements/SuccessModal";
-import { adminApi, getGeneralAgreement, sendGeneralAgreement } from "@/lib/api";
+import { ArrowLeft, History } from "lucide-react";
 import { toast } from "sonner";
 
-type AgreementSection = {
-  id: number;
-  title: string;
-  description?: string;
-  content: string;
-  isOpen?: boolean;
-};
+import Topbar from "@/components/admin/Topbar";
+import { Button } from "@/components/ui/button";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  DEFAULT_GENERAL_AGREEMENT,
+  getLocalGeneralAgreement,
+  getLocalGeneralAgreementVersion,
+  setLocalGeneralAgreementActive,
+  type LocalGeneralAgreement,
+} from "@/components/admin/agreements/localAgreementStore";
+import {
+  agreementRichTextClassName,
+  normalizeAgreementHtml,
+} from "@/components/admin/agreements/agreementRichText";
 
-type AgreementDraft = {
-  agreementName?: string;
-  agreementTitle?: string;
-  description?: string;
-  effectiveDate?: string;
-  sections?: AgreementSection[];
-};
-
-const STORAGE_KEY = "beige_general_agreement_draft";
-
-const DEFAULT_DRAFT: AgreementDraft = {
-  agreementName: "General Agreement",
-  agreementTitle: "BEIGE CREATIVE PARTNER AGREEMENT",
-  description:
-    "This Creative Partner Agreement (the “Agreement”) governs participation as a creative professional on the Beige platform and the performance of photography, videography, production, post-production, livestreaming, editing, audio, and other creative or production services arranged through Beige.\n\nThis Agreement is between Beige Corporation, a Delaware corporation (“Beige,” “we,” “us,” or “our”), and the individual or entity accepting this Agreement (“Creative Partner,” “you,” or “your”).\n\nBy creating a Creative Partner account and affirmatively accepting this Agreement, you acknowledge that you have read, understood, and agree to be bound by it.",
-  effectiveDate: "2026-09-01",
-  sections: [
-    {
-      id: 1,
-      title: "Creative Partner Relationship",
-      content:
-        "Beige operates a technology platform and production network through which independent creative professionals may receive opportunities to provide services for Beige and Beige clients.\n\nYou participate as an independent contractor and not as an employee, agent, partner, joint venturer, or representative of Beige.\n\nSubject to applicable law, you are responsible for your own taxes, equipment, business expenses, licenses, registrations, insurance, and other obligations associated with operating as an independent professional.\n\nNothing in this Agreement guarantees any minimum number of assignments, minimum compensation, minimum hours, or continuing relationship with Beige.\n\nExcept as expressly authorized by Beige in writing, you have no authority to enter into agreements, modify project terms, provide refunds or credits, make commitments, incur obligations, or otherwise bind Beige.",
-    },
-    {
-      id: 2,
-      title: "Project Assignments and Beige Sheets",
-      content:
-        "Beige may offer individual projects or assignments to you from time to time (each, an “Assignment”).\n\nEach Assignment will be documented through a digital project assignment, production sheet, deal sheet, booking record, or similar electronic record issued through Beige (a “Beige Sheet”).",
-    },
-  ],
-};
-
-function formatEffectiveDate(value?: string) {
+const formatDate = (value?: string) => {
   if (!value) return "September 1, 2026";
-
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const date = match
-    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-    : new Date(value);
-
+  const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-
   return date.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-}
+};
 
 export default function AgreementDetailsPage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
+  const agreementId = searchParams.get("id");
+  const previewVersion = searchParams.get("version");
 
-  const [draft, setDraft] = useState<AgreementDraft>(DEFAULT_DRAFT);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [sendSuccessOpen, setSendSuccessOpen] = useState(false);
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [creativePartners, setCreativePartners] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedCreativePartnerId, setSelectedCreativePartnerId] = useState("");
-  const [role, setRole] = useState("");
-  const [isSending, setIsSending] = useState(false);
+  const [agreement, setAgreement] = useState<LocalGeneralAgreement>(DEFAULT_GENERAL_AGREEMENT);
 
   useEffect(() => {
-    const id = searchParams.get("id");
-    if (!id) return;
-    const loadAgreement = async () => {
-      const response = await getGeneralAgreement(id);
-      if (response.error || !response.data) { toast.error(response.message || "Failed to load agreement."); return; }
-      const data: any = response.data;
-      const agreement = data.agreement || data;
-      const version = data.current_version || agreement.current_version || {};
-      setDraft({
-        agreementName: agreement.agreement_name,
-        agreementTitle: agreement.agreement_title,
-        description: agreement.description,
-        effectiveDate: agreement.effective_date,
-        sections: (version.sections || agreement.sections || []).sort((a: any, b: any) => (a.section_order || 0) - (b.section_order || 0)).map((section: any, index: number) => ({ id: section.id || index + 1, title: section.section_title || section.title || "", content: section.section_body || section.content || "" })),
-      });
-    };
-    void loadAgreement();
-  }, [searchParams]);
-
-  useEffect(() => {
-    try {
-      const saved = window.sessionStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-
-      const parsed = JSON.parse(saved) as AgreementDraft;
-      setDraft({
-        ...DEFAULT_DRAFT,
-        ...parsed,
-        sections:
-          Array.isArray(parsed.sections) && parsed.sections.length > 0
-            ? parsed.sections
-            : DEFAULT_DRAFT.sections,
-      });
-    } catch (error) {
-      console.error("Failed to load agreement draft:", error);
+    const current = getLocalGeneralAgreement(agreementId);
+    if (previewVersion && agreementId) {
+      const snapshot = getLocalGeneralAgreementVersion(agreementId, previewVersion);
+      if (snapshot) {
+        setAgreement({
+          ...current,
+          agreementName: snapshot.agreementName,
+          agreementTitle: snapshot.agreementTitle,
+          description: snapshot.description,
+          effectiveDate: snapshot.effectiveDate,
+          currentVersion: snapshot.version,
+          sections: snapshot.sections,
+          updatedAt: snapshot.createdAt,
+        });
+        return;
+      }
     }
-  }, []);
-
-  useEffect(() => {
-    if (!sendSuccessOpen) return;
-
-    const redirectTimer = window.setTimeout(() => {
-      setSendSuccessOpen(false);
-      router.push("/admin/agreements");
-    }, 2500);
-
-    return () => {
-      window.clearTimeout(redirectTimer);
-    };
-  }, [sendSuccessOpen, router]);
-
-  const handleSendAgreement = async () => {
-    const agreementId = searchParams.get("id");
-    if (!agreementId || !selectedCreativePartnerId) {
-      toast.error("Please select a creative partner.");
-      return;
-    }
-    setIsSending(true);
-    const response = await sendGeneralAgreement(agreementId, {
-      crew_member_ids: [Number(selectedCreativePartnerId)],
-      role,
-      project_id: null,
-    });
-    setIsSending(false);
-    if (response.error) {
-      toast.error(response.message || "Failed to send agreement.");
-      return;
-    }
-    setSendDialogOpen(false);
-    setSendSuccessOpen(true);
-  };
-
-  const openSendDialog = async () => {
-    if (creativePartners.length === 0) {
-      const response: any = await adminApi.getCrewMembers({ fetch_all: true, limit: 500 });
-      const payload = response?.data?.data || response?.data || {};
-      const members = Array.isArray(payload) ? payload : payload.items || [];
-      setCreativePartners(members.map((member: any) => ({
-        id: String(member.crew_member_id ?? member.id),
-        name: `${member.first_name || ""} ${member.last_name || ""}`.trim() || member.name || `CP #${member.crew_member_id ?? member.id}`,
-      })).filter((member: { id: string }) => member.id !== "undefined"));
-    }
-    setSendDialogOpen(true);
-  };
-
-  const handleSuccessClose = () => {
-    setSendSuccessOpen(false);
-    router.push("/admin/agreements");
-  };
-
-  const title =
-    draft.agreementTitle?.trim() || DEFAULT_DRAFT.agreementTitle || "";
-
-  const effectiveDate = formatEffectiveDate(draft.effectiveDate);
+    setAgreement(current);
+  }, [agreementId, previewVersion]);
 
   const sections = useMemo(
-    () =>
-      (draft.sections || []).filter(
-        (section) => section.title?.trim() || section.content?.trim(),
-      ),
-    [draft.sections],
+    () => agreement.sections.filter((section) => section.title.trim() || section.content.trim()),
+    [agreement.sections],
   );
+
+  const openVersionHistory = () => {
+    const historyId = agreementId || agreement.id;
+    try {
+      window.sessionStorage.setItem(
+        "beige_selected_agreement",
+        JSON.stringify({
+          id: historyId,
+          cpName: "Creative Partner",
+          projectName: agreement.agreementName,
+          projectId: "GENERAL",
+          role: "General",
+          version: agreement.currentVersion,
+          status: "Accepted",
+          agreementType: "general",
+          admin: "Admin",
+          sendDate: new Date(agreement.updatedAt).toLocaleString("en-US"),
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to prepare local agreement history:", error);
+    }
+    router.push(`/admin/agreements/${encodeURIComponent(historyId)}/version-history`);
+  };
+
+  const handleSaveAgreement = () => {
+    const saved = setLocalGeneralAgreementActive(agreement.id);
+    if (!saved) {
+      toast.error("Unable to save this agreement.");
+      return;
+    }
+    toast.success("Agreement saved and set as the active general agreement.");
+  };
 
   return (
     <>
       <Topbar
         pathname={pathname}
-        breadcrumbOverrides={{
-          agreements: "Agreements",
-          details: "Details",
-        }}
+        breadcrumbOverrides={{ agreements: "Agreements", details: "Details" }}
         actions={
           <div className="flex items-center gap-2 lg:gap-3">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setHistoryOpen(true)}
-              className={`h-11 gap-2 rounded-lg border px-4 text-sm font-medium transition-colors lg:h-12 lg:px-5 ${
+              onClick={openVersionHistory}
+              className={`h-12 gap-2 rounded-lg border px-5 text-sm font-medium ${
                 isDark
                   ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-[#202020] hover:text-white"
-                  : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F4F5F7] hover:text-black"
+                  : "border-[#E3E3E3] bg-white text-[#323232]"
               }`}
             >
               <History size={18} />
@@ -219,214 +124,86 @@ export default function AgreementDetailsPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/admin/agreements/create?edit=1")}
-              className={`h-11 gap-2 rounded-lg border px-4 text-sm font-medium transition-colors lg:h-12 lg:px-5 ${
+              onClick={() => router.push(`/admin/agreements/create-agreement?edit=${encodeURIComponent(agreement.id)}`)}
+              disabled={Boolean(previewVersion)}
+              className={`h-12 rounded-lg border px-5 text-sm font-medium ${
                 isDark
                   ? "border-[#3D3D3D] bg-[#171717] text-white hover:bg-[#202020] hover:text-white"
-                  : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F4F5F7] hover:text-black"
+                  : "border-[#E3E3E3] bg-white text-[#323232]"
               }`}
             >
-              <Pencil size={16} className="sm:hidden" />
-              <span className="hidden sm:inline">Edit Agreement</span>
+              Edit Agreement
             </Button>
 
             <Button
               type="button"
-              onClick={() => void openSendDialog()}
-              className={`h-11 gap-2 rounded-lg px-4 text-sm font-semibold text-black transition-colors lg:h-12 lg:px-6 ${
-                isDark
-                  ? "bg-[#E5D5B8] hover:bg-[#D4C3A3]"
-                  : "bg-[#E8D1AB] hover:bg-[#D9C19A]"
-              }`}
+              onClick={handleSaveAgreement}
+              disabled={Boolean(previewVersion)}
+              className="h-12 rounded-lg bg-[#E8D1AB] px-7 text-sm font-semibold text-black hover:bg-[#D9C19A] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Send size={17} />
-              <span className="hidden sm:inline">Send Agreement to CP</span>
-              <span className="sm:hidden">Send</span>
+              Save Agreement
             </Button>
           </div>
         }
       />
 
       <main
-        className={`min-h-screen p-4 pb-24 transition-colors duration-300 lg:p-6 lg:px-10 lg:py-8 ${
-          isDark ? "bg-transparent" : "bg-[#F3F4F6]"
-        }`}
+        className={`min-h-screen p-4 pb-24 lg:px-10 lg:py-8 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <button
           type="button"
           onClick={() => router.push("/admin/agreements")}
-          className={`mb-7 inline-flex items-center gap-2 text-sm transition-colors ${
-            isDark
-              ? "text-white/80 hover:text-white"
-              : "text-black/65 hover:text-black"
-          }`}
+          className={`mb-7 inline-flex items-center gap-2 text-sm ${isDark ? "text-white/80 hover:text-white" : "text-black/65 hover:text-black"}`}
         >
-          <ArrowLeft size={19} />
-          Back
+          <ArrowLeft size={19} /> Back
         </button>
 
-        <article
-          className={`mx-auto overflow-hidden rounded-2xl border transition-colors ${
-            isDark
-              ? "border-[#2D2D2D] bg-[#171717]"
-              : "border-[#E3E3E3] bg-white"
-          }`}
-        >
-          <header
-            className={`flex flex-col gap-5 px-6 py-7 md:flex-row md:items-center md:justify-between lg:px-8 ${
-              isDark ? "bg-[#202020]" : "bg-[#FFFCF6]"
-            }`}
-          >
+        <article className={`overflow-hidden rounded-2xl border ${isDark ? "border-[#2D2D2D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+          <header className={`flex flex-col gap-5 px-6 py-7 md:flex-row md:items-center md:justify-between lg:px-8 ${isDark ? "bg-[#202020]" : "bg-[#FFFCF6]"}`}>
             <div>
-              <p
-                className={`text-xs font-semibold uppercase tracking-[0.08em] ${
-                  isDark ? "text-[#E8D1AB]/85" : "text-[#8D6F3F]"
-                }`}
-              >
-                General Agreement
-              </p>
-
-              <h1
-                className={`mt-3 text-2xl font-light uppercase leading-tight tracking-[-0.02em] md:text-[32px] ${
-                  isDark ? "text-white" : "text-[#171717]"
-                }`}
-              >
-                {title}
+              <p className={`text-xs font-semibold uppercase tracking-[0.08em] ${isDark ? "text-[#E8D1AB]/85" : "text-[#8D6F3F]"}`}>General Agreement</p>
+              <h1 className={`mt-3 text-2xl font-light uppercase leading-tight tracking-[-0.02em] md:text-[32px] ${isDark ? "text-white" : "text-[#171717]"}`}>
+                {agreement.agreementTitle}
               </h1>
             </div>
 
             <div className="shrink-0 text-left md:text-right">
               <span className="inline-flex rounded-lg bg-[#E8D1AB] px-3 py-1.5 text-xs font-medium text-black">
-                Version 1.0
+                Version {agreement.currentVersion.replace(/^v/i, "")}
               </span>
-
-              <p
-                className={`mt-3 text-[11px] ${
-                  isDark ? "text-white/75" : "text-black/55"
-                }`}
-              >
-                Effective {effectiveDate}
+              <p className={`mt-3 text-[11px] ${isDark ? "text-white/75" : "text-black/55"}`}>
+                Effective {formatDate(agreement.effectiveDate)}
               </p>
+              {previewVersion ? (
+                <p className="mt-1 text-[10px] font-medium text-[#E8D1AB]">Historical preview</p>
+              ) : null}
             </div>
           </header>
 
           <div className="px-6 py-7 lg:px-8 lg:py-8">
-            {draft.description?.trim() ? (
-              <div
-                className={`whitespace-pre-line text-[15px] leading-6 ${
-                  isDark ? "text-white/65" : "text-black/65"
-                }`}
-              >
-                {draft.description}
+            {agreement.description.trim() ? (
+              <div className={`whitespace-pre-line text-[15px] leading-6 ${isDark ? "text-white/65" : "text-black/65"}`}>
+                {agreement.description}
               </div>
             ) : null}
 
             {sections.map((section, index) => (
-              <section
-                key={section.id}
-                className={`mt-7 border-t pt-7 ${
-                  isDark ? "border-[#464646]" : "border-[#DDDDDD]"
-                }`}
-              >
-                <h2
-                  className={`text-xl font-medium ${
-                    isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"
-                  }`}
-                >
+              <section key={section.id} className={`mt-7 border-t pt-7 ${isDark ? "border-[#464646]" : "border-[#DDDDDD]"}`}>
+                <h2 className={`text-xl font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>
                   {index + 1}. {section.title || "Untitled Section"}
                 </h2>
-
                 <div
-                  className={`mt-3 whitespace-pre-line text-[15px] leading-6 ${
-                    isDark ? "text-white/65" : "text-black/65"
-                  }`}
-                >
-                  {section.content || "No content added."}
-                </div>
+                  className={`mt-3 text-[15px] leading-6 ${agreementRichTextClassName} ${isDark ? "text-white/65" : "text-black/65"}`}
+                  dangerouslySetInnerHTML={{
+                    __html: normalizeAgreementHtml(section.content || "No content added."),
+                  }}
+                />
               </section>
             ))}
           </div>
         </article>
       </main>
-
-      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent
-          className={`max-w-lg border ${
-            isDark
-              ? "border-[#3D3D3D] bg-[#0A0A0A] text-white"
-              : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232]"
-          }`}
-        >
-          <DialogHeader>
-            <DialogTitle>Version History</DialogTitle>
-          </DialogHeader>
-
-          <div
-            className={`rounded-xl border p-4 ${
-              isDark
-                ? "border-[#3D3D3D] bg-[#171717]"
-                : "border-[#E3E3E3] bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">Version 1.0</p>
-                <p
-                  className={`mt-1 text-xs ${
-                    isDark ? "text-white/45" : "text-black/45"
-                  }`}
-                >
-                  Current agreement version
-                </p>
-              </div>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  isDark
-                    ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                    : "bg-[#E8D1AB]/35 text-[#7D6235]"
-                }`}
-              >
-                Current
-              </span>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent className={`max-w-md border ${isDark ? "border-[#3D3D3D] bg-[#0A0A0A] text-white" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#323232]"}`}>
-          <DialogHeader><DialogTitle>Send Agreement to CP</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <select
-              value={selectedCreativePartnerId}
-              onChange={(event) => setSelectedCreativePartnerId(event.target.value)}
-              className={`h-11 w-full rounded-md border px-3 text-sm ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E3E3E3] bg-white text-[#323232]"}`}
-            >
-              <option value="">Select Creative Partner</option>
-              {creativePartners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name}</option>)}
-            </select>
-            <input
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-              placeholder="Role (optional)"
-              className={`h-11 w-full rounded-md border px-3 text-sm ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E3E3E3] bg-white text-[#323232]"}`}
-            />
-            <Button type="button" disabled={isSending || !selectedCreativePartnerId} onClick={() => void handleSendAgreement()} className="h-11 w-full bg-[#E8D1AB] text-black hover:bg-[#D9C19A]">
-              {isSending ? "Sending..." : "Send Agreement"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <SuccessModal
-        isOpen={sendSuccessOpen}
-        onSubmit={handleSuccessClose}
-        title="General Agreement Sent Successfully"
-        subtext="The general agreement has been sent to the CP for review and acceptance."
-        buttonText=""
-      />
     </>
   );
 }

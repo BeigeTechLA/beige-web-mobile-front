@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical,
+  ChevronDown,
+  Eye,
+  History,
+  Pencil,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
@@ -21,209 +23,52 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import AgreementHistoryTable from "@/components/admin/agreements/AgreementHistoryTable";
-import { adminApi, getGeneralAgreementHistory, getShootAgreementHistory } from "@/lib/api";
-import { toast } from "sonner";
+import AgreementHistoryTable, {
+  type AgreementHistoryItem,
+  type AgreementStatus,
+  type AgreementType,
+} from "@/components/admin/agreements/AgreementHistoryTable";
+import {
+  deleteLocalAgreementHistoryItem,
+  getLocalAgreementHistory,
+  getLocalGeneralAgreement,
+  resendLocalAgreementHistoryItem,
+  type LocalAgreementHistoryItem,
+  type LocalGeneralAgreement,
+} from "@/components/admin/agreements/localAgreementStore";
 
-type AgreementStatus =
-  | "Accepted"
-  | "Expired"
-  | "Not Accepted"
-  | "Pending"
-  | "Rejected"
-  | "Cancelled";
+const tabs = ["All", "Pending", "Accepted", "Rejected", "Cancelled"] as const;
+type AgreementTab = (typeof tabs)[number];
 
-type AgreementTab = "All" | "Pending" | "Accepted" | "Rejected" | "Cancelled";
+const toAgreementHistoryItem = (item: LocalAgreementHistoryItem): AgreementHistoryItem => ({
+  id: item.id,
+  cpName: item.cpName,
+  cpInitials: item.cpInitials,
+  cpDate: item.cpDate,
+  avatarTone: item.avatarTone,
+  projectName: item.projectName,
+  projectId: item.projectId,
+  role: item.role,
+  version: item.version,
+  status: item.status,
+  agreementType: item.agreementType,
+  admin: item.admin,
+  sendDate: item.sendDate,
+});
 
-type AgreementType = "general" | "shoot";
-
-type AgreementRow = {
-  id: number;
-  cpName: string;
-  cpId?: number | string;
-  cpInitials: string;
-  cpDate: string;
-  avatarTone: string;
-  projectName: string;
-  projectId: string;
-  role: string;
-  version: string;
-  status: AgreementStatus;
-  agreementType: AgreementType;
-  admin: string;
-  sendDate: string;
+const toDateInput = (value: Date | null) => {
+  if (!value) return null;
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 };
 
-const initialAgreements: AgreementRow[] = [
-  {
-    id: 1,
-    cpName: "John Doe",
-    cpInitials: "JD",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#DDEBFA]",
-    projectName: "ABC Corporate Shoot",
-    projectId: "ASN-2012",
-    role: "Videographer",
-    version: "v1.0",
-    status: "Accepted",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 10:32 AM",
-  },
-  {
-    id: 2,
-    cpName: "Rami Guzman",
-    cpInitials: "RG",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#D4E9FF]",
-    projectName: "Fashion Editorial",
-    projectId: "ASN-2001",
-    role: "Photographer",
-    version: "v1.0",
-    status: "Expired",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 11:10 AM",
-  },
-  {
-    id: 3,
-    cpName: "Jhas Lee",
-    cpInitials: "JL",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#F2E6CF]",
-    projectName: "Product Shoot — Skincare",
-    projectId: "ASN-2001",
-    role: "Editor",
-    version: "v1.0",
-    status: "Expired",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 12:05 PM",
-  },
-  {
-    id: 4,
-    cpName: "Kevin Brooks",
-    cpInitials: "KB",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#D8F5C8]",
-    projectName: "Podcast Shoot",
-    projectId: "ASN-2001",
-    role: "Videographer",
-    version: "v1.0",
-    status: "Not Accepted",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 01:20 PM",
-  },
-  {
-    id: 5,
-    cpName: "Yuki Tanaka",
-    cpInitials: "YT",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#FFF0BD]",
-    projectName: "Corporate Photography",
-    projectId: "ASN-2001",
-    role: "Videographer",
-    version: "v1.0",
-    status: "Pending",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 02:15 PM",
-  },
-  {
-    id: 6,
-    cpName: "Lisa Anderson",
-    cpInitials: "LA",
-    cpDate: "Jan 13, 2026",
-    avatarTone: "bg-[#F8C9E8]",
-    projectName: "Music Video",
-    projectId: "ASN-2001",
-    role: "Photographer",
-    version: "v1.0",
-    status: "Not Accepted",
-    agreementType: "general",
-    admin: "Admin",
-    sendDate: "Jan 13, 2026, 03:40 PM",
-  },
-  {
-    id: 7,
-    cpName: "John Doe",
-    cpInitials: "JD",
-    cpDate: "Sep 15, 2026",
-    avatarTone: "bg-[#DDEBFA]",
-    projectName: "ABC Corporate Shoot",
-    projectId: "ASN-2012",
-    role: "Videographer",
-    version: "v1.0",
-    status: "Accepted",
-    agreementType: "shoot",
-    admin: "Admin",
-    sendDate: "Sep 15, 2026, 10:32 AM",
-  },
-];
-
-const tabs: AgreementTab[] = [
-  "All",
-  "Pending",
-  "Accepted",
-  "Rejected",
-  "Cancelled",
-];
-
-const versionOptions = [
-  "all",
-  ...Array.from(new Set(initialAgreements.map((item) => item.version))),
-];
-
-const asOptions = (values: string[], placeholder: string) => values.map((value) => ({ value, label: value === "all" ? placeholder : value }));
-
-const toDateParam = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-const getDateRange = (range: string) => {
-  if (range === "all") return {};
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  if (range === "This Week") {
-    start.setDate(start.getDate() - start.getDay());
-    end.setDate(end.getDate() + (6 - end.getDay()));
-  }
-  if (range === "This Month") {
-    start.setDate(1);
-    end.setMonth(end.getMonth() + 1, 0);
-  }
-  return { start_date: toDateParam(start), end_date: toDateParam(end) };
-};
-
-const normalizeStatus = (status: unknown): AgreementStatus => {
-  const value = String(status || "pending").toLowerCase();
-  if (value === "not_accepted" || value === "not accepted") return "Not Accepted";
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}` as AgreementStatus;
-};
-
-const statusClass = (status: AgreementStatus, isDark: boolean) => {
-  switch (status) {
-    case "Accepted":
-      return isDark
-        ? "border-emerald-400/20 bg-[#C9F8DD] text-[#169348]"
-        : "border-emerald-200 bg-[#D8FBE6] text-[#169348]";
-    case "Expired":
-      return isDark
-        ? "border-amber-300/20 bg-[#FFF1B7] text-[#C56A00]"
-        : "border-amber-200 bg-[#FFF1B7] text-[#C56A00]";
-    case "Pending":
-      return isDark
-        ? "border-amber-300/20 bg-[#FFF1B7] text-[#C56A00]"
-        : "border-amber-200 bg-[#FFF1B7] text-[#C56A00]";
-    case "Rejected":
-    case "Cancelled":
-    case "Not Accepted":
-      return isDark
-        ? "border-red-300/20 bg-[#FFC7C7] text-[#B51F28]"
-        : "border-red-200 bg-[#FFD2D2] text-[#B51F28]";
-    default:
-      return "";
-  }
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 function FilterSelect({
@@ -232,42 +77,35 @@ function FilterSelect({
   placeholder,
   options,
   isDark,
+  minWidth = "min-w-[112px]",
 }: {
   value: string;
   onValueChange: (value: string) => void;
   placeholder: string;
   options: Array<{ value: string; label: string }>;
   isDark: boolean;
+  minWidth?: string;
 }) {
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
-        className={`h-12 min-w-[112px] rounded-lg border px-4 text-sm shadow-none transition-colors focus:ring-1 focus:ring-[#E8D1AB]/60 ${
+        className={`h-12 ${minWidth} rounded-lg border px-4 text-sm shadow-none focus:ring-1 focus:ring-[#E8D1AB]/60 ${
           isDark
-            ? "border-[#3D3D3D] bg-[#202020] text-white hover:bg-[#262626]"
-            : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"
+            ? "border-[#3D3D3D] bg-[#202020] text-white"
+            : "border-[#E3E3E3] bg-white text-[#323232]"
         }`}
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-
       <SelectContent
-        className={`border ${
+        className={
           isDark
             ? "border-[#3D3D3D] bg-[#171717] text-white"
             : "border-[#E3E3E3] bg-white text-[#323232]"
-        }`}
+        }
       >
         {options.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={option.value}
-            className={
-              isDark
-                ? "focus:bg-white/10 focus:text-white"
-                : "focus:bg-[#F4F5F7] focus:text-black"
-            }
-          >
+          <SelectItem key={option.value} value={option.value}>
             {option.label}
           </SelectItem>
         ))}
@@ -279,102 +117,160 @@ function FilterSelect({
 export default function AgreementsPage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDark } = useResolvedTheme();
 
+  const [history, setHistory] = useState<LocalAgreementHistoryItem[]>([]);
+  const [activeGeneralAgreement, setActiveGeneralAgreement] = useState<LocalGeneralAgreement | null>(null);
   const [activeTab, setActiveTab] = useState<AgreementTab>("All");
   const [agreementType, setAgreementType] = useState<AgreementType>("general");
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showFilters, setShowFilters] = useState(true);
-
   const [cpFilter, setCpFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [versionFilter, setVersionFilter] = useState("all");
+  const [adminFilter, setAdminFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-
   const [currentPage, setCurrentPage] = useState(1);
-  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [agreementTotal, setAgreementTotal] = useState(0);
-  const historyRequestId = useRef(0);
-  const [cpOptions, setCpOptions] = useState<Array<{ value: string; label: string }>>([
-    { value: "all", label: "CP" },
-  ]);
-  const [projectOptions, setProjectOptions] = useState<string[]>(["all"]);
+  const [activeAgreementMenuOpen, setActiveAgreementMenuOpen] = useState(false);
+  const activeAgreementMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const loadCreativePartners = async () => {
-      const response: any = await adminApi.getCrewMembers({ fetch_all: true, limit: 500 });
-      const payload = response?.data?.data || response?.data || {};
-      const members = Array.isArray(payload) ? payload : payload.items || [];
-      setCpOptions([
-        { value: "all", label: "CP" },
-        ...members.map((member: any) => {
-          const id = member.crew_member_id ?? member.id;
-          return {
-            value: String(id),
-            label: `${member.first_name || ""} ${member.last_name || ""}`.trim() || member.name || `CP #${id}`,
-          };
-        }).filter((option: { value: string }) => option.value !== "undefined"),
-      ]);
+    const syncLocalData = () => {
+      setHistory(getLocalAgreementHistory());
+      setActiveGeneralAgreement(getLocalGeneralAgreement());
     };
-    void loadCreativePartners();
+
+    syncLocalData();
+    window.addEventListener("beige-agreements-local-updated", syncLocalData);
+    window.addEventListener("storage", syncLocalData);
+
+    return () => {
+      window.removeEventListener("beige-agreements-local-updated", syncLocalData);
+      window.removeEventListener("storage", syncLocalData);
+    };
   }, []);
 
   useEffect(() => {
-    const loadHistory = async () => {
-      const requestId = ++historyRequestId.current;
-      const selectedStatus = statusFilter !== "all" ? statusFilter : activeTab !== "All" ? activeTab : undefined;
-      const params: Record<string, unknown> = {
-        page: currentPage,
-        search: search.trim() || undefined,
-        creative_partner_id: cpFilter !== "all" ? cpFilter : undefined,
-        project: projectFilter !== "all" ? projectFilter : undefined,
-        version: versionFilter !== "all" ? versionFilter : undefined,
-        status: selectedStatus?.toLowerCase().replace(" ", "_"),
-        date_on: selectedDate ? toDateParam(selectedDate) : undefined,
-        ...getDateRange(dateFilter),
-      };
-      const response = agreementType === "general" ? await getGeneralAgreementHistory(params) : await getShootAgreementHistory(params);
-      // Ignore a completed request when a newer tab/filter request is already active.
-      if (requestId !== historyRequestId.current) return;
-      if (response.error || !response.data) { toast.error(response.message || "Failed to load agreement history."); setAgreements([]); return; }
-      // Service functions return the backend envelope; support both the normal
-      // envelope and the axios-wrapped variant used by older service calls.
-      const data: any = response.data;
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const pagination = data?.pagination || {};
-      setTotalPages(Math.max(1, Math.ceil(Number(pagination.total || 0) / Number(pagination.limit || 20))));
-      setProjectOptions([
-        "all",
-        ...Array.from(new Set(items.map((item: any) => item.shoot_request?.project_name || item.agreement_version?.agreement?.agreement_name).filter(Boolean))),
-      ]);
-      setAgreements(items.map((item: any): AgreementRow => {
-        item.status = normalizeStatus(item.status);
-        const cp = item.crew_member || item.creative_partner || {};
-        const name = cp.name || [cp.first_name, cp.last_name].filter(Boolean).join(" ") || `CP #${item.creative_partner_id || "—"}`;
-        return { id: item.id, cpName: name, cpInitials: name.split(" ").map((part: string) => part[0]).join("").slice(0, 2), cpDate: item.created_at || "—", avatarTone: "bg-[#DDEBFA]", projectName: item.shoot_request?.project_name || item.agreement_version?.agreement?.agreement_name || "—", projectId: String(item.shoot_request?.project_id || "—"), role: item.role || "—", version: `v${item.agreement_version?.version_number || item.version_number || "1.0"}`, status: (String(item.status || "pending").replace(/^./, (value) => value.toUpperCase()) as AgreementStatus), agreementType, admin: item.sent_by?.name || "—", sendDate: item.sent_at || item.created_at || "—" };
-      }));
-    };
-    void loadHistory();
-  }, [agreementType, currentPage, search, cpFilter, projectFilter, dateFilter, versionFilter, statusFilter, activeTab, selectedDate]);
+    const requestedType = searchParams.get("type");
+    if (requestedType === "general" || requestedType === "shoot") {
+      setAgreementType(requestedType);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
-    const loadAgreementTotal = async () => {
-      const [generalResponse, shootResponse] = await Promise.all([
-        getGeneralAgreementHistory({ limit: 1 }),
-        getShootAgreementHistory({ limit: 1 }),
-      ]);
-      setAgreementTotal(
-        Number(generalResponse?.data?.pagination?.total || 0) +
-        Number(shootResponse?.data?.pagination?.total || 0),
-      );
+    if (!activeAgreementMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!activeAgreementMenuRef.current?.contains(event.target as Node)) {
+        setActiveAgreementMenuOpen(false);
+      }
     };
-    void loadAgreementTotal();
-  // Keep the all-agreements badge live after every history refresh/filter change.
-  // Its requests intentionally omit filters, so it always represents the full total.
-  }, [agreementType, currentPage, search, cpFilter, projectFilter, dateFilter, versionFilter, statusFilter, activeTab, selectedDate]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeAgreementMenuOpen]);
+
+  const filteredHistory = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const selectedDateKey = toDateInput(selectedDate);
+    const now = new Date();
+
+    return history.filter((item) => {
+      if (item.agreementType !== agreementType) return false;
+      if (activeTab !== "All" && item.status !== activeTab) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (cpFilter !== "all" && item.cpName !== cpFilter) return false;
+      if (projectFilter !== "all" && item.projectName !== projectFilter) return false;
+      if (versionFilter !== "all" && item.version !== versionFilter) return false;
+      if (adminFilter !== "all" && item.admin !== adminFilter) return false;
+
+      if (normalizedSearch) {
+        const haystack = `${item.cpName} ${item.projectName} ${item.projectId} ${item.role} ${item.version} ${item.status}`.toLowerCase();
+        if (!haystack.includes(normalizedSearch)) return false;
+      }
+
+      const createdAt = new Date(item.createdAt);
+      if (!Number.isNaN(createdAt.getTime())) {
+        if (selectedDateKey) {
+          const createdKey = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, "0")}-${String(createdAt.getDate()).padStart(2, "0")}`;
+          if (createdKey !== selectedDateKey) return false;
+        }
+
+        if (dateFilter === "Today" && createdAt.toDateString() !== now.toDateString()) return false;
+        if (dateFilter === "This Month" && (createdAt.getMonth() !== now.getMonth() || createdAt.getFullYear() !== now.getFullYear())) return false;
+        if (dateFilter === "This Week") {
+          const start = new Date(now);
+          start.setHours(0, 0, 0, 0);
+          start.setDate(start.getDate() - start.getDay());
+          const end = new Date(start);
+          end.setDate(end.getDate() + 7);
+          if (createdAt < start || createdAt >= end) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [activeTab, adminFilter, agreementType, cpFilter, dateFilter, history, projectFilter, search, selectedDate, statusFilter, versionFilter]);
+
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / pageSize));
+  const pagedAgreements = filteredHistory
+    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    .map(toAgreementHistoryItem);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const optionsFrom = (key: "cpName" | "projectName" | "version" | "admin", placeholder: string) => [
+    { value: "all", label: placeholder },
+    ...Array.from(new Set(history.filter((item) => item.agreementType === agreementType).map((item) => item[key]))).map((value) => ({
+      value,
+      label: value,
+    })),
+  ];
+
+  const openGeneralDetails = (agreementId?: string) => {
+    const id = agreementId || activeGeneralAgreement?.id;
+    if (!id) return;
+    router.push(`/admin/agreements/${encodeURIComponent(id)}`);
+  };
+
+  const getRawHistoryItem = (agreement: AgreementHistoryItem) =>
+    history.find((item) => String(item.id) === String(agreement.id));
+
+  const openVersionHistory = (agreement: AgreementHistoryItem) => {
+    const raw = getRawHistoryItem(agreement);
+    if (raw) {
+      window.sessionStorage.setItem("beige_selected_agreement", JSON.stringify(raw));
+    }
+    const routeId = agreement.agreementType === "general"
+      ? raw?.agreementId || activeGeneralAgreement?.id || agreement.id
+      : agreement.id;
+    router.push(`/admin/agreements/${encodeURIComponent(String(routeId))}/version-history`);
+  };
+
+  const handleResendAgreement = (agreement: AgreementHistoryItem) => {
+    const updated = resendLocalAgreementHistoryItem(agreement.id);
+    if (!updated) {
+      toast.error("Unable to resend this agreement.");
+      return;
+    }
+    toast.success(`Agreement resent to ${updated.cpName}.`);
+  };
+
+  const handleDeleteAgreement = (agreement: AgreementHistoryItem) => {
+    const confirmed = window.confirm(
+      `Delete this ${agreement.agreementType === "general" ? "general" : "shoot"} agreement history entry for ${agreement.cpName}?`,
+    );
+    if (!confirmed) return;
+    if (!deleteLocalAgreementHistoryItem(agreement.id)) {
+      toast.error("Unable to delete this agreement entry.");
+      return;
+    }
+    toast.success("Agreement history entry deleted.");
+  };
 
   return (
     <>
@@ -384,227 +280,214 @@ export default function AgreementsPage() {
           <Button
             type="button"
             onClick={() => router.push("/admin/agreements/create-agreement")}
-            className={`h-12 rounded-lg px-5 text-sm font-semibold text-black transition-colors lg:px-6 ${
-              isDark
-                ? "bg-[#E5D5B8] hover:bg-[#D4C3A3]"
-                : "bg-[#E8D1AB] hover:bg-[#D9C19A]"
-            }`}
+            className="h-12 rounded-lg bg-[#E8D1AB] px-6 text-sm font-semibold text-black hover:bg-[#D9C19A]"
           >
             Create General Agreement
           </Button>
         }
       />
 
-      <div
-        className={`min-h-screen p-4 pb-28 transition-colors duration-300 lg:p-6 lg:px-10 lg:py-9 ${
-          isDark ? "bg-transparent" : "bg-[#F3F4F6]"
-        }`}
+      <main
+        className={`min-h-screen p-4 pb-28 lg:px-10 lg:py-9 ${isDark ? "bg-transparent" : "bg-[#F3F4F6]"}`}
         style={{ fontFamily: "var(--font-instrument-sans)" }}
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1
-                className={`text-xl font-semibold leading-8 transition-colors lg:text-2xl ${
-                  isDark ? "text-white" : "text-[#171717]"
-                }`}
-              >
-                Agreements
-              </h1>
-
-              <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${
-                  isDark
-                    ? "bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                    : "bg-[#E8D1AB]/35 text-[#7D6235]"
-                }`}
-              >
-                {agreementTotal} agreements across all projects
+              <h1 className={`text-2xl font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>Agreements</h1>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-medium ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/35 text-[#7D6235]"}`}>
+                {history.length} agreements across all projects
               </span>
             </div>
-
-            <p
-              className={`mt-1 text-xs transition-colors lg:text-sm ${
-                isDark ? "text-white/60" : "text-black/60"
-              }`}
-            >
-              Review and manage all agreements in one place
-            </p>
+            <p className={`mt-1 text-sm ${isDark ? "text-white/55" : "text-black/55"}`}>Review and manage all agreements in one place</p>
           </div>
 
-          <div className="w-full lg:w-auto">
-            <SortDateButton
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-            />
-          </div>
+          <SortDateButton selectedDate={selectedDate} onDateChange={setSelectedDate} />
         </div>
 
-        <div
-          className={`mt-7 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border p-1 no-scrollbar lg:mt-9 ${
-            isDark
-              ? "border-[#333333] bg-[#171717]"
-              : "border-[#E3E3E3] bg-white"
-          }`}
-        >
-          {tabs.map((tab) => {
-            const selected = tab === activeTab;
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setAgreements([]);
-                  setActiveTab(tab);
-                  setStatusFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={`h-10 shrink-0 rounded-lg px-5 text-sm font-medium transition-all ${
-                  selected
-                    ? isDark
-                      ? "bg-[#E5D5B8] text-black shadow-sm"
-                      : "bg-[#E8D1AB] text-black shadow-sm"
-                    : isDark
-                      ? "text-white/65 hover:bg-white/5 hover:text-white"
-                      : "text-black/60 hover:bg-black/5 hover:text-black"
-                }`}
-              >
-                {tab}
-              </button>
-            );
-          })}
+        <div className={`mt-7 border-t border-dashed ${isDark ? "border-white/15" : "border-black/10"}`} />
+
+        {activeGeneralAgreement ? (
+          <section className={`relative mt-7 overflow-visible rounded-xl border ${activeAgreementMenuOpen ? "z-30" : "z-0"} ${isDark ? "border-[#303030] bg-[#101010]" : "border-[#E5E5E5] bg-white"}`}>
+            <div className="flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <span className="h-8 w-[4px] shrink-0 rounded-full bg-[#E8D1AB]" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${isDark ? "text-[#E8D1AB]" : "text-[#8D6F3F]"}`}>Active General Agreement</p>
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">Active</span>
+                  </div>
+                  <button type="button" onClick={() => openGeneralDetails(activeGeneralAgreement.id)} className={`mt-1 truncate text-left text-sm font-medium hover:underline ${isDark ? "text-white" : "text-[#171717]"}`}>
+                    {activeGeneralAgreement.agreementName}
+                  </button>
+                  <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>General Terms of Service</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-7 lg:justify-end">
+                <div className="text-left lg:text-center">
+                  <p className={`text-[10px] uppercase tracking-[0.08em] ${isDark ? "text-white/35" : "text-black/40"}`}>Effective</p>
+                  <p className={`mt-1 text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>{formatDate(activeGeneralAgreement.effectiveDate)}</p>
+                </div>
+                <div className="text-left lg:text-center">
+                  <p className={`text-[10px] uppercase tracking-[0.08em] ${isDark ? "text-white/35" : "text-black/40"}`}>Updated</p>
+                  <p className={`mt-1 text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>{formatDate(activeGeneralAgreement.updatedAt)}</p>
+                </div>
+                <div className="text-left lg:text-center">
+                  <p className={`text-[10px] uppercase tracking-[0.08em] ${isDark ? "text-white/35" : "text-black/40"}`}>Sections</p>
+                  <p className={`mt-1 text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>{activeGeneralAgreement.sections.length}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push(`/admin/agreements/create-agreement?edit=${encodeURIComponent(activeGeneralAgreement.id)}`)}
+                    className={`h-9 gap-2 rounded-md border px-4 text-xs font-medium shadow-none ${
+                      isDark
+                        ? "border-[#2D2D2D] bg-[#171717] text-white hover:bg-[#202020] hover:text-white"
+                        : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"
+                    }`}
+                  >
+                    <Pencil size={14} />
+                    Edit
+                  </Button>
+
+                  <div ref={activeAgreementMenuRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setActiveAgreementMenuOpen((value) => !value)}
+                      className={`flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${
+                        isDark
+                          ? "border-[#2D2D2D] bg-[#101010] text-white/60 hover:bg-[#1A1A1A] hover:text-white"
+                          : "border-[#E3E3E3] bg-white text-black/55 hover:bg-[#F7F7F7] hover:text-black"
+                      }`}
+                      aria-label="More agreement actions"
+                      aria-expanded={activeAgreementMenuOpen}
+                    >
+                      <ChevronDown
+                        size={15}
+                        className={`transition-transform ${activeAgreementMenuOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {activeAgreementMenuOpen ? (
+                      <div
+                        className={`absolute right-0 top-full z-[100] mt-2 w-[188px] overflow-hidden rounded-lg border p-1 shadow-2xl ${
+                          isDark
+                            ? "border-[#303030] bg-[#171717]"
+                            : "border-[#E5E5E5] bg-white"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveAgreementMenuOpen(false);
+                            openGeneralDetails(activeGeneralAgreement.id);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs transition-colors ${
+                            isDark
+                              ? "text-white/85 hover:bg-white/[0.07] hover:text-white"
+                              : "text-[#323232] hover:bg-[#F7F7F7]"
+                          }`}
+                        >
+                          <Eye size={14} />
+                          View details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveAgreementMenuOpen(false);
+                            router.push(`/admin/agreements/${encodeURIComponent(activeGeneralAgreement.id)}/version-history`);
+                          }}
+                          className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-xs transition-colors ${
+                            isDark
+                              ? "text-white/85 hover:bg-white/[0.07] hover:text-white"
+                              : "text-[#323232] hover:bg-[#F7F7F7]"
+                          }`}
+                        >
+                          <History size={14} />
+                          Version history
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <div className={`mt-5 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border p-1 ${isDark ? "border-[#333333] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab);
+                setStatusFilter("all");
+                setCurrentPage(1);
+              }}
+              className={`h-10 shrink-0 rounded-lg px-5 text-sm font-medium ${activeTab === tab ? "bg-[#E8D1AB] text-black" : isDark ? "text-white/60 hover:text-white" : "text-black/60 hover:text-black"}`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
         <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div
-            className={`relative flex min-h-12 flex-1 items-center rounded-xl border transition-colors ${
-              isDark
-                ? "border-[#3D3D3D] bg-[#202020]"
-                : "border-[#E3E3E3] bg-white"
-            }`}
-          >
-            <Search
-              size={18}
-              className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${
-                isDark ? "text-white/35" : "text-black/35"
-              }`}
-            />
+          <div className={`relative flex h-12 flex-1 items-center rounded-xl border ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E3E3E3] bg-white"}`}>
+            <Search size={18} className={`absolute left-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
             <input
-              type="text"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setCurrentPage(1);
               }}
               placeholder="Search by agreement..."
-              className={`h-11 w-full rounded-xl bg-transparent pl-11 pr-4 text-sm outline-none ${
-                isDark
-                  ? "text-white placeholder:text-white/30"
-                  : "text-[#323232] placeholder:text-black/35"
-              }`}
+              className={`h-full w-full bg-transparent pl-11 pr-4 text-sm outline-none ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-black/35"}`}
             />
           </div>
-
           <Button
             type="button"
             variant="outline"
-            onClick={() => setShowFilters((prev) => !prev)}
-            className={`h-12 shrink-0 gap-2 rounded-xl border px-5 text-sm font-medium transition-colors ${
-              showFilters
-                ? isDark
-                  ? "border-[#4A4A4A] bg-[#252525] text-white hover:bg-[#2B2B2B]"
-                  : "border-[#D9C19A] bg-[#F7F0E4] text-black hover:bg-[#F1E6D5]"
-                : isDark
-                  ? "border-[#3D3D3D] bg-[#202020] text-white hover:bg-[#262626]"
-                  : "border-[#E3E3E3] bg-white text-black hover:bg-[#F4F5F7]"
-            }`}
+            onClick={() => setShowFilters((value) => !value)}
+            className={`h-12 gap-2 rounded-xl border px-5 ${isDark ? "border-[#3D3D3D] bg-[#202020] text-white hover:bg-[#262626]" : "border-[#E3E3E3] bg-white text-black"}`}
           >
-            <SlidersHorizontal size={17} />
-            Filters
+            <SlidersHorizontal size={17} /> Filters
           </Button>
         </div>
 
         {showFilters ? (
-          <div
-            className={`mt-4 w-full overflow-x-auto rounded-xl border transition-colors ${
-              isDark
-                ? "border-transparent bg-[#171717]"
-                : "border-[#E3E3E3] bg-white"
-            }`}
-          >
-            <div className="flex min-w-max flex-nowrap items-center gap-3 p-3">
-              <div className="shrink-0">
-                <FilterSelect
-                  value={cpFilter}
-                  onValueChange={setCpFilter}
-                  placeholder="CP"
-                  options={cpOptions}
-                  isDark={isDark}
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterSelect
-                  value={projectFilter}
-                  onValueChange={setProjectFilter}
-                  placeholder="Project"
-                  options={asOptions(projectOptions, "Project")}
-                  isDark={isDark}
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterSelect
-                  value={dateFilter}
-                  onValueChange={setDateFilter}
-                  placeholder="Date"
-                  options={asOptions(["all", "Today", "This Week", "This Month"], "Date")}
-                  isDark={isDark}
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterSelect
-                  value={versionFilter}
-                  onValueChange={setVersionFilter}
-                  placeholder="Agreement Version"
-                  options={asOptions(versionOptions, "Agreement Version")}
-                  isDark={isDark}
-                />
-              </div>
-
-              <div className="shrink-0">
-                <FilterSelect
-                  value={statusFilter}
-                  onValueChange={(value) => {
-                    setAgreements([]);
-                    setStatusFilter(value);
-                    setActiveTab("All");
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Status"
-                  options={asOptions([
-                    "all",
-                    "Accepted",
-                    "Expired",
-                    "Not Accepted",
-                    "Pending",
-                    "Rejected",
-                    "Cancelled",
-                  ], "Status")}
-                  isDark={isDark}
-                />
-              </div>
+          <div className={`mt-4 overflow-x-auto rounded-xl p-3 ${isDark ? "bg-[#171717]" : "border border-[#E3E3E3] bg-white"}`}>
+            <div className="flex min-w-max items-center gap-3">
+              <FilterSelect value={cpFilter} onValueChange={(value) => { setCpFilter(value); setCurrentPage(1); }} placeholder="CP" options={optionsFrom("cpName", "CP")} isDark={isDark} />
+              <FilterSelect value={projectFilter} onValueChange={(value) => { setProjectFilter(value); setCurrentPage(1); }} placeholder="Project" options={optionsFrom("projectName", "Project")} isDark={isDark} minWidth="min-w-[150px]" />
+              <FilterSelect value={dateFilter} onValueChange={(value) => { setDateFilter(value); setCurrentPage(1); }} placeholder="Date" options={[{ value: "all", label: "Date" }, { value: "Today", label: "Today" }, { value: "This Week", label: "This Week" }, { value: "This Month", label: "This Month" }]} isDark={isDark} />
+              <FilterSelect value={versionFilter} onValueChange={(value) => { setVersionFilter(value); setCurrentPage(1); }} placeholder="Agreement Version" options={optionsFrom("version", "Agreement Version")} isDark={isDark} minWidth="min-w-[175px]" />
+              <FilterSelect value={adminFilter} onValueChange={(value) => { setAdminFilter(value); setCurrentPage(1); }} placeholder="Admin" options={optionsFrom("admin", "Admin")} isDark={isDark} />
+              <FilterSelect
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value);
+                  setActiveTab("All");
+                  setCurrentPage(1);
+                }}
+                placeholder="Status"
+                options={[
+                  { value: "all", label: "Status" },
+                  ...(["Accepted", "Expired", "Not Accepted", "Pending", "Rejected", "Cancelled"] as AgreementStatus[]).map((value) => ({ value, label: value })),
+                ]}
+                isDark={isDark}
+              />
             </div>
           </div>
         ) : null}
 
         <AgreementHistoryTable
-          agreements={agreements}
+          agreements={pagedAgreements}
           isDark={isDark}
           agreementType={agreementType}
           onAgreementTypeChange={(type) => {
-            setAgreements([]);
             setAgreementType(type);
             setActiveTab("All");
             setStatusFilter("all");
@@ -612,21 +495,28 @@ export default function AgreementsPage() {
           }}
           currentPage={currentPage}
           totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filteredHistory.length}
           onPageChange={setCurrentPage}
           onRowClick={(agreement) => {
-            try {
-              window.sessionStorage.setItem(
-                "beige_selected_agreement",
-                JSON.stringify(agreement),
-              );
-            } catch (error) {
-              console.error("Failed to store selected agreement:", error);
+            const raw = history.find((item) => String(item.id) === String(agreement.id));
+            if (raw) {
+              window.sessionStorage.setItem("beige_selected_agreement", JSON.stringify(raw));
             }
 
-            router.push(`/admin/agreements/${agreement.id}`);
+            router.push(`/admin/agreements/${encodeURIComponent(String(agreement.id))}`);
           }}
+          onEditAgreement={(agreement) => {
+            const raw = history.find((item) => String(item.id) === String(agreement.id));
+            if (agreement.agreementType === "general") {
+              router.push(`/admin/agreements/create-agreement?edit=${encodeURIComponent(raw?.agreementId || activeGeneralAgreement?.id || "general-1")}`);
+            }
+          }}
+          onResendAgreement={handleResendAgreement}
+          onDeleteAgreement={handleDeleteAgreement}
+          onViewVersionHistory={openVersionHistory}
         />
-      </div>
+      </main>
     </>
   );
 }

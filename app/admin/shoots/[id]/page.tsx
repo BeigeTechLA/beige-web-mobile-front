@@ -29,6 +29,7 @@ import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
+import CreativePartnerAgreementTable from "@/components/admin/shoot-details/CreativePartnerAgreementTable";
 
 type SkillOption = {
   id?: number | string;
@@ -656,6 +657,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       onRequestAssignment={handleAssignmentRequest}
                     />
                   </div>
+                  <CreativePartnerAgreementTable shootId={String(id)} />
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
                     <div className="px-5 mt-6">
                       <div className={`rounded-xl border overflow-hidden ${isDark ? "border-[#2D2D2D] bg-[#101010]" : "border-[#E5E5E5] bg-white"}`}>

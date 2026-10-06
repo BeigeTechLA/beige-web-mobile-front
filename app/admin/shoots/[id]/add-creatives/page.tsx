@@ -11,7 +11,7 @@ import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSe
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
-import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
+import AddCompensationModal, { type ShootAgreementCompensationDraft } from "@/components/admin/finances/AddCompensationModal";
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 
@@ -369,6 +369,42 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleAddShootAgreement = async (compensationDraft: ShootAgreementCompensationDraft) => {
+    try {
+      const statsRecord = (stats || {}) as Record<string, unknown>;
+      const agreementDraft = {
+        shootId: String(projectId),
+        bookingId: compensationDraft.bookingId,
+        projectName: compensationDraft.shootName,
+        projectCode: asText(statsRecord.project_id, `PRJ-${projectId}`),
+        assignmentId: asText(statsRecord.assignment_id, `ASSIGN-${projectId}`),
+        productionDate: compensationDraft.eventDate || asText(statsRecord.event_date),
+        location: projectLocation || asText(statsRecord.event_location, asText(statsRecord.location, "")),
+        callTime: asText(statsRecord.start_time, asText(statsRecord.event_start_time, "")),
+        expectedEndTime: asText(statsRecord.end_time, asText(statsRecord.event_end_time, "")),
+        shootAmount: compensationDraft.shootAmount,
+        compensationMethod: compensationDraft.compensationMethod,
+        creators: compensationDraft.creators,
+        createdAt: new Date().toISOString(),
+        version: "v1.0",
+      };
+
+      window.localStorage.setItem(
+        "beige_shoot_agreement_draft",
+        JSON.stringify(agreementDraft),
+      );
+      window.sessionStorage.setItem(
+        "beige_shoot_agreement_draft",
+        JSON.stringify(agreementDraft),
+      );
+      setIsAddCompOpen(false);
+      router.push(`/admin/shoots/${projectId}/shoot-agreement?from=compensation`);
+    } catch (error) {
+      console.error("Failed to prepare shoot agreement draft", error);
+      toast.error("Unable to open Shoot Agreement. Please try again.");
+    }
+  };
+
   const handleCompensationSubmit = async (payload: AddCpCompensationPayload) => {
     setIsSubmittingCompensation(true);
     try {
@@ -504,7 +540,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       {/* --- INDEPENDENT SCROLL ZONE CONTAINER --- */}
       <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar p-4 pb-35 lg:px-10 lg:py-9 font-sans ${isDark ? "bg-black text-white" : "bg-[#F4F5F7] text-black"}`}>
         <Button
-          onClick={() => router.back()}
+          onClick={() => router.push(`/admin/shoots/${projectId}`)}
           className={`transition-colors flex items-center gap-2 mb-5 p-0 bg-transparent hover:bg-transparent shadow-none ${isDark ? "text-white hover:text-white/80" : "text-zinc-700 hover:text-zinc-900"}`}
         >
           <ArrowLeft size={24} />
@@ -530,6 +566,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             shoots={compensationShootOptions}
             isSubmitting={isSubmittingCompensation || isLoading}
             onSubmit={handleCompensationSubmit}
+            onAddShootAgreement={handleAddShootAgreement}
           />
         )}
 

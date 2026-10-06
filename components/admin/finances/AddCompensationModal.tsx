@@ -2,11 +2,38 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, TrendingUp, Minus, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import AdvancePaymentModal from "./AdvancePaymentModal";
+
+export type ShootAgreementCompensationDraft = {
+  bookingId: number;
+  shootName: string;
+  shootType: string | null;
+  contentType: string | null;
+  eventDate: string | null;
+  shootAmount: number;
+  compensationMethod: AddCpCompensationPayload["compensation_method"];
+  creators: Array<{
+    creatorId: number;
+    creatorName: string;
+    creatorEmail: string | null;
+    role: string;
+    rateType: "flat" | "hourly";
+    totalCompensation: number;
+    basePayout: number;
+    editingPayout: number;
+    travelAdjustment: number;
+    bonusAdjustment: number;
+    notes: string;
+    advanceAmount: number;
+    advancePaymentDate: string;
+    advanceNotes: string;
+  }>;
+};
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -15,6 +42,7 @@ interface AddCompensationModalProps {
   loading?: boolean;
   isSubmitting?: boolean;
   onSubmit: (payload: AddCpCompensationPayload) => Promise<void>;
+  onAddShootAgreement?: (draft: ShootAgreementCompensationDraft) => void | Promise<void>;
   enableAdvanceProofUpload?: boolean;
   initialShootId?: number | null;
 }
@@ -241,6 +269,7 @@ export default function AddCompensationModal({
   loading = false,
   isSubmitting = false,
   onSubmit,
+  onAddShootAgreement,
   enableAdvanceProofUpload = false,
   initialShootId,
 }: AddCompensationModalProps) {
@@ -604,8 +633,108 @@ export default function AddCompensationModal({
     });
   };
 
+  const validateSelectedCompensation = () => {
+    if (!currentShoot) {
+      toast.error("Please select a shoot first.");
+      return false;
+    }
+    if (selectedCreators.length === 0) {
+      toast.error("Please select at least one Creative Partner.");
+      return false;
+    }
+
+    for (const creatorId of selectedCreators) {
+      const creator = currentShoot.creators.find((item) => String(item.creator_id) === creatorId);
+      const creatorName = creator?.creator_name || `Creative Partner #${creatorId}`;
+      const form = creatorForms[creatorId] || getCreatorFormDefaults();
+      const total = getCreatorTotal(creatorId);
+      const advanceAmount = parseAmount(form.advanceAmount || "0");
+
+      if (total <= 0) {
+        toast.error(`Enter a valid compensation amount for ${creatorName}.`);
+        return false;
+      }
+
+      if (compensationMethod === "manual" && form.rateType === "hourly" && !form.hourlyConfirmed) {
+        toast.error(`Finalize the hourly compensation for ${creatorName} before continuing.`);
+        return false;
+      }
+
+      if (advanceAmount > 0) {
+        if (advanceAmount > total) {
+          toast.error(`Advance payment for ${creatorName} cannot exceed total compensation.`);
+          return false;
+        }
+        if (!form.advancePaymentDate) {
+          toast.error(`Select an advance payment date for ${creatorName}.`);
+          return false;
+        }
+        if (!form.advanceNotes.trim()) {
+          toast.error(`Add an advance payment reason for ${creatorName}.`);
+          return false;
+        }
+        if (enableAdvanceProofUpload && !form.advanceProofFile) {
+          toast.error(`Upload advance payment proof for ${creatorName}.`);
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const buildShootAgreementDraft = (): ShootAgreementCompensationDraft | null => {
+    if (!currentShoot) return null;
+
+    const creators = selectedCreators.map((creatorId) => {
+      const creator = currentShoot.creators.find((item) => String(item.creator_id) === creatorId);
+      const form = creatorForms[creatorId] || getCreatorFormDefaults();
+      const breakdown = getCreatorBreakdownForForm(form, form.rateType);
+
+      return {
+        creatorId: Number(creatorId),
+        creatorName: creator?.creator_name || `Creative Partner #${creatorId}`,
+        creatorEmail: creator?.creator_email || null,
+        role: normalizeCpRoleLabel(creator?.cp_role) || "Creative Partner",
+        rateType: form.rateType,
+        totalCompensation: roundMoney(breakdown.total),
+        basePayout: roundMoney(breakdown.base),
+        editingPayout: roundMoney(breakdown.editing),
+        travelAdjustment: roundMoney(breakdown.travel),
+        bonusAdjustment: roundMoney(breakdown.bonus),
+        notes: form.notes || "",
+        advanceAmount: roundMoney(parseAmount(form.advanceAmount || "0")),
+        advancePaymentDate: form.advancePaymentDate || "",
+        advanceNotes: form.advanceNotes || "",
+      };
+    });
+
+    return {
+      bookingId: Number(currentShoot.booking_id),
+      shootName: currentShoot.shoot_name || `Shoot #${currentShoot.booking_id}`,
+      shootType: currentShoot.shoot_type || null,
+      contentType: currentShoot.content_type || null,
+      eventDate: currentShoot.event_date || null,
+      shootAmount: Number(currentShoot.shoot_amount || 0),
+      compensationMethod: methodToApi(compensationMethod),
+      creators,
+    };
+  };
+
+  const handleAddShootAgreement = async () => {
+    if (!onAddShootAgreement || isSubmitting) return;
+    if (!validateSelectedCompensation()) return;
+    const draft = buildShootAgreementDraft();
+    if (!draft || draft.creators.length === 0) {
+      toast.error("Unable to prepare the shoot agreement.");
+      return;
+    }
+    await onAddShootAgreement(draft);
+  };
+
   const handleFormSubmit = async () => {
-    if (!currentShoot) return;
+    if (!currentShoot || isSubmitting) return;
+    if (!validateSelectedCompensation()) return;
 
     const creators = await Promise.all(selectedCreators.map(async (creatorId) => {
       const form = creatorForms[creatorId] || {
@@ -1154,7 +1283,7 @@ export default function AddCompensationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid gap-3 ${onAddShootAgreement ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"}`}>
             <button
               type="button"
               onClick={onClose}
@@ -1166,10 +1295,20 @@ export default function AddCompensationModal({
               type="button"
               disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
               onClick={handleFormSubmit}
-              className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+              className="h-12 rounded-lg flex items-center justify-center bg-[#12C294] hover:bg-[#0FB487] text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit"}
+              {isSubmitting ? "Submitting..." : onAddShootAgreement ? "Submit to Finance" : "Submit"}
             </button>
+            {onAddShootAgreement ? (
+              <button
+                type="button"
+                disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
+                onClick={() => void handleAddShootAgreement()}
+                className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Add Shoot Agreement
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

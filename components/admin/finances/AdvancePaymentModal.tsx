@@ -79,6 +79,8 @@ export default function AdvancePaymentModal({
   
   const remaining = Math.max(compensation - parsedAdvanceAmount, 0);
   const isInvalidAmount = parsedAdvanceAmount <= 0 || (availableAmount > 0 && parsedAdvanceAmount > availableAmount);
+  const isMissingPaymentDate = !paymentDate;
+  const isMissingNotes = !notes.trim();
   const isMissingRequiredProof = showProofUpload && requireProofUpload && !proofFile;
 
   useEffect(() => {
@@ -269,9 +271,10 @@ export default function AdvancePaymentModal({
           </Button>
           <Button
             type="button"
-            disabled={isSubmitting || isInvalidAmount || isMissingRequiredProof}
+            disabled={isSubmitting || isInvalidAmount || isMissingPaymentDate || isMissingNotes || isMissingRequiredProof}
             onClick={() => {
-              onSubmit({ reason: notes, advanceAmount, paymentDate, proofFile: showProofUpload ? proofFile : null });
+              if (isInvalidAmount || isMissingPaymentDate || isMissingNotes || isMissingRequiredProof) return;
+              onSubmit({ reason: notes.trim(), advanceAmount, paymentDate, proofFile: showProofUpload ? proofFile : null });
             }}
             className="h-10 lg:h-12 w-full rounded-lg bg-[#EED4A7] px-5 text-sm font-semibold text-black hover:bg-[#EED4A7]/92 lg:text-base disabled:cursor-not-allowed disabled:opacity-40"
           >
