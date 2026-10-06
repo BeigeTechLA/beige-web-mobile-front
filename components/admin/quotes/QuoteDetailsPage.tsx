@@ -296,9 +296,12 @@ const mergeVersionQuoteWithPrimaryContext = (
 
   const incomingLeadId = incoming?.lead_id;
   const incomingBookingId = (incoming as Record<string, unknown>)?.booking_id;
-  const incomingActivities = Array.isArray(incoming?.activities) && incoming.activities.length > 0
+  // Activities can contain version-specific payment adjustments. A version detail
+  // response with no activities must stay empty instead of inheriting the latest
+  // quote's activities, which would show new-version amounts on historical quotes.
+  const incomingActivities = Array.isArray(incoming?.activities)
     ? incoming.activities
-    : current.activities;
+    : [];
 
   return {
     ...incoming,
@@ -315,9 +318,6 @@ const mergeVersionQuoteWithPrimaryContext = (
       incomingBookingId !== undefined && incomingBookingId !== null && String(incomingBookingId).trim()
         ? incomingBookingId
         : (current as Record<string, unknown>)?.booking_id,
-    // For historical version views, never inherit activities from the currently loaded quote.
-    // Inheriting current activities leaks newer change metadata (e.g. reduced/additional amounts)
-    // into older versions like Version 1.
     activities: incomingActivities,
     converted_booking_details:
       incoming.converted_booking_details || current.converted_booking_details,
@@ -892,6 +892,7 @@ export default function QuoteDetailsPage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewPaymentSummaryOverrides, setPreviewPaymentSummaryOverrides] = useState<{
+    versionId: string;
     previousTotal?: number;
     revisedTotal?: number;
   } | undefined>(undefined);
@@ -1114,6 +1115,10 @@ export default function QuoteDetailsPage({
   useEffect(() => {
     if (!selectedVersionId) return;
 
+    // Never carry a previous version's payment delta into the newly selected version
+    // while its version detail is still loading.
+    setPreviewPaymentSummaryOverrides(undefined);
+
     let isMounted = true;
     const fetchVersionDetail = async () => {
       setLoading(true);
@@ -1180,6 +1185,7 @@ export default function QuoteDetailsPage({
                 Math.abs(revisedTotal - previousTotal) > 0.009
               ) {
                 setPreviewPaymentSummaryOverrides({
+                  versionId: selectedVersionId,
                   previousTotal,
                   revisedTotal,
                 });
@@ -2276,6 +2282,10 @@ export default function QuoteDetailsPage({
   );
 
   const selectedVersionNumber = getRawVersionNumber(selectedVersionMeta) ?? null;
+  const highestVersionNumber = versions.reduce(
+    (highest, version) => Math.max(highest, getVersionNumberValue(version)),
+    0
+  );
 
   return (
     <div className={`quote-editor-theme min-h-screen ${isDark ? "quote-editor-theme-dark bg-[#0f0f0f] text-white" : "quote-editor-theme-light bg-[#F4F5F7] text-black"}`}>
@@ -3037,7 +3047,14 @@ export default function QuoteDetailsPage({
         onBeforeCopy={handleBeforeShareQuote}
         onBeforeSend={handleBeforeShareQuote}
         showShareActions={isSelectedLatestUsableVersion && !isSelectedVersionRejected}
-        paymentSummaryOverrides={previewPaymentSummaryOverrides}
+        hidePaymentSummary={
+          highestVersionNumber > 0 && Number(selectedVersionId) !== highestVersionNumber
+        }
+        paymentSummaryOverrides={
+          previewPaymentSummaryOverrides?.versionId === selectedVersionId
+            ? previewPaymentSummaryOverrides
+            : undefined
+        }
       />
       <EditAccessModalComponent
         open={pendingEditView !== null}

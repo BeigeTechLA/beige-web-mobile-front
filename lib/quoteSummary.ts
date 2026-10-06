@@ -108,6 +108,12 @@ export interface QuoteSummarySnapshot {
   discountValue: number;
   discountAmount: number;
   finalTotal: number;
+  revisionSummary?: {
+    previousTotal: number;
+    previouslyPaidAmount: number;
+    additionalAmount: number;
+    revisedTotal: number;
+  } | null;
   services: QuoteSummaryLineItem[];
   addons: QuoteSummaryLineItem[];
   logistics: QuoteSummaryLineItem[];
@@ -740,6 +746,17 @@ export const buildPreviewQuoteFromSummary = (
     amount_after_discount: snapshot.finalTotal,
     total_amount: snapshot.finalTotal,
     final_total: snapshot.finalTotal,
+    ...(snapshot.revisionSummary
+      ? {
+          previous_total: snapshot.revisionSummary.previousTotal,
+          additional_payment: {
+            previous_total: snapshot.revisionSummary.previousTotal,
+            previously_paid_amount: snapshot.revisionSummary.previouslyPaidAmount,
+            additional_amount: snapshot.revisionSummary.additionalAmount,
+            revised_total: snapshot.revisionSummary.revisedTotal,
+          },
+        }
+      : {}),
     terms_conditions: snapshot.termsConditions,
     line_items: lineItems,
   };

@@ -33,6 +33,7 @@ type QuotePreviewDocumentProps = {
     revisedTotal?: number;
   };
   hidePriceHistory?: boolean;
+  hidePaymentSummary?: boolean;
 };
 
 const COMPANY_PROFILE = {
@@ -569,6 +570,7 @@ export default function QuotePreviewDocument({
   onOpenServiceAgreement,
   paymentSummaryOverrides,
   hidePriceHistory = false,
+  hidePaymentSummary = false,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
@@ -597,11 +599,13 @@ export default function QuotePreviewDocument({
   // const taxAmount = discountedSubtotal * (taxRate / 100);
   // const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = discountedSubtotal;
-  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData, {
-    previousTotalOverride: paymentSummaryOverrides?.previousTotal,
-    previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
-    revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
-  });
+  const additionalPaymentDetails = hidePaymentSummary
+    ? null
+    : getQuoteAdditionalPaymentDetails(quoteData, {
+        previousTotalOverride: paymentSummaryOverrides?.previousTotal,
+        previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
+        revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
+      });
   const preProductionNotes = getQuotePreProductionNotes(quoteData);
 
   const resolvedQuoteId = String(
