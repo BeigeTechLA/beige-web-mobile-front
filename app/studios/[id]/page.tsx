@@ -209,10 +209,10 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
               <span className="underline underline-offset-2 underline underline-offset-2-offset-4 decoration-white/20">{DEFAULT_DISPLAY_ADDRESS}</span>
             </div>
 
-            <button className="flex items-center gap-1 text-white font-medium">
+            {/* <button className="flex items-center gap-1 text-white font-medium">
               <ExternalLink size={16} />
               Share
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -749,12 +749,12 @@ const StudioDetailContent = ({ studio: initialStudio }: { studio?: StudioCatalog
               </div>
 
               {/* Action Button */}
-              <Link
+              {/* <Link
                 href={`/book-a-studio?studioId=${studio.id}${selectedPricingKey ? `&pricingKey=${selectedPricingKey}` : ""}`}
                 className="flex h-12 lg:h-15 w-full items-center justify-center rounded-lg bg-[#E8D1AB] text-black font-medium text-sm lg:text-lg hover:bg-[#dfc498] active:scale-[0.98] transition-all"
               >
                 Add this Studio
-              </Link>
+              </Link> */}
             </aside>
           </div>
         </div>
