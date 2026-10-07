@@ -538,6 +538,7 @@ export const BookAShootV4 = () => {
     ? [...new Set([...baseContentTypes, "studio"])]
     : baseContentTypes;
   const selectedHybridCreators = Number(creativeTeam.photoVideoCreator || 0);
+  const selectedPhotographers = Number(creativeTeam.photographer || 0);
   const hasPhotoCoverage =
     contentTypes.includes("photographer") ||
     selectedHybridCreators > 0;
@@ -631,7 +632,8 @@ export const BookAShootV4 = () => {
     includedPerHourOverride: canShowPhotoEdits
       ? getV4PhotoEditsPerHour(
         bookingState.selectedOccasion,
-        selectedHybridCreators > 0
+        selectedHybridCreators > 0,
+        selectedPhotographers > 0
       )
       : 0,
   });
