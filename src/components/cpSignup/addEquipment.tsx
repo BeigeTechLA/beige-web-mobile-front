@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
 import { getEquipmentSuggestions } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type EquipmentOption = {
   equipment_id: string | number;
@@ -24,12 +25,9 @@ type AddEquipmentsProps = {
 };
 
 // Added 'names' to props
-export default function AddEquipments({
-  value = [],
-  names = [],
-  onChange,
-  isDark = true,
-}: AddEquipmentsProps) {
+export default function AddEquipments({ value = [], names = [], onChange, isDark: isDarkProp }: AddEquipmentsProps) {
+  const { isDark: resolvedIsDark } = useResolvedTheme();
+  const isDark = isDarkProp ?? resolvedIsDark;
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<EquipmentOption[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -164,8 +162,8 @@ export default function AddEquipments({
             }}
             className={`h-12 w-full focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0 ${
               isDark
-                ? "border-white/20 bg-[#111111] text-white placeholder:text-white/30"
-                : "border-black/20 bg-white text-black placeholder:text-black/30"
+                ? "border-[#333333] bg-[#111111] text-white placeholder:text-white/35"
+                : "border-[#D7D7D7] bg-white text-black placeholder:text-black/35"
             }`}
           />
         </PopoverTrigger>
@@ -176,8 +174,8 @@ export default function AddEquipments({
           sideOffset={6}
           className={`z-[130] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0 shadow-xl ${
             isDark
-              ? "border-white/20 bg-[#111111] text-white"
-              : "border-black/10 bg-white text-black"
+              ? "border-[#333333] bg-[#111111] text-white"
+              : "border-[#E5E5E5] bg-white text-black"
           }`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
@@ -185,11 +183,11 @@ export default function AddEquipments({
           <Command className={`bg-transparent ${isDark ? "text-white" : "text-black"}`}>
             <CommandList className="max-h-64 border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {isSearching ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+                <div className={`py-6 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
                   Searching equipment...
                 </div>
               ) : suggestions.length === 0 ? (
-                <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+                <CommandEmpty className={`py-6 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
                   No equipment found.
                 </CommandEmpty>
               ) : (
@@ -201,7 +199,7 @@ export default function AddEquipments({
                     className={`cursor-pointer px-3 py-2 ${
                       isDark
                         ? "text-white aria-selected:bg-neutral-800 aria-selected:text-white"
-                        : "text-black aria-selected:bg-neutral-100 aria-selected:text-black"
+                        : "text-black aria-selected:bg-[#F4F5F7] aria-selected:text-black"
                     }`}
                   >
                     {equipment.equipment_name}
@@ -226,8 +224,8 @@ export default function AddEquipments({
               key={String(equipmentId)}
               className={`flex items-center justify-between rounded-md border px-3 py-3 text-sm shadow-sm ${
                 isDark
-                  ? "border-white/20 bg-[#111111] text-white"
-                  : "border-black/10 bg-white text-black"
+                  ? "border-[#333333] bg-[#111111] text-white"
+                  : "border-[#E5E5E5] bg-white text-black"
               }`}
             >
               <span>{name}</span>

@@ -171,34 +171,64 @@ const getItemKind = (item: CalendarShoot): CalendarItemKind => {
   return "shoot";
 };
 
-const itemColors = (kind: CalendarItemKind) => {
+const itemColors = (kind: CalendarItemKind, isDark: boolean) => {
   if (kind === "meeting") {
-    return {
-      text: "#5BA8FF",
-      border: "#355E84",
-      bg: "#182532",
-      dot: "#5BA8FF",
-      badge: "#2E79E8",
-    };
+    return isDark
+      ? {
+          text: "#78B9FF",
+          border: "#355E84",
+          bg: "#182532",
+          dot: "#5BA8FF",
+          badgeBg: "#1D3550",
+          badgeText: "#78B9FF",
+        }
+      : {
+          text: "#2F7BF1",
+          border: "#B9D9FF",
+          bg: "#EDF6FF",
+          dot: "#5BA8FF",
+          badgeBg: "#EDF6FF",
+          badgeText: "#2F7BF1",
+        };
   }
 
   if (kind === "deleted") {
-    return {
-      text: "#FF7D7D",
-      border: "#915B5B",
-      bg: "#503733",
-      dot: "#FF7B83",
-      badge: "#EE555B",
-    };
+    return isDark
+      ? {
+          text: "#FF9292",
+          border: "#915B5B",
+          bg: "#503733",
+          dot: "#FF7B83",
+          badgeBg: "#5A2E31",
+          badgeText: "#FF9292",
+        }
+      : {
+          text: "#D64545",
+          border: "#F1BABA",
+          bg: "#FFF0F0",
+          dot: "#FF7B83",
+          badgeBg: "#FFF0F0",
+          badgeText: "#D64545",
+        };
   }
 
-  return {
-    text: "#E8D1AB",
-    border: "#716550",
-    bg: "#2D2A25",
-    dot: "#DDBE7A",
-    badge: "#12B76A",
-  };
+  return isDark
+    ? {
+        text: "#E8D1AB",
+        border: "#716550",
+        bg: "#2D2A25",
+        dot: "#DDBE7A",
+        badgeBg: "#2A261F",
+        badgeText: "#E8D1AB",
+      }
+    : {
+        text: "#8B6B36",
+        border: "#E6D2AD",
+        bg: "#FFF8EC",
+        dot: "#DDBE7A",
+        badgeBg: "#FFF8EC",
+        badgeText: "#8B6B36",
+      };
 };
 
 const getLocation = (item: CalendarShoot) => {
@@ -762,7 +792,7 @@ export const ShootsCalendarView = ({
                   type="button"
                   key={dateKey(date)}
                   onClick={() => openDay(date)}
-                  className={`relative h-[145px] border-b border-r ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"} p-[7px] text-left transition hover:bg-white/[0.015] ${
+                  className={`relative h-[145px] border-b border-r ${isDark ? "border-[#333333] hover:bg-white/[0.015]" : "border-[#E5E5E5] bg-white hover:bg-[#FAFAFA]"} p-[7px] text-left transition-colors ${
                     index % 7 === 6 ? "border-r-0" : ""
                   }`}
                 >
@@ -772,8 +802,12 @@ export const ShootsCalendarView = ({
                         todayCell
                           ? "bg-[#E8D1AB] font-semibold text-black"
                           : isCurrentMonth
-                            ? "text-[#F2F2F2]"
-                            : "text-[#505050]"
+                            ? isDark
+                              ? "text-[#F2F2F2]"
+                              : "text-[#323232]"
+                            : isDark
+                              ? "text-[#505050]"
+                              : "text-[#B8B8B8]"
                       }`}
                     >
                       {date.getDate()}
@@ -783,7 +817,7 @@ export const ShootsCalendarView = ({
                   <div className="mt-2 space-y-1">
                     {items.slice(0, 3).map((item) => {
                       const kind = getItemKind(item);
-                      const colors = itemColors(kind);
+                      const colors = itemColors(kind, isDark);
                       return (
                         <div
                           key={item.id}
@@ -791,7 +825,7 @@ export const ShootsCalendarView = ({
                           style={{
                             borderColor: colors.border,
                             color: colors.text,
-                            backgroundColor: `${colors.bg}CC`,
+                            backgroundColor: colors.bg,
                           }}
                         >
                           <span className="mr-1 shrink-0 opacity-80">
@@ -849,16 +883,16 @@ export const ShootsCalendarView = ({
       <div className="overflow-x-auto overflow-y-hidden">
         <div className="min-w-[980px]">
           <div
-            className="grid border-b border-[#2A2A2A]"
+            className={`grid border-b ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}
             style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}
           >
-            <div className="border-r border-[#2A2A2A]" />
+            <div className={`border-r ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`} />
             {weekDates.map((date) => (
               <button
                 type="button"
                 key={dateKey(date)}
                 onClick={() => openDay(date)}
-                className="h-[71px] border-r border-[#2A2A2A] last:border-r-0"
+                className={`h-[71px] border-r last:border-r-0 transition-colors ${isDark ? "border-[#2A2A2A] hover:bg-white/[0.02]" : "border-[#E5E5E5] bg-white hover:bg-[#FAFAFA]"}`}
               >
                 <p className="mt-2 text-[12px] tracking-[0.08em] text-[#838383]">
                   {WEEKDAYS[date.getDay()]}
@@ -867,7 +901,9 @@ export const ShootsCalendarView = ({
                   className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-semibold ${
                     isSameDay(date, today)
                       ? "bg-[#E8D1AB] text-black"
-                      : "text-[#A6A6A6]"
+                      : isDark
+                        ? "text-[#A6A6A6]"
+                        : "text-[#323232]"
                   }`}
                 >
                   {date.getDate()}
@@ -877,11 +913,11 @@ export const ShootsCalendarView = ({
           </div>
 
           <div
-            className="grid"
+            className={`grid ${isDark ? "bg-[#111111]" : "bg-white"}`}
             style={{ gridTemplateColumns: "66px repeat(7, minmax(118px,1fr))" }}
           >
             <div
-              className="relative border-r border-[#2A2A2A]"
+              className={`relative border-r ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}
               style={{ height: timelineHeight }}
             >
               {hours.slice(0, -1).map((hour) => (
@@ -900,20 +936,20 @@ export const ShootsCalendarView = ({
               return (
                 <div
                   key={dateKey(date)}
-                  className="relative border-r border-[#2A2A2A] last:border-r-0"
+                  className={`relative border-r last:border-r-0 ${isDark ? "border-[#2A2A2A]" : "border-[#E5E5E5]"}`}
                   style={{ height: timelineHeight }}
                 >
                   {hours.slice(0, -1).map((hour) => (
                     <div
                       key={hour}
-                      className="absolute left-0 right-0 border-t border-[#1B1B1B]"
+                      className={`absolute left-0 right-0 border-t ${isDark ? "border-[#1B1B1B]" : "border-[#EFEFEF]"}`}
                       style={{ top: (hour - startHour) * HOUR_HEIGHT }}
                     />
                   ))}
 
                   {items.map((item) => {
                     const kind = getItemKind(item);
-                    const colors = itemColors(kind);
+                    const colors = itemColors(kind, isDark);
                     const geometry = getEventGeometry(item, startHour, endHour);
                     return (
                       <button
@@ -964,7 +1000,7 @@ export const ShootsCalendarView = ({
         <button
           type="button"
           onClick={() => openDay(focusDate)}
-          className="flex h-[81px] w-full items-center border-b border-[#2B2B2B] px-8 text-left"
+          className={`flex h-[81px] w-full items-center border-b px-8 text-left transition-colors ${isDark ? "border-[#2B2B2B] bg-[#111111]" : "border-[#E5E5E5] bg-white"}`}
         >
           <div className="mr-4 flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-full bg-[#E8D1AB] text-black">
             <span className="text-[9px] font-semibold uppercase leading-none">
@@ -975,22 +1011,25 @@ export const ShootsCalendarView = ({
             </span>
           </div>
           <div>
-            <p className="text-[15px] font-semibold text-[#EAEAEA]">
+            <p className={`text-[15px] font-semibold ${isDark ? "text-[#EAEAEA]" : "text-[#323232]"}`}>
               {focusDate.toLocaleDateString("default", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
               })}
             </p>
-            <p className="mt-1 text-[12px] text-[#424242]">
+            <p className={`mt-1 text-[12px] ${isDark ? "text-[#777777]" : "text-[#777777]"}`}>
               {dayItems.length} events scheduled
             </p>
           </div>
         </button>
 
-        <div className="grid" style={{ gridTemplateColumns: "95px 1fr" }}>
+        <div
+          className={isDark ? "grid bg-[#111111]" : "grid bg-white"}
+          style={{ gridTemplateColumns: "95px 1fr" }}
+        >
           <div
-            className="relative border-r border-[#1F1F1F]"
+            className={`relative border-r ${isDark ? "border-[#1F1F1F]" : "border-[#E5E5E5]"}`}
             style={{ height: timelineHeight }}
           >
             {hours.slice(0, -1).map((hour) => (
@@ -1008,14 +1047,14 @@ export const ShootsCalendarView = ({
             {hours.slice(0, -1).map((hour) => (
               <div
                 key={hour}
-                className="absolute left-0 right-0 border-t border-[#111111]"
+                className={`absolute left-0 right-0 border-t ${isDark ? "border-[#111111]" : "border-[#EFEFEF]"}`}
                 style={{ top: (hour - startHour) * HOUR_HEIGHT }}
               />
             ))}
 
             {dayItems.map((item) => {
               const kind = getItemKind(item);
-              const colors = itemColors(kind);
+              const colors = itemColors(kind, isDark);
               const geometry = getEventGeometry(item, startHour, endHour);
               const location = getLocation(item);
 
@@ -1044,7 +1083,7 @@ export const ShootsCalendarView = ({
                         {formatTime(item.end_time)}
                       </p>
                       {location && (
-                        <p className="mt-1 truncate text-[11px] text-[#696969]">
+                        <p className={`mt-1 truncate text-[11px] ${isDark ? "text-white/45" : "text-black/45"}`}>
                           {location}
                         </p>
                       )}
@@ -1053,18 +1092,8 @@ export const ShootsCalendarView = ({
                     <span
                       className="shrink-0 rounded-full px-3 py-1 text-[12px]"
                       style={{
-                        backgroundColor:
-                          kind === "deleted"
-                            ? "#EE555B"
-                            : kind === "meeting"
-                              ? "#1D1D1D"
-                              : "#26323C",
-                        color:
-                          kind === "deleted"
-                            ? "#FFFFFF"
-                            : kind === "meeting"
-                              ? "#858585"
-                              : "#58A9F5",
+                        backgroundColor: colors.badgeBg,
+                        color: colors.badgeText,
                       }}
                     >
                       {kind === "deleted"
@@ -1293,7 +1322,7 @@ export const ShootsCalendarView = ({
 
     return (
       <div
-        className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-[2px]"
+        className={`fixed inset-0 z-[120] backdrop-blur-[2px] ${isDark ? "bg-black/60" : "bg-black/35"}`}
         onClick={() => setSelectedDate(null)}
       >
         <aside
@@ -1436,7 +1465,7 @@ export const ShootsCalendarView = ({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl border ${isDark ? "border-[#333333] bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
+      className={`relative w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${isDark ? "border-[#333333] bg-[#111111] text-white" : "border-[#E5E5E5] bg-white text-[#171717]"}`}
     >
       {renderTopToolbar()}
 

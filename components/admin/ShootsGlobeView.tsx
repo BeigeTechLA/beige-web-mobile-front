@@ -234,31 +234,35 @@ const getShootStatus = (project: any): GlobeStatus => {
 
 const statusConfig: Record<
   GlobeStatus,
-  { label: string; marker: string; ring: string; badge: string }
+  { label: string; marker: string; ring: string; badgeDark: string; badgeLight: string }
 > = {
   active: {
     label: "Active Productions",
     marker: "bg-[#22C55E]",
     ring: "border-[#22C55E]",
-    badge: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
+    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
   },
   upcoming: {
     label: "Upcoming Shoots",
     marker: "bg-[#60A5FA]",
     ring: "border-[#60A5FA]",
-    badge: "border border-[#CFD8FF] bg-[#EEF2FF] text-[#4A5FD3]",
+    badgeDark: "border border-[#355E84] bg-[#182532] text-[#78B9FF]",
+    badgeLight: "border border-[#CFD8FF] bg-[#EEF2FF] text-[#4A5FD3]",
   },
   completed: {
     label: "Completed Shoots",
     marker: "bg-[#10B981]",
     ring: "border-[#10B981]",
-    badge: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
+    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
   },
   cancelled: {
     label: "Cancelled Shoots",
     marker: "bg-[#F87171]",
     ring: "border-[#F87171]",
-    badge: "border border-[#F4C0C0] bg-[#FFE8E8] text-[#D03434]",
+    badgeDark: "border border-[#704042] bg-[#3A2022] text-[#FF9292]",
+    badgeLight: "border border-[#F4C0C0] bg-[#FFE8E8] text-[#D03434]",
   },
 };
 
@@ -844,7 +848,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
       color: isDark ? "rgb(19,19,19)" : "rgb(248,248,248)",
       "high-color": isDark ? "rgb(28,28,30)" : "rgb(226,232,240)",
       "horizon-blend": 0.08,
-      "space-color": isDark ? "rgb(8,8,9)" : "rgb(18,18,20)",
+      "space-color": isDark ? "rgb(8,8,9)" : "rgb(246,247,249)",
       "star-intensity": isDark ? 0.55 : 0.15,
     }),
     [isDark],
@@ -852,12 +856,41 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
   return (
     <div
-      className={`relative h-[calc(100vh-250px)] min-h-[640px] w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${
+      className={`shoots-globe-view relative h-[calc(100vh-250px)] min-h-[640px] w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${isDark ? "shoots-globe-dark" : "shoots-globe-light"} ${
         isDark
           ? "border-[#333333] bg-[#111111]"
           : "border-[#E5E5E5] bg-white"
       }`}
     >
+      <style jsx global>{`
+        .shoots-globe-view .mapboxgl-ctrl-group {
+          overflow: hidden;
+          border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-group {
+          background: #171717;
+          border: 1px solid #333333;
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-group button + button {
+          border-top-color: #333333;
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-icon {
+          filter: invert(1) opacity(0.72);
+        }
+        .shoots-globe-light .mapboxgl-ctrl-group {
+          background: #ffffff;
+          border: 1px solid #e5e5e5;
+        }
+        .shoots-globe-light .mapboxgl-ctrl-group button + button {
+          border-top-color: #e5e5e5;
+        }
+        .shoots-globe-light .mapboxgl-ctrl-icon {
+          filter: none;
+          opacity: 0.68;
+        }
+      `}</style>
+
       {isValidMapboxToken ? (
         <MapboxMap
           ref={mapRef}
@@ -1152,7 +1185,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
       {isCustomRangeOpen && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4 py-6"
+          className={`fixed inset-0 z-[120] flex items-center justify-center px-4 py-6 ${isDark ? "bg-black/60" : "bg-black/35"}`}
           onClick={handleCustomRangeCancel}
         >
           <div
@@ -1347,7 +1380,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
           <div className={`border-b p-5 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className="mb-3 flex items-start justify-between gap-4 pr-10">
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-semibold capitalize ${statusConfig[selectedEvent.status].badge}`}
+                className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-semibold capitalize ${isDark ? statusConfig[selectedEvent.status].badgeDark : statusConfig[selectedEvent.status].badgeLight}`}
               >
                 {selectedEvent.status}
               </span>

@@ -12,6 +12,7 @@ import Map, {
 } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MapPin, Search, X } from "lucide-react";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -67,7 +68,7 @@ interface LocationPickerProps {
 
 /* ----------------------------- DEFAULT COLORS ----------------------------- */
 
-const defaultColors: LocationPickerColors = {
+const darkColors: LocationPickerColors = {
   inputBg: "#101010",
   inputBorder: "rgba(255,255,255,0.2)",
   inputBorderHover: "#E8D1AB",
@@ -84,44 +85,43 @@ const defaultColors: LocationPickerColors = {
   iconColorSelected: "#E8D1AB",
   buttonPrimaryBg: "#E8D1AB",
   buttonPrimaryBgHover: "#dcb98a",
-  buttonPrimaryText: "#000",
+  buttonPrimaryText: "#000000",
   buttonSecondaryBg: "transparent",
   buttonSecondaryBgHover: "rgba(255,255,255,0.05)",
-  buttonSecondaryText: "#FFF",
+  buttonSecondaryText: "#FFFFFF",
   accent: "#E8D1AB",
   accentHover: "#dcb98a",
   paperBg: "#1A1A1A",
   divider: "rgba(255,255,255,0.1)",
-  searchResultHover: "rgba(255,255,255,0.05)"
+  searchResultHover: "rgba(255,255,255,0.05)",
 };
-
 
 const lightColors: LocationPickerColors = {
   inputBg: "#FFFFFF",
-  inputBorder: "rgba(0,0,0,0.2)",
-  inputBorderHover: "#CBB38B",
-  inputBorderFocus: "#CBB38B",
-  labelText: "rgba(0,0,0,0.6)",
+  inputBorder: "#D7D7D7",
+  inputBorderHover: "#C9AE80",
+  inputBorderFocus: "#C9AE80",
+  labelText: "rgba(0,0,0,0.60)",
   placeholderText: "rgba(0,0,0,0.35)",
-  primaryText: "#111111",
+  primaryText: "#171717",
   secondaryText: "rgba(0,0,0,0.45)",
-  iconBg: "#F4F4F5",
-  iconBgHover: "rgba(203,179,139,0.12)",
+  iconBg: "#F4F5F7",
+  iconBgHover: "#F7F1E7",
   iconColor: "rgba(0,0,0,0.45)",
-  iconColorHover: "#CBB38B",
-  iconBgSelected: "rgba(203,179,139,0.18)",
-  iconColorSelected: "#CBB38B",
+  iconColorHover: "#9B7B4F",
+  iconBgSelected: "#FFF8EC",
+  iconColorSelected: "#9B7B4F",
   buttonPrimaryBg: "#E8D1AB",
-  buttonPrimaryBgHover: "#DCB98A",
+  buttonPrimaryBgHover: "#DCC49C",
   buttonPrimaryText: "#000000",
   buttonSecondaryBg: "transparent",
-  buttonSecondaryBgHover: "rgba(0,0,0,0.05)",
-  buttonSecondaryText: "#111111",
-  accent: "#CBB38B",
-  accentHover: "#BFA57C",
+  buttonSecondaryBgHover: "rgba(0,0,0,0.04)",
+  buttonSecondaryText: "#323232",
+  accent: "#C9A96E",
+  accentHover: "#B69259",
   paperBg: "#FFFFFF",
-  divider: "rgba(0,0,0,0.1)",
-  searchResultHover: "rgba(0,0,0,0.05)",
+  divider: "#E5E5E5",
+  searchResultHover: "#F7F7F7",
 };
 
 /* ============================ COMPONENT ============================ */
@@ -131,9 +131,11 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
   onChange,
   placeholder = "Select location on map",
   colors: customColors,
-  isDark = true,
+  isDark: isDarkProp,
 }) => {
-  const colors = { ...(isDark ? defaultColors : lightColors), ...customColors };
+  const { isDark: resolvedIsDark } = useResolvedTheme();
+  const isDark = isDarkProp ?? resolvedIsDark;
+  const colors = { ...(isDark ? darkColors : lightColors), ...customColors };
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -366,12 +368,8 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
               setShouldShowDropdown(true);
             }}
             placeholder="Search Your location ..."
-            style={{
-              backgroundColor: colors.inputBg,
-              color: colors.primaryText,
-              borderColor: colors.divider,
-            }}
-            className="w-full h-11 pl-9 pr-3 rounded-lg border outline-none focus:border-[#E8D1AB] transition-colors"
+            style={{ backgroundColor: colors.inputBg, color: colors.primaryText, borderColor: colors.divider }}
+            className={`w-full h-11 pl-9 pr-3 rounded-lg border outline-none focus:border-[#E8D1AB] transition-colors ${isDark ? "placeholder:text-white/30" : "placeholder:text-black/35"}`}
           />
         </div>
 
@@ -383,9 +381,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
                 type="button"
                 onClick={() => selectSearchResult(r)}
                 style={{ borderBottomColor: colors.divider }}
-                className={`w-full text-left px-4 py-3 border-b last:border-0 transition-colors ${
-                  isDark ? "hover:bg-white/5" : "hover:bg-black/5"
-                }`}
+                className={`w-full text-left px-4 py-3 border-b last:border-0 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-[#F7F7F7]"}`}
               >
                 <div style={{ color: colors.primaryText }} className="text-sm font-medium">{r.text}</div>
                 <div style={{ color: colors.secondaryText }} className="text-xs opacity-60">{r.place_name}</div>
@@ -458,7 +454,7 @@ export const LocationPickerSignup: React.FC<LocationPickerProps> = ({
             )}
           </Map>
         ) : (
-          <div className="h-full flex items-center justify-center text-xs opacity-60">
+          <div style={{ color: colors.secondaryText, backgroundColor: colors.inputBg }} className="h-full flex items-center justify-center text-xs">
             Mapbox token missing or invalid
           </div>
         )}

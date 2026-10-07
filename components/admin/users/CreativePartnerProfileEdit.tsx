@@ -37,6 +37,7 @@ import { adminApi } from "@/lib/api";
 import { compressImage } from "@/lib/utils";
 import { toast } from "sonner";
 import { getLatestProfilePhoto } from "@/lib/crewFiles";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 interface EditProps {
   id: string;
@@ -187,8 +188,10 @@ const normalizeEquipmentForEdit = (payload: any) => {
   };
 };
 
-export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
+export function CreativePartnerProfileEdit({ id, isDark: isDarkProp }: EditProps) {
   const router = useRouter();
+  const { isDark: resolvedIsDark } = useResolvedTheme();
+  const isDark = isDarkProp ?? resolvedIsDark;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [socialModalOpen, setSocialModalOpen] = useState(false);
@@ -1053,10 +1056,10 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   if (isInitialLoading) {
     return (
       <div className={`flex min-h-screen items-center justify-center ${containerStyles}`}>
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-[#111111] px-8 py-10 shadow-2xl">
+        <div className={`flex flex-col items-center gap-4 rounded-2xl border px-8 py-10 shadow-2xl ${isDark ? "border-white/10 bg-[#111111]" : "border-black/10 bg-white"}`}>
           <Loader2 className="h-10 w-10 animate-spin text-[#E8D1AB]" />
           <div className="text-center">
-            <p className="text-base font-semibold text-white">Loading profile...</p>
+            <p className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Loading profile...</p>
           </div>
         </div>
       </div>
@@ -1080,6 +1083,7 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
         onCancel={() => router.push(`/admin/users/creative-partners/${id}`)}
         onSave={handleSaveProfile}
         isSaving={isSaving}
+        isDark={isDark}
         leftContent={
           <>
         <StepOne
@@ -1165,6 +1169,7 @@ function AdminEditLayout({
   onCancel,
   onSave,
   isSaving,
+  isDark,
   leftContent,
 }: {
   title: string;
@@ -1173,12 +1178,13 @@ function AdminEditLayout({
   onCancel: () => void;
   onSave: () => void;
   isSaving: boolean;
+  isDark: boolean;
   leftContent: React.ReactNode;
 }) {
   return (
     <div className="mx-auto flex h-screen w-full max-w-7xl flex-col overflow-hidden px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-white/10 bg-black/10 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
-        <div className="flex shrink-0 flex-col gap-6 border-b border-white/10 bg-[#101010] px-4 py-5 md:px-8 md:py-6 lg:px-10">
+      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${isDark ? "border-white/10 bg-black/10" : "border-black/10 bg-white"}`}>
+        <div className={`flex shrink-0 flex-col gap-6 border-b px-4 py-5 md:px-8 md:py-6 lg:px-10 ${isDark ? "border-white/10 bg-[#101010]" : "border-black/10 bg-white"}`}>
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <button
@@ -1186,15 +1192,15 @@ function AdminEditLayout({
                 onClick={onBack}
                 className="mb-6 flex items-center justify-center transition-all group"
               >
-                <ArrowLeft className="mr-2 h-4 w-4 text-white/60 group-hover:text-[#FFF]" />
-                <span className="text-white/60 group-hover:text-[#FFF] transition-colors text-sm">Back</span>
+                <ArrowLeft className={`mr-2 h-4 w-4 ${isDark ? "text-white/60 group-hover:text-white" : "text-black/55 group-hover:text-black"}`} />
+                <span className={`transition-colors text-sm ${isDark ? "text-white/60 group-hover:text-white" : "text-black/55 group-hover:text-black"}`}>Back</span>
               </button>
 
               <div className="max-w-none">
-                <h1 className="text-xl lg:text-3xl font-semibold text-white leading-tight">
+                <h1 className={`text-xl lg:text-3xl font-semibold leading-tight ${isDark ? "text-white" : "text-black"}`}>
                   {title}
                 </h1>
-                <p className="text-white/50 mt-4 text-lg leading-relaxed">
+                <p className={`mt-4 text-lg leading-relaxed ${isDark ? "text-white/50" : "text-black/50"}`}>
                   {description}
                 </p>
               </div>
@@ -1205,7 +1211,7 @@ function AdminEditLayout({
                 type="button"
                 variant="outline"
                 onClick={onCancel}
-                className="h-12 w-full rounded-[12px] border-white/15 bg-transparent px-5 text-sm font-semibold text-white hover:bg-white/5 hover:text-white sm:w-36"
+                className={`h-12 w-full rounded-[12px] border px-5 text-sm font-semibold sm:w-36 ${isDark ? "border-white/15 bg-transparent text-white hover:bg-white/5 hover:text-white" : "border-black/10 bg-white text-black hover:bg-[#F4F5F7] hover:text-black"}`}
               >
                 Cancel
               </Button>
@@ -1256,7 +1262,7 @@ function StepOne({
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xl lg:text-2xl font-semibold text-white">Basic Information</h2>
+        <h2 className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>Basic Information</h2>
         <p className={`text-sm ${mutedText}`}>Read through the partner basics before making edits.</p>
       </div>
 
@@ -1309,7 +1315,7 @@ function StepOne({
             <SelectTrigger className={`${fieldStyles} mt-2 h-14 rounded-[12px] px-4`}>
               <SelectValue placeholder="Select travel radius" />
             </SelectTrigger>
-            <SelectContent position="popper" className="bg-[#1A1A1A] border-white/20 text-white z-[110]">
+            <SelectContent position="popper" className={`z-[110] ${isDark ? "bg-[#1A1A1A] border-white/20 text-white" : "bg-white border-black/10 text-black"}`}>
               {distanceOptions.map((option: any) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -1344,12 +1350,13 @@ function StepOne({
             }));
           }}
           placeholder="Search your location"
+          isDark={isDark}
         />
       </div>
 
-      <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-        <h3 className="text-base font-semibold text-white">Profile Picture *</h3>
-        <p className="mb-5 text-xs text-white/40">Maximum file size allowed: 5MB</p>
+      <div className={`rounded-[24px] border p-5 ${isDark ? "border-white/10 bg-white/5" : "border-black/10 bg-[#F4F5F7]"}`}>
+        <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Profile Picture *</h3>
+        <p className={`mb-5 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>Maximum file size allowed: 5MB</p>
 
         <div className="flex items-center gap-5">
           <button
@@ -1357,7 +1364,7 @@ function StepOne({
             onClick={onUploadProfile}
             className={`group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border transition ${
               data.profileImage ? "border-[#E8D1AB]" : "border-red-500/50"
-            } bg-[#1A1A1A] hover:border-[#E8D1AB]/70`}
+            } ${isDark ? "bg-[#1A1A1A]" : "bg-white"} hover:border-[#E8D1AB]/70`}
             aria-label="Edit profile picture"
           >
             {isCompressing ? (
@@ -1367,7 +1374,7 @@ function StepOne({
                 {data.profilePreview ? (
                   <img src={data.profilePreview} alt="Profile" className="h-full w-full object-cover p-1" />
                 ) : (
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/35">Preview</span>
+                  <span className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/35" : "text-black/35"}`}>Preview</span>
                 )}
                 <span className="absolute flex h-20 w-20 items-center justify-center rounded-full bg-black/0 text-[10px] font-medium uppercase tracking-[0.2em] text-transparent transition group-hover:bg-black/35 group-hover:text-white/90">
                   Edit
@@ -1385,7 +1392,7 @@ function StepOne({
               <Camera className="h-4 w-4" />
               Upload Profile Picture
             </button>
-            <p className="text-xs text-white/35">Click the photo or button to update it.</p>
+            <p className={`text-xs ${isDark ? "text-white/35" : "text-black/40"}`}>Click the photo or button to update it.</p>
           </div>
         </div>
       </div>
@@ -1418,14 +1425,14 @@ function StepTwo({
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xl lg:text-2xl font-semibold text-white">Professional Details</h2>
-        <p className="text-sm text-white/50">Create your profile to get discovered by production teams.</p>
+        <h2 className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>Professional Details</h2>
+        <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>Create your profile to get discovered by production teams.</p>
       </div>
 
-      <div className={`rounded-[18px] border ${sectionBorder} bg-[#111111] p-5 lg:p-6`}>
+      <div className={`rounded-[18px] border ${sectionBorder} p-5 lg:p-6 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
         <div>
-          <h3 className="text-base font-semibold text-white">Select Your Role *</h3>
-          <p className="text-sm text-white/55">Select at least one role</p>
+          <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Select Your Role *</h3>
+          <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>Select at least one role</p>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
           {roleOptions.map((role) => {
@@ -1438,7 +1445,7 @@ function StepTwo({
                 className={`min-h-[48px] rounded-full border px-5 py-3 text-sm font-medium transition-colors ${
                   active
                     ? "border-[#E8D1AB] bg-[#E8D1AB] text-black"
-                    : "border-white/15 bg-transparent text-white hover:border-white/35"
+                    : isDark ? "border-white/15 bg-transparent text-white hover:border-white/35" : "border-black/10 bg-[#F4F5F7] text-black hover:border-black/25"
                 }`}
               >
                 {role.label}
@@ -1456,6 +1463,7 @@ function StepTwo({
           value={data.yoe}
           onChange={(value) => setData((prev: any) => ({ ...prev, yoe: value }))}
           placeholder="e.g. 5"
+          isDark={isDark}
         />
         <OutlinedField
           label="Hourly Desired Rates ($) *"
@@ -1465,26 +1473,27 @@ function StepTwo({
           onChange={(value) => setData((prev: any) => ({ ...prev, hourlyRate: value }))}
           placeholder="0.00"
           prefix={<CircleDollarSign className="h-5 w-5 text-[#E8D1AB]" />}
+          isDark={isDark}
         />
       </div>
 
-      <div className={`rounded-[18px] border ${sectionBorder} bg-[#111111] p-5 lg:p-6`}>
+      <div className={`rounded-[18px] border ${sectionBorder} p-5 lg:p-6 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
         <div>
-          <h3 className="text-base font-semibold text-white">Bio / About (Optional)</h3>
-          <p className="text-sm text-white/55">Brief description of expertise...</p>
+          <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Bio / About (Optional)</h3>
+          <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>Brief description of expertise...</p>
         </div>
         <Textarea
-          className={`${fieldStyles} mt-4 min-h-[118px] rounded-[12px] border-white/15 p-4`}
+          className={`${fieldStyles} mt-4 min-h-[118px] rounded-[12px] p-4 ${isDark ? "border-white/15" : "border-black/10"}`}
           placeholder="Brief description of expertise..."
           value={data.bio}
           onChange={(e) => setData((prev: any) => ({ ...prev, bio: e.target.value }))}
         />
       </div>
 
-      <div className={`rounded-[18px] border ${sectionBorder} bg-[#111111] p-5 lg:p-6`}>
+      <div className={`rounded-[18px] border ${sectionBorder} p-5 lg:p-6 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
         <div>
-          <h3 className="text-base font-semibold text-white">Skills *</h3>
-          <p className="text-sm text-white/55">Select at least one competency</p>
+          <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Skills *</h3>
+          <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>Select at least one competency</p>
         </div>
         <div className="mt-4">
           <AddSkills
@@ -1496,12 +1505,12 @@ function StepTwo({
         </div>
       </div>
 
-      <div className={`rounded-[18px] border ${sectionBorder} bg-[#111111] p-5 lg:p-6`}>
+      <div className={`rounded-[18px] border ${sectionBorder} p-5 lg:p-6 ${isDark ? "bg-[#111111]" : "bg-white"}`}>
         <div>
-          <h3 className="text-base font-semibold text-white">
+          <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
             What Equipment Do You Own? {isOnlyEditorRole ? "(Optional)" : "*"}
           </h3>
-          <p className="text-sm text-white/55">List the gear you own</p>
+          <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>List the gear you own</p>
         </div>
 
         <div className="mt-4">
@@ -1515,6 +1524,7 @@ function StepTwo({
                 equipmentNames: names,
               }))
             }
+            isDark={isDark}
           />
         </div>
       </div>
@@ -1569,15 +1579,15 @@ function StepThree({
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-xl lg:text-2xl font-semibold text-white">Portfolio</h2>
-        <p className="text-sm text-white/50">Complete your profile and connect with top studios and filmmakers.</p>
+        <h2 className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>Portfolio</h2>
+        <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>Complete your profile and connect with top studios and filmmakers.</p>
       </div>
 
-      <div className="rounded-[18px] border border-white/20 bg-[#111111] p-5 lg:p-6 space-y-4">
+      <div className={`rounded-[18px] border p-5 lg:p-6 space-y-4 ${isDark ? "border-white/20 bg-[#111111]" : "border-black/10 bg-white"}`}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-white">Social & Professional Links *</h3>
-            <p className="text-sm text-white/55">At least one link is required to proceed.</p>
+            <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>Social & Professional Links *</h3>
+            <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>At least one link is required to proceed.</p>
           </div>
           <ActionTrigger onClick={() => setSocialModalOpen(true)} label="Add a link" />
         </div>
@@ -1588,19 +1598,20 @@ function StepThree({
               item={link}
               iconList={SOCIAL_ICONS}
               onRemove={() => onRemoveSocialLink(link.id)}
+              isDark={isDark}
             />
           ))}
-          {data.links?.length === 0 && <p className="text-xs text-white/45">No saved social links yet.</p>}
+          {data.links?.length === 0 && <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>No saved social links yet.</p>}
         </div>
       </div>
 
-      <div className="rounded-[18px] border border-white/20 bg-[#111111] p-5 lg:p-6 space-y-4">
+      <div className={`rounded-[18px] border p-5 lg:p-6 space-y-4 ${isDark ? "border-white/20 bg-[#111111]" : "border-black/10 bg-white"}`}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-white">
+            <h3 className={`text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
               Portfolio Links {isOnlyVideographerRole ? <span className="text-[#E8D1AB]">*</span> : "(Optional)"}
             </h3>
-            <p className="text-sm text-white/55">
+            <p className={`text-sm ${isDark ? "text-white/55" : "text-black/50"}`}>
               {isOnlyVideographerRole
                 ? "At least one portfolio link is required to proceed."
                 : "Add a portfolio link if you want to share external work."}
@@ -1615,9 +1626,10 @@ function StepThree({
               item={link}
               iconList={PORTFOLIO_ICONS}
               onRemove={() => onDeletePortfolioLink(link)}
+              isDark={isDark}
             />
           ))}
-          {data.portfolioLinks?.length === 0 && <p className="text-xs text-white/45">No saved portfolio links yet.</p>}
+          {data.portfolioLinks?.length === 0 && <p className={`text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>No saved portfolio links yet.</p>}
         </div>
       </div>
 
@@ -1629,26 +1641,128 @@ function StepThree({
         requiredLabel={!isOnlyVideographerRole}
       />
 
-      <AddCertification
-        value={data.certifications}
-        onChange={(items) => setData((prev: any) => ({ ...prev, certifications: items }))}
-        bg="bg-[#111111]"
-        onUploadFiles={onUploadCertification}
-        onDeleteItem={onDeleteCertification}
-      />
+      <div className={isDark ? "" : "admin-cp-light-child-theme"}>
+        <AddCertification
+          value={data.certifications}
+          onChange={(items) => setData((prev: any) => ({ ...prev, certifications: items }))}
+          bg={isDark ? "bg-[#111111]" : "bg-white"}
+          onUploadFiles={onUploadCertification}
+          onDeleteItem={onDeleteCertification}
+        />
+      </div>
 
-      <UploadResumePortfolio
-        resume={resume}
-        setResume={setResume}
-        portfolio={portfolioFiles}
-        setPortfolio={setPortfolioFiles}
-        bgColour="bg-[#111111]"
-        buttonBgColour="bg-white/5 hover:bg-white/10"
-        onResumeUpload={onUploadResume}
-        onPortfolioUpload={onUploadPortfolioFiles}
-        onDeleteResume={onDeleteResume}
-        onDeletePortfolio={onDeletePortfolioFile}
-      />
+      <div className={isDark ? "" : "admin-cp-light-child-theme"}>
+        <UploadResumePortfolio
+          resume={resume}
+          setResume={setResume}
+          portfolio={portfolioFiles}
+          setPortfolio={setPortfolioFiles}
+          bgColour={isDark ? "bg-[#111111]" : "bg-white"}
+          buttonBgColour={isDark ? "bg-white/5 hover:bg-white/10" : "bg-[#F4F5F7] hover:bg-[#ECEDEF]"}
+          onResumeUpload={onUploadResume}
+          onPortfolioUpload={onUploadPortfolioFiles}
+          onDeleteResume={onDeleteResume}
+          onDeletePortfolio={onDeletePortfolioFile}
+        />
+      </div>
+
+      {!isDark && (
+        <style jsx global>{`
+          .admin-cp-light-child-theme {
+            color: #111111;
+          }
+
+          .admin-cp-light-child-theme [class*="bg-[#111111]"],
+          .admin-cp-light-child-theme [class*="bg-[#101010]"],
+          .admin-cp-light-child-theme [class*="bg-[#0A0A0A]"],
+          .admin-cp-light-child-theme [class*="bg-[#0a0a0a]"],
+          .admin-cp-light-child-theme [class*="bg-[#1A1A1A]"],
+          .admin-cp-light-child-theme [class*="bg-[#1a1a1a]"],
+          .admin-cp-light-child-theme [class~="bg-black"] {
+            background-color: #ffffff !important;
+          }
+
+          .admin-cp-light-child-theme [class*="bg-white/5"],
+          .admin-cp-light-child-theme [class*="bg-white/[0.05]"],
+          .admin-cp-light-child-theme [class*="bg-white/[0.03]"] {
+            background-color: #f4f5f7 !important;
+          }
+
+          .admin-cp-light-child-theme [class*="border-white/5"],
+          .admin-cp-light-child-theme [class*="border-white/10"],
+          .admin-cp-light-child-theme [class*="border-white/15"],
+          .admin-cp-light-child-theme [class*="border-white/20"],
+          .admin-cp-light-child-theme [class*="border-[#333333]"],
+          .admin-cp-light-child-theme [class*="border-[#3A3A3A]"],
+          .admin-cp-light-child-theme [class*="border-[#3a3a3a]"] {
+            border-color: rgba(0, 0, 0, 0.1) !important;
+          }
+
+          .admin-cp-light-child-theme [class~="text-white"],
+          .admin-cp-light-child-theme [class*="text-white/"] {
+            color: #111111 !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/80"] {
+            color: rgba(17, 17, 17, 0.8) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/70"] {
+            color: rgba(17, 17, 17, 0.7) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/60"] {
+            color: rgba(17, 17, 17, 0.6) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/55"] {
+            color: rgba(17, 17, 17, 0.55) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/50"] {
+            color: rgba(17, 17, 17, 0.5) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/45"] {
+            color: rgba(17, 17, 17, 0.45) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/40"] {
+            color: rgba(17, 17, 17, 0.4) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/35"] {
+            color: rgba(17, 17, 17, 0.35) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="text-white/30"],
+          .admin-cp-light-child-theme [class*="text-white/25"],
+          .admin-cp-light-child-theme [class*="text-white/20"] {
+            color: rgba(17, 17, 17, 0.35) !important;
+          }
+
+          .admin-cp-light-child-theme input,
+          .admin-cp-light-child-theme textarea {
+            background-color: #ffffff !important;
+            border-color: rgba(0, 0, 0, 0.1) !important;
+            color: #111111 !important;
+          }
+
+          .admin-cp-light-child-theme input::placeholder,
+          .admin-cp-light-child-theme textarea::placeholder {
+            color: rgba(17, 17, 17, 0.4) !important;
+          }
+
+          .admin-cp-light-child-theme [class*="hover:bg-white/5"]:hover,
+          .admin-cp-light-child-theme [class*="hover:bg-white/10"]:hover {
+            background-color: #eceef1 !important;
+          }
+
+          .admin-cp-light-child-theme [class*="shadow-"] {
+            --tw-shadow-color: rgba(0, 0, 0, 0.08);
+          }
+        `}</style>
+      )}
     </div>
   );
 }
@@ -1657,17 +1771,19 @@ function LinkRow({
   item,
   iconList,
   onRemove,
+  isDark,
 }: {
   item: LinkItem;
   iconList: Array<{ id: string; label: string; src?: string; icon?: React.ElementType }>;
   onRemove: () => void;
+  isDark: boolean;
 }) {
   const platform = iconList.find((entry) => entry.id === item.platform);
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[12px] border border-white/10 bg-white/5 px-4 py-3">
+    <div className={`flex items-center justify-between gap-4 rounded-[12px] border px-4 py-3 ${isDark ? "border-white/10 bg-white/5" : "border-black/10 bg-[#F4F5F7]"}`}>
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#1A1A1A]">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${isDark ? "border-white/10 bg-[#1A1A1A]" : "border-black/10 bg-white"}`}>
           {platform?.src ? (
             <img src={platform.src} alt={platform.label} className="h-5 w-5" />
           ) : platform?.icon ? (
@@ -1677,14 +1793,14 @@ function LinkRow({
           )}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-white">{item.name}</p>
-          <p className="truncate text-xs text-white/45">{item.url}</p>
+          <p className={`truncate text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>{item.name}</p>
+          <p className={`truncate text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{item.url}</p>
         </div>
       </div>
       <button
         type="button"
         onClick={onRemove}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-[#101010] text-white/60 transition-colors hover:text-red-400"
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border transition-colors hover:text-red-400 ${isDark ? "border-white/10 bg-[#101010] text-white/60" : "border-black/10 bg-white text-black/55"}`}
         aria-label={`Remove ${item.name}`}
       >
         <Trash2 className="h-4 w-4" />
@@ -1732,6 +1848,7 @@ function OutlinedField({
   labelStyles,
   fieldStyles,
   prefix,
+  isDark,
 }: {
   label: string;
   value: string;
@@ -1740,9 +1857,10 @@ function OutlinedField({
   labelStyles: string;
   fieldStyles: string;
   prefix?: React.ReactNode;
+  isDark: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-white/20 bg-[#111111] p-5 lg:p-6">
+    <div className={`rounded-[18px] border p-5 lg:p-6 ${isDark ? "border-white/20 bg-[#111111]" : "border-black/10 bg-white"}`}>
       <Label className={`text-sm font-semibold ${labelStyles}`}>{label}</Label>
       <div className="relative mt-3">
         {prefix && <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">{prefix}</div>}

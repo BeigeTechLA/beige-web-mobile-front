@@ -19,6 +19,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/src/components/landing/ui/button";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 export type CreditPointsFormState = {
   userType: string;
@@ -133,6 +134,7 @@ export default function AddCreditPointsModal({
   onSubmit,
 }: AddCreditPointsModalProps) {
   const clientSuggestionRef = useRef<HTMLFieldSetElement | null>(null);
+  const { isDark } = useResolvedTheme();
 
   const tomorrow = startOfDay(addDays(new Date(), 1));
 
@@ -171,15 +173,15 @@ export default function AddCreditPointsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border border-white/25 bg-black p-0 text-white shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden">
+      <DialogContent className={`w-[calc(100vw-24px)] max-w-[460px] overflow-hidden rounded-[2px] border p-0 shadow-[0_18px_60px_rgba(0,0,0,0.55)] sm:max-w-[500px] [&>button]:hidden ${isDark ? "border-white/25 bg-black text-white" : "border-[#D7D7D7] bg-white text-black"}`}>
         <DialogTitle className="sr-only">Add Credit Points</DialogTitle>
 
-        <div className="flex items-center justify-between border-b border-white/20 px-5 py-4">
+        <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-white/20" : "border-[#E3E3E3]"}`}>
           <h2 className="text-[22px] font-semibold leading-none">Add Credit Points</h2>
           <DialogClose asChild>
             <button
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2B2525] text-white/90 transition hover:bg-[#3A3333]"
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition ${isDark ? "bg-[#2B2525] text-white/90 hover:bg-[#3A3333]" : "bg-[#F1F1F1] text-[#252525] hover:bg-[#E7E7E7]"}`}
               aria-label="Close"
             >
               <X className="h-3.5 w-3.5" />
@@ -192,22 +194,22 @@ export default function AddCreditPointsModal({
           className="max-h-[calc(90vh-60px)] overflow-y-auto px-5 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           <div className="space-y-3.5">
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Select User Type*
               </legend>
               <Input
                 value={form.userType}
                 readOnly
-                className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] text-white focus-visible:ring-0"
+                className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${isDark ? "text-white" : "text-black"}`}
               />
             </fieldset>
 
             <fieldset
               ref={clientSuggestionRef}
-              className="relative rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5"
+              className={`relative rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}
             >
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Select Client*
               </legend>
               <Input
@@ -215,26 +217,26 @@ export default function AddCreditPointsModal({
                 onFocus={() => onClientSuggestionOpenChange(true)}
                 onChange={(event) => onChange("clientSearch", event.target.value)}
                 placeholder="Type client name or email"
-                className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] text-white placeholder:text-white/35 focus-visible:ring-0"
+                className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
               />
               {selectedClient && (
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="truncate text-[11px] text-white/60">
+                  <p className={`truncate text-[11px] ${isDark ? "text-white/60" : "text-black/60"}`}>
                     {getClientEmail(selectedClient) || "No email"}
                   </p>
                   <ClientTypeBadge
                     clientType={selectedClient.client_type}
                     userId={selectedClient.user_id}
-                    isDark
+                    isDark={isDark}
                   />
                 </div>
               )}
 
               {isClientSuggestionOpen && (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-[8px] border border-white/10 bg-[#111111] shadow-[0_18px_40px_rgba(0,0,0,0.45)]">
+                <div className={`absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-[8px] border shadow-[0_18px_40px_rgba(0,0,0,0.45)] ${isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#D7D7D7] bg-white text-black"}`}>
                   <div className="max-h-64 overflow-y-auto py-2">
                     {isLoadingClientSuggestions ? (
-                      <div className="px-4 py-3 text-sm text-white/60">
+                      <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         Searching clients...
                       </div>
                     ) : clientSuggestions.length > 0 ? (
@@ -254,7 +256,7 @@ export default function AddCreditPointsModal({
                             onClick={() => onClientSelect(client)}
                             className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors ${isSelected
                               ? "bg-[#E8D1AB] text-black"
-                              : "text-white hover:bg-white/5"
+                              : isDark ? "text-white hover:bg-white/5" : "text-black hover:bg-black/5"
                               }`}
                           >
                             <div className="min-w-0">
@@ -265,13 +267,13 @@ export default function AddCreditPointsModal({
                                 <ClientTypeBadge
                                   clientType={client.client_type}
                                   userId={client.user_id}
-                                  isDark
+                                  isDark={isDark}
                                   isSelected={isSelected}
                                 />
                               </div>
                               {(email || phone) && (
                                 <p
-                                  className={`mt-1 truncate text-xs ${isSelected ? "text-black/70" : "text-white/50"
+                                  className={`mt-1 truncate text-xs ${isSelected ? "text-black/70" : isDark ? "text-white/50" : "text-black/50"
                                     }`}
                                 >
                                   {[email, phone].filter(Boolean).join(" | ")}
@@ -282,11 +284,11 @@ export default function AddCreditPointsModal({
                         );
                       })
                     ) : form.clientSearch.trim() ? (
-                      <div className="px-4 py-3 text-sm text-white/60">
+                      <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         No matching clients found.
                       </div>
                     ) : (
-                      <div className="px-4 py-3 text-sm text-white/60">
+                      <div className={`px-4 py-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                         Start typing to search clients.
                       </div>
                     )}
@@ -295,30 +297,30 @@ export default function AddCreditPointsModal({
               )}
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Enter Amount*
               </legend>
               <Input
                 value={form.amount}
                 onChange={(event) => onChange("amount", event.target.value)}
                 placeholder="Enter amount"
-                className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] text-white placeholder:text-white/35 focus-visible:ring-0"
+                className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
               />
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Credit Type
               </legend>
               <Select
                 value={form.creditType}
                 onValueChange={(value) => onChange("creditType", value)}
               >
-                <SelectTrigger className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] text-white shadow-none focus:ring-0 data-[placeholder]:text-white/35 [&>svg]:text-white [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180">
+                <SelectTrigger className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-left text-[14px] shadow-none focus:ring-0 [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180 ${isDark ? "text-white data-[placeholder]:text-white/35 [&>svg]:text-white" : "text-black data-[placeholder]:text-black/35 [&>svg]:text-black"}`}>
                   <SelectValue placeholder="Select credit type" />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#111111] text-white">
+                <SelectContent className={isDark ? "border-white/10 bg-[#111111] text-white" : "border-[#D7D7D7] bg-white text-black"}>
                   {creditTypeOptions.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
@@ -328,8 +330,8 @@ export default function AddCreditPointsModal({
               </Select>
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Enter Expiry Date (Optional)
               </legend>
               <div className="pt-1">
@@ -367,53 +369,53 @@ export default function AddCreditPointsModal({
                       marginRight: "-6px",
                     },
                   }}
-                  isDark
+                  isDark={isDark}
                   labelSx={{ display: "none" }}
                 />
               </div>
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Enter Reason*
               </legend>
               <Input
                 value={form.reason}
                 onChange={(event) => onChange("reason", event.target.value)}
                 placeholder="Enter reason"
-                className="h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] text-white placeholder:text-white/35 focus-visible:ring-0"
+                className={`h-9 rounded-none border-0 bg-transparent px-0 py-0 text-[14px] focus-visible:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
               />
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Notes (Optional)
               </legend>
               <Textarea
                 value={form.notes}
                 onChange={(event) => onChange("notes", event.target.value)}
                 placeholder="Add any additional notes..."
-                className="min-h-[48px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-[13px] text-white placeholder:text-white/35 focus:ring-0"
+                className={`min-h-[48px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-[13px] focus:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
               />
             </fieldset>
 
-            <fieldset className="rounded-[8px] border border-white/25 px-4 pb-3 pt-1.5">
-              <legend className="px-1 text-[11px] leading-none text-white/55">
+            <fieldset className={`rounded-[8px] border px-4 pb-3 pt-1.5 ${isDark ? "border-white/25" : "border-[#D7D7D7]"}`}>
+              <legend className={`px-1 text-[11px] leading-none ${isDark ? "text-white/55" : "text-black/55"}`}>
                 Usage Restrictions (Optional)
               </legend>
               <Textarea
                 value={form.usageRestrictions}
                 onChange={(event) => onChange("usageRestrictions", event.target.value)}
-                className="min-h-[42px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-[13px] text-white placeholder:text-white/35 focus:ring-0"
+                className={`min-h-[42px] resize-none rounded-none border-0 bg-transparent px-0 py-0 text-[13px] focus:ring-0 ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
               />
             </fieldset>
 
             <div className="flex items-center justify-between gap-3 pt-2">
-              <span className="text-[14px] font-medium text-white">Notify User</span>
+              <span className={`text-[14px] font-medium ${isDark ? "text-white" : "text-black"}`}>Notify User</span>
               <Switch
                 checked={form.notifyUser}
                 onCheckedChange={(checked) => onChange("notifyUser", checked)}
-                className="h-[24px] w-[44px] rounded-[10px] border border-[#4A4A4A] bg-[#3B3B3B] px-[3px] shadow-none transition-colors data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] [&>span]:h-[16px] [&>span]:w-[16px] [&>span]:rounded-[6px] [&>span]:bg-[#F8F8F8] [&>span]:shadow-none [&>span]:ring-0 [&>span]:data-[state=checked]:translate-x-[20px]"
+                className={`h-[24px] w-[44px] rounded-[10px] border px-[3px] shadow-none transition-colors data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] [&>span]:h-[16px] [&>span]:w-[16px] [&>span]:rounded-[6px] [&>span]:bg-[#F8F8F8] [&>span]:shadow-none [&>span]:ring-0 [&>span]:data-[state=checked]:translate-x-[20px] ${isDark ? "border-[#4A4A4A] bg-[#3B3B3B]" : "border-[#CFCFCF] bg-[#E7E7E7]"}`}
               />
             </div>
 
@@ -422,7 +424,7 @@ export default function AddCreditPointsModal({
                 type="button"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
-                className="h-[38px] rounded-[4px] bg-[#242222] text-[12px] font-medium text-white hover:bg-[#2f2b2b]"
+                className={`h-[38px] rounded-[4px] text-[12px] font-medium ${isDark ? "bg-[#242222] text-white hover:bg-[#2f2b2b]" : "border border-[#E3E3E3] bg-[#F0F0F0] text-black hover:bg-[#E3E3E3]"}`}
               >
                 Cancel
               </Button>

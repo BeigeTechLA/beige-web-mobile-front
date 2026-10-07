@@ -77,7 +77,9 @@ type PostProductionTeamOption = {
 };
 
 const formatRoleName = (roleName: string) =>
-  roleName.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+  roleName
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   PAYMENT_FILTER_OPTIONS.has(value);
@@ -120,15 +122,16 @@ export default function ShootsPage() {
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<
     "all" | "assigned" | "not_assigned"
   >("all");
-  const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
+  const [postProductionUserFilter, setPostProductionUserFilter] =
+    useState("all");
   const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<
     PostProductionTeamOption[]
   >([]);
   const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] =
     useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
-    "list",
-  );
+  const [viewMode, setViewMode] = useState<
+    "grid" | "list" | "calendar" | "globe"
+  >("list");
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
@@ -830,7 +833,10 @@ export default function ShootsPage() {
                       disabled={isLoadingPostProductionTeam}
                     >
                       <SelectTrigger
-                        title={selectedPostProductionUser?.name || "All Post Production Team"}
+                        title={
+                          selectedPostProductionUser?.name ||
+                          "All Post Production Team"
+                        }
                         className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
                       >
                         <SelectValue placeholder="Post Production Team">
@@ -844,7 +850,9 @@ export default function ShootsPage() {
                         className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                         viewportClassName="!h-auto max-h-80 overflow-y-auto"
                       >
-                        <SelectItem value="all">All Post Production Team</SelectItem>
+                        <SelectItem value="all">
+                          All Post Production Team
+                        </SelectItem>
                         {postProductionTeamOptions.length > 0 ? (
                           postProductionTeamOptions.map((option) => (
                             <SelectItem
@@ -854,9 +862,13 @@ export default function ShootsPage() {
                               className="py-2.5"
                             >
                               <div className="flex flex-col items-start gap-0.5 text-left">
-                                <span className="text-sm leading-5">{option.name}</span>
+                                <span className="text-sm leading-5">
+                                  {option.name}
+                                </span>
                                 {option.role_name && (
-                                  <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                  <span
+                                    className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}
+                                  >
                                     {formatRoleName(option.role_name)}
                                   </span>
                                 )}
@@ -864,7 +876,9 @@ export default function ShootsPage() {
                             </SelectItem>
                           ))
                         ) : (
-                          <div className={`px-3 py-2.5 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                          <div
+                            className={`px-3 py-2.5 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}
+                          >
                             No post-production team members found.
                           </div>
                         )}
@@ -1203,263 +1217,256 @@ export default function ShootsPage() {
         )}
 
         {viewMode === "calendar" ? (
-        <>
-          {/* Back */}
-          <div
-            className={`flex h-[42px] items-center px-1 ${
-              isDark ? "bg-[#111111]" : "bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-                isDark
-                  ? "text-white/80 hover:text-white"
-                  : "text-black/70 hover:text-black"
+          <>
+            {/* Back */}
+            <div
+              className={`flex h-[42px] items-center px-1 ${
+                isDark ? "bg-[#111111]" : "bg-transparent"
               }`}
             >
-              <ArrowLeft size={20} strokeWidth={1.7} />
-              Back
-            </button>
-          </div>
-
-          {/* Search + Filter */}
-          <div className="space-y-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative flex w-full items-center">
-                <Search
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-[#666]" : "text-[#999]"
-                  }`}
-                  size={18}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search by project name, email, or phone number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
-                    isDark
-                      ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-                      : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                  }`}
-                />
-              </div>
-
-              <Button
+              <button
                 type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${
+                onClick={() => setViewMode("list")}
+                className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
                   isDark
-                    ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
-                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
+                    ? "text-white/80 hover:text-white"
+                    : "text-black/70 hover:text-black"
                 }`}
               >
-                <SlidersHorizontal
-                  size={20}
-                  className={`mr-2 ${isDark ? "text-white" : "text-black"}`}
-                />
-                Filter
-              </Button>
+                <ArrowLeft size={20} strokeWidth={1.7} />
+                Back
+              </button>
             </div>
 
-            {/* Filters */}
-            {showFilters && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={categoryFilter}
-                  onValueChange={setCategoryFilter}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
+            {/* Search + Filter */}
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex w-full items-center">
+                  <Search
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-[#666]" : "text-[#999]"
                     }`}
-                  >
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
+                    size={18}
+                  />
 
-                  <SelectContent
-                    className={
+                  <input
+                    type="text"
+                    placeholder="Search by project name, email, or phone number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
                       isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="corporate">Corporate</SelectItem>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={statusFilter}
-                  onValueChange={setStatusFilter}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                        : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
                     }`}
-                  >
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    {FILTER_STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={paymentFilter}
-                  onValueChange={(value) => {
-                    if (isPaymentFilter(value)) {
-                      setPaymentFilter(value);
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
-                    }`}
-                  >
-                    <SelectValue placeholder="Payment" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={cpAssignmentFilter}
-                  onValueChange={(
-                    value: "all" | "assigned" | "not_assigned",
-                  ) => {
-                    setCpAssignmentFilter(value);
-                  }}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
-                    }`}
-                  >
-                    <SelectValue placeholder="CP Assignment" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">
-                      All CP Assignment
-                    </SelectItem>
-                    <SelectItem value="assigned">
-                      CP Assigned
-                    </SelectItem>
-                    <SelectItem value="not_assigned">
-                      CP Not Assigned
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  />
+                </div>
 
                 <Button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setCategoryFilter("all");
-                    setStatusFilter("all");
-                    setPaymentFilter("all");
-                    setProductionFilter("all");
-                    setCpAssignmentFilter("all");
-                  }}
-                  aria-label="Reset calendar filters"
-                  title="Reset calendar filters"
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${
                     isDark
-                      ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
-                      : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
+                      ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
                   }`}
                 >
-                  <RotateCcw size={17} />
+                  <SlidersHorizontal
+                    size={20}
+                    className={`mr-2 ${isDark ? "text-white" : "text-black"}`}
+                  />
+                  Filter
                 </Button>
               </div>
-            )}
-          </div>
 
-          {/* Calendar */}
-          <div
-            className={`overflow-hidden rounded-2xl border ${
-              isDark
-                ? "bg-[#111111] border-[#333333]"
-                : "bg-white border-[#E5E5E5]"
-            }`}
-          >
-            <ShootsCalendarView
-              isDark={isDark}
-              searchQuery={searchQuery}
-              categoryFilter={categoryFilter}
-              statusFilter={statusFilter}
-              paymentFilter={paymentFilter}
-              productionFilter={productionFilter}
-              cpAssignmentFilter={cpAssignmentFilter}
-            />
-          </div>
-        </>
-      ) : viewMode === "globe" ? (
-        <>
-          <div
-            className={`flex h-[42px] items-center px-1 ${
-              isDark ? "bg-[#111111]" : "bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+              {/* Filters */}
+              {showFilters && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={setCategoryFilter}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="private">Private</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      {FILTER_STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={paymentFilter}
+                    onValueChange={(value) => {
+                      if (isPaymentFilter(value)) {
+                        setPaymentFilter(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={cpAssignmentFilter}
+                    onValueChange={(
+                      value: "all" | "assigned" | "not_assigned",
+                    ) => {
+                      setCpAssignmentFilter(value);
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">
+                        CP Not Assigned
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setCategoryFilter("all");
+                      setStatusFilter("all");
+                      setPaymentFilter("all");
+                      setProductionFilter("all");
+                      setCpAssignmentFilter("all");
+                    }}
+                    aria-label="Reset calendar filters"
+                    title="Reset calendar filters"
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${
+                      isDark
+                        ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
+                        : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
+                    }`}
+                  >
+                    <RotateCcw size={17} />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Calendar */}
+            <div
+              className={`overflow-hidden rounded-2xl border ${
                 isDark
-                  ? "text-white/80 hover:text-white"
-                  : "text-black/70 hover:text-black"
+                  ? "bg-[#111111] border-[#333333]"
+                  : "bg-white border-[#E5E5E5]"
               }`}
             >
-              <ArrowLeft size={20} strokeWidth={1.7} />
-              Back
-            </button>
-          </div>
+              <ShootsCalendarView
+                isDark={isDark}
+                searchQuery={searchQuery}
+                categoryFilter={categoryFilter}
+                statusFilter={statusFilter}
+                paymentFilter={paymentFilter}
+                productionFilter={productionFilter}
+                cpAssignmentFilter={cpAssignmentFilter}
+              />
+            </div>
+          </>
+        ) : viewMode === "globe" ? (
+          <>
+            <div
+              className={`flex h-[42px] items-center px-1 ${
+                isDark ? "bg-[#111111]" : "bg-transparent"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+                  isDark
+                    ? "text-white/80 hover:text-white"
+                    : "text-black/70 hover:text-black"
+                }`}
+              >
+                <ArrowLeft size={20} strokeWidth={1.7} />
+                Back
+              </button>
+            </div>
 
-          <ShootsGlobeView isDark={isDark} />
-        </>
-      ) : (
+            <ShootsGlobeView isDark={isDark} />
+          </>
+        ) : (
           <ShootsTable
             externalSelectedDate={selectedDate}
             customRangeStartDate={customRangeStartDate}
