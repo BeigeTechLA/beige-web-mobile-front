@@ -629,7 +629,10 @@ export const BookAShootV4 = () => {
     durationHours: safeDurationHours,
     selectedAddOnSets: photoEditSetCount,
     includedPerHourOverride: canShowPhotoEdits
-      ? getV4PhotoEditsPerHour(bookingState.selectedOccasion, safeDurationHours)
+      ? getV4PhotoEditsPerHour(
+        bookingState.selectedOccasion,
+        selectedHybridCreators > 0
+      )
       : 0,
   });
   const roundedPhotoEditSummary = {
