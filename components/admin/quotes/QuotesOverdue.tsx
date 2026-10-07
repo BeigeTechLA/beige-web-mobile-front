@@ -69,6 +69,8 @@ type OverdueQuotesResponse = {
 };
 type PaginationItem = number | "...";
 
+type PipelineSegment = "sent" | "accepted" | "partially_paid";
+
 const buildPaginationItems = (
   currentPage: number,
   totalPages: number
@@ -104,6 +106,7 @@ export default function QuotesOverdueWidget({
   const [showTable, setShowTable] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [hoveredSegment, setHoveredSegment] = useState<PipelineSegment | null>(null);
   const overdueCount = data?.count ?? 0;
   const overdueValue = data?.value ?? 0;
 
@@ -135,6 +138,60 @@ export default function QuotesOverdueWidget({
   const sentPercentage = getPipelinePercentage(sentValue);
   const acceptedPercentage = getPipelinePercentage(acceptedValue);
   const partiallyPaidPercentage = getPipelinePercentage(partiallyPaidValue);
+
+  const getDesktopSegmentWidth = (
+    segment: PipelineSegment,
+    percentage: number
+  ) => {
+    if (!hoveredSegment) return percentage;
+
+    const percentageMap: Record<PipelineSegment, number> = {
+      sent: sentPercentage,
+      accepted: acceptedPercentage,
+      partially_paid: partiallyPaidPercentage,
+    };
+
+    const hoveredPercentage = percentageMap[hoveredSegment];
+    const totalPercentage =
+      sentPercentage + acceptedPercentage + partiallyPaidPercentage;
+
+    const minimumHoveredWidth = 20;
+
+    if (
+      hoveredPercentage >= minimumHoveredWidth ||
+      totalPercentage <= minimumHoveredWidth
+    ) {
+      return percentage;
+    }
+
+    if (segment === hoveredSegment) {
+      return minimumHoveredWidth;
+    }
+
+    const otherSegmentsTotal = totalPercentage - hoveredPercentage;
+    const remainingWidth = Math.max(
+      0,
+      totalPercentage - minimumHoveredWidth
+    );
+
+    if (otherSegmentsTotal <= 0) return 0;
+
+    return (percentage / otherSegmentsTotal) * remainingWidth;
+  };
+
+  const getSegmentDisplayValue = (
+    segment: PipelineSegment,
+    value: number,
+    percentage: number
+  ) => {
+    if (percentage <= 0) return "";
+
+    if (hoveredSegment !== segment && percentage < 8) {
+      return "";
+    }
+
+    return `${(value / 1000).toFixed(1)}K`;
+  };
 
   const rows = quotesData?.rows ?? [];
   const totalPages = quotesData?.pagination?.total_pages ?? 1;
@@ -305,27 +362,71 @@ export default function QuotesOverdueWidget({
               </div>
 
               {/* Horizontal Segment Bar */}
-              <div className="h-14 w-full rounded-xl overflow-hidden flex shadow-inner text-black font-semibold text-xl">
+              <div
+                className="h-14 w-full rounded-xl overflow-hidden flex shadow-inner text-black font-semibold text-xl"
+                onMouseLeave={() => setHoveredSegment(null)}
+              >
                 <div
-                  className="bg-[linear-gradient(189deg,#B2E1F5_8.02%,#137FAD_83.16%)] flex items-center justify-center transition-all duration-500"
-                  style={{ width: `${sentPercentage}%` }}
+                  onMouseEnter={() => setHoveredSegment("sent")}
+                  className="relative flex min-w-0 cursor-pointer items-center justify-center overflow-hidden bg-[linear-gradient(189deg,#B2E1F5_8.02%,#137FAD_83.16%)] transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${getDesktopSegmentWidth(
+                      "sent",
+                      sentPercentage
+                    )}%`,
+                  }}
                 >
-                  {sentPercentage > 0 && `${(sentValue / 1000).toFixed(1)}K`}
+                  {sentPercentage > 0 && (
+                    <span className="max-w-full whitespace-nowrap px-2 text-base font-semibold lg:text-lg">
+                      {getSegmentDisplayValue(
+                        "sent",
+                        sentValue,
+                        sentPercentage
+                      )}
+                    </span>
+                  )}
                 </div>
 
                 <div
-                  className="bg-[linear-gradient(189deg,#D9FFDC_8.02%,#63B868_83.16%)] flex items-center justify-center transition-all duration-500"
-                  style={{ width: `${acceptedPercentage}%` }}
+                  onMouseEnter={() => setHoveredSegment("accepted")}
+                  className="relative flex min-w-0 cursor-pointer items-center justify-center overflow-hidden bg-[linear-gradient(189deg,#D9FFDC_8.02%,#63B868_83.16%)] transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${getDesktopSegmentWidth(
+                      "accepted",
+                      acceptedPercentage
+                    )}%`,
+                  }}
                 >
-                  {acceptedPercentage > 0 && `${(acceptedValue / 1000).toFixed(1)}K`}
+                  {acceptedPercentage > 0 && (
+                    <span className="max-w-full whitespace-nowrap px-2 text-base font-semibold lg:text-lg">
+                      {getSegmentDisplayValue(
+                        "accepted",
+                        acceptedValue,
+                        acceptedPercentage
+                      )}
+                    </span>
+                  )}
                 </div>
 
                 <div
-                  className="bg-[linear-gradient(189deg,#FFF7D9_8.02%,#D0BB6B_83.16%)] flex items-center justify-center transition-all duration-500"
-                  style={{ width: `${partiallyPaidPercentage}%` }}
+                  onMouseEnter={() => setHoveredSegment("partially_paid")}
+                  className="relative flex min-w-0 cursor-pointer items-center justify-center overflow-hidden bg-[linear-gradient(189deg,#FFF7D9_8.02%,#D0BB6B_83.16%)] transition-[width] duration-300 ease-out"
+                  style={{
+                    width: `${getDesktopSegmentWidth(
+                      "partially_paid",
+                      partiallyPaidPercentage
+                    )}%`,
+                  }}
                 >
-                  {partiallyPaidPercentage > 0 &&
-                    `${(partiallyPaidValue / 1000).toFixed(1)}K`}
+                  {partiallyPaidPercentage > 0 && (
+                    <span className="max-w-full whitespace-nowrap px-2 text-base font-semibold lg:text-lg">
+                      {getSegmentDisplayValue(
+                        "partially_paid",
+                        partiallyPaidValue,
+                        partiallyPaidPercentage
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
 

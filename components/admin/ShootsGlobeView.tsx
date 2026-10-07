@@ -1173,6 +1173,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <DatePicker
                 label="Start Date"
+                floating
                 value={draftCustomRangeStartDate}
                 onChange={(date) => {
                   const nextStartDate = date ? startOfDay(date) : null;
@@ -1194,6 +1195,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
 
               <DatePicker
                 label="End Date"
+                floating
                 value={draftCustomRangeEndDate}
                 onChange={(date) => {
                   const nextEndDate = date ? startOfDay(date) : null;
