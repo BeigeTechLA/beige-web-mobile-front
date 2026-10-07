@@ -24,8 +24,15 @@ export function isLosAngelesLocation(address: string, details?: unknown): boolea
   return hasCalifornia && parts.some((part) => /^(Los Angeles(?: County)?|LA|West Hollywood|Beverly Hills|Santa Monica|Culver City|Burbank|Glendale|Pasadena|Long Beach|Malibu|Calabasas|Inglewood|Torrance|Hollywood|Hollywood Hills|North Hollywood|Woodland Hills|Studio City|Sherman Oaks|Encino|Van Nuys|Venice|Silver Lake|Echo Park|San Pedro)$/i.test(part));
 }
 
-export function getV4PhotoEditsPerHour(shootType: string, durationHours: number): number {
-  return shootType === "wedding" || durationHours > 4 ? 50 : 25;
+export function getV4PhotoEditsPerHour(
+  shootType: string,
+  hasHybridShooter: boolean
+): number {
+  // Hybrid shooters capture both photo and video, so their included photo
+  // allowance is lower than a dedicated photographer's allowance.
+  if (hasHybridShooter) return 10;
+
+  return shootType === "wedding" ? 50 : 25;
 }
 
 export const V4_PACKAGE_INCLUSIONS = [

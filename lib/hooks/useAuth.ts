@@ -1,11 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { logoutSession } from '@/lib/auth/session';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import Cookies from 'js-cookie';
-import { setCredentials, logout as logoutAction } from '../redux/features/auth/authSlice';
+import { setCredentials, setPermissions, logout as logoutAction } from '../redux/features/auth/authSlice';
 import { fetchAndCommitUserPermissions } from '../permissionsActions';
 import { authApi } from '../redux/features/auth/authApi';
+import type { PasswordUpdateResponse } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
 import { persistor } from '../redux/store';
 import {
@@ -35,6 +37,7 @@ import type {
 export const useAuth = () => {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const logoutPending = useRef(false);
   const { user, token, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
   const [loginMutation, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
@@ -55,6 +58,17 @@ export const useAuth = () => {
     skip: !token || !!user,
   });
 
+  // The server revoked older sessions and returned a fresh login for this device.
+  const acceptPasswordUpdate = useCallback((result: PasswordUpdateResponse) => {
+    const updatedUser = { ...result.user, permissions_version: result.permissions_version ?? result.user.permissions_version };
+    dispatch(setCredentials({ user: updatedUser, token: result.token }));
+    dispatch(setPermissions(result.permissions));
+    dispatch(authApi.util.resetApiState());
+    dispatch(salesApi.util.resetApiState());
+    localStorage.setItem('revure_user', JSON.stringify(updatedUser));
+    localStorage.removeItem('revure_permissions');
+  }, [dispatch]);
+
   const login = useCallback(async (credentials: LoginCredentials) => {
     const result = await loginMutation(credentials).unwrap();
     
@@ -73,6 +87,7 @@ export const useAuth = () => {
       dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user, token: result.token }));
 
+      if (result.password_expired) return result;
       try {
         await fetchAndCommitUserPermissions(dispatch, user.id, {
           broadcast: false,
@@ -104,6 +119,7 @@ export const useAuth = () => {
       dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user, token: result.token }));
 
+      if (result.password_expired) return result;
       try {
         await fetchAndCommitUserPermissions(dispatch, user.id, {
           broadcast: false,
@@ -183,7 +199,15 @@ export const useAuth = () => {
   }, [registerCreatorStep3Mutation]);
 
   const logout = useCallback(async () => {
-    await logoutSession();
+    if (logoutPending.current) return false;
+    logoutPending.current = true;
+    try {
+      await logoutSession(Cookies.get('revure_token') || token || undefined);
+    } catch {
+      toast.error('Could not end your session. Check your connection and try signing out again.');
+      logoutPending.current = false;
+      return false;
+    }
     dispatch(authApi.util.resetApiState());
     dispatch(salesApi.util.resetApiState());
     dispatch(logoutAction());
@@ -198,7 +222,9 @@ export const useAuth = () => {
     }
     void persistor.purge();
     router.push('/');
-  }, [dispatch, router]);
+    logoutPending.current = false;
+    return true;
+  }, [dispatch, router, token]);
   
   // const getCurrentUser = useCallback(async () => {
   //   if (!token) {
@@ -224,6 +250,7 @@ export const useAuth = () => {
     loginError,
     registerError,
     login,
+    acceptPasswordUpdate,
     googleLogin,
     register,
     quickRegister,

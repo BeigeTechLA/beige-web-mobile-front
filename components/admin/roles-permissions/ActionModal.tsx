@@ -81,7 +81,7 @@ export function ActionModal({
         }`}
       >
         <div className="px-6 pb-6 pt-8 sm:px-7 sm:pb-7 sm:pt-9">
-          <DialogHeader className="flex flex-col items-center space-y-0 text-center">
+          <div className="flex flex-col items-center space-y-0 text-center">
             <div
               className={`mb-5 flex h-14 w-14 items-center justify-center rounded-full border ${styles.iconBg} ${styles.iconBorder}`}
             >
@@ -92,22 +92,15 @@ export function ActionModal({
               />
             </div>
 
-            <DialogTitle
-              className={`text-xl font-medium leading-7 ${
-                isDark ? "text-white" : "text-[#111111]"
-              }`}
-            >
-              {title}
-            </DialogTitle>
-
-            <DialogDescription
-              className={`mt-2 max-w-[320px] text-sm leading-5 ${
-                isDark ? "text-white/50" : "text-[#727272]"
-              }`}
-            >
-              {description}
-            </DialogDescription>
-          </DialogHeader>
+            <DialogHeader className="w-full items-center space-y-0 text-center">
+              <DialogTitle className={`w-full text-center text-[20px] font-semibold leading-snug tracking-[-0.01em] ${isDark ? "text-white" : "text-[#101010]"}`}>
+                {title}
+              </DialogTitle>
+              <DialogDescription className={`mx-auto mt-2 max-w-[420px] text-center text-[13px] leading-relaxed ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
+                {description}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
           <DialogFooter className="mt-7 block sm:space-x-0">
             <div

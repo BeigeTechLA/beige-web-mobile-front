@@ -50,6 +50,7 @@ export function PermissionsVersionWatcher() {
       pathname?.startsWith("/signup") ||
       pathname === "/creator-signup" ||
       pathname?.startsWith("/forgot-password") ||
+      pathname === "/password-expired" ||
       pathname?.startsWith("/reset-password") ||
       pathname?.startsWith("/verify-email");
 
@@ -81,6 +82,12 @@ export function PermissionsVersionWatcher() {
         if (status === 401 || forceLogout || forceLogoutByMessage) {
           hasHandledUpdateRef.current = true;
           setIsForcedLogoutOpen(true);
+          return;
+        }
+
+        if (error?.data?.code === "PASSWORD_EXPIRED" || error?.data?.password_expired === true) {
+          hasHandledUpdateRef.current = true;
+          router.replace("/password-expired");
           return;
         }
 

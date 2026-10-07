@@ -249,7 +249,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/corporate.jpg", stats: [
+    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/ConferenceShoot.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "50-2K" }
     ]
@@ -267,19 +267,19 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Birthday.jpeg", stats: [
       { label: "Type", value: "Party" },
       { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/people_teams.jpg", stats: [
+    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Memorial.png", stats: [
       { label: "Type", value: "Memorial" },
       { label: "Tone", value: "Respectful" }
     ]
   },
   {
-    key: "real_estate", title: "Real Estate", details: "Property, listing, and architectural shoots", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+    key: "real_estate", title: "Real Estate", details: "Property, listing, and architectural shoots", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/RealEstate.png", stats: [
       { label: "Type", value: "Property" },
       { label: "Use", value: "Listings" }
     ]
@@ -291,7 +291,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/Brands&Products.jpg", stats: [
+    key: "product", title: "Product", details: "Product visuals for ecommerce and campaigns", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
       { label: "Type", value: "Product" },
       { label: "Use", value: "Commerce" }
     ]

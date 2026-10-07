@@ -30,6 +30,8 @@ import {
 } from "date-fns";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import DatePicker from "@/components/ui/Datepicker";
 
 import {
@@ -334,6 +336,9 @@ export const CreativePartnersTable = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isDetailsPendingExporting, setIsDetailsPendingExporting] = useState(false);
   const [reminderSendingIds, setReminderSendingIds] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<"approve" | "decline" | "reminder" | null>(null);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -435,6 +440,45 @@ export const CreativePartnersTable = () => {
     const start = (currentPage - 1) * limit;
     return sortedUsers.slice(start, start + limit);
   }, [currentPage, limit, sortConfig, sortedUsers]);
+
+  const selectableDisplayedUsers = useMemo(() => {
+    if (!canEdit) return [];
+
+    if (activeTab === "submitted") {
+      return displayedUsers.filter((user) => user.status === "Pending");
+    }
+
+    return displayedUsers.filter((user) => user.email !== "No Email");
+  }, [activeTab, canEdit, displayedUsers]);
+
+  const allDisplayedSelected =
+    selectableDisplayedUsers.length > 0 &&
+    selectableDisplayedUsers.every((user) => selectedRows.includes(user.id));
+  const someDisplayedSelected =
+    selectableDisplayedUsers.some((user) => selectedRows.includes(user.id));
+
+  const toggleSelectAllDisplayed = (checked: boolean) => {
+    const pageIds = selectableDisplayedUsers.map((user) => user.id);
+
+    setSelectedRows((current) =>
+      checked
+        ? Array.from(new Set([...current, ...pageIds]))
+        : current.filter((id) => !pageIds.includes(id)),
+    );
+  };
+
+  const toggleSelectedRow = (id: string, checked: boolean) => {
+    setSelectedRows((current) =>
+      checked
+        ? Array.from(new Set([...current, id]))
+        : current.filter((item) => item !== id),
+    );
+  };
+
+  const clearBulkSelection = () => {
+    setSelectedRows([]);
+    setBulkAction(null);
+  };
 
   const requestSort = (key: CreativePartnerSortKey) => {
     const direction = sortConfig?.key === key && sortConfig.direction === "asc" ? "desc" : "asc";
@@ -634,6 +678,8 @@ export const CreativePartnersTable = () => {
     setCurrentPage(1);
     setSortConfig(null);
     setExpandedRows(new Set());
+    setSelectedRows([]);
+    setBulkAction(null);
   };
 
   const handleApprove = async (id: string, e: React.MouseEvent) => {
@@ -765,6 +811,136 @@ export const CreativePartnersTable = () => {
         next.delete(cleanId);
         return next;
       });
+    }
+  };
+
+  const handleBulkVerify = async (status: 1 | 2) => {
+    if (!canEdit || selectedRows.length === 0) return;
+
+    const selectedIds = selectedRows
+      .map((id) => Number(id.replace("#", "")))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (selectedIds.length === 0) return;
+
+    setIsBulkUpdating(true);
+    try {
+      const response = await adminApi.creativePartnerBulkAction({
+        action: status === 1 ? "approve" : "decline",
+        crew_member_ids: selectedIds,
+      });
+
+      const successIds = Array.isArray(response?.data?.success_ids)
+        ? response.data.success_ids.map((id: number | string) => String(id))
+        : [];
+      const failedIds = Array.isArray(response?.data?.failed_ids)
+        ? response.data.failed_ids.map((id: number | string) => `#${id}`)
+        : [];
+
+      if (
+        response?.success === false &&
+        !response?.partial_success &&
+        successIds.length === 0 &&
+        failedIds.length === 0
+      ) {
+        toast.error(response?.error || response?.message || "Failed to update selected creative partners.");
+        return;
+      }
+
+      if (successIds.length > 0) {
+        const successSet = new Set(successIds);
+        setUsers((current) =>
+          current.map((user) =>
+            successSet.has(user.id.replace("#", ""))
+              ? { ...user, status: status === 1 ? "Approved" : "Rejected" }
+              : user,
+          ),
+        );
+      }
+
+      if (failedIds.length > 0) {
+        setSelectedRows(failedIds);
+        toast.error(
+          response?.error ||
+            `${failedIds.length} creative partner${failedIds.length === 1 ? "" : "s"} could not be ${status === 1 ? "approved" : "declined"}.`,
+        );
+      } else {
+        clearBulkSelection();
+        toast.success(
+          response?.message ||
+            `${successIds.length} creative partner${successIds.length === 1 ? "" : "s"} ${status === 1 ? "approved" : "declined"} successfully.`,
+        );
+      }
+
+      setBulkAction(null);
+    } catch (error) {
+      console.error("Bulk Creative Partner Verification Error:", error);
+      toast.error("An unexpected error occurred while updating selected creative partners.");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkReminder = async () => {
+    if (!canEdit || selectedRows.length === 0) return;
+
+    const selectedIds = selectedRows
+      .map((id) => Number(id.replace("#", "")))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (selectedIds.length === 0) return;
+
+    const selectedIdStrings = selectedIds.map(String);
+    setReminderSendingIds((current) => new Set([...current, ...selectedIdStrings]));
+    setIsBulkUpdating(true);
+
+    try {
+      const response = await adminApi.creativePartnerBulkAction({
+        action: "send_reminder",
+        crew_member_ids: selectedIds,
+      });
+      const successIds = Array.isArray(response?.data?.success_ids)
+        ? response.data.success_ids
+        : [];
+      const failedIds = Array.isArray(response?.data?.failed_ids)
+        ? response.data.failed_ids.map((id: number | string) => `#${id}`)
+        : [];
+
+      if (
+        response?.success === false &&
+        !response?.partial_success &&
+        successIds.length === 0 &&
+        failedIds.length === 0
+      ) {
+        toast.error(response?.error || response?.message || "Failed to send profile reminders.");
+        return;
+      }
+
+      if (failedIds.length > 0) {
+        setSelectedRows(failedIds);
+        toast.error(
+          response?.error ||
+            `${failedIds.length} profile reminder${failedIds.length === 1 ? "" : "s"} could not be sent.`,
+        );
+      } else {
+        clearBulkSelection();
+        toast.success(
+          response?.message ||
+            `Profile reminders sent successfully to ${successIds.length} creative partner${successIds.length === 1 ? "" : "s"}.`,
+        );
+      }
+
+      setBulkAction(null);
+    } catch (error) {
+      console.error("Bulk Creative Partner Reminder Error:", error);
+      toast.error("An unexpected error occurred while sending profile reminders.");
+    } finally {
+      setReminderSendingIds((current) => {
+        const next = new Set(current);
+        selectedIdStrings.forEach((id) => next.delete(id));
+        return next;
+      });
+      setIsBulkUpdating(false);
     }
   };
 
@@ -1313,16 +1489,104 @@ export const CreativePartnersTable = () => {
         </div>
       </div>
 
+      {selectedRows.length > 0 && (
+        <div
+          className={`rounded-xl border px-4 py-3 ${
+            isDark
+              ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.06]"
+              : "border-[#E5D5B8] bg-[#FFF8EC]"
+          }`}
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className={`inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full px-2 text-sm font-semibold ${
+                  isDark ? "bg-[#E8D1AB] text-black" : "bg-[#171717] text-white"
+                }`}
+              >
+                {selectedRows.length}
+              </span>
+              <div className="min-w-0">
+                <p className={`truncate text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+                  {selectedRows.length === 1 ? "1 creative partner selected" : `${selectedRows.length} creative partners selected`}
+                </p>
+                <p className={`mt-0.5 truncate text-xs ${isDark ? "text-white/45" : "text-[#32323299]"}`}>
+                  Perform an action on all selected creative partners.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto xl:shrink-0">
+              {activeTab === "submitted" ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={!canEdit || isBulkUpdating}
+                    onClick={() => setBulkAction("approve")}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#22C55E]/20 bg-[#F0FFF4] px-5 text-sm font-semibold text-[#16A34A] transition hover:bg-[#DCFCE4] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Check size={16} className="shrink-0" />
+                    <span>Approve Selected</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!canEdit || isBulkUpdating}
+                    onClick={() => setBulkAction("decline")}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-red-400/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <X size={16} className="shrink-0" />
+                    <span>Decline Selected</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!canEdit || isBulkUpdating}
+                  onClick={() => setBulkAction("reminder")}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#E5D5B8] px-5 text-sm font-semibold text-black transition hover:bg-[#d8c6a4] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Mail size={16} className="shrink-0" />
+                  <span>Send Reminder</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={isBulkUpdating}
+                onClick={clearBulkSelection}
+                className={`inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-sm font-medium transition ${
+                  isDark
+                    ? "text-white/55 hover:bg-white/5 hover:text-white"
+                    : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+                }`}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className={isDark
         ? "overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]"
         : "overflow-hidden rounded-2xl border border-[#E3E3E3] bg-white shadow-[0_10px_24px_rgba(16,16,16,0.08)]"}>
         {/* --- DESKTOP TABLE VIEW --- */}
         <div className="hidden lg:block w-full overflow-x-auto overflow-y-hidden">
-          <table className="w-full min-w-[1540px] border-collapse">
+          <table className="w-full min-w-[1610px] border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="w-[110px] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
+                  <th className="w-[70px] p-5 font-medium rounded-bl-xl" onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      checked={allDisplayedSelected ? true : someDisplayedSelected ? "indeterminate" : false}
+                      disabled={!canEdit || selectableDisplayedUsers.length === 0}
+                      aria-label="Select all eligible creative partners on this page"
+                      onCheckedChange={(value) => toggleSelectAllDisplayed(value === true)}
+                      className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                    />
+                  </th>
+                  <th className="w-[110px] p-5 font-medium cursor-pointer" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
                   <th className="w-[360px] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">Creative Name {getSortIcon("name")}</div></th>
                   <th className="w-[320px] p-5 font-medium">Email</th>
                   <th className="w-[220px] p-5 font-medium">Roles</th>
@@ -1334,13 +1598,13 @@ export const CreativePartnersTable = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-[#888]">
+                    <td colSpan={8} className="py-10 text-center text-[#888]">
                       <Loader2 className="animate-spin mx-auto" size={24} />
                     </td>
                   </tr>
                 ) : (!loading && users.length === 0) ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-[#888]">
+                    <td colSpan={8} className="py-10 text-center text-[#888]">
                       No creative partners found.
                     </td>
                   </tr>
@@ -1352,6 +1616,20 @@ export const CreativePartnersTable = () => {
                       key={user.id || idx}
                       className={`relative ${isDark ? "group text-white transition-colors hover:bg-[#202020]" : "group text-[#323232] transition-colors hover:bg-black/[0.015]"}`}
                     >
+                      <td className="py-3 px-6" onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedRows.includes(user.id)}
+                          disabled={
+                            !canEdit ||
+                            (activeTab === "submitted"
+                              ? user.status !== "Pending"
+                              : user.email === "No Email")
+                          }
+                          aria-label={`Select ${user.name}`}
+                          onCheckedChange={(value) => toggleSelectedRow(user.id, value === true)}
+                          className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                        />
+                      </td>
                       <td className="relative py-3 px-6 truncate">
                         <Link href={partnerDetailHref} className="absolute inset-0 z-20" aria-label={`Open creative partner ${user.name}`} prefetch={false} />
                         <span className="relative z-10 pointer-events-none">{user.id}</span>
@@ -1522,8 +1800,17 @@ export const CreativePartnersTable = () => {
         </div>
         {/* --- MOBILE COLLAPSIBLE VIEW (Visible below lg) --- */}
         <div className="block lg:hidden w-full">
-          <div className={`flex justify-between p-5 rounded-b-xl border-y text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-            <p>Name</p>
+          <div className={`flex items-center justify-between p-5 rounded-b-xl border-y text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={allDisplayedSelected ? true : someDisplayedSelected ? "indeterminate" : false}
+                disabled={!canEdit || selectableDisplayedUsers.length === 0}
+                aria-label="Select all eligible creative partners on this page"
+                onCheckedChange={(value) => toggleSelectAllDisplayed(value === true)}
+                className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
+              />
+              <p>Name</p>
+            </div>
             <p>{activeTab === "details_pending" ? "Progress" : "Status"}</p>
           </div>
           {loading ? (
@@ -1549,6 +1836,19 @@ export const CreativePartnersTable = () => {
                     onClick={(e) => handleRowClick(user.id, e)}
                   >
                     <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedRows.includes(user.id)}
+                        disabled={
+                          !canEdit ||
+                          (activeTab === "submitted"
+                            ? user.status !== "Pending"
+                            : user.email === "No Email")
+                        }
+                        aria-label={`Select ${user.name}`}
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={(value) => toggleSelectedRow(user.id, value === true)}
+                        className="h-5 w-5 rounded-md border-white/20 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30"
+                      />
                       <button
                         onClick={(e) => toggleRow(user.id, e)}
                         className={`p-1 rounded-full  transition-transform duration-200 border ${isExpanded ? (isDark ? 'rotate-180 border-[#E8D1AB]' : 'rotate-180 border-[#000000]') : 'border-[#777674]'}`}
@@ -1757,6 +2057,48 @@ export const CreativePartnersTable = () => {
           </div>
         )}
       </div>
+
+      <ActionModal
+        isOpen={bulkAction === "approve"}
+        onClose={() => {
+          if (!isBulkUpdating) setBulkAction(null);
+        }}
+        onConfirm={() => handleBulkVerify(1)}
+        title="Approve Selected Creative Partners"
+        description={`Are you sure you want to approve ${selectedRows.length} selected creative partner${selectedRows.length === 1 ? "" : "s"}?`}
+        tone="success"
+        confirmLabel="Approve"
+        cancelLabel="Cancel"
+        isLoading={isBulkUpdating}
+      />
+
+      <ActionModal
+        isOpen={bulkAction === "decline"}
+        onClose={() => {
+          if (!isBulkUpdating) setBulkAction(null);
+        }}
+        onConfirm={() => handleBulkVerify(2)}
+        title="Decline Selected Creative Partners"
+        description={`Are you sure you want to decline ${selectedRows.length} selected creative partner${selectedRows.length === 1 ? "" : "s"}?`}
+        tone="danger"
+        confirmLabel="Decline"
+        cancelLabel="Cancel"
+        isLoading={isBulkUpdating}
+      />
+
+      <ActionModal
+        isOpen={bulkAction === "reminder"}
+        onClose={() => {
+          if (!isBulkUpdating) setBulkAction(null);
+        }}
+        onConfirm={handleBulkReminder}
+        title="Send Profile Reminder"
+        description={`Send a profile completion reminder to ${selectedRows.length} selected creative partner${selectedRows.length === 1 ? "" : "s"}?`}
+        tone="default"
+        confirmLabel="Send Reminder"
+        cancelLabel="Cancel"
+        isLoading={isBulkUpdating}
+      />
 
       {/* Delete Modal */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
