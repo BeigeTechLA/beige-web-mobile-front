@@ -3459,6 +3459,63 @@ export const adminApi = {
     }
   },
 
+  getUserReassignments: async (
+    userId: number | string,
+    options: { search?: string; page?: number; limit?: number; type?: "all" | "Lead" | "Quote" } = {},
+  ) => {
+    try {
+      const params = {
+        ...(options.page || options.limit ? { range: "all" } : {}),
+        ...(options.search?.trim() ? { search: options.search.trim() } : {}),
+        ...(options.page ? { page: options.page } : {}),
+        ...(options.limit ? { limit: options.limit } : {}),
+        ...(options.type && options.type !== "all" ? { type: options.type.toLowerCase() } : {}),
+      };
+      const response = await api.get(
+        `admin/users/${userId}/reassignments`,
+        Object.keys(params).length ? { params } : undefined,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Reassignments Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch user reassignment records',
+        data: null,
+      };
+    }
+  },
+
+  reassignUserSalesRecords: async (
+    userId: number | string,
+    assignments: { recordId: string; repId: string }[],
+  ) => {
+    try {
+      const response = await api.post(`admin/users/${userId}/reassignments`, { assignments });
+      return response.data;
+    } catch (error: any) {
+      console.error('Reassign User Sales Records Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to reassign sales records',
+      };
+    }
+  },
+
+  getUserReassignmentHistory: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/reassignment-history`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Reassignment History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch reassignment history',
+        data: [],
+      };
+    }
+  },
+
   getPermissionModules: async (params: { scope?: string } = {}) => {
     try {
       const response = await api.get('admin/permissions/modules', { params });
