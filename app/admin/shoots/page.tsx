@@ -799,23 +799,23 @@ export default function ShootsPage() {
                     disabled={isLoadingPostProductionTeam}
                   >
                     <SelectTrigger
-                      title={selectedPostProductionUser?.name || "All Post Production Team"}
+                      title={selectedPostProductionUser?.name || "All Producer Team"}
                       className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
                     >
                       <SelectValue
-                        placeholder="Post Production Team"
+                        placeholder="Producer Team"
                         className="min-w-0 flex-1 truncate text-left"
                       >
                         {isLoadingPostProductionTeam
                           ? "Loading team..."
-                          : selectedPostProductionUser?.name || "All Post Production Team"}
+                          : selectedPostProductionUser?.name || "All Producer Team"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent
                       className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                       viewportClassName="!h-auto max-h-80 overflow-y-auto"
                     >
-                      <SelectItem value="all">All Post Production Team</SelectItem>
+                      <SelectItem value="all">All Producer Team</SelectItem>
                       {postProductionTeamOptions.length > 0 ? (
                       postProductionTeamOptions.map((option) => (
                         <SelectItem
