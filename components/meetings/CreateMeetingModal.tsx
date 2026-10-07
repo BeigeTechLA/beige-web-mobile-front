@@ -697,36 +697,6 @@ export default function CreateMeetingModal({
         return;
       }
 
-      if (resolvedGoogleEvent?.eventId) {
-        const updatedEvent = await meetingsApi.updateEvent({
-          eventId: resolvedGoogleEvent.eventId,
-          calendarId: resolvedGoogleEvent.calendarId || "primary",
-          summary: meetingTitle.trim() || `Meeting for ${getProjectName(selectedOrder)}`,
-          location: "Online",
-          description: description.trim(),
-          startDateTime: startIso,
-          endDateTime: endIso,
-          timeZone: getBrowserTimeZone(),
-        });
-
-        if (updatedEvent?.authUrl) {
-          window.open(updatedEvent.authUrl, "_blank", "noopener,noreferrer");
-          toast.info("Google authorization opened. Complete it, then try creating the meeting again.");
-          return;
-        }
-
-        resolvedLink = updatedEvent?.meetLink || resolvedLink;
-        resolvedGoogleEvent = {
-          eventId: updatedEvent?.eventId || resolvedGoogleEvent.eventId,
-          calendarId: updatedEvent?.calendarId || resolvedGoogleEvent.calendarId || "primary",
-          meetLink: resolvedLink,
-          startDateTime: startIso,
-          endDateTime: endIso,
-        };
-        setMeetLink(resolvedLink);
-        setGeneratedMeetEvent(resolvedGoogleEvent);
-      }
-
       await meetingsApi.createMeeting({
         order_id: activeOrderId,
         meeting_date_time: startIso,
