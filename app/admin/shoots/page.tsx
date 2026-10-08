@@ -103,6 +103,7 @@ export default function ShootsPage() {
   const [productionFilter, setProductionFilter] = useState("all");
   const [range, setRange] = useState("all");
   const [cpAssignmentFilter, setCpAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
+  const [postProductionAssignmentFilter, setPostProductionAssignmentFilter] = useState<"all" | "assigned" | "not_assigned">("all");
   const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
   const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
   const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(false);
@@ -166,6 +167,13 @@ export default function ShootsPage() {
       if (typeof parsed.postProductionUserFilter === "string") {
         setPostProductionUserFilter(parsed.postProductionUserFilter);
       }
+      if (
+        parsed.postProductionAssignmentFilter === "all" ||
+        parsed.postProductionAssignmentFilter === "assigned" ||
+        parsed.postProductionAssignmentFilter === "not_assigned"
+      ) {
+        setPostProductionAssignmentFilter(parsed.postProductionAssignmentFilter);
+      }
       if (parsed.viewMode === "grid" || parsed.viewMode === "list") {
         setViewMode(parsed.viewMode);
       }
@@ -207,6 +215,7 @@ export default function ShootsPage() {
           productionFilter,
           range,
           cpAssignmentFilter,
+          postProductionAssignmentFilter,
           postProductionUserFilter,
           viewMode,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
@@ -226,6 +235,7 @@ export default function ShootsPage() {
     productionFilter,
     range,
     cpAssignmentFilter,
+    postProductionAssignmentFilter,
     postProductionUserFilter,
     viewMode,
     selectedDate,
@@ -248,6 +258,7 @@ export default function ShootsPage() {
     setRange("all");
     setCpAssignmentFilter("all");
     setPostProductionUserFilter("all");
+    setPostProductionAssignmentFilter("all");
     setViewMode("list");
     try {
       window.sessionStorage.removeItem(SHOOTS_FILTERS_STORAGE_KEY);
@@ -393,6 +404,7 @@ export default function ShootsPage() {
           ...(cpAssignmentFilter !== "all" ? { cp_assignment: cpAssignmentFilter } : {}),
           ...(productionFilter !== "all" ? { production_filter: productionFilter } : {}),
           ...(postProductionUserFilter !== "all" ? { post_production_user_id: postProductionUserFilter } : {}),
+          ...(postProductionAssignmentFilter !== "all" ? { post_production_assignment: postProductionAssignmentFilter } : {}),
         });
 
         if (!(blob instanceof Blob) || blob.size === 0) {
@@ -648,6 +660,21 @@ export default function ShootsPage() {
                       <SelectItem value="all">All CP Assignment</SelectItem>
                       <SelectItem value="assigned">CP Assigned</SelectItem>
                       <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Select
+                    value={postProductionAssignmentFilter}
+                    onValueChange={(v: "all" | "assigned" | "not_assigned") => setPostProductionAssignmentFilter(v)}
+                  >
+                    <SelectTrigger className={`w-[200px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                      <SelectValue placeholder="Post Production Assignment" />
+                    </SelectTrigger>
+                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                      <SelectItem value="all">All Post Production</SelectItem>
+                      <SelectItem value="assigned">Post Prod Assigned</SelectItem>
+                      <SelectItem value="not_assigned">Post Prod Not Assigned</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1056,6 +1083,7 @@ export default function ShootsPage() {
           cpAssignmentFilter={cpAssignmentFilter}
           setCpAssignmentFilter={setCpAssignmentFilter}
           postProductionUserFilter={postProductionUserFilter}
+          postProductionAssignmentFilter={postProductionAssignmentFilter}
           viewMode={viewMode}
           setViewMode={setViewMode}
           showHeaderControls={true}
