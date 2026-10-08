@@ -929,13 +929,13 @@ export default function AdminFileManagerPhasePage() {
                             toast.error(err?.message || "Failed to download folder");
                           }
                         }}
-                            onDelete={() => {
-                              setSelectedFolder(folder);
-                              setSelectedFile(null);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            deleteDisabled={!canDelete}
-                            onShare={() => {
+                        onDelete={() => {
+                          setSelectedFolder(folder);
+                          setSelectedFile(null);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        deleteDisabled={!canDelete}
+                        onShare={() => {
                           setSelectedFolder(folder);
                           setShareResource({
                             resourceType: "folder",
@@ -1078,6 +1078,7 @@ export default function AdminFileManagerPhasePage() {
                             onAction={() => setIsUploadModalOpen(true)}
                             actionLabel="Upload Files"
                             actionDisabled={!canCreate}
+                            isDark={isDark}
                           />
                         ) : (
                           <div className="space-y-4">
@@ -1202,6 +1203,7 @@ export default function AdminFileManagerPhasePage() {
                             onAction={() => setIsUploadModalOpen(true)}
                             actionLabel="Upload Files"
                             actionDisabled={!canCreate}
+                            isDark={isDark}
                           />
                         ) : (
                           <div className="space-y-4">
@@ -1337,6 +1339,7 @@ export default function AdminFileManagerPhasePage() {
                     onAction={() => setIsUploadModalOpen(true)}
                     actionLabel="Upload Files"
                     actionDisabled={!canCreate}
+                    isDark={isDark}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -1391,6 +1394,7 @@ export default function AdminFileManagerPhasePage() {
                     onAction={() => setIsUploadModalOpen(true)}
                     actionLabel="Upload Files"
                     actionDisabled={!canCreate}
+                    isDark={isDark}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -1482,21 +1486,21 @@ export default function AdminFileManagerPhasePage() {
                                   }}>
                                     Share
                                   </Button>
-                                          <Button
-                                            variant="ghost"
-                                            className="text-white/40 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!canDelete) return;
-                                              setSelectedFile(item);
-                                              setSelectedFolder(null);
-                                              setIsDeleteModalOpen(true);
-                                            }}
-                                            disabled={!canDelete}
-                                            title={canDelete ? "Delete file" : "Delete permission not allowed"}
-                                          >
-                                            Delete
-                                          </Button>
+                                  <Button
+                                    variant="ghost"
+                                    className="text-white/40 hover:text-[#F04438] disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!canDelete) return;
+                                      setSelectedFile(item);
+                                      setSelectedFolder(null);
+                                      setIsDeleteModalOpen(true);
+                                    }}
+                                    disabled={!canDelete}
+                                    title={canDelete ? "Delete file" : "Delete permission not allowed"}
+                                  >
+                                    Delete
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
