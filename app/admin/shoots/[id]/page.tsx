@@ -31,7 +31,7 @@ import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConf
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
-
+import AssignProducerCard from "@/components/admin/shoot-details/AssignProducerCard";
 type SkillOption = {
   id?: number | string;
   name?: string;
@@ -649,6 +649,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
+                  <div className="px-5 mb-6">
+                    <AssignProducerCard isDark={isDark} projectId={id} />
+                  </div>
+
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam
                       projectId={id}
