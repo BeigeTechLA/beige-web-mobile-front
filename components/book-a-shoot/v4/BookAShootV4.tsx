@@ -2766,6 +2766,7 @@ export const BookAShootV4 = () => {
           <StudiosSelection
             onContinue={handleStudioOnlyStudiosSelected}
             onBack={() => setInternalStep(studioOnlyScheduleStep)}
+            initialSelectedStudioIds={selectedStudios.map((studio) => studio.studioId)}
             studios={HOURLY_STUDIO_LIST.map((studio) => ({
               id: studio.id,
               name: studio.name,

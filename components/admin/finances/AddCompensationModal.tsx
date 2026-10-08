@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import AdvancePaymentModal from "./AdvancePaymentModal";
+import { useRouter } from "next/navigation";
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -244,6 +245,7 @@ export default function AddCompensationModal({
   enableAdvanceProofUpload = false,
   initialShootId,
 }: AddCompensationModalProps) {
+  const router = useRouter()
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
@@ -1154,7 +1156,7 @@ export default function AddCompensationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <button
               type="button"
               onClick={onClose}
@@ -1166,9 +1168,17 @@ export default function AddCompensationModal({
               type="button"
               disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
               onClick={handleFormSubmit}
-              className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-bold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+              className="h-12 rounded-lg flex items-center justify-center bg-[#10B981] hover:bg-[#10B981]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit"}
+              {isSubmitting ? "Submitting..." : "Submit To Finance"}
+            </button>
+             <button
+              type="button"
+              // disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
+              onClick={()=>router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
+              className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Add Shoot Agreement
             </button>
           </div>
         </div>

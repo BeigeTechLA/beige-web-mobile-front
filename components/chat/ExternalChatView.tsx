@@ -2575,7 +2575,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         </button>
 
                         {isHeaderMenuOpen ? (
-                          <div className={`absolute right-0 lg:left-0 top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
+                          <div className={`absolute right-0 ${isAdminView ? "lg:left-0":""} top-[calc(100%+10px)] z-[50] min-w-[200px] md:min-w-[220px] rounded-2xl border p-2 shadow-2xl transition-colors ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-[#F4F5F7]"}`}>
                             <button
                               type="button"
                               onClick={async () => {

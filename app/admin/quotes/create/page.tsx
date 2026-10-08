@@ -3755,8 +3755,8 @@ function CreateQuotePageContent() {
       step,
     );
 
-  const getQuoteSummarySnapshot = () =>
-    buildQuoteSummarySnapshot({
+  const getQuoteSummarySnapshot = () => {
+    const snapshot = buildQuoteSummarySnapshot({
       selectedClient,
       clientName,
       emailId,
@@ -3788,6 +3788,21 @@ function CreateQuotePageContent() {
       lineItems,
       appliedLineItemConfigs: effectiveLineItemConfigs,
     });
+
+    if (!showQuoteRevisionSummary || !additionalPaymentDetails) {
+      return snapshot;
+    }
+
+    return {
+      ...snapshot,
+      revisionSummary: {
+        previousTotal: additionalPaymentDetails.previousTotal,
+        previouslyPaidAmount: additionalPaymentDetails.previouslyPaidAmount,
+        additionalAmount: totalAfterTax - additionalPaymentDetails.previousTotal,
+        revisedTotal: totalAfterTax,
+      },
+    };
+  };
 
   const currentDraftLineItems = React.useMemo(() => {
     const payload = buildQuoteDraftPayload({

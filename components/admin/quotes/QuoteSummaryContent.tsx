@@ -358,10 +358,30 @@ export default function QuoteSummaryContent({
                         <span>{formatCurrency(snapshot.taxAmount)}</span>
                       </div>
                     ) : null}
+                    {snapshot.revisionSummary ? (
+                      <>
+                        <div className={`flex items-center justify-between border-t pt-3 text-sm lg:text-base ${isDark ? "border-white/10 text-[#D4D4D8]" : "border-[#E5E5E5] text-[#444444]"}`}>
+                          <span>Old Quote Total</span>
+                          <span>{formatCurrency(snapshot.revisionSummary.previousTotal)}</span>
+                        </div>
+                        {snapshot.revisionSummary.previouslyPaidAmount > 0 ? (
+                          <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                            <span>Previously Paid</span>
+                            <span>{formatCurrency(snapshot.revisionSummary.previouslyPaidAmount)}</span>
+                          </div>
+                        ) : null}
+                        <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
+                          <span>{snapshot.revisionSummary.additionalAmount < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                          <span>{snapshot.revisionSummary.additionalAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(snapshot.revisionSummary.additionalAmount))}</span>
+                        </div>
+                      </>
+                    ) : null}
                     <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#E8D1AB] px-4 py-4 text-black lg:px-5">
-                      <span className="text-sm font-semibold lg:text-base">Current Total</span>
+                      <span className="text-sm font-semibold lg:text-base">
+                        {snapshot.revisionSummary ? "New Quote Total" : "Current Total"}
+                      </span>
                       <span className="text-xl font-semibold lg:text-2xl">
-                        {formatCurrency(snapshot.finalTotal)}
+                        {formatCurrency(snapshot.revisionSummary?.revisedTotal ?? snapshot.finalTotal)}
                       </span>
                     </div>
                   </div>

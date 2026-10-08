@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCards } from "swiper/modules";
 import { useTheme } from "next-themes";
@@ -66,6 +66,7 @@ export default function AssignedCP({
 }: AssignedCPProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { theme, resolvedTheme } = useTheme();
   const { canEdit, canCreate } = usePermissions("shoots");
@@ -130,7 +131,9 @@ export default function AssignedCP({
   };
 
   const handleViewProfile = (crewMemberId: number) => {
-    const returnTo = pathname ? encodeURIComponent(pathname) : "";
+    const query = searchParams?.toString();
+    const currentUrl = pathname ? (query ? `${pathname}?${query}` : pathname) : "";
+    const returnTo = currentUrl ? encodeURIComponent(currentUrl) : "";
     router.push(
       returnTo
         ? `/admin/users/creative-partners/${crewMemberId}?returnTo=${returnTo}`

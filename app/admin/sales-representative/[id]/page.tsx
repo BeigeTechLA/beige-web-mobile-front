@@ -308,8 +308,14 @@ export default function LeadDetailPage() {
   const leadId = params.id as string;
   const returnTo = String(searchParams.get("returnTo") || "").trim();
   const handleBackNavigation = () => {
-    if (returnTo.startsWith("/")) {
-      router.push(returnTo);
+    // Pop the history stack instead of adding a new entry
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // Opened directly (no history): fall back to returnTo without adding an entry
+    if (returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      router.replace(returnTo);
       return;
     }
     router.back();
