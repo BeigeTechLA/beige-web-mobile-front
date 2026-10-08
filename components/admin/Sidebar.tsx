@@ -131,12 +131,12 @@ const menuItems: MenuItem[] = [
       { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
-  {
-    name: "Agreements",
-    icon: ClipboardList,
-    link: "/admin/agreements",
-    permissionKeys: ["agreements"],
-  },
+  // {
+  //   name: "Agreements",
+  //   icon: ClipboardList,
+  //   link: "/admin/agreements",
+  //   permissionKeys: ["agreements"],
+  // },
   {
     name: "Invoices",
     icon: Receipt,
