@@ -17,11 +17,12 @@ import {
   Settings,
   SquareArrowOutUpRight,
   User,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
-import { useTheme } from "next-themes";
+import { useTheme } from "next-themes"; 
 import { useAppSelector } from '@/lib/redux/hooks';
 import { hasModulePermission } from '@/lib/permissions';
 import { ADMIN_PERMISSION_MENU_HIERARCHY } from '@/lib/permissions/menuHierarchy';
@@ -127,8 +128,14 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
-      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
+      // { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
+  },
+  {
+    name: "Agreements",
+    icon: ClipboardList,
+    link: "/admin/agreements",
+    permissionKeys: ["agreements"],
   },
   {
     name: "Invoices",
@@ -139,7 +146,7 @@ const menuItems: MenuItem[] = [
   {
     name: "Sales Cockpit",
     icon: SquareArrowOutUpRight,
-    link: "https://beige.launchfulcrum.com/",
+    link: "https://sales.beige.app/",
   },
   {
     name: "Settings",
@@ -294,8 +301,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     return isActiveLink(item.link);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (!await logout()) return;
     localStorage.clear();
     if (onClose) onClose();
     router.push("/");

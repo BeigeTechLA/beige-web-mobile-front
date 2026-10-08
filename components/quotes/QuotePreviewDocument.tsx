@@ -32,6 +32,8 @@ type QuotePreviewDocumentProps = {
     previouslyPaid?: number;
     revisedTotal?: number;
   };
+  hidePriceHistory?: boolean;
+  hidePaymentSummary?: boolean;
 };
 
 const COMPANY_PROFILE = {
@@ -567,6 +569,8 @@ export default function QuotePreviewDocument({
   onAcceptServiceAgreementChange,
   onOpenServiceAgreement,
   paymentSummaryOverrides,
+  hidePriceHistory = false,
+  hidePaymentSummary = false,
 }: QuotePreviewDocumentProps) {
   const { isDark } = useResolvedTheme();
   const quoteData = unwrapSalesQuoteDetail(quote);
@@ -595,11 +599,13 @@ export default function QuotePreviewDocument({
   // const taxAmount = discountedSubtotal * (taxRate / 100);
   // const amountAfterTax = discountedSubtotal + taxAmount;
   const finalTotal = discountedSubtotal;
-  const additionalPaymentDetails = getQuoteAdditionalPaymentDetails(quoteData, {
-    previousTotalOverride: paymentSummaryOverrides?.previousTotal,
-    previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
-    revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
-  });
+  const additionalPaymentDetails = hidePaymentSummary
+    ? null
+    : getQuoteAdditionalPaymentDetails(quoteData, {
+        previousTotalOverride: paymentSummaryOverrides?.previousTotal,
+        previouslyPaidOverride: paymentSummaryOverrides?.previouslyPaid,
+        revisedTotalOverride: paymentSummaryOverrides?.revisedTotal,
+      });
   const preProductionNotes = getQuotePreProductionNotes(quoteData);
 
   const resolvedQuoteId = String(
@@ -765,16 +771,19 @@ export default function QuotePreviewDocument({
               <span>{taxType} ({taxRate}%)</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>
             </div> */}
-            {additionalPaymentDetails ? (
+            {additionalPaymentDetails &&
+            (!hidePriceHistory || additionalPaymentDetails.previouslyPaidAmount > 0) ? (
               <>
                 <div className="mt-2 border-t border-black/10 pt-3" />
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-6">
-                    <span>Old Quote Total</span>
-                    <span className="font-semibold">
-                      {formatQuoteCurrency(additionalPaymentDetails.previousTotal)}
-                    </span>
-                  </div>
+                  {!hidePriceHistory ? (
+                    <div className="flex items-center justify-between gap-6">
+                      <span>Old Quote Total</span>
+                      <span className="font-semibold">
+                        {formatQuoteCurrency(additionalPaymentDetails.previousTotal)}
+                      </span>
+                    </div>
+                  ) : null}
                   {additionalPaymentDetails.previouslyPaidAmount > 0 ? (
                     <div className="flex items-center justify-between gap-6">
                       <span>Previously Paid</span>
@@ -783,14 +792,16 @@ export default function QuotePreviewDocument({
                       </span>
                     </div>
                   ) : null}
-                  <div className="flex items-center justify-between gap-6">
-                    <div className="flex items-center gap-1.5">
-                      <span>{additionalPaymentDetails.totalDelta < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                  {!hidePriceHistory ? (
+                    <div className="flex items-center justify-between gap-6">
+                      <div className="flex items-center gap-1.5">
+                        <span>{additionalPaymentDetails.totalDelta < 0 ? "Reduced Amount" : "Additional Amount"}</span>
+                      </div>
+                      <span className={`font-semibold ${additionalPaymentDetails.totalDelta < 0 ? "text-red-600" : ""}`}>
+                        {additionalPaymentDetails.totalDelta < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
+                      </span>
                     </div>
-                    <span className={`font-semibold ${additionalPaymentDetails.totalDelta < 0 ? "text-red-600" : ""}`}>
-                      {additionalPaymentDetails.totalDelta < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(additionalPaymentDetails.totalDelta))}
-                    </span>
-                  </div>
+                  ) : null}
                 </div>
               </>
             ) : null}

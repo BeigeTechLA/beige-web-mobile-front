@@ -598,7 +598,7 @@ export default function EditMeetingModal({
                             value={editMeetingEndTime}
                             onChange={setEditMeetingEndTime}
                             minTime={getMinimumMeetingEndTime(editMeetingStartTime) || (isEditDateToday ? minimumEditStartTime : null)}
-                            iisDark={isDark}
+                            isDark={isDark}
                             height={{ xs: "60px", lg: "82px" }}
                             fontSize={"text-sm lg:text-base"}
                             labelFontSize={"text-sm lg:text-base"}

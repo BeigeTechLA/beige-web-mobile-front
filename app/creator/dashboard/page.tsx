@@ -55,6 +55,7 @@ import {
   ConfirmCPEventLocation
 } from "@/lib/api";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { GeneralAgreementModal } from "@/components/creator-profile/GeneralAgreementModal";
 
 // ----------------------------
 // CONSTANTS & HELPERS
@@ -193,34 +194,31 @@ function ShootStatusGaugeCard({
   const displayData = hasChartData
     ? chartData
     : [
-        {
-          name: "No Shoots",
-          value: 1,
-          fill: isDark ? "#242424" : "#EAEAEA",
-        },
-      ];
+      {
+        name: "No Shoots",
+        value: 1,
+        fill: isDark ? "#242424" : "#EAEAEA",
+      },
+    ];
 
   return (
     <div
-      className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${
-        isDark
-          ? "bg-[#171717] border-[#3D3D3D] text-white"
-          : "bg-white border-[#E5E5E5] text-black"
-      }`}
+      className={`w-full rounded-2xl border min-h-[392px] flex flex-col transition-all duration-300 ${isDark
+        ? "bg-[#171717] border-[#3D3D3D] text-white"
+        : "bg-white border-[#E5E5E5] text-black"
+        }`}
     >
       <div
-        className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${
-          isDark
-            ? "bg-[#101010] border-b-[#3D3D3D]"
-            : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-        }`}
+        className={`rounded-2xl flex justify-between items-center border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+          ? "bg-[#101010] border-b-[#3D3D3D]"
+          : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+          }`}
       >
         <div className="flex items-center gap-2">
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <h3
-            className={`text-sm lg:text-base ${
-              isDark ? "text-white" : "text-[#000000]"
-            }`}
+            className={`text-sm lg:text-base ${isDark ? "text-white" : "text-[#000000]"
+              }`}
           >
             {title}
           </h3>
@@ -229,11 +227,10 @@ function ShootStatusGaugeCard({
         {rightControl || (
           <button
             type="button"
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border ${
-              isDark
-                ? "bg-[#1A1A1A] border-white/10 text-white/70"
-                : "bg-white border-[#E5E5E5] text-[#333]"
-            }`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] lg:text-xs transition-colors border ${isDark
+              ? "bg-[#1A1A1A] border-white/10 text-white/70"
+              : "bg-white border-[#E5E5E5] text-[#333]"
+              }`}
           >
             All Time
           </button>
@@ -287,26 +284,23 @@ function ShootStatusGaugeCard({
             style={{ top: "60%" }}
           >
             <span
-              className={`text-[28px] font-bold tracking-tight ${
-                isDark ? "text-[#E8D1AB]" : "text-black"
-              }`}
+              className={`text-[28px] font-bold tracking-tight ${isDark ? "text-[#E8D1AB]" : "text-black"
+                }`}
             >
               {displayTotal.toLocaleString()}
             </span>
           </div>
 
           <div
-            className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${
-              isDark ? "bg-white/20" : "bg-black/10"
-            }`}
+            className={`absolute left-1/2 -translate-x-1/2 h-[1px] flex items-center justify-center pointer-events-none ${isDark ? "bg-white/20" : "bg-black/10"
+              }`}
             style={{ top: "82%", width: "76%" }}
           >
             <div
-              className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${
-                isDark
-                  ? "bg-[#E8D1AB] border-[#101010]"
-                  : "bg-black border-white"
-              }`}
+              className={`w-3 h-3 rounded-full border-2 shadow-[0_0_8px_rgba(232,209,171,0.6)] ${isDark
+                ? "bg-[#E8D1AB] border-[#101010]"
+                : "bg-black border-white"
+                }`}
             />
           </div>
         </div>
@@ -318,9 +312,8 @@ function ShootStatusGaugeCard({
               className="flex items-center justify-between lg:justify-start gap-6 group"
             >
               <div
-                className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${
-                  isDark ? "text-white" : "text-[#333]"
-                }`}
+                className={`w-16 py-1.5 rounded-full border text-xs font-bold text-center transition-all ${isDark ? "text-white" : "text-[#333]"
+                  }`}
                 style={{
                   borderColor: item.colorHex,
                   backgroundColor: "transparent",
@@ -330,11 +323,10 @@ function ShootStatusGaugeCard({
               </div>
 
               <span
-                className={`text-sm font-medium whitespace-nowrap transition-colors ${
-                  isDark
-                    ? "text-white/40 group-hover:text-white/70"
-                    : "text-[#666] group-hover:text-black"
-                }`}
+                className={`text-sm font-medium whitespace-nowrap transition-colors ${isDark
+                  ? "text-white/40 group-hover:text-white/70"
+                  : "text-[#666] group-hover:text-black"
+                  }`}
               >
                 {item.label}
               </span>
@@ -423,6 +415,25 @@ export default function CreatorDashboardPage() {
     longitude: -98.5795,
     zoom: 3,
   });
+
+  // General agreement modal
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(true);
+
+  // --- AGREEMENT MODAL HANDLERS ---
+  const handleOpenModal = () => setIsAgreementModalOpen(true);
+  const handleCloseModal = () => setIsAgreementModalOpen(false);
+
+  const handleViewAgreement = () => {
+    // Open agreement document or route to agreement page
+    window.open("/creator/dashboard/agreements/general-agreement", "_blank");
+    // router.push("/creator/dashboard/agreements/general-agreement")
+  };
+
+  const handleAcceptAgreement = () => {
+    // Handle agreement acceptance logic (API call, state update, etc.)
+    console.log("Agreement accepted!");
+    setIsAgreementModalOpen(false);
+  };
 
   // --- MONTH HANDLERS ---
   const handlePreviousMonth = () => {
@@ -708,7 +719,7 @@ export default function CreatorDashboardPage() {
             ? "Please complete all required profile details before we send your application to the Beige curation team for review."
             : isPending
               ? "Welcome to the Beige collective. Our curation team is currently reviewing your portfolio and credentials. We maintain a high standard for our creators to ensure premium quality for our clients."
-            : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
+              : "Thank you for your interest in joining Beige. At this time, our team has decided not to move forward with your application. We appreciate your talent and wish you the best in your creative journey."
           }
         </p>
 
@@ -719,7 +730,7 @@ export default function CreatorDashboardPage() {
               ? "Open your profile and fill the missing required fields. Once everything is complete, your application will move under review."
               : isPending
                 ? "Reviews typically take 2-3 business days. You'll receive an email once your dashboard is fully activated."
-              : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
+                : "If you feel this was an error or your portfolio has significantly changed, feel free to contact our support team."
             }
           </p>
         </div>
@@ -876,25 +887,24 @@ export default function CreatorDashboardPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-    <div 
-      className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
-        ${isDark 
-          ? `bg-[#0A0A0A] 
+      <div
+        className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
+        ${isDark
+            ? `bg-[#0A0A0A] 
             border border-[#E8D1AB]/40 
-            shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]` 
-          : "bg-white border-zinc-200 shadow-sm"
-        }`}
-    >
-
+            shadow-[inset_0_0_12px_rgba(232,209,171,0.1),0_0_2px_rgba(232,209,171,0.8),0_0_15px_rgba(232,209,171,0.3),0_0_40px_rgba(232,209,171,0.15)]`
+            : "bg-white border-zinc-200 shadow-sm"
+          }`}
+      >
         <div className="p-6 lg:p-10 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-          <div>
-            <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
-              }`}>Welcome back, {user?.name || "Partner"}</h1>
-            <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Performance overview and shoot schedule</p>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+            <div>
+              <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors duration-100 ${isDark ? "text-white" : "text-[#000]"
+                }`}>Welcome back, {user?.name || "Partner"}</h1>
+              <p className={`text-xs lg:text-sm transition-colors duration-100 ${isDark ? "text-white/70" : "text-[#000000B2]"}`}>Performance overview and shoot schedule</p>
+            </div>
           </div>
-        </div>
           {/* <div 
             className={`w-full rounded-[24px] p-6 flex flex-col md:flex-row items-center justify-between gap-8 border transition-all duration-300 
               ${isDark 
@@ -919,8 +929,8 @@ export default function CreatorDashboardPage() {
           </Button>
         </div>  */}
 
-        {/* Stats Cards (Luxury Style) */}
-        {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Stats Cards (Luxury Style) */}
+          {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Completed Shoots"
           value={dashboardStats.completedShoots}
@@ -950,573 +960,581 @@ export default function CreatorDashboardPage() {
           hoverBorder="hover:border-white/20"
         />
       </div> */}
-        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-2xl border p-4 transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#E3E3E3]"}`}>
-          <MetricCard
-            id="completed"
-            label="Completed Shoots"
-            value={dashboardStats.completedShoots}
-            icon={Camera}
-            activeMetricCard={activeMetricCard}
-            setActiveMetricCard={setActiveMetricCard}
-            isDark={isDark}
-            onClick={() => setMapStatusFilter("active")}
-          />
-          <MetricCard
-            id="upcoming"
-            label="Upcoming Shoots"
-            value={dashboardStats.upcomingShoots}
-            icon={CalendarIcon}
-            activeMetricCard={activeMetricCard}
-            setActiveMetricCard={setActiveMetricCard}
-            isDark={isDark}
-            onClick={() => setMapStatusFilter("upcoming")}
-          />
-          <MetricCard
-            id="pending"
-            label="Pending Requests"
-            value={dashboardStats.pendingRequests}
-            icon={Clock}
-            activeMetricCard={activeMetricCard}
-            setActiveMetricCard={setActiveMetricCard}
-            isDark={isDark}
-            onClick={() => setMapStatusFilter("pending")}
-          />
-        </div>
-
-        {/* Main Content Grid: Map & Calendar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-          {/* Map Section */}
-          <div className={`lg:col-span-2 rounded-2xl border overflow-hidden flex flex-col min-h-[560px] transition-all duration-300 ${isDark
-            ? "bg-[#171717] border-[#3D3D3D] text-white"
-            : "bg-white border-[#E5E5E5] text-black shadow-sm"
-            }`}>
-            <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
-              ? "bg-[#101010] border-b-[#3D3D3D]"
-              : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-              }`}>
-              <div className="flex items-center gap-2">
-                <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Map</h3>
-              </div>
-              <div className={`text-xs ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
-                {filteredMarkers.length} events
-              </div>
-            </div>
-            <div className="relative flex-1 min-h-[500px]">
-            {/* Map Controls */}
-            <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
-              <div className="relative">
-                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-                <input
-                  type="text"
-                  placeholder="Search events..."
-                  value={mapSearch}
-                  onChange={(e) => setMapSearch(e.target.value)}
-                  className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
-                    ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
-                    : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
-                    }`}
-                />
-              </div>
-
-              {/* Filter Select Dropdown Trigger */}
-              <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
-                <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
-                  ? "bg-[#0B0F14]/90 border-white/10 text-white"
-                  : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
-                  }`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
-                  }`}>
-                  <SelectItem value="all">All events</SelectItem>
-                  <SelectItem value="active">Active shoots</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="pending">Requests</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Mapbox Layer Element */}
-            <Map
-              {...viewState}
-              onMove={(evt) => setViewState(evt.viewState)}
-              style={{ width: "100%", height: "100%" }}
-              mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
-              mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
-            >
-              <NavigationControl position="top-right" showCompass={false} />
-              <GeolocateControl
-                position="top-right"
-                trackUserLocation={true}
-                showUserLocation={true}
-                onGeolocate={(e: any) => {
-                  setViewState((prev) => ({
-                    ...prev,
-                    latitude: e.coords.latitude,
-                    longitude: e.coords.longitude,
-                    zoom: 14,
-                  }));
-                }}
-              />
-              {filteredMarkers.map((marker, idx) => (
-                <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
-                  <div
-                    onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                    className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
-                      ? 'bg-[#E8D1AB] border-black text-black'
-                      : marker.type === 'upcoming'
-                        ? 'bg-blue-400 border-black text-black'
-                        : 'bg-yellow-500 border-black text-black'
-                      }`}
-                  >
-                    {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
-                  </div>
-                </Marker>
-              ))}
-            </Map>
-
-            </div>
-          </div>
-
-          {/* Availability Calendar */}
-          <div className={`rounded-2xl border flex flex-col transition-all duration-300 ${isDark
-            ? "bg-[#171717] border-[#3D3D3D] text-white"
-            : "bg-white border-[#E5E5E5] text-black shadow-sm"
-            }`}>
-            {/* Header Section */}
-            <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
-              ? "bg-[#101010] border-b-[#3D3D3D]"
-              : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-              }`}>
-              <div className="flex items-center gap-2">
-                <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-                <h3 className={`text-sm lg:text-base font-medium flex items-center gap-2 ${isDark ? "text-white" : "text-[#000000]"}`}>
-                  <CalendarIcon size={18} className="text-[#E8D1AB]" />
-                  Availability
-                </h3>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={handlePreviousMonth}
-                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
-                    }`}
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  onClick={handleNextMonth}
-                  className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
-                    }`}
-                >
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-            <div className="p-5 flex-1 flex flex-col">
-
-            {/* Current Month Banner */}
-            <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
-              {date.toLocaleString("default", { month: "long", year: "numeric" })}
-            </div>
-
-            {/* Weekday Abbreviations Row */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-                <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
-                  {d.slice(0, 1)}
-                </div>
-              ))}
-            </div>
-
-            {/* Days Grid */}
-            <div className="grid grid-cols-7 gap-1.5">
-              {(() => {
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const today = new Date(); today.setHours(0, 0, 0, 0);
-
-                const days = [];
-                for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
-
-                for (let d = 1; d <= daysInMonth; d++) {
-                  const curDate = new Date(year, month, d);
-                  const isToday = curDate.getTime() === today.getTime();
-                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                  const dayData = (availability as any)?.[dateStr];
-
-                  // Base Dynamic Styles for standard days
-                  let style = isDark
-                    ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
-                    : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
-
-                  // Condition 1: Available (unassigned)
-                  if (dayData && dayData.available === true && !dayData.projectAssigned) {
-                    style = isDark
-                      ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
-                      : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
-                  }
-
-                  // Condition 2: Explicitly Unavailable
-                  if (dayData && dayData.available === false && !dayData.projectAssigned) {
-                    style = isDark
-                      ? "border-red-600/40 bg-black text-[#E8D1AB]"
-                      : "border-red-200 bg-red-50 text-black";
-                  }
-
-                  // Condition 3: Project Assigned
-                  if (dayData?.projectAssigned === true) {
-                    style = isDark
-                      ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
-                      : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
-                  }
-
-                  // Condition 4: Today (highest override)
-                  if (isToday) {
-                    style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
-                  }
-
-                  days.push(
-                    <button
-                      key={d}
-                      onClick={() => {
-                        if (dayData?.projectDetails) {
-                          setProjectDetailsData({ project: dayData.projectDetails });
-                          setProjectDetailsOpen(true);
-                        } else {
-                          toast(`Date selected: ${dateStr}`);
-                        }
-                      }}
-                      className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
-                    >
-                      {d}
-                      {dayData?.projectAssigned === true && !isToday && (
-                        <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
-                          }`} />
-                      )}
-                    </button>
-                  );
-                }
-                return days;
-              })()}
-            </div>
-
-            {/* Legend & Action Footer */}
-            <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
-              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
-                <div className="flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
-                  <span>Shoot Assigned</span>
-                </div>
-                <span className="font-mono">Active</span>
-              </div>
-              <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
-                <div className="flex items-center gap-3">
-                  <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
-                  <span>Unavailable</span>
-                </div>
-                <span className="font-mono">Blocked</span>
-              </div>
-              <Button
-                onClick={() => router.push("/creator/dashboard/availability")}
-                className={`w-full mt-6 border transition-colors ${isDark
-                  ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
-                  : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
-                  }`}
-              >
-                Go to Availability
-              </Button>
-            </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Admin-style Analytics Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-5 lg:pb-0">
-          <div>
-            <ShootStatusGaugeCard
-              slices={shootStatusSlices}
-              totalValue={creatorStats.overallShoots}
+          <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-2xl border p-4 transition-colors duration-300 ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-[#F4F5F7] border-[#E3E3E3]"}`}>
+            <MetricCard
+              id="completed"
+              label="Completed Shoots"
+              value={dashboardStats.completedShoots}
+              icon={Camera}
+              activeMetricCard={activeMetricCard}
+              setActiveMetricCard={setActiveMetricCard}
               isDark={isDark}
+              onClick={() => setMapStatusFilter("active")}
+            />
+            <MetricCard
+              id="upcoming"
+              label="Upcoming Shoots"
+              value={dashboardStats.upcomingShoots}
+              icon={CalendarIcon}
+              activeMetricCard={activeMetricCard}
+              setActiveMetricCard={setActiveMetricCard}
+              isDark={isDark}
+              onClick={() => setMapStatusFilter("upcoming")}
+            />
+            <MetricCard
+              id="pending"
+              label="Pending Requests"
+              value={dashboardStats.pendingRequests}
+              icon={Clock}
+              activeMetricCard={activeMetricCard}
+              setActiveMetricCard={setActiveMetricCard}
+              isDark={isDark}
+              onClick={() => setMapStatusFilter("pending")}
             />
           </div>
-          <div>
-            <ShootStatusGaugeCard
-              title="Shoot Categories"
-              rightControl={
-                <div className={`flex p-1 rounded-lg border transition-all ${isDark
-                  ? "bg-[#0B0F14] border-white/5"
-                  : "bg-[#FFFCF6] border-[#E5E5E5]"
-                  }`}>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
-                  >
-                    Photo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
-                  >
-                    Video
-                  </button>
-                </div>
-              }
-              slices={shootCategorySlices}
-              totalValue={creatorStats.overallShoots}
-              isDark={isDark}
-            />
-          </div>
-        </div>
 
-        {/* --- MODALS --- */}
-        <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
-          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
-            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
-            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
-            }`}>
-            <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
+          {/* Main Content Grid: Map & Calendar */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-            <div className={`px-7 py-7 border-b transition-colors ${isDark
-              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
-              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+            {/* Map Section */}
+            <div className={`lg:col-span-2 rounded-2xl border overflow-hidden flex flex-col min-h-[560px] transition-all duration-300 ${isDark
+              ? "bg-[#171717] border-[#3D3D3D] text-white"
+              : "bg-white border-[#E5E5E5] text-black shadow-sm"
               }`}>
-              {/* Icon Frame */}
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <CalendarIcon size={30} className="text-[#E8D1AB]" />
-              </div>
-
-              <h2 className="lg:text-xl font-bold mb-2">Switch to this event location?</h2>
-              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"}`}>
-                {tempEventLocation
-                  ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
-                  : "Do you want to continue with this event?"}
-              </p>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Button
-                  variant="ghost"
-                  disabled={isConfirmingTempEvent}
-                  onClick={() => setShowTempEventPopup(false)}
-                  className={`h-12 flex-1 rounded-lg lg:rounded-2xl border transition-colors ${isDark
-                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
-                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
-                    }`}
-                >
-                  Not now
-                </Button>
-                <Button
-                  disabled={isConfirmingTempEvent}
-                  onClick={handleConfirmTempEvent}
-                  className="h-12 flex-1 rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
-                >
-                  {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Accept Shoot Modal */}
-        <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
-          <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
-            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
-            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
-            }`}>
-            <DialogTitle className="sr-only">Accept Request?</DialogTitle>
-            <div className={`px-7 py-7 border-b transition-colors ${isDark
-              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
-              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
-              }`}>
-              {/* Icon Frame */}
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <CheckCircle2 size={32} className="text-[#E8D1AB]" />
-              </div>
-
-              <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
-
-              <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"
+              <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+                ? "bg-[#101010] border-b-[#3D3D3D]"
+                : "bg-[#FFFCF6] border-b-[#E5E5E5]"
                 }`}>
-                Confirming will add{" "}
-                <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  {acceptShootEvent?.project_name}
-                </span>{" "}
-                to your production schedule.
-              </p>
+                <div className="flex items-center gap-2">
+                  <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+                  <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Map</h3>
+                </div>
+                <div className={`text-xs ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
+                  {filteredMarkers.length} events
+                </div>
+              </div>
+              <div className="relative flex-1 min-h-[500px]">
+                {/* Map Controls */}
+                <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
+                  <div className="relative">
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+                    <input
+                      type="text"
+                      placeholder="Search events..."
+                      value={mapSearch}
+                      onChange={(e) => setMapSearch(e.target.value)}
+                      className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
+                        ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
+                        : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
+                        }`}
+                    />
+                  </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => setAcceptShootEvent(null)}
-                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
-                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
-                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
-                    }`}
+                  {/* Filter Select Dropdown Trigger */}
+                  <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
+                    <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
+                      ? "bg-[#0B0F14]/90 border-white/10 text-white"
+                      : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
+                      }`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
+                      }`}>
+                      <SelectItem value="all">All events</SelectItem>
+                      <SelectItem value="active">Active shoots</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="pending">Requests</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Mapbox Layer Element */}
+                <Map
+                  {...viewState}
+                  onMove={(evt) => setViewState(evt.viewState)}
+                  style={{ width: "100%", height: "100%" }}
+                  mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
+                  mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}
-                  className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
-                >
-                  Confirm
-                </Button>
+                  <NavigationControl position="top-right" showCompass={false} />
+                  <GeolocateControl
+                    position="top-right"
+                    trackUserLocation={true}
+                    showUserLocation={true}
+                    onGeolocate={(e: any) => {
+                      setViewState((prev) => ({
+                        ...prev,
+                        latitude: e.coords.latitude,
+                        longitude: e.coords.longitude,
+                        zoom: 14,
+                      }));
+                    }}
+                  />
+                  {filteredMarkers.map((marker, idx) => (
+                    <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
+                      <div
+                        onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
+                        className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
+                          ? 'bg-[#E8D1AB] border-black text-black'
+                          : marker.type === 'upcoming'
+                            ? 'bg-blue-400 border-black text-black'
+                            : 'bg-yellow-500 border-black text-black'
+                          }`}
+                      >
+                        {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
+                      </div>
+                    </Marker>
+                  ))}
+                </Map>
+
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Decline Equipment Modal */}
-        <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
-          <DialogContent className={`max-w-xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
-            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
-            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
-            }`}>
-            {/* Header Section */}
-            <DialogHeader className={`px-7 py-6 border-b transition-colors ${isDark
-              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
-              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+            {/* Availability Calendar */}
+            <div className={`rounded-2xl border flex flex-col transition-all duration-300 ${isDark
+              ? "bg-[#171717] border-[#3D3D3D] text-white"
+              : "bg-white border-[#E5E5E5] text-black shadow-sm"
               }`}>
-              <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                <AlertTriangle className="text-red-500" />
-                Decline Request
-              </DialogTitle>
-            </DialogHeader>
-
-            {/* Form Options Content */}
-            <div className="space-y-5 px-7 py-6">
-              <div className="space-y-3">
-                <Label className={`text-xs uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>
-                  Reason for declining
-                </Label>
-
-                {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
-                  <div
-                    key={reason}
-                    className={`flex items-center space-x-3 p-4 rounded-2xl border cursor-pointer transition-all ${isDark
-                      ? "bg-[#111111] border-white/10 hover:border-white/20 hover:bg-[#151515]"
-                      : "bg-[#FFFDF9] border-[#E5E5E5] hover:border-[#E8D1AB]/60 hover:bg-[#FDF9F0]"
+              {/* Header Section */}
+              <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+                ? "bg-[#101010] border-b-[#3D3D3D]"
+                : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+                }`}>
+                <div className="flex items-center gap-2">
+                  <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+                  <h3 className={`text-sm lg:text-base font-medium flex items-center gap-2 ${isDark ? "text-white" : "text-[#000000]"}`}>
+                    <CalendarIcon size={18} className="text-[#E8D1AB]" />
+                    Availability
+                  </h3>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={handlePreviousMonth}
+                    className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
                       }`}
                   >
-                    <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
-                    <Label
-                      htmlFor={reason}
-                      className={`font-normal cursor-pointer flex-1 transition-colors ${isDark ? "text-white/70" : "text-black/80"
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={handleNextMonth}
+                    className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-white/40 hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"
+                      }`}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5 flex-1 flex flex-col">
+
+                {/* Current Month Banner */}
+                <div className="text-center font-bold text-sm mb-6 text-[#E8D1AB] uppercase tracking-widest">
+                  {date.toLocaleString("default", { month: "long", year: "numeric" })}
+                </div>
+
+                {/* Weekday Abbreviations Row */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                    <div key={d} className={`text-center text-[10px] font-bold uppercase ${isDark ? "text-white/20" : "text-black/30"}`}>
+                      {d.slice(0, 1)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-1.5">
+                  {(() => {
+                    const year = date.getFullYear();
+                    const month = date.getMonth();
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+                    const days = [];
+                    for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} />);
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                      const curDate = new Date(year, month, d);
+                      const isToday = curDate.getTime() === today.getTime();
+                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                      const dayData = (availability as any)?.[dateStr];
+
+                      // Base Dynamic Styles for standard days
+                      let style = isDark
+                        ? "border-white/5 text-white/60 hover:border-white/20 hover:bg-white/5"
+                        : "border-[#E5E5E5] text-black/60 hover:border-[#E8D1AB]/50 hover:bg-[#FDF9F0]";
+
+                      // Condition 1: Available (unassigned)
+                      if (dayData && dayData.available === true && !dayData.projectAssigned) {
+                        style = isDark
+                          ? "border-[#E8D1AB]/30 bg-[#E8D1AB]/5 text-[#E8D1AB]"
+                          : "border-[#E8D1AB]/40 bg-[#FDF9F0] text-[#8A7043]";
+                      }
+
+                      // Condition 2: Explicitly Unavailable
+                      if (dayData && dayData.available === false && !dayData.projectAssigned) {
+                        style = isDark
+                          ? "border-red-600/40 bg-black text-[#E8D1AB]"
+                          : "border-red-200 bg-red-50 text-black";
+                      }
+
+                      // Condition 3: Project Assigned
+                      if (dayData?.projectAssigned === true) {
+                        style = isDark
+                          ? "border-[#E8D1AB]/50 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                          : "border-[#E8D1AB]/60 bg-[#E8D1AB]/15 text-[#735A2B]";
+                      }
+
+                      // Condition 4: Today (highest override)
+                      if (isToday) {
+                        style = "bg-[#E8D1AB] text-black border-[#E8D1AB] font-bold shadow-sm";
+                      }
+
+                      days.push(
+                        <button
+                          key={d}
+                          onClick={() => {
+                            if (dayData?.projectDetails) {
+                              setProjectDetailsData({ project: dayData.projectDetails });
+                              setProjectDetailsOpen(true);
+                            } else {
+                              toast(`Date selected: ${dateStr}`);
+                            }
+                          }}
+                          className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg border transition-all ${style}`}
+                        >
+                          {d}
+                          {dayData?.projectAssigned === true && !isToday && (
+                            <span className={`w-1 h-1 rounded-full mt-0.5 ${isDark || (dayData?.projectAssigned === true) ? "bg-[#E8D1AB]" : "bg-[#735A2B]"
+                              }`} />
+                          )}
+                        </button>
+                      );
+                    }
+                    return days;
+                  })()}
+                </div>
+
+                {/* Legend & Action Footer */}
+                <div className={`mt-8 pt-6 border-t space-y-3 ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+                  <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/50" />
+                      <span>Shoot Assigned</span>
+                    </div>
+                    <span className="font-mono">Active</span>
+                  </div>
+                  <div className={`flex items-center justify-between text-xs ${isDark ? "text-white/40" : "text-black/50"}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2.5 h-2.5 rounded-full border ${isDark ? "bg-red-500/10 border-red-500/40" : "bg-red-50 border-red-300"}`} />
+                      <span>Unavailable</span>
+                    </div>
+                    <span className="font-mono">Blocked</span>
+                  </div>
+                  <Button
+                    onClick={() => router.push("/creator/dashboard/availability")}
+                    className={`w-full mt-6 border transition-colors ${isDark
+                      ? "bg-white/10 text-white border-white/10 hover:bg-white/15"
+                      : "bg-[#E8D1AB] text-black border-[#E8D1AB] hover:bg-[#E8D1AB]/80 shadow-sm"
+                      }`}
+                  >
+                    Go to Availability
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Admin-style Analytics Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mt-5 lg:pb-0">
+            <div>
+              <ShootStatusGaugeCard
+                slices={shootStatusSlices}
+                totalValue={creatorStats.overallShoots}
+                isDark={isDark}
+              />
+            </div>
+            <div>
+              <ShootStatusGaugeCard
+                title="Shoot Categories"
+                rightControl={
+                  <div className={`flex p-1 rounded-lg border transition-all ${isDark
+                    ? "bg-[#0B0F14] border-white/5"
+                    : "bg-[#FFFCF6] border-[#E5E5E5]"
+                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryTypeFilter(categoryTypeFilter === "photography" ? "all" : "photography")}
+                      className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "photography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                    >
+                      Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryTypeFilter(categoryTypeFilter === "videography" ? "all" : "videography")}
+                      className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${categoryTypeFilter === "videography" ? "bg-[#E8D1AB] text-black" : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")}`}
+                    >
+                      Video
+                    </button>
+                  </div>
+                }
+                slices={shootCategorySlices}
+                totalValue={creatorStats.overallShoots}
+                isDark={isDark}
+              />
+            </div>
+          </div>
+
+          {/* --- MODALS --- */}
+          <Dialog open={showTempEventPopup} onOpenChange={setShowTempEventPopup}>
+            <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+              }`}>
+              <DialogTitle className="sr-only">Switch to this event location?</DialogTitle>
+
+              <div className={`px-7 py-7 border-b transition-colors ${isDark
+                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+                }`}>
+                {/* Icon Frame */}
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <CalendarIcon size={30} className="text-[#E8D1AB]" />
+                </div>
+
+                <h2 className="lg:text-xl font-bold mb-2">Switch to this event location?</h2>
+                <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"}`}>
+                  {tempEventLocation
+                    ? `"We’ll temporarily set your location to ${tempEventLocation} to match this event for a better experience."`
+                    : "Do you want to continue with this event?"}
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="ghost"
+                    disabled={isConfirmingTempEvent}
+                    onClick={() => setShowTempEventPopup(false)}
+                    className={`h-12 flex-1 rounded-lg lg:rounded-2xl border transition-colors ${isDark
+                      ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                      : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                      }`}
+                  >
+                    Not now
+                  </Button>
+                  <Button
+                    disabled={isConfirmingTempEvent}
+                    onClick={handleConfirmTempEvent}
+                    className="h-12 flex-1 rounded-lg lg:rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
+                  >
+                    {isConfirmingTempEvent ? "Please wait..." : "Yes, update location"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Accept Shoot Modal */}
+          <Dialog open={!!acceptShootEvent} onOpenChange={() => setAcceptShootEvent(null)}>
+            <DialogContent className={`max-w-md overflow-hidden rounded-xl lg:rounded-4xl border p-0 text-center shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+              }`}>
+              <DialogTitle className="sr-only">Accept Request?</DialogTitle>
+              <div className={`px-7 py-7 border-b transition-colors ${isDark
+                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+                }`}>
+                {/* Icon Frame */}
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-[#E8D1AB]/20 bg-[#E8D1AB]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <CheckCircle2 size={32} className="text-[#E8D1AB]" />
+                </div>
+
+                <h2 className="text-xl font-bold mb-2">Accept Request?</h2>
+
+                <p className={`mx-auto mb-8 max-w-sm px-4 text-sm transition-colors ${isDark ? "text-white/50" : "text-black/60"
+                  }`}>
+                  Confirming will add{" "}
+                  <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    {acceptShootEvent?.project_name}
+                  </span>{" "}
+                  to your production schedule.
+                </p>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setAcceptShootEvent(null)}
+                    className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                      ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                      : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                      }`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleAcceptProject(acceptShootEvent.project_id, 1)}
+                    className="h-12 flex-1 rounded-2xl bg-[#E8D1AB] text-black hover:bg-[#d4be9a] font-semibold transition-colors"
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Decline Equipment Modal */}
+          <Dialog open={!!declineEquipmentItem} onOpenChange={() => setDeclineEquipmentItem(null)}>
+            <DialogContent className={`max-w-xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
+              }`}>
+              {/* Header Section */}
+              <DialogHeader className={`px-7 py-6 border-b transition-colors ${isDark
+                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+                }`}>
+                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                  <AlertTriangle className="text-red-500" />
+                  Decline Request
+                </DialogTitle>
+              </DialogHeader>
+
+              {/* Form Options Content */}
+              <div className="space-y-5 px-7 py-6">
+                <div className="space-y-3">
+                  <Label className={`text-xs uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>
+                    Reason for declining
+                  </Label>
+
+                  {["Schedule conflict", "Equipment unavailable", "Location too far", "Other"].map((reason) => (
+                    <div
+                      key={reason}
+                      className={`flex items-center space-x-3 p-4 rounded-2xl border cursor-pointer transition-all ${isDark
+                        ? "bg-[#111111] border-white/10 hover:border-white/20 hover:bg-[#151515]"
+                        : "bg-[#FFFDF9] border-[#E5E5E5] hover:border-[#E8D1AB]/60 hover:bg-[#FDF9F0]"
                         }`}
                     >
-                      {reason}
-                    </Label>
-                  </div>
-                ))}
-              </div>
+                      <input type="radio" name="decline-reason" id={reason} className="accent-[#E8D1AB]" />
+                      <Label
+                        htmlFor={reason}
+                        className={`font-normal cursor-pointer flex-1 transition-colors ${isDark ? "text-white/70" : "text-black/80"
+                          }`}
+                      >
+                        {reason}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
 
-              {/* Action Footer Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setDeclineEquipmentItem(null)}
-                  className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
-                    ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
-                    : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
-                    }`}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}
-                  className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
-                >
-                  Decline Request
-                </Button>
+                {/* Action Footer Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDeclineEquipmentItem(null)}
+                    className={`h-12 flex-1 rounded-2xl border transition-colors ${isDark
+                      ? "border-white/10 bg-[#111111] text-white/85 hover:bg-white/5"
+                      : "border-[#E5E5E5] bg-[#F5F5F5] text-black/85 hover:bg-black/5"
+                      }`}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => { toast.error("Request declined"); setDeclineEquipmentItem(null); }}
+                    className="h-12 flex-1 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                  >
+                    Decline Request
+                  </Button>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
 
-        {/* Project Details Modal */}
-        <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
-          <DialogContent className={`max-w-2xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
-            ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
-            : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
-            }`}>
-            {/* Header Section */}
-            <div className={`p-6 border-b transition-colors ${isDark
-              ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
-              : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+          {/* Project Details Modal */}
+          <Dialog open={projectDetailsOpen} onOpenChange={setProjectDetailsOpen}>
+            <DialogContent className={`max-w-2xl overflow-hidden rounded-xl lg:rounded-4xl border p-0 shadow-[0_28px_90px_rgba(0,0,0,0.4)] transition-all ${isDark
+              ? "border-white/10 bg-[#0A0A0A] text-white shadow-[0_28px_90px_rgba(0,0,0,0.6)]"
+              : "border-[#E5E5E5] bg-[#FFFCF6] text-black shadow-[0_28px_90px_rgba(0,0,0,0.15)]"
               }`}>
-              <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
-            </div>
-
-            {/* Content Details Body */}
-            <div className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-8">
-                <div className="space-y-1">
-                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                    Project Name
-                  </Label>
-                  <p className="font-bold text-lg leading-tight">
-                    {projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}
-                  </p>
-                </div>
-                <div className="text-right space-y-1">
-                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                    Scheduled Date
-                  </Label>
-                  <p className="text-[#E8D1AB] font-mono">
-                    {projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}
-                  </p>
-                </div>
+              {/* Header Section */}
+              <div className={`p-6 border-b transition-colors ${isDark
+                ? "border-white/10 bg-[linear-gradient(180deg,#141414_0%,#0E0E0E_100%)]"
+                : "border-[#E5E5E5] bg-[linear-gradient(180deg,#FFFDF9_0%,#FDF6EB_100%)]"
+                }`}>
+                <DialogTitle className="text-xl font-bold text-[#E8D1AB]">Project Overview</DialogTitle>
               </div>
 
-              <div className={`grid grid-cols-2 gap-8 border-t pt-6 transition-colors ${isDark ? "border-white/5" : "border-[#E5E5E5]"
-                }`}>
-                <div className="space-y-1">
-                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                    Time Window
-                  </Label>
-                  <p className={isDark ? "text-white/80" : "text-black/80"}>
-                    {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
-                      ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
-                      : "TBD"}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                    Location
-                  </Label>
-                  <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
-                    <MapPin size={14} className="text-[#E8D1AB]" />
-                    <span className="truncate">
-                      {formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}
-                    </span>
+              {/* Content Details Body */}
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Project Name
+                    </Label>
+                    <p className="font-bold text-lg leading-tight">
+                      {projectDetailsData?.project?.project_name || projectDetailsData?.project_name || "Untitled"}
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Scheduled Date
+                    </Label>
+                    <p className="text-[#E8D1AB] font-mono">
+                      {projectDetailsData?.project?.event_date || projectDetailsData?.event_date || "TBD"}
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Action Footer */}
-              <div className="flex justify-end pt-6">
-                <Button
-                  onClick={() => setProjectDetailsOpen(false)}
-                  className={`h-12 rounded-2xl border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-8 transition-all ${isDark
-                    ? "bg-[#111111] border-white/10 text-white"
-                    : "bg-[#F5F5F5] border-black/10 text-black"
-                    }`}
-                >
-                  Close Details
-                </Button>
+                <div className={`grid grid-cols-2 gap-8 border-t pt-6 transition-colors ${isDark ? "border-white/5" : "border-[#E5E5E5]"
+                  }`}>
+                  <div className="space-y-1">
+                    <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Time Window
+                    </Label>
+                    <p className={isDark ? "text-white/80" : "text-black/80"}>
+                      {projectDetailsData?.project?.start_time && projectDetailsData?.project?.end_time
+                        ? `${projectDetailsData.project.start_time} - ${projectDetailsData.project.end_time}`
+                        : "TBD"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                      Location
+                    </Label>
+                    <div className={`flex items-center gap-2 text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>
+                      <MapPin size={14} className="text-[#E8D1AB]" />
+                      <span className="truncate">
+                        {formatDisplayLocation(projectDetailsData?.project?.event_location || projectDetailsData?.display_location)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Footer */}
+                <div className="flex justify-end pt-6">
+                  <Button
+                    onClick={() => setProjectDetailsOpen(false)}
+                    className={`h-12 rounded-2xl border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-8 transition-all ${isDark
+                      ? "bg-[#111111] border-white/10 text-white"
+                      : "bg-[#F5F5F5] border-black/10 text-black"
+                      }`}
+                  >
+                    Close Details
+                  </Button>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <GeneralAgreementModal
+          isOpen={isAgreementModalOpen}
+          onClose={handleCloseModal}
+          onViewAgreement={handleViewAgreement}
+          onAccept={handleAcceptAgreement}
+          isDark={isDark}
+        />
       </div>
-    </div>
     </>
   );
 }
@@ -1553,13 +1571,12 @@ function MetricCard({
         setActiveMetricCard(id);
         onClick();
       }}
-      className={`relative group text-left cursor-pointer rounded-lg p-4 border transition-all duration-200 min-h-[150px] ${
-        isActive
-          ? "bg-[#ECD7B4] text-[#171717] border-transparent"
-          : isDark
-            ? "bg-[#101010] text-white border-transparent hover:border-white/30"
-            : "bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]"
-      }`}
+      className={`relative group text-left cursor-pointer rounded-lg p-4 border transition-all duration-200 min-h-[150px] ${isActive
+        ? "bg-[#ECD7B4] text-[#171717] border-transparent"
+        : isDark
+          ? "bg-[#101010] text-white border-transparent hover:border-white/30"
+          : "bg-[#F4F5F7] text-[#323232] border-transparent hover:border-[#ECD7B4]"
+        }`}
     >
       <div className="flex justify-between items-start mb-7">
         <span className={`text-sm font-medium ${isActive ? "text-black/70" : isDark ? "text-zinc-400" : "text-zinc-500"}`}>
@@ -1579,9 +1596,8 @@ function MetricCard({
 
       <ArrowUpRight
         size={14}
-        className={`absolute bottom-4 right-4 transition-colors ${
-          isActive ? "text-black/60" : isDark ? "text-zinc-500 group-hover:text-white/80" : "text-zinc-400 group-hover:text-black"
-        }`}
+        className={`absolute bottom-4 right-4 transition-colors ${isActive ? "text-black/60" : isDark ? "text-zinc-500 group-hover:text-white/80" : "text-zinc-400 group-hover:text-black"
+          }`}
       />
     </button>
   );

@@ -8,7 +8,7 @@ export default function ForgotPasswordPage() {
       imageAlt="Forgot Password"
       backLink="/login"
     >
-      <div className="my-50">
+      <div className="py-4">
         <ForgotPasswordForm />
       </div>
     </AuthSplitLayout>

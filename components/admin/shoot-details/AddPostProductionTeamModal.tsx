@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminApi, salesApi } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 
 interface AddPostProductionTeamModalProps {
   isOpen: boolean;
@@ -19,6 +19,22 @@ interface PostProductionMember {
   role: string;
   email?: string;
 }
+
+interface PostProductionTeamOptionResponse {
+  id: number | string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  role_name?: string;
+  email?: string;
+}
+
+// Keep role labels consistent with the Post Production Team filter UI.
+const formatRoleName = (roleName: string) => {
+  const normalizedRoleName = roleName.replace(/_/g, " ");
+  return normalizedRoleName.replace(/\b\w/g, (character) => character.toUpperCase());
+};
 
 const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
   isOpen,
@@ -38,20 +54,23 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       const fetchMembers = async () => {
         try {
           setLoading(true);
-          // Use same API as sales representative dashboard.
-          const response = await salesApi.getSalesReps();
+          const response = await adminApi.getPostProductionTeamOptions(Number(projectId));
           const membersList = response?.data || [];
 
           if (response?.success && Array.isArray(membersList)) {
-            setMembers(
-              membersList.map((m: any) => ({
+            const availableMembers = membersList.map((m: PostProductionTeamOptionResponse) => ({
                 id: Number(m.id),
                 name:
                   String(m.name || `${m.first_name || ""} ${m.last_name || ""}`)
                     .trim() || "Unknown",
-                role: m.role || "Post Production",
+                role: m.role_name || "Post Production",
                 email: m.email,
-              }))
+              }));
+            setMembers(availableMembers);
+            setSelectedMember((current) =>
+              current && !availableMembers.some((member) => member.id === current.id)
+                ? null
+                : current
             );
           } else {
             setMembers([]);
@@ -65,7 +84,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       };
       fetchMembers();
     }
-  }, [isOpen]);
+  }, [isOpen, projectId]);
 
   const handleAdd = async () => {
     if (!selectedMember) return;
@@ -136,7 +155,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
 
             {/* Dropdown Options */}
             {isDropdownOpen && !loading && (
-              <div className={`absolute top-full left-0 right-0 mt-2 border rounded-xl overflow-y-auto max-h-60 z-20 shadow-xl transition-colors ${isDark ? "bg-[#111] border-zinc-800" : "bg-white border-zinc-200"
+              <div className={`absolute top-full left-0 right-0 border rounded-xl overflow-y-auto max-h-60 z-20 shadow-xl transition-colors ${isDark ? "bg-[#111] border-zinc-800" : "bg-white border-zinc-200"
                 }`}>
                 {members.length > 0 ? (
                   members.map((member, index) => (
@@ -151,17 +170,24 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                           : "text-zinc-600 hover:bg-zinc-50 hover:text-black"
                         }`}
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium">{member.name}</span>
-                        <span className={`text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                          {member.role}
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{member.name}</span>
+                          {member.email && (
+                            <span className={`block truncate text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                              {member.email}
+                            </span>
+                          )}
+                        </span>
+                        <span className={`shrink-0 text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                          {formatRoleName(member.role)}
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className={`px-4 py-3 text-sm ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-                    No members available
+                  <div className={`px-4 py-4 text-sm ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
+                    No post-production members are available to assign.
                   </div>
                 )}
               </div>

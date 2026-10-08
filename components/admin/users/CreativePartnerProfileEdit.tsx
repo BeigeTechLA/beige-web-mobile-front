@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CircleDollarSign,
@@ -189,6 +189,17 @@ const normalizeEquipmentForEdit = (payload: any) => {
 
 export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileUrl = `/admin/users/creative-partners/${id}`;
+
+  // Back/Cancel: pop the stack so no new history entry is added
+  const handleLeaveEdit = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace(profileUrl);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [socialModalOpen, setSocialModalOpen] = useState(false);
@@ -478,7 +489,12 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
       }
 
       toast.success("Profile updated successfully.");
-      router.push(`/admin/users/creative-partners/${id}`);
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+        router.refresh();
+      } else {
+        router.replace(profileUrl);
+      }
     } catch (error: any) {
       console.error("Failed to update profile:", error);
       toast.error(error?.response?.data?.message || error?.message || "Failed to update profile.");
@@ -1076,8 +1092,8 @@ export function CreativePartnerProfileEdit({ id, isDark = true }: EditProps) {
       <AdminEditLayout
         title="Edit Creative Partner Profile"
         description="Update basic information, professional details, and portfolio assets in one page."
-        onBack={() => router.push(`/admin/users/creative-partners/${id}`)}
-        onCancel={() => router.push(`/admin/users/creative-partners/${id}`)}
+        onBack={handleLeaveEdit}
+        onCancel={handleLeaveEdit}
         onSave={handleSaveProfile}
         isSaving={isSaving}
         leftContent={

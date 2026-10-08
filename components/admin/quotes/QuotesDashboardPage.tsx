@@ -111,7 +111,7 @@ type ChartPoint = {
 
 type DisplayQuoteRow = {
   id: string;
-  leadId: string; 
+  leadId: string;
   bookingStatus: string;
   quoteNumber: string;
   client: string;
@@ -1125,110 +1125,110 @@ export default function QuotesDashboardPage({
       toast.error(error instanceof Error ? error.message : "Failed to duplicate quote");
     } finally {
       setDuplicatingQuoteId(null);
-        }
-      };
-    const handleExportQuotes = async () => {
+    }
+  };
+  const handleExportQuotes = async () => {
     if (isExporting) {
       return;
     }
 
-      setIsExporting(true);
+    setIsExporting(true);
 
-      try {
-        const effectiveExportRange = selectedDate ? "custom" : chartRange;
-        const effectiveExportDateOn = selectedDate
-          ? formatDateFns(selectedDate, "yyyy-MM-dd")
-          : undefined;
-        const startDate = exportStartDate;
-        const endDate = exportEndDate;
+    try {
+      const effectiveExportRange = selectedDate ? "custom" : chartRange;
+      const effectiveExportDateOn = selectedDate
+        ? formatDateFns(selectedDate, "yyyy-MM-dd")
+        : undefined;
+      const startDate = exportStartDate;
+      const endDate = exportEndDate;
 
-        if (Boolean(startDate) !== Boolean(endDate)) {
-          throw new Error("Select both dates or leave both blank to export all records.");
-        }
-
-        const exportParams: {
-          start_date?: string;
-          end_date?: string;
-          search?: string;
-          status?: string;
-          range?: string;
-          date_on?: string;
-          assigned_sales_rep_id?: number | string;
-        } = {
-          ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-          ...(selectedStatusFilter !== "all"
-            ? { status: selectedStatusFilter }
-            : {}),
-          ...(selectedSalesperson !== "all"
-            ? { assigned_sales_rep_id: selectedSalesperson }
-            : {}),
-          range: effectiveExportRange,
-          ...(effectiveExportDateOn ? { date_on: effectiveExportDateOn } : {}),
-        };
-
-        let fileName = "quotes-all-records.csv";
-
-        if (startDate && endDate) {
-          const normalizedStartDate = startOfDay(startDate);
-          const normalizedEndDate = startOfDay(endDate);
-          const today = startOfDay(new Date());
-
-      if (normalizedStartDate > today || normalizedEndDate > today) {
-        throw new Error("Future dates are not allowed.");
-    
+      if (Boolean(startDate) !== Boolean(endDate)) {
+        throw new Error("Select both dates or leave both blank to export all records.");
       }
 
-      if (normalizedStartDate > normalizedEndDate) {
-        throw new Error("Start date cannot be after end date.");
-      }
+      const exportParams: {
+        start_date?: string;
+        end_date?: string;
+        search?: string;
+        status?: string;
+        range?: string;
+        date_on?: string;
+        assigned_sales_rep_id?: number | string;
+      } = {
+        ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+        ...(selectedStatusFilter !== "all"
+          ? { status: selectedStatusFilter }
+          : {}),
+        ...(selectedSalesperson !== "all"
+          ? { assigned_sales_rep_id: selectedSalesperson }
+          : {}),
+        range: effectiveExportRange,
+        ...(effectiveExportDateOn ? { date_on: effectiveExportDateOn } : {}),
+      };
 
-      const formattedStartDate = formatDateFns(
-        normalizedStartDate,
-        "yyyy-MM-dd"
-      );
+      let fileName = "quotes-all-records.csv";
 
-      const formattedEndDate = formatDateFns(
-        normalizedEndDate,
-        "yyyy-MM-dd"
-      );
+      if (startDate && endDate) {
+        const normalizedStartDate = startOfDay(startDate);
+        const normalizedEndDate = startOfDay(endDate);
+        const today = startOfDay(new Date());
 
-      exportParams.start_date = formattedStartDate;
-      exportParams.end_date = formattedEndDate;
-      fileName = `quotes-${formattedStartDate}-to-${formattedEndDate}.csv`;
-    }
+        if (normalizedStartDate > today || normalizedEndDate > today) {
+          throw new Error("Future dates are not allowed.");
 
-    const blob = await salesApi.exportQuotesCsv(exportParams);
-
-        if (!(blob instanceof Blob) || blob.size === 0) {
-          throw new Error("Invalid or empty export response.");
         }
 
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const downloadLink = document.createElement("a");
+        if (normalizedStartDate > normalizedEndDate) {
+          throw new Error("Start date cannot be after end date.");
+        }
 
-        downloadLink.href = downloadUrl;
-        downloadLink.download = fileName;
-
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
-
-        window.URL.revokeObjectURL(downloadUrl);
-
-        setIsExportOpen(false);
-        setExportStartDate(null);
-        setExportEndDate(null);
-        toast.success("Quotes exported successfully.");
-      } catch (error) {
-        console.error("Export Quotes Error:", error);
-
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to export quotes."
+        const formattedStartDate = formatDateFns(
+          normalizedStartDate,
+          "yyyy-MM-dd"
         );
-      } finally {
-        setIsExporting(false);
+
+        const formattedEndDate = formatDateFns(
+          normalizedEndDate,
+          "yyyy-MM-dd"
+        );
+
+        exportParams.start_date = formattedStartDate;
+        exportParams.end_date = formattedEndDate;
+        fileName = `quotes-${formattedStartDate}-to-${formattedEndDate}.csv`;
+      }
+
+      const blob = await salesApi.exportQuotesCsv(exportParams);
+
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("Invalid or empty export response.");
+      }
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setIsExportOpen(false);
+      setExportStartDate(null);
+      setExportEndDate(null);
+      toast.success("Quotes exported successfully.");
+    } catch (error) {
+      console.error("Export Quotes Error:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to export quotes."
+      );
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -1333,7 +1333,7 @@ export default function QuotesDashboardPage({
               handleGoToLead(leadId);
             }
           }}
-          className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#DCFCE7] text-[#27AE60] cursor-pointer hover:bg-[#cbf9da] transition-colors relative z-30"
+          className="inline-flex whitespace-nowrap items-center justify-center text-center rounded-full border  px-2 lg:px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#DCFCE7] text-[#27AE60] cursor-pointer hover:bg-[#cbf9da] transition-colors relative z-30"
         >
           {bookingStatus}
         </span>
@@ -1341,7 +1341,7 @@ export default function QuotesDashboardPage({
     }
 
     return (
-      <span className="inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#FFECCF] text-[#C26A00]">
+      <span className="inline-flex lg:whitespace-nowrap items-center justify-center text-center rounded-full border px-2 lg:px-3 py-1 text-xs font-medium shrink-0 border-transparent bg-[#FFECCF] text-[#C26A00]">
         {bookingStatus}
       </span>
     );
@@ -1859,35 +1859,33 @@ export default function QuotesDashboardPage({
                     }
                   }}
                 >
-               <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isExporting}
-                    className={`flex h-12 w-full shrink-0 items-center justify-center rounded-xl px-4 text-sm font-medium sm:w-full md:w-auto md:min-w-[120px] ${
-                      isDark
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isExporting}
+                      className={`flex h-12 w-full shrink-0 items-center justify-center rounded-xl px-4 text-sm font-medium sm:w-full md:w-auto md:min-w-[120px] ${isDark
                         ? "border-[#3D3D3D] bg-[#161616] text-white/70 hover:bg-white/5 hover:text-white"
                         : "border-[#E3E3E3] bg-white text-black/70 hover:bg-black/5 hover:text-black"
-                    }`}
-                  >
-                    {isExporting ? (
-                      <Loader2 size={18} className="mr-2 animate-spin" />
-                    ) : (
-                      <ArrowUpToLine size={18} className="mr-2" />
-                    )}
+                        }`}
+                    >
+                      {isExporting ? (
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                      ) : (
+                        <ArrowUpToLine size={18} className="mr-2" />
+                      )}
 
-                    {isExporting ? "Exporting..." : "Export"}
-                  </Button>
-                </PopoverTrigger>
+                      {isExporting ? "Exporting..." : "Export"}
+                    </Button>
+                  </PopoverTrigger>
 
-                <PopoverContent
-                  align="end"
-                  sideOffset={10}
-                  className={`w-[340px] rounded-2xl border p-5 ${
-                    isDark
+                  <PopoverContent
+                    align="end"
+                    sideOffset={10}
+                    className={`w-[340px] rounded-2xl border p-5 ${isDark
                       ? "border-[#3D3D3D] bg-[#171717] text-white"
                       : "border-[#E5E5E5] bg-white text-black"
-                  }`}
+                      }`}
                   >
                     <div className="space-y-5">
                       <div>
@@ -1896,15 +1894,14 @@ export default function QuotesDashboardPage({
                         </h3>
 
                         <p
-                          className={`mt-1 text-xs ${
-                            isDark ? "text-white/55" : "text-black/55"
-                          }`}
+                          className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"
+                            }`}
                         >
                           Leave both dates blank to download all quote records, or pick a range to filter the export.
                         </p>
                       </div>
 
-                    <DatePicker
+                      <DatePicker
                         label="Start Date"
                         value={exportStartDate}
                         onChange={(date) => {
@@ -1987,11 +1984,10 @@ export default function QuotesDashboardPage({
                             setExportEndDate(null);
                           }}
                           disabled={isExporting}
-                          className={`text-xs font-medium underline underline-offset-4 transition-colors ${
-                            isDark
-                              ? "text-white/70 hover:text-white"
-                              : "text-black/60 hover:text-black"
-                          }`}
+                          className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark
+                            ? "text-white/70 hover:text-white"
+                            : "text-black/60 hover:text-black"
+                            }`}
                         >
                           Reset dates
                         </button>
@@ -2043,247 +2039,376 @@ export default function QuotesDashboardPage({
             </div>
 
             {/* Table Section */}
-             <div className={`mb-5 lg:mb-20 overflow-x-auto overflow-y-hidden rounded-2xl md:mb-0 [-webkit-overflow-scrolling:touch] ${isDark ? "border border-[#3D3D3D] bg-[#161616]" : "border border-[#E5E5E5] bg-white"}`}>
-              <table className="min-w-full text-left border-collapse">
-                <thead>
-                  {/* Desktop Headers */}
-                  <tr
-                    className={`hidden rounded-b-lg border-b text-sm capitalize md:table-row ${isDark
-                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                      }`}
-                  >
-                    <th className="px-6 py-4 font-medium w-[25%]">Client Name</th>
-                    <th className="px-6 py-4 font-medium w-[10%]">Project</th>
-                    <th className="px-6 py-4 font-medium w-[10%]">Booking Status</th>
-                    <th className="px-6 py-4 font-medium w-[10%]">Amount</th>
-                    <th className="px-6 py-4 font-medium w-[17%]">Quote Status</th>
-                    <th className="px-6 py-4 font-medium w-[16%]">Valid Until</th>
-                    <th className="px-6 py-4 font-medium w-[13%]">Salesperson</th>
-                    <th className="px-6 py-4 text-right font-medium w-[10%]">Action</th>
-                  </tr>
-                  {/* Mobile Headers */}
-                  <tr className={`border-b text-sm md:hidden ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E5E5E5] bg-[#FFFCF6] text-black"}`}>
-                    <th className="px-4 py-4 font-medium">Client Name</th>
-                    <th className="px-4 py-4 text-right font-medium">Quote Status</th>
-                  </tr>
-                </thead>
+            <div
+              className={`mb-5 lg:mb-20 rounded-2xl md:mb-0 ${isDark
+                  ? "border border-[#3D3D3D] bg-[#161616]"
+                  : "border border-[#E5E5E5] bg-white"
+                }`}
+            >
+              <div className="w-full overflow-x-auto md:overflow-x-auto rounded-2xl">
+                <table className="w-full table-fixed md:table-auto text-left border-separate border-spacing-0">
+                  <thead>
+                    {/* Desktop Headers */}
+                    <tr
+                      className={`hidden border-b text-sm capitalize md:table-row ${isDark
+                          ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                          : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                        }`}
+                    >
+                      <th className="px-6 py-4 font-medium w-[25%] rounded-tl-2xl">
+                        Client Name
+                      </th>
+                      <th className="px-6 py-4 font-medium w-[10%]">Project</th>
+                      <th className="px-6 py-4 font-medium w-[10%]">Booking Status</th>
+                      <th className="px-6 py-4 font-medium w-[10%]">Amount</th>
+                      <th className="px-6 py-4 font-medium w-[17%]">Quote Status</th>
+                      <th className="px-6 py-4 font-medium w-[16%]">Valid Until</th>
+                      <th className="px-6 py-4 font-medium w-[13%]">Salesperson</th>
+                      <th className="px-6 py-4 text-right font-medium w-[10%] rounded-tr-2xl">
+                        Action
+                      </th>
+                    </tr>
 
-                <tbody className="text-sm">
-                  {paginatedQuotesData.length > 0 ? (
-                    paginatedQuotesData.map((quote) => {
-                      const isExpanded = expandedRowId === quote.id;
+                    {/* Mobile Headers */}
+                    <tr
+                      className={`border-b text-sm md:hidden ${isDark
+                          ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                          : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                        }`}
+                    >
+                      <th className="px-4 py-3.5 font-medium w-1/2 rounded-tl-2xl">
+                        Client Name
+                      </th>
+                      <th className="px-4 py-3.5 text-right font-medium w-1/2 rounded-tr-2xl">
+                        Quote Status
+                      </th>
+                    </tr>
+                  </thead>
 
-                      return (
-                        <React.Fragment key={quote.id}>
-                          {/* Main Row */}
-                          <tr
-                             onClick={() => {
-                              if (window.innerWidth < 768) {
-                                setExpandedRowId(isExpanded ? null : quote.id);
-                              }
-                            }}
-                            className={`relative group cursor-pointer rounded-b-lg border-b transition-colors ${isDark ? "border-[#3D3D3D]/50 hover:bg-white/5" : "border-[#E3E3E3] hover:bg-black/5"} ${isExpanded ? (isDark ? "bg-[#202020] border-none" : "bg-[#F9F9F9] border-none") : ""}`}
-                          >
-                              <td className="px-4 py-4 md:px-6">
-                             <Link
-                                href={`${detailBaseHref}/${quote.id}`}
-                                className="absolute inset-0 z-0 hidden md:block"
-                                aria-label={`Open quote ${quote.quoteNumber}`}
-                                prefetch={false}
-                              />
-                              <div className="relative z-10 flex items-center gap-3 pointer-events-none">
-                                {/* Mobile Chevron */}
-                                <div
-                                  className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors  pointer-events-auto ${isExpanded
-                                    ? isDark
-                                      ? "border-[#E8D1AB] text-[#E8D1AB]"
-                                      : "border-black text-black"
-                                    : isDark
-                                      ? "border-[#4B4B4B] text-[#777674]"
-                                      : "border-[#E3E3E3] text-black"
-                                    }`}
-                                >
-                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                </div>
-                                <div className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}>
-                                  {quote.initials}
-                                </div>
-                                <div className="relative z-20 min-w-0">
-                                  <div className="lg:font-medium">{quote.client}</div>
-                                  {quote.clientEmail ? (
-                                    <div className={`mt-1 truncate text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
-                                      {quote.clientEmail}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </td>
+                  <tbody className="text-sm">
+                    {paginatedQuotesData.length > 0 ? (
+                      paginatedQuotesData.map((quote) => {
+                        const isExpanded = expandedRowId === quote.id;
 
-                            {/* Desktop Specific Cells */}
-                            <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full"><p className="truncate">{quote.project}</p></td>
-                            <td className="hidden px-6 py-4 md:table-cell align-middle">
-                                {renderBookingStatus(quote.bookingStatus, quote.leadId)}
-                            </td>
-                            <td className="hidden px-6 py-4 font-medium md:table-cell">{formatCurrency(quote.amountValue)}</td>
-
-                            {/* Status Cell (Responsive alignment) */}
-                            <td className="px-4 py-4 text-right md:px-6 md:text-left">
-                              <span className={`inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium shrink-0 ${quote.statusColor}`}>
-                                {quote.status}
-                              </span>
-                            </td>
-
-                            <td className="hidden px-6 py-4 md:table-cell">{quote.validUntil}</td>
-                            <td className="hidden px-6 py-4 md:table-cell">{quote.salesperson}</td>
-                            <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">                              
-                              <QuoteActionMenu
-                                disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
-                                open={openActionMenuId === `desktop-${quote.id}`}
-                                onOpenChange={(open) => setOpenActionMenuId(open ? `desktop-${quote.id}` : null)}
-                                onViewDetails={() => {
-                                  handleViewQuoteDetails(quote.id);
-                                }}
-                                onGoToLead={quote.leadId ? () => handleGoToLead(quote.leadId) : undefined}
-                                onDuplicate={() => {
-                                  void handleDuplicateQuote(quote.id);
-                                }}
-                                onEdit={() => handleEditQuote(quote)}
-                                onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
-                                onReject={() => {
-                                  void handleRejectQuote(quote.id, quote.statusKey);
-                                }}
-                                allowEdit={canEdit}
-                                allowDelete={canDelete}
-                                allowDuplicate={canCreate}
-                                allowPayment={quote.statusKey !== "paid"}
-                                isDark={isDark}
-                              />
-                            </td>
-                          </tr>
-
-                          {/* Mobile Expanded Detail Row */}
-                          {isExpanded && (
-                            <tr className={`lg:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
-                              <td colSpan={2} className="relative overflow-visible pl-14 pr-4 pb-4 pt-0">
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                                    <div>
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Project</p>
-                                      <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.project}</p>
-                                    </div>
-                                    <div>
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Booking Status</p>
-                                        {renderBookingStatus(quote.bookingStatus, quote.leadId)}
-                                    </div>
-                                    <div className="text-right">
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Amount</p>
-                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{formatCurrency(quote.amountValue)}</p>
-                                    </div>
+                        return (
+                          <React.Fragment key={quote.id}>
+                            {/* Main Row */}
+                            <tr
+                              onClick={() => {
+                                if (window.innerWidth < 768) {
+                                  setExpandedRowId(isExpanded ? null : quote.id);
+                                }
+                              }}
+                              className={`relative group cursor-pointer border-b transition-colors ${isDark
+                                  ? "border-[#3D3D3D]/50 hover:bg-white/5"
+                                  : "border-[#E3E3E3] hover:bg-black/5"
+                                } ${isExpanded
+                                  ? isDark
+                                    ? "bg-[#202020] border-none"
+                                    : "bg-[#F9F9F9] border-none"
+                                  : ""
+                                }`}
+                            >
+                              <td className="px-4 py-3.5 md:px-6 max-w-0 md:max-w-none">
+                                <Link
+                                  href={`${detailBaseHref}/${quote.id}`}
+                                  className="absolute inset-0 z-0 hidden md:block"
+                                  aria-label={`Open quote ${quote.quoteNumber}`}
+                                  prefetch={false}
+                                />
+                                <div className="relative z-10 flex items-center gap-2.5 md:gap-3 pointer-events-none min-w-0">
+                                  {/* Mobile Chevron */}
+                                  <div
+                                    className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors pointer-events-auto ${isExpanded
+                                        ? isDark
+                                          ? "border-[#E8D1AB] text-[#E8D1AB]"
+                                          : "border-black text-black"
+                                        : isDark
+                                          ? "border-[#4B4B4B] text-[#777674]"
+                                          : "border-[#E3E3E3] text-black"
+                                      }`}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp size={16} />
+                                    ) : (
+                                      <ChevronDown size={16} />
+                                    )}
                                   </div>
-                                  <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+                                  <div
+                                    className={`flex h-5 w-5 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-sm lg:rounded-xl ${quote.color} font-medium lg:font-semibold text-[10px] lg:text-sm`}
+                                  >
+                                    {quote.initials}
+                                  </div>
+
+                                  <div className="relative z-20 min-w-0 flex-1">
+                                    <div className="lg:font-medium truncate">
+                                      {quote.client}
+                                    </div>
+                                    {quote.clientEmail ? (
+                                      <div
+                                        className={`mt-1 truncate text-xs ${isDark ? "text-white/55" : "text-black/55"
+                                          }`}
+                                      >
+                                        {quote.clientEmail}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Desktop Specific Cells */}
+                              <td className="hidden px-6 py-4 md:table-cell max-w-0 w-full">
+                                <p className="truncate">{quote.project}</p>
+                              </td>
+                              <td className="hidden px-6 py-4 md:table-cell align-middle">
+                                {renderBookingStatus(quote.bookingStatus, quote.leadId)}
+                              </td>
+                              <td className="hidden px-6 py-4 font-medium md:table-cell">
+                                {formatCurrency(quote.amountValue)}
+                              </td>
+
+                              {/* Status Cell */}
+                              <td className="px-4 py-3.5 text-right md:px-6 md:text-left align-middle shrink-0">
+                                <span
+                                  className={`inline-flex whitespace-nowrap items-center justify-center rounded-full border px-3 py-1 text-xs font-medium ${quote.statusColor}`}
+                                >
+                                  {quote.status}
+                                </span>
+                              </td>
+
+                              <td className="hidden px-6 py-4 md:table-cell">
+                                {quote.validUntil}
+                              </td>
+                              <td className="hidden px-6 py-4 md:table-cell">
+                                {quote.salesperson}
+                              </td>
+                              <td className="relative z-20 hidden px-6 py-4 text-right md:table-cell">
+                                <QuoteActionMenu
+                                  disabled={
+                                    quote.statusKey === "rejected" ||
+                                    quote.statusKey === "cancelled"
+                                  }
+                                  open={openActionMenuId === `desktop-${quote.id}`}
+                                  onOpenChange={(open) =>
+                                    setOpenActionMenuId(open ? `desktop-${quote.id}` : null)
+                                  }
+                                  onViewDetails={() => {
+                                    handleViewQuoteDetails(quote.id);
+                                  }}
+                                  onGoToLead={
+                                    quote.leadId
+                                      ? () => handleGoToLead(quote.leadId)
+                                      : undefined
+                                  }
+                                  onDuplicate={() => {
+                                    void handleDuplicateQuote(quote.id);
+                                  }}
+                                  onEdit={() => handleEditQuote(quote)}
+                                  onPaymentTransaction={() =>
+                                    handlePaymentTransaction(quote.id)
+                                  }
+                                  onReject={() => {
+                                    void handleRejectQuote(quote.id, quote.statusKey);
+                                  }}
+                                  allowEdit={canEdit}
+                                  allowDelete={canDelete}
+                                  allowDuplicate={canCreate}
+                                  allowPayment={quote.statusKey !== "paid"}
+                                  isDark={isDark}
+                                />
+                              </td>
+                            </tr>
+
+                            {/* Mobile Expanded Detail Row */}
+                            {isExpanded && (
+                              <tr className={`lg:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
+                                <td
+                                  colSpan={2}
+                                  className="relative pl-10 pr-4 pb-4 pt-0"
+                                >
+                                  <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                                    {/* 1. Project */}
                                     <div>
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Valid Until</p>
-                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.validUntil}</p>
+                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>
+                                        Project
+                                      </p>
+                                      <p className={`font-medium truncate ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>
+                                        {quote.project}
+                                      </p>
                                     </div>
-                                    <div className="text-center">
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Salesperson</p>
-                                      <p className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}>{quote.salesperson}</p>
+
+                                    {/* 2. Booking Status */}
+                                    <div className="text-right">
+                                      <p
+                                        className={`mb-1 ${isDark ? "text-white" : "text-black"}`}
+                                      >
+                                        Booking Status
+                                      </p>
+                                      <div>
+                                        {renderBookingStatus(
+                                          quote.bookingStatus,
+                                          quote.leadId
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-col justify-end items-end relative overflow-visible" onClick={(e) => e.stopPropagation()}>
-                                      <p className={`mb-1 ${isDark ? "text-white" : "text-black"}`}>Action</p>
+
+                                    {/* 3. Amount */}
+                                    <div>
+                                      <p className={`mb-1  ${isDark ? "text-white" : "text-black"}`}>
+                                        Amount
+                                      </p>
+                                      <p
+                                        className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"
+                                          }`}
+                                      >
+                                        {formatCurrency(quote.amountValue)}
+                                      </p>
+                                    </div>
+
+                                    {/* 4. Valid Until */}
+                                    <div className="text-right">
+                                      <p className={`mb-1  ${isDark ? "text-white" : "text-black"}`}>
+                                        Valid Until
+                                      </p>
+                                      <p
+                                        className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}
+                                      >
+                                        {quote.validUntil}
+                                      </p>
+                                    </div>
+
+                                    {/* 5. Salesperson */}
+                                    <div>
+                                      <p
+                                        className={`mb-1 ${isDark ? "text-white" : "text-black"}`}
+                                      >
+                                        Salesperson
+                                      </p>
+                                      <p
+                                        className={`font-medium ${isDark ? "text-[#A1A1A1]" : "text-[#505050]"}`}
+                                      >
+                                        {quote.salesperson}
+                                      </p>
+                                    </div>
+
+                                    {/* 6. Action Menu */}
+                                    <div
+                                      className="flex flex-col items-end"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <p
+                                        className={`mb-1 ${isDark ? "text-white" : "text-black"}`}
+                                      >
+                                        Action
+                                      </p>
                                       <QuoteActionMenu
                                         mobile={true}
-                                        disabled={quote.statusKey === "rejected" || quote.statusKey === "cancelled"}
+                                        disabled={
+                                          quote.statusKey === "rejected" ||
+                                          quote.statusKey === "cancelled"
+                                        }
                                         open={openActionMenuId === `mobile-${quote.id}`}
-                                        onOpenChange={(open) => setOpenActionMenuId(open ? `mobile-${quote.id}` : null)}
+                                        onOpenChange={(open) =>
+                                          setOpenActionMenuId(
+                                            open ? `mobile-${quote.id}` : null
+                                          )
+                                        }
                                         onViewDetails={() => {
                                           handleViewQuoteDetails(quote.id);
                                         }}
-                                        onGoToLead={quote.leadId ? () => handleGoToLead(quote.leadId) : undefined}
+                                        onGoToLead={
+                                          quote.leadId
+                                            ? () => handleGoToLead(quote.leadId)
+                                            : undefined
+                                        }
                                         onDuplicate={() => {
                                           void handleDuplicateQuote(quote.id);
                                         }}
                                         onEdit={() => handleEditQuote(quote)}
-                                        onPaymentTransaction={() => handlePaymentTransaction(quote.id)}
+                                        onPaymentTransaction={() =>
+                                          handlePaymentTransaction(quote.id)
+                                        }
                                         onReject={() => {
-                                          void handleRejectQuote(quote.id, quote.statusKey);
+                                          void handleRejectQuote(
+                                            quote.id,
+                                            quote.statusKey
+                                          );
                                         }}
                                         allowEdit={canEdit}
-                                allowDelete={canDelete}
-                                allowDuplicate={canCreate}
+                                        allowDelete={canDelete}
+                                        allowDuplicate={canCreate}
                                         allowPayment={quote.statusKey !== "paid"}
                                         isDark={isDark}
                                       />
                                     </div>
                                   </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-6 py-16 text-center">
-                        No results found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-6 py-16 text-center">
+                          No results found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
 
-                {/* 1. Integrated Pagination Row */}
-                {filteredQuotesData.length > 0 && totalListPages > 1 && (
-                  <tfoot>
-                    <tr className={isDark ? "bg-[#101010]" : "bg-[#fff]"}>
-                      <td colSpan={8} className="px-4 py-4 md:px-6">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                          <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
-                            Showing {listStartIndex + 1} to {Math.min(listStartIndex + listPageLimit, totalFilteredQuotes)} of {totalFilteredQuotes}
-                          </div>
-
-                          <div className="flex items-center justify-between md:justify-end gap-2">
-                            <button
-                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                              disabled={safeCurrentPage === 1}
-                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
-                                ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
-                                : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
-                                }`}
-                            >
-                              <ChevronLeft size={24} />
-                            </button>
-                            <div className="flex items-center gap-1">
-                              {paginationItems.map((item, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => typeof item === 'number' && setCurrentPage(item)}
-                                  className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all  ${safeCurrentPage === item ? ("bg-[#E5D5B8] text-black") : isDark
-                                    ? "text-white/60 hover:bg-white/5"
-                                    : "text-[#666] hover:bg-black/5"
-                                    }`}
-                                >
-                                  {item}
-                                </button>
-                              ))}
+                  {/* 1. Integrated Pagination Row */}
+                  {filteredQuotesData.length > 0 && totalListPages > 1 && (
+                    <tfoot>
+                      <tr className={isDark ? "bg-[#101010]" : "bg-[#fff]"}>
+                        <td colSpan={8} className="px-4 py-4 md:px-6">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className={`hidden lg:block text-sm ${isDark ? "text-white/45" : "text-[#999]"}`}>
+                              Showing {listStartIndex + 1} to {Math.min(listStartIndex + listPageLimit, totalFilteredQuotes)} of {totalFilteredQuotes}
                             </div>
-                            <button
-                              onClick={() => setCurrentPage(p => Math.min(totalListPages, p + 1))}
-                              disabled={safeCurrentPage === totalListPages}
-                              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"}`}
-                            >
-                              <ChevronRight size={24} />
-                            </button>
+
+                            <div className="flex items-center justify-between md:justify-end gap-2">
+                              <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safeCurrentPage === 1}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark
+                                  ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white"
+                                  : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"
+                                  }`}
+                              >
+                                <ChevronLeft size={24} />
+                              </button>
+                              <div className="flex items-center gap-1">
+                                {paginationItems.map((item, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => typeof item === 'number' && setCurrentPage(item)}
+                                    className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg transition-all  ${safeCurrentPage === item ? ("bg-[#E5D5B8] text-black") : isDark
+                                      ? "text-white/60 hover:bg-white/5"
+                                      : "text-[#666] hover:bg-black/5"
+                                      }`}
+                                  >
+                                    {item}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => setCurrentPage(p => Math.min(totalListPages, p + 1))}
+                                disabled={safeCurrentPage === totalListPages}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all disabled:opacity-30 ${isDark ? "bg-[#111] text-white/60 border-[#333] hover:bg-white/10 hover:text-white" : "bg-white text-[#333] border-[#E5E5E5] hover:bg-black/5"}`}
+                              >
+                                <ChevronRight size={24} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             </div>
           </div>
         )}

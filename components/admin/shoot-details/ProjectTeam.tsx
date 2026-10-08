@@ -3,7 +3,8 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
 import { adminApi } from "@/lib/api";
 import { useTheme } from "next-themes";
@@ -47,7 +48,9 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
   const [loading, setLoading] = useState(!assignedMembers);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const { canEdit, canCreate } = usePermissions("shoots");
-
+  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -119,6 +122,37 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
     setIsModalOpen(true);
   };
 
+  const handleRemoveMember = async (memberId: number) => {
+    if (!canEdit) return;
+
+    try {
+      setRemovingMemberId(memberId);
+      const response = await adminApi.removePostProductionMember({
+        project_id: Number(projectId),
+        post_production_member_id: memberId,
+      });
+
+      if (response?.success === false && response?.error) {
+        toast.error(response.error);
+        return;
+      }
+
+      setTeamMembers((prev) => {
+        const updated = prev.filter((member) => member.id !== memberId);
+        setActiveIndex((current) =>
+          updated.length === 0 ? 0 : Math.min(current, updated.length - 1)
+        );
+        return updated;
+      });
+      toast.success("Post production member removed successfully");
+    } catch (error) {
+      console.error("Failed to remove post production member:", error);
+      toast.error("Failed to remove post production member");
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
   if (!mounted) return null;
 
   if (loading) {
@@ -145,13 +179,76 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
         "text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300",
         isDark ? "text-white" : "text-black"
       )}>
-        Project Post Production Team
+       Post Production Team
       </h3>
 
       <div className={cn(
         "w-full h-px border-t absolute top-20 left-0 transition-colors duration-300",
         isDark ? "border-[#333333]" : "border-[#E5E5E5]"
       )} />
+
+
+
+      {isRemoveModalOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (removingMemberId === null) {
+              setIsRemoveModalOpen(false);
+              setSelectedMemberId(null);
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${isDark
+                ? "border-[#333333] bg-[#161616] text-white"
+                : "border-[#E5E5E5] bg-white text-black"
+              }`}
+          >
+            <h3 className="text-lg font-semibold">
+              Remove Post Production Member?
+            </h3>
+            <p className={`mt-2 text-sm ${isDark ? "text-[#A3A3A3]" : "text-[#666666]"}`}>
+              Are you sure you want to remove this member from the shoot? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={removingMemberId !== null}
+                onClick={() => {
+                  setIsRemoveModalOpen(false);
+                  setSelectedMemberId(null);
+                }}
+                className={isDark ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]" : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!selectedMemberId || removingMemberId !== null}
+                onClick={async () => {
+                  if (!selectedMemberId) return;
+                  await handleRemoveMember(selectedMemberId);
+                  setIsRemoveModalOpen(false);
+                  setSelectedMemberId(null);
+                }}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                {removingMemberId !== null ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  "Remove"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AddPostProductionTeamModal
         isOpen={isModalOpen}
@@ -221,11 +318,31 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
                 <SwiperSlide
                   key={`${member.id}-${index}`}
                   className={cn(
-                    "!w-[280px] !h-[250px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300",
+                    "relative !w-[280px] !h-[250px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300",
                     member.bgColor,
                     activeIndex === index ? 'opacity-100 scale-100' : 'opacity-40 scale-95'
                   )}
                 >
+                  {canEdit && activeIndex === index && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMemberId(member.id);
+                        setIsRemoveModalOpen(true);
+                      }}
+                      disabled={removingMemberId === member.id}
+                      className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-[#FF6467] text-white hover:bg-[#e60000] flex items-center justify-center transition-all shadow-md shrink-0"
+                      aria-label="Remove team member"
+                      title="Remove team member"
+                    >
+                      {removingMemberId === member.id ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={15} strokeWidth={2.5} />
+                      )}
+                    </button>
+                  )}
                   <div className="w-full h-full flex items-center justify-center">
                     <span className="text-5xl font-bold text-black/85">
                       {(member.name || "U")
@@ -259,6 +376,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
           </div>
 
           <div className="flex flex-col lg:flex-row gap-4 mb-4">
+ 
             <Button
               className={`h-12 px-4 lg:px-7 transition-all duration-300 font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]`}
               onClick={handleOpenAssignment}

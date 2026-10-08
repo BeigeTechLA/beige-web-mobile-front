@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CalendarClock, Eye, Loader2, Pencil, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Eye, History, Loader2, Pencil, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -66,6 +66,8 @@ type ShootHeaderProject = {
   country?: unknown;
   latitude?: string | number | null;
   longitude?: string | number | null;
+  event_latitude?: string | number | null;
+  event_longitude?: string | number | null;
   location_latitude?: string | number | null;
   location_longitude?: string | number | null;
   needs_attention?: {
@@ -187,6 +189,7 @@ interface ShootHeaderProps {
   missingFields?: string[];
   onOpenMissingFields?: () => void;
   onScheduleUpdated?: () => void | Promise<void>;
+  onOpenHistory?: () => void;
 }
 
 const getBrowserTimeZone = () =>
@@ -313,6 +316,7 @@ export default function ShootHeader({
   convertedSalesQuoteId = null,
   hasFormDetails = false,
   onScheduleUpdated,
+  onOpenHistory,
 }: ShootHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -672,8 +676,16 @@ export default function ShootHeader({
       const locationFields = locationForPayload
         ? {
           location: locationForPayload,
-          latitude: getNumericValue(project?.latitude, project?.location_latitude),
-          longitude: getNumericValue(project?.longitude, project?.location_longitude),
+          latitude: getNumericValue(
+            project?.event_latitude,
+            project?.latitude,
+            project?.location_latitude
+          ),
+          longitude: getNumericValue(
+            project?.event_longitude,
+            project?.longitude,
+            project?.location_longitude
+          ),
         }
         : {};
 
@@ -764,13 +776,23 @@ export default function ShootHeader({
 
   return (
     <div data-active-tab={activeTab}>
-      <button
-        onClick={() => router.back()}
-        className={`lg:hidden transition-colors flex items-center gap-2 mb-5 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
-      >
-        <ArrowLeft size={20} />
-        <span className="text-sm font-medium">Back</span>
-      </button>
+      <div className="lg:hidden flex items-center justify-between mb-5">
+        <button
+          onClick={() => router.back()}
+          className={`transition-colors flex items-center gap-2 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
+        >
+          <ArrowLeft size={20} />
+          <span className="text-sm font-medium">Back</span>
+        </button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onOpenHistory}
+          className="bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-full h-8 px-4 gap-1.5 text-xs"
+        >
+          <History className="w-3.5 h-3.5" /> View Activity
+        </Button>
+      </div>
 
       {/* Top Bar */}
       <div className="hidden lg:flex justify-between items-center mb-6">
@@ -784,7 +806,7 @@ export default function ShootHeader({
           </button>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex items-start gap-3">
           {hasFormDetails ? (
             <Button
               variant="outline"
@@ -794,20 +816,24 @@ export default function ShootHeader({
               <Eye className="w-4 h-4" /> View Form Details
             </Button>
           ) : null}
-          <Button
-            onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
-            disabled={!canEdit}
-            title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
-            className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
-          >
-            Edit Shoot
-          </Button>
-          {/* <Button
-            onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
-            className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
-          >
-            Edit Shoot
-          </Button> */}
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => router.push(`${shootBasePath}/${projectId}/edit-booking`)}
+              disabled={!canEdit}
+              title={canEdit ? "Edit Shoot" : "Edit permission not allowed"}
+              className="w-full bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] rounded-lg h-10 px-6 font-medium"
+            >
+              Edit Shoot
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onOpenHistory}
+              className="w-full bg-[#2C2C2C] border-none text-[#E5D5B8] hover:bg-[#3D3D3D] hover:text-[#f0e4d0] rounded-full h-8 px-4 gap-1.5 text-xs"
+            >
+              <History className="w-3.5 h-3.5" /> View Activity
+            </Button>
+          </div>
         </div>
       </div>
 

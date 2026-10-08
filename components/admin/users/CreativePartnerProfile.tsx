@@ -98,6 +98,54 @@ function EventDot({ color, label }: any) {
   );
 }
 
+const FeaturedWorkImageSlide = React.memo(function FeaturedWorkImageSlide({
+  src,
+  index,
+  isDark,
+  priority = false,
+}: {
+  src: string;
+  index: number;
+  isDark: boolean;
+  priority?: boolean;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div
+      className="relative w-full aspect-[3/4] rounded-[24px] overflow-hidden shadow-2xl"
+      style={{
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
+        transform: "translateZ(0)",
+      }}
+    >
+      {!isLoaded && (
+        <div
+          className={`absolute inset-0 z-10 animate-pulse ${
+            isDark ? "bg-[#1f1f23]" : "bg-gray-200"
+          }`}
+          aria-hidden="true"
+        />
+      )}
+
+      <Image
+        src={src}
+        alt={`Portfolio Image ${index + 1}`}
+        fill
+        sizes="(max-width: 767px) 260px, 320px"
+        priority={priority}
+        draggable={false}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setIsLoaded(true)}
+        className={`select-none object-cover transition-opacity duration-200 ${
+          isLoaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+});
+
 export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true, onboardingStatus }: ProfileProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -166,12 +214,20 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
   const handleBack = () => {
     const returnTo = searchParams.get("returnTo");
-    if (returnTo) {
-      router.push(returnTo);
+
+    // Normal case: pop history so no new entry is added
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
       return;
     }
 
-    router.push("/admin/users/creative-partners");
+    // Opened directly (new tab, no history): fall back without adding an entry
+    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      router.replace(returnTo);
+      return;
+    }
+
+    router.replace("/admin/users/creative-partners");
   };
 
   useEffect(() => {
@@ -399,6 +455,23 @@ const convertLinksStringToArray = (jsonString: string | null) => {
     console.error("Invalid JSON string provided:", error);
     return [];
   }
+};
+
+const formatExternalUrl = (url: string) => {
+  if (!url) return "#";
+
+  const trimmedUrl = String(url).trim();
+  if (!trimmedUrl) return "#";
+
+  if (/^https?:\/\//i.test(trimmedUrl)) {
+    return trimmedUrl;
+  }
+
+  if (trimmedUrl.startsWith("//")) {
+    return `https:${trimmedUrl}`;
+  }
+
+  return `https://${trimmedUrl.replace(/^\/+/, "")}`;
 };
   const socialMediaLinks = convertLinksStringToArray(partner?.social_media_links || null)
 
@@ -835,7 +908,7 @@ return (
       <div className="space-y-6">
 
       {!hideActions && (
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <button
             onClick={handleBack}
             className={`transition-colors flex items-center gap-2 ${isDark ? "text-[#E0E0E0] hover:text-white" : "text-black hover:text-black/70"}`}
@@ -844,7 +917,7 @@ return (
             <span>Back</span>
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
               {canSendProfileReminder && (
                 <button
                   type="button"
@@ -1013,7 +1086,7 @@ return (
                         return (
                           <a
                             key={link.platform}
-                            href={link.url}
+                            href={formatExternalUrl(link.url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`flex items-center gap-2 px-4 py-1.5 border rounded-lg text-sm transition-all active:scale-95 ${isDark
@@ -1081,7 +1154,7 @@ return (
                   return (
                     <a
                       key={link.platform}
-                      href={link.url}
+                      href={formatExternalUrl(link.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`flex items-center gap-2 px-4 py-1.5 border rounded-lg text-xs transition-all active:scale-95 ${isDark
@@ -1288,40 +1361,57 @@ return (
                   <div className={`w-full rounded-2xl overflow-hidden py-4 lg:py-10 transition-colors ${isDark ? "bg-[#171717] text-white" : "bg-[#F4F5F7] text-black border-[#F4F5F7]"}`}>
                     {activeImages.length > 0 ? (
                       <Swiper
-                        effect={"coverflow"}
+                        effect="coverflow"
                         grabCursor={true}
                         centeredSlides={true}
-                        slidesPerView={"auto"}
+                        slidesPerView="auto"
                         initialSlide={Math.floor(activeImages.length / 2)}
                         loop={activeImages.length > 1}
-                        spaceBetween={30}       // Enforces clean, equal physical gaps between the tilted slides
+                        loopAdditionalSlides={0}
+                        spaceBetween={30}
+                        speed={420}
+                        threshold={4}
+                        touchRatio={1}
+                        resistanceRatio={0.75}
+                        preventInteractionOnTransition={false}
+                        touchStartPreventDefault={false}
                         modules={[EffectCoverflow]}
                         coverflowEffect={{
-                          rotate: -20,          // Negative rotation tilts outer card edges forward toward the viewer
-                          stretch: 0,           // Kept at 0 so standard spacing handle allocates equal structural gaps
-                          depth: 100,           // Sets perspective depth anchor point for center slide
-                          modifier: 1,          // Kept at 1 for clean 1:1 conversion matching spaceBetween math
+                          rotate: -20,
+                          stretch: 0,
+                          depth: 100,
+                          modifier: 1,
                           slideShadows: false,
                         }}
                         className="w-full !overflow-visible"
-                        style={{ perspective: "1200px" }}
+                        style={{
+                          perspective: "1200px",
+                          WebkitBackfaceVisibility: "hidden",
+                        }}
                       >
-                        {activeImages.map((img, index) => (
-                          <SwiperSlide
-                            key={index}
-                            className="flex items-center justify-center !w-[260px] md:!w-[320px]"
-                            style={{ backfaceVisibility: "hidden" }}
-                          >
-                            <div className="relative w-full aspect-[3/4] rounded-[24px] overflow-hidden transition-all duration-500 shadow-2xl">
-                              <Image
+                        {activeImages.map((img, index) => {
+                          const initialSlide = Math.floor(activeImages.length / 2);
+                          const shouldPrioritize = Math.abs(index - initialSlide) <= 1;
+
+                          return (
+                            <SwiperSlide
+                              key={`${img}-${index}`}
+                              className="flex items-center justify-center !w-[260px] md:!w-[320px]"
+                              style={{
+                                backfaceVisibility: "hidden",
+                                WebkitBackfaceVisibility: "hidden",
+                                willChange: "transform",
+                              }}
+                            >
+                              <FeaturedWorkImageSlide
                                 src={img}
-                                alt={`Portfolio Image ${index + 1}`}
-                                fill
-                                className="object-cover"
+                                index={index}
+                                isDark={isDark}
+                                priority={shouldPrioritize}
                               />
-                            </div>
-                          </SwiperSlide>
-                        ))}
+                            </SwiperSlide>
+                          );
+                        })}
                       </Swiper>
                     ) : (
                       <div className={`flex flex-col items-center justify-center py-20 ${isDark ? "text-[#666]" : "text-[#000]"}`}>

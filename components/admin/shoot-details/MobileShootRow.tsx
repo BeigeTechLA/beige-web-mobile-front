@@ -14,6 +14,7 @@ interface ShootRecord {
   category: string;
   price: string;
   status: string;
+  isActive: boolean;
   sourceProject?: Record<string, unknown> | null;
 }
 
@@ -72,7 +73,7 @@ export const MobileShootRow = ({
       }`}>
       {/* Header - Always Visible */}
       <div
-        className="flex items-center justify-between p-5 cursor-pointer gap-2"
+        className={`flex items-center justify-between p-5 gap-2 ${shoot.isActive ? "cursor-pointer opacity-100" : "cursor-not-allowed opacity-30"}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3 min-w-0 max-w-[60%]">
@@ -116,15 +117,15 @@ export const MobileShootRow = ({
           >
             <div className="pt-0 pr-5 pb-7 pl-14 space-y-4">
               <div className="grid grid-cols-2 gap-y-3 w-full">
-                <div className="min-w-0">
+                <div className={`min-w-0 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}>
                   <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Shoot ID</p>
                   <p className={`text-sm truncate ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.id}</p>
                 </div>
-                <div className="text-right min-w-0">
+                <div className={`text-right min-w-0 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}>
                   <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Price</p>
                   <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.price}</p>
                 </div>
-                <div className="min-w-0">
+                <div className={`min-w-0 ${shoot.isActive ? "opacity-100" : "opacity-30"}`}>
                   <p className={`text-sm mb-0.5 ${isDark ? "text-white/40" : "text-[#999]"}`}>Category</p>
                   <p className={`text-sm ${isDark ? "text-white" : "text-[#333]"}`}>{shoot.category}</p>
                 </div>
@@ -138,7 +139,7 @@ export const MobileShootRow = ({
                       e.stopPropagation();
                       setOpenCardActionId((current) => current === shoot.id ? null : shoot.id);
                     }}
-                    className={`p-1 transition-colors inline-block ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+                    className={`inline-block cursor-pointer p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
                     aria-label="Actions"
                   >
                     <MoreVertical size={24} />
