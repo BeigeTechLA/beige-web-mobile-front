@@ -29,6 +29,7 @@ import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
+import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 
 type SkillOption = {
@@ -198,6 +199,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // State to show/hide CP Agreements table
+  const [isCPAgreementAvailable, setIsCPAgreementAvailable] = useState(true);
 
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
@@ -738,7 +741,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       </div>
                     </div>
                   ) : null}
-                  <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+
+                  {/* If shoot Agreement is sent to CPs, show them below */}
+                  {
+                    isCPAgreementAvailable &&
+                    <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                      <CpAgreementsTable
+                        // agreements={agreements}
+                        onActionClick={(agreement) => {
+                          console.log("Action menu clicked for:", agreement.name);
+                        }}
+                      />
+                    </div>
+                  }
+
+                  <div className={`${isCPAgreementAvailable ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>
