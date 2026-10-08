@@ -376,9 +376,9 @@ export default function ShootSummaryStep({
               <span className="text-[#A2A2A2]">Occasion</span>
               <span className="text-[#D9D1C2]">{summaryData.project.occasion}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               <span className="text-[#A2A2A2]">Description</span>
-              <span className="text-[#D9D1C2]">{summaryData.project.description}</span>
+              <span className="text-[#D9D1C2] text-end">{summaryData.project.description}</span>
             </div>
           </div>
         </div>
