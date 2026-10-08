@@ -437,6 +437,7 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<GlobeStatusFilter>("all");
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
   const [range, setRange] = useState<GlobalRange>("upcoming");
@@ -454,6 +455,14 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   );
   const [highlightedLegend, setHighlightedLegend] =
     useState<GlobeStatus | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 400);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
 
   const geocodeAddress = useCallback(async (address: string) => {
     if (!address || address === "Location TBD" || !isValidMapboxToken)
@@ -538,12 +547,24 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
       initialZoomDone.current = false;
 
       try {
-        const params =
+        const params: Record<string, string> =
           range === "custom"
             ? { start_date: customStartDate, end_date: customEndDate }
             : { range };
 
-        const response = await adminApi.getGlobalShoots(params);
+        if (debouncedSearchQuery) {
+          params.search = debouncedSearchQuery;
+        }
+
+        if (statusFilter !== "all") {
+          params.status = statusFilter;
+        }
+
+        if (crewFilter !== "all") {
+          params.cp_assignment = crewFilter;
+        }
+
+        const response = await adminApi.getGlobalShoots(params as any);
         if (cancelled) return;
 
         const projects =
@@ -632,7 +653,15 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
     return () => {
       cancelled = true;
     };
-  }, [range, customStartDate, customEndDate, geocodeAddress]);
+  }, [
+    range,
+    customStartDate,
+    customEndDate,
+    debouncedSearchQuery,
+    statusFilter,
+    crewFilter,
+    geocodeAddress,
+  ]);
 
   const mappedEvents = useMemo(
     () =>
@@ -676,8 +705,6 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
   );
 
   const filteredEvents = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
     return dbEvents.filter((event) => {
       if (
         !event.hasCoordinates ||
@@ -686,26 +713,9 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
         return false;
       }
 
-      if (!activeFilters.has(event.status)) return false;
-
-      if (statusFilter !== "all" && event.status !== statusFilter) return false;
-
-      if (
-        query &&
-        !event.title.toLowerCase().includes(query) &&
-        !event.location.toLowerCase().includes(query)
-      ) {
-        return false;
-      }
-
-      if (crewFilter === "assigned" && event.assignedCrewCount <= 0)
-        return false;
-      if (crewFilter === "not_assigned" && event.assignedCrewCount > 0)
-        return false;
-
-      return true;
+      return activeFilters.has(event.status);
     });
-  }, [dbEvents, searchQuery, statusFilter, crewFilter, activeFilters]);
+  }, [dbEvents, activeFilters]);
 
   const zoomToLegendMarkers = useCallback(
     (status: GlobeStatus) => {
@@ -1042,7 +1052,20 @@ export const ShootsGlobeView = ({ isDark }: ShootsGlobeViewProps) => {
           </div>
 
           <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 xl:justify-end">
-            <Select value={statusFilter} onValueChange={(value: GlobeStatusFilter) => setStatusFilter(value)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value: GlobeStatusFilter) => {
+                setStatusFilter(value);
+                setActiveFilters(
+                  new Set<GlobeStatus>([
+                    "active",
+                    "upcoming",
+                    "completed",
+                    "cancelled",
+                  ]),
+                );
+              }}
+            >
               <SelectTrigger
                 className={`h-11 w-[160px] rounded-lg text-sm focus:ring-0 ${
                   isDark

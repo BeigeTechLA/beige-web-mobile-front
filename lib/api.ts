@@ -2687,7 +2687,16 @@ export const adminApi = {
     }
   },
 
-  getShootCalendarMonth: async (params: { month: number; year: number }) => {
+  getShootCalendarMonth: async (params: {
+    month: number;
+    year: number;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
     try {
       const response = await api.get('admin/shoots/calendar/month', { params });
       return response.data;
@@ -2700,7 +2709,15 @@ export const adminApi = {
       };
     }
   },
-  getShootCalendarWeek: async (params: { start_date: string }) => {
+  getShootCalendarWeek: async (params: {
+    start_date: string;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
     try {
       const response = await api.get('admin/shoots/calendar/week', { params });
       return response.data;
@@ -2713,7 +2730,15 @@ export const adminApi = {
       };
     }
   },
-  getShootCalendarDay: async (params: { date: string }) => {
+  getShootCalendarDay: async (params: {
+    date: string;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
     try {
       const response = await api.get('admin/shoots/calendar/day', { params });
       return response.data;

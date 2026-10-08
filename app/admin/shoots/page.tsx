@@ -68,8 +68,8 @@ const RANGE_FILTER_OPTIONS = new Set([
   "custom",
   "tbd",
 ]);
-const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
-type PaymentFilter = "all" | "pending" | "paid";
+const PAYMENT_FILTER_OPTIONS = new Set(["all", "partially_paid", "paid"]);
+type PaymentFilter = "all" | "partially_paid" | "paid";
 type PostProductionTeamOption = {
   id: number;
   name: string;
@@ -714,7 +714,7 @@ export default function ShootsPage() {
                         className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                       >
                         <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="partially_paid">Partially Paid</SelectItem>
                         <SelectItem value="paid">Paid</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1362,7 +1362,7 @@ export default function ShootsPage() {
                       }
                     >
                       <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                   </Select>

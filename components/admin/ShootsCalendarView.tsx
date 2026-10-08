@@ -20,7 +20,7 @@ type ShootCalendarViewProps = {
   searchQuery?: string;
   categoryFilter?: string;
   statusFilter?: string;
-  paymentFilter?: "all" | "pending" | "paid";
+  paymentFilter?: "all" | "partially_paid" | "paid";
   productionFilter?: string;
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
 };
@@ -360,6 +360,35 @@ export const ShootsCalendarView = ({
     [weekStart],
   );
 
+  const calendarApiFilters = useMemo(() => {
+    const params: {
+      search?: string;
+      category?: string;
+      status?: string;
+      payment_filter?: string;
+      production_filter?: string;
+      cp_assignment?: string;
+    } = {};
+
+    const search = searchQuery.trim();
+
+    if (search) params.search = search;
+    if (categoryFilter !== "all") params.category = categoryFilter;
+    if (statusFilter !== "all") params.status = statusFilter;
+    if (paymentFilter !== "all") params.payment_filter = paymentFilter;
+    if (productionFilter !== "all") params.production_filter = productionFilter;
+    if (cpAssignmentFilter !== "all") params.cp_assignment = cpAssignmentFilter;
+
+    return params;
+  }, [
+    searchQuery,
+    categoryFilter,
+    statusFilter,
+    paymentFilter,
+    productionFilter,
+    cpAssignmentFilter,
+  ]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -371,13 +400,16 @@ export const ShootsCalendarView = ({
             ? await adminApi.getShootCalendarMonth({
                 month: focusDate.getMonth() + 1,
                 year: focusDate.getFullYear(),
+                ...calendarApiFilters,
               })
             : view === "week"
               ? await adminApi.getShootCalendarWeek({
                   start_date: dateKey(weekStart),
+                  ...calendarApiFilters,
                 })
               : await adminApi.getShootCalendarDay({
                   date: dateKey(focusDate),
+                  ...calendarApiFilters,
                 });
 
         if (!cancelled) {
@@ -395,195 +427,9 @@ export const ShootsCalendarView = ({
     return () => {
       cancelled = true;
     };
-  }, [view, focusDate, weekStart]);
+  }, [view, focusDate, weekStart, calendarApiFilters]);
 
-  const filteredShoots = useMemo(() => {
-    const normalize = (value: unknown) =>
-      String(value ?? "")
-        .toLowerCase()
-        .replace(/[\s_-]+/g, "")
-        .trim();
-
-    const hasValue = (value: unknown) => {
-      if (Array.isArray(value)) return value.length > 0;
-      return (
-        value !== undefined && value !== null && String(value).trim() !== ""
-      );
-    };
-
-    const search = searchQuery.trim().toLowerCase();
-
-    return shoots.filter((shoot) => {
-      const kind = getItemKind(shoot);
-
-      if (search) {
-        const searchableText = [
-          shoot.title,
-          shoot.client_name,
-          shoot.company_name,
-          shoot.status,
-          shoot.type,
-          shoot.event_type,
-          shoot.location,
-          shoot.venue,
-          typeof shoot.event_location === "string"
-            ? shoot.event_location
-            : shoot.event_location?.address,
-          shoot.email,
-          shoot.guest_email,
-          shoot.phone,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        if (!searchableText.includes(search)) return false;
-      }
-
-      if (categoryFilter !== "all") {
-        // The calendar API mainly returns title/date/time. Include title so filters
-        // such as Corporate/Wedding still work with the calendar response.
-        const categorySource = [
-          shoot.category,
-          shoot.event_type,
-          shoot.shoot_type,
-          shoot.content_type,
-          shoot.event_type_labels,
-          shoot.title,
-        ]
-          .filter(Boolean)
-          .map(normalize);
-
-        // Only enforce the category filter when we have something meaningful
-        // to evaluate. The title from the calendar API normally provides this.
-        if (
-          categorySource.length > 0 &&
-          !categorySource.some((value) =>
-            value.includes(normalize(categoryFilter)),
-          )
-        ) {
-          return false;
-        }
-      }
-
-      if (statusFilter !== "all") {
-        const normalizedStatusFilter = normalize(statusFilter);
-
-        // Deleted/cancelled can be resolved from the calendar response itself.
-        if (normalizedStatusFilter === "deleted") {
-          if (kind !== "deleted") return false;
-        } else if (normalizedStatusFilter === "cancelled") {
-          if (kind !== "deleted") return false;
-        } else {
-          const rawStatusValues = [
-            shoot.status,
-            shoot.project_status,
-            shoot.shoot_status,
-            shoot.production_status,
-          ].filter(hasValue);
-
-          // Month/week/day endpoints do not return the normal project timeline
-          // status. Do not hide valid calendar shoots merely because that field
-          // is absent from this endpoint.
-          if (rawStatusValues.length > 0) {
-            const statusSource = rawStatusValues.map(normalize);
-            if (
-              !statusSource.some((value) =>
-                value.includes(normalizedStatusFilter),
-              )
-            ) {
-              return false;
-            }
-          }
-        }
-      }
-
-      if (paymentFilter !== "all") {
-        const hasPaymentData =
-          hasValue(shoot.payment_status) ||
-          hasValue(shoot.paid_amount) ||
-          hasValue(shoot.pending_amount);
-
-        if (hasPaymentData) {
-          const paymentStatus = normalize(shoot.payment_status);
-          const paidAmount = Number(shoot.paid_amount ?? 0);
-          const pendingAmount = Number(shoot.pending_amount ?? 0);
-
-          if (paymentFilter === "paid") {
-            const isPaid =
-              paymentStatus.includes("paid") ||
-              (paidAmount > 0 && pendingAmount <= 0);
-            if (!isPaid) return false;
-          }
-
-          if (paymentFilter === "pending") {
-            const isPending =
-              paymentStatus.includes("pending") || pendingAmount > 0;
-            if (!isPending) return false;
-          }
-        }
-      }
-
-      if (productionFilter !== "all") {
-        const productionValues = [
-          shoot.production_filter,
-          shoot.production_status,
-          shoot.production_gap,
-          shoot.missing_production_item,
-        ].filter(hasValue);
-
-        if (productionValues.length > 0) {
-          const productionSource = productionValues.map(normalize);
-          if (
-            !productionSource.some((value) =>
-              value.includes(normalize(productionFilter)),
-            )
-          ) {
-            return false;
-          }
-        }
-      }
-
-      if (cpAssignmentFilter !== "all") {
-        const hasCpData =
-          Array.isArray(shoot.selected_crew_ids) ||
-          Array.isArray(shoot.assigned_crews) ||
-          Array.isArray(shoot.assignedCrew) ||
-          typeof shoot.has_assigned_cp === "boolean" ||
-          typeof shoot.cp_assigned === "boolean";
-
-        if (hasCpData) {
-          const selectedCrewIds = Array.isArray(shoot.selected_crew_ids)
-            ? shoot.selected_crew_ids
-            : [];
-          const assignedCrew = Array.isArray(shoot.assigned_crews)
-            ? shoot.assigned_crews
-            : Array.isArray(shoot.assignedCrew)
-              ? shoot.assignedCrew
-              : [];
-          const hasAssignedCp =
-            selectedCrewIds.length > 0 ||
-            assignedCrew.length > 0 ||
-            shoot.has_assigned_cp === true ||
-            shoot.cp_assigned === true;
-
-          if (cpAssignmentFilter === "assigned" && !hasAssignedCp) return false;
-          if (cpAssignmentFilter === "not_assigned" && hasAssignedCp)
-            return false;
-        }
-      }
-
-      return true;
-    });
-  }, [
-    shoots,
-    searchQuery,
-    categoryFilter,
-    statusFilter,
-    paymentFilter,
-    productionFilter,
-    cpAssignmentFilter,
-  ]);
+  const filteredShoots = shoots;
 
   const shootsByDate = useMemo(
     () =>
