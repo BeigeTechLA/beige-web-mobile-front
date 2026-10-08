@@ -1,6 +1,9 @@
 "use client";
 
+import ClientPaymentAnalytics from "./ClientPaymentAnalytics";
+
 import React, { useEffect, useState } from "react";
+import FinanceHoverMarker from "./FinanceHoverMarker";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/use-debounce";
 import { financeTransactionsApi, type FinanceClients } from "@/lib/api/financeTransactions";
@@ -35,58 +38,16 @@ function toFiniteNumber(value: unknown) {
 }
 
 function SpendActiveDot({ cx, cy, value, isDark }: SpendActiveDotProps) {
-  if (typeof cx !== "number" || typeof cy !== "number") {
-    return null;
-  }
+  if (typeof cx !== "number" || typeof cy !== "number") return null;
 
-  const label = `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value))} Spend`;
-  const boxWidth = 112;
-  const boxHeight = 32;
-  const boxX = cx - boxWidth / 2;
-  const boxY = cy - 61;
+  const amount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(toFiniteNumber(value));
 
-  return (
-    <g pointerEvents="none">
-      <line
-        x1={cx}
-        x2={cx}
-        y1={boxY + boxHeight}
-        y2={cy - 11}
-        stroke="#E8D1AB"
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-
-      <rect
-        x={boxX}
-        y={boxY}
-        width={boxWidth}
-        height={boxHeight}
-        rx={7}
-        fill="#FFFFFF"
-      />
-
-      <text
-        x={cx}
-        y={boxY + 21}
-        textAnchor="middle"
-        fill="#171717"
-        fontSize="13"
-        fontWeight="700"
-      >
-        {label}
-      </text>
-
-      <circle
-        cx={cx}
-        cy={cy}
-        r={7}
-        fill={isDark ? "#101010" : "#FFFFFF"}
-        stroke="#E8D1AB"
-        strokeWidth={3}
-      />
-    </g>
-  );
+  return <FinanceHoverMarker cx={cx} cy={cy} label={`${amount} Spend`} isDark={isDark} />;
 }
 
 function FilterSelect({
@@ -568,6 +529,7 @@ export default function ClientAnalytics({
           </div>
         </div>
       </div>
+      <ClientPaymentAnalytics isDark={isDark} selectedDate={selectedDate} />
     </section>
   );
 }

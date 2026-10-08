@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import CreativePartnerExtraAnalytics from "./CreativePartnerExtraAnalytics";
+
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import FinanceHoverMarker from "./FinanceHoverMarker";
 import { format } from "date-fns";
 
 import { financeTransactionsApi, type FinanceCpAnalysis, type FinanceTopCpShoot } from "@/lib/api/financeTransactions";
 import {
   Bar,
-  BarChart,
+  ComposedChart,
+  Area,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -23,6 +28,7 @@ type ShootPoint = {
   name: string;
   value: number;
   hoverValue?: number;
+  trend?: number;
 };
 
 function toFiniteNumber(value: unknown) {
@@ -76,16 +82,64 @@ function BubbleTooltip({
   children: React.ReactNode;
   className: string;
 }) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0, below: false });
+
+  useLayoutEffect(() => {
+    if (!visible || !buttonRef.current) return;
+    const update = () => {
+      const bounds = buttonRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      const labelWidth = label.length * 7 + 30;
+      const below = bounds.top < 55;
+      setPosition({
+        left: Math.max(labelWidth / 2 + 8, Math.min(window.innerWidth - labelWidth / 2 - 8, bounds.left + bounds.width / 2)),
+        top: below ? bounds.bottom + 10 : bounds.top - 10,
+        below,
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [visible, label]);
+
   return (
     <div className={`group absolute ${className}`}>
-      <button type="button" className="block rounded-full focus:outline-none">
+      <button
+        ref={buttonRef}
+        type="button"
+        className="block rounded-full focus:outline-none"
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        aria-label={label}
+      >
         {children}
       </button>
-
-      <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[calc(100%+10px)] whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[10px] font-semibold text-[#171717] opacity-0 shadow-xl transition-all duration-150 group-hover:-translate-y-[calc(100%+12px)] group-hover:opacity-100 group-focus-within:-translate-y-[calc(100%+12px)] group-focus-within:opacity-100">
-        {label}
-        <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-l-[7px] border-r-[7px] border-t-[7px] border-l-transparent border-r-transparent border-t-white" />
-      </div>
+      {visible && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="pointer-events-none fixed whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[10px] font-semibold text-[#171717] shadow-xl"
+              style={{
+                left: position.left,
+                top: position.top,
+                zIndex: 2147483647,
+                transform: position.below ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+              }}
+              role="status"
+            >
+              {label}
+              <span className={`absolute left-1/2 h-0 w-0 -translate-x-1/2 border-x-[7px] border-x-transparent ${position.below ? "bottom-full border-b-[7px] border-b-white" : "top-full border-t-[7px] border-t-white"}`} />
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -108,10 +162,6 @@ function ActiveShootBar({
   const centerX = x + width / 2;
   const safeBottom = y + Math.max(height - 10, 10);
   const label = payload?.hoverValue ?? payload?.value ?? 0;
-  const tooltipWidth = 78;
-  const tooltipHeight = 24;
-  const tooltipX = centerX - tooltipWidth / 2;
-  const tooltipY = y - 48;
 
   return (
     <g>
@@ -124,37 +174,6 @@ function ActiveShootBar({
         ry={5}
         fill="url(#finance-shoot-bar-gradient)"
       />
-
-      <line
-        x1={centerX}
-        x2={centerX}
-        y1={tooltipY + tooltipHeight}
-        y2={y - 12}
-        stroke="#E8D1AB"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-
-      <rect
-        x={tooltipX}
-        y={tooltipY}
-        width={tooltipWidth}
-        height={tooltipHeight}
-        rx={5}
-        fill="#FFFFFF"
-      />
-
-      <text
-        x={centerX}
-        y={tooltipY + 16}
-        textAnchor="middle"
-        fill="#171717"
-        fontSize="10"
-        fontWeight="700"
-      >
-        {label} Shoots
-      </text>
-
       <line
         x1={centerX}
         x2={centerX}
@@ -164,15 +183,15 @@ function ActiveShootBar({
         strokeOpacity="0.6"
         strokeWidth="1"
         strokeDasharray="5 6"
+        pointerEvents="none"
       />
-
-      <circle
+      <FinanceHoverMarker
         cx={centerX}
         cy={y - 7}
-        r={5}
-        fill={isDark ? "#101010" : "#FFFFFF"}
-        stroke="#E8D1AB"
-        strokeWidth={2}
+        radius={5}
+        fontSize="11px"
+        label={`${label} Shoots`}
+        isDark={isDark}
       />
     </g>
   );
@@ -236,10 +255,17 @@ export default function CreativePartnerAnalysis({
     stat: `${toFiniteNumber(row.margin_percent)}% mg`,
     value: Math.min(100, Math.max(0, toFiniteNumber(row.bar_percent))),
   }));
-  const chartData: ShootPoint[] = (shoots ?? []).map((shoot) => ({
-    name: shoot.name?.trim() || "Unknown",
-    value: toFiniteNumber(shoot.shoots_count),
-  }));
+  const chartData: ShootPoint[] = (shoots ?? []).map((shoot, index, items) => {
+    const value = toFiniteNumber(shoot.shoots_count);
+    const previous = toFiniteNumber(items[Math.max(0, index - 1)]?.shoots_count);
+    const next = toFiniteNumber(items[Math.min(items.length - 1, index + 1)]?.shoots_count);
+
+    return {
+      name: shoot.name?.trim() || "Unknown",
+      value,
+      trend: (previous + value * 2 + next) / 4,
+    };
+  });
   const averages = analysis?.averages;
   return (
     <section
@@ -311,7 +337,7 @@ export default function CreativePartnerAnalysis({
           isDark={isDark}
           showInfo={false}
         >
-          <div className="grid min-h-[220px] grid-cols-[170px_minmax(0,1fr)] items-center gap-3 px-4 py-5">
+          <div className="grid min-h-[220px] grid-cols-1 sm:grid-cols-[170px_minmax(0,1fr)] items-center gap-3 px-4 py-5">
             <div className="relative mx-auto h-[165px] w-[165px]">
               <BubbleTooltip
                 label="Per Shoot Payout"
@@ -372,11 +398,11 @@ export default function CreativePartnerAnalysis({
           isDark={isDark}
           className="xl:col-span-2"
         >
-          <div className="h-[330px] px-2 pb-2 pt-4 lg:h-[370px] lg:px-4">
+          <div className="relative h-[430px] min-w-0 px-2 pb-3 pt-4 lg:h-[490px] lg:px-4">
             {loading ? (<p className="pt-20 text-center text-sm">Loading…</p>) : error ? (<p className="pt-20 text-center text-sm text-red-500">{error}</p>) : chartData.length === 0 ? (<p className="pt-20 text-center text-sm">No data found</p>) : <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+              <ComposedChart
                 data={chartData}
-                margin={{ top: 30, right: 8, left: -10, bottom: 8 }}
+                margin={{ top: 32, right: 12, left: -10, bottom: 8 }}
                 barCategoryGap="34%"
               >
                 <defs>
@@ -396,6 +422,10 @@ export default function CreativePartnerAnalysis({
                       stopOpacity="0.25"
                     />
                   </linearGradient>
+                  <linearGradient id="finance-shoot-trend-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#408DE4" stopOpacity={0.24} />
+                    <stop offset="100%" stopColor="#101214" stopOpacity={0.02} />
+                  </linearGradient>
                 </defs>
 
                 <XAxis
@@ -412,8 +442,8 @@ export default function CreativePartnerAnalysis({
                 />
 
                 <YAxis
-                  domain={[0, 100]}
-                  ticks={[0, 20, 40, 60, 80, 100]}
+                  domain={[0, "dataMax"]}
+                  allowDecimals={false}
                   axisLine={false}
                   tickLine={false}
                   width={38}
@@ -423,14 +453,26 @@ export default function CreativePartnerAnalysis({
                   }}
                 />
 
-                {/* Invisible tooltip activates activeBar on hover. */}
                 <Tooltip content={() => null} cursor={false} />
+
+                <Area
+                  type="linear"
+                  dataKey="trend"
+                  stroke={isDark ? "#C5D4E4" : "#7292AE"}
+                  strokeWidth={1.5}
+                  strokeDasharray="8 6"
+                  fill="url(#finance-shoot-trend-gradient)"
+                  dot={false}
+                  activeDot={false}
+                  tooltipType="none"
+                  isAnimationActive={false}
+                />
 
                 <Bar
                   dataKey="value"
                   fill="url(#finance-shoot-bar-gradient)"
                   radius={[5, 5, 0, 0]}
-                  barSize={32}
+                  barSize={40}
                   activeBar={(props: { x?: number; y?: number; width?: number; height?: number; payload?: ShootPoint }) => (
                     <ActiveShootBar
                       x={props.x}
@@ -442,11 +484,12 @@ export default function CreativePartnerAnalysis({
                     />
                   )}
                 />
-              </BarChart>
+              </ComposedChart>
             </ResponsiveContainer>}
           </div>
         </Panel>
       </div>
+      <CreativePartnerExtraAnalytics isDark={isDark} selectedDate={selectedDate} />
     </section>
   );
 }

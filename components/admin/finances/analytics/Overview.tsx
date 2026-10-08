@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import FinanceHoverMarker from "./FinanceHoverMarker";
 import {
   Area,
   AreaChart,
@@ -94,65 +95,17 @@ type OverviewActiveDotProps = {
   isDark: boolean;
 };
 
-function OverviewActiveDot({
-  cx,
-  cy,
-  value,
-  payload,
-  isDark,
-}: OverviewActiveDotProps) {
-  if (typeof cx !== "number" || typeof cy !== "number") {
-    return null;
-  }
+function OverviewActiveDot({ cx, cy, value, isDark }: OverviewActiveDotProps) {
+  if (typeof cx !== "number" || typeof cy !== "number") return null;
 
-  const label = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(toFiniteNumber(value));
-  const boxWidth = 60;
-  const boxHeight = 30;
-  const boxX = cx - boxWidth / 2;
-  const boxY = cy - 52;
+  const label = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(toFiniteNumber(value));
 
-  return (
-    <g pointerEvents="none">
-      <line
-        x1={cx}
-        x2={cx}
-        y1={boxY + boxHeight}
-        y2={cy - 9}
-        stroke="#E8D1AB"
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-
-      <rect
-        x={boxX}
-        y={boxY}
-        width={boxWidth}
-        height={boxHeight}
-        rx={6}
-        fill="#FFFFFF"
-      />
-
-      <text
-        x={cx}
-        y={boxY + 20}
-        textAnchor="middle"
-        fill="#202020"
-        fontSize="14"
-        fontWeight="700"
-      >
-        {label}
-      </text>
-
-      <circle
-        cx={cx}
-        cy={cy}
-        r={6}
-        fill={isDark ? "#171717" : "#FFFFFF"}
-        stroke="#E8D1AB"
-        strokeWidth={3}
-      />
-    </g>
-  );
+  return <FinanceHoverMarker cx={cx} cy={cy} label={label} isDark={isDark} />;
 }
 
 export default function Overview({ isDark, selectedDate }: OverviewProps) {
