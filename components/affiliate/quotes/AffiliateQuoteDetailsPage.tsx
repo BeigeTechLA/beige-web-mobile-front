@@ -24,6 +24,11 @@ import AffiliateQuoteSignModal from "@/components/affiliate/quotes/AffiliateQuot
 import { Button } from "@/components/ui/button";
 import { salesApi, type SalesQuoteDetailData } from "@/lib/api";
 import {
+  formatQuoteStatusLabel,
+  getPaymentAwareQuoteStatusKey,
+  getQuoteStatusColor,
+} from "@/lib/quoteStatus";
+import {
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteDisplayShootTypeLabel,
@@ -172,39 +177,6 @@ const getActivityBookingId = (activity: QuoteActivityLike | null | undefined) =>
 
   return null;
 };
-
-const getStatusStyles = (status: string) => {
-  const normalizedStatus = status.trim().toLowerCase();
-
-  if (["paid"].includes(normalizedStatus)) {
-    return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
-  }
-
-  if (["accepted", "approved", "confirmed"].includes(normalizedStatus)) {
-    return "border border-[#86EFAC]/20 bg-[#DCFCE7] text-[#166534]";
-  }
-
-  if (["pending", "sent", "viewed"].includes(normalizedStatus)) {
-    return "border border-[#93C5FD]/20 bg-[#BFDBFE] text-[#1D4ED8]";
-  }
-
-  if (["rejected", "cancelled"].includes(normalizedStatus)) {
-    return "border border-[#FECACA]/20 bg-[#FEE2E2] text-[#DC2626]";
-  }
-
-  if (["expired"].includes(normalizedStatus)) {
-    return "border border-white/10 bg-[#E5E7EB] text-[#4B5563]";
-  }
-
-  return "border border-[#E8D1AB]/20 bg-[#2A2418] text-[#E8D1AB]";
-};
-
-const formatStatusLabel = (value: string) =>
-  value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 
 const getServiceIcon = (name: string) => {
   const normalizedName = name.toLowerCase();
@@ -475,8 +447,8 @@ export default function AffiliateQuoteDetailsPage({
     getQuoteText(quote?.project_description, "Project description not available") ||
     "Project description not available";
   const salesperson = getQuoteSalesperson(quote);
-  const quoteStatus = getQuoteText(quote?.quote_status, quote?.status, "Draft") || "Draft";
-  const normalizedQuoteStatus = quoteStatus.trim().toLowerCase();
+  const normalizedQuoteStatus = quote ? getPaymentAwareQuoteStatusKey(quote) : "draft";
+  const quoteStatus = formatQuoteStatusLabel(normalizedQuoteStatus);
   const quoteNumber = getQuoteText(quote?.quote_number, quoteId) || quoteId;
   const validUntil = formatQuoteDate(getQuoteText(quote?.valid_until, quote?.expires_at) || null);
   const shootType = getQuoteDisplayShootTypeLabel(quote);
@@ -723,11 +695,11 @@ export default function AffiliateQuoteDetailsPage({
                   </div>
                   <div className="flex flex-col lg:items-end gap-2">
                     <span
-                      className={`inline-flex h-fit w-fit items-center rounded-full px-4 py-2 text-sm font-semibold ${getStatusStyles(
-                        quoteStatus
+                      className={`inline-flex h-fit w-fit items-center rounded-full border px-4 py-2 text-sm font-semibold ${getQuoteStatusColor(
+                        normalizedQuoteStatus
                       )}`}
                     >
-                      {formatStatusLabel(quoteStatus)}
+                      {quoteStatus}
                     </span>
                     {signatureBase64 && !["rejected", "cancelled"].includes(normalizedQuoteStatus) ? (
                       <div className="mt-3 flex flex-col items-center lg:items-end gap-2">

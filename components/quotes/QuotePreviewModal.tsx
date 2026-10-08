@@ -37,6 +37,7 @@ type QuotePreviewModalProps = {
     previouslyPaid?: number;
     revisedTotal?: number;
   };
+  hidePaymentSummary?: boolean;
 };
 
 const PreviewActionButton = ({
@@ -95,6 +96,7 @@ export default function QuotePreviewModal({
   onBeforeSend,
   onBeforeCopy,
   paymentSummaryOverrides,
+  hidePaymentSummary = false,
 }: QuotePreviewModalProps) {
   const { isDark } = useResolvedTheme();
   const [copied, setCopied] = React.useState(false);
@@ -404,6 +406,7 @@ export default function QuotePreviewModal({
                   quote={quoteData}
                   quoteId={quoteId}
                   paymentSummaryOverrides={paymentSummaryOverrides}
+                  hidePaymentSummary={hidePaymentSummary}
                 />
               </div>
             </>

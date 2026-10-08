@@ -204,6 +204,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
+    if (tabName === activeTab) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tabName);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
