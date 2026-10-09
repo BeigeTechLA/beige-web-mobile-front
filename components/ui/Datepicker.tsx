@@ -58,7 +58,6 @@ export const datePickerColours = {
   desktopCalendarText: "#FFFFFF",
 };
 
-// Standard dark theme tokens
 const darkTheme: DatePickerColors = {
   inputBackground: "#101010",
   inputText: "#FFFFFF",
@@ -79,7 +78,6 @@ const darkTheme: DatePickerColors = {
   mutedText: "rgba(255, 255, 255, 0.4)",
 };
 
-// Standard light theme tokens
 const lightTheme: DatePickerColors = {
   inputBackground: "#FFFFFF",
   inputText: "#2C2C2C",
@@ -90,7 +88,7 @@ const lightTheme: DatePickerColors = {
   labelText: "rgba(0, 0, 0, 0.6)",
   iconColor: "#2C2C2C",
   accent: "#E8D1AB",
-  accentText: "#FFFFFF",
+  accentText: "#2C2C2C",
   hoverAccent: "#F2E2C6",
   paperBackground: "#FFFFFF",
   calendarHeaderText: "#2C2C2C",
@@ -136,58 +134,108 @@ export const DatePicker: React.FC<Props> = ({
   borderRadius,
 }) => {
   const activeTheme = isDark ? darkTheme : lightTheme;
-  const colors = { ...activeTheme, ...customColors };
+  const colors = {
+    ...activeTheme,
+    ...customColors,
+  };
+
   const [open, setOpen] = useState(false);
 
   const interiorStyles = {
-    // Hide scrollbar in the Year selection dropdown
     "& .MuiYearCalendar-root": {
-      scrollbarWidth: "none", // Firefox
-      "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari
-    },
-    "& .MuiDatePickerToolbar-title": { color: `${colors.calendarHeaderText} !important` },
-    "& .MuiDatePickerToolbar-typography": { color: `${colors.calendarHeaderText} !important` },
-    "& .MuiPickersCalendarHeader-label": { color: colors.calendarHeaderText },
-    "& .MuiPickersCalendarHeader-switchViewIcon": { color: `${colors.navigationIconColor} !important` },
-    "& .MuiPickersArrowSwitcher-button": { color: `${colors.navigationIconColor} !important` },
+      scrollbarWidth: "none",
 
-    // Year selection list text colors
+      "&::-webkit-scrollbar": {
+        display: "none",
+      },
+    },
+
+    "& .MuiDatePickerToolbar-title": {
+      color: `${colors.calendarHeaderText} !important`,
+    },
+
+    "& .MuiDatePickerToolbar-typography": {
+      color: `${colors.calendarHeaderText} !important`,
+    },
+
+    "& .MuiPickersCalendarHeader-label": {
+      color: colors.calendarHeaderText,
+    },
+
+    "& .MuiPickersCalendarHeader-switchViewIcon": {
+      color: `${colors.navigationIconColor} !important`,
+    },
+
+    "& .MuiPickersArrowSwitcher-button": {
+      color: `${colors.navigationIconColor} !important`,
+    },
+
     "& .MuiPickersYear-yearButton": {
       color: `${colors.dayNumberText} !important`,
+
       "&.Mui-selected": {
         backgroundColor: `${colors.accent} !important`,
         color: `${colors.accentText} !important`,
       },
+
       "&:hover": {
-        backgroundColor: isDark ? "rgba(255, 255, 255, 0.1) !important" : "rgba(0, 0, 0, 0.10) !important"
-      }
+        backgroundColor: isDark
+          ? "rgba(255, 255, 255, 0.1) !important"
+          : "rgba(0, 0, 0, 0.10) !important",
+      },
     },
 
-    // Calendar Days
-    "& .MuiDayCalendar-weekDayLabel": { color: colors.weekdayLabelText },
+    "& .MuiDayCalendar-weekDayLabel": {
+      color: colors.weekdayLabelText,
+    },
+
     "& .MuiPickersDay-root": {
       color: colors.dayNumberText,
-      "&:hover": { backgroundColor: isDark ? "rgba(255, 255, 255, 0.1) !important" : "rgba(0, 0, 0, 0.10) !important" },
+
+      "&:hover": {
+        backgroundColor: isDark
+          ? "rgba(255, 255, 255, 0.1) !important"
+          : "rgba(0, 0, 0, 0.10) !important",
+      },
+
       "&.Mui-selected": {
         backgroundColor: colors.accent,
         color: colors.accentText,
-        "&:hover": { backgroundColor: colors.hoverAccent },
+
+        "&:hover": {
+          backgroundColor: colors.hoverAccent,
+        },
       },
-      "&.MuiPickersDay-today": { borderColor: colors.accent },
-      // Dynamic style for disabled days
+
+      "&.MuiPickersDay-today": {
+        borderColor: colors.accent,
+      },
+
       "&.Mui-disabled": {
-        color: isDark ? "rgba(255, 255, 255, 0.2) !important" : "rgba(0, 0, 0, 0.50) !important",
+        color: isDark
+          ? "rgba(255, 255, 255, 0.2) !important"
+          : "rgba(0, 0, 0, 0.50) !important",
         textDecoration: "line-through",
         opacity: 0.4,
       },
     },
-    "& .MuiDialogActions-root button": { color: colors.accent, fontWeight: "bold" }
+
+    "& .MuiDialogActions-root button": {
+      color: colors.accent,
+      fontWeight: "bold",
+    },
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ width: "100%", position: "relative" }}>
-        {label && !floating && (
+      <Box
+        sx={{
+          width: "100%",
+          position: "relative",
+          overflow: "visible",
+        }}
+      >
+        {!floating && label && (
           <Typography
             variant="body2"
             sx={{
@@ -204,112 +252,219 @@ export const DatePicker: React.FC<Props> = ({
           </Typography>
         )}
 
-        <MuiDatePicker
-          label={label}
-          value={value}
-          onChange={onChange}
-          format={format}
-          open={open}
-          onOpen={() => !disabled && setOpen(true)}
-          onClose={() => setOpen(false)}
-          disabled={disabled}
-          minDate={minDate}
-          maxDate={maxDate}
-          slotProps={{
-            textField: {
-              fullWidth: true,
-              placeholder: placeholder ?? format.toUpperCase(),
-              onClick: () => !disabled && setOpen(true),
-              InputLabelProps: {
-                shrink: true,
-                sx: {
-                  color: colors.labelText,
-                  fontSize: "14px",
-                  transform: "translate(16px, -10px) scale(1)",
-                  backgroundColor: colors.inputBackground,
-                  padding: "0 8px",
-                  zIndex: 1,
-                  "&.Mui-focused": { color: colors.accent },
-                  "&.MuiInputLabel-shrink": {
-                    transform: "translate(16px, -10px) scale(1)",
-                    fontSize: "14px !important",
-                    color: `${colors.labelText} !important`,
-                    backgroundColor: colors.inputBackground,
-                    padding: "0 8px",
-                    zIndex: 1,
+        <Box
+          sx={{
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {floating && label && (
+            <Typography
+              component="span"
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: "16px",
+                transform: "translateY(-50%)",
+                zIndex: 3,
+
+                display: "inline-flex",
+                alignItems: "center",
+
+                px: "6px",
+
+                backgroundColor: colors.inputBackground,
+                color: colors.labelText,
+
+                fontSize: "14px",
+                fontWeight: 400,
+                lineHeight: "18px",
+
+                pointerEvents: "none",
+
+                ...labelSx,
+              }}
+            >
+              {label}
+            </Typography>
+          )}
+
+          <MuiDatePicker
+            value={value}
+            onChange={onChange}
+            format={format}
+            open={open}
+            onOpen={() => {
+              if (!disabled) {
+                setOpen(true);
+              }
+            }}
+            onClose={() => {
+              setOpen(false);
+            }}
+            disabled={disabled}
+            minDate={minDate}
+            maxDate={maxDate}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+
+                placeholder: placeholder ?? format.toUpperCase(),
+
+                onClick: () => {
+                  if (!disabled) {
+                    setOpen(true);
                   }
-                }
-              },
-              sx: {
-                "& .MuiOutlinedInput-root": {
-                  height: "100%",
-                  ...sx,
-                  backgroundColor: colors.inputBackground,
-                  borderRadius: borderRadius ? borderRadius : "12px",
-                  "& fieldset": { borderColor: colors.inputBorder, borderWidth: "1px" },
-                  "&:hover fieldset": { borderColor: colors.inputBorder },
-                  "&.Mui-focused fieldset": { borderColor: colors.inputBorderFocus, borderWidth: "1.5px" },
-                  "&.Mui-disabled fieldset": { borderColor: colors.inputDisabled },
                 },
-                "& .MuiInputBase-input": {
-                  color: colors.inputText,
-                  fontSize: "14px",
-                  padding: "16.5px 14px",
-                  height: "100%",
-                  "&.Mui-disabled": {
-                    WebkitTextFillColor: colors.inputText,
-                    opacity: 0.5,
+
+                sx: {
+                  width: "100%",
+
+                  "& .MuiOutlinedInput-root": {
+                    height: "100%",
+                    minHeight: "54px",
+
+                    ...sx,
+
+                    backgroundColor: colors.inputBackground,
+
+                    borderRadius: borderRadius
+                      ? borderRadius
+                      : "12px",
+
+                    "& fieldset": {
+                      borderColor: colors.inputBorder,
+                      borderWidth: "1px",
+
+                      // Important:
+                      // keep a normal complete border.
+                      // We are not using MUI's label notch.
+                      top: 0,
+                    },
+
+                    "& legend": {
+                      display: "none",
+                    },
+
+                    "&:hover fieldset": {
+                      borderColor: colors.inputBorderHover,
+                    },
+
+                    "&.Mui-focused fieldset": {
+                      borderColor: colors.inputBorderFocus,
+                      borderWidth: "1.5px",
+                    },
+
+                    "&.Mui-disabled": {
+                      backgroundColor: colors.inputDisabled,
+                    },
+
+                    "&.Mui-disabled fieldset": {
+                      borderColor: colors.inputDisabled,
+                    },
+                  },
+
+                  "& .MuiInputBase-input": {
+                    color: colors.inputText,
+                    fontSize: "14px",
+                    padding: "16.5px 14px",
+                    height: "100%",
+                    boxSizing: "border-box",
+
+                    "&::placeholder": {
+                      color: colors.mutedText,
+                      opacity: 1,
+                    },
+
+                    "&.Mui-disabled": {
+                      WebkitTextFillColor: colors.inputText,
+                      opacity: 0.5,
+                    },
+                  },
+
+                  "& .MuiInputAdornment-root": {
+                    marginLeft: "4px",
+                  },
+
+                  "& .MuiIconButton-root": {
+                    color: colors.iconColor,
+                    padding: "8px",
+
+                    "&:hover": {
+                      backgroundColor: isDark
+                        ? "rgba(255, 255, 255, 0.08)"
+                        : "rgba(0, 0, 0, 0.05)",
+                    },
+                  },
+
+                  "& .MuiSvgIcon-root": {
+                    color: colors.iconColor,
+                    fontSize: "20px",
+                    opacity: disabled ? 0.5 : 1,
                   },
                 },
-                "& .MuiSvgIcon-root": {
-                  color: colors.iconColor,
-                  fontSize: "20px",
-                  opacity: disabled ? 0.5 : 1,
+              },
+
+              popper: {
+                disablePortal,
+
+                sx: {
+                  zIndex: 1700,
+
+                  "& .MuiPaper-root": {
+                    backgroundColor: colors.paperBackground,
+                    backgroundImage: "none",
+
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.1)"
+                      : "1px solid rgba(0,0,0,0.1)",
+
+                    marginTop: "8px",
+
+                    ...interiorStyles,
+                  },
                 },
               },
-            },
-            popper: {
-              disablePortal,
-              sx: {
-                zIndex: 1700,
-                "& .MuiPaper-root": {
+
+              toolbar: {
+                sx: {
+                  "& .MuiTypography-overline": {
+                    color: isDark
+                      ? "rgba(255, 255, 255, 0.5) !important"
+                      : "rgba(0, 0, 0, 0.5) !important",
+
+                    fontSize: "10px !important",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                  },
+
+                  "& .MuiDatePickerToolbar-typography": {
+                    color: isDark
+                      ? "rgba(255, 255, 255, 0.5) !important"
+                      : "rgba(0, 0, 0, 0.5) !important",
+                  },
+
+                  "& .MuiDatePickerToolbar-title": {
+                    color: `${colors.calendarHeaderText} !important`,
+                  },
+                },
+              },
+
+              mobilePaper: {
+                sx: {
                   backgroundColor: colors.paperBackground,
-                  border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
-                  marginTop: "8px",
+                  backgroundImage: "none",
+
+                  border: isDark
+                    ? "1px solid rgba(255,255,255,0.1)"
+                    : "1px solid rgba(0,0,0,0.1)",
+
                   ...interiorStyles,
                 },
               },
-            },
-            toolbar: {
-              sx: {
-                // Targets the "SELECT DATE" text label
-                "& .MuiTypography-overline": {
-                  color: isDark ? "rgba(255, 255, 255, 0.5) !important" : "rgba(0, 0, 0, 0.5) !important",
-                  fontSize: "10px !important",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                },
-                // Fallback: some versions use this specific class instead
-                "& .MuiDatePickerToolbar-typography": {
-                  color: isDark ? "rgba(255, 255, 255, 0.5) !important" : "rgba(0, 0, 0, 0.5) !important",
-                },
-                // Targets the actual selected date (e.g., "Tue, Feb 24")
-                "& .MuiDatePickerToolbar-title": {
-                  color: `${colors.calendarHeaderText} !important`,
-                },
-              },
-            },
-            // Style for Mobile dialog
-            mobilePaper: {
-              sx: {
-                backgroundColor: colors.paperBackground,
-                backgroundImage: "none",
-                border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
-                ...interiorStyles,
-              }
-            },
-          }}
-        />
+            }}
+          />
+        </Box>
       </Box>
     </LocalizationProvider>
   );

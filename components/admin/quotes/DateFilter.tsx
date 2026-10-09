@@ -1,18 +1,29 @@
 "use client";
 
-import React, { useState } from "react";
-import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, subQuarters, startOfYear } from "date-fns";
-import { ChevronDown, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+  format,
+  subDays,
+  startOfDay,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfQuarter,
+  endOfQuarter,
+  subQuarters,
+  startOfYear,
+} from "date-fns";
 import { Box } from "@mui/material";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { LocalizationProvider, DesktopDatePicker } from "@mui/x-date-pickers";
+
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+
+import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/ui/Datepicker";
 
 export type DatePreset =
   | "all"
@@ -36,6 +47,7 @@ interface DateFilterProps {
   isDark?: boolean;
   value?: DatePreset;
   selectedDate?: Date | null;
+  selectedRange?: DateFilterRange;
   onChange?: (
     preset: DatePreset,
     dateRange: DateFilterRange,
@@ -46,95 +58,218 @@ interface DateFilterProps {
 export default function DateFilter({
   isDark = true,
   value,
-  selectedDate: externalSelectedDate,
+  selectedRange,
   onChange,
 }: DateFilterProps) {
   const [preset, setPreset] = useState<DatePreset>(value || "all");
-  const [customDate, setCustomDate] = useState<Date | null>(
-    externalSelectedDate || null
-  );
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Helper function to resolve date ranges based on preset selected
+  const [customRangeStartDate, setCustomRangeStartDate] =
+    useState<Date | null>(selectedRange?.startDate || null);
+
+  const [customRangeEndDate, setCustomRangeEndDate] =
+    useState<Date | null>(selectedRange?.endDate || null);
+
+  const [draftCustomRangeStartDate, setDraftCustomRangeStartDate] =
+    useState<Date | null>(selectedRange?.startDate || null);
+
+  const [draftCustomRangeEndDate, setDraftCustomRangeEndDate] =
+    useState<Date | null>(selectedRange?.endDate || null);
+
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
+
+  const today = startOfDay(new Date());
+
+  useEffect(() => {
+    if (value) {
+      setPreset(value);
+    }
+  }, [value]);
+
+  useEffect(() => {
+    if (selectedRange) {
+      setCustomRangeStartDate(selectedRange.startDate);
+      setCustomRangeEndDate(selectedRange.endDate);
+
+      setDraftCustomRangeStartDate(selectedRange.startDate);
+      setDraftCustomRangeEndDate(selectedRange.endDate);
+    }
+  }, [selectedRange]);
+
   const getDateRangeForPreset = (
-    selectedPreset: DatePreset,
-    custom: Date | null
+    selectedPreset: DatePreset
   ): DateFilterRange => {
-    const today = new Date();
+    const currentDate = startOfDay(new Date());
 
     switch (selectedPreset) {
       case "today":
-        return { startDate: today, endDate: today };
+        return {
+          startDate: currentDate,
+          endDate: currentDate,
+        };
+
       case "yesterday": {
-        const yest = subDays(today, 1);
-        return { startDate: yest, endDate: yest };
+        const yesterday = subDays(currentDate, 1);
+
+        return {
+          startDate: yesterday,
+          endDate: yesterday,
+        };
       }
+
       case "last7Days":
-        return { startDate: subDays(today, 7), endDate: today };
+        return {
+          startDate: subDays(currentDate, 7),
+          endDate: currentDate,
+        };
+
       case "last30Days":
-        return { startDate: subDays(today, 30), endDate: today };
+        return {
+          startDate: subDays(currentDate, 30),
+          endDate: currentDate,
+        };
+
       case "thisMonth":
-        return { startDate: startOfMonth(today), endDate: endOfMonth(today) };
+        return {
+          startDate: startOfMonth(currentDate),
+          endDate: currentDate,
+        };
+
       case "lastMonth": {
-        const prevMonth = subMonths(today, 1);
+        const previousMonth = subMonths(currentDate, 1);
+
         return {
-          startDate: startOfMonth(prevMonth),
-          endDate: endOfMonth(prevMonth),
+          startDate: startOfMonth(previousMonth),
+          endDate: endOfMonth(previousMonth),
         };
       }
+
       case "thisQuarter":
-        return { startDate: startOfQuarter(today), endDate: endOfQuarter(today) };
-      case "lastQuarter": {
-        const prevQuarter = subQuarters(today, 1);
         return {
-          startDate: startOfQuarter(prevQuarter),
-          endDate: endOfQuarter(prevQuarter),
+          startDate: startOfQuarter(currentDate),
+          endDate: currentDate,
+        };
+
+      case "lastQuarter": {
+        const previousQuarter = subQuarters(currentDate, 1);
+
+        return {
+          startDate: startOfQuarter(previousQuarter),
+          endDate: endOfQuarter(previousQuarter),
         };
       }
+
       case "yearToDate":
-        return { startDate: startOfYear(today), endDate: today };
+        return {
+          startDate: startOfYear(currentDate),
+          endDate: currentDate,
+        };
+
       case "custom":
-        return { startDate: custom, endDate: custom };
+        return {
+          startDate: customRangeStartDate,
+          endDate: customRangeEndDate,
+        };
+
       case "all":
       default:
-        return { startDate: null, endDate: null };
+        return {
+          startDate: null,
+          endDate: null,
+        };
     }
   };
 
-  const handlePresetChange = (val: string) => {
-    const newPreset = val as DatePreset;
-    setPreset(newPreset);
+  const openCustomRange = () => {
+    setDraftCustomRangeStartDate(customRangeStartDate);
+    setDraftCustomRangeEndDate(customRangeEndDate);
+    setIsCustomRangeOpen(true);
+  };
+
+  const handlePresetChange = (newValue: string) => {
+    const newPreset = newValue as DatePreset;
 
     if (newPreset === "custom") {
-      setIsCalendarOpen(true);
-    } else {
-      setCustomDate(null);
-      const range = getDateRangeForPreset(newPreset, null);
-      onChange?.(newPreset, range, null);
+      openCustomRange();
+      return;
     }
+
+    setPreset(newPreset);
+
+    const range = getDateRangeForPreset(newPreset);
+
+    onChange?.(newPreset, range, null);
   };
 
-  const handleCustomDateChange = (newDate: Date | null) => {
-    setCustomDate(newDate);
-    setIsCalendarOpen(false);
-    if (newDate) {
-      const range = getDateRangeForPreset("custom", newDate);
-      onChange?.("custom", range, newDate);
-    }
+  const handleCustomRangeCancel = () => {
+    setDraftCustomRangeStartDate(customRangeStartDate);
+    setDraftCustomRangeEndDate(customRangeEndDate);
+
+    setIsCustomRangeOpen(false);
   };
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCustomRangeApply = () => {
+    if (!draftCustomRangeStartDate || !draftCustomRangeEndDate) {
+      return;
+    }
+
+    const startDate = startOfDay(draftCustomRangeStartDate);
+    const endDate = startOfDay(draftCustomRangeEndDate);
+
+    if (startDate > today || endDate > today) {
+      return;
+    }
+
+    setCustomRangeStartDate(startDate);
+    setCustomRangeEndDate(endDate);
+
+    setDraftCustomRangeStartDate(startDate);
+    setDraftCustomRangeEndDate(endDate);
+
+    setPreset("custom");
+
+    setIsCustomRangeOpen(false);
+
+    onChange?.(
+      "custom",
+      {
+        startDate,
+        endDate,
+      },
+      startDate
+    );
+  };
+
+  const clearCustomRange = () => {
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
+
+    setCustomRangeStartDate(null);
+    setCustomRangeEndDate(null);
+
     setPreset("all");
-    setCustomDate(null);
-    setIsCalendarOpen(false);
-    onChange?.("all", { startDate: null, endDate: null }, null);
+
+    setIsCustomRangeOpen(false);
+
+    onChange?.(
+      "all",
+      {
+        startDate: null,
+        endDate: null,
+      },
+      null
+    );
   };
 
-  // Label displayed inside Select trigger
   const renderTriggerLabel = () => {
-    if (preset === "custom" && customDate) {
-      return format(customDate, "MMM dd, yyyy");
+    if (
+      preset === "custom" &&
+      customRangeStartDate &&
+      customRangeEndDate
+    ) {
+      return `${format(
+        customRangeStartDate,
+        "MMM dd, yyyy"
+      )} - ${format(customRangeEndDate, "MMM dd, yyyy")}`;
     }
 
     const labels: Record<DatePreset, string> = {
@@ -148,27 +283,36 @@ export default function DateFilter({
       thisQuarter: "This Quarter",
       lastQuarter: "Last Quarter",
       yearToDate: "Year to Date",
-      custom: customDate ? format(customDate, "MMM dd, yyyy") : "Custom Date",
+      custom: "Custom Range",
     };
 
     return labels[preset] || "Date Filter";
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ position: "relative" }} className="inline-flex items-center gap-2 min-w-30">
-        <Select value={preset} onValueChange={handlePresetChange}>
+    <>
+      <Box
+        sx={{
+          position: "relative",
+        }}
+        className="inline-flex items-center gap-2 lg:min-w-30"
+      >
+        <Select
+          value={preset === "custom" ? "" : preset}
+          onValueChange={handlePresetChange}
+        >
           <SelectTrigger
-            className={`h-12 p-4 rounded-lg lg:rounded-xl text-sm medium focus:ring-[#E5D5B8]/40 ${
+            className={`h-12 rounded-lg p-2.5 text-xs medium lg:rounded-xl lg:p-4 lg:text-sm focus:ring-[#E5D5B8]/40 ${
               isDark
                 ? "border-white/20 bg-[#202020] text-white"
                 : "border-[#E3E3E3] bg-[#E8E8E8] text-[#323232] hover:opacity-80"
             }`}
           >
-            <SelectValue placeholder="Date Filter" className="text-sm medium">
+            <span className="truncate text-sm medium">
               {renderTriggerLabel()}
-            </SelectValue>
+            </span>
           </SelectTrigger>
+
           <SelectContent
             className={
               isDark
@@ -176,73 +320,200 @@ export default function DateFilter({
                 : "border-[#E3E3E3] bg-white text-black text-sm medium"
             }
           >
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="yesterday">Yesterday</SelectItem>
-            <SelectItem value="last7Days">Last 7 Days</SelectItem>
-            <SelectItem value="last30Days">Last 30 Days</SelectItem>
-            <SelectItem value="thisMonth">This Month</SelectItem>
-            <SelectItem value="lastMonth">Last Month</SelectItem>
-            <SelectItem value="thisQuarter">This Quarter</SelectItem>
-            <SelectItem value="lastQuarter">Last Quarter</SelectItem>
-            <SelectItem value="yearToDate">Year to Date</SelectItem>
-            <SelectItem value="custom">Custom Date...</SelectItem>
+            <SelectItem value="all">
+              All Time
+            </SelectItem>
+
+            <SelectItem value="today">
+              Today
+            </SelectItem>
+
+            <SelectItem value="yesterday">
+              Yesterday
+            </SelectItem>
+
+            <SelectItem value="last7Days">
+              Last 7 Days
+            </SelectItem>
+
+            <SelectItem value="last30Days">
+              Last 30 Days
+            </SelectItem>
+
+            <SelectItem value="thisMonth">
+              This Month
+            </SelectItem>
+
+            <SelectItem value="lastMonth">
+              Last Month
+            </SelectItem>
+
+            <SelectItem value="thisQuarter">
+              This Quarter
+            </SelectItem>
+
+            <SelectItem value="lastQuarter">
+              Last Quarter
+            </SelectItem>
+
+            <SelectItem value="yearToDate">
+              Year to Date
+            </SelectItem>
+
+            <SelectItem value="custom">
+              Custom Range...
+            </SelectItem>
           </SelectContent>
         </Select>
-
-        {/* Clear Button (Shown when filter is active) */}
-        {/* {preset !== "all" && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className={`h-8 w-8 lg:h-10 lg:w-10 rounded-full border transition-all flex items-center justify-center shrink-0 ${
-              isDark
-                ? "border-white/10 bg-[#1A1A1A] text-[#C4C4C4] hover:text-white hover:border-white/30"
-                : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232] hover:opacity-80"
-            }`}
-            aria-label="Clear date filter"
-          >
-            <X className="w-4 h-4 lg:w-5 lg:h-5" />
-          </button>
-        )} */}
-
-        {/* Hidden MUI DatePicker (Triggered when Custom preset is selected) */}
-        <div className="invisible absolute top-0 left-0 h-0 w-0">
-          <DesktopDatePicker
-            open={isCalendarOpen}
-            onOpen={() => setIsCalendarOpen(true)}
-            onClose={() => setIsCalendarOpen(false)}
-            value={customDate}
-            onChange={handleCustomDateChange}
-            slotProps={{
-              desktopPaper: {
-                sx: {
-                  backgroundColor: isDark ? "#171717" : "#FFFFFF",
-                  border: isDark
-                    ? "1px solid rgba(255, 255, 255, 0.1)"
-                    : "1px solid #E3E3E3",
-                  borderRadius: "16px",
-                  color: isDark ? "#fff" : "#323232",
-                  "& .MuiPickersDay-root": {
-                    color: isDark ? "#fff" : "#323232",
-                    "&.Mui-selected": {
-                      backgroundColor: "#E8D1AB",
-                      color: "#000",
-                      "&:hover": { backgroundColor: "#D4C3A3" },
-                    },
-                  },
-                  "& .MuiTypography-root": {
-                    color: isDark ? "rgba(255,255,255,0.6)" : "#323232CC",
-                  },
-                  "& .MuiSvgIcon-root": {
-                    color: isDark ? "#E8D1AB" : "#323232CC",
-                  },
-                },
-              },
-            }}
-          />
-        </div>
       </Box>
-    </LocalizationProvider>
+
+      {isCustomRangeOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4 py-6"
+          onClick={handleCustomRangeCancel}
+        >
+          <div
+            className={`w-full max-w-2xl rounded-2xl border p-5 shadow-2xl ${
+              isDark
+                ? "border-[#3A3A3A] bg-[#171717] text-white"
+                : "border-[#E5E5E5] bg-white text-black"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-lg font-semibold">
+                Custom Range
+              </h3>
+
+              <p
+                className={`mt-1 text-sm ${
+                  isDark
+                    ? "text-white/60"
+                    : "text-black/55"
+                }`}
+              >
+                Choose a start and end date.
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <DatePicker
+                label="Start Date"
+                floating
+                value={draftCustomRangeStartDate}
+                onChange={(date) => {
+                  const nextStartDate = date
+                    ? startOfDay(date)
+                    : null;
+
+                  setDraftCustomRangeStartDate(
+                    nextStartDate
+                  );
+
+                  if (
+                    nextStartDate &&
+                    draftCustomRangeEndDate &&
+                    nextStartDate >
+                      startOfDay(
+                        draftCustomRangeEndDate
+                      )
+                  ) {
+                    setDraftCustomRangeEndDate(
+                      nextStartDate
+                    );
+                  }
+                }}
+                maxDate={
+                  draftCustomRangeEndDate
+                    ? draftCustomRangeEndDate < today
+                      ? draftCustomRangeEndDate
+                      : today
+                    : today
+                }
+                isDark={isDark}
+                disablePortal
+                format="MM/dd/yyyy"
+              />
+
+              <DatePicker
+                label="End Date"
+                floating
+                value={draftCustomRangeEndDate}
+                onChange={(date) => {
+                  const nextEndDate = date
+                    ? startOfDay(date)
+                    : null;
+
+                  setDraftCustomRangeEndDate(
+                    nextEndDate
+                  );
+
+                  if (
+                    nextEndDate &&
+                    draftCustomRangeStartDate &&
+                    nextEndDate <
+                      startOfDay(
+                        draftCustomRangeStartDate
+                      )
+                  ) {
+                    setDraftCustomRangeStartDate(
+                      nextEndDate
+                    );
+                  }
+                }}
+                minDate={
+                  draftCustomRangeStartDate ||
+                  undefined
+                }
+                maxDate={today}
+                isDark={isDark}
+                disablePortal
+                format="MM/dd/yyyy"
+              />
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={clearCustomRange}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  isDark
+                    ? "border-[#3D3D3D] bg-transparent text-white/70 hover:bg-white/5 hover:text-white"
+                    : "border-[#E3E3E3] bg-white text-black/60 hover:bg-black/5 hover:text-black"
+                }`}
+              >
+                Clear Range
+              </button>
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeCancel}
+                  className={
+                    isDark
+                      ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                      : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                  }
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleCustomRangeApply}
+                  disabled={
+                    !draftCustomRangeStartDate ||
+                    !draftCustomRangeEndDate
+                  }
+                  className="bg-[#E8D1AB] text-black hover:bg-[#d4c3a3] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Apply Range
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -63,7 +63,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
                 name:
                   String(m.name || `${m.first_name || ""} ${m.last_name || ""}`)
                     .trim() || "Unknown",
-                role: m.role_name || "Post Production",
+                role: formatRoleName(m.role_name || "Post Production"),
                 email: m.email,
               }));
             setMembers(availableMembers);

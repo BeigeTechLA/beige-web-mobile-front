@@ -538,6 +538,7 @@ export const BookAShootV4 = () => {
     ? [...new Set([...baseContentTypes, "studio"])]
     : baseContentTypes;
   const selectedHybridCreators = Number(creativeTeam.photoVideoCreator || 0);
+  const selectedPhotographers = Number(creativeTeam.photographer || 0);
   const hasPhotoCoverage =
     contentTypes.includes("photographer") ||
     selectedHybridCreators > 0;
@@ -631,7 +632,8 @@ export const BookAShootV4 = () => {
     includedPerHourOverride: canShowPhotoEdits
       ? getV4PhotoEditsPerHour(
         bookingState.selectedOccasion,
-        selectedHybridCreators > 0
+        selectedHybridCreators > 0,
+        selectedPhotographers > 0
       )
       : 0,
   });
@@ -2172,9 +2174,9 @@ export const BookAShootV4 = () => {
         : "",
     ].filter(Boolean);
     const packageOffers = getIncludedPackageOffers();
-    // Setup time remains a fixed $250 coverage charge, but it is included with
-    // the package rather than presented as a separate pricing-summary item.
-    const isSetupTimeLineItem = (label: string) => /setup time/i.test(label);
+    // Setup time belongs to the package offer. Keep its charge in the total,
+    // but never expose it as a separate pricing-summary item.
+    const isSetupTimeLineItem = (label: string) => /\bset[-\s]?up\s+time\b/i.test(label);
     const allSummaryRows = previewLineItems.length > 0
       ? previewLineItems.filter((item) => !item.hidden && Number(item.line_total) !== 0).map((item) => ({
         label: `${item.item_name}${item.quantity > 1 ? ` × ${item.quantity}` : ""}`,
@@ -2193,7 +2195,18 @@ export const BookAShootV4 = () => {
       allSummaryRows.push({ label: "Card Payment Charges (4%)", amount: cardProcessingFee });
     }
 
+    const setupTimeAmount = allSummaryRows
+      .filter((row) => isSetupTimeLineItem(row.label))
+      .reduce((sum, row) => sum + row.amount, 0);
     const summaryRows = allSummaryRows.filter((row) => !isSetupTimeLineItem(row.label));
+    if (setupTimeAmount !== 0) {
+      const otherRow = summaryRows.find((row) => /^other$/i.test(row.label.trim()));
+      if (otherRow) {
+        otherRow.amount += setupTimeAmount;
+      } else {
+        summaryRows.push({ label: "Other", amount: setupTimeAmount });
+      }
+    }
 
     return {
       summaryRows,
