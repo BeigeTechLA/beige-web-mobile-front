@@ -55,7 +55,6 @@ import {
   ConfirmCPEventLocation
 } from "@/lib/api";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import { GeneralAgreementModal } from "@/components/creator-profile/GeneralAgreementModal";
 
 // ----------------------------
 // CONSTANTS & HELPERS
@@ -128,6 +127,127 @@ const isCompletedFlag = (item: any) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return value < today.getTime();
+};
+
+type MapMarkerType = "accepted" | "upcoming" | "past" | "pending" | "rejected";
+
+const asNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
+
+const getShootCoordinates = (item: any) => {
+  const project = item?.project || item;
+  const eventLocation =
+    project?.event_location && typeof project.event_location === "object"
+      ? project.event_location
+      : null;
+  const location =
+    project?.location && typeof project.location === "object"
+      ? project.location
+      : null;
+  const locationData =
+    project?.location_data && typeof project.location_data === "object"
+      ? project.location_data
+      : null;
+
+  const lat = asNumber(
+    project?.event_latitude,
+    project?.location_latitude,
+    project?.latitude,
+    eventLocation?.lat,
+    eventLocation?.latitude,
+    eventLocation?.coordinates?.lat,
+    eventLocation?.coordinates?.latitude,
+    location?.lat,
+    location?.latitude,
+    location?.coordinates?.lat,
+    location?.coordinates?.latitude,
+    locationData?.lat,
+    locationData?.latitude,
+    locationData?.coordinates?.lat,
+    locationData?.coordinates?.latitude,
+  );
+  const lng = asNumber(
+    project?.event_longitude,
+    project?.location_longitude,
+    project?.longitude,
+    eventLocation?.lng,
+    eventLocation?.lon,
+    eventLocation?.longitude,
+    eventLocation?.coordinates?.lng,
+    eventLocation?.coordinates?.lon,
+    eventLocation?.coordinates?.longitude,
+    location?.lng,
+    location?.lon,
+    location?.longitude,
+    location?.coordinates?.lng,
+    location?.coordinates?.lon,
+    location?.coordinates?.longitude,
+    locationData?.lng,
+    locationData?.lon,
+    locationData?.longitude,
+    locationData?.coordinates?.lng,
+    locationData?.coordinates?.lon,
+    locationData?.coordinates?.longitude,
+  );
+
+  if (
+    lat === null ||
+    lng === null ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return null;
+  }
+
+  return { lat, lng };
+};
+
+const getShootLocation = (item: any) => {
+  const project = item?.project || item;
+
+  if (typeof project?.event_location === "string") {
+    const rawLocation = project.event_location.trim();
+    if (rawLocation) {
+      try {
+        const parsed = JSON.parse(rawLocation);
+        return String(parsed?.address || parsed?.formatted_address || rawLocation);
+      } catch {
+        return rawLocation;
+      }
+    }
+  }
+
+  if (typeof project?.location === "string" && project.location.trim()) {
+    return project.location.trim();
+  }
+
+  return String(
+    project?.event_location?.address ||
+      project?.event_location?.formatted_address ||
+      project?.location?.address ||
+      project?.location?.formatted_address ||
+      project?.location_data?.address ||
+      project?.location_data?.placeName ||
+      project?.display_location ||
+      "Location TBD",
+  );
+};
+
+const getMapMarkerType = (item: any): MapMarkerType => {
+  const acceptanceStatus = Number(item?.crew_accept);
+  if (acceptanceStatus === 2) return "rejected";
+  if (acceptanceStatus === 0) return "pending";
+  if (isCompletedFlag(item)) return "past";
+  if (isFutureDate(getItemDate(item))) return "upcoming";
+  return "accepted";
 };
 
 const CHART_COLORS = {
@@ -416,25 +536,6 @@ export default function CreatorDashboardPage() {
     zoom: 3,
   });
 
-  // General agreement modal
-  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(true);
-
-  // --- AGREEMENT MODAL HANDLERS ---
-  const handleOpenModal = () => setIsAgreementModalOpen(true);
-  const handleCloseModal = () => setIsAgreementModalOpen(false);
-
-  const handleViewAgreement = () => {
-    // Open agreement document or route to agreement page
-    window.open("/creator/dashboard/agreements/general-agreement", "_blank");
-    // router.push("/creator/dashboard/agreements/general-agreement")
-  };
-
-  const handleAcceptAgreement = () => {
-    // Handle agreement acceptance logic (API call, state update, etc.)
-    console.log("Agreement accepted!");
-    setIsAgreementModalOpen(false);
-  };
-
   // --- MONTH HANDLERS ---
   const handlePreviousMonth = () => {
     const newDate = new Date(date);
@@ -579,6 +680,10 @@ export default function CreatorDashboardPage() {
         if (response && !response.error) {
           const fetchedAllShoots = response.data.data.allShoots || [];
           const fetchedPending = response.data.data.pendingRequests || [];
+          const fetchedMapShoots = response.data.data.mapShoots || [
+            ...fetchedAllShoots,
+            ...fetchedPending,
+          ];
           const acceptedToday = fetchedAllShoots.filter((item: any) => isTodayDate(getItemDate(item)) && !isCompletedFlag(item));
           const acceptedUpcoming = fetchedAllShoots.filter((item: any) => isFutureDate(getItemDate(item)) && !isCompletedFlag(item));
           const upcomingPending = fetchedPending.filter((item: any) => isUpcomingDate(getItemDate(item)) && !isCompletedFlag(item));
@@ -590,22 +695,26 @@ export default function CreatorDashboardPage() {
             upcomingShoots: acceptedUpcoming.length,
           }));
 
-          const newMarkers: any[] = [];
-          const getMarkers = async (list: any[], markerType: 'active' | 'upcoming' | 'pending') => {
-            for (const item of list) {
-              const loc = item.project?.event_location || item.display_location;
-              if (loc && loc !== "Location TBD") {
-                const coords = await geocodeAddress(loc);
-                if (coords) {
-                  newMarkers.push({ ...coords, type: markerType, originalData: item });
-                }
-              }
-            }
-          }
+          const markerResults = await Promise.all(
+            fetchedMapShoots.map(async (item: any) => {
+              const existingCoordinates = getShootCoordinates(item);
+              const location = getShootLocation(item);
+              const coordinates =
+                existingCoordinates ||
+                (location !== "Location TBD" ? await geocodeAddress(location) : null);
 
-          await getMarkers(acceptedToday, 'active');
-          await getMarkers(acceptedUpcoming, 'upcoming');
-          await getMarkers(upcomingPending, 'pending');
+              return coordinates
+                ? {
+                    ...coordinates,
+                    type: getMapMarkerType(item),
+                    originalData: item,
+                  }
+                : null;
+            }),
+          );
+          const newMarkers = markerResults.filter(
+            (marker): marker is NonNullable<typeof marker> => Boolean(marker),
+          );
 
           setMapMarkers(newMarkers);
 
@@ -1041,9 +1150,11 @@ export default function CreatorDashboardPage() {
                     <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
                       }`}>
                       <SelectItem value="all">All events</SelectItem>
-                      <SelectItem value="active">Active shoots</SelectItem>
+                      <SelectItem value="accepted">Accepted today</SelectItem>
                       <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="pending">Requests</SelectItem>
+                      <SelectItem value="past">Past</SelectItem>
+                      <SelectItem value="pending">Pending requests</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1074,14 +1185,28 @@ export default function CreatorDashboardPage() {
                     <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
                       <div
                         onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                        className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'active'
+                        className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'accepted'
                           ? 'bg-[#E8D1AB] border-black text-black'
                           : marker.type === 'upcoming'
                             ? 'bg-blue-400 border-black text-black'
-                            : 'bg-yellow-500 border-black text-black'
+                            : marker.type === 'past'
+                              ? 'bg-emerald-500 border-black text-black'
+                              : marker.type === 'rejected'
+                                ? 'bg-red-500 border-black text-white'
+                                : 'bg-yellow-500 border-black text-black'
                           }`}
                       >
-                        {marker.type === 'active' ? <Camera size={14} /> : marker.type === 'upcoming' ? <CalendarIcon size={14} /> : <Clock size={14} />}
+                        {marker.type === 'accepted' ? (
+                          <Camera size={14} />
+                        ) : marker.type === 'upcoming' ? (
+                          <CalendarIcon size={14} />
+                        ) : marker.type === 'past' ? (
+                          <Check size={14} />
+                        ) : marker.type === 'rejected' ? (
+                          <XCircle size={14} />
+                        ) : (
+                          <Clock size={14} />
+                        )}
                       </div>
                     </Marker>
                   ))}
@@ -1527,13 +1652,7 @@ export default function CreatorDashboardPage() {
           </Dialog>
         </div>
 
-        <GeneralAgreementModal
-          isOpen={isAgreementModalOpen}
-          onClose={handleCloseModal}
-          onViewAgreement={handleViewAgreement}
-          onAccept={handleAcceptAgreement}
-          isDark={isDark}
-        />
+        {/* General Agreement popup is hidden until the agreement flow is API-backed. */}
       </div>
     </>
   );

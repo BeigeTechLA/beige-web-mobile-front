@@ -19,7 +19,6 @@ import { type PermissionMatrixRow } from "@/components/admin/roles-permissions/t
 import {
   applyPermissionsToRows,
   buildPermissionRows,
-  constrainPermissionRowsToParent,
   extractPermissionStateFromRows,
   extractPermissionsFromRows,
 } from "@/components/admin/roles-permissions/utils";
@@ -192,7 +191,6 @@ export default function AdminRoleEditDetailsRoute() {
   const [currentRoleId, setCurrentRoleId] = useState("");
   const [currentRoleLabel, setCurrentRoleLabel] = useState("Role");
   const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
-  const [roleBoundaryPermissions, setRoleBoundaryPermissions] = useState<UserPermissionsMap>({});
   const [userCustomPermissions, setUserCustomPermissions] = useState<UserPermissionsMap>({});
   const [hasUserCustomPermissions, setHasUserCustomPermissions] = useState(false);
   const [permissionScope, setPermissionScope] = useState("admin");
@@ -226,9 +224,7 @@ export default function AdminRoleEditDetailsRoute() {
       const normalizedPermissions = normalizeUserPermissionsPayload(response?.data);
       const hasCustomPermissions = Object.keys(normalizedPermissions).length > 0;
       const permissionsToApply = hasCustomPermissions ? normalizedPermissions : fallbackPermissions;
-      const constrainedRows = constrainPermissionRowsToParent(baseRows, fallbackPermissions);
-
-      setRows(applyPermissionsToRows(constrainedRows, permissionsToApply));
+      setRows(applyPermissionsToRows(baseRows, permissionsToApply));
       setUserCustomPermissions(normalizedPermissions);
       setHasUserCustomPermissions(hasCustomPermissions);
     };
@@ -300,7 +296,6 @@ export default function AdminRoleEditDetailsRoute() {
           setCurrentRoleId(data.role?.role_id ? String(data.role.role_id) : "");
           setCurrentRoleLabel(data.display_role || data.role?.name || "Unassigned");
           setPermissionScope(nextScope);
-          setRoleBoundaryPermissions(parentRolePermissions);
           setStatus(data.user.status_label || "Active");
           setCreatedAt(formatDateTime(data.user.created_at));
           setUpdatedAt(formatDateTime(data.user.updated_at));
@@ -436,10 +431,7 @@ export default function AdminRoleEditDetailsRoute() {
 
     await syncActivePermissions(userId);
 
-    const baseRows = constrainPermissionRowsToParent(
-      await loadPermissionRows(permissionScope),
-      roleBoundaryPermissions,
-    );
+    const baseRows = await loadPermissionRows(permissionScope);
     const permissionResponse = await adminApi.getUserPermissions(userId);
     const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
     const permissionsToApply =
@@ -489,33 +481,26 @@ export default function AdminRoleEditDetailsRoute() {
         detailsResponse.data.role_permissions || {},
       );
       const canShowRolesPermissions = canConfigureRolesPermissions(detailsResponse.data.role);
-      const nextRoleBoundaryPermissions = canShowRolesPermissions
-        ? fallbackPermissions
-        : removeRolesPermissionsFromMap(fallbackPermissions);
-      setRoleBoundaryPermissions(nextRoleBoundaryPermissions);
       const assignedRole = roleOptions.find((role) => role.value === nextRoleId);
-      const baseRows = constrainPermissionRowsToParent(
-        canShowRolesPermissions
-          ? await loadPermissionRows(
+      const baseRows = canShowRolesPermissions
+        ? await loadPermissionRows(
+            resolveInternalPermissionScope(
+              selectedRoleLabel || currentRoleLabel,
+              detailsResponse.data.user?.is_internal_member ??
+                detailsResponse.data.role?.is_internal_member ??
+                assignedRole?.isInternalMember,
+            ),
+          )
+        : removeRolesPermissionsModule(
+            await loadPermissionRows(
               resolveInternalPermissionScope(
                 selectedRoleLabel || currentRoleLabel,
                 detailsResponse.data.user?.is_internal_member ??
                   detailsResponse.data.role?.is_internal_member ??
                   assignedRole?.isInternalMember,
               ),
-            )
-          : removeRolesPermissionsModule(
-              await loadPermissionRows(
-                resolveInternalPermissionScope(
-                  selectedRoleLabel || currentRoleLabel,
-                  detailsResponse.data.user?.is_internal_member ??
-                    detailsResponse.data.role?.is_internal_member ??
-                    assignedRole?.isInternalMember,
-                ),
-              ),
             ),
-        nextRoleBoundaryPermissions,
-      );
+          );
       const permissionResponse = await adminApi.getUserPermissions(userId);
       const normalizedPermissions = normalizeUserPermissionsPayload(permissionResponse?.data);
       const permissionsToApply =

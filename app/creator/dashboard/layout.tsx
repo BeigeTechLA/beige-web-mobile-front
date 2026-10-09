@@ -73,9 +73,20 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // Global CP status check for all creator pages
   useEffect(() => {
+    if (!mounted || !user?.id) return;
+
+    let cancelled = false;
+
     const checkCpStatus = async () => {
       try {
         const response = await CheckCPStatus();
+        if (
+          cancelled ||
+          sessionStorage.getItem("revure_logout_in_progress") === "true"
+        ) {
+          return;
+        }
+
         const statusResponse = response as CpStatusResponse;
         const data = statusResponse.data ?? statusResponse;
 
@@ -102,7 +113,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     };
 
     checkCpStatus();
-  }, [pathname, logout, router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, pathname, logout, router, user?.id]);
 
   useEffect(() => {
     const syncCreatorVerification = async () => {

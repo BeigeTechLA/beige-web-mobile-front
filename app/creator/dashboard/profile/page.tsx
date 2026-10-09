@@ -1583,7 +1583,7 @@ export default function ProfilePage() {
 
             {activeTab === "Documents & Agreements" && (
               <div className="space-y-3 lg:space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {/* GENERAL AGREEMENT */}
+                {/* Static General Agreement card is hidden until agreement data is API-backed.
                 <div>
                   <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>
                     General Agreement
@@ -1592,7 +1592,6 @@ export default function ProfilePage() {
                     className={`border rounded-lg lg:rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Document Icon Badge */}
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#D4FFE4] text-[#16A34A]">
                         <FileText size={20} />
                       </div>
@@ -1623,6 +1622,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
+                */}
 
                 {/* SHOOT AGREEMENT */}
                 <div>

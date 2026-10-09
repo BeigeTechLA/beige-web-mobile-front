@@ -214,6 +214,9 @@ export const useAuth = () => {
   const logout = useCallback(async () => {
     if (logoutPending.current) return false;
     logoutPending.current = true;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('revure_logout_in_progress', 'true');
+    }
     // This request needs the current access token, so it must happen before
     // the auth session and cookies are cleared. Failure must not block logout.
     try {
@@ -225,6 +228,9 @@ export const useAuth = () => {
       await logoutSession(Cookies.get('revure_token') || token || undefined);
     } catch {
       toast.error('Could not end your session. Check your connection and try signing out again.');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('revure_logout_in_progress');
+      }
       logoutPending.current = false;
       return false;
     }
@@ -239,6 +245,10 @@ export const useAuth = () => {
       localStorage.removeItem('revure_user');
       localStorage.removeItem('revure_permissions');
       sessionStorage.clear();
+      sessionStorage.setItem('revure_logout_in_progress', 'true');
+      window.setTimeout(() => {
+        sessionStorage.removeItem('revure_logout_in_progress');
+      }, 5000);
     }
     void persistor.purge();
     router.push('/');
