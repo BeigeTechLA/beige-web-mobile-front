@@ -86,7 +86,7 @@ export default function TopCPsByPayout({
   return (
     <div className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
-      <div className={`shrink-0 flex items-center gap-1.5 px-5 py-5 lg:py-6 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
+      <div className={`shrink-0 flex items-center gap-1.5 p-5 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
         {/* Info tooltip */}
         <span className="relative group/info inline-flex">
@@ -102,7 +102,7 @@ export default function TopCPsByPayout({
 
       {/* List: fills the remaining height. gap-* is the minimum spacing; any extra
           height in the parent is shared out evenly between the rows (justify-between). */}
-      <ul className="flex-1 flex flex-col justify-between gap-4 lg:gap-5 p-4 lg:p-5">
+      <ul className="flex-1 flex flex-col justify-between gap-4 lg:gap-5 p-4 lg:p-5 lg:pb-6">
         {isLoading
           ? Array.from({ length: limit }).map((_, i) => (
             <li key={i} className="flex items-center gap-4">

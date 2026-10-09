@@ -20,6 +20,8 @@ import AvgClientSpendPerShoot from "@/components/admin/finances/AvgClientSpendPe
 import TopClients from "@/components/admin/finances/TopClients";
 import ClientPaymentOverview from "@/components/admin/finances/ClientPaymentOverview";
 import OutstandingPayment from "@/components/admin/finances/OutstandingPayment";
+import DisputesSummary from "@/components/admin/finances/DisputesSummary";
+import TopDisputeReasons from "@/components/admin/finances/TopDisputeReasons";
 
 
 export default function FinanceAnalyticsPage() {
@@ -61,53 +63,56 @@ export default function FinanceAnalyticsPage() {
 
         <>
           <RevenueOverviewChart />
-          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
             {/* Header */}
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8]" />
               <p className="font-medium text-sm lg:text-base">Creative Partner Analysis</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[60%_40%] gap-3 lg:gap-6">
               <TopCPsByPayout />
               <AvgPayoutMarginCount />
             </div>
 
             <TopCPsByShoots />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[55%_45%] gap-3 lg:gap-6">
               <CPPayoutTimeline />
               <TopOverdueCPs />
             </div>
           </div>
 
-          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
             {/* Header */}
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8]" />
               <p className="font-medium text-sm lg:text-base">Client Analytics</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[60%_40%] gap-3 lg:gap-6">
               <TopClients />
-              <div className="space-y-3 lg:space-y-6">
+              <div className="space-y-3 lg:space-y-4">
                 <AvgClientSpendPerShoot />
                 <ShootDistribution />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[30%_70%] gap-3 lg:gap-6">
               <ClientPaymentOverview />
               <OutstandingPayment />
             </div>
           </div>
 
-          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
             {/* Header */}
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8]" />
               <p className="font-medium text-sm lg:text-base">Disputes Analytics</p>
             </div>
+
+            <DisputesSummary />
+            <TopDisputeReasons />
           </div>
         </>
 

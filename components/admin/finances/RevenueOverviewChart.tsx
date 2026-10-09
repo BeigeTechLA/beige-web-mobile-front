@@ -210,8 +210,18 @@ const growthLabel = (range: Range) => {
 
 // Active point: ring dot + speech-bubble label drawn right above it (as in the design).
 // Drawn in SVG so it always sits on the point, unlike Recharts' floating tooltip box.
-const ActiveDotWithBubble = ({ cx, cy, value, isDark }: any) => {
-  if (cx == null || cy == null) return null;
+// Recharts passes an Area's activeDot `value` as a [base, value] pair (not a number).
+// Read the real number from the data point instead.
+const pointValue = ({ payload, dataKey, value }: any): number => {
+  const fromPayload = payload && dataKey != null ? payload[dataKey] : undefined;
+  const raw = fromPayload ?? (Array.isArray(value) ? value[value.length - 1] : value);
+  return Number(raw);
+};
+
+const ActiveDotWithBubble = (props: any) => {
+  const { cx, cy, isDark } = props;
+  const value = pointValue(props);
+  if (cx == null || cy == null || !Number.isFinite(value)) return null;
   const text = String(value);
   const w = Math.max(44, text.length * 9 + 26);
   const h = 28;
