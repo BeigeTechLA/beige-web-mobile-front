@@ -1,117 +1,357 @@
-export type RequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+import { inventoryHttpApi } from '@/lib/api';
+
+export type RequestStatus = 'pending' | 'accepted' | 'rejected';
 export type RequestType = 'personal' | 'shoot';
-export type InventoryItem = { id: string; name: string; description?: string; image_url?: string; unit_price: number; currency?: string; total_quantity: number; requested_quantity: number; assigned_quantity: number; status: 'active' | 'inactive' };
-export type RequestLine = { inventory_item_id: string; item_name_snapshot: string; item_image_snapshot?: string; unit_price_snapshot: number; quantity: number; line_total: number };
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+  description?: string;
+  image_url?: string;
+  unit_price: number;
+  currency?: string;
+  total_quantity: number;
+  requested_quantity: number;
+  assigned_quantity: number;
+  status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type RequestLine = {
+  inventory_item_id: string;
+  item_name_snapshot: string;
+  item_image_snapshot?: string;
+  unit_price_snapshot: number;
+  quantity: number;
+  line_total: number;
+};
+
 export type ShootOption = { id: string; name: string; date?: string; location?: string };
-export type InventoryRequest = { id: string; creator_id: string; creator_name?: string; creator_image?: string; request_type: RequestType; shoot_id?: string | null; shoot_name?: string; shoot_date?: string; notes?: string; status: RequestStatus; rejection_reason?: string; items: RequestLine[]; total_items: number; total_quantity: number; total_amount: number; created_at: string; archived_at?: string | null };
+
+export type InventoryRequest = {
+  id: string;
+  creator_id: string;
+  creator_name?: string;
+  request_type: RequestType;
+  shoot_id?: string | null;
+  shoot_name?: string;
+  shoot_date?: string;
+  status: RequestStatus;
+  admin_id?: number;
+  admin_note?: string;
+  items: RequestLine[];
+  total_items: number;
+  total_quantity: number;
+  total_amount: number;
+  created_at: string;
+};
+
 export type ListResponse<T> = { data: T[]; total: number; page: number; limit: number };
-export type ListParams = { page?: number; limit?: number; search?: string; status?: string; type?: string; sort?: string; date_from?: string; date_to?: string };
-export type RequestPayload = { request_type: RequestType; shoot_id: string | null; notes: string; items: { inventory_item_id: string; quantity: number }[] };
+export type ListParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  type?: string;
+  sort?: string;
+  date_from?: string;
+  date_to?: string;
+};
+export type RequestPayload = {
+  request_type: RequestType;
+  shoot_id: string | null;
+  items: { inventory_item_id: string; quantity: number }[];
+};
+
+type ApiRow = Record<string, unknown>;
+
+const numberValue = (value: unknown, fallback = 0) => {
+  const valueAsNumber = Number(value);
+  return Number.isFinite(valueAsNumber) ? valueAsNumber : fallback;
+};
+
+const stringValue = (value: unknown, fallback = '') => value == null ? fallback : String(value);
+
+const normalizeItem = (row: ApiRow): InventoryItem => ({
+  id: stringValue(row.id),
+  name: stringValue(row.name),
+  description: stringValue(row.description),
+  image_url: stringValue(row.image_url) || undefined,
+  unit_price: numberValue(row.price ?? row.unit_price),
+  currency: stringValue(row.currency, 'USD') || 'USD',
+  total_quantity: numberValue(row.total_quantity),
+  requested_quantity: numberValue(row.requested_quantity),
+  assigned_quantity: numberValue(row.assigned_quantity),
+  status: Number(row.is_active ?? (row.status === 'active' ? 1 : 0)) === 1 ? 'active' : 'inactive',
+  created_at: stringValue(row.created_at) || undefined,
+  updated_at: stringValue(row.updated_at) || undefined,
+});
+
+const normalizeRequestLine = (row: ApiRow): RequestLine => {
+  const quantity = numberValue(row.quantity);
+  const unitPrice = numberValue(row.unit_price ?? row.unit_price_snapshot);
+  return {
+    inventory_item_id: stringValue(row.inventory_item_id),
+    item_name_snapshot: stringValue(row.item_name_snapshot ?? row.item_name, 'Inventory item'),
+    item_image_snapshot: stringValue(row.item_image_snapshot ?? row.image_url) || undefined,
+    unit_price_snapshot: unitPrice,
+    quantity,
+    line_total: numberValue(row.line_total, unitPrice * quantity),
+  };
+};
+
+const groupRequests = (rows: ApiRow[]): InventoryRequest[] => {
+  const requests = new Map<string, InventoryRequest>();
+
+  for (const row of rows) {
+    const id = stringValue(row.id);
+    if (!id) continue;
+    let request = requests.get(id);
+    if (!request) {
+      const firstName = stringValue(row.first_name);
+      const lastName = stringValue(row.last_name);
+      const creatorName = stringValue(row.creator_name, `${firstName} ${lastName}`.trim());
+      request = {
+        id,
+        creator_id: stringValue(row.cp_id ?? row.creator_id),
+        creator_name: creatorName || undefined,
+        request_type: row.purpose === 'shoot' || row.request_type === 'shoot' ? 'shoot' : 'personal',
+        shoot_id: row.shoot_id == null ? null : stringValue(row.shoot_id),
+        shoot_name: stringValue(row.shoot_name) || undefined,
+        shoot_date: stringValue(row.shoot_date ?? row.event_date) || undefined,
+        status: row.status === 'accepted' || row.status === 'rejected' ? row.status : 'pending',
+        admin_id: row.admin_id == null ? undefined : numberValue(row.admin_id),
+        admin_note: stringValue(row.admin_note) || undefined,
+        items: [],
+        total_items: 0,
+        total_quantity: 0,
+        total_amount: 0,
+        created_at: stringValue(row.created_at),
+      };
+      requests.set(id, request);
+    }
+
+    if (row.inventory_item_id != null) request.items.push(normalizeRequestLine(row));
+  }
+
+  return [...requests.values()].map(request => ({
+    ...request,
+    total_items: request.items.length,
+    total_quantity: request.items.reduce((total, item) => total + item.quantity, 0),
+    total_amount: request.items.reduce((total, item) => total + item.line_total, 0),
+  })).sort((a, b) => b.created_at.localeCompare(a.created_at));
+};
+
+const asRows = (value: unknown): ApiRow[] => Array.isArray(value) ? value as ApiRow[] : [];
+const listResult = <T,>(rows: T[], params: ListParams = {}): ListResponse<T> => {
+  const page = Math.max(1, numberValue(params.page, 1));
+  const limit = Math.max(1, numberValue(params.limit, 10));
+  return { data: rows.slice((page - 1) * limit, page * limit), total: rows.length, page, limit };
+};
+
 export const available = (item: InventoryItem) => Math.max(0, item.total_quantity - item.requested_quantity - item.assigned_quantity);
 export const currency = (value: number, code = 'USD') => new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(Number(value) || 0);
-export const requestTotals = (lines: RequestLine[]) => ({ total_items: lines.length, total_quantity: lines.reduce((n, x) => n + x.quantity, 0), total_amount: lines.reduce((n, x) => n + x.unit_price_snapshot * x.quantity, 0) });
+export const formatInventoryDate = (value?: string | null) => {
+  if (!value) return '—';
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  const parts = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).formatToParts(date);
+  const day = parts.find(part => part.type === 'day')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const year = parts.find(part => part.type === 'year')?.value;
+  return day && month && year ? `${day} ${month}, ${year}` : '—';
+};
+export const requestTotals = (lines: RequestLine[]) => ({
+  total_items: lines.length,
+  total_quantity: lines.reduce((total, item) => total + item.quantity, 0),
+  total_amount: lines.reduce((total, item) => total + item.unit_price_snapshot * item.quantity, 0),
+});
 
-// FRONTEND DEMO ONLY: localStorage-backed static data. Replace with authenticated real APIs for production.
-const STORAGE_KEY = 'beige.inventory.static-demo.v1';
-const CURRENT_CP = { id: 'cp-demo-001', name: 'Alex Morgan' };
-const shoots: ShootOption[] = [
-  { id: 'SH-2048', name: 'Downtown Fashion Campaign', date: '2026-10-18', location: 'Los Angeles' },
-  { id: 'SH-2052', name: 'Sunset Product Shoot', date: '2026-10-22', location: 'Santa Monica' },
-  { id: 'SH-2061', name: 'Studio Portrait Session', date: '2026-10-27', location: 'Hollywood' },
-];
-const picture = (symbol: string, color: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320"><rect width="480" height="320" rx="20" fill="${color}"/><circle cx="365" cy="74" r="112" fill="#ffffff" opacity=".10"/><text x="240" y="177" text-anchor="middle" font-size="96" font-family="Arial,sans-serif">${symbol}</text></svg>`)}`;
-const seedItems: InventoryItem[] = [
-  { id: 'INV-001', name: 'Sony A7 IV Camera', description: 'Full-frame mirrorless camera body', image_url: picture('📷','#293548'), unit_price: 2499, currency: 'USD', total_quantity: 12, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-002', name: 'Canon RF 24-70mm Lens', description: 'Professional versatile zoom lens', image_url: picture('🔍','#373343'), unit_price: 1899, currency: 'USD', total_quantity: 10, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-003', name: 'Aputure 300D Lighting Kit', description: 'LED light with softbox and stand', image_url: picture('💡','#45402f'), unit_price: 999, currency: 'USD', total_quantity: 15, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-004', name: 'DJI RS 3 Pro Gimbal', description: 'Professional camera stabilizer', image_url: picture('🎥','#304844'), unit_price: 869, currency: 'USD', total_quantity: 8, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-005', name: 'Manfrotto Tripod', description: 'Heavy-duty video and photo tripod', image_url: picture('📐','#3a3e51'), unit_price: 349, currency: 'USD', total_quantity: 20, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-006', name: 'Wireless Microphone Set', description: 'Dual-channel wireless audio kit', image_url: picture('🎤','#514238'), unit_price: 399, currency: 'USD', total_quantity: 10, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-  { id: 'INV-007', name: 'Portable Monitor', description: 'On-camera external field monitor', image_url: picture('🖥️','#34505a'), unit_price: 449, currency: 'USD', total_quantity: 6, requested_quantity: 0, assigned_quantity: 0, status: 'inactive' },
-  { id: 'INV-008', name: 'SanDisk 256GB SD Card', description: 'High speed UHS-II memory card', image_url: picture('💾','#5c3b3e'), unit_price: 129, currency: 'USD', total_quantity: 30, requested_quantity: 0, assigned_quantity: 0, status: 'active' },
-];
-type Store = { items: InventoryItem[]; requests: InventoryRequest[] };
-const line = (id: string, qty: number): RequestLine => { const item = seedItems.find(x => x.id === id)!; return { inventory_item_id: id, item_name_snapshot: item.name, item_image_snapshot: item.image_url, unit_price_snapshot: item.unit_price, quantity: qty, line_total: item.unit_price * qty }; };
-const makeRequest = (id: string, creator_id: string, creator_name: string, request_type: RequestType, shoot_id: string | null, status: RequestStatus, entries: [string,number][], date: string, notes = ''): InventoryRequest => {
-  const lines = entries.map(([itemId, qty]) => line(itemId, qty));
-  return { id, creator_id, creator_name, request_type, shoot_id, shoot_name: shoots.find(s => s.id === shoot_id)?.name, shoot_date: shoots.find(s => s.id === shoot_id)?.date, notes, status, items: lines, ...requestTotals(lines), created_at: date };
+const REQUEST_CACHE_TTL_MS = 20_000;
+const requestCache = new Map<string, { expiresAt: number; rows: InventoryRequest[] }>();
+const requestInFlight = new Map<string, Promise<InventoryRequest[]>>();
+
+const requestCacheKey = (role: 'admin' | 'creator', status?: string) => `${role}:${role === 'admin' && status && status !== 'all' ? status : 'all'}`;
+
+const getGroupedRequests = async (role: 'admin' | 'creator', status?: string) => {
+  const key = requestCacheKey(role, status);
+  const cached = requestCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.rows;
+  const pending = requestInFlight.get(key);
+  if (pending) return pending;
+
+  const request = (async () => {
+    const response = role === 'admin'
+      ? await inventoryHttpApi.listAdminRequests(status)
+      : await inventoryHttpApi.listCreatorRequests();
+    const rows = groupRequests(asRows(response?.data));
+    requestCache.set(key, { rows, expiresAt: Date.now() + REQUEST_CACHE_TTL_MS });
+    return rows;
+  })();
+  requestInFlight.set(key, request);
+  try {
+    return await request;
+  } finally {
+    requestInFlight.delete(key);
+  }
 };
-const initialState = (): Store => ({ items: seedItems.map(x => ({...x})), requests: [
-  makeRequest('REQ-1001', CURRENT_CP.id, CURRENT_CP.name, 'shoot', 'SH-2048', 'pending', [['INV-001',2],['INV-003',3]], '2026-10-08T09:30:00.000Z', 'Camera and lighting for the campaign.'),
-  makeRequest('REQ-1002', 'cp-demo-002', 'Jamie Rivera', 'personal', null, 'pending', [['INV-004',1],['INV-005',2]], '2026-10-07T12:15:00.000Z'),
-  makeRequest('REQ-1003', CURRENT_CP.id, CURRENT_CP.name, 'personal', null, 'accepted', [['INV-006',2]], '2026-10-03T10:45:00.000Z'),
-  makeRequest('REQ-1004', CURRENT_CP.id, CURRENT_CP.name, 'shoot', 'SH-2052', 'rejected', [['INV-002',1]], '2026-10-01T11:20:00.000Z'),
-  makeRequest('REQ-1005', 'cp-demo-003', 'Taylor Brooks', 'shoot', 'SH-2061', 'cancelled', [['INV-008',4]], '2026-09-29T08:00:00.000Z'),
-].map(x => x.id === 'REQ-1004' ? {...x, rejection_reason: 'Equipment unavailable for the requested shoot date.'} : x) });
-let memory: Store | null = null;
-const read = (): Store => {
-  if (typeof window === 'undefined') return initialState();
-  if (memory) return memory;
-  try { const raw = window.localStorage.getItem(STORAGE_KEY); if (raw) { const parsed = JSON.parse(raw) as Store; if (Array.isArray(parsed.items) && Array.isArray(parsed.requests)) { memory = parsed; return parsed; } } } catch { /* storage may be disabled */ }
-  memory = initialState(); return memory;
+
+const invalidateRequestCache = (role?: 'admin' | 'creator') => {
+  for (const key of requestCache.keys()) {
+    if (!role || key.startsWith(`${role}:`)) requestCache.delete(key);
+  }
+  for (const key of requestInFlight.keys()) {
+    if (!role || key.startsWith(`${role}:`)) requestInFlight.delete(key);
+  }
 };
-const save = (state: Store) => { memory = state; if (typeof window !== 'undefined') { try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* keep session demo state */ } window.dispatchEvent(new Event('inventory-demo-updated')); } };
-const withStock = (state: Store): InventoryItem[] => state.items.map(item => ({...item,
-  requested_quantity: state.requests.filter(r => r.status === 'pending').flatMap(r => r.items).filter(l => l.inventory_item_id === item.id).reduce((sum,l) => sum + l.quantity, 0),
-  assigned_quantity: state.requests.filter(r => r.status === 'accepted').flatMap(r => r.items).filter(l => l.inventory_item_id === item.id).reduce((sum,l) => sum + l.quantity, 0),
-}));
-const getItem = (id: string) => { const item = withStock(read()).find(x => x.id === id); if (!item) throw new Error('Inventory item not found'); return item; };
-const getRequest = (id: string, own = false) => { const r = read().requests.find(x => x.id === id && (!own || x.creator_id === CURRENT_CP.id)); if (!r) throw new Error('Inventory request not found'); return structuredClone(r); };
-const list = <T,>(rows: T[], params: ListParams): ListResponse<T> => { const page = Math.max(1, Number(params.page) || 1), limit = Math.max(1, Number(params.limit) || 10); return { data: rows.slice((page - 1) * limit, page * limit), total: rows.length, page, limit }; };
-const filterRequests = (rows: InventoryRequest[], params: ListParams) => rows.filter(r => (!params.search || `${r.id} ${r.creator_name} ${r.shoot_name}`.toLowerCase().includes(params.search.toLowerCase())) && (!params.status || params.status === 'all' || r.status === params.status) && (!params.type || params.type === 'all' || r.request_type === params.type) && (!params.date_from || r.created_at.slice(0,10) >= params.date_from) && (!params.date_to || r.created_at.slice(0,10) <= params.date_to)).sort((a,b) => b.created_at.localeCompare(a.created_at));
-const filterItems = (rows: InventoryItem[], params: ListParams) => rows.filter(item => (!params.search || `${item.id} ${item.name}`.toLowerCase().includes(params.search.toLowerCase())) && (!params.status || params.status === 'all' || item.status === params.status)).sort((a,b) => a.name.localeCompare(b.name));
-const checkPending = (id: string) => { const r = getRequest(id); if (r.status !== 'pending') throw new Error('Only pending requests can be changed'); return r; };
-const uploadImage = (file: File): Promise<string> => new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('Image could not be read')); reader.readAsDataURL(file); });
-const validateLines = (payload: RequestPayload, previous?: InventoryRequest): RequestLine[] => {
-  if (!['personal','shoot'].includes(payload.request_type)) throw new Error('Choose a request type');
-  if (payload.request_type === 'shoot' && !shoots.some(s => s.id === payload.shoot_id)) throw new Error('Choose a valid assigned shoot');
-  if (!payload.items.length) throw new Error('Choose at least one item');
-  const ids = new Set<string>();
-  return payload.items.map(entry => {
-    if (ids.has(entry.inventory_item_id)) throw new Error('Duplicate item in request'); ids.add(entry.inventory_item_id);
-    if (!Number.isSafeInteger(entry.quantity) || entry.quantity < 1) throw new Error('Invalid quantity');
-    const item = getItem(entry.inventory_item_id);
-    if (item.status !== 'active') throw new Error(`${item.name} is inactive`);
-    const oldQty = previous?.items.find(x => x.inventory_item_id === item.id)?.quantity || 0;
-    if (entry.quantity > available(item) + oldQty) throw new Error(`Not enough available stock for ${item.name}`);
-    const snapshot = previous?.items.find(x => x.inventory_item_id === item.id);
-    const price = snapshot?.unit_price_snapshot ?? item.unit_price;
-    return { inventory_item_id: item.id, item_name_snapshot: snapshot?.item_name_snapshot ?? item.name, item_image_snapshot: snapshot?.item_image_snapshot ?? item.image_url, unit_price_snapshot: price, quantity: entry.quantity, line_total: price * entry.quantity };
+
+const getAdminItemsWithStock = async (params: ListParams) => {
+  const response = await inventoryHttpApi.listAdminItems({
+    search: params.search,
+    status: params.status || 'all',
+    page: params.page || 1,
+    limit: params.limit || 20,
   });
+  const rows = asRows(response?.data);
+  const requestRows = await getGroupedRequests('admin');
+  const stockByItem = new Map<string, { requested: number; assigned: number }>();
+
+  requestRows.forEach(request => request.items.forEach(line => {
+    const stock = stockByItem.get(line.inventory_item_id) || { requested: 0, assigned: 0 };
+    if (request.status === 'pending') stock.requested += line.quantity;
+    if (request.status === 'accepted') stock.assigned += line.quantity;
+    stockByItem.set(line.inventory_item_id, stock);
+  }));
+
+  const pagination = response?.pagination || {};
+  const page = numberValue(pagination.page, numberValue(params.page, 1));
+  const limit = numberValue(pagination.limit, numberValue(params.limit, 20));
+  const total = numberValue(pagination.total, rows.length);
+  return {
+    data: rows.map(row => {
+      const item = normalizeItem(row);
+      const stock = stockByItem.get(item.id) || { requested: 0, assigned: 0 };
+      return { ...item, requested_quantity: stock.requested, assigned_quantity: stock.assigned };
+    }),
+    total,
+    page,
+    limit,
+  };
 };
+
 export const inventoryApi = {
-  adminRequests: async (params: ListParams) => list(filterRequests(read().requests, params), params),
-  adminRequest: async (id: string) => getRequest(id),
-  approve: async (id: string) => { checkPending(id); const state = read(); state.requests = state.requests.map(r => r.id === id ? {...r, status:'accepted' as const} : r); save(state); },
-  reject: async (id: string, rejection_reason: string) => { checkPending(id); if (!rejection_reason.trim()) throw new Error('Rejection reason is required'); const state = read(); state.requests = state.requests.map(r => r.id === id ? {...r, status:'rejected' as const, rejection_reason: rejection_reason.trim()} : r); save(state); },
-  adminItems: async (params: ListParams) => list(filterItems(withStock(read()),params),params),
-  item: async (id: string) => getItem(id),
-  stock: async () => { const items = withStock(read()); return { total_items: items.length, total_quantity: items.reduce((n,x) => n+x.total_quantity,0), available_quantity: items.reduce((n,x) => n+available(x),0), requested_quantity: items.reduce((n,x) => n+x.requested_quantity,0), assigned_quantity: items.reduce((n,x) => n+x.assigned_quantity,0) }; },
-  saveItem: async (values: Partial<InventoryItem> & { image?: File | null }, id?: string) => {
-    const state = read(); const previous = id ? getItem(id) : undefined;
-    const name = String(values.name ?? previous?.name ?? '').trim();
-    const price = Number(values.unit_price ?? previous?.unit_price ?? 0), qty = Number(values.total_quantity ?? previous?.total_quantity ?? 0);
-    if (!name || !Number.isFinite(price) || price < 0 || !Number.isSafeInteger(qty) || qty < 0) throw new Error('Enter a valid name, price and stock quantity');
-    if (previous && qty < previous.requested_quantity + previous.assigned_quantity) throw new Error('Stock cannot be below reserved + assigned quantities');
-    if (values.image && (!values.image.type.startsWith('image/') || values.image.size > 5 * 1024 * 1024)) throw new Error('Please select an image under 5MB');
-    const image_url = values.image ? await uploadImage(values.image) : previous?.image_url ?? picture('📦','#454545');
-    const item: InventoryItem = {id: previous?.id ?? `INV-${Date.now()}`, name, description: values.description ?? previous?.description ?? '', unit_price: price, currency:previous?.currency ?? 'USD', total_quantity:qty, requested_quantity:previous?.requested_quantity ?? 0, assigned_quantity:previous?.assigned_quantity ?? 0, status:values.status ?? previous?.status ?? 'active', image_url};
-    state.items = previous ? state.items.map(x => x.id === id ? item : x) : [...state.items,item]; save(state); return item;
+  adminRequests: async (params: ListParams = {}) => {
+    const rows = await getGroupedRequests('admin', params.status);
+    const filtered = rows.filter(request =>
+      (!params.search || `${request.id} ${request.creator_name || ''} ${request.shoot_name || ''}`.toLowerCase().includes(params.search.toLowerCase())) &&
+      (!params.type || params.type === 'all' || request.request_type === params.type)
+    );
+    return listResult(filtered, params);
   },
-  setStatus: async (id: string, status: InventoryItem['status']) => { getItem(id); const state = read(); state.items = state.items.map(x => x.id === id ? {...x,status} : x); save(state); },
-  deleteItem: async (id: string) => { getItem(id); const state = read(); if (state.requests.some(r => r.items.some(x => x.inventory_item_id === id))) { state.items = state.items.map(x => x.id === id ? {...x,status:'inactive'} : x); } else { state.items = state.items.filter(x => x.id !== id); } save(state); },
-  catalog: async (params: ListParams) => list(filterItems(withStock(read()).filter(x => x.status === 'active'),params),params),
-  shoots: async () => [...shoots],
-  ownRequests: async (params: ListParams) => list(filterRequests(read().requests.filter(r => r.creator_id === CURRENT_CP.id && !r.archived_at),params),params),
-  ownRequest: async (id: string) => getRequest(id,true),
+  adminRequest: async (id: string) => {
+    const rows = await getGroupedRequests('admin');
+    const request = rows.find(row => row.id === id);
+    if (!request) throw new Error('Inventory request not found');
+    return request;
+  },
+  approve: async (id: string) => {
+    const result = await inventoryHttpApi.reviewAdminRequest(id, 'accepted');
+    invalidateRequestCache();
+    return result;
+  },
+  reject: async (id: string, admin_note = '') => {
+    const result = await inventoryHttpApi.reviewAdminRequest(id, 'rejected', admin_note);
+    invalidateRequestCache();
+    return result;
+  },
+  invalidateRequests: (role?: 'admin' | 'creator') => invalidateRequestCache(role),
+  adminItems: getAdminItemsWithStock,
+  item: async (id: string) => {
+    const response = await inventoryHttpApi.getAdminItem(id);
+    return normalizeItem(response?.data || {});
+  },
+  stock: async () => {
+    const result = await getAdminItemsWithStock({ page: 1, limit: 100 });
+    return result.data.reduce((stock, item) => ({
+      total_items: stock.total_items + 1,
+      total_quantity: stock.total_quantity + item.total_quantity,
+      available_quantity: stock.available_quantity + available(item),
+      requested_quantity: stock.requested_quantity + item.requested_quantity,
+      assigned_quantity: stock.assigned_quantity + item.assigned_quantity,
+    }), { total_items: 0, total_quantity: 0, available_quantity: 0, requested_quantity: 0, assigned_quantity: 0 });
+  },
+  saveItem: async (values: Partial<InventoryItem> & { image?: File | null; removeImage?: boolean }, id?: string) => {
+    const itemName = String(values.name || '').trim();
+    const itemPrice = Number(values.unit_price);
+    const itemQuantity = Number(values.total_quantity);
+    if (!itemName || !Number.isFinite(itemPrice) || itemPrice <= 0 || !Number.isSafeInteger(itemQuantity) || itemQuantity <= 0) {
+      throw new Error('Item name, price greater than 0, and a whole-number quantity greater than 0 are required.');
+    }
+    const payload = {
+      name: values.name,
+      description: values.description,
+      price: values.unit_price,
+      total_quantity: values.total_quantity,
+    };
+    let response: ApiRow;
+
+    if (id) {
+      response = await inventoryHttpApi.updateAdminItem(id, payload);
+      if (values.image) await inventoryHttpApi.uploadAdminItemImage(id, values.image);
+      else if (values.removeImage) await inventoryHttpApi.deleteAdminItemImage(id);
+      await inventoryHttpApi.updateAdminItemStatus(id, values.status === 'active' ? 1 : 0);
+      const refreshed = await inventoryHttpApi.getAdminItem(id);
+      return normalizeItem(refreshed?.data || response?.data || {});
+    }
+
+    const form = new FormData();
+    form.append('name', String(values.name || ''));
+    form.append('description', String(values.description || ''));
+    form.append('price', String(values.unit_price ?? 0));
+    form.append('total_quantity', String(values.total_quantity ?? 0));
+    if (values.image) form.append('image', values.image);
+    response = await inventoryHttpApi.createAdminItem(form);
+    const created = response?.data || {};
+    if (values.status === 'inactive' && created.id != null) await inventoryHttpApi.updateAdminItemStatus(String(created.id), 0);
+    return normalizeItem(created);
+  },
+  setStatus: async (id: string, status: InventoryItem['status']) => inventoryHttpApi.updateAdminItemStatus(id, status === 'active' ? 1 : 0),
+  catalog: async (params: ListParams = {}) => {
+    const response = await inventoryHttpApi.listCreatorItems();
+    let rows = asRows(response?.data).map(normalizeItem).filter(item => item.status === 'active');
+    if (params.search) {
+      const query = params.search.toLowerCase();
+      rows = rows.filter(item => `${item.name} ${item.description || ''}`.toLowerCase().includes(query));
+    }
+    return listResult(rows, params);
+  },
+  shoots: async () => {
+    const response = await inventoryHttpApi.listAssignedShoots();
+    return asRows(response?.data).map(row => ({
+      id: stringValue(row.id),
+      name: stringValue(row.project_name ?? row.name),
+      date: stringValue(row.event_date ?? row.date) || undefined,
+    }));
+  },
+  ownRequests: async (params: ListParams = {}) => listResult(await getGroupedRequests('creator'), params),
+  ownRequest: async (id: string) => {
+    const rows = await getGroupedRequests('creator');
+    const request = rows.find(row => row.id === id);
+    if (!request) throw new Error('Inventory request not found');
+    return request;
+  },
   submit: async (payload: RequestPayload, id?: string) => {
-    const previous = id ? getRequest(id,true) : undefined;
-    if (previous && previous.status !== 'pending') throw new Error('Only pending requests can be edited');
-    const lines = validateLines(payload,previous);
-    const state = read(), shoot = payload.request_type === 'shoot' ? shoots.find(s => s.id === payload.shoot_id) : undefined;
-    const request: InventoryRequest = { id: previous?.id ?? `REQ-${Date.now()}`, creator_id:CURRENT_CP.id, creator_name:CURRENT_CP.name, request_type:payload.request_type, shoot_id:shoot?.id ?? null, shoot_name:shoot?.name, shoot_date:shoot?.date, notes:payload.notes, status:'pending', items:lines, ...requestTotals(lines), created_at:previous?.created_at ?? new Date().toISOString() };
-    state.requests = previous ? state.requests.map(r => r.id === id ? request : r) : [request,...state.requests]; save(state); return request;
+    if (id) throw new Error('Editing a submitted request is not supported by the backend.');
+    const result = await inventoryHttpApi.submitCreatorRequest({
+      purpose: payload.request_type,
+      shoot_id: payload.shoot_id ? Number(payload.shoot_id) : null,
+      items: payload.items.map(item => ({ inventory_item_id: Number(item.inventory_item_id), quantity: item.quantity })),
+    });
+    invalidateRequestCache();
+    return result;
   },
-  cancel: async (id: string) => { const req = getRequest(id,true); if (req.status !== 'pending') throw new Error('Only pending requests can be cancelled'); const state = read(); state.requests = state.requests.map(r => r.id === id ? {...r,status:'cancelled' as const} : r); save(state); },
-  archive: async (id: string) => { const req = getRequest(id,true); if (!['rejected','cancelled'].includes(req.status)) throw new Error('Only rejected or cancelled requests can be archived'); const state = read(); state.requests = state.requests.map(r => r.id === id ? {...r,archived_at:new Date().toISOString()} : r); save(state); },
 };

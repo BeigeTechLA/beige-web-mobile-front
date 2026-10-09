@@ -22,6 +22,41 @@ const publicApi = axios.create({
   withCredentials: false,
 });
 
+// Inventory endpoints use the shared authenticated client and the existing /v1 base URL.
+export const inventoryHttpApi = {
+  listAdminItems: async (params: Record<string, string | number | undefined>) =>
+    (await api.get('admin/inventory', { params })).data,
+  getAdminItem: async (id: string) =>
+    (await api.get(`admin/inventory/${encodeURIComponent(id)}`)).data,
+  createAdminItem: async (form: FormData) =>
+    (await api.post('admin/inventory', form, { headers: { 'Content-Type': 'multipart/form-data' } })).data,
+  updateAdminItem: async (id: string, payload: Record<string, unknown>) =>
+    (await api.put(`admin/inventory/${encodeURIComponent(id)}`, payload)).data,
+  uploadAdminItemImage: async (id: string, image: File) => {
+    const form = new FormData();
+    form.append('image', image);
+    return (await api.post(`admin/inventory/${encodeURIComponent(id)}/image`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+  },
+  deleteAdminItemImage: async (id: string) =>
+    (await api.delete(`admin/inventory/${encodeURIComponent(id)}/image`)).data,
+  updateAdminItemStatus: async (id: string, is_active: 0 | 1) =>
+    (await api.patch(`admin/inventory/${encodeURIComponent(id)}/status`, { is_active })).data,
+  listAdminRequests: async (status?: string) =>
+    (await api.get('admin/inventory-requests', { params: status && status !== 'all' ? { status } : undefined })).data,
+  reviewAdminRequest: async (id: string, status: 'accepted' | 'rejected', admin_note?: string) =>
+    (await api.patch(`admin/inventory-requests/${encodeURIComponent(id)}/review`, { status, admin_note })).data,
+  listCreatorItems: async () =>
+    (await api.get('creator/inventory')).data,
+  getCreatorItem: async (id: string) =>
+    (await api.get(`creator/inventory/${encodeURIComponent(id)}`)).data,
+  listAssignedShoots: async () =>
+    (await api.get('creator/inventory/assigned-shoots')).data,
+  submitCreatorRequest: async (payload: { purpose: 'personal' | 'shoot'; shoot_id: string | null; items: { inventory_item_id: number; quantity: number }[] }) =>
+    (await api.post('creator/inventory/requests', payload)).data,
+  listCreatorRequests: async () =>
+    (await api.get('creator/inventory/requests')).data,
+};
+
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
