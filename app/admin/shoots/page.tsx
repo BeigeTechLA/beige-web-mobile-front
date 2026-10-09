@@ -123,7 +123,7 @@ export default function ShootsPage() {
     (option) => String(option.id) === postProductionUserFilter,
   );
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "globe">(
-    "list",
+    "grid",
   );
   const [calendarOpenDate, setCalendarOpenDate] = useState<Date | null>(null);
   const [hasRestoredFilters, setHasRestoredFilters] = useState(false);
@@ -182,14 +182,6 @@ export default function ShootsPage() {
       if (typeof parsed.postProductionUserFilter === "string") {
         setPostProductionUserFilter(parsed.postProductionUserFilter);
       }
-      if (
-        parsed.viewMode === "grid" ||
-        parsed.viewMode === "list" ||
-        parsed.viewMode === "calendar" ||
-        parsed.viewMode === "globe"
-      ) {
-        setViewMode(parsed.viewMode);
-      }
       if (typeof parsed.selectedDate === "string") {
         const parsedDate = new Date(parsed.selectedDate);
         if (!Number.isNaN(parsedDate.getTime())) {
@@ -229,7 +221,6 @@ export default function ShootsPage() {
           range,
           cpAssignmentFilter,
           postProductionUserFilter,
-          viewMode,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
           customRangeStartDate: customRangeStartDate
             ? customRangeStartDate.toISOString()
@@ -252,7 +243,6 @@ export default function ShootsPage() {
     range,
     cpAssignmentFilter,
     postProductionUserFilter,
-    viewMode,
     selectedDate,
     customRangeStartDate,
     customRangeEndDate,
@@ -273,7 +263,7 @@ export default function ShootsPage() {
     setRange("all");
     setCpAssignmentFilter("all");
     setPostProductionUserFilter("all");
-    setViewMode("list");
+    setViewMode("grid");
     try {
       window.sessionStorage.removeItem(SHOOTS_FILTERS_STORAGE_KEY);
     } catch (error) {
@@ -600,21 +590,10 @@ export default function ShootsPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => setViewMode("list")}
-                      className={`px-4 py-3.5 transition-colors rounded-l-lg lg:rounded-l-xl ${
-                        viewMode === "list"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : isDark
-                            ? "bg-transparent text-white/40 hover:text-white"
-                            : "bg-transparent text-[#666] hover:text-black"
-                      }`}
-                    >
-                      <List size={18} />
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setViewMode("grid")}
-                      className={`px-4 py-3.5 transition-colors ${
+                      aria-label="Grid view"
+                      title="Grid view"
+                      className={`px-4 py-3.5 transition-colors rounded-l-lg lg:rounded-l-xl ${
                         viewMode === "grid"
                           ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                           : isDark
@@ -623,6 +602,21 @@ export default function ShootsPage() {
                       }`}
                     >
                       <Grid3X3 size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("list")}
+                      aria-label="List view"
+                      title="List view"
+                      className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${
+                        viewMode === "list"
+                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                          : isDark
+                            ? "bg-transparent text-white/40 hover:text-white"
+                            : "bg-transparent text-[#666] hover:text-black"
+                      }`}
+                    >
+                      <List size={18} />
                     </button>
                   </div>
                 </div>
@@ -1194,7 +1188,7 @@ export default function ShootsPage() {
           >
             <button
               type="button"
-              onClick={() => setViewMode("list")}
+              onClick={() => setViewMode("grid")}
               className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
                 isDark
                   ? "text-white/80 hover:text-white"
@@ -1423,7 +1417,7 @@ export default function ShootsPage() {
       ) : viewMode === "globe" ? (
         <ShootsGlobeView
           isDark={isDark}
-          onBack={() => setViewMode("list")}
+          onBack={() => setViewMode("grid")}
           onOpenCalendarDay={(date) => {
             setCalendarOpenDate(date);
             setViewMode("calendar");
