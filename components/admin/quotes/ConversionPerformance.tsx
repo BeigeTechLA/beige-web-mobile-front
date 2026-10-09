@@ -8,6 +8,10 @@ import {
   RadialBar,
   PolarAngleAxis,
 } from "recharts";
+import {
+  formatQuoteAnalyticsCurrency,
+  formatQuoteAnalyticsNumber,
+} from "./formatQuoteAnalyticsValue";
 
 type MetricTab = "winRate" | "avgDealValue" | "quoteToCash";
 
@@ -16,9 +20,17 @@ type HoveredBar = {
   value: string;
 } | null;
 
+type FormulaSource = {
+  label: string;
+  value: number;
+  formattedValue: string;
+};
+
 type ConversionPerformanceData = {
+  quote_value: number;
   deals_won: number;
   quotes_sent: number;
+  won_revenue: number;
   win_rate: number;
   average_deal_size: number;
   quote_to_cash_conversion: number;
@@ -33,11 +45,66 @@ export default function ConversionPerformanceWidget({
 }) {
   const [activeTab, setActiveTab] = useState<MetricTab | null>("winRate");
   const [hoveredBar, setHoveredBar] = useState<HoveredBar>(null);
+  const quoteValue = data?.quote_value ?? 0;
   const dealsWon = data?.deals_won ?? 0;
   const quotesSent = data?.quotes_sent ?? 0;
-  const winRate = data?.win_rate ?? 0;
-  const averageDealValue = data?.average_deal_size ?? 0;
-  const quoteToCashConversion = data?.quote_to_cash_conversion ?? 0;
+  const wonRevenue = data?.won_revenue ?? 0;
+  const roundToTwoDecimals = (value: number) => Math.round(value * 100) / 100;
+  const winRate = quotesSent
+    ? roundToTwoDecimals((dealsWon / quotesSent) * 100)
+    : 0;
+  const averageDealValue = dealsWon
+    ? roundToTwoDecimals(wonRevenue / dealsWon)
+    : 0;
+  const quoteToCashConversion = quoteValue
+    ? roundToTwoDecimals((wonRevenue / quoteValue) * 100)
+    : 0;
+
+  const scaleAgainstLargerValue = (value: number, otherValue: number) => {
+    const largestValue = Math.max(Math.abs(value), Math.abs(otherValue));
+    if (!largestValue) return 0;
+    return Math.min(100, (Math.abs(value) / largestValue) * 100);
+  };
+
+  const formulaSources: Record<MetricTab, FormulaSource[]> = {
+    winRate: [
+      { label: "Deals Won", value: dealsWon, formattedValue: formatQuoteAnalyticsNumber(dealsWon) },
+      { label: "Quotes Sent", value: quotesSent, formattedValue: formatQuoteAnalyticsNumber(quotesSent) },
+    ],
+    avgDealValue: [
+      { label: "Deals Won", value: dealsWon, formattedValue: formatQuoteAnalyticsNumber(dealsWon) },
+      { label: "Won Revenue", value: wonRevenue, formattedValue: formatQuoteAnalyticsCurrency(wonRevenue) },
+    ],
+    quoteToCash: [
+      { label: "Won Revenue", value: wonRevenue, formattedValue: formatQuoteAnalyticsCurrency(wonRevenue) },
+      { label: "Quote Value", value: quoteValue, formattedValue: formatQuoteAnalyticsCurrency(quoteValue) },
+    ],
+  };
+
+  const activeFormulaSources = activeTab
+    ? [...formulaSources[activeTab]].sort((left, right) => left.value - right.value)
+    : [];
+
+  const buildFormulaRadialData = (sources: FormulaSource[]) => {
+    const [lowerSource, higherSource] = [...sources].sort(
+      (left, right) => left.value - right.value
+    );
+    const hasValue = Math.max(Math.abs(lowerSource.value), Math.abs(higherSource.value)) > 0;
+
+    return [
+      { name: "Calculated Result", value: hasValue ? 100 : 0, fill: "#55D5E3" },
+      {
+        name: lowerSource.label,
+        value: scaleAgainstLargerValue(lowerSource.value, higherSource.value),
+        fill: "#51DB6B",
+      },
+      {
+        name: higherSource.label,
+        value: scaleAgainstLargerValue(higherSource.value, lowerSource.value),
+        fill: "#DA8BED",
+      },
+    ];
+  };
 
   // 1. General View Concentric Data (Inner to Outer)
   const generalRadialData = [
@@ -53,7 +120,7 @@ export default function ConversionPerformanceWidget({
       value: averageDealValue > 0 ? 100 : 0,
       fill: "#A78BFA",
       tooltipLabel: "Avg. deal value",
-      tooltipValue: `$${averageDealValue.toLocaleString()}`,
+      tooltipValue: formatQuoteAnalyticsCurrency(averageDealValue),
     },
     {
       name: "Quote-to-Cash",
@@ -64,30 +131,9 @@ export default function ConversionPerformanceWidget({
     },
   ];
 
-  // 2. Win Rate View Data (Inner to Outer)
-const winRateRadialData = [
-  { name: "Inner Cyan Ring", value: 100, fill: "#55D5E3" },
-  { name: "Deals Won", value: winRate, fill: "#22C55E" },
-  { name: "Quotes Sent", value: 100, fill: "#DA8BED" },
-];
-
-  // 3. Avg Deal Value View (Inner to Outer)
-const avgDealRadialData = [
-  { name: "Inner Accent Ring", value: 100, fill: "#55D5E3" },
-  { name: "Avg Value", value: averageDealValue > 0 ? 100 : 0, fill: "#51DB6B" },
-  { name: "Target Threshold", value: 100, fill: "#DA8BED" },
-];
-
-  // 4. Quote-To-Cash View (Inner to Outer)
-const quoteToCashRadialData = [
-  { name: "Base Accent Ring", value: 100, fill: "#55D5E3" },
-  {
-    name: "Pending Settlement",
-    value: quoteToCashConversion,
-    fill: "#51DB6B",
-  },
-  { name: "Conversion Rate", value: 100, fill: "#DA8BED" },
-];
+  const winRateRadialData = buildFormulaRadialData(formulaSources.winRate);
+  const avgDealRadialData = buildFormulaRadialData(formulaSources.avgDealValue);
+  const quoteToCashRadialData = buildFormulaRadialData(formulaSources.quoteToCash);
   return (
     <div className={`flex-1 relative overflow-hidden w-full h-full rounded-2xl border p-5 lg:p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Header Title */}
@@ -101,42 +147,16 @@ const quoteToCashRadialData = [
       </div>
 
       {/* Dynamic Sub-legend Bar */}
-      <div className="h-6 flex items-center justify-center relative z-10 mb-1">
-        {activeTab === "winRate" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
+      <div className="min-h-6 flex items-center justify-center relative z-10 mb-1">
+        {activeTab && (
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs lg:text-base lg:tracking-wider uppercase">
             <div className="flex items-center gap-1.5 text-[#229C39]">
               <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>{dealsWon} DEALS WON</span>
+              <span>{activeFormulaSources[0]?.formattedValue} {activeFormulaSources[0]?.label}</span>
             </div>
             <div className="flex items-center gap-1.5 text-[#DA8BED]">
               <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
-              <span>{quotesSent} QUOTES SENT</span>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "avgDealValue" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base tracking-wider uppercase">
-            <div className="flex items-center gap-1.5 text-[#229C39]">
-              <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>${averageDealValue.toLocaleString()} AVG VALUE</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[#DA8BED]">
-              <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
-              <span>$35K TARGET</span>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "quoteToCash" && (
-          <div className="flex items-center gap-5 text-sm lg:text-base lg:tracking-wider uppercase">
-            <div className="flex items-center gap-1.5 text-[#229C39]">
-              <span className="w-2 h-2 rounded-full bg-[#229C39]" />
-              <span>{quoteToCashConversion}% CASH CONVERTED</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[#DA8BED]">
-              <span className="w-2 h-2 rounded-full bg-[#DA8BED]" />
-              <span>14 DAYS AVG TIME</span>
+              <span>{activeFormulaSources[1]?.formattedValue} {activeFormulaSources[1]?.label}</span>
             </div>
           </div>
         )}
@@ -220,7 +240,7 @@ const quoteToCashRadialData = [
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                 <span className={`text-xl lg:text-2xl font-extrabold tracking-tight ${isDark ? "text-white" : "text-black"}`}>
-                  ${averageDealValue.toLocaleString()}
+                  {formatQuoteAnalyticsCurrency(averageDealValue)}
                 </span>
               </div>
             </div>
@@ -388,7 +408,7 @@ const quoteToCashRadialData = [
         >
           <div className="flex items-center justify-between">
             <span className={`text-xl lg:text-2xl font-bold ${activeTab === "avgDealValue" ? "text-black" : "text-[#A78BFA]"}`}>
-              ${averageDealValue.toLocaleString()}
+              {formatQuoteAnalyticsCurrency(averageDealValue)}
             </span>
 
             {/* Avg Deal Value Info Tooltip */}

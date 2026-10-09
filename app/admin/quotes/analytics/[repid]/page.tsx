@@ -39,6 +39,7 @@ type RepAnalyticsData = {
   }[];
 
   overview?: {
+    quote_value?: number;
     open_pipeline?: {
       count: number;
       value: number;
@@ -61,6 +62,7 @@ type RepAnalyticsData = {
 
     deals_won?: number;
     quotes_sent?: number;
+    won_revenue?: number;
     win_rate?: number;
     average_deal_size?: number;
     quote_to_cash_conversion?: number;
@@ -302,12 +304,20 @@ export default function QuoteSalesRepDetailsPage() {
   );
 
   const conversionData = {
+    quote_value:
+      analytics?.overview?.quote_value ??
+      0,
+
     deals_won:
       analytics?.overview?.deals_won ??
       0,
 
     quotes_sent:
       analytics?.overview?.quotes_sent ??
+      0,
+
+    won_revenue:
+      analytics?.overview?.won_revenue ??
       0,
 
     win_rate:

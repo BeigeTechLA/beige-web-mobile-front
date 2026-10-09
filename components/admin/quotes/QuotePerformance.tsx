@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Info, DollarSign, Clock, BadgeCheck, CircleDollarSign, Clock4 } from "lucide-react";
+import { Info, BadgeCheck, CircleDollarSign, Clock4 } from "lucide-react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -11,6 +11,10 @@ import {
   Tooltip,
 } from "recharts";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import {
+  formatQuoteAnalyticsCurrency,
+  formatQuoteAnalyticsNumber,
+} from "./formatQuoteAnalyticsValue";
 
 type MetricKey = "quoteValue" | "quotesSent" | "dealsWon" | "wonRevenue";
 
@@ -48,13 +52,6 @@ interface MetricCardData {
   infoTooltip: string;
 }
 
-const formatCompactCurrency = (value: number) => {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toLocaleString()}`;
-};
-
 const formatGrowth = (growth: number | null | undefined) => {
   if (growth === null || growth === undefined) {
     return { text: "New", className: "text-[#0DAE3D]" };
@@ -64,7 +61,13 @@ const formatGrowth = (growth: number | null | undefined) => {
   return { text: "0%", className: "text-[#0DAE3D]" };
 };
 
-const CustomTooltip = ({ active, payload, activeMetric }: any) => {
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: { value?: number | string }[];
+  activeMetric: MetricCardData;
+};
+
+const CustomTooltip = ({ active, payload, activeMetric }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const value = payload[0]?.value ?? 0;
 
@@ -110,7 +113,7 @@ export default function QuotePerformanceWidget({
   quoteValue: {
     key: "quoteValue",
     label: "Quote Value",
-    value: formatCompactCurrency(totals.quote_value),
+    value: formatQuoteAnalyticsCurrency(totals.quote_value),
     growth: growth?.quote_value,
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.quote_value.toLocaleString()}`,
@@ -152,7 +155,7 @@ export default function QuotePerformanceWidget({
   wonRevenue: {
     key: "wonRevenue",
     label: "Won Revenue",
-    value: formatCompactCurrency(totals.won_revenue),
+    value: formatQuoteAnalyticsCurrency(totals.won_revenue),
     growth: growth?.won_revenue,
     icon: CircleDollarSign,
     formattedTooltip: `$${totals.won_revenue.toLocaleString()}`,
@@ -304,23 +307,9 @@ const currentMetric = metricsData[activeMetricKey];
                   activeMetricKey === "quoteValue" ||
                   activeMetricKey === "wonRevenue";
 
-                if (isCurrency) {
-                  if (value >= 1000000) {
-                    return `$${(value / 1000000).toFixed(1)}M`;
-                  }
-
-                  if (value >= 1000) {
-                    return `$${(value / 1000).toFixed(0)}K`;
-                  }
-
-                  return `$${value}`;
-                }
-
-                if (value >= 1000) {
-                  return `${(value / 1000).toFixed(0)}K`;
-                }
-
-                return value;
+                return isCurrency
+                  ? formatQuoteAnalyticsCurrency(Number(value))
+                  : formatQuoteAnalyticsNumber(Number(value));
               }}
             />
 

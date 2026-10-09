@@ -13,6 +13,7 @@ import {
 import { salesApi, type QuoteAnalyticsParams, type QuoteAnalyticsQuoteListData, type QuoteAnalyticsQuoteRow } from "@/lib/api";
 import Link from "next/link";
 import { formatQuoteAnalyticsDate } from "./formatQuoteAnalyticsDate";
+import { formatQuoteAnalyticsCurrency } from "./formatQuoteAnalyticsValue";
 
 type OpenPipelineData = {
   count: number;
@@ -98,15 +99,6 @@ export default function OpenPipelineWidget({
   const sentCount = sentPipeline?.count ?? 0;
   const acceptedCount = acceptedPipeline?.count ?? 0;
   const partiallyPaidCount = partiallyPaidPipeline?.count ?? 0;
-
-  const sentValue = sentPipeline?.value ?? 0;
-  const acceptedValue = acceptedPipeline?.value ?? 0;
-  const partiallyPaidValue = partiallyPaidPipeline?.value ?? 0;
-
-  const getPipelinePercentage = (value: number) => {
-    if (!pipelineValue || pipelineValue <= 0) return 0;
-    return Math.min(100, Math.max(0, (value / pipelineValue) * 100));
-  };
 
   const getCardWidthClass = (section: "sent" | "accepted" | "partiallyPaid") => {
     if (!activeSection) return "md:flex-1";
@@ -211,7 +203,7 @@ export default function OpenPipelineWidget({
             </div>
 
             <div className={`text-2xl lg:text-4xl font-bold mt-2 capitalize ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-              ${(pipelineValue / 1000000).toFixed(1)}M
+              {formatQuoteAnalyticsCurrency(pipelineValue)}
             </div>
             <p className={`text-sm lg:text-base mt-1 ${isDark ? "text-white/40" : "text-black/40"}`}>
               Total Active Pipeline Value

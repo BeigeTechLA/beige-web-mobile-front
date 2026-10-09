@@ -131,6 +131,13 @@ const isCompletedFlag = (item: any) => {
 
 type MapMarkerType = "accepted" | "upcoming" | "past" | "pending" | "rejected";
 
+const isAcceptedAssignment = (item: unknown) =>
+  Boolean(
+    item &&
+      typeof item === "object" &&
+      Number((item as { crew_accept?: unknown }).crew_accept) === 1,
+  );
+
 const asNumber = (...values: unknown[]) => {
   for (const value of values) {
     if (value === null || value === undefined || value === "") continue;
@@ -680,10 +687,9 @@ export default function CreatorDashboardPage() {
         if (response && !response.error) {
           const fetchedAllShoots = response.data.data.allShoots || [];
           const fetchedPending = response.data.data.pendingRequests || [];
-          const fetchedMapShoots = response.data.data.mapShoots || [
-            ...fetchedAllShoots,
-            ...fetchedPending,
-          ];
+          const fetchedMapShoots = (
+            response.data.data.mapShoots || fetchedAllShoots
+          ).filter(isAcceptedAssignment);
           const acceptedToday = fetchedAllShoots.filter((item: any) => isTodayDate(getItemDate(item)) && !isCompletedFlag(item));
           const acceptedUpcoming = fetchedAllShoots.filter((item: any) => isFutureDate(getItemDate(item)) && !isCompletedFlag(item));
           const upcomingPending = fetchedPending.filter((item: any) => isUpcomingDate(getItemDate(item)) && !isCompletedFlag(item));
@@ -1149,12 +1155,10 @@ export default function CreatorDashboardPage() {
                     </SelectTrigger>
                     <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
                       }`}>
-                      <SelectItem value="all">All events</SelectItem>
+                      <SelectItem value="all">All accepted shoots</SelectItem>
                       <SelectItem value="accepted">Accepted today</SelectItem>
                       <SelectItem value="upcoming">Upcoming</SelectItem>
                       <SelectItem value="past">Past</SelectItem>
-                      <SelectItem value="pending">Pending requests</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

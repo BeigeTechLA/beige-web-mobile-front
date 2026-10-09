@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { formatQuoteStatusText, getQuoteStatusPillClasses } from "./OpenPipeline";
 import { formatQuoteAnalyticsDate } from "./formatQuoteAnalyticsDate";
+import { formatQuoteAnalyticsCurrency, formatQuoteAnalyticsNumber } from "./formatQuoteAnalyticsValue";
 
 type OverdueQuoteRow = {
   sales_quote_id: number;
@@ -190,7 +191,7 @@ export default function QuotesOverdueWidget({
       return "";
     }
 
-    return `${(value / 1000).toFixed(1)}K`;
+    return formatQuoteAnalyticsNumber(value);
   };
 
   const rows = quotesData?.rows ?? [];
@@ -290,7 +291,7 @@ export default function QuotesOverdueWidget({
                   className="h-14 rounded-lg bg-[linear-gradient(189deg,#B2E1F5_8.02%,#137FAD_83.16%)] flex items-center justify-center text-black font-semibold text-base"
                   style={{ width: `${sentPercentage}%` }}
                 >
-                  {sentPercentage > 0 && `${(sentValue / 1000).toFixed(1)}K`}
+                  {sentPercentage > 0 && formatQuoteAnalyticsNumber(sentValue)}
                 </div>
               </div>
 
@@ -304,7 +305,7 @@ export default function QuotesOverdueWidget({
                   className="h-14 w-[80%] rounded-lg bg-[linear-gradient(189deg,#D9FFDC_8.02%,#63B868_83.16%)] flex items-center justify-center text-black font-semibold text-base"
                   style={{ width: `${acceptedPercentage}%` }}
                 >
-                  {acceptedPercentage > 0 && `${(acceptedValue / 1000).toFixed(1)}K`}
+                  {acceptedPercentage > 0 && formatQuoteAnalyticsNumber(acceptedValue)}
                 </div>
               </div>
 
@@ -319,7 +320,7 @@ export default function QuotesOverdueWidget({
                   style={{ width: `${partiallyPaidPercentage}%` }}
                 >
                   {partiallyPaidPercentage > 0 &&
-                    `${(partiallyPaidValue / 1000).toFixed(1)}K`}
+                    formatQuoteAnalyticsNumber(partiallyPaidValue)}
                 </div>
               </div>
             </div>
@@ -441,7 +442,7 @@ export default function QuotesOverdueWidget({
                     : "bg-zinc-50 text-black"
                     }`}
                 >
-                  Total ${(overdueValue / 1000).toFixed(1)}K
+                  Total {formatQuoteAnalyticsCurrency(overdueValue)}
                 </span>
               </div>
             </div>
