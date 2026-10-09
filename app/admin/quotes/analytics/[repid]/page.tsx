@@ -333,6 +333,24 @@ export default function QuoteSalesRepDetailsPage() {
         ?.quote_to_cash_conversion ?? 0,
   };
 
+  const quotePerformanceOverview = {
+    quote_value:
+      analytics?.overview?.quote_value ??
+      0,
+
+    quotes_sent:
+      analytics?.overview?.quotes_sent ??
+      0,
+
+    deals_won:
+      analytics?.overview?.deals_won ??
+      0,
+
+    won_revenue:
+      analytics?.overview?.won_revenue ??
+      0,
+  };
+
   const salesRepName =
     analytics?.sales_rep?.name ||
     "Sales Representative";
@@ -431,6 +449,7 @@ export default function QuoteSalesRepDetailsPage() {
                   analytics?.performance_chart ??
                   []
                 }
+                overview={quotePerformanceOverview}
               />
             </div>
 
