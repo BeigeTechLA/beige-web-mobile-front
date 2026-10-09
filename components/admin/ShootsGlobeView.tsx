@@ -746,6 +746,19 @@ export const ShootsGlobeView = ({
     });
   }, [dbEvents, activeFilters]);
 
+  const mapEventsToRender = useMemo(() => {
+    if (
+      !selectedEvent ||
+      !selectedEvent.hasCoordinates ||
+      !hasValidCoordinates(selectedEvent.latitude, selectedEvent.longitude) ||
+      filteredEvents.some((event) => event.id === selectedEvent.id)
+    ) {
+      return filteredEvents;
+    }
+
+    return [...filteredEvents, selectedEvent];
+  }, [filteredEvents, selectedEvent]);
+
   const zoomToLegendMarkers = useCallback(
     (status: GlobeStatus) => {
       const matchingEvents = mappedEvents.filter(
