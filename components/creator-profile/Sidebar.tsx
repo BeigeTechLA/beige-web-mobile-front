@@ -18,6 +18,7 @@ import {
   Settings,
   LogOut,
   X,
+  Package,
   type LucideIcon
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -196,6 +197,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
   const menuItems: MenuItem[] = [
     { href: "/creator/dashboard", icon: LayoutDashboard, label: "Dashboard", isPublic: true },
     { href: "/creator/dashboard/request", icon: Camera, label: "Request & Shoots", isPublic: false },
+    { href: "/creator/dashboard/inventory-requests", icon: Package, label: "Inventory Requests", isPublic: false },
     { href: "/creator/dashboard/file-manager", icon: FolderOpen, label: "File Manager", isPublic: false },
     { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", isPublic: false },
     { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", isPublic: false },

@@ -18,6 +18,7 @@ import {
   SquareArrowOutUpRight,
   User,
   ClipboardList,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -73,6 +74,7 @@ const menuItems: MenuItem[] = [
   { name: 'Dashboard', icon: LayoutDashboard, link: '/admin/dashboard', permissionKeys: ['dashboard'] },
   { name: 'Shoots', icon: Camera, link: '/admin/shoots', permissionKeys: ['shoots'] },
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
+  { name: 'Inventory', icon: Package, link: '/admin/inventory'},
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },

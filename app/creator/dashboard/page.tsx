@@ -25,6 +25,7 @@ import { toast } from "sonner"; // Using sonner for the high-end look of the fir
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useGetCurrentUserQuery, useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import Topbar from "@/components/admin/Topbar";
+import InventoryRequestWizard from "@/components/creator-profile/inventory/InventoryRequestWizard";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -342,6 +343,7 @@ function ShootStatusGaugeCard({
 // MAIN PAGE COMPONENT
 // ----------------------
 export default function CreatorDashboardPage() {
+  const [inventoryWizardOpen, setInventoryWizardOpen] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   const { isDark } = useResolvedTheme();
@@ -886,7 +888,9 @@ export default function CreatorDashboardPage() {
   // ----------------------
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} actions={<button type="button" onClick={() => setInventoryWizardOpen(true)} className="rounded-lg bg-[#E5D5B8] text-black px-5 py-2.5 text-sm font-medium hover:bg-[#D4C3A3]">Request for Inventory</button>} />
+      <div className="lg:hidden px-4 pt-4"><button type="button" onClick={() => setInventoryWizardOpen(true)} className="rounded-lg bg-[#E5D5B8] text-black px-5 py-2.5 text-sm font-medium hover:bg-[#D4C3A3]">Request for Inventory</button></div>
+      <InventoryRequestWizard open={inventoryWizardOpen} onClose={() => setInventoryWizardOpen(false)} onSubmitted={() => {}} />
       <div
         className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
         ${isDark
