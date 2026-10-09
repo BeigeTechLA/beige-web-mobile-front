@@ -297,7 +297,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Others.jpg", stats: [
+    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/ExtraImage.jpg", stats: [
       { label: "Type", value: "Custom" },
       { label: "Details", value: "Describe later" }
     ]
