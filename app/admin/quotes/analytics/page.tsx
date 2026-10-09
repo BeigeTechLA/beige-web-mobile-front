@@ -39,7 +39,7 @@ type SalesRepOption = {
   email?: string;
 };
 
-export default function QuotePricingPage() {
+export default function QuoteAnalyticsPage() {
   const pathname = usePathname();
   const { isDark } = useResolvedTheme();
 
