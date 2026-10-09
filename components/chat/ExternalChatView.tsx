@@ -856,7 +856,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     const roleValue = String(record?.userRole ?? record?.role ?? "").trim().toLowerCase();
     return ["super_admin", "superadmin", "super-admin"].includes(roleValue);
   }, [effectiveUser]);
-  const { canCreate: canCreateMessages } = usePermissions("messages");
+  const { canCreate: canCreateMessages, canDelete: canDeleteMessages } = usePermissions("messages");
   const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
     const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
@@ -2081,7 +2081,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     if (!messageId) return;
 
     try {
-      const updated = await externalChatApi.deleteMessage(messageId, currentSender, roomId || undefined);
+      const updated = await externalChatApi.deleteMessage(messageId, currentSender, roomId || undefined, canDeleteMessages);
       setOpenMessageMenuId(null);
       setShowReactionPickerId(null);
       setOpenReactionDetails(null);
@@ -2109,7 +2109,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     if (message.is_deleted || message.message_type === "system") return false;
     const sender = normalizeUser(message.sent_by);
     const own = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
-    return own || isSuperAdmin;
+    return own || canDeleteMessages;
   };
 
   const toggleSelectMessage = (id: string) =>
@@ -2124,7 +2124,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
         .map((message) => getMessageId(message))
         .filter(Boolean)
         .slice(0, 100),
-    [visibleMessages, chatUserId, isSuperAdmin]
+    [visibleMessages, chatUserId, canDeleteMessages]
   );
 
   const allSelectableSelected =
@@ -2147,7 +2147,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
     setBatchDeleting(true);
     try {
-      const result = await externalChatApi.deleteMessages(roomId, selectedMessageIds, currentSender);
+      const result = await externalChatApi.deleteMessages(roomId, selectedMessageIds, currentSender, canDeleteMessages);
       const deleted = new Set(result.deletedIds);
 
       const nextMessages = messagesRef.current.map((item) =>
@@ -2337,7 +2337,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                   onScroll={handleRoomListScroll}
                   className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 lg:px-4 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  {isSuperAdmin && !bookingId ? (
+                  {canDeleteMessages && !bookingId ? (
                     <div className={`mb-4 flex rounded-full p-1 ${isDark ? "bg-[#202020]" : "bg-[#F0F0F0]"}`}>
                       {(["active", "archived"] as const).map((view) => (
                         <button
@@ -2629,7 +2629,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                             <ListChecks className="h-4 w-4 shrink-0" />
                                 <span className="truncate">Delete messages</span>
                             </button>
-                            {isSuperAdmin && selectedRoom?.status !== "archived" ? (
+                            {canDeleteMessages && selectedRoom?.status !== "archived" ? (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2642,7 +2642,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                 <span className="truncate">Archive chat</span>
                               </button>
                             ) : null}
-                            {isSuperAdmin && selectedRoom?.status === "archived" ? (
+                            {canDeleteMessages && selectedRoom?.status === "archived" ? (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2787,7 +2787,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         });
                         const isSystem = message.message_type === "system";
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
-                        const canDeleteMessage = !message.is_deleted && (isOwn || isSuperAdmin);
+                        const canDeleteMessage = !message.is_deleted && (isOwn || canDeleteMessages);
                         const isEditing = editingMessageId === messageId;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(

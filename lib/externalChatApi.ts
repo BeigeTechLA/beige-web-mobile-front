@@ -371,18 +371,20 @@ export const externalChatApi = {
     return response.data || null;
   },
 
-  async deleteMessage(messageId: string, sender?: ExternalChatUser | null, roomId?: string | null) {
-    const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/delete`, {
+  async deleteMessage(messageId: string, sender?: ExternalChatUser | null, roomId?: string | null, allowAnySender = false) {
+    const endpoint = allowAnySender ? "moderation-delete" : "delete";
+    const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/${endpoint}`, {
       roomId: roomId || undefined,
       sender,
     });
     return response.data || null;
   },
 
-  async deleteMessages(roomId: string, messageIds: string[], sender?: ExternalChatUser | null): Promise<BatchDeleteMessagesResult> {
+  async deleteMessages(roomId: string, messageIds: string[], sender?: ExternalChatUser | null, allowAnySender = false): Promise<BatchDeleteMessagesResult> {
     const uniqueIds = Array.from(new Set(messageIds.map((id) => String(id)).filter(Boolean)));
+    const endpoint = allowAnySender ? "moderation-batch-delete" : "batch-delete";
     const response = await apiClient.post<BatchDeleteMessagesResponse>(
-      `external-chat/room/${roomId}/messages/batch-delete`,
+      `external-chat/room/${roomId}/messages/${endpoint}`,
       { messageIds: uniqueIds, sender }
     );
     const payload = response?.data || response;
