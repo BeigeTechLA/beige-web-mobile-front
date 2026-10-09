@@ -249,7 +249,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/ConferenceShoot.jpg", stats: [
+    key: "conference", title: "Conference", details: "Conferences, panels, and summits", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Conference.jpg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "50-2K" }
     ]
@@ -261,19 +261,19 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
+    key: "private", title: "Private Event", details: "Parties, celebrations, and private gatherings", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Birthday.jpeg", stats: [
       { label: "Type", value: "Event" },
       { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Birthday.jpeg", stats: [
+    key: "birthday_party", title: "Birthday Party", details: "Birthday celebrations and milestone parties", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/private.jpg", stats: [
       { label: "Type", value: "Party" },
       { label: "People", value: "10-100" }
     ]
   },
   {
-    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Memorial.png", stats: [
+    key: "funeral_memorial", title: "Funeral / Memorial", details: "Respectful coverage for memorial services", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Memorials.png", stats: [
       { label: "Type", value: "Memorial" },
       { label: "Tone", value: "Respectful" }
     ]
@@ -285,7 +285,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/commercial.jpg", stats: [
+    key: "brand_promotional", title: "Brand / Promotional", details: "Brand campaigns, promos, and launch content", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/BrandandPromotional.jpg", stats: [
       { label: "Type", value: "Brand" },
       { label: "Use", value: "Promotional" }
     ]
@@ -297,7 +297,7 @@ export const newshootTypes: { key: string; title: string; details: string; image
     ]
   },
   {
-    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/categories/behind_scenes.jpg", stats: [
+    key: "other", title: "Other", details: "Mention the details in your project description", image: "https://d2jhn32fsulyac.cloudfront.net/assets/newCategories/Others.jpg", stats: [
       { label: "Type", value: "Custom" },
       { label: "Details", value: "Describe later" }
     ]
