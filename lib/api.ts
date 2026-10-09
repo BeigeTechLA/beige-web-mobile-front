@@ -3683,6 +3683,25 @@ export const adminApi = {
       };
     }
   },
+  updateShootDescription: async (
+    shootId: string | number,
+    description: string
+  ) => {
+    try {
+      const response = await api.put(
+        `admin/update-project-description/${shootId}`,
+        { description }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Description Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update project description',
+      };
+    }
+  },
   updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
     try {
       const response = await api.post('admin/shoots/update-onboarding-form', payload);

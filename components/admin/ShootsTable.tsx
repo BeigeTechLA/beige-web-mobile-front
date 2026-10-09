@@ -299,6 +299,7 @@ interface ShootsTableProps {
   cpAssignmentFilter?: "all" | "assigned" | "not_assigned";
   setCpAssignmentFilter?: (v: "all" | "assigned" | "not_assigned") => void;
   postProductionUserFilter?: string;
+  postProductionAssignmentFilter?: "all" | "assigned" | "not_assigned";
   viewMode?: "grid" | "list";
   setViewMode?: (v: "grid" | "list") => void;
   showHeaderControls?: boolean;
@@ -328,6 +329,7 @@ export const ShootsTable = ({
   cpAssignmentFilter,
   setCpAssignmentFilter,
   postProductionUserFilter = "all",
+  postProductionAssignmentFilter = "all",
   viewMode,
   setViewMode,
   showHeaderControls = true,
@@ -571,6 +573,7 @@ export const ShootsTable = ({
     categoryFilter,
     activeCpAssignmentFilter,
     postProductionUserFilter,
+    postProductionAssignmentFilter,
     range,
     externalSelectedDate,
     customRangeStartDate,
@@ -656,6 +659,9 @@ export const ShootsTable = ({
         }
         if (postProductionUserFilter !== "all") {
           params.post_production_user_id = postProductionUserFilter;
+        }
+        if (postProductionAssignmentFilter !== "all") {
+          params.post_production_assignment = postProductionAssignmentFilter;
         }
 
                 const projectsResponse = isBoardFetch
@@ -796,7 +802,7 @@ export const ShootsTable = ({
     return () => {
       isCancelled = true;
     };
-  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, postProductionUserFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
+  }, [fetchRangeMode, statusFilter, productionFilter, categoryFilter, activeCpAssignmentFilter, postProductionUserFilter, postProductionAssignmentFilter, activePaymentFilter, debouncedSearchQuery, currentPage, externalSelectedDate, customRangeStartDate, customRangeEndDate, activeViewMode]);
 
   // --- CLIENT-SIDE PROCESSING (Sort only; filters/search run on the API) ---
   const processedShoots = useMemo(() => {

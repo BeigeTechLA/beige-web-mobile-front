@@ -339,6 +339,9 @@ export default function ShootHeader({
   const [isProjectNameModalOpen, setIsProjectNameModalOpen] = React.useState(false);
   const [projectNameDraft, setProjectNameDraft] = React.useState("");
   const [isSavingProjectName, setIsSavingProjectName] = React.useState(false);
+  const [isDescriptionModalOpen, setIsDescriptionModalOpen] = React.useState(false);
+  const [descriptionDraft, setDescriptionDraft] = React.useState("");
+  const [isSavingDescription, setIsSavingDescription] = React.useState(false);
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
   const paymentStatus = getPaymentStatusMeta(project?.payment_status, project?.payment_id);
   const isConvertedBooking = !!(project?.is_quote_converted_booking || project?.converted_sales_quote_id);
@@ -490,6 +493,10 @@ export default function ShootHeader({
     setDisplayProjectName(projectName);
     setProjectNameDraft(projectName);
   }, [projectName]);
+
+  useEffect(() => {
+    setDescriptionDraft(rawDescription);
+  }, [rawDescription]);
 
   useEffect(() => {
     let isMounted = true;
@@ -772,6 +779,43 @@ export default function ShootHeader({
     setIsProjectNameModalOpen(false);
   };
 
+  const handleSaveDescription = async () => {
+    const nextDescription = descriptionDraft.trim();
+
+    if (!projectId) {
+      toast.error("Project ID is missing");
+      return;
+    }
+
+    if (nextDescription === rawDescription.trim()) {
+      setIsDescriptionModalOpen(false);
+      return;
+    }
+
+    try {
+      setIsSavingDescription(true);
+      const response = await adminApi.updateShootDescription(projectId, nextDescription);
+
+      if (response?.success === false || response?.error) {
+        throw new Error(response?.error || response?.message || "Failed to update project description");
+      }
+
+      toast.success("Project description updated");
+      setIsDescriptionModalOpen(false);
+      await onScheduleUpdated?.();
+    } catch (error) {
+      console.error("Failed to update project description", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update project description");
+    } finally {
+      setIsSavingDescription(false);
+    }
+  };
+
+  const handleCloseDescriptionModal = () => {
+    setDescriptionDraft(rawDescription);
+    setIsDescriptionModalOpen(false);
+  };
+
   if (!mounted) return null;
 
   return (
@@ -1002,6 +1046,86 @@ export default function ShootHeader({
         </div>
       ) : null}
 
+      {isDescriptionModalOpen ? (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+            <div className={`flex items-center justify-between border-b px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <div>
+                <h3 className="text-base font-semibold">Edit Project Description</h3>
+                <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
+                  Update the description for this shoot.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseDescriptionModal}
+                disabled={isSavingDescription}
+                className={`rounded-lg p-2 transition-colors ${isDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-black/50 hover:bg-black/5 hover:text-black"}`}
+                aria-label="Close description editor"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5">
+              <label
+                htmlFor="project-description-modal-input"
+                className={`mb-2 block text-sm font-medium ${isDark ? "text-white/70" : "text-black/70"}`}
+              >
+                Description
+              </label>
+              <textarea
+                id="project-description-modal-input"
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    handleCloseDescriptionModal();
+                  }
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    void handleSaveDescription();
+                  }
+                }}
+                disabled={isSavingDescription}
+                autoFocus
+                rows={10}
+                placeholder="Enter project description"
+                className={`w-full resize-y rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${isDark ? "border-white/10 bg-[#101010] text-white placeholder:text-white/30" : "border-[#E5E5E5] bg-white text-black placeholder:text-black/30"}`}
+              />
+            </div>
+
+            <div className={`flex justify-end gap-2 border-t px-5 py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#EFEFEF]"}`}>
+              <Button
+                type="button"
+                onClick={handleCloseDescriptionModal}
+                disabled={isSavingDescription}
+                variant="outline"
+                className={isDark ? "border-white/10 bg-transparent text-white hover:bg-white/10" : "border-[#E5E5E5] bg-white text-black hover:bg-black/5"}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveDescription}
+                disabled={isSavingDescription || !canEdit}
+                className="bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
+              >
+                {isSavingDescription ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Hero Section */}
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
@@ -1039,8 +1163,24 @@ export default function ShootHeader({
                     </span>
                   ) : null}
                 </div>
-                <div className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
-                  {renderDescription(descriptionText)}
+                <div className="flex items-start gap-2">
+                  <div className={`text-sm leading-relaxed max-w-3xl transition-colors whitespace-pre-line ${isDark ? "text-[#888888]" : "text-[#666666]"}`}>
+                    {renderDescription(descriptionText)}
+                  </div>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDescriptionDraft(rawDescription);
+                        setIsDescriptionModalOpen(true);
+                      }}
+                      className={`shrink-0 rounded-lg p-1.5 transition-colors ${isDark ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-black/60 hover:bg-black/5 hover:text-black"}`}
+                      aria-label="Edit project description"
+                      title="Edit project description"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  ) : null}
                 </div>
 
                 {guestEmail ? (
