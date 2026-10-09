@@ -894,13 +894,15 @@ export const ShootsGlobeView = ({
   );
 
   return (
-    <div
-      className={`shoots-globe-view relative h-[calc(100vh-250px)] min-h-[640px] w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${isDark ? "shoots-globe-dark" : "shoots-globe-light"} ${
-        isDark
-          ? "border-[#333333] bg-[#111111]"
-          : "border-[#E5E5E5] bg-white"
-      }`}
-    >
+    <div className="w-full">
+      <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
+        <div
+          className={`shoots-globe-view relative h-[calc(100vh-250px)] min-h-[640px] min-w-0 overflow-hidden rounded-2xl border transition-colors duration-300 ${isDark ? "shoots-globe-dark" : "shoots-globe-light"} ${
+            isDark
+              ? "border-[#333333] bg-[#111111]"
+              : "border-[#E5E5E5] bg-white"
+          }`}
+        >
       <style jsx global>{`
         .shoots-globe-view .mapboxgl-ctrl-group {
           overflow: hidden;
