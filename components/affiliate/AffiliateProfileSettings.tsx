@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { affiliateApi } from "@/lib/api";
+import { TimezonePreference } from "@/components/common/TimezonePreference";
 
 export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }) => {
   const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
@@ -147,6 +148,8 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
           </div> */}
         </div>
       </div>
+
+      <TimezonePreference isDark={isDark} />
 
       {/* Security Card */}
       <div className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${

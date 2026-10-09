@@ -41,6 +41,7 @@ import { useChangePasswordMutation, useGetOnboardingStatusQuery } from "@/lib/re
 import SecurityForm from "@/src/components/cpSignup/SecurityForm";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { TimezonePreference } from "@/components/common/TimezonePreference";
 
 import FeaturedWorkModal from "@/src/components/cpSignup/FeaturedWorkModal";
 import { GoogleCreatorOnboardingModal } from "@/src/components/cpSignup/GoogleCreatorOnboardingModal";
@@ -1575,6 +1576,8 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+
+                <TimezonePreference isDark={isDark} />
               </div>
             )}
 
@@ -2305,6 +2308,7 @@ export default function ProfilePage() {
           open={isGoogleOnboardingOpen}
           initialData={googleOnboardingData}
           profileData={profile}
+          isDark={isDark}
           onClose={() => setIsGoogleOnboardingOpen(false)}
           onComplete={async () => {
             setIsGoogleOnboardingOpen(false);

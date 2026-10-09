@@ -677,18 +677,18 @@ export default function AddCompensationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
+    <div className={`fixed inset-0 z-50 flex items-center justify-end font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0 ${isDark ? "bg-[#101010CC]" : "bg-black/40"}`}>
       <div className={`relative h-full w-full lg:max-w-3xl flex flex-col border rounded-lg lg:rounded-r-none lg:rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200 ${isDark
         ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
-        <div className="sticky top-0 inset-x-0 flex items-center z-20 justify-between p-6 lg:px-9 lg:py-10 bg-[#000000] border-b border-[#CACACA]">
+        <div className={`sticky top-0 inset-x-0 flex items-center z-20 justify-between border-b p-6 lg:px-9 lg:py-10 ${isDark ? "bg-black border-[#CACACA]" : "bg-white border-[#E3E3E3]"}`}>
           <h2 className="text-lg lg:text-3xl font-bold tracking-tight">
             Add Compensation
           </h2>
           <button
             onClick={onClose}
-            className="p-3 lg:p-4 rounded-full bg-[#2B2626] text-white transition-colors"
+            className={`p-3 lg:p-4 rounded-full transition-colors ${isDark ? "bg-[#2B2626] text-white hover:bg-[#383131]" : "bg-[#F1F1F1] text-[#252525] hover:bg-[#E7E7E7]"}`}
             aria-label="Close compensation drawer"
           >
             <X className="w-5 h-5 lg:h-7 lg:w-7" />
@@ -696,7 +696,7 @@ export default function AddCompensationModal({
         </div>
 
         <div className="flex-1 space-y-3 lg:space-y-5 p-6 lg:p-9">
-          <div ref={shootDropdownRef} className="relative rounded-xl border px-4 py-2 mt-2 transition-colors border-[#5A5A5F] bg-black">
+          <div ref={shootDropdownRef} className={`relative rounded-xl border px-4 py-2 mt-2 transition-colors ${isDark ? "border-[#5A5A5F] bg-black" : "border-[#D7D7D7] bg-white"}`}>
             <div className="absolute -top-3 left-3 px-1 text-sm z-2">
               <span className={`px-2 font-medium text-sm lg:text-base ${isDark ? "bg-black text-white/60" : "bg-white text-black/60"}`}>
                 Select Shoot*
@@ -717,7 +717,7 @@ export default function AddCompensationModal({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="shrink-0 text-white/60"
+                className={`shrink-0 ${isDark ? "text-white/60" : "text-black/60"}`}
                 aria-label="Toggle shoot list"
               >
                 <ChevronDown size={18} />
@@ -732,19 +732,19 @@ export default function AddCompensationModal({
                     key={shoot.booking_id}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelectShoot(shoot)}
-                    className="w-full px-4 py-3 text-left text-sm cursor-pointer transition-colors hover:bg-[#3D3D3D]"
+                    className={`w-full px-4 py-3 text-left text-sm cursor-pointer transition-colors ${isDark ? "hover:bg-[#3D3D3D]" : "hover:bg-black/5"}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="truncate">{normalizeCustomShootName(shoot.shoot_name)}</span>
-                      <span className="shrink-0 text-xs text-white/50">Booking #{shoot.booking_id}</span>
+                      <span className={`shrink-0 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>Booking #{shoot.booking_id}</span>
                     </div>
                   </button>
                 ))}
                 {!loading && shoots.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-white/50">No pending compensation shoots found.</div>
+                  <div className={`px-4 py-3 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>No pending compensation shoots found.</div>
                 )}
                 {!loading && shoots.length > 0 && filteredShoots.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-white/50">No shoots matched your search.</div>
+                  <div className={`px-4 py-3 text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>No shoots matched your search.</div>
                 )}
               </div>
             )}
@@ -870,7 +870,7 @@ export default function AddCompensationModal({
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleCheckboxChange(creatorId)}
-                            className="h-4 w-4 lg:h-6 lg:w-6 rounded bg-black text-[#E8D1AB] accent-[#E8D1AB]"
+                            className={`h-4 w-4 lg:h-6 lg:w-6 rounded text-[#E8D1AB] accent-[#E8D1AB] ${isDark ? "bg-black" : "bg-white"}`}
                           />
                           <div className="flex flex-1 items-center gap-3 min-w-0">
                             <div className={`h-11 w-11 lg:h-15 lg:w-15 shrink-0 rounded-full lg:text-xl font-semibold flex items-center justify-center ${isDark ? "bg-[#363434] text-zinc-300" : "text-black bg-[#E8D1AB]"}`}>
@@ -1147,7 +1147,7 @@ export default function AddCompensationModal({
                 type="checkbox"
                 checked={sendMail}
                 onChange={(event) => setSendMail(event.target.checked)}
-                className="h-4 w-4 lg:h-5 lg:w-5 rounded-md bg-black text-[#E8D1AB] accent-[#E8D1AB] cursor-pointer"
+                className={`h-4 w-4 lg:h-5 lg:w-5 rounded-md text-[#E8D1AB] accent-[#E8D1AB] cursor-pointer ${isDark ? "bg-black" : "bg-white"}`}
               />
 
               <label htmlFor="send-mail-to-creators" className={`text-xs lg:text-sm font-medium cursor-pointer text-[#E8D1AB] underline underline-offset-4`}>

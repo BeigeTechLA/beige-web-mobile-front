@@ -17,6 +17,7 @@ import {
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import Sidebar from "@/components/creator-profile/Sidebar";
+import WebPushRegistration from "@/components/chat/WebPushRegistration";
 
 type CpStatusPayload = {
   success?: boolean;
@@ -178,6 +179,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <div className={`flex flex-1 overflow-hidden relative transition-colors duration-300 ${
       isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
     }`}>
+      {user?.id ? <WebPushRegistration userType={2} /> : null}
       {/* Desktop Panel View */}
       <div className="hidden lg:block h-full border-r border-transparent">
         <Sidebar permissionsVersion={permissionsVersion} />

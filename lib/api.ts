@@ -605,6 +605,80 @@ export interface QuotesDashboardResponse {
   error?: string;
 }
 
+export type QuoteAnalyticsParams = {
+  date_preset?: string;
+  start_date?: string;
+  end_date?: string;
+  sales_rep_id?: string | number;
+  shoot_type?: string;
+  quote_status?: string;
+  payment_status?: string;
+  lead_source?: string;
+  customer_type?: string;
+};
+
+export type QuoteAnalyticsResponse = {
+  success: boolean;
+  data: any | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsFiltersResponse = {
+  success: boolean;
+  data: {
+    sales_reps?: any[];
+    shoot_types?: any[];
+    services?: any[];
+    quote_statuses?: any[];
+    payment_statuses?: any[];
+    lead_sources?: any[];
+    customer_types?: any[];
+    date_presets?: any[];
+  } | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsQuotesParams = {
+  bucket: 'open_pipeline' | 'overdue_follow_ups' | 'deals_won';
+  status?: 'sent' | 'accepted' | 'partially_paid';
+  page?: number;
+  limit?: number | 'all';
+  sales_rep_id?: string | number;
+  date_preset?: string;
+  start_date?: string;
+  end_date?: string;
+  shoot_type?: string;
+  quote_status?: string;
+  payment_status?: string;
+  lead_source?: string;
+  customer_type?: string;
+};
+
+export type QuoteAnalyticsQuotesResponse = {
+  success: boolean;
+  data: QuoteAnalyticsQuoteListData | null;
+  error?: string;
+};
+
+export type QuoteAnalyticsQuoteRow = {
+  sales_quote_id: number;
+  quote_number: string | null;
+  client: { name: string | null; email: string | null } | null;
+  project: string | null;
+  quote_value: number;
+  collected_amount: number;
+  outstanding_amount: number;
+  quote_status: string;
+  lead_source: string | null;
+  sales_rep: { id: number; name: string | null; email: string | null } | null;
+  validity: { valid_until: string | null } | null;
+};
+
+export type QuoteAnalyticsQuoteListData = {
+  rows: QuoteAnalyticsQuoteRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
 export interface SalesQuoteListUser {
   id?: number | string;
   name?: string;
@@ -2576,6 +2650,107 @@ export const adminApi = {
       };
     }
   },
+  getGlobalShoots: async (params: {
+    range?:
+      | 'upcoming'
+      | 'all'
+      | 'tbd'
+      | 'today'
+      | 'next_7_days'
+      | 'next_15_days'
+      | 'next_30_days'
+      | 'last_7_days'
+      | 'last_15_days'
+      | 'last_30_days';
+    start_date?: string;
+    end_date?: string;
+  } = {}) => {
+    try {
+      const response = await api.get('admin/global-shoots', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        'Get Global Shoots Error:',
+        error.response?.data || error.message,
+      );
+      return {
+        error: true,
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          'Failed to fetch global shoots',
+        data: {
+          total_records: 0,
+          projects: [],
+        },
+      };
+    }
+  },
+
+  getShootCalendarMonth: async (params: {
+    month: number;
+    year: number;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/month', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Month Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch month calendar shoots',
+      };
+    }
+  },
+  getShootCalendarWeek: async (params: {
+    start_date: string;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/week', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Week Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch week calendar shoots',
+      };
+    }
+  },
+  getShootCalendarDay: async (params: {
+    date: string;
+    search?: string;
+    category?: string;
+    status?: string;
+    payment_filter?: string;
+    production_filter?: string;
+    cp_assignment?: string;
+  }) => {
+    try {
+      const response = await api.get('admin/shoots/calendar/day', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Shoot Calendar Day Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch day calendar shoots',
+      };
+    }
+  },
   exportShootsCsv: async (
   params: {
     start_date?: string;
@@ -3683,6 +3858,25 @@ export const adminApi = {
       };
     }
   },
+  updateShootDescription: async (
+    shootId: string | number,
+    description: string
+  ) => {
+    try {
+      const response = await api.put(
+        `admin/update-project-description/${shootId}`,
+        { description }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Shoot Description Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update project description',
+      };
+    }
+  },
   updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
     try {
       const response = await api.post('admin/shoots/update-onboarding-form', payload);
@@ -4062,6 +4256,96 @@ export const salesApi = {
       };
     }
   },
+  getQuoteAnalytics: async (
+    params: QuoteAnalyticsParams = {}
+  ): Promise<QuoteAnalyticsResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsResponse>(
+        '/sales/quotes/analytics',
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics',
+      };
+    }
+  },
+
+  getQuoteAnalyticsFilters: async (): Promise<QuoteAnalyticsFiltersResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsFiltersResponse>(
+        '/sales/quotes/analytics/filters'
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Filters Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics filters',
+      };
+    }
+  },
+
+  getQuoteAnalyticsByRep: async (
+    salesRepId: number | string,
+    params: QuoteAnalyticsParams = {}
+  ): Promise<QuoteAnalyticsResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsResponse>(
+        `/sales/quotes/analytics/reps/${salesRepId}`,
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics By Rep Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch sales rep analytics',
+      };
+    }
+  },
+
+  getQuoteAnalyticsQuotes: async (
+    params: QuoteAnalyticsQuotesParams
+  ): Promise<QuoteAnalyticsQuotesResponse> => {
+    try {
+      const response = await api.get<QuoteAnalyticsQuotesResponse>(
+        '/sales/quotes/analytics/quotes',
+        { params }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Quote Analytics Quotes Error:', error);
+
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          'Failed to fetch quote analytics quotes',
+      };
+    }
+  },
+
   getQuotesDashboard: async (
     params: {
       range?: string;
