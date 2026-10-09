@@ -231,31 +231,35 @@ const getShootStatus = (project: any): GlobeStatus | null => {
 
 const statusConfig: Record<
   GlobeStatus,
-  { label: string; marker: string; ring: string; badge: string }
+  { label: string; marker: string; ring: string; badgeDark: string; badgeLight: string }
 > = {
   active: {
     label: "Active Productions",
     marker: "bg-[#22C55E]",
     ring: "border-[#22C55E]",
-    badge: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
+    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
   },
   upcoming: {
     label: "Upcoming Shoots",
     marker: "bg-[#60A5FA]",
     ring: "border-[#60A5FA]",
-    badge: "border border-[#CFD8FF] bg-[#EEF2FF] text-[#4A5FD3]",
+    badgeDark: "border border-[#355E84] bg-[#182532] text-[#78B9FF]",
+    badgeLight: "border border-[#CFD8FF] bg-[#EEF2FF] text-[#4A5FD3]",
   },
   completed: {
     label: "Completed Shoots",
     marker: "bg-[#10B981]",
     ring: "border-[#10B981]",
-    badge: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
+    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
   },
   cancelled: {
     label: "Cancelled Shoots",
     marker: "bg-[#F87171]",
     ring: "border-[#F87171]",
-    badge: "border border-[#F4C0C0] bg-[#FFE8E8] text-[#D03434]",
+    badgeDark: "border border-[#704042] bg-[#3A2022] text-[#FF9292]",
+    badgeLight: "border border-[#F4C0C0] bg-[#FFE8E8] text-[#D03434]",
   },
 };
 
@@ -457,6 +461,7 @@ export const ShootsGlobeView = ({
   const [todayLoading, setTodayLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<GlobeStatusFilter>("all");
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
   const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
@@ -482,44 +487,12 @@ export const ShootsGlobeView = ({
     useState<GlobeStatus | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 400);
 
-    const loadPostProductionTeamOptions = async () => {
-      setIsLoadingPostProductionTeam(true);
-
-      try {
-        const response = await adminApi.getPostProductionTeamOptions();
-        if (cancelled) return;
-
-        const options =
-          response?.success && Array.isArray(response.data) ? response.data : [];
-
-        setPostProductionTeamOptions(options);
-        setPostProductionUserFilter((current) =>
-          current === "all" ||
-          options.some(
-            (option: PostProductionTeamOption) => String(option.id) === current,
-          )
-            ? current
-            : "all",
-        );
-      } catch (error) {
-        console.error("Failed to load post production team options:", error);
-        if (!cancelled) {
-          setPostProductionTeamOptions([]);
-          setPostProductionUserFilter("all");
-        }
-      } finally {
-        if (!cancelled) setIsLoadingPostProductionTeam(false);
-      }
-    };
-
-    void loadPostProductionTeamOptions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
 
   const geocodeAddress = useCallback(async (address: string) => {
     if (!address || address === "Location TBD" || !isValidMapboxToken)
@@ -609,11 +582,19 @@ export const ShootsGlobeView = ({
             ? { start_date: customStartDate, end_date: customEndDate }
             : { range };
 
-        if (postProductionUserFilter !== "all") {
-          params.post_production_user_id = postProductionUserFilter;
+        if (debouncedSearchQuery) {
+          params.search = debouncedSearchQuery;
         }
 
-        const response = await adminApi.getGlobalShoots(params);
+        if (statusFilter !== "all") {
+          params.status = statusFilter;
+        }
+
+        if (crewFilter !== "all") {
+          params.cp_assignment = crewFilter;
+        }
+
+        const response = await adminApi.getGlobalShoots(params as any);
         if (cancelled) return;
 
         const projects = getProjectsFromGlobalResponse(response);
@@ -705,97 +686,11 @@ export const ShootsGlobeView = ({
     range,
     customStartDate,
     customEndDate,
-    postProductionUserFilter,
+    debouncedSearchQuery,
+    statusFilter,
+    crewFilter,
     geocodeAddress,
   ]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadTodayShoots = async () => {
-      setTodayLoading(true);
-
-      try {
-        const response = await adminApi.getGlobalShoots({ range: "today" });
-        if (cancelled) return;
-
-        const projects = getProjectsFromGlobalResponse(response);
-        const transformedEvents = projects
-          .map(mapProjectToGlobeShoot)
-          .filter((event): event is GlobeShoot => Boolean(event));
-        setTodayEvents(transformedEvents);
-
-        const eventsToGeocode = transformedEvents.filter(
-          (event) =>
-            !event.hasCoordinates &&
-            Boolean(event.location) &&
-            event.location !== "Location TBD",
-        );
-
-        if (!eventsToGeocode.length || !isValidMapboxToken) return;
-
-        const results = await Promise.all(
-          eventsToGeocode.map(async (event) => {
-            const coordinates = await geocodeAddress(event.location);
-            return coordinates ? { id: event.id, ...coordinates } : null;
-          }),
-        );
-
-        if (cancelled) return;
-
-        const successful = results.filter(
-          (
-            result,
-          ): result is {
-            id: string;
-            latitude: number;
-            longitude: number;
-            placeName: string;
-          } => Boolean(result),
-        );
-
-        if (successful.length) {
-          const geocodedById = new Map(successful.map((item) => [item.id, item]));
-          setTodayEvents((previous) =>
-            previous.map((event) => {
-              const geocoded = geocodedById.get(event.id);
-              if (!geocoded) return event;
-
-              return {
-                ...event,
-                latitude: geocoded.latitude,
-                longitude: geocoded.longitude,
-                location: geocoded.placeName || event.location,
-                hasCoordinates: true,
-                isGeocoded: true,
-              };
-            }),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to load today's globe shoots:", error);
-        if (!cancelled) setTodayEvents([]);
-      } finally {
-        if (!cancelled) setTodayLoading(false);
-      }
-    };
-
-    void loadTodayShoots();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [geocodeAddress]);
-
-  const sortedTodayEvents = useMemo(
-    () =>
-      [...todayEvents].sort((a, b) => {
-        const byTime = timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
-        if (Number.isFinite(byTime) && byTime !== 0) return byTime;
-        return a.title.localeCompare(b.title);
-      }),
-    [todayEvents],
-  );
 
   const mappedEvents = useMemo(
     () =>
@@ -839,8 +734,6 @@ export const ShootsGlobeView = ({
   );
 
   const filteredEvents = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
     return dbEvents.filter((event) => {
       if (
         !event.hasCoordinates ||
@@ -849,86 +742,9 @@ export const ShootsGlobeView = ({
         return false;
       }
 
-      if (!activeFilters.has(event.status)) return false;
-
-      if (statusFilter !== "all" && event.status !== statusFilter) return false;
-
-      if (
-        query &&
-        !event.title.toLowerCase().includes(query) &&
-        !event.location.toLowerCase().includes(query)
-      ) {
-        return false;
-      }
-
-      if (crewFilter === "assigned" && event.assignedCrewCount <= 0)
-        return false;
-      if (crewFilter === "not_assigned" && event.assignedCrewCount > 0)
-        return false;
-
-      return true;
+      return activeFilters.has(event.status);
     });
-  }, [dbEvents, searchQuery, statusFilter, crewFilter, activeFilters]);
-
-  const mapEventsToRender = useMemo(() => {
-    if (
-      !selectedEvent ||
-      !selectedEvent.hasCoordinates ||
-      !hasValidCoordinates(selectedEvent.latitude, selectedEvent.longitude) ||
-      filteredEvents.some((event) => event.id === selectedEvent.id)
-    ) {
-      return filteredEvents;
-    }
-
-    return [...filteredEvents, selectedEvent];
-  }, [filteredEvents, selectedEvent]);
-
-  const handleTodayShootClick = useCallback(
-    async (event: GlobeShoot) => {
-      let target = event;
-
-      if (
-        (!target.hasCoordinates ||
-          !hasValidCoordinates(target.latitude, target.longitude)) &&
-        target.location &&
-        target.location !== "Location TBD"
-      ) {
-        const coordinates = await geocodeAddress(target.location);
-        if (coordinates) {
-          target = {
-            ...target,
-            latitude: coordinates.latitude,
-            longitude: coordinates.longitude,
-            location: coordinates.placeName || target.location,
-            hasCoordinates: true,
-            isGeocoded: true,
-          };
-
-          setTodayEvents((previous) =>
-            previous.map((item) => (item.id === target.id ? target : item)),
-          );
-        }
-      }
-
-      if (!hasValidCoordinates(target.latitude, target.longitude)) {
-        toast.error("Location is not available for this shoot.");
-        return;
-      }
-
-      setSelectedEvent(target);
-      moveMapTo(
-        {
-          latitude: Number(target.latitude),
-          longitude: Number(target.longitude),
-          zoom: 11,
-          pitch: 0,
-          bearing: 0,
-        },
-        650,
-      );
-    },
-    [geocodeAddress, moveMapTo],
-  );
+  }, [dbEvents, activeFilters]);
 
   const zoomToLegendMarkers = useCallback(
     (status: GlobeStatus) => {
@@ -1071,140 +887,49 @@ export const ShootsGlobeView = ({
       color: isDark ? "rgb(19,19,19)" : "rgb(248,248,248)",
       "high-color": isDark ? "rgb(28,28,30)" : "rgb(226,232,240)",
       "horizon-blend": 0.08,
-      "space-color": isDark ? "rgb(8,8,9)" : "rgb(18,18,20)",
+      "space-color": isDark ? "rgb(8,8,9)" : "rgb(246,247,249)",
       "star-intensity": isDark ? 0.55 : 0.15,
     }),
     [isDark],
   );
 
   return (
-    <div className="w-full space-y-4">
-      <div className="flex min-h-[42px] items-center justify-between gap-4 px-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-            isDark
-              ? "text-white/80 hover:text-white"
-              : "text-black/70 hover:text-black"
-          }`}
-        >
-          <ChevronRight size={20} strokeWidth={1.7} className="rotate-180" />
-          Back
-        </button>
+    <div
+      className={`shoots-globe-view relative h-[calc(100vh-250px)] min-h-[640px] w-full overflow-hidden rounded-2xl border transition-colors duration-300 ${isDark ? "shoots-globe-dark" : "shoots-globe-light"} ${
+        isDark
+          ? "border-[#333333] bg-[#111111]"
+          : "border-[#E5E5E5] bg-white"
+      }`}
+    >
+      <style jsx global>{`
+        .shoots-globe-view .mapboxgl-ctrl-group {
+          overflow: hidden;
+          border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-group {
+          background: #171717;
+          border: 1px solid #333333;
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-group button + button {
+          border-top-color: #333333;
+        }
+        .shoots-globe-dark .mapboxgl-ctrl-icon {
+          filter: invert(1) opacity(0.72);
+        }
+        .shoots-globe-light .mapboxgl-ctrl-group {
+          background: #ffffff;
+          border: 1px solid #e5e5e5;
+        }
+        .shoots-globe-light .mapboxgl-ctrl-group button + button {
+          border-top-color: #e5e5e5;
+        }
+        .shoots-globe-light .mapboxgl-ctrl-icon {
+          filter: none;
+          opacity: 0.68;
+        }
+      `}</style>
 
-        <div className="flex min-w-0 flex-col items-end gap-2">
-          <Select
-            value={range}
-            onValueChange={(value: GlobalRange) => handleRangeChange(value)}
-          >
-            <SelectTrigger
-              className={`h-11 w-[165px] rounded-lg text-sm focus:ring-0 ${
-                isDark
-                  ? "border-[#333333] bg-[#171717] text-white/70"
-                  : "border-[#E5E5E5] bg-white text-[#666666]"
-              }`}
-            >
-              <CalendarDays
-                size={16}
-                className={isDark ? "mr-2 text-white/35" : "mr-2 text-[#777777]"}
-              />
-              <SelectValue placeholder="Upcoming" />
-            </SelectTrigger>
-            <SelectContent
-              className={`max-h-72 ${
-                isDark
-                  ? "border-[#333333] bg-[#111111] text-white"
-                  : "border-[#E5E5E5] bg-white text-black"
-              }`}
-            >
-              <SelectItem value="upcoming">Upcoming</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="tbd">TBD</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="next_7_days">Next 7 Days</SelectItem>
-              <SelectItem value="next_15_days">Next 15 Days</SelectItem>
-              <SelectItem value="next_30_days">Next 30 Days</SelectItem>
-              <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-              <SelectItem value="last_15_days">Last 15 Days</SelectItem>
-              <SelectItem value="last_30_days">Last 30 Days</SelectItem>
-              <SelectItem
-                value="custom"
-                onClick={(event) => {
-                  event.preventDefault();
-                  handleRangeChange("custom");
-                }}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  handleRangeChange("custom");
-                }}
-              >
-                Custom Range
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          {currentCustomRangeLabel && (
-            <div
-              className={`flex max-w-[420px] items-center gap-3 rounded-xl border px-3 py-2.5 shadow-lg ${
-                isDark
-                  ? "border-[#333333] bg-[#171717] text-white"
-                  : "border-[#E5E5E5] bg-white text-black"
-              }`}
-            >
-              <div className="min-w-0">
-                <p
-                  className={`text-[10px] font-semibold uppercase tracking-wide ${
-                    isDark ? "text-[#E8D1AB]" : "text-[#B38B4D]"
-                  }`}
-                >
-                  Saved Range
-                </p>
-                <p
-                  className={`mt-0.5 truncate text-xs ${
-                    isDark ? "text-white/70" : "text-black/65"
-                  }`}
-                >
-                  {currentCustomRangeLabel}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openCustomRangeDialog}
-                className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                  isDark
-                    ? "border-[#333333] bg-[#202020] text-white hover:bg-[#2A2A2A]"
-                    : "border-[#E5E5E5] bg-white text-black hover:bg-[#F7F7F7]"
-                }`}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={clearCustomRange}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-                  isDark
-                    ? "border-[#333333] bg-[#202020] text-white/70 hover:bg-[#2A2A2A] hover:text-white"
-                    : "border-[#E5E5E5] bg-white text-black/60 hover:bg-[#F7F7F7] hover:text-black"
-                }`}
-                aria-label="Clear custom range"
-                title="Clear custom range"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid w-full gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(300px,1fr)]">
-        <div
-          className={`relative h-[calc(100vh-250px)] min-h-[640px] min-w-0 overflow-hidden rounded-2xl border transition-colors duration-300 ${
-            isDark
-              ? "border-[#333333] bg-[#111111]"
-              : "border-[#E5E5E5] bg-white"
-          }`}
-        >
       {isValidMapboxToken ? (
         <MapboxMap
           ref={mapRef}
@@ -1356,7 +1081,20 @@ export const ShootsGlobeView = ({
           </div>
 
           <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-2 xl:justify-end">
-            <Select value={statusFilter} onValueChange={(value: GlobeStatusFilter) => setStatusFilter(value)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value: GlobeStatusFilter) => {
+                setStatusFilter(value);
+                setActiveFilters(
+                  new Set<GlobeStatus>([
+                    "active",
+                    "upcoming",
+                    "completed",
+                    "cancelled",
+                  ]),
+                );
+              }}
+            >
               <SelectTrigger
                 className={`h-11 w-fit rounded-lg text-sm focus:ring-0 ${
                   isDark
@@ -1468,7 +1206,7 @@ export const ShootsGlobeView = ({
 
       {isCustomRangeOpen && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4 py-6"
+          className={`fixed inset-0 z-[120] flex items-center justify-center px-4 py-6 ${isDark ? "bg-black/60" : "bg-black/35"}`}
           onClick={handleCustomRangeCancel}
         >
           <div
@@ -1489,6 +1227,7 @@ export const ShootsGlobeView = ({
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <DatePicker
                 label="Start Date"
+                floating
                 value={draftCustomRangeStartDate}
                 onChange={(date) => {
                   const nextStartDate = date ? startOfDay(date) : null;
@@ -1510,6 +1249,7 @@ export const ShootsGlobeView = ({
 
               <DatePicker
                 label="End Date"
+                floating
                 value={draftCustomRangeEndDate}
                 onChange={(date) => {
                   const nextEndDate = date ? startOfDay(date) : null;
@@ -1661,7 +1401,7 @@ export const ShootsGlobeView = ({
           <div className={`border-b p-5 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             <div className="mb-3 flex items-start justify-between gap-4 pr-10">
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-semibold capitalize ${statusConfig[selectedEvent.status].badge}`}
+                className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-semibold capitalize ${isDark ? statusConfig[selectedEvent.status].badgeDark : statusConfig[selectedEvent.status].badgeLight}`}
               >
                 {selectedEvent.status}
               </span>

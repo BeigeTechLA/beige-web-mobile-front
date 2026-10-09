@@ -68,12 +68,18 @@ const RANGE_FILTER_OPTIONS = new Set([
   "custom",
   "tbd",
 ]);
-const PAYMENT_FILTER_OPTIONS = new Set(["all", "pending", "paid"]);
-type PaymentFilter = "all" | "pending" | "paid";
-type PostProductionTeamOption = { id: number; name: string; role_name?: string | null };
+const PAYMENT_FILTER_OPTIONS = new Set(["all", "partially_paid", "paid"]);
+type PaymentFilter = "all" | "partially_paid" | "paid";
+type PostProductionTeamOption = {
+  id: number;
+  name: string;
+  role_name?: string | null;
+};
 
 const formatRoleName = (roleName: string) =>
-  roleName.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+  roleName
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
   PAYMENT_FILTER_OPTIONS.has(value);
@@ -685,7 +691,7 @@ export default function ShootsPage() {
                         className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                       >
                         <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="partially_paid">Partially Paid</SelectItem>
                         <SelectItem value="paid">Paid</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1200,198 +1206,191 @@ export default function ShootsPage() {
             </button>
           </div>
 
-          {/* Search + Filter */}
-          <div className="space-y-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative flex w-full items-center">
-                <Search
-                  className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-[#666]" : "text-[#999]"
-                  }`}
-                  size={18}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search by project name, email, or phone number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
-                    isDark
-                      ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-                      : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                  }`}
-                />
-              </div>
-
-              <Button
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${
-                  isDark
-                    ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
-                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
-                }`}
-              >
-                <SlidersHorizontal
-                  size={20}
-                  className={`mr-2 ${isDark ? "text-white" : "text-black"}`}
-                />
-                Filter
-              </Button>
-            </div>
-
-            {/* Filters */}
-            {showFilters && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={categoryFilter}
-                  onValueChange={setCategoryFilter}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
+            {/* Search + Filter */}
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex w-full items-center">
+                  <Search
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-[#666]" : "text-[#999]"
                     }`}
-                  >
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
+                    size={18}
+                  />
 
-                  <SelectContent
-                    className={
+                  <input
+                    type="text"
+                    placeholder="Search by project name, email, or phone number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
                       isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="corporate">Corporate</SelectItem>
-                    <SelectItem value="wedding">Wedding</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={statusFilter}
-                  onValueChange={setStatusFilter}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                        : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
                     }`}
-                  >
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    {FILTER_STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={paymentFilter}
-                  onValueChange={(value) => {
-                    if (isPaymentFilter(value)) {
-                      setPaymentFilter(value);
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
-                    }`}
-                  >
-                    <SelectValue placeholder="Payment" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={cpAssignmentFilter}
-                  onValueChange={(
-                    value: "all" | "assigned" | "not_assigned",
-                  ) => {
-                    setCpAssignmentFilter(value);
-                  }}
-                >
-                  <SelectTrigger
-                    className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white/70"
-                        : "bg-white border-[#E5E5E5] text-[#666]"
-                    }`}
-                  >
-                    <SelectValue placeholder="CP Assignment" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    className={
-                      isDark
-                        ? "bg-[#111111] border-[#333333]"
-                        : "bg-white border-[#E5E5E5] text-black"
-                    }
-                  >
-                    <SelectItem value="all">
-                      All CP Assignment
-                    </SelectItem>
-                    <SelectItem value="assigned">
-                      CP Assigned
-                    </SelectItem>
-                    <SelectItem value="not_assigned">
-                      CP Not Assigned
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  />
+                </div>
 
                 <Button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setCategoryFilter("all");
-                    setStatusFilter("all");
-                    setPaymentFilter("all");
-                    setProductionFilter("all");
-                    setCpAssignmentFilter("all");
-                  }}
-                  aria-label="Reset calendar filters"
-                  title="Reset calendar filters"
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${
                     isDark
-                      ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
-                      : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
+                      ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
                   }`}
                 >
-                  <RotateCcw size={17} />
+                  <SlidersHorizontal
+                    size={20}
+                    className={`mr-2 ${isDark ? "text-white" : "text-black"}`}
+                  />
+                  Filter
                 </Button>
               </div>
-            )}
-          </div>
+
+              {/* Filters */}
+              {showFilters && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={setCategoryFilter}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="private">Private</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      {FILTER_STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={paymentFilter}
+                    onValueChange={(value) => {
+                      if (isPaymentFilter(value)) {
+                        setPaymentFilter(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={cpAssignmentFilter}
+                    onValueChange={(
+                      value: "all" | "assigned" | "not_assigned",
+                    ) => {
+                      setCpAssignmentFilter(value);
+                    }}
+                  >
+                    <SelectTrigger
+                      className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${
+                        isDark
+                          ? "bg-zinc-900 border-[#333333] text-white/70"
+                          : "bg-white border-[#E5E5E5] text-[#666]"
+                      }`}
+                    >
+                      <SelectValue placeholder="CP Assignment" />
+                    </SelectTrigger>
+
+                    <SelectContent
+                      className={
+                        isDark
+                          ? "bg-[#111111] border-[#333333]"
+                          : "bg-white border-[#E5E5E5] text-black"
+                      }
+                    >
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">
+                        CP Not Assigned
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setCategoryFilter("all");
+                      setStatusFilter("all");
+                      setPaymentFilter("all");
+                      setProductionFilter("all");
+                      setCpAssignmentFilter("all");
+                    }}
+                    aria-label="Reset calendar filters"
+                    title="Reset calendar filters"
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${
+                      isDark
+                        ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
+                        : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
+                    }`}
+                  >
+                    <RotateCcw size={17} />
+                  </Button>
+                </div>
+              )}
+            </div>
 
           {/* Calendar */}
           <div
