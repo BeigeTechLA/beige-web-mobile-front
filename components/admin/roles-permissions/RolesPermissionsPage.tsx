@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { PermissionUsersTable } from "@/components/admin/roles-permissions/PermissionUsersTable";
 import { RoleCard } from "@/components/admin/roles-permissions/RoleCard";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
+import { OpenRecordsReassignModal } from "@/components/admin/roles-permissions/OpenRecordsReassignModal";
 import {
   adminApi,
   type AdminRoleRecord,
@@ -179,6 +180,9 @@ export function RolesPermissionsPage({
   const [rolesError, setRolesError] = useState("");
   const [usersError, setUsersError] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isOpenRecordsModalOpen, setIsOpenRecordsModalOpen] = useState(false);
+  const [openLeadsCount, setOpenLeadsCount] = useState(0);
+  const [openQuotesCount, setOpenQuotesCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<PermissionUser | null>(null);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
@@ -297,8 +301,26 @@ useEffect(() => {
     return `${roleCards.length} role${roleCards.length === 1 ? "" : "s"} loaded`;
   }, [isLoading, roleCards.length, rolesError]);
 
-  const handleOpenDeleteModal = (user: PermissionUser) => {
+  const handleOpenDeleteModal = async (user: PermissionUser) => {
+    setUsersError("");
     setSelectedUser(user);
+    const response = await adminApi.getUserReassignments(user.id);
+    if (!response?.success || !response?.data) {
+      setUsersError(response?.error || response?.message || "Failed to check open records");
+      setSelectedUser(null);
+      return;
+    }
+
+    const leadsCount = Number(response.count ?? response.data.leads?.length ?? 0);
+    const quotesCount = Number(response.quote_count ?? response.data.quotes?.length ?? 0);
+    setOpenLeadsCount(leadsCount);
+    setOpenQuotesCount(quotesCount);
+
+    if (leadsCount + quotesCount > 0) {
+      setIsOpenRecordsModalOpen(true);
+      return;
+    }
+
     setIsDeleteModalOpen(true);
   };
 
@@ -319,8 +341,8 @@ useEffect(() => {
     const response = await adminApi.deleteUser(selectedUser.id);
     setIsDeleting(false);
 
-    if (response?.success === false) {
-      setUsersError(response?.error || response?.message || "Failed to delete user");
+    if (response?.success === false || response?.error === true) {
+      setUsersError(response?.message || (typeof response?.error === "string" ? response.error : "Failed to delete user"));
       setIsDeleteModalOpen(false);
       setSelectedUser(null);
       return;
@@ -418,6 +440,34 @@ useEffect(() => {
     setUsersError("");
 
     try {
+      const reassignmentChecks = await Promise.all(
+        userIds.map(async (userId) => ({
+          userId,
+          response: await adminApi.getUserReassignments(userId),
+        })),
+      );
+      const failedCheck = reassignmentChecks.find(({ response }) => !response?.success || !response?.data);
+      if (failedCheck) {
+        setUsersError(failedCheck.response?.error || failedCheck.response?.message || "Failed to check open records");
+        return false;
+      }
+
+      const userWithOpenRecords = reassignmentChecks.find(({ response }) =>
+        Number(response.count ?? response.data.leads?.length ?? 0) +
+        Number(response.quote_count ?? response.data.quotes?.length ?? 0) > 0,
+      );
+      if (userWithOpenRecords) {
+        const user = users.find((item) => item.id === userWithOpenRecords.userId);
+        if (user) {
+          setSelectedUser(user);
+          setOpenLeadsCount(Number(userWithOpenRecords.response.count ?? userWithOpenRecords.response.data.leads?.length ?? 0));
+          setOpenQuotesCount(Number(userWithOpenRecords.response.quote_count ?? userWithOpenRecords.response.data.quotes?.length ?? 0));
+          setIsOpenRecordsModalOpen(true);
+          setUsersError("Reassign open records before deleting users. Start with the user shown.");
+        }
+        return false;
+      }
+
       const response = await adminApi.multiUserAction({
         action: "delete",
         user_ids: userIds,
@@ -592,6 +642,23 @@ useEffect(() => {
         tone="danger"
         confirmLabel={isDeleting ? "Deleting..." : "Delete User"}
         isLoading={isDeleting}
+      />
+
+      <OpenRecordsReassignModal
+        isOpen={isOpenRecordsModalOpen}
+        onClose={() => {
+          setIsOpenRecordsModalOpen(false);
+          setSelectedUser(null);
+        }}
+        onContinue={() => {
+          if (!selectedUser) return;
+          const userId = selectedUser.id;
+          setIsOpenRecordsModalOpen(false);
+          router.push(`/admin/roles-permissions/reassign-records?user_id=${userId}`);
+        }}
+        userName={selectedUser?.name || "this user"}
+        openLeads={openLeadsCount}
+        openQuotes={openQuotesCount}
       />
 
       <ActionModal
