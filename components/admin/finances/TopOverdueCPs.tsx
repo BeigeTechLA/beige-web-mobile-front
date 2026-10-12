@@ -10,9 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-type OverdueStatus = 'overdue' | 'partial' | 'on_hold';
-type Period = 'this_month' | 'last_month' | 'last_3_months';
-type CPRole = 'photographer' | 'videographer';
+type OverdueAge = 'all' | '1_30' | '31_60' | '61_90' | '90_plus';
+type CPRole = 'all' | 'photographer' | 'videographer' | 'editor' | 'producer' | 'director';
 
 export interface OverdueCP {
   id: string;
@@ -20,21 +19,14 @@ export interface OverdueCP {
   avatarUrl?: string;     // optional – falls back to initials
   amount: number;         // USD
   daysOverdue: number;
-  status?: OverdueStatus;
-  role?: CPRole;
+  roles: string[];
 }
 
 export interface OverdueFilters {
-  status: 'all' | OverdueStatus;
-  period: Period;
-  role: 'all' | CPRole;
+  age: OverdueAge;
+  role: CPRole;
+  sort: 'amount' | 'days';
 }
-
-const STATUS_LABEL: Record<OverdueStatus, string> = {
-  overdue: 'Overdue',
-  partial: 'Partially Paid',
-  on_hold: 'On Hold',
-};
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -74,14 +66,14 @@ export default function TopOverdueCPs({
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const isLoading = loading;
-  const [status, setStatus] = useState<'all' | OverdueStatus>('all');
-  const [period, setPeriod] = useState<Period>('this_month');
-  const [role, setRole] = useState<'all' | CPRole>('all');
+  const [age, setAge] = useState<OverdueAge>('all');
+  const [role, setRole] = useState<CPRole>('all');
+  const [sort, setSort] = useState<'amount' | 'days'>('amount');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    onFiltersChange?.({ status, period, role });
-  }, [status, period, role, onFiltersChange]);
+    onFiltersChange?.({ age, role, sort });
+  }, [age, role, sort, onFiltersChange]);
 
   useEffect(() => setMounted(true), []);
 
@@ -96,15 +88,14 @@ export default function TopOverdueCPs({
         name: cp.name,
         amount: cp.amount,
         daysOverdue: cp.days_overdue,
-        status: (cp as { status?: OverdueStatus }).status,
-        role: (cp as { role?: CPRole }).role,
+        roles: cp.roles || [],
       }))
-      .filter((cp) => status === 'all' || !cp.status || cp.status === status)
-      .filter((cp) => role === 'all' || !cp.role || cp.role === role)
+      .filter((cp) => age === 'all' || (age === '1_30' && cp.daysOverdue <= 30) || (age === '31_60' && cp.daysOverdue >= 31 && cp.daysOverdue <= 60) || (age === '61_90' && cp.daysOverdue >= 61 && cp.daysOverdue <= 90) || (age === '90_plus' && cp.daysOverdue > 90))
+      .filter((cp) => role === 'all' || cp.roles.some((item) => item.toLowerCase() === role))
       .filter((cp) => !q || cp.name.toLowerCase().includes(q))
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => sort === 'amount' ? b.amount - a.amount : b.daysOverdue - a.daysOverdue)
       .slice(0, limit);
-  }, [data, query, limit, status, role]);
+  }, [data, query, limit, age, role, sort]);
 
   // Colours (warm red-tinted card from the design)
   const cardCls = isDark ? 'bg-[#231B1B] border-[#FF6467] text-white' : 'bg-[#FFF8F7] border-[#E7A3A6] text-[#202020]';
@@ -134,37 +125,40 @@ export default function TopOverdueCPs({
           </div>
 
           <div className="flex items-center gap-2">
-            <Select value={status} onValueChange={(v: string) => setStatus(v as 'all' | OverdueStatus)}>
+            <Select value={age} onValueChange={(v: string) => setAge(v as OverdueAge)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : STATUS_LABEL[status as OverdueStatus]}</SelectValue>
+                <SelectValue placeholder="Age">{age === 'all' ? 'Age' : age === '1_30' ? '1–30 days' : age === '31_60' ? '31–60 days' : age === '61_90' ? '61–90 days' : '90+ days'}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="partial">Partially Paid</SelectItem>
-                <SelectItem value="on_hold">On Hold</SelectItem>
+                <SelectItem value="all">All overdue</SelectItem>
+                <SelectItem value="1_30">1–30 days</SelectItem>
+                <SelectItem value="31_60">31–60 days</SelectItem>
+                <SelectItem value="61_90">61–90 days</SelectItem>
+                <SelectItem value="90_plus">90+ days</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={period} onValueChange={(v: string) => setPeriod(v as Period)}>
+            <Select value={role} onValueChange={(v: string) => setRole(v as CPRole)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Month">{period === 'this_month' ? 'Month' : period === 'last_month' ? 'Last Month' : '3 Months'}</SelectValue>
+                <SelectValue placeholder="Role">{role === 'all' ? 'Role' : role[0].toUpperCase() + role.slice(1)}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_month">Last Month</SelectItem>
-                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={role} onValueChange={(v: string) => setRole(v as 'all' | CPRole)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="All">{role === 'all' ? 'All' : role === 'photographer' ? 'Photo' : 'Video'}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">All CPs</SelectItem>
-                <SelectItem value="photographer">Photographers</SelectItem>
+                <SelectItem value="all">All roles</SelectItem>
                 <SelectItem value="videographer">Videographers</SelectItem>
+                <SelectItem value="photographer">Photographers</SelectItem>
+                <SelectItem value="editor">Editors</SelectItem>
+                <SelectItem value="producer">Producers</SelectItem>
+                <SelectItem value="director">Directors</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sort} onValueChange={(v: string) => setSort(v as 'amount' | 'days')}>
+              <SelectTrigger className={triggerCls}>
+                <SelectValue placeholder="Sort">{sort === 'amount' ? 'Amount' : 'Days'}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className={contentCls}>
+                <SelectItem value="amount">Highest amount</SelectItem>
+                <SelectItem value="days">Most overdue days</SelectItem>
               </SelectContent>
             </Select>
           </div>

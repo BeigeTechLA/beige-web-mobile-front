@@ -10,9 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 /* ------------------------------------------------------------------ */
 
 type SortKey = 'shoots' | 'spend';
-type ClientStatus = 'active' | 'inactive' | 'new';
-type Period = 'this_month' | 'last_month' | 'last_3_months';
-type ClientType = 'brand' | 'agency' | 'studio';
+type ClientStatus = 'fully_paid' | 'partially_paid' | 'pending';
 
 export interface TopClient {
   id: string;
@@ -21,14 +19,11 @@ export interface TopClient {
   shoots: number;
   spend: number;        // USD
   status?: ClientStatus;
-  type?: ClientType;
 }
 
 export interface ClientFilters {
   sortKey: SortKey;
   status: 'all' | ClientStatus;
-  period: 'all' | Period;
-  type: 'all' | ClientType;
 }
 
 type ApiClients = FinanceAnalyticsData['clients'];
@@ -93,19 +88,17 @@ export default function TopClients({
   const isLoading = loading;
   const [sortKey, setSortKey] = useState<SortKey>('shoots');
   const [status, setStatus] = useState<'all' | ClientStatus>('all');
-  const [period, setPeriod] = useState<'all' | Period>('all');
-  const [type, setType] = useState<'all' | ClientType>('all');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => setMounted(true), []);
 
   // Back to page 1 when the result set changes
-  useEffect(() => setPage(1), [sortKey, status, period, type, query, shootsData, spendData]);
+  useEffect(() => setPage(1), [sortKey, status, query, shootsData, spendData]);
 
   useEffect(() => {
-    onFiltersChange?.({ sortKey, status, period, type });
-  }, [sortKey, status, period, type, onFiltersChange]);
+    onFiltersChange?.({ sortKey, status });
+  }, [sortKey, status, onFiltersChange]);
 
   const isDark = !mounted || theme === "dark";
 
@@ -123,13 +116,11 @@ export default function TopClients({
         shoots: c.shoots,
         spend: c.spend,
         status: (c as { status?: ClientStatus }).status,
-        type: (c as { type?: ClientType }).type,
       }))
-      .filter((c) => status === 'all' || !c.status || c.status === status)
-      .filter((c) => type === 'all' || !c.type || c.type === type)
+      .filter((c) => status === 'all' || c.status === status)
       .filter((c) => !q || c.name.toLowerCase().includes(q))
       .sort((a, b) => (sortKey === 'shoots' ? b.shoots - a.shoots : b.spend - a.spend));
-  }, [shootsData, spendData, query, sortKey, status, type]);
+  }, [shootsData, spendData, query, sortKey, status]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -187,37 +178,13 @@ export default function TopClients({
           <div className="flex items-center gap-1.5">
             <Select value={status} onValueChange={(v: string) => setStatus(v as 'all' | ClientStatus)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : status[0].toUpperCase() + status.slice(1)}</SelectValue>
+                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : status === 'fully_paid' ? 'Fully paid' : status === 'partially_paid' ? 'Partially paid' : 'Pending'}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={period} onValueChange={(v: string) => setPeriod(v as 'all' | Period)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Month">{period === 'all' ? 'Month' : period === 'this_month' ? 'This Month' : period === 'last_month' ? 'Last Month' : '3 Months'}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">Any time</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_month">Last Month</SelectItem>
-                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={type} onValueChange={(v: string) => setType(v as 'all' | ClientType)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="All">{type === 'all' ? 'All' : type[0].toUpperCase() + type.slice(1)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">All clients</SelectItem>
-                <SelectItem value="brand">Brands</SelectItem>
-                <SelectItem value="agency">Agencies</SelectItem>
-                <SelectItem value="studio">Studios</SelectItem>
+                <SelectItem value="all">All payment states</SelectItem>
+                <SelectItem value="fully_paid">Fully paid</SelectItem>
+                <SelectItem value="partially_paid">Partially paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -2098,7 +2098,7 @@ export type FinanceAnalyticsData = {
       label: string;
       segments: { upcoming: number; dueSoon: number; later: number; overdue: number };
     }>;
-    top_overdue: Array<{ id: string; name: string; amount: number; days_overdue: number }>;
+    top_overdue: Array<{ id: string; name: string; roles: string[]; amount: number; days_overdue: number }>;
   };
   clients: {
     top_by_shoots: FinanceAnalyticsClient[];
