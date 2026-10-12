@@ -78,22 +78,33 @@ export default function DateFilter({
   const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
 
   const today = startOfDay(new Date());
+  const hasSelectedRange = selectedRange !== undefined;
+  const selectedRangeStartDate = selectedRange?.startDate ?? null;
+  const selectedRangeEndDate = selectedRange?.endDate ?? null;
 
   useEffect(() => {
     if (value) {
       setPreset(value);
+
+      if (value !== "custom") {
+        setCustomRangeStartDate(null);
+        setCustomRangeEndDate(null);
+        setDraftCustomRangeStartDate(null);
+        setDraftCustomRangeEndDate(null);
+      }
     }
   }, [value]);
 
   useEffect(() => {
-    if (selectedRange) {
-      setCustomRangeStartDate(selectedRange.startDate);
-      setCustomRangeEndDate(selectedRange.endDate);
-
-      setDraftCustomRangeStartDate(selectedRange.startDate);
-      setDraftCustomRangeEndDate(selectedRange.endDate);
+    if (!hasSelectedRange || (value && value !== "custom")) {
+      return;
     }
-  }, [selectedRange]);
+
+    setCustomRangeStartDate(selectedRangeStartDate);
+    setCustomRangeEndDate(selectedRangeEndDate);
+    setDraftCustomRangeStartDate(selectedRangeStartDate);
+    setDraftCustomRangeEndDate(selectedRangeEndDate);
+  }, [hasSelectedRange, value, selectedRangeStartDate, selectedRangeEndDate]);
 
   const getDateRangeForPreset = (
     selectedPreset: DatePreset
@@ -194,6 +205,10 @@ export default function DateFilter({
     }
 
     setPreset(newPreset);
+    setCustomRangeStartDate(null);
+    setCustomRangeEndDate(null);
+    setDraftCustomRangeStartDate(null);
+    setDraftCustomRangeEndDate(null);
 
     const range = getDateRangeForPreset(newPreset);
 
