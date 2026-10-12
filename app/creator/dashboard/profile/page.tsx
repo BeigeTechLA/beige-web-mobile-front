@@ -60,6 +60,7 @@ import { Button } from "@/components/ui/button";
 import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
 import Link from "next/link";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 
 
 // --- CONSTANTS ---
@@ -342,6 +343,7 @@ export default function ProfilePage() {
   const hasOpenedGoogleOnboardingRef = useRef(false);
   const [activeTab, setActiveTab] = useState("Overview");
   const [hasProfileLoaded, setHasProfileLoaded] = useState(false);
+  const [agreements, setAgreements] = useState<AgreementDocument[]>([]);
 
   // Modal & Edit States
   const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
@@ -429,6 +431,13 @@ export default function ProfilePage() {
   useEffect(() => {
     void loadProfile();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "Documents & Agreements") return;
+    void agreementApi.listCreatorAgreements({ limit: 100 })
+      .then((response) => setAgreements(response.data))
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Unable to load agreements"));
+  }, [activeTab]);
 
   useEffect(() => {
     if (hasOpenedGoogleOnboardingRef.current) return;
@@ -1583,80 +1592,23 @@ export default function ProfilePage() {
 
             {activeTab === "Documents & Agreements" && (
               <div className="space-y-3 lg:space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {/* Static General Agreement card is hidden until agreement data is API-backed.
-                <div>
-                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>
-                    General Agreement
-                  </h3>
-                  <div
-                    className={`border rounded-lg lg:rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#D4FFE4] text-[#16A34A]">
-                        <FileText size={20} />
-                      </div>
-                      <div>
-                        <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                          Beige Creative Partner Agreement
-                        </h4>
-                        <p className="text-xs text-[#16A34A]">
-                          v1.0 — Accepted · 1 Jan 2026
-                        </p>
-                      </div>
+                {(["general", "shoot"] as const).map((type) => {
+                  const documents = agreements.filter((agreement) => agreement.agreement_type === type);
+                  return <div key={type}>
+                    <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>{type === "general" ? "General Agreement" : "Shoot Agreements"}</h3>
+                    <div className="space-y-3">
+                      {documents.length === 0 ? <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>No {type} agreements yet.</p> : documents.map((agreement) => {
+                        const shoot = agreement.snapshot?.shoot;
+                        const status = agreement.status.replace(/_/g, " ");
+                        const href = type === "general" ? `/creator/dashboard/agreements/general-agreement?agreement_id=${agreement.agreement_document_id}` : `/creator/dashboard/request/review-agreement?agreement_id=${agreement.agreement_document_id}`;
+                        return <div key={agreement.agreement_document_id} className={`border rounded-lg lg:rounded-xl p-4 flex items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}>
+                          <div><h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{type === "general" ? agreement.title : shoot?.name || agreement.title}</h4><p className={`text-xs ${isDark ? "text-[#BEBDBD]" : "text-gray-500"}`}>{agreement.display_version} · {status}</p>{type === "shoot" ? <p className={`text-xs pt-2 ${isDark ? "text-white" : "text-black"}`}>{agreement.currency || "USD"} {Number(agreement.compensation_amount || 0).toFixed(2)}</p> : null}</div>
+                          <Link className={`px-3 py-2 text-xs font-medium rounded-lg ${isDark ? "bg-[#0F0F0F] text-white" : "bg-gray-100 text-gray-800"}`} href={href}>View</Link>
+                        </div>;
+                      })}
                     </div>
-
-                    <div className="flex items-center gap-2 ml-13 lg:ml-0">
-                      <Link
-                        className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
-                          ? "bg-[#0F0F0F] text-white hover:bg-[#0F0F0F]/50"
-                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                          }`}
-                        href={"/creator/dashboard/agreements/general-agreement"}
-                        target="_blank"
-                      >
-                        View
-                      </Link>
-                      <button className="px-3 py-2 text-xs font-medium rounded-lg bg-[#E8D1AB] text-black hover:bg-[#dfc8a0] transition-colors">
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                */}
-
-                {/* SHOOT AGREEMENT */}
-                <div>
-                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>Shoot Agreements</h3>
-                  <div className={`border rounded-lg lg:rounded-xl p-4 flex items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}>
-                    <div>
-                      <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                        ABC Corporate Shoot
-                      </h4>
-                      <p className={`text-xs ${isDark ? "text-[#BEBDBD]" : "text-gray-500"}`}>
-                        Videographer · v1.0
-                      </p>
-                      <p className={`text-xs pt-4 ${isDark ? "text-white" : "text-black"}`}>
-                        $2000 · 15 Sep 2026, 10:32 AM
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col items-end justify-between md:justify-center gap-3">
-                      <span className="inline-flex items-center rounded-full bg-[#D4FFE4] px-2.5 py-1 text-xs font-semibold text-[#16A34A]">
-                        Accepted
-                      </span>
-                      <Link
-                        className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
-                          ? "bg-[#0F0F0F] text-white hover:bg-[#0F0F0F]/50"
-                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                          }`}
-                        href={"/"}
-                        target="_blank"
-                      >
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+                  </div>;
+                })}
               </div>
             )}
 

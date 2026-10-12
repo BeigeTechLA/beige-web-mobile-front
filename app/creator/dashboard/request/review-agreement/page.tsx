@@ -1,71 +1,123 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import SuccessModal from "@/components/creator-profile/AgreementAcceptedSuccess";
+import { toast } from "sonner";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 
 export default function AgreementReviewPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Metadata State
+  const snapshot = agreement?.snapshot;
   const agreementType = "SHOOT ASSIGNMENT AGREEMENT";
-  const agreementTitle = "ABC Corporate Shoot";
-  const version = "v1.0";
-  const status = "Pending Acceptance";
+  const agreementTitle = snapshot?.shoot?.name || agreement?.title || "Shoot Agreement";
+  const version = agreement?.display_version || "v1";
+  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : (agreement?.status || "Pending Acceptance").replace(/_/g, " ");
 
   // Project Information
   const projectInfo = {
-    projectName: "ABC Corporate Shoot",
-    projectId: "PRJ-1024",
-    assignmentId: "ASN-2012",
-    creativePartner: "John Doe",
-    role: "Photographer",
+    projectName: snapshot?.shoot?.name || agreementTitle,
+    projectId: String(snapshot?.booking_id || agreement?.booking_id || "—"),
+    assignmentId: String(snapshot?.assignment_id || agreement?.assignment_id || "—"),
+    creativePartner: snapshot?.creative_partner?.name || "—",
+    role: snapshot?.creative_partner?.role || "—",
   };
 
   // Production Details
   const productionDetails = {
-    productionDate: "15 September, 2026",
-    location: "Los Angeles",
-    callTime: "8:00 AM",
-    expectedEndTime: "6:00 PM",
+    productionDate: snapshot?.shoot?.date ? new Date(snapshot.shoot.date).toLocaleDateString() : "—",
+    location: snapshot?.shoot?.location || "—",
+    callTime: snapshot?.shoot?.start_time || "—",
+    expectedEndTime: snapshot?.shoot?.end_time || "—",
   };
 
   // Compensation
-  const totalCompensation = "$2000.00";
+  const totalCompensation = `${snapshot?.compensation?.currency || agreement?.currency || "USD"} ${Number(snapshot?.compensation?.amount ?? agreement?.compensation_amount ?? 0).toFixed(2)}`;
 
   // Detailed Specifications
-  const scopeOfServices =
-    "Capture photography coverage for the corporate event, including event highlights and speaker sessions.";
+  const asText = (value: unknown) => Array.isArray(value) ? value.join(", ") : String(value || "—");
+  const scopeOfServices = snapshot?.shoot?.scope || "—";
 
-  const equipmentRequirements =
-    "Sony FX3 or equivalent cinema camera, prime lenses (24mm, 50mm, 85mm), tripod, gimbal stabilizer, audio recording equipment.";
+  const equipmentRequirements = asText(snapshot?.shoot?.equipment);
 
-  const deliverablesMediaTransfer =
-    "Upload all raw media to the designated Beige folder within 24 hours of shoot completion.";
+  const deliverablesMediaTransfer = asText(snapshot?.shoot?.deliverables);
 
-  const approvedExpensesTravel =
-    "Travel to and from shoot location (up to $75 round trip). Parking at venue. No additional expenses without prior written approval.";
+  const approvedExpensesTravel = asText(snapshot?.extras?.expenses);
 
-  const specialInstructions =
-    "Client requires all crew to sign NDA upon arrival. Business casual attire. Shoot brief will be provided 48 hours before the production date.";
+  const specialInstructions = snapshot?.shoot?.special_instructions || "—";
 
   const metaFooter = {
-    beigeSheetVersion: "v1.0",
-    createdDate: "15 Sep 2026, 12:20 PM",
+    beigeSheetVersion: version,
+    createdDate: agreement?.created_at ? new Date(agreement.created_at).toLocaleString() : "—",
   };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadAgreement = async () => {
+      try {
+        const suppliedId = Number(searchParams.get("agreement_id"));
+        const agreementId = Number.isFinite(suppliedId) && suppliedId > 0
+          ? suppliedId
+          : (await agreementApi.listCreatorAgreements({ type: "shoot", status: "pending_acceptance", limit: 1 })).data[0]?.agreement_document_id;
+        if (!agreementId) throw new Error("No shoot agreement is awaiting your response");
+        const response = await agreementApi.getCreatorAgreement(agreementId);
+        if (active) setAgreement(response.data.agreement);
+      } catch (error) {
+        if (active) toast.error(error instanceof Error ? error.message : "Unable to load shoot agreement");
+      }
+    };
+    void loadAgreement();
+    return () => { active = false; };
+  }, [searchParams]);
+
+  const handleAccept = async () => {
+    if (!agreement) return;
+    try {
+      setIsSubmitting(true);
+      await agreementApi.acceptShootAgreement(agreement.agreement_document_id);
+      setAgreement({ ...agreement, status: "accepted" });
+      setIsModalOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to accept the shoot agreement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!agreement) return;
+    const rejectionReason = window.prompt("Why are you rejecting this agreement?");
+    if (!rejectionReason?.trim()) return;
+    try {
+      setIsSubmitting(true);
+      await agreementApi.rejectShootAgreement(agreement.agreement_document_id, rejectionReason.trim());
+      setAgreement({ ...agreement, status: "rejected" });
+      toast.success("Shoot agreement rejected");
+      router.push("/creator/dashboard/request");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to reject the shoot agreement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -367,18 +419,20 @@ export default function AgreementReviewPage() {
 
           <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-2">
             <button
-              disabled={!isChecked}
+              disabled={!isChecked || !agreement || agreement.status !== "pending_acceptance" || isSubmitting}
               className={`flex-1 rounded-lg py-3 text-sm font-medium transition-all ${isChecked
                   ? "bg-[#10B981] text-white hover:bg-[#0E6C38] active:scale-[0.99]"
                   : isDark
                     ? "bg-[#123E28] text-[#3D7C5D] cursor-not-allowed"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
-              onClick={() => { setIsModalOpen(true) }}
+              onClick={handleAccept}
             >
-              Accept Assignment
+              {isSubmitting ? "Submitting..." : "Accept Assignment"}
             </button>
             <button
+              disabled={!agreement || agreement.status !== "pending_acceptance" || isSubmitting}
+              onClick={handleReject}
               className={`px-8 py-3 rounded-lg text-sm font-medium transition-all ${isDark
                   ? "bg-[#EF4444] text-white hover:bg-[#8F2B2B]"
                   : "bg-red-600 text-white hover:bg-red-700"

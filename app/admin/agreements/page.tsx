@@ -11,6 +11,7 @@ import { useTheme } from "next-themes";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 import Topbar from "@/components/admin/Topbar";
 import GeneralAgreementHistoryTable from "@/components/admin/agreements/AgreementsTable";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 
 type TabType = "All" | "Pending" | "Accepted" | "Rejected" | "Cancelled";
 
@@ -43,10 +44,32 @@ export default function AdminAgreementsPage() {
   const [dateFilter, setDateFilter] = useState<string>("");
   const [agreementVersionFilter, setAgreementVersionFilter] = useState<string>("");
   const [adminFilter, setAdminFilter] = useState<string>("");
+  const [agreements, setAgreements] = useState<AgreementDocument[]>([]);
+  const [activeGeneralTitle, setActiveGeneralTitle] = useState("No published general agreement");
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [documents, templates] = await Promise.all([
+          agreementApi.listAdminAgreements({
+            status: activeTab === "All" ? undefined : activeTab === "Pending" ? "pending_acceptance" : activeTab.toLowerCase(),
+            limit: 100,
+          }),
+          agreementApi.listGeneralTemplates(),
+        ]);
+        setAgreements(documents.data);
+        const published = templates.data.find((template) => template.status === "published");
+        setActiveGeneralTitle(published?.title || "No published general agreement");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to load agreements");
+      }
+    };
+    void load();
+  }, [activeTab]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   if (!mounted) return null;
@@ -57,7 +80,7 @@ export default function AdminAgreementsPage() {
         actions={
           <>
             <Button
-              onClick={() => router.push("/admin/agreements/create-generate-agreement")}
+              onClick={() => router.push("/admin/agreements/create-general-agreement")}
 
               title={"Create General Agreemen"}
               className={`h-12 px-4 lg:px-7 transition-colors font-medium ${isDark ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
@@ -96,7 +119,7 @@ export default function AdminAgreementsPage() {
                 </div>
               </div>
               <p className="font-medium text-sm lg:text-base font-semibold">
-                Beige General Agreement
+                {activeGeneralTitle}
               </p>
               <p className="text-xs text-[#8E8E8E]">General Terms of Service</p>
             </div>
@@ -253,7 +276,21 @@ export default function AdminAgreementsPage() {
         </div>
 
         {/* History Table */}
-        <GeneralAgreementHistoryTable />
+        <GeneralAgreementHistoryTable
+          data={agreements.map((agreement) => ({
+            id: String(agreement.agreement_document_id),
+            creativePartnerName: agreement.snapshot?.creative_partner?.name || "General agreement",
+            avatarInitials: (agreement.snapshot?.creative_partner?.name || "GA").split(" ").map((name) => name[0]).join("").slice(0, 2),
+            date: agreement.created_at ? new Date(agreement.created_at).toLocaleDateString() : "—",
+            projectName: agreement.snapshot?.shoot?.name || agreement.title,
+            projectId: String(agreement.booking_id || "—"),
+            role: agreement.snapshot?.creative_partner?.role || "—",
+            version: agreement.display_version,
+            compensation: Number(agreement.compensation_amount || 0),
+            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : "Pending",
+          }))}
+          onActionClick={(item) => router.push(`/admin/agreements/agreement-details?agreement_id=${item.id}`)}
+        />
 
         {/* Floating Mobile Button */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>

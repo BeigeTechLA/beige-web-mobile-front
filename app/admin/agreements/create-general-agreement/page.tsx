@@ -20,6 +20,8 @@ import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import { DatePickerFloating } from "@/components/admin/DatePickerFloating";
 import SuccessModal from "@/components/admin/agreements/AgreementSendSuccess";
+import { toast } from "sonner";
+import { agreementApi } from "@/lib/api/agreements";
 
 interface Section {
   id: string;
@@ -37,11 +39,13 @@ export default function AdminCreateGeneralAgreementPage() {
   // Form State
   const [agreementName, setAgreementName] = useState("");
   const [agreementTitle, setAgreementTitle] = useState("");
+  const [version, setVersion] = useState("1.0");
   const [description, setDescription] = useState("");
   const [effectiveDate, setEffectiveDate] = useState<Date | null>(null);
 
   // Success Modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sections State
   const [sections, setSections] = useState<Section[]>([
@@ -112,6 +116,39 @@ export default function AdminCreateGeneralAgreementPage() {
     ]);
   };
 
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  }[character] || character));
+
+  const buildContentHtml = () => sections.map((section) =>
+    `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.content).replace(/\n/g, "<br />")}</p></section>`
+  ).join("\n");
+
+  const saveAndPublish = async () => {
+    if (!agreementName.trim() || !agreementTitle.trim() || !version.trim()) {
+      toast.error("Agreement name, title and version are required");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      const created = await agreementApi.createGeneralTemplate({
+        title: agreementTitle.trim(),
+        description: description.trim() || agreementName.trim(),
+        version: version.trim(),
+        content_html: buildContentHtml(),
+        content_json: { sections: sections.map(({ id, title, content }) => ({ id, title, content })), effective_date: effectiveDate?.toISOString() || null },
+        is_mandatory: true,
+      });
+      await agreementApi.publishGeneralTemplate(created.data.agreement_template_id);
+      setIsSuccessModalOpen(true);
+      toast.success("General agreement published");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to publish agreement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!mounted) return null;
 
   return (
@@ -121,7 +158,7 @@ export default function AdminCreateGeneralAgreementPage() {
         actions={
           <>
             <Button
-              onClick={() => router.push("/admin/agreements")}
+              onClick={() => toast.info("Publish the agreement to review its immutable version in the agreement list.")}
               title="Preview"
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -132,14 +169,15 @@ export default function AdminCreateGeneralAgreementPage() {
               Preview
             </Button>
             <Button
-              onClick={() => router.push("/admin/agreements")}
+              onClick={saveAndPublish}
+              disabled={isSubmitting}
               title="Save & Send"
               className={`h-12 px-4 lg:px-7 font-medium transition-colors ${isDark
                 ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
                 : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
                 }`}
             >
-              Save & Send
+              {isSubmitting ? "Publishing..." : "Save & Publish"}
             </Button>
           </>
         }
@@ -195,6 +233,22 @@ export default function AdminCreateGeneralAgreementPage() {
                 <p className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}>
                   An internal name to help admins identify this agreement.
                 </p>
+              </div>
+
+              <div>
+                <div className={`relative rounded-xl border ${isDark ? "border-white/20 bg-[#171717]" : "border-gray-300 bg-white"}`}>
+                  <label className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                    Version
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1.0"
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark ? "text-white placeholder:text-white/20" : "text-black placeholder:text-gray-400"}`}
+                  />
+                </div>
+                <p className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}>Use a new version for every published revision.</p>
               </div>
 
               {/* Agreement Title Field */}
@@ -422,7 +476,8 @@ export default function AdminCreateGeneralAgreementPage() {
         {/* Floating Mobile Sticky Action Button */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => router.push("/admin/agreements")}
+            onClick={saveAndPublish}
+            disabled={isSubmitting}
             title="Preview"
             variant="outline"
             className={`h-14 rounded-md font-semibold text-sm px-4 gap-2 transition-all ${isDark
@@ -437,7 +492,7 @@ export default function AdminCreateGeneralAgreementPage() {
             title="Save & Send"
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
-            Save & Send
+            {isSubmitting ? "Publishing..." : "Save & Publish"}
           </Button>
         </div>
       </div>

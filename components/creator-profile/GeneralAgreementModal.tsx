@@ -9,6 +9,7 @@ interface GeneralAgreementModalProps {
   onViewAgreement?: () => void;
   onAccept?: () => void;
   isDark?: boolean;
+  isSubmitting?: boolean;
 }
 
 export function GeneralAgreementModal({
@@ -17,6 +18,7 @@ export function GeneralAgreementModal({
   onViewAgreement,
   onAccept,
   isDark = true,
+  isSubmitting = false,
 }: GeneralAgreementModalProps) {
   const [isChecked, setIsChecked] = useState(false);
 
@@ -39,7 +41,7 @@ export function GeneralAgreementModal({
         {/* Header */}
         <div className={`flex items-center justify-between border-b p-5 md:p-6 ${isDark ? "border-[#CACACA]" : "border-gray-100"}`}>
           <h2 className="text-xl lg:text-2xl font-bold">General Agreement</h2>
-          <button
+          {onClose ? <button
             onClick={onClose}
             className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${isDark
                 ? "bg-[#2B2626] text-white hover:bg-[#2C2C2C] hover:text-[#A0A0A0]"
@@ -48,7 +50,7 @@ export function GeneralAgreementModal({
             aria-label="Close modal"
           >
             <X size={18} />
-          </button>
+          </button> : null}
         </div>
 
         {/* Content Container */}
@@ -96,13 +98,13 @@ export function GeneralAgreementModal({
           {/* Action Button */}
           <button
             onClick={onAccept}
-            disabled={!isChecked}
+            disabled={!isChecked || isSubmitting}
             className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-all text-black mb-5 lg:mb-0 ${isChecked
-                ? "bg-[#E8D1AB] hover:bg-[#E8D1AB]/70"
+              ? "bg-[#E8D1AB] hover:bg-[#E8D1AB]/70"
                 : "bg-[#E8D1AB]/50 cursor-not-allowed"
               }`}
           >
-            Accept & Continue
+            {isSubmitting ? "Accepting..." : "Accept & Continue"}
           </button>
         </div>
       </div>
