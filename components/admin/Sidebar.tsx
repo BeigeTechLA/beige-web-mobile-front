@@ -17,7 +17,6 @@ import {
   Settings,
   SquareArrowOutUpRight,
   User,
-  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -64,7 +63,12 @@ type MenuItem = {
   name: string;
   icon: React.ElementType<{ size?: number; isActive?: boolean }>;
   link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean }[];
+  children?: {
+    name: string;
+    link: string;
+    isDisabled?: boolean;
+    permissionKeys?: string[];
+  }[];
   isDisabled?: boolean;
   permissionKeys?: string[];
 };
@@ -96,11 +100,31 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["finances"],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
-      { name: "Finance Analytics", link: '/admin/finances/analytics' },
-      { name: "Transactions", link: "/admin/finances/transactions" },
-      { name: "Disputes", link: "/admin/finances/disputes" },
-      { name: "Beige credit points", link: "/admin/finances/creditPoints" },
-      { name: "CP Compensation", link: "/admin/finances/cpCompensation" },
+      {
+        name: "Finance Analytics",
+        link: "/admin/finances/analytics",
+        permissionKeys: ["finances"],
+      },
+      {
+        name: "Transactions",
+        link: "/admin/finances/transactions",
+        permissionKeys: ["admin_finances_transactions"],
+      },
+      {
+        name: "Disputes",
+        link: "/admin/finances/disputes",
+        permissionKeys: ["admin_finances_disputes"],
+      },
+      {
+        name: "Beige credit points",
+        link: "/admin/finances/creditPoints",
+        permissionKeys: ["admin_finances_beige_credit_points"],
+      },
+      {
+        name: "CP Compensation",
+        link: "/admin/finances/cpCompensation",
+        permissionKeys: ["admin_finances_cp_compensation"],
+      },
     ],
   },
 
@@ -454,17 +478,16 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item
-                      .children!.filter((_, childIndex) => {
-                        if (!hierarchyEntry) return true;
-                        const childModuleKey =
-                          hierarchyEntry[1].children[childIndex];
+                      .children!.filter((child, childIndex) => {
+                        const childPermissionKeys = child.permissionKeys ??
+                          (hierarchyEntry
+                            ? [hierarchyEntry[1].children[childIndex]]
+                            : []);
+
+                        if (!childPermissionKeys.length) return true;
+
                         return Boolean(
-                          childModuleKey &&
-                          hasModulePermission(
-                            permissions,
-                            [childModuleKey],
-                            "view",
-                          ),
+                          hasModulePermission(permissions, childPermissionKeys, "view"),
                         );
                       })
                       .map((child) => {
