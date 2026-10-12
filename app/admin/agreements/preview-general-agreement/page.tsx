@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, History } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { format } from "date-fns";
 
 interface Section {
   id: string;
@@ -13,11 +15,31 @@ interface Section {
   content: string | string[];
 }
 
+const GENERAL_AGREEMENT_DRAFT_KEY = "admin-general-agreement-draft";
+
+interface GeneralAgreementDraft {
+  sourceTemplateId: number;
+  agreementName: string;
+  agreementTitle: string;
+  description: string;
+  effectiveDate: string | null;
+  sections: Array<{ id: string; title: string; content: string }>;
+  contentHtml: string;
+}
+
+const parseAgreementContent = (value: unknown): { lead_paragraphs?: unknown[]; sections?: unknown[] } | undefined => {
+  if (!value) return undefined;
+  if (typeof value === "object") return value as { lead_paragraphs?: unknown[]; sections?: unknown[] };
+  try { return JSON.parse(String(value)); } catch { return undefined; }
+};
 export default function AdminGeneralAgreementPreviewPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [liveAgreement, setLiveAgreement] = useState<AgreementDocument | null>(null);
+  const [isAgreementLoading, setIsAgreementLoading] = useState(true);
 
   // Form Metadata State
   const [agreementType] = useState("GENERAL AGREEMENT");
@@ -59,18 +81,105 @@ export default function AdminGeneralAgreementPreviewPage() {
     setMounted(true);
   }, []);
 
-  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  useEffect(() => {
+    const templateId = Number(searchParams.get("template_id") || 0);
+    if (templateId || searchParams.get("draft_preview") === "1") {
+      setIsAgreementLoading(true);
+      try {
+        const rawDraft = sessionStorage.getItem(GENERAL_AGREEMENT_DRAFT_KEY);
+        const draft = rawDraft ? JSON.parse(rawDraft) as GeneralAgreementDraft : null;
+        if (draft && draft.sourceTemplateId === templateId && Array.isArray(draft.sections)) {
+          setLiveAgreement({
+            agreement_document_id: 0,
+            agreement_type: "general",
+            agreement_template_id: templateId || undefined,
+            version_no: 0,
+            display_version: "Next version",
+            status: "draft",
+            is_current: true,
+            title: draft.agreementTitle,
+            content_html: draft.contentHtml,
+            content_json: {
+              lead_paragraphs: draft.description.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean),
+              sections: draft.sections,
+              effective_date: draft.effectiveDate,
+            },
+            created_at: draft.effectiveDate || undefined,
+          });
+          setIsAgreementLoading(false);
+          return;
+        }
+      } catch {
+        sessionStorage.removeItem(GENERAL_AGREEMENT_DRAFT_KEY);
+      }
+      const request = templateId
+        ? agreementApi.getGeneralTemplate(templateId)
+        : agreementApi.listGeneralTemplates().then((response) => ({ data: response.data.find((template) => template.status === "published") }));
+      request.then((response) => {
+        const template = response.data;
+        if (!template) throw new Error("No published general agreement is available");
+        setLiveAgreement({
+          agreement_document_id: 0, agreement_type: "general", agreement_template_id: template.agreement_template_id,
+          version_no: 1, display_version: `Version ${template.version}`, status: "draft", is_current: true,
+          title: template.title, content_html: template.content_html, content_json: template.content_json,
+          created_at: template.effective_at || template.published_at || undefined,
+        });
+      }).catch(() => setLiveAgreement(null)).finally(() => setIsAgreementLoading(false));
+      return;
+    }
+    const agreementId = Number(searchParams.get("agreement_id") || 0);
+    if (!agreementId) {
+      setIsAgreementLoading(false);
+      return;
+    }
+    setIsAgreementLoading(true);
+    agreementApi.getAdminAgreement(agreementId)
+      .then((response) => setLiveAgreement(response.data.agreement))
+      .catch(() => setLiveAgreement(null))
+      .finally(() => setIsAgreementLoading(false));
+  }, [searchParams]);
 
-  if (!mounted) return null;
+  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
+  const templateId = liveAgreement?.agreement_template_id;
+  const editUrl = templateId
+    ? `/admin/agreements/create-general-agreement?clone_from=${templateId}`
+    : "/admin/agreements/create-general-agreement";
+  const savedAgreementContent = parseAgreementContent(liveAgreement?.content_json);
+  const savedSections = savedAgreementContent?.sections;
+  // Older agreements may store section labels as strings. They are not renderable
+  // Figma sections, so keep the agreement HTML rather than producing empty cards.
+  const versionedSections = Array.isArray(savedSections) && savedSections.length > 0
+    && savedSections.every((section): section is Section => Boolean(
+      section && typeof section === "object" && "title" in section && "content" in section
+    ))
+    ? savedSections
+    : null;
+  const visibleSections = versionedSections || sections;
+  const savedLeadParagraphs = Array.isArray(savedAgreementContent?.lead_paragraphs)
+    && savedAgreementContent.lead_paragraphs.every((paragraph): paragraph is string => typeof paragraph === "string")
+    ? savedAgreementContent.lead_paragraphs
+    : null;
+  const visibleLeadParagraphs = liveAgreement ? (savedLeadParagraphs || []) : leadParagraphs;
+  const displayTitle = liveAgreement?.title || agreementTitle;
+  const displayVersion = liveAgreement?.display_version || version;
+  const previewEffectiveDate = searchParams.get("effective_date");
+  const formatAgreementDate = (value?: string | null) => {
+    if (!value) return "";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : format(date, "dd MMM yyyy");
+  };
+
+  if (!mounted || isAgreementLoading) return <div className="min-h-screen bg-[#0A0A0A]" aria-busy="true" />;
 
   return (
     <>
       <Topbar
         pathname={pathname}
+        breadcrumbOverrides={{ "preview-general-agreement": "Details" }}
         actions={
           <>
             <Button
-              onClick={() => router.push("/admin/agreements/history")}
+              onClick={() => router.push("/admin/agreements")}
               title="View Version History"
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -82,7 +191,7 @@ export default function AdminGeneralAgreementPreviewPage() {
               View Version History
             </Button>
             <Button
-              onClick={() => router.push("/admin/agreements")}
+              onClick={() => router.push(editUrl)}
               title="Edit Agreement"
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -93,7 +202,7 @@ export default function AdminGeneralAgreementPreviewPage() {
               Edit Agreement
             </Button>
             <Button
-              onClick={() => router.push("/admin/agreements")}
+              onClick={() => router.push(editUrl)}
               title="Save Agreement"
               className={`h-12 px-4 lg:px-7 font-medium transition-colors ${isDark
                 ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
@@ -117,7 +226,7 @@ export default function AdminGeneralAgreementPreviewPage() {
 
         {/* Document Card Container */}
         <div
-          className={`border rounded-2xl transition-colors max-w-6xl mx-auto ${isDark
+          className={`w-full border rounded-2xl transition-colors ${isDark
               ? "bg-[#171717] border-[#3D3D3D] text-[#D8D8D8]"
               : "bg-white border-[#E2E8F0] text-gray-800"
             }`}
@@ -132,7 +241,7 @@ export default function AdminGeneralAgreementPreviewPage() {
                 {agreementType}
               </p>
               <h1 className={`text-2xl lg:text-3xl uppercase ${isDark ? "text-white" : "text-black"}`}>
-                {agreementTitle}
+                {displayTitle}
               </h1>
             </div>
 
@@ -140,26 +249,28 @@ export default function AdminGeneralAgreementPreviewPage() {
               <span
                 className={`inline-flex items-center w-fit px-2.5 py-1 rounded-lg text-xs font-medium mb-1.5 bg-[#E8D1AB] text-black`}
               >
-                {version}
+                {displayVersion}
               </span>
               <p className={`text-[10px] font-medium ${isDark ? "text-white" : "text-black"}`}>
-                {effectiveDate}
+                {previewEffectiveDate ? `Effective ${formatAgreementDate(previewEffectiveDate)}` : liveAgreement?.created_at ? `Effective ${formatAgreementDate(liveAgreement.created_at)}` : effectiveDate}
               </p>
             </div>
           </div>
 
           <div className="p-5 lg:px-8 lg:py-7">
-            {/* Lead Paragraphs */}
-            <div className="space-y-4 text-sm lg:text-base">
-              {leadParagraphs.map((para, idx) => (
-                <p key={`lead-para-${idx}`}>{para}</p>
-              ))}
-            </div>
+            {liveAgreement && !versionedSections ? (
+              <div className="text-sm leading-6 lg:text-base [&_h1]:mb-4 [&_h1]:text-base [&_h1]:font-medium [&_h1]:text-[#E8D1AB] [&_h2]:mb-4 [&_h2]:mt-7 [&_h2]:text-base [&_h2]:font-medium [&_h2]:text-[#E8D1AB] [&_p]:mb-3" dangerouslySetInnerHTML={{ __html: liveAgreement.content_html }} />
+            ) : <>
+              {visibleLeadParagraphs.length > 0 && <div className="space-y-4 text-sm lg:text-base">
+                {visibleLeadParagraphs.map((para, idx) => <p key={`lead-para-${idx}`}>{para}</p>)}
+              </div>}
 
             {/* Dynamic Sections Loop */}
-            {sections.map((section, index) => (
+            {visibleSections.map((section, index) => (
               <React.Fragment key={section.id}>
-                <div className={`border-t my-5 lg:my-8 ${isDark ? "border-white/60" : "border-black/50"}`}/>
+                {(index > 0 || visibleLeadParagraphs.length > 0) && (
+                  <div className={`border-t my-5 lg:my-8 ${isDark ? "border-white/60" : "border-black/50"}`} />
+                )}
 
                 <div className="space-y-4">
                   <h2 className={`text-base lg:text-xl font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#B8860B]"}`}>
@@ -171,13 +282,18 @@ export default function AdminGeneralAgreementPreviewPage() {
                       section.content.map((paragraph, pIdx) => (
                         <p key={`section-${section.id}-para-${pIdx}`}>{paragraph}</p>
                       ))
+                    ) : (/<\/?[a-z][\s\S]*>/i.test(section.content)) ? (
+                      <div className="space-y-3 [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6" dangerouslySetInnerHTML={{ __html: section.content }} />
                     ) : (
-                      <p>{section.content}</p>
+                      section.content.split(/\n\s*\n/).filter(Boolean).map((paragraph, pIdx) => (
+                        <p key={`section-${section.id}-para-${pIdx}`}>{paragraph}</p>
+                      ))
                     )}
                   </div>
                 </div>
               </React.Fragment>
             ))}
+            </>}
           </div>
         </div>
 
@@ -196,7 +312,7 @@ export default function AdminGeneralAgreementPreviewPage() {
             View Version History
           </Button>
           <Button
-            onClick={() => router.push("/admin/agreements")}
+            onClick={() => router.push(editUrl)}
             title="Edit Agreement"
             variant="outline"
             className={`h-14 rounded-md font-semibold text-sm px-4 gap-2 transition-all ${isDark
@@ -207,7 +323,7 @@ export default function AdminGeneralAgreementPreviewPage() {
             Edit Agreement
           </Button>
           <Button
-            onClick={() => router.push("/admin/agreements")}
+            onClick={() => router.push(editUrl)}
             title="Save Agreement"
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >

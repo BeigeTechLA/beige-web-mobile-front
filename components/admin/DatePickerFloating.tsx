@@ -18,6 +18,7 @@ interface DatePickerFloatingProps {
   classnames?: string;
   labelClasses?: string;
   label?: string;
+  displayFormat?: string;
 }
 
 export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
@@ -28,6 +29,7 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
   classnames,
   labelClasses,
   label = "Payment Date",
+  displayFormat = "MM-dd-yyyy",
 }) => {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -64,9 +66,9 @@ export const DatePickerFloating: React.FC<DatePickerFloatingProps> = ({
             {/* Simulated Input Field Readout Text Content */}
             <div className="h-10 flex items-center text-sm outline-none bg-transparent">
               {selectedDate ? (
-                format(selectedDate, "MM-dd-yyyy")
+                format(selectedDate, displayFormat)
               ) : (
-                <span className={isDark ? "text-white/30" : "text-black/30"}>MM-DD-YYYY</span>
+                <span className={isDark ? "text-white/30" : "text-black/30"}>{displayFormat.toUpperCase()}</span>
               )}
             </div>
 

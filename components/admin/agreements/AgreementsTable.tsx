@@ -99,12 +99,14 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
 ];
 
 interface AgreementHistoryTableProps {
-  data?: AgreementData[];
+  generalData?: AgreementData[];
+  shootData?: AgreementData[];
   onActionClick?: (item: AgreementData, e: React.MouseEvent) => void;
 }
 
 export default function GeneralAgreementHistoryTable({
-  data = DEFAULT_DUMMY_AGREEMENTS,
+  generalData = [],
+  shootData = [],
   onActionClick,
 }: AgreementHistoryTableProps) {
   const { theme, resolvedTheme } = useTheme();
@@ -112,7 +114,8 @@ export default function GeneralAgreementHistoryTable({
   const [activeTab, setActiveTab] = useState<"general" | "shoot">("general");
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const totalPages = 10;
+  const tableData = activeTab === "general" ? generalData : shootData;
+  const totalPages = Math.max(1, Math.ceil(tableData.length / 10));
 
   useEffect(() => {
     setMounted(true);
@@ -263,7 +266,7 @@ export default function GeneralAgreementHistoryTable({
               {activeTab === "general" ? (
                 <>
               <th className="py-4 px-6">Creative Partner</th>
-              <th className="py-4 px-6">Project Name & ID</th>
+              <th className="py-4 px-6">Agreement</th>
               <th className="py-4 px-6">Role</th>
               <th className="py-4 px-6">Version</th>
               <th className="py-4 px-6">Status</th>
@@ -283,7 +286,14 @@ export default function GeneralAgreementHistoryTable({
             </tr>
           </thead>
           <tbody className={isDark ? "bg-[#171717]" : ""}>
-            {data.map((item) => (
+            {tableData.length === 0 && (
+              <tr>
+                <td colSpan={activeTab === "general" ? 6 : 7} className={`px-6 py-12 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                  No {activeTab === "general" ? "general" : "shoot"} agreement history yet.
+                </td>
+              </tr>
+            )}
+            {tableData.map((item) => (
               <tr
                 key={item.id}
                 className={`transition-colors ${
@@ -365,7 +375,12 @@ export default function GeneralAgreementHistoryTable({
 
         {/* Mobile Rows */}
         <div className={`divide-y ${isDark ? "divide-[#3D3D3D]" : "divide-[#E5E5E5]"}`}>
-          {data.map((item) => {
+          {tableData.length === 0 && (
+            <p className={`px-4 py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+              No {activeTab === "general" ? "general" : "shoot"} agreement history yet.
+            </p>
+          )}
+          {tableData.map((item) => {
             const isExpanded = !!expandedRows[item.id];
             return (
               <div key={item.id} className="transition-colors">
@@ -417,7 +432,7 @@ export default function GeneralAgreementHistoryTable({
                     }`}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span className={isDark ? "text-white/50" : "text-black/50"}>Project ID</span>
+                      <span className={isDark ? "text-white/50" : "text-black/50"}>{activeTab === "general" ? "Agreement Name" : "Project ID"}</span>
                       <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                         {item.projectId}
                       </span>
@@ -477,7 +492,7 @@ export default function GeneralAgreementHistoryTable({
       </div>
 
       {/* Footer Pagination */}
-      <div className={`flex flex-col sm:flex-row items-center justify-between p-4 lg:p-6 border-t gap-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+      {tableData.length > 0 && <div className={`flex flex-col sm:flex-row items-center justify-between p-4 lg:p-6 border-t gap-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
         <p className={`hidden lg:block text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
           Page {currentPage} of {totalPages}
         </p>
@@ -527,7 +542,7 @@ export default function GeneralAgreementHistoryTable({
             <ChevronRight size={16} />
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

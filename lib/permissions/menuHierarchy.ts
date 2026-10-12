@@ -12,6 +12,7 @@ export const ADMIN_PERMISSION_MENU_HIERARCHY: Record<
   admin_finances: {
     label: "Finances",
     children: [
+      "admin_finances_analytics",
       "admin_finances_transactions",
       "admin_finances_disputes",
       "admin_finances_beige_credit_points",

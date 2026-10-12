@@ -14,6 +14,16 @@ export default function GeneralAgreementPage() {
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [checked, setChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formatVersion = (value?: string | null) => {
+    const version = String(value || "").trim();
+    return /^v(?:ersion)?\b/i.test(version) ? version : `Version ${version || "—"}`;
+  };
+  const formatDate = (value?: string | null) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
 
   useEffect(() => {
     let active = true;
@@ -42,6 +52,7 @@ export default function GeneralAgreementPage() {
       setIsSubmitting(true);
       await agreementApi.acceptGeneralAgreement(agreement.agreement_document_id);
       setAgreement({ ...agreement, status: "accepted" });
+      window.dispatchEvent(new Event("creator-general-agreement-accepted"));
       toast.success("General agreement accepted");
       router.push("/creator/dashboard");
     } catch (error) {
@@ -55,8 +66,8 @@ export default function GeneralAgreementPage() {
   return (
     <>
       <Topbar pathname={pathname} />
-      <main className="min-h-screen w-full bg-black px-4 py-6 text-white md:px-8 lg:px-12">
-        <div className="mx-auto max-w-6xl space-y-4">
+      <main className="min-h-screen w-full bg-black px-4 py-6 text-white md:px-8 lg:px-10 lg:py-9">
+        <div className="w-full space-y-4">
           <button onClick={() => router.back()} className="flex items-center gap-2 text-sm font-medium text-gray-300 hover:text-white"><ArrowLeft size={16} /> Back</button>
           {!agreement ? (
             <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#E8D1AB]" /></div>
@@ -65,9 +76,9 @@ export default function GeneralAgreementPage() {
               <article className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717] text-white/80">
                 <header className="flex flex-col gap-4 border-b border-[#3D3D3D] bg-[#202020] p-5 sm:flex-row sm:items-start sm:justify-between lg:px-9 lg:py-7">
                   <div><p className="text-xs font-semibold uppercase tracking-wider text-[#D8CCBA]">General Agreement</p><h1 className="mt-1 text-xl text-white lg:text-3xl">{agreement.title}</h1></div>
-                  <div className="flex flex-col items-start gap-1 sm:items-end"><span className="rounded-lg bg-[#E8D1AB] px-3 py-1 text-xs font-medium text-black">{agreement.display_version}</span><span className="text-[10px] text-white/60">{agreement.responded_at ? `Accepted ${new Date(agreement.responded_at).toLocaleDateString()}` : "Awaiting acceptance"}</span></div>
+                  <div className="flex flex-col items-start gap-1 sm:items-end"><span className="rounded-lg bg-[#E8D1AB] px-3 py-1 text-xs font-medium text-black">{formatVersion(agreement.display_version)}</span><span className="text-[10px] text-white/60">{agreement.responded_at ? `Accepted ${formatDate(agreement.responded_at)}` : "Awaiting acceptance"}</span></div>
                 </header>
-                <div className="prose prose-invert max-w-none p-5 text-sm leading-relaxed text-white/80 lg:p-9" dangerouslySetInnerHTML={{ __html: agreement.content_html }} />
+                <div className="max-w-none p-5 text-sm leading-6 text-white/80 lg:p-9 lg:text-base lg:leading-7 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_section]:border-t [&_section]:border-[#51504E] [&_section]:pt-6 [&_section]:first:border-t-0 [&_section]:first:pt-0 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-medium [&_h1]:text-white [&_h2]:mb-4 [&_h2]:text-base [&_h2]:font-medium [&_h2]:text-[#E8D1AB] [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6" dangerouslySetInnerHTML={{ __html: agreement.content_html }} />
               </article>
               <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-6">
                 {accepted ? <div className="flex items-center gap-2 font-medium text-[#16A34A]"><Check size={18} /> You have accepted this agreement.</div> : <>

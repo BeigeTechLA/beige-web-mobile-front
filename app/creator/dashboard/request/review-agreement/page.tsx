@@ -9,6 +9,27 @@ import Topbar from "@/components/admin/Topbar";
 import SuccessModal from "@/components/creator-profile/AgreementAcceptedSuccess";
 import { toast } from "sonner";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+
+type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
+
+const formatDate = (value?: string | null) => value
+  ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
+  : "—";
+
+const getAgreementSections = (content: unknown): AgreementSection[] => {
+  const parsed = typeof content === "string" ? (() => {
+    try { return JSON.parse(content); } catch { return null; }
+  })() : content;
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { sections?: unknown }).sections)) return [];
+  return (parsed as { sections: AgreementSection[] }).sections.filter((section) =>
+    section && typeof section.title === "string" && typeof section.content === "string" && section.content.trim(),
+  );
+};
+
+const SectionContent = ({ content }: { content: string }) => /<[/!]?\w[\s\S]*>/i.test(content)
+  ? <div className="agreement-content" dangerouslySetInnerHTML={{ __html: content }} />
+  : <p className="whitespace-pre-wrap">{content}</p>;
 
 export default function AgreementReviewPage() {
   const router = useRouter();
@@ -34,12 +55,12 @@ export default function AgreementReviewPage() {
     projectId: String(snapshot?.booking_id || agreement?.booking_id || "—"),
     assignmentId: String(snapshot?.assignment_id || agreement?.assignment_id || "—"),
     creativePartner: snapshot?.creative_partner?.name || "—",
-    role: snapshot?.creative_partner?.role || "—",
+    role: getPrimaryRoleLabel(snapshot?.creative_partner?.role),
   };
 
   // Production Details
   const productionDetails = {
-    productionDate: snapshot?.shoot?.date ? new Date(snapshot.shoot.date).toLocaleDateString() : "—",
+    productionDate: formatDate(snapshot?.shoot?.date),
     location: snapshot?.shoot?.location || "—",
     callTime: snapshot?.shoot?.start_time || "—",
     expectedEndTime: snapshot?.shoot?.end_time || "—",
@@ -50,19 +71,19 @@ export default function AgreementReviewPage() {
 
   // Detailed Specifications
   const asText = (value: unknown) => Array.isArray(value) ? value.join(", ") : String(value || "—");
-  const scopeOfServices = snapshot?.shoot?.scope || "—";
-
-  const equipmentRequirements = asText(snapshot?.shoot?.equipment);
-
-  const deliverablesMediaTransfer = asText(snapshot?.shoot?.deliverables);
-
-  const approvedExpensesTravel = asText(snapshot?.extras?.expenses);
-
-  const specialInstructions = snapshot?.shoot?.special_instructions || "—";
+  const fallbackSections = [
+    { title: "Scope of Services", content: asText(snapshot?.shoot?.scope) },
+    { title: "Equipment Requirements", content: asText(snapshot?.shoot?.equipment) },
+    { title: "Deliverables / Media Transfer", content: asText(snapshot?.shoot?.deliverables) },
+    { title: "Approved Expenses / Travel", content: asText(snapshot?.extras?.expenses) },
+    { title: "Special Instructions", content: asText(snapshot?.shoot?.special_instructions) },
+  ].filter((section) => section.content !== "—");
+  const agreementSections = getAgreementSections(agreement?.content_json);
+  const visibleSections = agreementSections.length ? agreementSections : fallbackSections;
 
   const metaFooter = {
     beigeSheetVersion: version,
-    createdDate: agreement?.created_at ? new Date(agreement.created_at).toLocaleString() : "—",
+    createdDate: formatDate(agreement?.created_at),
   };
 
   useEffect(() => {
@@ -276,88 +297,28 @@ export default function AgreementReviewPage() {
 
             <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
 
-            {/* Scope of Services */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Scope of Services
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {scopeOfServices}
-              </div>
-            </div>
+            {visibleSections.map((section, index) => (
+              <React.Fragment key={section.id || `${section.title}-${index}`}>
+                <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
+                <section className="p-5 lg:p-9 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-semibold ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}>{section.num || String(index + 1).padStart(2, "0")}</span>
+                    <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>{section.title}</h2>
+                  </div>
+                  <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
+                      ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
+                      : "bg-gray-50 border-gray-200 text-gray-700"
+                    }`}>
+                    <SectionContent content={section.content || ""} />
+                  </div>
+                </section>
+              </React.Fragment>
+            ))}
 
             <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
 
-            {/* Equipment Requirements */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Equipment Requirements
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {equipmentRequirements}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Deliverables / Media Transfer */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Deliverables / Media Transfer
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {deliverablesMediaTransfer}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Approved Expenses / Travel */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Approved Expenses / Travel
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {approvedExpensesTravel}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Special Instructions & Meta Footer */}
+            {/* Agreement footer */}
             <div className="p-5 lg:p-9 space-y-4">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Special Instructions
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {specialInstructions}
-              </div>
-
               <p className={`text-xs lg:text-sm leading-relaxed pt-2 ${isDark ? "text-[#9E9690]" : "text-gray-600"}`}>
                 This Shoot Assignment Agreement is issued under the Beige Creative
                 Partner Agreement. By accepting, the Creative Partner confirms their
@@ -391,7 +352,7 @@ export default function AgreementReviewPage() {
 
         {/* Bottom Assignment Acceptance Action Card */}
         <div
-          className={`border rounded-2xl max-w-6xl mx-auto p-6 space-y-4 ${isDark
+          className={`border rounded-2xl p-6 space-y-4 ${isDark
               ? "bg-[#171717] border-[#3d3d3d]"
               : "bg-white border-[#E2E8F0]"
             }`}
@@ -413,7 +374,7 @@ export default function AgreementReviewPage() {
               {isChecked && <Check size={14} strokeWidth={3} />}
             </div>
             <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white" : "text-gray-700"}`}>
-              By selecting 'Accept Assignment,' I confirm that I have reviewed this Beige Sheet and agree to perform this Assignment according to its terms and the Beige Creative Partner Agreement. I understand that accepting this Assignment creates a binding project commitment.
+              By selecting &apos;Accept Assignment,&apos; I confirm that I have reviewed this Beige Sheet and agree to perform this Assignment according to its terms and the Beige Creative Partner Agreement. I understand that accepting this Assignment creates a binding project commitment.
             </p>
           </label>
 

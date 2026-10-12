@@ -132,12 +132,12 @@ const menuItems: MenuItem[] = [
       { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
-  // {
-  //   name: "Agreements",
-  //   icon: ClipboardList,
-  //   link: "/admin/agreements",
-  //   permissionKeys: ["agreements"],
-  // },
+  {
+    name: "Agreements",
+    icon: ClipboardList,
+    link: "/admin/agreements",
+    permissionKeys: ["agreements"],
+  },
   {
     name: "Invoices",
     icon: Receipt,
@@ -458,13 +458,27 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                         if (!hierarchyEntry) return true;
                         const childModuleKey =
                           hierarchyEntry[1].children[childIndex];
+
+                        // Quote submenu permissions were introduced after the
+                        // existing admin/sales quote permissions. Keep those
+                        // valid legacy permissions usable until every role has
+                        // been migrated to the per-submenu permission keys.
+                        const canUseLegacyQuoteAccess =
+                          item.name === "Quotes" &&
+                          hasModulePermission(permissions, ["quotes"], "view");
+                        const canUseLegacyFinanceAccess =
+                          item.name === "Finances" &&
+                          hasModulePermission(permissions, ["finances"], "view");
+
                         return Boolean(
-                          childModuleKey &&
-                          hasModulePermission(
-                            permissions,
-                            [childModuleKey],
-                            "view",
-                          ),
+                          canUseLegacyQuoteAccess ||
+                            canUseLegacyFinanceAccess ||
+                            (childModuleKey &&
+                              hasModulePermission(
+                                permissions,
+                                [childModuleKey],
+                                "view",
+                              )),
                         );
                       })
                       .map((child) => {

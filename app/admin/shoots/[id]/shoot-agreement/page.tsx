@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname, useParams } from "next/navigation";
+import { useRouter, usePathname, useParams, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -23,11 +23,13 @@ import {
 import { Step3ReviewAgreement } from "@/components/admin/shoot-details/Step3ReviewAgreement";
 import { getProject } from "@/lib/api";
 import { agreementApi } from "@/lib/api/agreements";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 export default function AdminAgreementDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -111,6 +113,7 @@ export default function AdminAgreementDetailsPage() {
   useEffect(() => {
     const loadShoot = async () => {
       const bookingId = Number(params.id);
+      const requestedAssignmentId = Number(searchParams.get("assignment_id") || 0);
       if (!bookingId) return;
       try {
         const response: any = await getProject(bookingId);
@@ -119,12 +122,17 @@ export default function AdminAgreementDetailsPage() {
         const assignments = Array.isArray(payload?.assignedCrew)
           ? payload.assignedCrew
           : Array.isArray(payload?.assigned_crews) ? payload.assigned_crews : [];
-        const pending = assignments.filter((assignment: any) => Number(assignment?.crew_accept ?? 0) === 0 && Number(assignment?.is_active ?? 1) === 1)
+        const pending = assignments.filter((assignment: any) =>
+          Number(assignment?.crew_accept ?? 0) === 0 &&
+          Number(assignment?.is_active ?? 1) === 1 &&
+          (!requestedAssignmentId || Number(assignment?.id) === requestedAssignmentId),
+        )
           .map((assignment: any) => {
             const cp = assignment.crew_member ?? assignment.creator ?? assignment;
             const name = [cp.first_name, cp.last_name].filter(Boolean).join(" ") || cp.name || `CP #${assignment.crew_member_id}`;
             return {
-              id: String(assignment.id), name, role: cp.primary_role || cp.role || "Creative Partner",
+              id: String(assignment.id), name,
+              role: getPrimaryRoleLabel(cp.primary_role ?? cp.role, cp.role_name),
               assignCode: String(assignment.id), initials: name.split(" ").map((part: string) => part[0]).join("").slice(0, 2),
               compensation: "Set in CP compensation", projectName: booking?.project_name || `Shoot #${bookingId}`,
               projectId: String(bookingId), assignmentId: String(assignment.id),
@@ -137,7 +145,7 @@ export default function AdminAgreementDetailsPage() {
       }
     };
     void loadShoot();
-  }, [params.id]);
+  }, [params.id, searchParams]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   if (!mounted) return null;

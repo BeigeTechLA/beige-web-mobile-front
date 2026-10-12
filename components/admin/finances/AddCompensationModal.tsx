@@ -263,6 +263,21 @@ export default function AddCompensationModal({
     [selectedShootId, shoots]
   );
 
+  // A shoot agreement is bound to an assigned_crew record, not merely to a
+  // selected CP. In the "add creatives" flow that row is created only when
+  // compensation is submitted, so navigating to the agreement wizard early
+  // would always produce an empty state.
+  const canAddShootAgreement = useMemo(() => {
+    if (!currentShoot || selectedCreators.length === 0) return false;
+
+    return selectedCreators.every((creatorId) => {
+      const creator = currentShoot.creators.find(
+        (item) => String(item.creator_id) === creatorId,
+      );
+      return Number(creator?.assignment_id || 0) > 0;
+    });
+  }, [currentShoot, selectedCreators]);
+
   const filteredShoots = useMemo(() => {
     const query = shootSearchQuery.trim().toLowerCase();
     if (!query) return shoots;
@@ -1174,13 +1189,19 @@ export default function AddCompensationModal({
             </button>
              <button
               type="button"
-              // disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
-              onClick={()=>router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
+              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || !canAddShootAgreement}
+              onClick={() => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
+              title={canAddShootAgreement ? "Create a shoot agreement" : "Submit compensation first to assign the selected Creative Partner(s) to this shoot."}
               className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Add Shoot Agreement
             </button>
           </div>
+          {selectedShootId && selectedCreators.length > 0 && !canAddShootAgreement && (
+            <p className={`mt-3 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
+              Submit compensation first. This assigns the selected Creative Partner(s), after which you can create their shoot agreement.
+            </p>
+          )}
         </div>
       </div>
       <AdvancePaymentModal

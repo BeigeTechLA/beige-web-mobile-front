@@ -62,10 +62,13 @@ type ApiResponse<T> = { success: boolean; data: T; message?: string };
 
 export const agreementApi = {
   listGeneralTemplates: () => apiClient.get<ApiResponse<AgreementTemplate[]>>("agreements/admin/general"),
-  createGeneralTemplate: (payload: Pick<AgreementTemplate, "title" | "description" | "version" | "content_html" | "content_json"> & { is_mandatory?: boolean }) =>
+  getGeneralTemplate: (templateId: number) => apiClient.get<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}`),
+  createGeneralTemplate: (payload: Pick<AgreementTemplate, "title" | "description" | "content_html" | "content_json"> & { is_mandatory?: boolean; source_template_id?: number; effective_at?: string | null }) =>
     apiClient.post<ApiResponse<AgreementTemplate>>("agreements/admin/general", payload),
   updateGeneralTemplate: (templateId: number, payload: Partial<AgreementTemplate>) =>
     apiClient.patch<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}`, payload),
+  deleteGeneralTemplate: (templateId: number) =>
+    apiClient.delete<ApiResponse<{ agreement_template_id: number; deleted: boolean }>>(`agreements/admin/general/${templateId}`),
   publishGeneralTemplate: (templateId: number) =>
     apiClient.post<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}/publish`),
 

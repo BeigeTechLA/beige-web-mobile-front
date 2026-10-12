@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { GeneralAgreementModal } from "./GeneralAgreementModal";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
@@ -9,6 +9,7 @@ import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 /** Keeps the mandatory CP agreement gate in one place for all creator routes. */
 export function CreatorAgreementGate() {
   const router = useRouter();
+  const pathname = usePathname();
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [isRequired, setIsRequired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,16 @@ export function CreatorAgreementGate() {
     return () => { active = false; };
   }, []);
 
-  if (loading || !isRequired || !agreement) return null;
+  useEffect(() => {
+    const markAccepted = () => setIsRequired(false);
+    window.addEventListener("creator-general-agreement-accepted", markAccepted);
+    return () => window.removeEventListener("creator-general-agreement-accepted", markAccepted);
+  }, []);
+
+  // The full agreement page is the required modal's continuation. Rendering
+  // the overlay there traps the CP behind it and leaves a stale page behind.
+  const isViewingGeneralAgreement = pathname?.startsWith("/creator/dashboard/agreements/general-agreement");
+  if (loading || !isRequired || !agreement || isViewingGeneralAgreement) return null;
 
   return (
     <GeneralAgreementModal

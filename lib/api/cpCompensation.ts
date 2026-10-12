@@ -137,6 +137,8 @@ export type PendingCompensationShoot = {
     email?: string | null;
   };
   creators: Array<{
+    /** Present when the CP has already been persisted in assigned_crew. */
+    assignment_id?: number;
     creator_id: number;
     creator_name: string | null;
     creator_email?: string | null;
