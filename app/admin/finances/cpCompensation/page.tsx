@@ -26,13 +26,21 @@ import {
   cpCompensationApi,
   type AddCpCompensationPayload,
   type CpCompensationDetails,
+  type CpCompensationOverview,
   type PendingCompensationShoot,
 } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { getFirstAllowedAdminPath } from "@/lib/permissions";
 
-const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const metricDropdownOptions = ["All time", "This month", "Last 3 months", "This year"];
+
+const overviewPeriodByLabel = {
+  "All time": "all_time",
+  "This month": "this_month",
+  "Last 3 months": "last_3_months",
+  "This year": "this_year",
+} as const;
 
 const MOCK_SHOOT_DATA: ShootCPRow[] = [
   {
@@ -209,6 +217,14 @@ export default function AdminFinancesPage() {
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
+  const [compensationOverview, setCompensationOverview] = useState<CpCompensationOverview>({
+    total_amount: 0,
+    paid_amount: 0,
+    payable_amount: 0,
+    paid_assignments: 0,
+    payable_assignments: 0,
+    total_assignments: 0,
+  });
   const [pendingTableData, setPendingTableData] = useState<ShootCPRow[]>([]);
   const [pendingTableLoading, setPendingTableLoading] = useState(false);
   const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
@@ -219,7 +235,7 @@ export default function AdminFinancesPage() {
   const [pendingShootsLoading, setPendingShootsLoading] = useState(false);
   const [isAddSubmitting, setIsAddSubmitting] = useState(false);
   const [activeMetricId, setActiveMetricId] = useState("available");
-  const [metricRange, setMetricRange] = useState("Month");
+  const [metricRange, setMetricRange] = useState("All time");
   const [dataType, setDataType] = useState<TabType>("shoots");
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
   const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
@@ -260,10 +276,8 @@ export default function AdminFinancesPage() {
           currency: "USD",
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        }).format(
-          overviewRows.reduce((sum, row) => sum + Number(row.cpPayout || 0), 0)
-        ),
-      helperText: "Paid",
+        }).format(compensationOverview.total_amount),
+      helperText: `Paid ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(compensationOverview.paid_amount)} · Payable ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(compensationOverview.payable_amount)}`,
       icon: CircleDollarSign,
     },
     {
@@ -292,6 +306,11 @@ export default function AdminFinancesPage() {
   const loadHistory = useCallback(async (view: TabType) => {
     setLoading(true);
     try {
+      const overview = await cpCompensationApi.overview(
+        overviewPeriodByLabel[metricRange as keyof typeof overviewPeriodByLabel] || "all_time",
+      );
+      setCompensationOverview(overview);
+
       if (view === "shoots") {
         const shoots = (await cpCompensationApi.list("shoots")).map((row) => ({
           ...row,
@@ -326,7 +345,7 @@ export default function AdminFinancesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [metricRange]);
 
   const loadPendingCompensation = useCallback(async () => {
     setPendingTableLoading(true);
@@ -894,7 +913,7 @@ export default function AdminFinancesPage() {
           metrics={metrics}
           activeId={activeMetricId}
           onSelect={setActiveMetricId}
-          dropdownLabel="Month"
+          dropdownLabel="Period"
           dropdownValue={metricRange}
           dropdownOptions={metricDropdownOptions}
           onDropdownChange={setMetricRange}

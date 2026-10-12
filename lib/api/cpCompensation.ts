@@ -145,6 +145,15 @@ export type PendingCompensationShoot = {
   }>;
 };
 
+export type CpCompensationOverview = {
+  total_amount: number;
+  paid_amount: number;
+  payable_amount: number;
+  paid_assignments: number;
+  payable_assignments: number;
+  total_assignments: number;
+};
+
 export type AddCpCompensationPayload = {
   booking_id: number;
   compensation_method: "equal_split" | "role_based" | "manual";
@@ -274,6 +283,14 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
 });
 
 export const cpCompensationApi = {
+  async overview(period: "all_time" | "this_month" | "last_3_months" | "this_year" = "all_time") {
+    const response = await apiClient.get<ApiEnvelope<CpCompensationOverview>>(
+      "finance/cp-compensation/overview",
+      { period },
+    );
+    return response.data;
+  },
+
   async list(view: "shoots" | "creators") {
     const response = await apiClient.get<ApiEnvelope<{ rows: RawCpRow[] }>>("finance/cp-compensation", {
       page: 1,
