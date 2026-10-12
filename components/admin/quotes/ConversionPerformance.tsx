@@ -15,6 +15,11 @@ import {
 
 type MetricTab = "winRate" | "avgDealValue" | "quoteToCash";
 
+type HoveredBar = {
+  label: string;
+  value: string;
+} | null;
+
 type FormulaSource = {
   label: string;
   value: number;
@@ -38,10 +43,8 @@ export default function ConversionPerformanceWidget({
   isDark?: boolean;
   data?: ConversionPerformanceData;
 }) {
-  const [activeTab, setActiveTab] = useState<MetricTab>("winRate");
-  const selectMetric = (metric: MetricTab) => {
-    setActiveTab((current) => (current === metric ? current : metric));
-  };
+  const [activeTab, setActiveTab] = useState<MetricTab | null>("winRate");
+  const [hoveredBar, setHoveredBar] = useState<HoveredBar>(null);
   const quoteValue = data?.quote_value ?? 0;
   const dealsWon = data?.deals_won ?? 0;
   const quotesSent = data?.quotes_sent ?? 0;
@@ -78,9 +81,9 @@ export default function ConversionPerformanceWidget({
     ],
   };
 
-  const activeFormulaSources = [...formulaSources[activeTab]].sort(
-    (left, right) => left.value - right.value
-  );
+  const activeFormulaSources = activeTab
+    ? [...formulaSources[activeTab]].sort((left, right) => left.value - right.value)
+    : [];
 
   const buildFormulaRadialData = (sources: FormulaSource[]) => {
     const [lowerSource, higherSource] = [...sources].sort(
@@ -102,6 +105,31 @@ export default function ConversionPerformanceWidget({
       },
     ];
   };
+
+  // 1. General View Concentric Data (Inner to Outer)
+  const generalRadialData = [
+    {
+      name: "Win Rate",
+      value: winRate,
+      fill: "#38BDF8",
+      tooltipLabel: "Deal won",
+      tooltipValue: `${winRate}%`,
+    },
+    {
+      name: "Avg Deal Value",
+      value: averageDealValue > 0 ? 100 : 0,
+      fill: "#A78BFA",
+      tooltipLabel: "Avg. deal value",
+      tooltipValue: formatQuoteAnalyticsCurrency(averageDealValue),
+    },
+    {
+      name: "Quote-to-Cash",
+      value: quoteToCashConversion,
+      fill: "#FFF099",
+      tooltipLabel: "Quote-to-cash",
+      tooltipValue: `${quoteToCashConversion}%`,
+    },
+  ];
 
   const winRateRadialData = buildFormulaRadialData(formulaSources.winRate);
   const avgDealRadialData = buildFormulaRadialData(formulaSources.avgDealValue);
@@ -253,6 +281,51 @@ export default function ConversionPerformanceWidget({
             </div>
           )}
 
+          {/* 4. Default / General Overview Chart View */}
+          {activeTab === null && (
+            <div className="relative w-full h-full flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadialBarChart
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="35%"
+                  outerRadius="95%"
+                  barSize={16}
+                  data={generalRadialData}
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                  <RadialBar
+                    background={{
+                      fill: isDark
+                        ? "rgba(29, 29, 29, 1)"
+                        : "rgba(0,0,0,0.06)",
+                    }}
+                    dataKey="value"
+                    cornerRadius={12}
+                    onMouseEnter={(entry) => {
+                      setHoveredBar({
+                        label: entry.tooltipLabel,
+                        value: entry.tooltipValue,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredBar(null)}
+                  />
+                </RadialBarChart>
+              </ResponsiveContainer>
+
+              {/* Recharts Segment Hover Tooltip */}
+              {hoveredBar && (
+                <div className="absolute top-[28%] right-[15%] bg-white text-black px-3.5 py-1.5 rounded-xl shadow-2xl border border-black/10 flex items-center gap-1.5 text-xs font-semibold z-20 pointer-events-none transition-opacity duration-200">
+                  <span className="text-sm font-bold">{hoveredBar.value}</span>
+                  <span className="text-black/60 font-normal">
+                    {hoveredBar.label}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -261,8 +334,9 @@ export default function ConversionPerformanceWidget({
         {/* Win Rate Button */}
         <button
           type="button"
-          onClick={() => selectMetric("winRate")}
-          aria-pressed={activeTab === "winRate"}
+          onClick={() =>
+            setActiveTab(activeTab === "winRate" ? null : "winRate")
+          }
           className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "winRate"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
@@ -322,8 +396,9 @@ export default function ConversionPerformanceWidget({
         {/* Avg. Deal Value Button */}
         <button
           type="button"
-          onClick={() => selectMetric("avgDealValue")}
-          aria-pressed={activeTab === "avgDealValue"}
+          onClick={() =>
+            setActiveTab(activeTab === "avgDealValue" ? null : "avgDealValue")
+          }
           className={`p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none ${activeTab === "avgDealValue"
             ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
             : isDark
@@ -386,8 +461,9 @@ export default function ConversionPerformanceWidget({
       {/* Quote-To-Cash Conversion Button */}
       <button
         type="button"
-        onClick={() => selectMetric("quoteToCash")}
-        aria-pressed={activeTab === "quoteToCash"}
+        onClick={() =>
+          setActiveTab(activeTab === "quoteToCash" ? null : "quoteToCash")
+        }
         className={`w-full mt-3 p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
           ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
           : isDark
