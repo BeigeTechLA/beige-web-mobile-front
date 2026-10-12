@@ -2073,6 +2073,70 @@ export const getCreatorEarningDetails = async (
 
 
 
+export type FinanceAnalyticsParams = {
+  start_date?: string; // YYYY-MM-DD, must be sent with end_date
+  end_date?: string;   // YYYY-MM-DD, must be sent with start_date
+  timezone?: string;   // IANA, backend default Asia/Kolkata
+};
+
+export type FinanceAnalyticsData = {
+  filters: { start_date: string | null; end_date: string | null; timezone: string };
+  revenue: {
+    gross_revenue: { amount: number };
+    refund_amount: number;
+    net_revenue: { amount: number };
+    pending_revenue: { amount: number };
+    cp_payout: { paid_amount: number; payable_amount: number; total_amount: number };
+    series: Array<{ date: string; gross: number; pending: number; cp_payout: number; refunds: number; net_revenue: number }>;
+  };
+  creative_partners: {
+    top_by_payout: Array<{ id: string; name: string; payout: number; shoots: number; shoot_revenue: number; margin: number }>;
+    top_by_shoots: Array<{ id: string; name: string; shoots: number }>;
+    averages: { payout_per_assignment: number; cp_payout_percent_of_revenue: number; cps_per_shoot: number };
+    payout_timeline: Array<{
+      id: string;
+      label: string;
+      segments: { upcoming: number; dueSoon: number; later: number; overdue: number };
+    }>;
+    top_overdue: Array<{ id: string; name: string; amount: number; days_overdue: number }>;
+  };
+  clients: {
+    top_by_shoots: FinanceAnalyticsClient[];
+    top_by_spend: FinanceAnalyticsClient[];
+    average_spend_per_shoot: { amount: number };
+    payment_overview: Array<{ id: string; label: string; clients: number }>;
+    outstanding: {
+      collected_amount: number;
+      outstanding_amount: number;
+      recovered_amount: number;
+      recovered_series: Array<{ name: string; value: number }>;
+    };
+  };
+  disputes: {
+    raised: number;
+    resolved: number;
+    pending: number;
+    active: number;
+    top_reasons: Array<{ id: string; name: string; cases: number }>;
+  };
+};
+
+export type FinanceAnalyticsClient = {
+  id: string;
+  name: string;
+  shoots: number;
+  spend: number;
+  collected: number;
+  outstanding: number;
+  status: string;
+};
+
+export type FinanceAnalyticsResponse = {
+  success: boolean;
+  data: FinanceAnalyticsData | null;
+  error?: string;
+};
+
 export const adminApi = {
   getUserLoginHistory: async (
     params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
@@ -2243,6 +2307,25 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update signup credit promotion',
+      };
+    }
+  },
+  getFinanceAnalytics: async (
+    params: FinanceAnalyticsParams = {},
+    signal?: AbortSignal,
+  ): Promise<FinanceAnalyticsResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceAnalyticsResponse>('finance/admin/analytics', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Finance Analytics Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch finance analytics',
       };
     }
   },

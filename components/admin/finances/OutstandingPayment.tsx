@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -45,32 +46,36 @@ const formatUSD = (n: number) =>
 /* ------------------------------------------------------------------ */
 
 interface OutstandingPaymentProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: OutstandingPaymentData;
+  /** analytics.clients.outstanding */
+  data?: FinanceAnalyticsData['clients']['outstanding'] | null;
+  loading?: boolean;
   title?: string;
   infoText?: string;
 }
 
 export default function OutstandingPayment({
-  data,
+  data = null,
+  loading = false,
   title = 'Outstanding Payment',
   infoText = 'Total payment pending from clients against gross revenue.',
 }: OutstandingPaymentProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [hovered, setHovered] = useState<'paid' | 'remaining' | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
-  const d = data ?? DUMMY;
+  const d: OutstandingPaymentData = useMemo(
+    () => ({
+      paid: data?.collected_amount ?? 0,
+      remaining: data?.outstanding_amount ?? 0,
+      recovered: data?.recovered_amount ?? 0,
+      recoveredSeries: data?.recovered_series ?? [],
+    }),
+    [data]
+  );
 
   const total = d.paid + d.remaining;
   const paidPct = total ? Math.round((d.paid / total) * 100) : 0;

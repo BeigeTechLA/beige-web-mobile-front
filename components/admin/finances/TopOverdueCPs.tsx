@@ -3,16 +3,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Info, Search } from 'lucide-react';
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
 type OverdueStatus = 'overdue' | 'partial' | 'on_hold';
@@ -25,21 +20,15 @@ export interface OverdueCP {
   avatarUrl?: string;     // optional – falls back to initials
   amount: number;         // USD
   daysOverdue: number;
-  status: OverdueStatus;
-  period: Period;         // when the payout fell due
-  role: CPRole;
+  status?: OverdueStatus;
+  role?: CPRole;
 }
 
-const DUMMY_CPS: OverdueCP[] = [
-  { id: 'cp_1', name: 'Ethan Carter', amount: 10_000, daysOverdue: 12, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_2', name: 'Sophia Johnson', amount: 7_560, daysOverdue: 9, status: 'partial', period: 'this_month', role: 'videographer' },
-  { id: 'cp_3', name: 'John Lee', amount: 5_125, daysOverdue: 7, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_4', name: 'Arvi Ross', amount: 3_456, daysOverdue: 5, status: 'on_hold', period: 'this_month', role: 'videographer' },
-  { id: 'cp_5', name: 'Raj Yadav', amount: 1_500, daysOverdue: 1, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_6', name: 'Maya Chen', amount: 8_900, daysOverdue: 34, status: 'overdue', period: 'last_month', role: 'videographer' },
-  { id: 'cp_7', name: 'Leo Martins', amount: 4_200, daysOverdue: 28, status: 'partial', period: 'last_month', role: 'photographer' },
-  { id: 'cp_8', name: 'Nora Blake', amount: 12_300, daysOverdue: 61, status: 'on_hold', period: 'last_3_months', role: 'videographer' },
-];
+export interface OverdueFilters {
+  status: 'all' | OverdueStatus;
+  period: Period;
+  role: 'all' | CPRole;
+}
 
 const STATUS_LABEL: Record<OverdueStatus, string> = {
   overdue: 'Overdue',
@@ -65,8 +54,9 @@ const initials = (name: string) =>
 /* ------------------------------------------------------------------ */
 
 interface TopOverdueCPsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: OverdueCP[];
+  data?: FinanceAnalyticsData['creative_partners']['top_overdue'] | null;
+  loading?: boolean;
+  onFiltersChange?: (filters: OverdueFilters) => void;
   /** Max rows shown */
   limit?: number;
   title?: string;
@@ -74,41 +64,47 @@ interface TopOverdueCPsProps {
 }
 
 export default function TopOverdueCPs({
-  data,
+  data = null,
+  loading = false,
+  onFiltersChange,
   limit = 5,
   title = 'Top Overdue CPs',
   infoText = 'CPs with overdue payments, ranked by highest outstanding amount.',
 }: TopOverdueCPsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [status, setStatus] = useState<'all' | OverdueStatus>('all');
   const [period, setPeriod] = useState<Period>('this_month');
   const [role, setRole] = useState<'all' | CPRole>('all');
   const [query, setQuery] = useState('');
 
-  useEffect(() => setMounted(true), []);
-
-  // Simulated fetch whenever filters that would hit the API change
   useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(t);
-  }, [status, period, role]);
+    onFiltersChange?.({ status, period, role });
+  }, [status, period, role, onFiltersChange]);
+
+  useEffect(() => setMounted(true), []);
 
   const isDark = !mounted || theme === "dark";
 
-  // Filter → search → sort by amount (desc) → top N
+  // Map API rows → search by name → sort by amount (desc) → top N
   const rows: OverdueCP[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? DUMMY_CPS)
-      .filter((cp) => status === 'all' || cp.status === status)
-      .filter((cp) => cp.period === period)
-      .filter((cp) => role === 'all' || cp.role === role)
+    return (data ?? [])
+      .map((cp) => ({
+        id: cp.id,
+        name: cp.name,
+        amount: cp.amount,
+        daysOverdue: cp.days_overdue,
+        status: (cp as { status?: OverdueStatus }).status,
+        role: (cp as { role?: CPRole }).role,
+      }))
+      .filter((cp) => status === 'all' || !cp.status || cp.status === status)
+      .filter((cp) => role === 'all' || !cp.role || cp.role === role)
       .filter((cp) => !q || cp.name.toLowerCase().includes(q))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, limit);
-  }, [data, status, period, role, query, limit]);
+  }, [data, query, limit, status, role]);
 
   // Colours (warm red-tinted card from the design)
   const cardCls = isDark ? 'bg-[#231B1B] border-[#FF6467] text-white' : 'bg-[#FFF8F7] border-[#E7A3A6] text-[#202020]';
@@ -121,7 +117,7 @@ export default function TopOverdueCPs({
 
   return (
     <div className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
-      {/* Header + filters */}
+      {/* Header */}
       <div className="p-5 pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-1.5">
@@ -172,6 +168,7 @@ export default function TopOverdueCPs({
               </SelectContent>
             </Select>
           </div>
+
         </div>
 
         {/* Search */}
@@ -237,7 +234,7 @@ export default function TopOverdueCPs({
             {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={3} className={`text-center text-sm py-10 ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
-                  No overdue CPs match these filters.
+                  {query.trim() ? 'No overdue CPs match this search.' : 'No overdue CPs found.'}
                 </td>
               </tr>
             )}

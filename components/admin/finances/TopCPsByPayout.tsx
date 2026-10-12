@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 
@@ -15,13 +16,7 @@ export interface CPPayout {
   margin: number;  // %
 }
 
-const DUMMY_CPS: CPPayout[] = [
-  { id: 'cp_1', name: 'Marcus Reid', payout: 143_000_000, margin: 34.2 },
-  { id: 'cp_2', name: 'Priya Nair', payout: 128_000_000, margin: 31.8 },
-  { id: 'cp_3', name: 'Leon Vo', payout: 114_000_000, margin: 29.4 },
-  { id: 'cp_4', name: 'Cleo Dasha', payout: 99_000_000, margin: 32.1 },
-  { id: 'cp_5', name: 'Amara Sow', payout: 87_000_000, margin: 28.9 },
-];
+
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -40,7 +35,8 @@ const formatCompactUSD = (n: number) =>
 /* ------------------------------------------------------------------ */
 
 interface TopCPsByPayoutProps {
-  data?: CPPayout[];
+  data?: FinanceAnalyticsData['creative_partners']['top_by_payout'] | null;
+  loading?: boolean;
   limit?: number; /** How many CPs to show */
   title?: string;
   infoText?: string;
@@ -48,27 +44,22 @@ interface TopCPsByPayoutProps {
 
 export default function TopCPsByPayout({
   data,
+  loading = false,
   limit = 5,
   title = 'Top CPs By Payout',
   infoText = 'Top 5 CPs based on total payout',
 }: TopCPsByPayoutProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   useEffect(() => setMounted(true), []);
-
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const isDark = !mounted || theme === "dark";
 
   // Sort by payout (desc), keep top N, and size bars relative to the #1 CP
   const rows = useMemo(() => {
-    const sorted = [...(data ?? DUMMY_CPS)].sort((a, b) => b.payout - a.payout).slice(0, limit);
+    const sorted = [...(data ?? [])].sort((a, b) => b.payout - a.payout).slice(0, limit);
     const max = sorted[0]?.payout || 1;
     return sorted.map((cp, i) => ({
       ...cp,

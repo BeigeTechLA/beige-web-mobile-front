@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; 
 
 /* ------------------------------------------------------------------ */
 /* Categories (segment colours + legend)                               */
@@ -51,35 +52,30 @@ const formatCompactUSD = (n: number) =>
 /* ------------------------------------------------------------------ */
 
 interface CPPayoutTimelineProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: PayoutBucket[];
+  data?: FinanceAnalyticsData['creative_partners']['payout_timeline'] | null;
+  loading?: boolean;
   title?: string;
   infoText?: string;
 }
 
 export default function CPPayoutTimeline({
-  data,
+  data = null,
+  loading = false,
   title = 'CP Payout Timeline',
   infoText = 'Timeline of payments made or due to Content Partners (CPs).',
 }: CPPayoutTimelineProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [hovered, setHovered] = useState<{ bucket: string; seg: SegmentId } | null>(null);
 
   useEffect(() => setMounted(true), []);
-
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const isDark = !mounted || theme === "dark";
 
   // Each bar's length = its total vs the largest total; segments split the bar by share
   const rows: (PayoutBucket & { total: number; barPct: number })[] = useMemo(() => {
-    const buckets = data ?? DUMMY_BUCKETS;
+    const buckets: PayoutBucket[] = data ?? [];
     const withTotals = buckets.map((b) => ({
       ...b,
       total: SEGMENTS.reduce((sum, s) => sum + (b.segments[s.id] ?? 0), 0),

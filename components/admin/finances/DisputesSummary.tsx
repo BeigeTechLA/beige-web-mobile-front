@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -18,11 +19,13 @@ export interface DisputeMetric {
   value: number;
 }
 
-const DUMMY_METRICS: DisputeMetric[] = [
-  { id: 'raised', label: 'Disputes Raised', info: 'Total new Disputes raised.', value: 76, textColor: 'text-white' },
-  { id: 'resolved', label: 'Resolved Disputes', info: 'Disputes resolved successfully.', value: 47, textColor: 'text-[#70BB8C]' },
-  { id: 'pending', label: 'Pending Disputes', info: 'Disputes waiting for action/resolution.', value: 60, textColor: 'text-[#C9A96E]' },
-  { id: 'active', label: 'Active Disputes', info: 'Disputes currently being worked on - Active/Ongoing.', value: 88, textColor: 'text-[#90C7EA]' },
+type Disputes = FinanceAnalyticsData['disputes'];
+
+const buildMetrics = (d: Disputes | null | undefined): DisputeMetric[] => [
+  { id: 'raised', label: 'Disputes Raised', info: 'Total new Disputes raised.', value: d?.raised ?? 0, textColor: 'text-white' },
+  { id: 'resolved', label: 'Resolved Disputes', info: 'Disputes resolved successfully.', value: d?.resolved ?? 0, textColor: 'text-[#70BB8C]' },
+  { id: 'pending', label: 'Pending Disputes', info: 'Disputes waiting for action/resolution.', value: d?.pending ?? 0, textColor: 'text-[#C9A96E]' },
+  { id: 'active', label: 'Active Disputes', info: 'Disputes currently being worked on - Active/Ongoing.', value: d?.active ?? 0, textColor: 'text-[#90C7EA]' },
 ];
 
 // Bar fades from transparent (left) into the metric colour (right); value uses the same colour
@@ -38,25 +41,20 @@ const COLORS: Record<DisputeMetricId, { dark: string; light: string }> = {
 /* ------------------------------------------------------------------ */
 
 interface DisputesSummaryProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: DisputeMetric[];
+  /** analytics.disputes */
+  data?: Disputes | null;
+  loading?: boolean;
 }
 
-export default function DisputesSummary({ data }: DisputesSummaryProps) {
+export default function DisputesSummary({ data = null, loading = false }: DisputesSummaryProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
-  const metrics = data ?? DUMMY_METRICS;
+  const metrics = useMemo(() => buildMetrics(data), [data]);
   const max = Math.max(1, ...metrics.map((m) => m.value));
 
   return (

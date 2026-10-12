@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import { format, parseISO } from 'date-fns';
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -91,31 +93,42 @@ const ActiveDotWithBubble = (props: any) => {
 /* ------------------------------------------------------------------ */
 
 interface AvgClientSpendPerShootProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: ClientSpendSummary;
+  /** analytics.clients */
+  data?: FinanceAnalyticsData['clients'] | null;
+  /** analytics.revenue.series, used for the sparkline */
+  revenueSeries?: FinanceAnalyticsData['revenue']['series'] | null;
+  loading?: boolean;
   title?: string;
   infoText?: string;
 }
 
 export default function AvgClientSpendPerShoot({
-  data,
+  data = null,
+  revenueSeries = null,
+  loading = false,
   title = 'Average Client Spend Per Shoot',
   infoText = 'Average amount a client spends per shoot.',
 }: AvgClientSpendPerShootProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
-  const d = data ?? DUMMY;
+  const d: ClientSpendSummary = useMemo(() => {
+    const top = data?.top_by_spend?.[0];
+    return {
+      avgSpendPerShoot: data?.average_spend_per_shoot?.amount ?? 0,
+      subtitle: 'Across paid and partially paid shoots',
+      topClient: top?.name ?? '—',
+      topSpend: top?.spend ?? 0,
+      series: (revenueSeries ?? []).map((p) => ({
+        name: format(parseISO(p.date), 'MMM dd'),
+        spend: p.gross,
+      })),
+    };
+  }, [data, revenueSeries]);
 
   // Pre-select the peak so the bubble shows on load like the design
   const peakIndex = d.series.reduce((best, p, i, arr) => (p.spend > arr[best].spend ? i : best), 0);

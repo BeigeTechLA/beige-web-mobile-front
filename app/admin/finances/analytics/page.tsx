@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
-import { SortDateButton } from "@/components/admin/SortDateButton";
+import { DateRangeButton } from "@/components/admin/DateRangeButton";
+import { adminApi } from "@/lib/api"; // change to the real path of your big api file
+import type { FinanceAnalyticsData } from "@/lib/api"; // same path
 
-import { format } from "date-fns";
+import { endOfDay, endOfMonth, endOfWeek, endOfYear, format, startOfDay, startOfMonth, startOfWeek, startOfYear } from "date-fns";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import RevenueOverviewChart from "@/components/admin/finances/RevenueOverviewChart";
 import TopCPsByPayout from "@/components/admin/finances/TopCPsByPayout";
@@ -29,13 +31,76 @@ export default function FinanceAnalyticsPage() {
   const { isDark } = useResolvedTheme();
 
   const [loading, setLoading] = useState(true);
-  const [isDateOpen, setIsDateOpen] = useState(false);
+  const [analytics, setAnalytics] = useState<FinanceAnalyticsData | null>(null);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [period, setPeriod] = useState<"week" | "month" | "year" | "all" | "custom">("all");
 
-  const handleDateSort = (date: Date | null) => {
-    setSelectedDate(date);
+  const handleRangeChange = (start: Date | null, end: Date | null) => {
+    setPeriod(start && end ? "custom" : "all");
+    setStartDate(start);
+    setEndDate(end);
   };
+
+  const handlePeriodChange = (next: "week" | "month" | "year" | "all" | "custom") => {
+    setPeriod(next);
+    if (next === "all" || next === "custom") {
+      if (next === "all") handleRangeChange(null, null);
+      return;
+    }
+    const now = new Date();
+    const start = next === "week" ? startOfWeek(now, { weekStartsOn: 1 }) : next === "month" ? startOfMonth(now) : startOfYear(now);
+    const end = next === "week" ? endOfWeek(now, { weekStartsOn: 1 }) : next === "month" ? endOfMonth(now) : endOfYear(now);
+    setStartDate(startOfDay(start));
+    setEndDate(endOfDay(end));
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      if (Boolean(startDate) !== Boolean(endDate)) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
+      const params =
+        startDate && endDate
+          ? {
+              start_date: format(startDate, "yyyy-MM-dd"),
+              end_date: format(endDate, "yyyy-MM-dd"),
+              timezone,
+            }
+          : { timezone }; // no dates = all-time data
+
+      try {
+        const res = await adminApi.getFinanceAnalytics(params, controller.signal);
+        if (res.canceled) return; // a newer request replaced this one
+        if (res.success && res.data) {
+          setAnalytics(res.data);
+        } else {
+          setAnalytics(null);
+          const msg = res.error || "Failed to load finance analytics";
+          toast.error(
+            /forbidden|permission|not allowed/i.test(msg)
+              ? "You don't have access to Finance Analytics. Ask an admin for the permission, then sign in again."
+              : msg
+          );
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setAnalytics(null);
+        toast.error(error instanceof Error ? error.message : "Failed to load finance analytics");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => controller.abort();
+  }, [startDate, endDate]);
 
   return (
     <>
@@ -55,14 +120,20 @@ export default function FinanceAnalyticsPage() {
             </p>
           </div>
 
-          <SortDateButton
-            selectedDate={selectedDate}
-            onDateChange={handleDateSort}
+          <DateRangeButton
+            startDate={startDate}
+            endDate={endDate}
+            onRangeChange={handleRangeChange}
           />
         </div>
 
         <>
-          <RevenueOverviewChart />
+          <RevenueOverviewChart
+            data={analytics?.revenue ?? null}
+            loading={loading}
+            range={period}
+            onRangeChange={handlePeriodChange}
+          />
           <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
             {/* Header */}
             <div className="flex items-center gap-2">
@@ -70,16 +141,16 @@ export default function FinanceAnalyticsPage() {
               <p className="font-medium text-sm lg:text-base">Creative Partner Analysis</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[60%_40%] gap-3 lg:gap-6">
-              <TopCPsByPayout />
-              <AvgPayoutMarginCount />
+            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
+              <div className="min-w-0"><TopCPsByPayout data={analytics?.creative_partners.top_by_payout ?? null} loading={loading} /></div>
+              <div className="min-w-0"><AvgPayoutMarginCount data={analytics?.creative_partners.averages ?? null} loading={loading} /></div>
             </div>
 
-            <TopCPsByShoots />
+            <TopCPsByShoots data={analytics?.creative_partners.top_by_shoots ?? null} loading={loading} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[55%_45%] gap-3 lg:gap-6">
-              <CPPayoutTimeline />
-              <TopOverdueCPs />
+            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] gap-3 lg:gap-6">
+              <div className="min-w-0"><CPPayoutTimeline data={analytics?.creative_partners.payout_timeline ?? null} loading={loading} /></div>
+              <div className="min-w-0"><TopOverdueCPs data={analytics?.creative_partners.top_overdue ?? null} loading={loading} /></div>
             </div>
           </div>
 
@@ -90,17 +161,25 @@ export default function FinanceAnalyticsPage() {
               <p className="font-medium text-sm lg:text-base">Client Analytics</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[60%_40%] gap-3 lg:gap-6">
-              <TopClients />
-              <div className="space-y-3 lg:space-y-4">
-                <AvgClientSpendPerShoot />
-                <ShootDistribution />
+            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
+              <div className="min-w-0"><TopClients
+                shootsData={analytics?.clients.top_by_shoots ?? null}
+                spendData={analytics?.clients.top_by_spend ?? null}
+                loading={loading}
+              /></div>
+              <div className="min-w-0 space-y-3 lg:space-y-4">
+                <AvgClientSpendPerShoot
+                  data={analytics?.clients ?? null}
+                  revenueSeries={analytics?.revenue.series ?? null}
+                  loading={loading}
+                />
+                <ShootDistribution data={analytics?.clients.top_by_shoots ?? null} loading={loading} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-cols-[30%_70%] gap-3 lg:gap-6">
-              <ClientPaymentOverview />
-              <OutstandingPayment />
+            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-3 lg:gap-6">
+              <div className="min-w-0"><ClientPaymentOverview data={analytics?.clients.payment_overview ?? null} loading={loading} /></div>
+              <div className="min-w-0"><OutstandingPayment data={analytics?.clients.outstanding ?? null} loading={loading} /></div>
             </div>
           </div>
 
@@ -111,8 +190,8 @@ export default function FinanceAnalyticsPage() {
               <p className="font-medium text-sm lg:text-base">Disputes Analytics</p>
             </div>
 
-            <DisputesSummary />
-            <TopDisputeReasons />
+            <DisputesSummary data={analytics?.disputes ?? null} loading={loading} />
+            <TopDisputeReasons data={analytics?.disputes.top_reasons ?? null} loading={loading} />
           </div>
         </>
 

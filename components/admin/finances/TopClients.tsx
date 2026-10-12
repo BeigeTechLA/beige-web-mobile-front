@@ -3,22 +3,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Info, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 /* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
+type SortKey = 'shoots' | 'spend';
 type ClientStatus = 'active' | 'inactive' | 'new';
 type Period = 'this_month' | 'last_month' | 'last_3_months';
 type ClientType = 'brand' | 'agency' | 'studio';
-type SortKey = 'shoots' | 'spend';
 
 export interface TopClient {
   id: string;
@@ -26,30 +20,18 @@ export interface TopClient {
   avatarUrl?: string;   // optional – falls back to initials on a pastel tile
   shoots: number;
   spend: number;        // USD
-  status: ClientStatus;
-  period: Period;
-  type: ClientType;
+  status?: ClientStatus;
+  type?: ClientType;
 }
 
-const NAMES = [
-  'Prince Carter', 'Ethan Carter', 'Sophia Johnson', 'Maya Ross', 'John Lee', 'Arvi Ross',
-  'Daniel Roberts', 'Raj Yadhav', 'Lena Hart', 'Omar Haddad', 'Grace Kim', 'Victor Hale',
-  'Nina Patel', 'Lucas Gray', 'Ivy Chen', 'Mateo Cruz', 'Zara Ali', 'Owen Price',
-  'Aisha Khan', 'Leo Brooks', 'Chloe Martin', 'Kai Tanaka', 'Ruby Evans', 'Sam Okafor',
-];
-const STATUSES: ClientStatus[] = ['active', 'active', 'new', 'inactive'];
-const PERIODS: Period[] = ['this_month', 'this_month', 'last_month', 'last_3_months'];
-const TYPES: ClientType[] = ['brand', 'agency', 'studio'];
+export interface ClientFilters {
+  sortKey: SortKey;
+  status: 'all' | ClientStatus;
+  period: 'all' | Period;
+  type: 'all' | ClientType;
+}
 
-const DUMMY_CLIENTS: TopClient[] = NAMES.map((name, i) => ({
-  id: `client_${i + 1}`,
-  name,
-  shoots: [45, 10, 20, 16, 9, 11, 38, 40, 27, 6, 33, 14, 22, 8, 19, 30, 12, 25, 5, 17, 28, 7, 13, 21][i],
-  spend: [188, 45, 95, 100, 150, 70, 20, 35, 64, 12, 88, 40, 57, 18, 49, 76, 30, 61, 9, 44, 72, 15, 26, 53][i] * 1_000_000,
-  status: STATUSES[i % STATUSES.length],
-  period: PERIODS[i % PERIODS.length],
-  type: TYPES[i % TYPES.length],
-}));
+type ApiClients = FinanceAnalyticsData['clients'];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -82,8 +64,12 @@ const pageList = (current: number, total: number): (number | '…')[] => {
 /* ------------------------------------------------------------------ */
 
 interface TopClientsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: TopClient[];
+  /** analytics.clients.top_by_shoots */
+  shootsData?: ApiClients['top_by_shoots'] | null;
+  /** analytics.clients.top_by_spend */
+  spendData?: ApiClients['top_by_spend'] | null;
+  loading?: boolean;
+  onFiltersChange?: (filters: ClientFilters) => void;
   pageSize?: number;
   title?: string;
 }
@@ -95,13 +81,16 @@ const DEFAULT_INFO: Record<SortKey, string> = {
 };
 
 export default function TopClients({
-  data,
+  shootsData = null,
+  spendData = null,
+  loading = false,
+  onFiltersChange,
   pageSize = 8,
   title = 'Top Clients',
 }: TopClientsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [sortKey, setSortKey] = useState<SortKey>('shoots');
   const [status, setStatus] = useState<'all' | ClientStatus>('all');
   const [period, setPeriod] = useState<'all' | Period>('all');
@@ -111,31 +100,36 @@ export default function TopClients({
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch whenever filters that would hit the API change
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(t);
-  }, [sortKey, status, period, type]);
-
   // Back to page 1 when the result set changes
-  useEffect(() => setPage(1), [sortKey, status, period, type, query]);
+  useEffect(() => setPage(1), [sortKey, status, period, type, query, shootsData, spendData]);
+
+  useEffect(() => {
+    onFiltersChange?.({ sortKey, status, period, type });
+  }, [sortKey, status, period, type, onFiltersChange]);
 
   const isDark = !mounted || theme === "dark";
 
   // Tooltip follows the selected tab (By Shoot / By Spend)
   const tooltipText = DEFAULT_INFO[sortKey];
 
-  // Filter → search → sort by the toggle (desc)
+  // Pick the list for the active tab → search by name → sort (desc)
   const filtered: TopClient[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? DUMMY_CLIENTS)
-      .filter((c) => status === 'all' || c.status === status)
-      .filter((c) => period === 'all' || c.period === period)
-      .filter((c) => type === 'all' || c.type === type)
+    const source = (sortKey === 'shoots' ? shootsData : spendData) ?? [];
+    return source
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        shoots: c.shoots,
+        spend: c.spend,
+        status: (c as { status?: ClientStatus }).status,
+        type: (c as { type?: ClientType }).type,
+      }))
+      .filter((c) => status === 'all' || !c.status || c.status === status)
+      .filter((c) => type === 'all' || !c.type || c.type === type)
       .filter((c) => !q || c.name.toLowerCase().includes(q))
       .sort((a, b) => (sortKey === 'shoots' ? b.shoots - a.shoots : b.spend - a.spend));
-  }, [data, status, period, type, query, sortKey]);
+  }, [shootsData, spendData, query, sortKey, status, type]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -146,13 +140,13 @@ export default function TopClients({
   const headerBg = isDark ? 'bg-[#090909]' : 'bg-[#F4F5F7]';
   const divider = isDark ? 'border-[#3D3D3D]' : 'border-[#E5E5E5]';
   const gold = isDark ? 'text-[#E8D1AB]' : 'text-[#9C7B45]';
+  const skeleton = isDark ? 'bg-white/10' : 'bg-zinc-200';
   const triggerCls = `w-auto min-w-[48px] gap-2 rounded-full h-8 px-2.5 text-[10px] focus:ring-0 ${isDark ? "bg-[#171717] border-[#807E7E] text-[#C4C4C4]" : "bg-white border-[#E3E3E3] text-[#323232]"}`;
   const contentCls = isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]";
-  const skeleton = isDark ? 'bg-white/10' : 'bg-zinc-200';
 
   return (
     <div className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${cardCls}`}>
-      {/* Header: title, toggle, filters, search */}
+      {/* Header: title, toggle, search */}
       <div className={`shrink-0 p-5 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <div className="flex items-center justify-between gap-2 mb-5">
           <div className="flex items-center gap-3">
@@ -205,9 +199,7 @@ export default function TopClients({
 
             <Select value={period} onValueChange={(v: string) => setPeriod(v as 'all' | Period)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Month">
-                  {period === 'all' ? 'Month' : period === 'this_month' ? 'This Month' : period === 'last_month' ? 'Last Month' : '3 Months'}
-                </SelectValue>
+                <SelectValue placeholder="Month">{period === 'all' ? 'Month' : period === 'this_month' ? 'This Month' : period === 'last_month' ? 'Last Month' : '3 Months'}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
                 <SelectItem value="all">Any time</SelectItem>
@@ -229,6 +221,7 @@ export default function TopClients({
               </SelectContent>
             </Select>
           </div>
+
         </div>
 
         {/* Search */}
@@ -297,7 +290,7 @@ export default function TopClients({
             {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={3} className={`text-center text-sm py-12 ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
-                  No clients match these filters.
+                  {query.trim() ? 'No clients match this search.' : 'No clients found.'}
                 </td>
               </tr>
             )}

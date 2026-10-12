@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { FinanceAnalyticsData } from '@/lib/api'; 
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 
@@ -20,35 +21,49 @@ export interface AvgMetric {
   format: (n: number) => string;
 }
 
-const DUMMY_METRICS: AvgMetric[] = [
-  {
-    id: 'payout',
-    label: 'Average CP Payout',
-    bubbleLabel: 'Per Shoot Payout',
-    info: 'Average amount paid to a CP per shoot.',
-    value: 3039,
-    max: 3800,
-    format: (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n),
-  },
-  {
-    id: 'margin',
-    label: 'Average CP Margin',
-    bubbleLabel: 'Avg Margin',
-    info: 'Average margin of the payout that is going for CP payout.',
-    value: 31.3,
-    max: 54,
-    format: (n) => `${n.toFixed(1)}%`,
-  },
-  {
-    id: 'cps',
-    label: 'Average CPs per Shoot',
-    bubbleLabel: 'CPs per Shoot',
-    info: 'Average number of CPs assigned to each shoot.',
-    value: 1.8,
-    max: 7.5,
-    format: (n) => n.toFixed(1),
-  },
-];
+type Averages = FinanceAnalyticsData['creative_partners']['averages'];
+
+const formatUSD0 = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+
+// Bar lengths: margin is a percentage (max 100). The API has no target for the other two,
+// so their bar is a fixed ~80%. Replace with real targets if the backend provides them.
+const BAR_HEADROOM = 1.25;
+
+const buildMetrics = (a: Averages | null | undefined): AvgMetric[] => {
+  const payout = a?.payout_per_assignment ?? 0;
+  const margin = a?.cp_payout_percent_of_revenue ?? 0;
+  const cps = a?.cps_per_shoot ?? 0;
+  return [
+    {
+      id: 'payout',
+      label: 'Average CP Payout',
+      bubbleLabel: 'Per Shoot Payout',
+      info: 'Average amount paid to a CP per shoot.',
+      value: payout,
+      max: payout * BAR_HEADROOM,
+      format: formatUSD0,
+    },
+    {
+      id: 'margin',
+      label: 'Average CP Margin',
+      bubbleLabel: 'Avg Margin',
+      info: 'Average margin of the payout that is going for CP payout.',
+      value: margin,
+      max: 100,
+      format: (n) => `${n.toFixed(1)}%`,
+    },
+    {
+      id: 'cps',
+      label: 'Average CPs per Shoot',
+      bubbleLabel: 'CPs per Shoot',
+      info: 'Average number of CPs assigned to each shoot.',
+      value: cps,
+      max: cps * BAR_HEADROOM,
+      format: (n) => n.toFixed(1),
+    },
+  ];
+};
 
 /* ------------------------------------------------------------------ */
 /* Visual config                                                       */
@@ -101,13 +116,14 @@ const VALUE_POS: Record<AvgMetricId, { x: number; y: number }> = {
 /* ------------------------------------------------------------------ */
 
 interface AvgPayoutMarginCountProps {
-  /** Pass real data later; falls back to dummy data (ids must be payout / margin / cps) */
-  data?: AvgMetric[];
+  data?: Averages | null;
+  loading?: boolean;
   title?: string;
 }
 
 export default function AvgPayoutMarginCount({
-  data,
+  data = null,
+  loading = false,
   title = 'Avg - Payout/Margin/Count',
 }: AvgPayoutMarginCountProps) {
   const { theme } = useTheme();
@@ -124,7 +140,7 @@ export default function AvgPayoutMarginCount({
   }, []);
 
   const isDark = !mounted || theme === "dark";
-  const metrics = data ?? DUMMY_METRICS;
+  const metrics = useMemo(() => buildMetrics(data), [data]);
   const active = activeId ? metrics.find((m) => m.id === activeId) ?? null : null;
 
   // Ring around each circle = card background, so overlaps read as cut-outs

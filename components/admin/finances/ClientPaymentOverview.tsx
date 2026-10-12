@@ -4,7 +4,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
-
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
 /* ------------------------------------------------------------------ */
@@ -18,11 +25,7 @@ export interface PaymentStatusSlice {
 }
 
 // Order = clockwise order around the donut (green → yellow → purple, like the design)
-const DUMMY_SLICES: PaymentStatusSlice[] = [
-  { id: 'fully_paid', label: 'Fully Paid', clients: 52 },
-  { id: 'pending', label: 'Pending', clients: 30 },
-  { id: 'partially_paid', label: 'Partially Paid', clients: 18 },
-];
+const SLICE_ORDER: PaymentStatusId[] = ['fully_paid', 'pending', 'partially_paid'];
 
 // Legend order from the design
 const LEGEND_ORDER: PaymentStatusId[] = ['fully_paid', 'partially_paid', 'pending'];
@@ -45,34 +48,37 @@ const OUTER = 92;
 /* ------------------------------------------------------------------ */
 
 interface ClientPaymentOverviewProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: PaymentStatusSlice[];
+  /** analytics.clients.payment_overview */
+  data?: FinanceAnalyticsData['clients']['payment_overview'] | null;
+  loading?: boolean;
   title?: string;
   infoText?: string;
 }
 
 export default function ClientPaymentOverview({
-  data,
+  data = null,
+  loading = false,
   title = 'Client Payment Overview',
   infoText = 'Breakdown of client payments by status: paid, partially paid, and pending.',
 }: ClientPaymentOverviewProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   // Hovered slice (or legend row); null = nothing hovered, so no bubble
   const [activeId, setActiveId] = useState<PaymentStatusId | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
-  const slices = data ?? DUMMY_SLICES;
-  const total = slices.reduce((s, x) => s + x.clients, 0) || 1;
+  const slices: PaymentStatusSlice[] = useMemo(() => {
+    const byId = new Map((data ?? []).map((s) => [s.id, s]));
+    return SLICE_ORDER.flatMap((id) => {
+      const s = byId.get(id);
+      return s ? [{ id, label: s.label, clients: s.clients }] : [];
+    });
+  }, [data]);
+  const clientCount = slices.reduce((s, x) => s + x.clients, 0);
+  const total = clientCount || 1; // avoid dividing by zero
 
   const withPct = useMemo(
     () => slices.map((s) => ({ ...s, pct: Math.round((s.clients / total) * 100) })),
@@ -173,7 +179,7 @@ export default function ClientPaymentOverview({
           {/* Centre label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-lg lg:text-2xl font-bold leading-tight">Total</span>
-            <span className={`text-xs lg:text-sm ${mutedText}`}>{isLoading ? '…' : `${total} Clients`}</span>
+            <span className={`text-xs lg:text-sm ${mutedText}`}>{isLoading ? '…' : `${clientCount} ${clientCount === 1 ? 'Client' : 'Clients'}`}</span>
           </div>
 
           {/* % bubble on the active slice */}

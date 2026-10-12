@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -51,8 +52,9 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 /* ------------------------------------------------------------------ */
 
 interface TopDisputeReasonsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: DisputeReason[];
+  /** analytics.disputes.top_reasons */
+  data?: FinanceAnalyticsData['disputes']['top_reasons'] | null;
+  loading?: boolean;
   pageSize?: number;
   /**
    * Value a full progress bar represents (e.g. a case threshold).
@@ -65,7 +67,8 @@ interface TopDisputeReasonsProps {
 }
 
 export default function TopDisputeReasons({
-  data,
+  data = null,
+  loading = false,
   pageSize = 5,
   progressMax,
   title = 'Top Dispute Reasons',
@@ -73,22 +76,15 @@ export default function TopDisputeReasons({
 }: TopDisputeReasonsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [page, setPage] = useState(1);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch per page, like a paginated API
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 350);
-    return () => clearTimeout(t);
-  }, [page]);
-
   const isDark = !mounted || theme === "dark";
 
-  const sorted = [...(data ?? DUMMY_REASONS)].sort((a, b) => b.cases - a.cases);
-  const scale = progressMax ?? (data ? Math.max(1, ...sorted.map((r) => r.cases)) : 30);
+  const sorted: DisputeReason[] = [...(data ?? [])].sort((a, b) => b.cases - a.cases);
+  const scale = progressMax ?? Math.max(1, ...sorted.map((r) => r.cases));
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ComposedChart, Bar, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -50,7 +51,8 @@ interface Row {
 const buildRows = (cps: CPShoots[], between: number[]): Row[] => {
   const rows: Row[] = [];
   cps.forEach((cp, i) => {
-    rows.push({ key: `gap-${i}`, label: '', trend: between[i] ?? cp.trend, isCP: false });
+    const prevTrend = cps[i - 1]?.trend ?? cp.trend;
+    rows.push({ key: `gap-${i}`, label: '', trend: between[i] ?? (prevTrend + cp.trend) / 2, isCP: false });
     rows.push({ key: cp.id, label: cp.name, shoots: cp.shoots, trend: cp.trend, isCP: true });
   });
   rows.push({ key: 'gap-end', label: '', trend: between[cps.length] ?? cps[cps.length - 1]?.trend ?? 0, isCP: false });
@@ -100,8 +102,8 @@ const DashedCursor = ({ points, payload, height, top, isDark }: any) => {
 /* ------------------------------------------------------------------ */
 
 interface TopCPsByShootsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: CPShoots[];
+  data?: FinanceAnalyticsData['creative_partners']['top_by_shoots'] | null;
+  loading?: boolean;
   /** Line values for the points between bars (length = data.length + 1). Optional. */
   between?: number[];
   title?: string;
@@ -109,30 +111,25 @@ interface TopCPsByShootsProps {
 }
 
 export default function TopCPsByShoots({
-  data,
+  data = null,
+  loading = false,
   between,
   title = 'Top CPs By Shoots',
   infoText = 'Top 10 CPs with the highest number of assigned/completed shoots .',
 }: TopCPsByShootsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
 
-  const cps = data ?? DUMMY_CPS;
-  const rows: Row[] = useMemo(
-    () => buildRows(cps, between ?? (data ? [] : DUMMY_BETWEEN)),
-    [cps, between, data]
+  const cps: CPShoots[] = useMemo(
+    () => (data ?? []).map((cp) => ({ id: cp.id, name: cp.name, shoots: cp.shoots, trend: cp.shoots })),
+    [data]
   );
+  const rows: Row[] = useMemo(() => buildRows(cps, between ?? []), [cps, between]);
 
   // Y axis: 0–100 like the design, growing in steps of 20 if data goes higher
   const maxVal = Math.max(100, ...rows.map((r: Row) => Math.max(r.shoots ?? 0, r.trend)));
