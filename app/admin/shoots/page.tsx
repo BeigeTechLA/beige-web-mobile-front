@@ -1211,9 +1211,7 @@ export default function ShootsPage() {
           </>
         )}
 
-        {viewMode === "calendar" ? (
-        <>
-          {/* Back */}
+        {(viewMode === "calendar" || viewMode === "globe") && (
           <div
             className={`flex h-[42px] items-center px-1 ${
               isDark ? "bg-[#111111]" : "bg-white"
@@ -1232,7 +1230,10 @@ export default function ShootsPage() {
               Back
             </button>
           </div>
+        )}
 
+        {viewMode === "calendar" ? (
+        <>
             {/* Search + Filter */}
             <div className="space-y-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1443,7 +1444,6 @@ export default function ShootsPage() {
       ) : viewMode === "globe" ? (
         <ShootsGlobeView
           isDark={isDark}
-          onBack={() => setViewMode("grid")}
           onOpenCalendarDay={(date) => {
             setCalendarOpenDate(date);
             setViewMode("calendar");
